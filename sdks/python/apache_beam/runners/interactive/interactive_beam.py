@@ -46,6 +46,7 @@ from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
+from apache_beam.runners.interactive.utils import progress_indicated
 from apache_beam.runners.interactive.utils import to_element_list
 
 _LOGGER = logging.getLogger(__name__)
@@ -261,6 +262,7 @@ def watch(watchable):
 # TODO(BEAM-8288): Change the signature of this function to
 # `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
 # is completely deprecated from Beam.
+@progress_indicated
 def show(*pcolls, **configs):
   # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], **bool) -> None
 
@@ -449,6 +451,7 @@ def collect(pcoll, include_window_info=False):
   return head(pcoll, n=-1, include_window_info=include_window_info)
 
 
+@progress_indicated
 def head(pcoll, n=5, include_window_info=False):
   """Materializes the first n elements from a PCollection into a Dataframe.
 
@@ -528,6 +531,7 @@ def head(pcoll, n=5, include_window_info=False):
   return elements_to_df(results, include_window_info=include_window_info)
 
 
+@progress_indicated
 def show_graph(pipeline):
   """Shows the current pipeline shape of a given Beam pipeline as a DAG.
   """

@@ -39,9 +39,11 @@ from typing import Any
 from typing import Callable
 from typing import DefaultDict
 from typing import Dict
+from typing import FrozenSet
 from typing import Iterable
 from typing import Iterator
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import Tuple
 
@@ -50,8 +52,10 @@ from future.utils import raise_
 from future.utils import with_metaclass
 
 from apache_beam.coders import coder_impl
+from apache_beam.metrics import monitoring_infos
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
@@ -74,6 +78,52 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_LOG_LULL_TIMEOUT_NS = 5 * 60 * 1000 * 1000 * 1000
 
 DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
+
+
+class ShortIdCache(object):
+  """ Cache for MonitoringInfo "short ids"
+  """
+  def __init__(self):
+    self._lock = threading.Lock()
+    self._lastShortId = 0
+    self._infoKeyToShortId = {}  # type: Dict[FrozenSet, str]
+    self._shortIdToInfo = {}  # type: Dict[str, metrics_pb2.MonitoringInfo]
+
+  def getShortId(self, monitoring_info):
+    # type: (metrics_pb2.MonitoringInfo) -> str
+
+    """ Returns the assigned shortId for a given MonitoringInfo, assigns one if
+    not assigned already.
+    """
+    key = monitoring_infos.to_key(monitoring_info)
+    with self._lock:
+      try:
+        return self._infoKeyToShortId[key]
+      except KeyError:
+        self._lastShortId += 1
+
+        # Convert to a hex string (and drop the '0x') for some compression
+        shortId = hex(self._lastShortId)[2:]
+
+        payload_cleared = metrics_pb2.MonitoringInfo()
+        payload_cleared.CopyFrom(monitoring_info)
+        payload_cleared.ClearField('payload')
+
+        self._infoKeyToShortId[key] = shortId
+        self._shortIdToInfo[shortId] = payload_cleared
+        return shortId
+
+  def getInfos(self, short_ids):
+    #type: (Iterable[str]) -> List[metrics_pb2.MonitoringInfo]
+
+    """ Gets the base MonitoringInfo (with payload cleared) for each short ID.
+
+    Throws KeyError if an unassigned short ID is encountered.
+    """
+    return [self._shortIdToInfo[short_id] for short_id in short_ids]
+
+
+SHORT_ID_CACHE = ShortIdCache()
 
 
 class SdkHarness(object):
@@ -112,7 +162,11 @@ class SdkHarness(object):
     self._state_handler_factory = GrpcStateHandlerFactory(
         self._state_cache, credentials)
     self._profiler_factory = profiler_factory
-    self._fns = {}  # type: Dict[str, beam_fn_api_pb2.ProcessBundleDescriptor]
+    self._fns = KeyedDefaultDict(
+        lambda id: self._control_stub.GetProcessBundleDescriptor(
+            beam_fn_api_pb2.GetProcessBundleDescriptorRequest(
+                process_bundle_descriptor_id=id))
+    )  # type: Mapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
     # BundleProcessor cache across all workers.
     self._bundle_processor_cache = BundleProcessorCache(
         state_handler_factory=self._state_handler_factory,
@@ -141,7 +195,8 @@ class SdkHarness(object):
     _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')
 
   def run(self):
-    control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
+    self._control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(
+        self._control_channel)
     no_more_work = object()
 
     def get_responses():
@@ -155,7 +210,7 @@ class SdkHarness(object):
     self._alive = True
 
     try:
-      for work_request in control_stub.Control(get_responses()):
+      for work_request in self._control_stub.Control(get_responses()):
         _LOGGER.debug('Got work %s', work_request.instruction_id)
         request_type = work_request.WhichOneof('request')
         # Name spacing the request method with 'request_'. The called method
@@ -281,7 +336,7 @@ class BundleProcessorCache(object):
   def __init__(self,
                state_handler_factory,  # type: StateHandlerFactory
                data_channel_factory,  # type: data_plane.DataChannelFactory
-               fns  # type: Dict[str, beam_fn_api_pb2.ProcessBundleDescriptor]
+               fns  # type: Mapping[str, beam_fn_api_pb2.ProcessBundleDescriptor]
               ):
     self.fns = fns
     self.state_handler_factory = state_handler_factory
@@ -290,8 +345,8 @@ class BundleProcessorCache(object):
     }  # type: Dict[str, Tuple[str, bundle_processor.BundleProcessor]]
     self.cached_bundle_processors = collections.defaultdict(
         list)  # type: DefaultDict[str, List[bundle_processor.BundleProcessor]]
-    self.last_access_times = \
-        collections.defaultdict(float)  # type: DefaultDict[str, float]
+    self.last_access_times = collections.defaultdict(
+        float)  # type: DefaultDict[str, float]
     self._schedule_periodic_shutdown()
 
   def register(self, bundle_descriptor):
@@ -455,8 +510,11 @@ class SdkWorker(object):
               instruction_id=instruction_id,
               process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
                   residual_roots=delayed_applications,
-                  metrics=bundle_processor.metrics(),
                   monitoring_infos=monitoring_infos,
+                  monitoring_data={
+                      SHORT_ID_CACHE.getShortId(info): info.payload
+                      for info in monitoring_infos
+                  },
                   requires_finalization=requests_finalization))
       # Don't release here if finalize is needed.
       if not requests_finalization:
@@ -517,11 +575,28 @@ class SdkWorker(object):
     processor = self.bundle_processor_cache.lookup(request.instruction_id)
     if processor:
       self._log_lull_in_bundle_processor(processor)
+
+    monitoring_infos = processor.monitoring_infos() if processor else []
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
             metrics=processor.metrics() if processor else None,
-            monitoring_infos=processor.monitoring_infos() if processor else []))
+            monitoring_infos=monitoring_infos,
+            monitoring_data={
+                SHORT_ID_CACHE.getShortId(info): info.payload
+                for info in monitoring_infos
+            }))
+
+  def process_bundle_progress_metadata_request(self,
+                                               request,  # type: beam_fn_api_pb2.ProcessBundleProgressMetadataRequest
+                                               instruction_id  # type: str
+                                              ):
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        process_bundle_progress=beam_fn_api_pb2.
+        ProcessBundleProgressMetadataResponse(
+            monitoring_info=SHORT_ID_CACHE.getInfos(
+                request.monitoring_info_id)))
 
   def finalize_bundle(self,
                       request,  # type: beam_fn_api_pb2.FinalizeBundleRequest
@@ -581,7 +656,8 @@ class StateHandler(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
     raise NotImplementedError(type(self))
 
 
-class StateHandlerFactory(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class StateHandlerFactory(with_metaclass(abc.ABCMeta,
+                                         object)):  # type: ignore[misc]
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
   def create_state_handler(self, api_service_descriptor):
@@ -996,3 +1072,9 @@ class _Future(object):
       done_future.set(None)
       cls.DONE = done_future  # type: ignore[attr-defined]
     return cls.DONE  # type: ignore[attr-defined]
+
+
+class KeyedDefaultDict(collections.defaultdict):
+  def __missing__(self, key):
+    self[key] = self.default_factory(key)
+    return self[key]

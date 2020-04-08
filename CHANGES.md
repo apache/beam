@@ -52,6 +52,14 @@
 ## Highlights
 
 ## I/Os
+* Python: Deprecated module `apache_beam.io.gcp.datastore.v1` has been removed
+as the client it uses is out of date and does not support Python 3
+([BEAM-9529](https://issues.apache.org/jira/browse/BEAM-9529)).
+Please migrate your code to use
+[apache_beam.io.gcp.datastore.**v1new**](https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html).
+See the updated
+[datastore_wordcount](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py)
+for example usage.
 
 ## New Features / Improvements
 * Python SDK will now use Python 3 type annotations as pipeline type hints.
@@ -68,12 +76,23 @@
     and an upcoming
     [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
 
+* Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
+context to fields and schemas. This replaces the current Beam metadata that is present 
+in a FieldType only, options are available in fields and row schemas. Schema options are
+fully typed and can contain complex rows. *Remark: Schema aware is still experimental.*
+([BEAM-9035](https://issues.apache.org/jira/browse/BEAM-9035))
+* Java SDK: The protobuf extension is fully schema aware and also includes protobuf option
+conversion to beam schema options. *Remark: Schema aware is still experimental.*
+([BEAM-9044](https://issues.apache.org/jira/browse/BEAM-9044))
+
 ## Breaking Changes
 
 * HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects ([BEAM-9279](https://issues.apache.org/jira/browse/BEAM-9279)).
 * ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator ([BEAM-9430](https://issues.apache.org/jira/browse/BEAM-9430)).
 
 ## Deprecations
+* Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
+Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://issues.apache.org/jira/browse/BEAM-9704))
 
 ## Known Issues
 

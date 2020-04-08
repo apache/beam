@@ -41,9 +41,9 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcContextHeaderAccessorProvider;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactRetrievalService;
-import org.apache.beam.runners.fnexecution.artifact.ClassLoaderArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ClassLoaderLegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.ExecutableProcessBundleDescriptor;
 import org.apache.beam.runners.fnexecution.control.SdkHarnessClient.BundleProcessor;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
@@ -619,12 +619,12 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     PortablePipelineOptions portableOptions =
         PipelineOptionsTranslation.fromProto(jobInfo.pipelineOptions())
             .as(PortablePipelineOptions.class);
-    ArtifactRetrievalService artifactRetrievalService;
+    LegacyArtifactRetrievalService artifactRetrievalService;
 
     if (portableOptions.getRetrievalServiceType() == RetrievalServiceType.CLASSLOADER) {
-      artifactRetrievalService = new ClassLoaderArtifactRetrievalService();
+      artifactRetrievalService = new ClassLoaderLegacyArtifactRetrievalService();
     } else {
-      artifactRetrievalService = BeamFileSystemArtifactRetrievalService.create();
+      artifactRetrievalService = BeamFileSystemLegacyArtifactRetrievalService.create();
     }
 
     GrpcFnServer<FnApiControlClientPoolService> controlServer =
@@ -635,7 +635,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
     GrpcFnServer<GrpcLoggingService> loggingServer =
         GrpcFnServer.allocatePortAndCreateFor(
             GrpcLoggingService.forWriter(Slf4jLogWriter.getDefault()), serverFactory);
-    GrpcFnServer<ArtifactRetrievalService> retrievalServer =
+    GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer =
         GrpcFnServer.allocatePortAndCreateFor(artifactRetrievalService, serverFactory);
     ProvisionApi.ProvisionInfo.Builder provisionInfo = jobInfo.toProvisionInfo().toBuilder();
     provisionInfo.setLoggingEndpoint(loggingServer.getApiServiceDescriptor());
@@ -671,7 +671,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
     abstract GrpcFnServer<GrpcLoggingService> getLoggingServer();
 
-    abstract GrpcFnServer<ArtifactRetrievalService> getRetrievalServer();
+    abstract GrpcFnServer<LegacyArtifactRetrievalService> getRetrievalServer();
 
     abstract GrpcFnServer<StaticGrpcProvisionService> getProvisioningServer();
 
@@ -687,7 +687,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
 
       abstract Builder setLoggingServer(GrpcFnServer<GrpcLoggingService> server);
 
-      abstract Builder setRetrievalServer(GrpcFnServer<ArtifactRetrievalService> server);
+      abstract Builder setRetrievalServer(GrpcFnServer<LegacyArtifactRetrievalService> server);
 
       abstract Builder setProvisioningServer(GrpcFnServer<StaticGrpcProvisionService> server);
 

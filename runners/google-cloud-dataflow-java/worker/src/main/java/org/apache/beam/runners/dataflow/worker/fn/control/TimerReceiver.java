@@ -120,10 +120,14 @@ public class TimerReceiver {
 
         TimerInternals timerInternals = stepContext.namespacedToUser().timerInternals();
         timerInternals.setTimer(
-            namespace, timerId, "", timer.getTimestamp(), windowedValue.getTimestamp(), timeDomain);
+            namespace,
+            timerId,
+            "",
+            timer.getFireTimestamp(),
+            windowedValue.getTimestamp(),
+            timeDomain);
 
         timerIdToKey.put(timerId, windowedValue.getValue().getKey());
-        timerIdToPayload.put(timerId, timer.getPayload());
       }
       return true;
     }
@@ -143,7 +147,13 @@ public class TimerReceiver {
           WindowedValue.of(
               KV.of(
                   timerIdToKey.get(timerData.getTimerId()),
-                  Timer.of(timerData.getTimestamp(), timerIdToPayload.get(timerData.getTimerId()))),
+                  Timer.of(
+                      "",
+                      "",
+                      Collections.singleton(GlobalWindow.INSTANCE),
+                      timerData.getOutputTimestamp(),
+                      timerData.getOutputTimestamp(),
+                      PaneInfo.NO_FIRING)),
               timerData.getOutputTimestamp(),
               Collections.singleton(window),
               PaneInfo.NO_FIRING);

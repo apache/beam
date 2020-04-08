@@ -43,6 +43,7 @@ const (
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert = "beam:transform:combine_per_key_convert_to_accumulators:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -332,7 +333,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 		var data string
 		switch urn {
 		case graphx.URNParDo:
@@ -341,7 +342,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
-		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 			var cmb pb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
@@ -426,6 +427,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
+				case urnPerKeyCombineConvert:
+					u = &ConvertToAccumulators{Combine: cn}
 				default: // For unlifted combines
 					u = cn
 				}

@@ -417,7 +417,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 @Override
                 public boolean isStateful() {
                   return !signature.stateDeclarations().isEmpty()
-                      || !signature.timerDeclarations().isEmpty();
+                      || !signature.timerDeclarations().isEmpty()
+                      || !signature.timerFamilyDeclarations().isEmpty();
                 }
 
                 @Override

@@ -55,7 +55,6 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability.fn_api_runner import execution
@@ -65,7 +64,6 @@ from apache_beam.runners.portability.fn_api_runner.execution import WindowGroupi
 from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
-from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import WorkerHandlerManager
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import environments
@@ -120,7 +118,6 @@ class FnApiRunner(runner.PipelineRunner):
           waits before requesting progress from the SDK.
     """
     super(FnApiRunner, self).__init__()
-    self._last_uid = -1
     self._default_environment = (
         default_environment or environments.EmbeddedPythonEnvironment())
     self._bundle_repeat = bundle_repeat
@@ -131,10 +128,6 @@ class FnApiRunner(runner.PipelineRunner):
     self._provision_info = provision_info or ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
             retrieval_token='unused-retrieval-token'))
-
-  def _next_uid(self):
-    self._last_uid += 1
-    return str(self._last_uid)
 
   @staticmethod
   def supported_requirements():
@@ -325,11 +318,10 @@ class FnApiRunner(runner.PipelineRunner):
     """
     worker_handler_manager = WorkerHandlerManager(
         stage_context.components.environments, self._provision_info)
-    metrics_by_stage = {}
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
-        worker_handler_manager.get_worker_handlers,
+        worker_handler_manager,
         stage_context.components,
         stage_context.safe_coders,
         stage_context.data_channel_coders)
@@ -337,24 +329,26 @@ class FnApiRunner(runner.PipelineRunner):
     try:
       with self.maybe_profile():
         for stage in stages:
-          stage_results = self._run_stage(runner_execution_context, stage)
-          metrics_by_stage[stage.name] = stage_results.process_bundle.metrics
+          bundle_context_manager = execution.BundleContextManager(
+              runner_execution_context, stage, self._num_workers)
+          stage_results = self._run_stage(
+              runner_execution_context,
+              bundle_context_manager,
+          )
           monitoring_infos_by_stage[stage.name] = (
               stage_results.process_bundle.monitoring_infos)
     finally:
       worker_handler_manager.close_all()
-    return RunnerResult(
-        runner.PipelineState.DONE, monitoring_infos_by_stage, metrics_by_stage)
+    return RunnerResult(runner.PipelineState.DONE, monitoring_infos_by_stage)
 
   def _store_side_inputs_in_state(self,
-                                  bundle_context_manager,  # type: execution.BundleContextManager
                                   runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
                                   data_side_input,  # type: DataSideInput
                                  ):
     # type: (...) -> None
     for (transform_id, tag), (buffer_id, si) in data_side_input.items():
       _, pcoll_id = split_buffer_id(buffer_id)
-      value_coder = bundle_context_manager.pipeline_context.coders[
+      value_coder = runner_execution_context.pipeline_context.coders[
           runner_execution_context.safe_coders[
               runner_execution_context.data_channel_coders[pcoll_id]]]
       elements_by_window = WindowGroupingBuffer(si, value_coder)
@@ -369,8 +363,9 @@ class FnApiRunner(runner.PipelineRunner):
           state_key = beam_fn_api_pb2.StateKey(
               iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
                   transform_id=transform_id, side_input_id=tag, window=window))
-          bundle_context_manager.worker_handler.state.append_raw(
-              state_key, elements_data)
+          (
+              runner_execution_context.worker_handler_manager.state_servicer.
+              append_raw(state_key, elements_data))
       elif si.urn == common_urns.side_inputs.MULTIMAP.urn:
         for key, window, elements_data in elements_by_window.encoded_items():
           state_key = beam_fn_api_pb2.StateKey(
@@ -379,14 +374,15 @@ class FnApiRunner(runner.PipelineRunner):
                   side_input_id=tag,
                   window=window,
                   key=key))
-          bundle_context_manager.worker_handler.state.append_raw(
-              state_key, elements_data)
+          (
+              runner_execution_context.worker_handler_manager.state_servicer.
+              append_raw(state_key, elements_data))
       else:
         raise ValueError("Unknown access pattern: '%s'" % si.urn)
 
   def _run_bundle_multiple_times_for_testing(
       self,
-      worker_handler_list,  # type: Sequence[WorkerHandler]
+      runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
       bundle_context_manager,  # type: execution.BundleContextManager
       data_input,
       data_output,  # type: DataOutput
@@ -398,12 +394,11 @@ class FnApiRunner(runner.PipelineRunner):
     If bundle_repeat > 0, replay every bundle for profiling and debugging.
     """
     # all workers share state, so use any worker_handler.
-    worker_handler = worker_handler_list[0]
     for k in range(self._bundle_repeat):
       try:
-        worker_handler.state.checkpoint()
+        runner_execution_context.state_servicer.checkpoint()
         testing_bundle_manager = ParallelBundleManager(
-            worker_handler_list,
+            bundle_context_manager.worker_handlers,
             lambda pcoll_id,
             transform_id: ListBuffer(
                 coder_impl=bundle_context_manager.get_input_coder_impl),
@@ -415,24 +410,24 @@ class FnApiRunner(runner.PipelineRunner):
             cache_token_generator=cache_token_generator)
         testing_bundle_manager.process_bundle(data_input, data_output)
       finally:
-        worker_handler.state.restore()
+        runner_execution_context.state_servicer.restore()
 
   def _collect_written_timers_and_add_to_deferred_inputs(
       self,
-      pipeline_components,  # type: beam_runner_api_pb2.Components
-      stage,  # type: translations.Stage
+      runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
       bundle_context_manager,  # type: execution.BundleContextManager
       deferred_inputs,  # type: MutableMapping[str, PartitionableBuffer]
-      data_channel_coders,  # type: Mapping[str, str]
   ):
     # type: (...) -> None
 
-    for transform_id, timer_writes in stage.timer_pcollections:
+    for (transform_id,
+         timer_writes) in bundle_context_manager.stage.timer_pcollections:
 
       # Queue any set timers as new inputs.
       windowed_timer_coder_impl = (
-          bundle_context_manager.pipeline_context.coders[
-              data_channel_coders[timer_writes]].get_impl())
+          runner_execution_context.pipeline_context.coders[
+              runner_execution_context.data_channel_coders[timer_writes]].
+          get_impl())
       written_timers = bundle_context_manager.get_buffer(
           create_buffer_id(timer_writes, kind='timers'), transform_id)
       if not written_timers.cleared:
@@ -511,87 +506,34 @@ class FnApiRunner(runner.PipelineRunner):
 
   def _run_stage(self,
                  runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
-                 stage,  # type: translations.Stage
+                 bundle_context_manager,  # type: execution.BundleContextManager
                 ):
     # type: (...) -> beam_fn_api_pb2.InstructionResponse
 
     """Run an individual stage.
 
     Args:
-      worker_handler_factory: A ``callable`` that takes in an environment id
-        and a number of workers, and returns a list of ``WorkerHandler``s.
-      stage (translations.Stage)
+      runner_execution_context (execution.FnApiRunnerExecutionContext): An
+        object containing execution information for the pipeline.
+      stage (translations.Stage): A description of the stage to execute.
     """
-    def iterable_state_write(values, element_coder_impl):
-      # type: (...) -> bytes
-      token = unique_name(None, 'iter').encode('ascii')
-      out = create_OutputStream()
-      for element in values:
-        element_coder_impl.encode_to_stream(element, out, True)
-      worker_handler.state.append_raw(
-          beam_fn_api_pb2.StateKey(
-              runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
-          out.get())
-      return token
-
-    worker_handler_list = runner_execution_context.worker_handler_factory(
-        stage.environment, self._num_workers)
-
-    # All worker_handlers share the same grpc server, so we can read grpc server
-    # info from any worker_handler and read from the first worker_handler.
-    worker_handler = next(iter(worker_handler_list))
-    context = pipeline_context.PipelineContext(
-        runner_execution_context.pipeline_components,
-        iterable_state_write=iterable_state_write)
-    data_api_service_descriptor = worker_handler.data_api_service_descriptor()
-
-    _LOGGER.info('Running %s', stage.name)
+    worker_handler_list = bundle_context_manager.worker_handlers
+    worker_handler_manager = runner_execution_context.worker_handler_manager
+    _LOGGER.info('Running %s', bundle_context_manager.stage.name)
     data_input, data_side_input, data_output = self._extract_endpoints(
-        stage,
-        runner_execution_context.pipeline_components,
-        data_api_service_descriptor,
-        runner_execution_context.pcoll_buffers,
-        context,
-        runner_execution_context.safe_coders,
-        runner_execution_context.data_channel_coders)
-
-    process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
-        id=self._next_uid(),
-        transforms={
-            transform.unique_name: transform
-            for transform in stage.transforms
-        },
-        pcollections=dict(
-            runner_execution_context.pipeline_components.pcollections.items()),
-        coders=dict(
-            runner_execution_context.pipeline_components.coders.items()),
-        windowing_strategies=dict(
-            runner_execution_context.pipeline_components.windowing_strategies.
-            items()),
-        environments=dict(
-            runner_execution_context.pipeline_components.environments.items()))
-
-    bundle_context_manager = execution.BundleContextManager(
-        runner_execution_context,
-        process_bundle_descriptor,
-        worker_handler,
-        context)
-
-    state_api_service_descriptor = worker_handler.state_api_service_descriptor()
-    if state_api_service_descriptor:
-      process_bundle_descriptor.state_api_service_descriptor.url = (
-          state_api_service_descriptor.url)
+        bundle_context_manager, runner_execution_context)
+    worker_handler_manager.register_process_bundle_descriptor(
+        bundle_context_manager.process_bundle_descriptor)
 
     # Store the required side inputs into state so it is accessible for the
     # worker when it runs this bundle.
-    self._store_side_inputs_in_state(
-        bundle_context_manager, runner_execution_context, data_side_input)
+    self._store_side_inputs_in_state(runner_execution_context, data_side_input)
 
     # Change cache token across bundle repeats
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
 
     self._run_bundle_multiple_times_for_testing(
-        worker_handler_list,
+        runner_execution_context,
         bundle_context_manager,
         data_input,
         data_output,
@@ -601,7 +543,7 @@ class FnApiRunner(runner.PipelineRunner):
         worker_handler_list,
         bundle_context_manager.get_buffer,
         bundle_context_manager.get_input_coder_impl,
-        process_bundle_descriptor,
+        bundle_context_manager.process_bundle_descriptor,
         self._progress_frequency,
         num_workers=self._num_workers,
         cache_token_generator=cache_token_generator)
@@ -619,11 +561,7 @@ class FnApiRunner(runner.PipelineRunner):
       deferred_inputs = {}  # type: Dict[str, PartitionableBuffer]
 
       self._collect_written_timers_and_add_to_deferred_inputs(
-          runner_execution_context.pipeline_components,
-          stage,
-          bundle_context_manager,
-          deferred_inputs,
-          runner_execution_context.data_channel_coders)
+          runner_execution_context, bundle_context_manager, deferred_inputs)
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
         name = bundle_context_manager.input_for(
@@ -663,13 +601,8 @@ class FnApiRunner(runner.PipelineRunner):
     return result
 
   @staticmethod
-  def _extract_endpoints(stage,  # type: translations.Stage
-                         pipeline_components,  # type: beam_runner_api_pb2.Components
-                         data_api_service_descriptor, # type: Optional[endpoints_pb2.ApiServiceDescriptor]
-                         pcoll_buffers,  # type: MutableMapping[bytes, PartitionableBuffer]
-                         context,  # type: pipeline_context.PipelineContext
-                         safe_coders,  # type: Mapping[str, str]
-                         data_channel_coders,  # type: Mapping[str, str]
+  def _extract_endpoints(bundle_context_manager,  # type: execution.BundleContextManager
+                         runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
                          ):
     # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataSideInput, DataOutput]
 
@@ -680,11 +613,7 @@ class FnApiRunner(runner.PipelineRunner):
     Args:
       stage (translations.Stage): The stage to extract endpoints
         for.
-      pipeline_components (beam_runner_api_pb2.Components): Components of the
-        pipeline to include coders, transforms, PCollections, etc.
       data_api_service_descriptor: A GRPC endpoint descriptor for data plane.
-      pcoll_buffers (dict): A dictionary containing buffers for PCollection
-        elements.
     Returns:
       A tuple of (data_input, data_side_input, data_output) dictionaries.
         `data_input` is a dictionary mapping (transform_name, output_name) to a
@@ -694,30 +623,34 @@ class FnApiRunner(runner.PipelineRunner):
     data_input = {}  # type: Dict[str, PartitionableBuffer]
     data_side_input = {}  # type: DataSideInput
     data_output = {}  # type: DataOutput
-
-    for transform in stage.transforms:
+    for transform in bundle_context_manager.stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
         pcoll_id = transform.spec.payload
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          coder_id = data_channel_coders[only_element(
+          coder_id = runner_execution_context.data_channel_coders[only_element(
               transform.outputs.values())]
-          coder = context.coders[safe_coders.get(coder_id, coder_id)]
+          coder = runner_execution_context.pipeline_context.coders[
+              runner_execution_context.safe_coders.get(coder_id, coder_id)]
           if pcoll_id == translations.IMPULSE_BUFFER:
             data_input[transform.unique_name] = ListBuffer(
                 coder_impl=coder.get_impl())
             data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
           else:
-            if pcoll_id not in pcoll_buffers:
-              pcoll_buffers[pcoll_id] = ListBuffer(coder_impl=coder.get_impl())
-            data_input[transform.unique_name] = pcoll_buffers[pcoll_id]
+            if pcoll_id not in runner_execution_context.pcoll_buffers:
+              runner_execution_context.pcoll_buffers[pcoll_id] = ListBuffer(
+                  coder_impl=coder.get_impl())
+            data_input[transform.unique_name] = (
+                runner_execution_context.pcoll_buffers[pcoll_id])
         elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
           data_output[transform.unique_name] = pcoll_id
-          coder_id = data_channel_coders[only_element(
+          coder_id = runner_execution_context.data_channel_coders[only_element(
               transform.inputs.values())]
         else:
           raise NotImplementedError
         data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
+        data_api_service_descriptor = (
+            bundle_context_manager.data_api_service_descriptor())
         if data_api_service_descriptor:
           data_spec.api_service_descriptor.url = (
               data_api_service_descriptor.url)
@@ -771,10 +704,6 @@ class FnApiRunner(runner.PipelineRunner):
     return StaticGenerator() if static else DynamicGenerator()
 
 
-# The subprocesses module is not threadsafe on Python 2.7. Use this lock to
-# prevent concurrent calls to POpen().
-
-
 class ExtendedProvisionInfo(object):
   def __init__(self,
                provision_info=None,  # type: Optional[beam_provision_api_pb2.ProvisionInfo]
@@ -785,6 +714,15 @@ class ExtendedProvisionInfo(object):
         provision_info or beam_provision_api_pb2.ProvisionInfo())
     self.artifact_staging_dir = artifact_staging_dir
     self.job_name = job_name
+
+  def for_environment(self, env):
+    if env.dependencies:
+      provision_info_with_deps = self.provision_info.copy()
+      provision_info_with_deps.dependencies = env.dependencies
+      return ExtendedProvisionInfo(
+          provision_info_with_deps, self.artifact_staging_dir, self.job_name)
+    else:
+      return self
 
 
 _split_managers = []
@@ -1190,10 +1128,9 @@ class FnApiMetrics(metric.MetricResults):
 
 
 class RunnerResult(runner.PipelineResult):
-  def __init__(self, state, monitoring_infos_by_stage, metrics_by_stage):
+  def __init__(self, state, monitoring_infos_by_stage):
     super(RunnerResult, self).__init__(state)
     self._monitoring_infos_by_stage = monitoring_infos_by_stage
-    self._metrics_by_stage = metrics_by_stage
     self._metrics = None
     self._monitoring_metrics = None
 

@@ -342,6 +342,14 @@ message StandardPTransforms {
     // https://s.apache.org/beam-runner-api-combine-model#heading=h.aj86ew4v1wk
     // Payload: CombinePayload
     COMBINE_GROUPED_VALUES = 3 [(beam_urn) = "beam:transform:combine_grouped_values:v1"];
+
+    // Represents the Convert To Accumulators transform, as described in the
+    // following document:
+    // https://s.apache.org/beam-runner-api-combine-model#heading=h.h5697l1scd9x
+    // Payload: CombinePayload
+    COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS = 4
+        [(beam_urn) =
+             "beam:transform:combine_per_key_convert_to_accumulators:v1"];
   }
   // Payload for all of these: ParDoPayload containing the user's SDF
   enum SplittableParDoComponents {
@@ -693,9 +701,14 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
-    // Encodes a timer containing a timestamp and a user specified payload.
-    // The encoding is represented as: timestamp payload
-    //   timestamp - a big endian 8 byte integer representing millis-since-epoch.
+    // Encodes a timer containing a user key, a dynamic timer tag, a clear bit,
+    // a fire timestamp, a hold timestamp, the windows and the paneinfo.
+    // The encoding is represented as:
+    //   user key - user defined key, uses the component coder.
+    //   dynamic timer tag - a string which identifies a timer.
+    //   windows - uses component coders.
+    //   clear bit - a boolean set for clearing the timer.
+    //   fire timestamp - a big endian 8 byte integer representing millis-since-epoch.
     //     The encoded representation is shifted so that the byte representation of
     //     negative values are lexicographically ordered before the byte representation
     //     of positive values. This is typically done by subtracting -9223372036854775808
@@ -708,8 +721,9 @@ message StandardCoders {
     //                        1: 80 00 00 00 00 00 00 01
     //                      256: 80 00 00 00 00 00 01 00
     //      9223372036854775807: FF FF FF FF FF FF FF FF
-    //   payload - user defined data, uses the component coder
-    // Components: Coder for the payload.
+    //   hold timestamp - similar to the fire timestamp.
+    //   paneinfo - similar to the paneinfo of the windowed_value.
+    // Components: Coder for the key and windows.
     TIMER = 4 [(beam_urn) = "beam:coder:timer:v1"];
 
     /*
@@ -1136,23 +1150,27 @@ message StandardArtifacts {
   enum Types {
     // A URN for locally-accessible artifact files.
     // payload: ArtifactFilePayload
-    FILE     = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
+    FILE      = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
 
     // A URN for artifacts described by URLs.
     // payload: ArtifactUrlPayload
-    URL      = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
+    URL       = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
 
     // A URN for artifacts embedded in ArtifactInformation proto.
     // payload: EmbeddedFilePayload.
-    EMBEDDED = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
+    EMBEDDED  = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
 
     // A URN for Python artifacts hosted on PYPI.
     // payload: PypiPayload
-    PYPI     = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
+    PYPI      = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
 
     // A URN for Java artifacts hosted on a Maven repository.
     // payload: MavenPayload
-    MAVEN    = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+    MAVEN     = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+
+    // A URN for deferred artifacts.
+    // payload: DeferredArtifactPayload
+    DEFERRED = 5 [(beam_urn) = "beam:artifact:type:deferred:v1"];
   }
   enum Roles {
     // A URN for staging-to role.
@@ -1162,7 +1180,7 @@ message StandardArtifacts {
 }
 
 message ArtifactFilePayload {
-  // a string for an artifact path e.g. "/tmp/foo.jar"
+  // a string for an artifact file path e.g. "/tmp/foo.jar"
   string path = 1;
 
   // The hex-encoded sha256 checksum of the artifact.
@@ -1171,7 +1189,7 @@ message ArtifactFilePayload {
 
 message ArtifactUrlPayload {
   // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
-  string path = 1;
+  string url = 1;
 }
 
 message EmbeddedFilePayload {
@@ -1194,6 +1212,15 @@ message MavenPayload {
 
   // (Optional) Repository URL. If not specified, Maven central is used by default.
   string repository_url = 2;
+}
+
+message DeferredArtifactPayload {
+  // A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
+  // whether they can parse the data.
+  string key = 1;
+
+  // Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
+  bytes data = 2;
 }
 
 message ArtifactStagingToRolePayload {

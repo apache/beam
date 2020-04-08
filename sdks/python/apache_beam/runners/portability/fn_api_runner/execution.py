@@ -21,6 +21,8 @@ from __future__ import absolute_import
 
 import collections
 import itertools
+from typing import TYPE_CHECKING
+from typing import MutableMapping
 
 from typing_extensions import Protocol
 
@@ -29,13 +31,20 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
+from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import windowed_value
+
+if TYPE_CHECKING:
+  from apache_beam.coders.coder_impl import CoderImpl
+  from apache_beam.runners.portability.fn_api_runner import translations
+  from apache_beam.runners.portability.fn_api_runner import worker_handlers
 
 
 class Buffer(Protocol):
@@ -245,37 +254,108 @@ class FnApiRunnerExecutionContext(object):
        ``beam.PCollection``.
  """
   def __init__(self,
-      worker_handler_factory,  # type: Callable[[Optional[str], int], List[WorkerHandler]]
+      worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
       pipeline_components,  # type: beam_runner_api_pb2.Components
       safe_coders,
       data_channel_coders,
                ):
     """
-    :param worker_handler_factory: A ``callable`` that takes in an environment
-        id and a number of workers, and returns a list of ``WorkerHandler``s.
+    :param worker_handler_manager: This class manages the set of worker
+        handlers, and the communication with state / control APIs.
     :param pipeline_components:  (beam_runner_api_pb2.Components): TODO
     :param safe_coders:
     :param data_channel_coders:
     """
     self.pcoll_buffers = {}  # type: MutableMapping[bytes, PartitionableBuffer]
-    self.worker_handler_factory = worker_handler_factory
+    self.worker_handler_manager = worker_handler_manager
     self.pipeline_components = pipeline_components
     self.safe_coders = safe_coders
     self.data_channel_coders = data_channel_coders
+
+    self.pipeline_context = pipeline_context.PipelineContext(
+        self.pipeline_components,
+        iterable_state_write=self._iterable_state_write)
+    self._last_uid = -1
+
+  @property
+  def state_servicer(self):
+    # TODO(BEAM-9625): Ensure FnApiRunnerExecutionContext owns StateServicer
+    return self.worker_handler_manager.state_servicer
+
+  def next_uid(self):
+    self._last_uid += 1
+    return str(self._last_uid)
+
+  def _iterable_state_write(self, values, element_coder_impl):
+    # type: (...) -> bytes
+    token = unique_name(None, 'iter').encode('ascii')
+    out = create_OutputStream()
+    for element in values:
+      element_coder_impl.encode_to_stream(element, out, True)
+    self.worker_handler_manager.state_servicer.append_raw(
+        beam_fn_api_pb2.StateKey(
+            runner=beam_fn_api_pb2.StateKey.Runner(key=token)),
+        out.get())
+    return token
 
 
 class BundleContextManager(object):
 
   def __init__(self,
-      execution_context, # type: FnApiRunnerExecutionContext
-      process_bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
-      worker_handler,  # type: fn_runner.WorkerHandler
-      p_context,  # type: pipeline_context.PipelineContext
-               ):
+               execution_context, # type: FnApiRunnerExecutionContext
+               stage,  # type: translations.Stage
+               num_workers,  # type: int
+              ):
     self.execution_context = execution_context
-    self.process_bundle_descriptor = process_bundle_descriptor
-    self.worker_handler = worker_handler
-    self.pipeline_context = p_context
+    self.stage = stage
+    self.bundle_uid = self.execution_context.next_uid()
+    self.num_workers = num_workers
+
+    # Properties that are lazily initialized
+    self._process_bundle_descriptor = None
+    self._worker_handlers = None
+
+  @property
+  def worker_handlers(self):
+    if self._worker_handlers is None:
+      self._worker_handlers = (
+          self.execution_context.worker_handler_manager.get_worker_handlers(
+              self.stage.environment, self.num_workers))
+    return self._worker_handlers
+
+  def data_api_service_descriptor(self):
+    # All worker_handlers share the same grpc server, so we can read grpc server
+    # info from any worker_handler and read from the first worker_handler.
+    return self.worker_handlers[0].data_api_service_descriptor()
+
+  def state_api_service_descriptor(self):
+    # All worker_handlers share the same grpc server, so we can read grpc server
+    # info from any worker_handler and read from the first worker_handler.
+    return self.worker_handlers[0].state_api_service_descriptor()
+
+  @property
+  def process_bundle_descriptor(self):
+    if self._process_bundle_descriptor is None:
+      self._process_bundle_descriptor = self._build_process_bundle_descriptor()
+    return self._process_bundle_descriptor
+
+  def _build_process_bundle_descriptor(self):
+    # Cannot be invoked until *after* _extract_endpoints is called.
+    return beam_fn_api_pb2.ProcessBundleDescriptor(
+        id=self.bundle_uid,
+        transforms={
+            transform.unique_name: transform
+            for transform in self.stage.transforms
+        },
+        pcollections=dict(
+            self.execution_context.pipeline_components.pcollections.items()),
+        coders=dict(self.execution_context.pipeline_components.coders.items()),
+        windowing_strategies=dict(
+            self.execution_context.pipeline_components.windowing_strategies.
+            items()),
+        environments=dict(
+            self.execution_context.pipeline_components.environments.items()),
+        state_api_service_descriptor=self.state_api_service_descriptor())
 
   def get_input_coder_impl(self, transform_id):
     # type: (str) -> CoderImpl
@@ -284,10 +364,10 @@ class BundleContextManager(object):
     ).coder_id
     assert coder_id
     if coder_id in self.execution_context.safe_coders:
-      return self.pipeline_context.coders[
+      return self.execution_context.pipeline_context.coders[
           self.execution_context.safe_coders[coder_id]].get_impl()
     else:
-      return self.pipeline_context.coders[coder_id].get_impl()
+      return self.execution_context.pipeline_context.coders[coder_id].get_impl()
 
   def get_buffer(self, buffer_id, transform_id):
     # type: (bytes, str) -> PartitionableBuffer
@@ -310,15 +390,16 @@ class BundleContextManager(object):
             original_gbk_transform]
         input_pcoll = only_element(list(transform_proto.inputs.values()))
         output_pcoll = only_element(list(transform_proto.outputs.values()))
-        pre_gbk_coder = self.pipeline_context.coders[
+        pre_gbk_coder = self.execution_context.pipeline_context.coders[
             self.execution_context.safe_coders[
                 self.execution_context.data_channel_coders[input_pcoll]]]
-        post_gbk_coder = self.pipeline_context.coders[
+        post_gbk_coder = self.execution_context.pipeline_context.coders[
             self.execution_context.safe_coders[
                 self.execution_context.data_channel_coders[output_pcoll]]]
-        windowing_strategy = self.pipeline_context.windowing_strategies[
-            self.execution_context.pipeline_components.
-            pcollections[output_pcoll].windowing_strategy_id]
+        windowing_strategy = (
+            self.execution_context.pipeline_context.windowing_strategies[
+                self.execution_context.pipeline_components.
+                pcollections[output_pcoll].windowing_strategy_id])
         self.execution_context.pcoll_buffers[buffer_id] = GroupingBuffer(
             pre_gbk_coder, post_gbk_coder, windowing_strategy)
     else:

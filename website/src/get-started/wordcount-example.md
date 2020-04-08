@@ -374,6 +374,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+                  --project=YOUR_PROJECT --region=GCE_REGION \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
      -Pdataflow-runner
 ```
@@ -437,6 +438,7 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --output gs://YOUR_GCS_BUCKET/counts \
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
+                                         --region YOUR_GCP_REGION \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
 ```
 
@@ -739,6 +741,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordC
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
    -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
+                --project=YOUR_PROJECT --region=GCE_REGION \
                 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
      -Pdataflow-runner
 ```
@@ -1104,6 +1107,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
    -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://YOUR_GCS_BUCKET/tmp \
+                --project=YOUR_PROJECT --region=GCE_REGION \
                 --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://YOUR_GCS_BUCKET/counts" \
      -Pdataflow-runner
 ```
@@ -1168,6 +1172,7 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
                                          --output_table PROJECT:DATASET.TABLE \
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
+                                         --region YOUR_GCP_REGION \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
 ```
 
@@ -1492,6 +1497,7 @@ pip install apache-beam[gcp]
 python -m apache_beam.examples.streaming_wordcount \
   --runner DataflowRunner \
   --project YOUR_GCP_PROJECT \
+  --region YOUR_GCP_REGION \
   --temp_location gs://YOUR_GCS_BUCKET/tmp/ \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \

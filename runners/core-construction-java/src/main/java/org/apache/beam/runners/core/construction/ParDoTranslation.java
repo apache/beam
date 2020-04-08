@@ -50,7 +50,7 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -70,6 +70,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -195,9 +196,7 @@ public class ParDoTranslation {
                 mainInput.isBounded(),
                 KvCoder.of(
                     ((KvCoder) mainInput.getCoder()).getKeyCoder(),
-                    // TODO: Add support for timer payloads to the SDK
-                    // We currently assume that all payloads are unspecified.
-                    Timer.Coder.of(VoidCoder.of())));
+                    Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)));
         timerPCollection.setName(
             String.format("%s.%s", appliedPTransform.getFullName(), localTimerName));
         String timerPCollectionId = components.registerPCollection(timerPCollection);
@@ -326,7 +325,8 @@ public class ParDoTranslation {
           @Override
           public boolean isStateful() {
             return !signature.stateDeclarations().isEmpty()
-                || !signature.timerDeclarations().isEmpty();
+                || !signature.timerDeclarations().isEmpty()
+                || !signature.timerFamilyDeclarations().isEmpty();
           }
 
           @Override
@@ -656,12 +656,14 @@ public class ParDoTranslation {
       throw new RuntimeException("Failure to register coder", exc);
     }
   }
-
+  // TODO(BEAM-9562): Plumb through actual keyCoder and windowCoder.
   public static RunnerApi.TimerFamilySpec translateTimerFamilySpec(
       TimerSpec timer, SdkComponents components) {
     return RunnerApi.TimerFamilySpec.newBuilder()
         .setTimeDomain(translateTimeDomain(timer.getTimeDomain()))
-        .setTimerFamilyCoderId(registerCoderOrThrow(components, Timer.Coder.of(VoidCoder.of())))
+        .setTimerFamilyCoderId(
+            registerCoderOrThrow(
+                components, Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE)))
         .build();
   }
 

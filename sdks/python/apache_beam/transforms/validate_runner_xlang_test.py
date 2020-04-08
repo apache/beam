@@ -41,6 +41,99 @@ TEST_FLATTEN_URN = "beam:transforms:xlang:test:flatten"
 TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
 
 
+class CrossLanguageTestPipelines(object):
+  def __init__(self, expansion_service=None):
+    self.expansion_service = expansion_service or (
+        'localhost:%s' % os.environ.get('EXPANSION_PORT'))
+
+  def run_prefix(self, pipeline):
+    with pipeline as p:
+      res = (
+          p
+          | beam.Create(['a', 'b']).with_output_types(unicode)
+          | beam.ExternalTransform(
+              TEST_PREFIX_URN,
+              ImplicitSchemaPayloadBuilder({'data': u'0'}),
+              self.expansion_service))
+      assert_that(res, equal_to(['0a', '0b']))
+
+  def run_multi_input_output_with_sideinput(self, pipeline):
+    with pipeline as p:
+      main1 = p | 'Main1' >> beam.Create(
+          ['a', 'bb'], reshuffle=False).with_output_types(unicode)
+      main2 = p | 'Main2' >> beam.Create(
+          ['x', 'yy', 'zzz'], reshuffle=False).with_output_types(unicode)
+      side = p | 'Side' >> beam.Create(['s']).with_output_types(unicode)
+      res = dict(
+          main1=main1, main2=main2, side=side) | beam.ExternalTransform(
+              TEST_MULTI_URN, None, self.expansion_service)
+      assert_that(res['main'], equal_to(['as', 'bbs', 'xs', 'yys', 'zzzs']))
+      assert_that(res['side'], equal_to(['ss']), label='CheckSide')
+
+  def run_group_by_key(self, pipeline):
+    with pipeline as p:
+      res = (
+          p
+          | beam.Create([(0, "1"), (0, "2"),
+                         (1, "3")], reshuffle=False).with_output_types(
+                             typing.Tuple[int, unicode])
+          | beam.ExternalTransform(TEST_GBK_URN, None, self.expansion_service)
+          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
+      assert_that(res, equal_to(['0:1,2', '1:3']))
+
+  def run_cogroup_by_key(self, pipeline):
+    with pipeline as p:
+      col1 = p | 'create_col1' >> beam.Create(
+          [(0, "1"), (0, "2"), (1, "3")], reshuffle=False).with_output_types(
+              typing.Tuple[int, unicode])
+      col2 = p | 'create_col2' >> beam.Create(
+          [(0, "4"), (1, "5"), (1, "6")], reshuffle=False).with_output_types(
+              typing.Tuple[int, unicode])
+      res = (
+          dict(col1=col1, col2=col2)
+          | beam.ExternalTransform(TEST_CGBK_URN, None, self.expansion_service)
+          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
+      assert_that(res, equal_to(['0:1,2,4', '1:3,5,6']))
+
+  def run_combine_globally(self, pipeline):
+    with pipeline as p:
+      res = (
+          p
+          | beam.Create([1, 2, 3]).with_output_types(int)
+          | beam.ExternalTransform(
+              TEST_COMGL_URN, None, self.expansion_service))
+      assert_that(res, equal_to([6]))
+
+  def run_combine_per_key(self, pipeline):
+    with pipeline as p:
+      res = (
+          p
+          | beam.Create([('a', 1), ('a', 2), ('b', 3)]).with_output_types(
+              typing.Tuple[unicode, int])
+          | beam.ExternalTransform(
+              TEST_COMPK_URN, None, self.expansion_service))
+      assert_that(res, equal_to([('a', 3), ('b', 3)]))
+
+  def run_flatten(self, pipeline):
+    with pipeline as p:
+      col1 = p | 'col1' >> beam.Create([1, 2, 3]).with_output_types(int)
+      col2 = p | 'col2' >> beam.Create([4, 5, 6]).with_output_types(int)
+      res = ((col1, col2)
+             | beam.ExternalTransform(
+                 TEST_FLATTEN_URN, None, self.expansion_service))
+      assert_that(res, equal_to([1, 2, 3, 4, 5, 6]))
+
+  def run_partition(self, pipeline):
+    with pipeline as p:
+      res = (
+          p
+          | beam.Create([1, 2, 3, 4, 5, 6]).with_output_types(int)
+          | beam.ExternalTransform(
+              TEST_PARTITION_URN, None, self.expansion_service))
+      assert_that(res['0'], equal_to([2, 4, 6]), label='check_even')
+      assert_that(res['1'], equal_to([1, 3, 5]), label='check_odd')
+
+
 @attr('UsesCrossLanguageTransforms')
 @unittest.skipUnless(
     os.environ.get('EXPANSION_JAR'),
@@ -49,140 +142,80 @@ TEST_PARTITION_URN = "beam:transforms:xlang:test:partition"
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
 class ValidateRunnerXlangTest(unittest.TestCase):
-  expansion_service = 'localhost:%s' % os.environ.get('EXPANSION_PORT')
   expansion_jar = os.environ.get('EXPANSION_JAR')
 
-  def test_prefix(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      res = (
-          p
-          | beam.Create(['a', 'b']).with_output_types(unicode)
-          | beam.ExternalTransform(
-              TEST_PREFIX_URN,
-              ImplicitSchemaPayloadBuilder({'data': u'0'}),
-              ValidateRunnerXlangTest.expansion_service))
-      assert_that(res, equal_to(['0a', '0b']))
+  def test_prefix(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_prefix(test_pipeline)
 
-  def test_multi_input_output_with_sideinput(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      main1 = p | 'Main1' >> beam.Create(
-          ['a', 'bb'], reshuffle=False).with_output_types(unicode)
-      main2 = p | 'Main2' >> beam.Create(
-          ['x', 'yy', 'zzz'], reshuffle=False).with_output_types(unicode)
-      side = p | 'Side' >> beam.Create(['s']).with_output_types(unicode)
-      res = dict(
-          main1=main1, main2=main2, side=side) | beam.ExternalTransform(
-              TEST_MULTI_URN, None, ValidateRunnerXlangTest.expansion_service)
-      assert_that(res['main'], equal_to(['as', 'bbs', 'xs', 'yys', 'zzzs']))
-      assert_that(res['side'], equal_to(['ss']), label='CheckSide')
+  def test_multi_input_output_with_sideinput(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_multi_input_output_with_sideinput(
+        test_pipeline)
 
-  def test_group_by_key(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      res = (
-          p
-          | beam.Create([(0, "1"), (0, "2"),
-                         (1, "3")], reshuffle=False).with_output_types(
-                             typing.Tuple[int, unicode])
-          | beam.ExternalTransform(
-              TEST_GBK_URN, None, ValidateRunnerXlangTest.expansion_service)
-          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
-      assert_that(res, equal_to(['0:1,2', '1:3']))
+  def test_group_by_key(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_group_by_key(test_pipeline)
 
-  def test_cogroup_by_key(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      col1 = p | 'create_col1' >> beam.Create(
-          [(0, "1"), (0, "2"), (1, "3")], reshuffle=False).with_output_types(
-              typing.Tuple[int, unicode])
-      col2 = p | 'create_col2' >> beam.Create(
-          [(0, "4"), (1, "5"), (1, "6")], reshuffle=False).with_output_types(
-              typing.Tuple[int, unicode])
-      res = (
-          dict(col1=col1, col2=col2) | beam.ExternalTransform(
-              TEST_CGBK_URN, None, ValidateRunnerXlangTest.expansion_service)
-          | beam.Map(lambda x: "{}:{}".format(x[0], ','.join(sorted(x[1])))))
-      assert_that(res, equal_to(['0:1,2,4', '1:3,5,6']))
+  def test_cogroup_by_key(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_cogroup_by_key(test_pipeline)
 
-  def test_combine_globally(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      res = (
-          p
-          | beam.Create([1, 2, 3]).with_output_types(int)
-          | beam.ExternalTransform(
-              TEST_COMGL_URN, None, ValidateRunnerXlangTest.expansion_service))
-      assert_that(res, equal_to([6]))
+  def test_combine_globally(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_combine_globally(test_pipeline)
 
-  def test_combine_per_key(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      res = (
-          p
-          | beam.Create([('a', 1), ('a', 2), ('b', 3)]).with_output_types(
-              typing.Tuple[unicode, int])
-          | beam.ExternalTransform(
-              TEST_COMPK_URN, None, ValidateRunnerXlangTest.expansion_service))
-      assert_that(res, equal_to([('a', 3), ('b', 3)]))
+  def test_combine_per_key(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_combine_per_key(test_pipeline)
 
-  def test_flatten(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      col1 = p | 'col1' >> beam.Create([1, 2, 3]).with_output_types(int)
-      col2 = p | 'col2' >> beam.Create([4, 5, 6]).with_output_types(int)
-      res = ((col1, col2)
-             | beam.ExternalTransform(
-                 TEST_FLATTEN_URN,
-                 None,
-                 ValidateRunnerXlangTest.expansion_service))
-      assert_that(res, equal_to([1, 2, 3, 4, 5, 6]))
+  def test_flatten(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_flatten(test_pipeline)
 
-  def test_partition(self):
-    test_pipeline = TestPipeline()
-    test_pipeline.get_pipeline_options().view_as(
-        DebugOptions).experiments.append(
-            'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-    test_pipeline.not_use_test_runner_api = True
-    with test_pipeline as p:
-      res = (
-          p
-          | beam.Create([1, 2, 3, 4, 5, 6]).with_output_types(int)
-          | beam.ExternalTransform(
-              TEST_PARTITION_URN,
-              None,
-              ValidateRunnerXlangTest.expansion_service))
-      assert_that(res['0'], equal_to([2, 4, 6]), label='check_even')
-      assert_that(res['1'], equal_to([1, 3, 5]), label='check_odd')
+  def test_partition(self, test_pipeline=None):
+    if not test_pipeline:
+      test_pipeline = TestPipeline()
+      test_pipeline.get_pipeline_options().view_as(
+          DebugOptions).experiments.append(
+              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
+      test_pipeline.not_use_test_runner_api = True
+    CrossLanguageTestPipelines().run_partition(test_pipeline)
 
 
 if __name__ == '__main__':

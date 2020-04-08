@@ -42,8 +42,8 @@ func startServer(t *testing.T) *grpc.ClientConn {
 	real := &server{m: make(map[string]*manifest)}
 
 	gs := grpc.NewServer()
-	pb.RegisterArtifactStagingServiceServer(gs, real)
-	pb.RegisterArtifactRetrievalServiceServer(gs, real)
+	pb.RegisterLegacyArtifactStagingServiceServer(gs, real)
+	pb.RegisterLegacyArtifactRetrievalServiceServer(gs, real)
 	go gs.Serve(listener)
 
 	t.Logf("server listening on %v", endpoint)
@@ -72,7 +72,7 @@ type server struct {
 	mu sync.Mutex
 }
 
-func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) error {
+func (s *server) PutArtifact(ps pb.LegacyArtifactStagingService_PutArtifactServer) error {
 	// Read header
 
 	header, err := ps.Recv()
@@ -166,7 +166,7 @@ func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*
 	return &pb.GetManifestResponse{Manifest: m.md}, nil
 }
 
-func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetrievalService_GetArtifactServer) error {
+func (s *server) GetArtifact(req *pb.LegacyGetArtifactRequest, stream pb.LegacyArtifactRetrievalService_GetArtifactServer) error {
 	token := req.GetRetrievalToken()
 	if token == "" {
 		return errors.New("missing retrieval token")

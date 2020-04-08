@@ -67,7 +67,7 @@ func stageFn(cmd *cobra.Command, args []string) error {
 
 	// (2) Stage files in parallel, commit and print out token
 
-	client := pb.NewArtifactStagingServiceClient(cc)
+	client := pb.NewLegacyArtifactStagingServiceClient(cc)
 	list, err := artifact.MultiStage(ctx, client, 10, files, stagingToken)
 	if err != nil {
 		return err
@@ -88,7 +88,7 @@ func listFn(cmd *cobra.Command, args []string) error {
 	}
 	defer cc.Close()
 
-	client := pb.NewArtifactRetrievalServiceClient(cc)
+	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
 	md, err := client.GetManifest(ctx, &pb.GetManifestRequest{})
 	if err != nil {
 		return err

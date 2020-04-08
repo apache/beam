@@ -262,16 +262,6 @@ class DataInputOperation(RunnerIOOperation):
         return self.stop - 1, None, None, self.stop
     return None
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    with self.splitting_lock:
-      metrics = super(DataInputOperation, self).progress_metrics()
-      current_element_progress = self.receivers[0].current_element_progress()
-    if current_element_progress:
-      metrics.active_elements.fraction_remaining = (
-          current_element_progress.fraction_remaining)
-    return metrics
-
   def finish(self):
     # type: () -> None
     with self.splitting_lock:
@@ -580,16 +570,36 @@ class OutputTimer(object):
 
   def set(self, ts):
     ts = timestamp.Timestamp.of(ts)
+    # TODO(BEAM-9562): Plumb through actual timer fields.
     self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=ts)),
+        windowed_value.WindowedValue((
+            self._key,
+            userstate.Timer(
+                user_key='',
+                dynamic_timer_tag='',
+                windows=(self._window, ),
+                clear_bit=False,
+                fire_timestamp=ts,
+                hold_timestamp=ts,
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)),
                                      ts, (self._window, )))
 
   def clear(self):
     # type: () -> None
     dummy_millis = int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) + 1
     clear_ts = timestamp.Timestamp(micros=dummy_millis * 1000)
+    # TODO(BEAM-9562): Plumb through actual paneinfo.
     self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=clear_ts)),
+        windowed_value.WindowedValue((
+            self._key,
+            userstate.Timer(
+                user_key='',
+                dynamic_timer_tag='',
+                windows=(self._window, ),
+                clear_bit=False,
+                fire_timestamp=timestamp.Timestamp.of(clear_ts),
+                hold_timestamp=timestamp.Timestamp.of(0),
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)),
                                      0, (self._window, )))
 
 
@@ -951,42 +961,6 @@ class BundleProcessor(object):
         input_id=main_input_tag,
         output_watermarks=output_watermarks,
         element=main_input_coder.get_impl().encode_nested(element))
-
-  def metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics
-    # DEPRECATED
-    return beam_fn_api_pb2.Metrics(
-        # TODO(robertwb): Rename to progress?
-        ptransforms={
-            transform_id: self._fix_output_tags(
-                transform_id, op.progress_metrics())
-            for transform_id,
-            op in self.ops.items()
-        })
-
-  def _fix_output_tags(self, transform_id, metrics):
-    # DEPRECATED
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
-
-    # Outputs are still referred to by index, not by name, in many Operations.
-    # However, if there is exactly one output, we can fix up the name here.
-
-    def fix_only_output_tag(actual_output_tag, mapping):
-      if len(mapping) == 1:
-        fake_output_tag, count = only_element(list(mapping.items()))
-        if fake_output_tag != actual_output_tag:
-          del mapping[fake_output_tag]
-          mapping[actual_output_tag] = count
-
-    if len(actual_output_tags) == 1:
-      fix_only_output_tag(
-          actual_output_tags[0],
-          metrics.processed_elements.measured.output_element_counts)
-      fix_only_output_tag(
-          actual_output_tags[0],
-          metrics.active_elements.measured.output_element_counts)
-    return metrics
 
   def monitoring_infos(self):
     # type: () -> List[metrics_pb2.MonitoringInfo]
@@ -1664,6 +1638,20 @@ def create_combine_per_key_extract_outputs(
 ):
   return _create_combine_phase_operation(
       factory, transform_id, transform_proto, payload, consumers, 'extract')
+
+
+@BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create_combine_per_key_convert_to_accumulators(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    payload,  # type: beam_runner_api_pb2.CombinePayload
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  return _create_combine_phase_operation(
+      factory, transform_id, transform_proto, payload, consumers, 'convert')
 
 
 @BeamTransformFactory.register_urn(

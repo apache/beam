@@ -36,7 +36,7 @@ import (
 
 // Commit commits a manifest with the given staged artifacts. It returns the
 // staging token, if successful.
-func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifacts []*pb.ArtifactMetadata, st string) (string, error) {
+func Commit(ctx context.Context, client pb.LegacyArtifactStagingServiceClient, artifacts []*pb.ArtifactMetadata, st string) (string, error) {
 	req := &pb.CommitManifestRequest{
 		Manifest: &pb.Manifest{
 			Artifact: artifacts,
@@ -51,7 +51,7 @@ func Commit(ctx context.Context, client pb.ArtifactStagingServiceClient, artifac
 }
 
 // StageDir stages a local directory with relative path keys. Convenience wrapper.
-func StageDir(ctx context.Context, client pb.ArtifactStagingServiceClient, src string, st string) ([]*pb.ArtifactMetadata, error) {
+func StageDir(ctx context.Context, client pb.LegacyArtifactStagingServiceClient, src string, st string) ([]*pb.ArtifactMetadata, error) {
 	list, err := scan(src)
 	if err != nil || len(list) == 0 {
 		return nil, err
@@ -62,7 +62,7 @@ func StageDir(ctx context.Context, client pb.ArtifactStagingServiceClient, src s
 // MultiStage stages a set of local files with the given keys. It returns
 // the full artifact metadate.  It retries each artifact a few times.
 // Convenience wrapper.
-func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpus int, list []KeyedFile, st string) ([]*pb.ArtifactMetadata, error) {
+func MultiStage(ctx context.Context, client pb.LegacyArtifactStagingServiceClient, cpus int, list []KeyedFile, st string) ([]*pb.ArtifactMetadata, error) {
 	if cpus < 1 {
 		cpus = 1
 	}
@@ -119,7 +119,7 @@ func MultiStage(ctx context.Context, client pb.ArtifactStagingServiceClient, cpu
 
 // Stage stages a local file as an artifact with the given key. It computes
 // the SHA256 and returns the full artifact metadata.
-func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, filename, st string) (*pb.ArtifactMetadata, error) {
+func Stage(ctx context.Context, client pb.LegacyArtifactStagingServiceClient, key, filename, st string) (*pb.ArtifactMetadata, error) {
 	stat, err := os.Stat(filename)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func Stage(ctx context.Context, client pb.ArtifactStagingServiceClient, key, fil
 	return md, nil
 }
 
-func stageChunks(stream pb.ArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
+func stageChunks(stream pb.LegacyArtifactStagingService_PutArtifactClient, r io.Reader) (string, error) {
 	sha256W := sha256.New()
 	data := make([]byte, 1<<20)
 	for {

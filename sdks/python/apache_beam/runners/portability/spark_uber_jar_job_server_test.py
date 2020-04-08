@@ -140,7 +140,7 @@ class SparkUberJarJobServerTest(unittest.TestCase):
               job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
       channel = grpc.insecure_channel(
           prepare_response.artifact_staging_endpoint.url)
-      retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
+      retrieval_token = beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceStub(
           channel).CommitManifest(
               beam_artifact_api_pb2.CommitManifestRequest(
                   staging_session_token=prepare_response.staging_session_token,

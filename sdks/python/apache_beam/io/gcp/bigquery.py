@@ -641,12 +641,19 @@ class _CustomBigQuerySource(BoundedSource):
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
     if self.table_reference is not None:
+      table_ref = self.table_reference
+      if (isinstance(self.table_reference, vp.ValueProvider) and
+          self.table_reference.is_accessible()):
+        table_ref = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), self.dataset, self.project)
+      elif isinstance(self.table_reference, vp.ValueProvider):
+        # Size estimation is best effort. We return None as we have
+        # no access to the table that we're querying.
+        return None
       table = bq.get_table(
-          self.table_reference.projectId,
-          self.table_reference.datasetId,
-          self.table_reference.tableId)
+          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
-    else:
+    elif self.query is not None and self.query.is_accessible():
       job = bq._start_query_job(
           self.project,
           self.query.get(),
@@ -657,6 +664,10 @@ class _CustomBigQuerySource(BoundedSource):
           kms_key=self.kms_key)
       size = int(job.statistics.totalBytesProcessed)
       return size
+    else:
+      # Size estimation is best effort. We return None as we have
+      # no access to the query that we're running.
+      return None
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -729,10 +740,13 @@ class _CustomBigQuerySource(BoundedSource):
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
+    if isinstance(self.table_reference, vp.ValueProvider):
+      table_ref = bigquery_tools.parse_table_reference(
+          self.table_reference.get(), self.dataset, self.project)
+    else:
+      table_ref = self.table_reference
     table = bq.get_table(
-        self.table_reference.projectId,
-        self.table_reference.datasetId,
-        self.table_reference.tableId)
+        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
 
     return table.schema, metadata_list
 

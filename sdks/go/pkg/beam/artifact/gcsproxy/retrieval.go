@@ -79,7 +79,7 @@ func (s *RetrievalServer) GetManifest(ctx context.Context, req *pb.GetManifestRe
 }
 
 // GetArtifact returns a given artifact.
-func (s *RetrievalServer) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetrievalService_GetArtifactServer) error {
+func (s *RetrievalServer) GetArtifact(req *pb.LegacyGetArtifactRequest, stream pb.LegacyArtifactRetrievalService_GetArtifactServer) error {
 	key := req.GetName()
 	blob, ok := s.blobs[key]
 	if !ok {

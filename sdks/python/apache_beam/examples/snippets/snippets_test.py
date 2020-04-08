@@ -75,9 +75,9 @@ except ImportError:
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.cloud.proto.datastore.v1 import datastore_pb2
+  from google.cloud.datastore import client as datastore_client
 except ImportError:
-  datastore_pb2 = None
+  datastore_client = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 # Protect against environments where the PubSub library is not available.
@@ -645,11 +645,7 @@ class SnippetsTest(unittest.TestCase):
                                      ['aa', 'bb', 'cc'])
 
   @unittest.skipIf(
-      sys.version_info[0] == 3 and
-      os.environ.get('RUN_SKIPPED_PY3_TESTS') != '1',
-      'This test still needs to be fixed on Python 3'
-      'TODO: BEAM-4543')
-  @unittest.skipIf(datastore_pb2 is None, 'GCP dependencies are not installed')
+      datastore_client is None, 'GCP dependencies are not installed')
   def test_model_datastoreio(self):
     # We cannot test DatastoreIO functionality in unit tests, therefore we limit
     # ourselves to making sure the pipeline containing Datastore read and write

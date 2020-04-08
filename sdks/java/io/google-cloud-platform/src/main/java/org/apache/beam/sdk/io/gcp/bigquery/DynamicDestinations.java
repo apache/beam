@@ -142,7 +142,11 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
     return null;
   }
 
-  /** Returns a {@link TableDestination} object for the destination. May not return null. */
+  /**
+   * Returns a {@link TableDestination} object for the destination. May not return null. Return
+   * value needs to be unique to each destination: may not return the same {@link TableDestination}
+   * for different destinations.
+   */
   public abstract TableDestination getTable(DestinationT destination);
 
   /** Returns the table schema for the destination. May not return null. */
