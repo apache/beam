@@ -31,7 +31,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
@@ -173,13 +173,13 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	return w, nil
 }
 
-func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
+func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	switch urn := wfn.GetUrn(); urn {
 	case graphx.URNGlobalWindowsWindowFn:
 		return window.NewGlobalWindows(), nil
 
 	case graphx.URNFixedWindowsWindowFn:
-		var payload pb.FixedWindowsPayload
+		var payload pipepb.FixedWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -190,7 +190,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewFixedWindows(size), nil
 
 	case graphx.URNSlidingWindowsWindowFn:
-		var payload pb.SlidingWindowsPayload
+		var payload pipepb.SlidingWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -205,7 +205,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
-		var payload pb.SessionWindowsPayload
+		var payload pipepb.SessionWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -337,13 +337,13 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		var data string
 		switch urn {
 		case graphx.URNParDo:
-			var pardo pb.ParDoPayload
+			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
-			var cmb pb.CombinePayload
+			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
 			}
@@ -493,7 +493,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 
 	case graphx.URNWindow:
-		var wp pb.WindowIntoPayload
+		var wp pipepb.WindowIntoPayload
 		if err := proto.Unmarshal(payload, &wp); err != nil {
 			return nil, errors.Wrapf(err, "invalid WindowInto payload for %v", transform)
 		}
