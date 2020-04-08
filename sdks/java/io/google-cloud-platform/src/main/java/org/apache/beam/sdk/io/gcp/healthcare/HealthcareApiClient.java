@@ -147,9 +147,9 @@ public interface HealthcareApiClient {
 
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 
-  Empty deleteHL7v2Store(String store) throws IOException;
+  FhirStore createFhirStore(String dataset, String name, String version) throws IOException;
 
-  FhirStore createFhirStore(String dataset, String name) throws IOException;
+  Empty deleteHL7v2Store(String store) throws IOException;
 
   Empty deleteFhirStore(String store) throws IOException;
 }

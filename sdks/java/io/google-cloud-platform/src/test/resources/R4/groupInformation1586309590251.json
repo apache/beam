@@ -1,0 +1,47 @@
+{
+  "resourceType": "Group",
+  "id": "f1dad644-1fa1-4809-ae47-4e49e472f440",
+  "identifier": [
+    {
+      "system": "urn:ietf:rfc:3986",
+      "value": "urn:uuid:f1dad644-1fa1-4809-ae47-4e49e472f440"
+    }
+  ],
+  "active": true,
+  "type": "person",
+  "actual": true,
+  "name": "Synthea Patients",
+  "quantity": 6,
+  "member": [
+    {
+      "entity": {
+        "reference": "urn:uuid:e21138f3-17d1-463c-a2c0-0e4c9eb02eaa"
+      }
+    },
+    {
+      "entity": {
+        "reference": "urn:uuid:a36195b4-deed-4cbe-8d9e-2d25318dc392"
+      }
+    },
+    {
+      "entity": {
+        "reference": "urn:uuid:bd9a256b-9195-4b35-b992-07e31c3e7fd5"
+      }
+    },
+    {
+      "entity": {
+        "reference": "urn:uuid:57a14851-b37b-4810-ac64-5eedec5c4529"
+      }
+    },
+    {
+      "entity": {
+        "reference": "urn:uuid:e75af819-d02f-4348-9050-e65c3357769f"
+      }
+    },
+    {
+      "entity": {
+        "reference": "urn:uuid:e0a010ac-de50-4be6-815f-f747af3549de"
+      }
+    }
+  ]
+}

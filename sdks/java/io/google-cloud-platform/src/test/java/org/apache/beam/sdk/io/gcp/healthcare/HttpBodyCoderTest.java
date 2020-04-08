@@ -30,7 +30,7 @@ public class HttpBodyCoderTest {
 
   @Test
   public void testDecodeEncodeEqual() throws Exception {
-    for (HttpBody value : FhirIOTestUtil.PRETTY_BUNDLES) {
+    for (HttpBody value : FhirIOTestUtil.STU3_PRETTY_BUNDLES) {
       CoderProperties.coderDecodeEncodeEqual(TEST_CODER, value);
     }
   }

@@ -32,8 +32,8 @@ import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 class FhirIOTestUtil {
   public static final String TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
-  private static Stream<HttpBody> readPrettyBundles() {
-    Path resourceDir = Paths.get("src", "test", "resources", "synthea_fhir_stu3_pretty");
+  private static Stream<HttpBody> readPrettyBundles(String version) {
+    Path resourceDir = Paths.get("src", "test", "resources", version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
@@ -60,12 +60,16 @@ class FhirIOTestUtil {
 
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
-
-  static final List<HttpBody> PRETTY_BUNDLES = readPrettyBundles().collect(Collectors.toList());
+  static final List<HttpBody> DSTU2_PRETTY_BUNDLES =
+      readPrettyBundles("DSTU2").collect(Collectors.toList());
+  static final List<HttpBody> STU3_PRETTY_BUNDLES =
+      readPrettyBundles("STU3").collect(Collectors.toList());
+  static final List<HttpBody> R4_PRETTY_BUNDLES =
+      readPrettyBundles("R4").collect(Collectors.toList());
 
   /** Populate the test resources into the FHIR store. */
   static void executeFhirBundles(HealthcareApiClient client, String fhirStore) throws IOException {
-    for (HttpBody bundle : PRETTY_BUNDLES) {
+    for (HttpBody bundle : STU3_PRETTY_BUNDLES) {
       client.executeFhirBundle(fhirStore, bundle);
     }
   }
