@@ -73,7 +73,7 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	}
 
 	eh := &session.EntryHeader{
-		Kind: fnpb.Kind,
+		Kind: pb.Kind,
 		Len:  int64(len(body.Bytes())),
 	}
 
