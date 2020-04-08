@@ -90,40 +90,7 @@ public class FhirIOR4WriteIT {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
     // clean up GCS objects if any.
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-    HttpRequestInitializer requestInitializer =
-        request -> {
-          HttpHeaders requestHeaders = request.getHeaders();
-          if (!credentials.hasRequestMetadata()) {
-            return;
-          }
-          URI uri = null;
-          if (request.getUrl() != null) {
-            uri = request.getUrl().toURI();
-          }
-          Map<String, List<String>> credentialHeaders = credentials.getRequestMetadata(uri);
-          if (credentialHeaders == null) {
-            return;
-          }
-          for (Map.Entry<String, List<String>> entry : credentialHeaders.entrySet()) {
-            String headerName = entry.getKey();
-            List<String> requestValues = new ArrayList<>(entry.getValue());
-            requestHeaders.put(headerName, requestValues);
-          }
-          request.setConnectTimeout(60000); // 1 minute connect timeout
-          request.setReadTimeout(60000); // 1 minute read timeout
-        };
-
-    Storage storage =
-        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
-            .setApplicationName("apache-beam-hl7v2-io")
-            .build();
-    List<StorageObject> blobs = storage.objects().list(TEMP_BUCKET).execute().getItems();
-    if (blobs != null) {
-      for (StorageObject blob : blobs) {
-        storage.objects().delete(TEMP_BUCKET, blob.getId());
-      }
-    }
+    FhirIOTestUtil.tearDownTempBucket();
   }
 
   @Test
@@ -151,20 +118,6 @@ public class FhirIOR4WriteIT {
                     options.getGcsTempPath(),
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
-    // TODO(jaketf): DELETEME
-    result
-        .getFailedInsertsWithErr()
-        .apply(
-            MapElements.into(TypeDescriptors.strings())
-                .via(
-                    (HealthcareIOError<HttpBody> err) -> {
-                      return String.format(
-                          "Data: %s \n" + "Error: %s \n" + "Stacktrace: %s",
-                          err.getDataResource().getData(),
-                          err.getErrorMessage(),
-                          err.getStackTrace());
-                    }))
-        .apply(TextIO.write().to(options.getGcsDeadLetterPath()));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 

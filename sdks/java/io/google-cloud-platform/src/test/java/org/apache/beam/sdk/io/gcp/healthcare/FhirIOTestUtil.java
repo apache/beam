@@ -17,14 +17,24 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpRequestInitializer;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
+import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.StorageObject;
+import com.google.auth.oauth2.GoogleCredentials;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
@@ -71,6 +81,41 @@ class FhirIOTestUtil {
   static void executeFhirBundles(HealthcareApiClient client, String fhirStore) throws IOException {
     for (HttpBody bundle : STU3_PRETTY_BUNDLES) {
       client.executeFhirBundle(fhirStore, bundle);
+    }
+  }
+  public static void tearDownTempBucket() throws IOException {
+
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+    HttpRequestInitializer requestInitializer =
+        request -> {
+          HttpHeaders requestHeaders = request.getHeaders();
+          if (!credentials.hasRequestMetadata()) {
+            return;
+          }
+          URI uri = null;
+          if (request.getUrl() != null) {
+            uri = request.getUrl().toURI();
+          }
+          Map<String, List<String>> credentialHeaders = credentials.getRequestMetadata(uri);
+          if (credentialHeaders == null) {
+            return;
+          }
+          for (Map.Entry<String, List<String>> entry : credentialHeaders.entrySet()) {
+            String headerName = entry.getKey();
+            List<String> requestValues = new ArrayList<>(entry.getValue());
+            requestHeaders.put(headerName, requestValues);
+          }
+          request.setConnectTimeout(60000); // 1 minute connect timeout
+          request.setReadTimeout(60000); // 1 minute read timeout
+        };
+    Storage storage =
+        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
+            .build();
+    List<StorageObject> blobs = storage.objects().list(TEMP_BUCKET).execute().getItems();
+    if (blobs != null) {
+      for (StorageObject blob : blobs) {
+        storage.objects().delete(TEMP_BUCKET, blob.getId());
+      }
     }
   }
 }

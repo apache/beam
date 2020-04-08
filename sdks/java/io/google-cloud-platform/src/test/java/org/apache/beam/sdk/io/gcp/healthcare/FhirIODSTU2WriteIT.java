@@ -86,40 +86,7 @@ public class FhirIODSTU2WriteIT {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
     // clean up GCS objects if any.
-    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
-    HttpRequestInitializer requestInitializer =
-        request -> {
-          HttpHeaders requestHeaders = request.getHeaders();
-          requestHeaders.setUserAgent("apache-beam-hl7v2-io");
-          if (!credentials.hasRequestMetadata()) {
-            return;
-          }
-          URI uri = null;
-          if (request.getUrl() != null) {
-            uri = request.getUrl().toURI();
-          }
-          Map<String, List<String>> credentialHeaders = credentials.getRequestMetadata(uri);
-          if (credentialHeaders == null) {
-            return;
-          }
-          for (Map.Entry<String, List<String>> entry : credentialHeaders.entrySet()) {
-            String headerName = entry.getKey();
-            List<String> requestValues = new ArrayList<>(entry.getValue());
-            requestHeaders.put(headerName, requestValues);
-          }
-          request.setConnectTimeout(60000); // 1 minute connect timeout
-          request.setReadTimeout(60000); // 1 minute read timeout
-        };
-    Storage storage =
-        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
-            .setApplicationName("apache-beam-hl7v2-io")
-            .build();
-    List<StorageObject> blobs = storage.objects().list(TEMP_BUCKET).execute().getItems();
-    if (blobs != null) {
-      for (StorageObject blob : blobs) {
-        storage.objects().delete(TEMP_BUCKET, blob.getId());
-      }
-    }
+    FhirIOTestUtil.tearDownTempBucket();
   }
 
   @Test
