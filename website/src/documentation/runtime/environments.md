@@ -137,7 +137,7 @@ The `docker` command-line tool implicitly [pushes container images](#pushing-con
 
 To tag a local image, set the `docker-tag` option when building the container. The following command tags a Python SDK image with a date.
 ```
-./gradlew :sdks:python:container:py3.6:docker -Pdocker-tag=2019-10-04
+./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
 ```
 
 To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root` 
