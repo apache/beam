@@ -284,6 +284,7 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --output gs://&lt;your-gcs-bucket&gt;/counts \
             --runner dataflow \
             --project your-gcp-project \
+            --region your-gcp-region \
             --temp_location gs://&lt;your-gcs-bucket&gt;/tmp/ \
             --staging_location gs://&lt;your-gcs-bucket&gt;/binaries/ \
             --worker_harness_container_image=apache/beam_go_sdk:latest
