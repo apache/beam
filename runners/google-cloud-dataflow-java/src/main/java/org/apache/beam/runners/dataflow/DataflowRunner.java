@@ -380,6 +380,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     Preconditions.checkArgument(
         !hasExperimentWorkerRegion || gcpOptions.getWorkerZone() == null,
         "Experiment worker_region and option workerZone are mutually exclusive.");
+
+    if (gcpOptions.getZone() != null) {
+      LOG.warn("Option --zone is deprecated. Please use --workerZone instead.");
+      gcpOptions.setWorkerZone(gcpOptions.getZone());
+      gcpOptions.setZone(null);
+    }
   }
 
   @VisibleForTesting
