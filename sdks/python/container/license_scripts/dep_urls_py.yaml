@@ -79,6 +79,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/testing-cabal/mock/master/LICENSE.txt"
   monotonic:
     license: "https://raw.githubusercontent.com/atdt/monotonic/master/LICENSE"
+  nose:
+      license: "https://raw.githubusercontent.com/nose-devs/nose/master/lgpl.txt"
   numpy:
     license: "https://raw.githubusercontent.com/numpy/numpy/master/LICENSE.txt"
   oauth2client:
