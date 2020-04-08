@@ -715,6 +715,15 @@ class ExtendedProvisionInfo(object):
     self.artifact_staging_dir = artifact_staging_dir
     self.job_name = job_name
 
+  def for_environment(self, env):
+    if env.dependencies:
+      provision_info_with_deps = self.provision_info.copy()
+      provision_info_with_deps.dependencies = env.dependencies
+      return ExtendedProvisionInfo(
+          provision_info_with_deps, self.artifact_staging_dir, self.job_name)
+    else:
+      return self
+
 
 _split_managers = []
 

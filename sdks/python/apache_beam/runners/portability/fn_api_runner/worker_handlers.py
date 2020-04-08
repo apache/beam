@@ -44,6 +44,7 @@ from typing import overload
 
 import grpc
 
+from apache_beam.io import filesystems
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_artifact_api_pb2
@@ -474,6 +475,11 @@ class GrpcServer(object):
       beam_artifact_api_pb2_grpc.add_LegacyArtifactRetrievalServiceServicer_to_server(
           service, self.control_server)
 
+      beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
+          artifact_service.ArtifactRetrievalService(
+              file_reader=filesystems.FileSystems.open),
+          self.control_server)
+
     self.data_plane_handler = data_plane.BeamFnDataServicer(
         DATA_BUFFER_TIME_LIMIT_MS)
     beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
@@ -809,7 +815,7 @@ class WorkerHandlerManager(object):
         worker_handler = WorkerHandler.create(
             environment,
             self.state_servicer,
-            self._job_provision_info,
+            self._job_provision_info.for_environment(environment),
             grpc_server)
         _LOGGER.info(
             "Created Worker handler %s for environment %s",
