@@ -761,10 +761,15 @@ class _CustomBigQuerySource(BoundedSource):
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_id = uuid.uuid4().hex
+    if self.backwards_compatible:
+      file_format = bigquery_tools.FileFormat.AVRO
+    else:
+      file_format = bigquery_tools.FileFormat.JSON
+
     job_ref = bq.perform_extract_job([self.gcs_location],
                                      job_id,
                                      self.table_reference,
-                                     bigquery_tools.FileFormat.AVRO,
+                                     file_format,
                                      project=self._get_project(),
                                      include_header=False,
                                      job_labels=self.bigquery_job_labels,
