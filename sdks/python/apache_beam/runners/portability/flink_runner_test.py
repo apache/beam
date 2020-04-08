@@ -138,6 +138,7 @@ if __name__ == '__main__':
       try:
         return [
             'java',
+            '-Dorg.slf4j.simpleLogger.defaultLogLevel=warn',
             '-jar',
             flink_job_server_jar,
             '--flink-master',

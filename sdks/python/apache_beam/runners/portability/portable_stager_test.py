@@ -59,9 +59,9 @@ class PortableStagerTest(unittest.TestCase):
           name in staging location.
     """
     server = grpc.server(UnboundedThreadPoolExecutor())
-    staging_service = TestLocalFileSystemArtifactStagingServiceServicer(
+    staging_service = TestLocalFileSystemLegacyArtifactStagingServiceServicer(
         self._remote_dir)
-    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
         staging_service, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
@@ -141,10 +141,11 @@ class PortableStagerTest(unittest.TestCase):
     self.assertEqual(retrieval_tokens, frozenset(['token']))
 
 
-class TestLocalFileSystemArtifactStagingServiceServicer(
-    beam_artifact_api_pb2_grpc.ArtifactStagingServiceServicer):
+class TestLocalFileSystemLegacyArtifactStagingServiceServicer(
+    beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceServicer):
   def __init__(self, temp_dir):
-    super(TestLocalFileSystemArtifactStagingServiceServicer, self).__init__()
+    super(TestLocalFileSystemLegacyArtifactStagingServiceServicer,
+          self).__init__()
     self.temp_dir = temp_dir
     self.manifest = None
     self.retrieval_tokens = set()

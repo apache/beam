@@ -19,10 +19,7 @@ package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -81,57 +78,25 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   @SuppressWarnings("FutureReturnValueIgnored")
   @Override
   public boolean start() throws IOException {
-    final int defaultPartitionInitTimeout = 60 * 1000;
-    final int kafkaRequestTimeoutMultiple = 2;
-
     Read<K, V> spec = source.getSpec();
     consumer = spec.getConsumerFactoryFn().apply(spec.getConsumerConfig());
     consumerSpEL.evaluateAssign(consumer, spec.getTopicPartitions());
 
-    SchemaRegistryClient registryClient = null;
-    if (spec.getCSRClientProvider() != null) {
-      registryClient = spec.getCSRClientProvider().getCSRClient();
-    }
-
-    try {
-      if (registryClient != null && spec.getKeyDeserializer().equals(KafkaAvroDeserializer.class)) {
-        keyDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
-      } else {
-        keyDeserializerInstance = spec.getKeyDeserializer().getDeclaredConstructor().newInstance();
-      }
-
-      if (registryClient != null
-          && spec.getValueDeserializer().equals(KafkaAvroDeserializer.class)) {
-        valueDeserializerInstance = (Deserializer) new KafkaAvroDeserializer(registryClient);
-      } else {
-        valueDeserializerInstance =
-            spec.getValueDeserializer().getDeclaredConstructor().newInstance();
-      }
-    } catch (InstantiationException
-        | IllegalAccessException
-        | InvocationTargetException
-        | NoSuchMethodException e) {
-      throw new IOException("Could not instantiate deserializers", e);
-    }
-
-    keyDeserializerInstance.configure(spec.getConsumerConfig(), true);
-    valueDeserializerInstance.configure(spec.getConsumerConfig(), false);
+    keyDeserializerInstance =
+        spec.getKeyDeserializerProvider().getDeserializer(spec.getConsumerConfig(), true);
+    valueDeserializerInstance =
+        spec.getValueDeserializerProvider().getDeserializer(spec.getConsumerConfig(), false);
 
     // Seek to start offset for each partition. This is the first interaction with the server.
     // Unfortunately it can block forever in case of network issues like incorrect ACLs.
     // Initialize partition in a separate thread and cancel it if takes longer than a minute.
+    // This problem of blocking API calls to kafka is solved in higher versions of kafka
+    // client by `KIP-266`
     for (final PartitionState pState : partitionStates) {
       Future<?> future = consumerPollThread.submit(() -> setupInitialOffset(pState));
-
       try {
-        // Timeout : 1 minute OR 2 * Kafka consumer request timeout if it is set.
-        Integer reqTimeout =
-            (Integer) spec.getConsumerConfig().get(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG);
-        future.get(
-            reqTimeout != null
-                ? kafkaRequestTimeoutMultiple * reqTimeout
-                : defaultPartitionInitTimeout,
-            TimeUnit.MILLISECONDS);
+        Duration timeout = resolveDefaultApiTimeout(spec);
+        future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException e) {
         consumer.wakeup(); // This unblocks consumer stuck on network I/O.
         // Likely reason : Kafka servers are configured to advertise internal ips, but
@@ -793,5 +758,37 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     Closeables.close(offsetConsumer, true);
     Closeables.close(consumer, true);
+  }
+
+  @VisibleForTesting
+  static Duration resolveDefaultApiTimeout(Read<?, ?> spec) {
+
+    // KIP-266 - let's allow to configure timeout in consumer settings. This is supported in
+    // higher versions of kafka client. We allow users to set this timeout and it will be
+    // respected
+    // in all places where Beam's KafkaIO handles possibility of API call being blocked.
+    // Later, we should replace the string with ConsumerConfig constant
+    Duration timeout =
+        tryParseDurationFromMillis(spec.getConsumerConfig().get("default.api.timeout.ms"));
+    if (timeout == null) {
+      Duration value =
+          tryParseDurationFromMillis(
+              spec.getConsumerConfig().get(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG));
+      if (value != null) {
+        // 2x request timeout to be compatible with previous version
+        timeout = Duration.millis(2 * value.getMillis());
+      }
+    }
+
+    return timeout == null ? Duration.standardSeconds(60) : timeout;
+  }
+
+  private static Duration tryParseDurationFromMillis(Object value) {
+    if (value == null) {
+      return null;
+    }
+    return value instanceof Integer
+        ? Duration.millis((Integer) value)
+        : Duration.millis(Integer.parseInt(value.toString()));
   }
 }

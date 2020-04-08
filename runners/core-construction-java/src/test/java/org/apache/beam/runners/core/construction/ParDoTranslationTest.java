@@ -34,7 +34,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.BagState;
@@ -59,6 +58,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -133,6 +133,9 @@ public class ParDoTranslationTest {
         payload.getSideInputsOrThrow(view.getTagInternal().getId());
       }
       assertFalse(payload.getRequestsFinalization());
+      assertEquals(
+          parDo.getFn() instanceof StateTimerDropElementsFn,
+          components.requirements().contains(ParDoTranslation.REQUIRES_STATEFUL_PROCESSING_URN));
     }
 
     @Test
@@ -204,8 +207,10 @@ public class ParDoTranslationTest {
             CoderTranslation.fromProto(
                 components.getCodersOrThrow(timerKvCoderComponents.valueCoderId()),
                 rehydratedComponents);
+        // TODO(BEAM-9562) Plump through actual Timer value coder.
         assertEquals(
-            org.apache.beam.runners.core.construction.Timer.Coder.of(VoidCoder.of()),
+            org.apache.beam.runners.core.construction.Timer.Coder.of(
+                StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             timerValueCoder);
       }
     }

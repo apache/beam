@@ -140,6 +140,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** @see Compression#ZSTD */
     ZSTD(Compression.ZSTD),
 
+    /** @see Compression#LZO */
+    LZO(Compression.LZO),
+
+    /** @see Compression#LZOP */
+    LZOP(Compression.LZOP),
+
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
@@ -184,6 +190,12 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
         case ZSTD:
           return ZSTD;
+
+        case LZO:
+          return LZO;
+
+        case LZOP:
+          return LZOP;
 
         case DEFLATE:
           return DEFLATE;

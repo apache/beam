@@ -925,7 +925,7 @@ class Read(ptransform.PTransform):
             beam_runner_api_pb2.IsBounded.UNBOUNDED))
 
   @staticmethod
-  def from_runner_api_parameter(parameter, context):
+  def from_runner_api_parameter(unused_ptransform, parameter, context):
     # type: (beam_runner_api_pb2.ReadPayload, PipelineContext) -> Read
     return Read(SourceBase.from_runner_api(parameter.source, context))
 
@@ -1263,11 +1263,15 @@ class WatermarkEstimator(object):
     raise NotImplementedError(type(self))
 
   def current_watermark(self):
+    # type: () -> timestamp.Timestamp
+
     """Return estimated output_watermark. This function must return
     monotonically increasing watermarks."""
     raise NotImplementedError(type(self))
 
   def observe_timestamp(self, timestamp):
+    # type: (timestamp.Timestamp) -> None
+
     """Update tracking  watermark with latest output timestamp.
 
     Args:
@@ -1332,6 +1336,7 @@ class RestrictionProgress(object):
       return float(self._remaining) / self.total_work
 
   def with_completed(self, completed):
+    # type: (int) -> RestrictionProgress
     return RestrictionProgress(
         fraction=self._fraction, remaining=self._remaining, completed=completed)
 
@@ -1484,6 +1489,13 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
     class SDFBoundedSourceDoFn(core.DoFn):
       def __init__(self, read_source):
         self.source = read_source
+
+      def display_data(self):
+        return {
+            'source': DisplayDataItem(
+                self.source.__class__, label='Read Source'),
+            'source_dd': self.source
+        }
 
       def process(
           self,

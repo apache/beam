@@ -222,6 +222,14 @@ public class BeamBigQuerySqlDialect extends BigQuerySqlDialect {
         }
         writer.endFunCall(frame);
         break;
+      case ROW:
+        final SqlWriter.Frame structFrame = writer.startFunCall("STRUCT");
+        for (SqlNode operand : call.getOperandList()) {
+          writer.sep(",");
+          operand.unparse(writer, leftPrec, rightPrec);
+        }
+        writer.endFunCall(structFrame);
+        break;
       case UNION:
         if (!((SqlSetOperator) call.getOperator()).isAll()) {
           SqlSyntax.BINARY.unparse(writer, UNION_DISTINCT, call, leftPrec, rightPrec);

@@ -33,6 +33,7 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
 
@@ -42,6 +43,59 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 _interactive_beam_env = None
 
 _LOGGER = logging.getLogger(__name__)
+
+# By `format(customized_script=xxx)`, the given `customized_script` is
+# guaranteed to be executed within access to a jquery with datatable plugin
+# configured which is useful so that any `customized_script` is resilient to
+# browser refresh. Inside `customized_script`, use `$` as jQuery.
+_JQUERY_WITH_DATATABLE_TEMPLATE = """
+        if (typeof window.interactive_beam_jquery == 'undefined') {{
+          var jqueryScript = document.createElement('script');
+          jqueryScript.src = 'https://code.jquery.com/jquery-3.4.1.slim.min.js';
+          jqueryScript.type = 'text/javascript';
+          jqueryScript.onload = function() {{
+            var datatableScript = document.createElement('script');
+            datatableScript.src = 'https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js';
+            datatableScript.type = 'text/javascript';
+            datatableScript.onload = function() {{
+              window.interactive_beam_jquery = jQuery.noConflict(true);
+              window.interactive_beam_jquery(document).ready(function($){{
+                {customized_script}
+              }});
+            }}
+            document.head.appendChild(datatableScript);
+          }};
+          document.head.appendChild(jqueryScript);
+        }} else {{
+          window.interactive_beam_jquery(document).ready(function($){{
+            {customized_script}
+          }});
+        }}"""
+
+# By `format(hrefs=xxx)`, the given `hrefs` will be imported as HTML imports.
+# Since HTML import might not be supported by the browser, we check if HTML
+# import is supported by the browser, if so, import HTMLs else setup
+# webcomponents and chain the HTML import to the end of onload.
+_HTML_IMPORT_TEMPLATE = """
+        var import_html = () => {{
+          {hrefs}.forEach(href => {{
+            var link = document.createElement('link');
+            link.rel = 'import'
+            link.href = href;
+            document.head.appendChild(link);
+          }});
+        }}
+        if ('import' in document.createElement('link')) {{
+          import_html();
+        }} else {{
+          var webcomponentScript = document.createElement('script');
+          webcomponentScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js';
+          webcomponentScript.type = 'text/javascript';
+          webcomponentScript.onload = function(){{
+            import_html();
+          }};
+          document.head.appendChild(webcomponentScript);
+        }}"""
 
 
 def current_env(cache_manager=None):
@@ -80,16 +134,25 @@ class InteractiveEnvironment(object):
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
     self._watching_dict_list = []
-    # Holds results of main jobs as Dict[Pipeline, PipelineResult].
+    # Holds results of main jobs as Dict[str, PipelineResult].
     # Each key is a pipeline instance defined by the end user. The
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
     self._main_pipeline_results = {}
-    # Holds results of background caching jobs as
-    # Dict[Pipeline, PipelineResult]. Each key is a pipeline instance defined by
-    # the end user. The InteractiveRunner is responsible for populating this
-    # dictionary implicitly when a background caching jobs is started.
-    self._background_caching_pipeline_results = {}
+    # Holds background caching jobs as Dict[str, BackgroundCachingJob].
+    # Each key is a pipeline instance defined by the end user. The
+    # InteractiveRunner or its enclosing scope is responsible for populating
+    # this dictionary implicitly when a background caching jobs is started.
+    self._background_caching_jobs = {}
+    # Holds TestStreamServiceControllers that controls gRPC servers serving
+    # events as test stream of TestStreamPayload.Event.
+    # Dict[str, TestStreamServiceController]. Each key is a pipeline
+    # instance defined by the end user. The InteractiveRunner or its enclosing
+    # scope is responsible for populating this dictionary implicitly when a new
+    # controller is created to start a new gRPC server. The server stays alive
+    # until a new background caching job is started thus invalidating everything
+    # the gRPC server serves.
+    self._test_stream_service_controllers = {}
     self._cached_source_signature = {}
     self._tracked_user_pipelines = set()
     # Tracks the computation completeness of PCollections. PCollections tracked
@@ -106,7 +169,6 @@ class InteractiveEnvironment(object):
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
-      import jsons  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
       from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
       self._is_interactive_ready = True
@@ -129,6 +191,24 @@ class InteractiveEnvironment(object):
       _LOGGER.warning(
           'You have limited Interactive Beam features since your '
           'ipython kernel is not connected any notebook frontend.')
+    if self._is_in_notebook:
+      self.load_jquery_with_datatable()
+      self.import_html_to_head([
+          'https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist'
+          '/facets-jupyter.html'
+      ])
+      register_ipython_log_handler()
+
+  @property
+  def options(self):
+    """A reference to the global interactive options.
+
+    Provided to avoid import loop or excessive dynamic import. All internal
+    Interactive Beam modules should access interactive_beam.options through
+    this property.
+    """
+    from apache_beam.runners.interactive.interactive_beam import options
+    return options
 
   @property
   def is_py_version_ready(self):
@@ -158,6 +238,8 @@ class InteractiveEnvironment(object):
     # Utilizes cache manager to clean up cache from everywhere.
     if self.cache_manager():
       self.cache_manager().cleanup()
+    self.evict_computed_pcollections()
+    self.evict_cached_source_signature()
 
   def watch(self, watchable):
     """Watches a watchable.
@@ -212,47 +294,76 @@ class InteractiveEnvironment(object):
     """Gets the cache manager held by current Interactive Environment."""
     return self._cache_manager
 
-  def set_pipeline_result(self, pipeline, result, is_main_job):
-    """Sets the pipeline run result. Adds one if absent. Otherwise, replace.
-
-    When is_main_job is True, set the result for the main job; otherwise, set
-    the result for the background caching job.
-    """
+  def set_pipeline_result(self, pipeline, result):
+    """Sets the pipeline run result. Adds one if absent. Otherwise, replace."""
     assert issubclass(type(pipeline), beam.Pipeline), (
         'pipeline must be an instance of apache_beam.Pipeline or its subclass')
     assert issubclass(type(result), runner.PipelineResult), (
         'result must be an instance of '
         'apache_beam.runners.runner.PipelineResult or its subclass')
-    if is_main_job:
-      self._main_pipeline_results[pipeline] = result
-    else:
-      self._background_caching_pipeline_results[pipeline] = result
+    self._main_pipeline_results[str(id(pipeline))] = result
 
-  def evict_pipeline_result(self, pipeline, is_main_job=True):
+  def evict_pipeline_result(self, pipeline):
     """Evicts the tracking of given pipeline run. Noop if absent."""
-    if is_main_job:
-      return self._main_pipeline_results.pop(pipeline, None)
-    return self._background_caching_pipeline_results.pop(pipeline, None)
+    return self._main_pipeline_results.pop(str(id(pipeline)), None)
 
-  def pipeline_result(self, pipeline, is_main_job=True):
+  def pipeline_result(self, pipeline):
     """Gets the pipeline run result. None if absent."""
-    if is_main_job:
-      return self._main_pipeline_results.get(pipeline, None)
-    return self._background_caching_pipeline_results.get(pipeline, None)
+    return self._main_pipeline_results.get(str(id(pipeline)), None)
 
-  def is_terminated(self, pipeline, is_main_job=True):
+  def set_background_caching_job(self, pipeline, background_caching_job):
+    """Sets the background caching job started from the given pipeline."""
+    assert issubclass(type(pipeline), beam.Pipeline), (
+        'pipeline must be an instance of apache_beam.Pipeline or its subclass')
+    from apache_beam.runners.interactive.background_caching_job import BackgroundCachingJob
+    assert isinstance(background_caching_job, BackgroundCachingJob), (
+        'background_caching job must be an instance of BackgroundCachingJob')
+    self._background_caching_jobs[str(id(pipeline))] = background_caching_job
+
+  def get_background_caching_job(self, pipeline):
+    """Gets the background caching job started from the given pipeline."""
+    return self._background_caching_jobs.get(str(id(pipeline)), None)
+
+  def set_test_stream_service_controller(self, pipeline, controller):
+    """Sets the test stream service controller that has started a gRPC server
+    serving the test stream for any job started from the given user-defined
+    pipeline.
+    """
+    self._test_stream_service_controllers[str(id(pipeline))] = controller
+
+  def get_test_stream_service_controller(self, pipeline):
+    """Gets the test stream service controller that has started a gRPC server
+    serving the test stream for any job started from the given user-defined
+    pipeline.
+    """
+    return self._test_stream_service_controllers.get(str(id(pipeline)), None)
+
+  def evict_test_stream_service_controller(self, pipeline):
+    """Evicts and pops the test stream service controller that has started a
+    gRPC server serving the test stream for any job started from the given
+    user-defined pipeline.
+    """
+    return self._test_stream_service_controllers.pop(str(id(pipeline)), None)
+
+  def is_terminated(self, pipeline):
     """Queries if the most recent job (by executing the given pipeline) state
     is in a terminal state. True if absent."""
-    result = self.pipeline_result(pipeline, is_main_job=is_main_job)
+    result = self.pipeline_result(pipeline)
     if result:
       return runner.PipelineState.is_terminal(result.state)
     return True
 
   def set_cached_source_signature(self, pipeline, signature):
-    self._cached_source_signature[pipeline] = signature
+    self._cached_source_signature[str(id(pipeline))] = signature
 
   def get_cached_source_signature(self, pipeline):
-    return self._cached_source_signature.get(pipeline, set())
+    return self._cached_source_signature.get(str(id(pipeline)), set())
+
+  def evict_cached_source_signature(self, pipeline=None):
+    if pipeline:
+      self._cached_source_signature.pop(str(id(pipeline)), None)
+    else:
+      self._cached_source_signature.clear()
 
   def track_user_pipelines(self):
     """Record references to all user-defined pipeline instances watched in
@@ -284,6 +395,13 @@ class InteractiveEnvironment(object):
   def tracked_user_pipelines(self):
     return self._tracked_user_pipelines
 
+  def pipeline_id_to_pipeline(self, pid):
+    """Converts a pipeline id to a user pipeline.
+    """
+
+    pid_to_pipelines = {str(id(p)): p for p in self._tracked_user_pipelines}
+    return pid_to_pipelines[pid]
+
   def mark_pcollection_computed(self, pcolls):
     """Marks computation completeness for the given pcolls.
 
@@ -303,3 +421,46 @@ class InteractiveEnvironment(object):
   @property
   def computed_pcollections(self):
     return self._computed_pcolls
+
+  def load_jquery_with_datatable(self):
+    """Loads common resources to enable jquery with datatable configured for
+    notebook frontends if necessary. If the resources have been loaded, NOOP.
+
+    A window.interactive_beam_jquery with datatable plugin configured can be
+    used in following notebook cells once this is invoked.
+
+    #. There should only be one jQuery imported.
+    #. Datatable needs to be imported after jQuery is loaded.
+    #. Imported jQuery is attached to window named as jquery[version].
+    #. The window attachment needs to happen at the end of import chain until
+       all jQuery plugins are set.
+    """
+    try:
+      from IPython.core.display import Javascript
+      from IPython.core.display import display_javascript
+      display_javascript(
+          Javascript(
+              _JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='')))
+    except ImportError:
+      pass  # NOOP if dependencies are not available.
+
+  def import_html_to_head(self, html_hrefs):
+    """Imports given external HTMLs (supported through webcomponents) into
+    the head of the document.
+
+    On load of webcomponentsjs, import given HTMLs. If HTML import is already
+    supported, skip loading webcomponentsjs.
+
+    No matter how many times an HTML import occurs in the document, only the
+    first occurrence really embeds the external HTML. In a notebook environment,
+    the body of the document is always changing due to cell [re-]execution,
+    deletion and re-ordering. Thus, HTML imports shouldn't be put in the body
+    especially the output areas of notebook cells.
+    """
+    try:
+      from IPython.core.display import Javascript
+      from IPython.core.display import display_javascript
+      display_javascript(
+          Javascript(_HTML_IMPORT_TEMPLATE.format(hrefs=html_hrefs)))
+    except ImportError:
+      pass  # NOOP if dependencies are not available.

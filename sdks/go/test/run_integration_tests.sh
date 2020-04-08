@@ -36,6 +36,7 @@ GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 # Project for the container and integration test
 PROJECT=apache-beam-testing
 DATAFLOW_PROJECT=apache-beam-testing
+REGION=us-central1
 
 # Number of tests to run in parallel
 PARALLEL=10
@@ -51,6 +52,11 @@ case $key in
         ;;
     --project)
         PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --region)
+        REGION="$2"
         shift # past argument
         shift # past value
         ;;
@@ -125,7 +131,7 @@ fi
 
 # Build the container
 TAG=$(date +%Y%m%d-%H%M%S)
-CONTAINER=us.gcr.io/$PROJECT/$USER/go_sdk
+CONTAINER=us.gcr.io/$PROJECT/$USER/beam_go_sdk
 echo "Using container $CONTAINER"
 ./gradlew :sdks:go:container:docker -Pdocker-repository-root=us.gcr.io/$PROJECT/$USER -Pdocker-tag=$TAG
 
@@ -174,6 +180,7 @@ echo ">>> RUNNING $RUNNER INTEGRATION TESTS"
 ./sdks/go/build/bin/integration \
     --runner=$RUNNER \
     --project=$DATAFLOW_PROJECT \
+    --region=$REGION \
     --environment_type=DOCKER \
     --environment_config=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \

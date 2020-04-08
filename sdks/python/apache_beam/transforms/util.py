@@ -64,6 +64,7 @@ from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.trigger import AccumulationMode
 from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -678,7 +679,7 @@ class ReshufflePerKey(PTransform):
     # accept only standard coders.
     ungrouped._windowing = Windowing(
         window.GlobalWindows(),
-        triggerfn=AfterCount(1),
+        triggerfn=Repeatedly(AfterCount(1)),
         accumulation_mode=AccumulationMode.DISCARDING,
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
     result = (
@@ -710,11 +711,12 @@ class Reshuffle(PTransform):
       KeyedT = Tuple[long, T]  # pylint: disable=long-builtin
     return (
         pcoll
-        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(
-            32), t)).with_input_types(T).with_output_types(KeyedT)
+        | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t)).
+        with_input_types(T).with_output_types(KeyedT)  # type: ignore[misc]
         | ReshufflePerKey()
-        | 'RemoveRandomKeys' >>
-        Map(lambda t: t[1]).with_input_types(KeyedT).with_output_types(T))
+        | 'RemoveRandomKeys' >> Map(lambda t: t[1]).with_input_types(
+            KeyedT).with_output_types(T)  # type: ignore[misc]
+    )
 
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, None]
@@ -722,7 +724,8 @@ class Reshuffle(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.composites.RESHUFFLE.urn, None)
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Reshuffle()
 
 

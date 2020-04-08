@@ -39,8 +39,12 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -261,18 +265,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * data has been explicitly requested. See {@link Window} for more information.
      */
     public abstract PaneInfo pane();
-
-    /**
-     * Gives the runner a (best-effort) lower bound about the timestamps of future output associated
-     * with the current element.
-     *
-     * <p>If the {@link DoFn} has multiple outputs, the watermark applies to all of them.
-     *
-     * <p>Only splittable {@link DoFn DoFns} are allowed to call this method. It is safe to call
-     * this method from a different thread than the one running {@link ProcessElement}, but all
-     * calls must finish before {@link ProcessElement} returns.
-     */
-    public abstract void updateWatermark(Instant watermark);
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */
@@ -592,6 +584,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>If one of the parameters is of type {@link DoFn.StartBundleContext}, then it will be
    *       passed a context object for the current execution.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
    *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
    *       mechanism to register a callback that will be invoked after the runner successfully
    *       commits the output of this bundle. See <a
@@ -668,6 +662,14 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *       GetInitialRestriction}. This method is optional only if the restriction type returned by
    *       {@link GetInitialRestriction} implements {@link HasDefaultTracker}.
    *   <li>It <i>may</i> define a {@link GetRestrictionCoder} method.
+   *   <li>It <i>may</i> define a {@link GetInitialWatermarkEstimatorState} method. If none is
+   *       defined then the watermark estimator state is of type {@link Void}.
+   *   <li>It <i>may</i> define a {@link GetWatermarkEstimatorStateCoder} method.
+   *   <li>It <i>may</i> define a {@link NewWatermarkEstimator} method returning a subtype of {@code
+   *       WatermarkEstimator<W>} where {@code W} is the watermark estimator state type returned by
+   *       {@link GetInitialWatermarkEstimatorState}. This method is optional only if {@link
+   *       GetInitialWatermarkEstimatorState} has not been defined or {@code W} implements {@link
+   *       HasDefaultWatermarkEstimator}.
    *   <li>The {@link DoFn} itself <i>may</i> be annotated with {@link BoundedPerElement} or {@link
    *       UnboundedPerElement}, but not both at the same time. If it's not annotated with either of
    *       these, it's assumed to be {@link BoundedPerElement} if its {@link ProcessElement} method
@@ -690,6 +692,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
+   *   <li>If one of its arguments is of the type {@link WatermarkEstimator}, then it will be passed
+   *       the watermark estimator.
+   *   <li>If one of its arguments is of the type {@link ManualWatermarkEstimator}, then it will be
+   *       passed a watermark estimator that can be updated manually. This parameter can only be
+   *       supplied if the method annotated with {@link GetInitialWatermarkEstimatorState} returns a
+   *       sub-type of {@link ManualWatermarkEstimator}.
    *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
    *       window of the current element. When applied by {@link ParDo} the subtype of {@link
    *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
@@ -718,7 +726,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Parameter annotation for the input element for {@link ProcessElement}, {@link
-   * GetInitialRestriction}, {@link GetSize}, {@link SplitRestriction}, and {@link NewTracker}
+   * GetInitialRestriction}, {@link GetSize}, {@link SplitRestriction}, {@link
+   * GetInitialWatermarkEstimatorState}, {@link NewWatermarkEstimator}, and {@link NewTracker}
    * methods.
    */
   @Documented
@@ -727,8 +736,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface Element {}
 
   /**
-   * Parameter annotation for the restriction for {@link GetSize}, {@link SplitRestriction}, and
-   * {@link NewTracker} methods. Must match the return type used on the method annotated with {@link
+   * Parameter annotation for the restriction for {@link GetSize}, {@link SplitRestriction}, {@link
+   * GetInitialWatermarkEstimatorState}, {@link NewWatermarkEstimator}, and {@link NewTracker}
+   * methods. Must match the return type used on the method annotated with {@link
    * GetInitialRestriction}.
    */
   @Documented
@@ -738,7 +748,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
   /**
    * Parameter annotation for the input element timestamp for {@link ProcessElement}, {@link
-   * GetInitialRestriction}, {@link GetSize}, {@link SplitRestriction}, and {@link NewTracker}
+   * GetInitialRestriction}, {@link GetSize}, {@link SplitRestriction}, {@link
+   * GetInitialWatermarkEstimatorState}, {@link NewWatermarkEstimator}, and {@link NewTracker}
    * methods.
    */
   @Documented
@@ -810,11 +821,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>If one of the parameters is of type {@link DoFn.FinishBundleContext}, then it will be
    *       passed a context object for the current execution.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
    *   <li>If one of the parameters is of type {@link BundleFinalizer}, then it will be passed a
    *       mechanism to register a callback that will be invoked after the runner successfully
    *       commits the output of this bundle. See <a
    *       href="https://s.apache.org/beam-finalizing-bundles">Apache Beam Portability API: How to
    *       Finalize Bundles</a> for further details.
+   *   <li>TODO(BEAM-1287): Add support for an {@link OutputReceiver} and {@link
+   *       MultiOutputReceiver} that can output to a window.
    * </ul>
    *
    * <p>Note that {@link FinishBundle @FinishBundle} is invoked before the runner commits the output
@@ -1063,6 +1078,120 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Target(ElementType.METHOD)
   @Experimental(Kind.SPLITTABLE_DO_FN)
   public @interface NewTracker {}
+
+  /**
+   * Annotation for the method that maps an element and restriction to initial watermark estimator
+   * state for a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+   *
+   * <p>Signature: {@code WatermarkEstimatorStateT getInitialWatermarkState(<arguments>);}
+   *
+   * <p>This method must satisfy the following constraints:
+   *
+   * <ul>
+   *   <li>The return type {@code WatermarkEstimatorStateT} defines the watermark state type used
+   *       within this splittable DoFn. All other methods that use a {@link
+   *       WatermarkEstimatorState @WatermarkEstimatorState} parameter must use the same type that
+   *       is used here. It is suggested to use as narrow of a return type definition as possible
+   *       (for example prefer to use a square type over a shape type as a square is a type of a
+   *       shape).
+   *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
+   *       passed the current element being processed; the argument must be of type {@code InputT}.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
+   *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
+   *       be passed the current restriction being processed; the argument must be of type {@code
+   *       RestrictionT}.
+   *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *       passed the timestamp of the current element being processed; the argument must be of type
+   *       {@link Instant}.
+   *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
+   *       window of the current element. When applied by {@link ParDo} the subtype of {@link
+   *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
+   *       window is not accessed a runner may perform additional optimizations.
+   *   <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *       about the current triggering pane.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface GetInitialWatermarkEstimatorState {}
+
+  /**
+   * Annotation for the method that returns the coder to use for the watermark estimator state of a
+   * <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+   *
+   * <p>If not defined, a coder will be inferred using standard coder inference rules and the
+   * pipeline's {@link Pipeline#getCoderRegistry coder registry}.
+   *
+   * <p>This method will be called only at pipeline construction time.
+   *
+   * <p>Signature: {@code Coder<WatermarkEstimatorStateT> getWatermarkEstimatorStateCoder();}
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface GetWatermarkEstimatorStateCoder {}
+
+  /**
+   * Annotation for the method that creates a new {@link WatermarkEstimator} for the watermark state
+   * of a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+   *
+   * <p>Signature: {@code MyWatermarkEstimator newWatermarkEstimator(<optional arguments>);}
+   *
+   * <p>If the return type is a subtype of {@link TimestampObservingWatermarkEstimator} then the
+   * timestamp of each element output from this DoFn is provided to the watermark estimator.
+   *
+   * <p>This method must satisfy the following constraints:
+   *
+   * <ul>
+   *   <li>The return type must be a subtype of {@code
+   *       WatermarkEstimator<WatermarkEstimatorStateT>}. It is suggested to use as narrow of a
+   *       return type definition as possible (for example prefer to use a square type over a shape
+   *       type as a square is a type of a shape).
+   *   <li>If one of its arguments is tagged with the {@link WatermarkEstimatorState} annotation,
+   *       then it will be passed the current watermark estimator state; the argument must be of
+   *       type {@code WatermarkEstimatorStateT}.
+   *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
+   *       passed the current element being processed; the argument must be of type {@code InputT}.
+   *       Note that automatic conversion of {@link Row}s and {@link FieldAccess} parameters are
+   *       currently unsupported.
+   *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
+   *       be passed the current restriction being processed; the argument must be of type {@code
+   *       RestrictionT}.
+   *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
+   *       passed the timestamp of the current element being processed; the argument must be of type
+   *       {@link Instant}.
+   *   <li>If one of its arguments is a subtype of {@link BoundedWindow}, then it will be passed the
+   *       window of the current element. When applied by {@link ParDo} the subtype of {@link
+   *       BoundedWindow} must match the type of windows on the input {@link PCollection}. If the
+   *       window is not accessed a runner may perform additional optimizations.
+   *   <li>If one of its arguments is of type {@link PaneInfo}, then it will be passed information
+   *       about the current triggering pane.
+   *   <li>If one of the parameters is of type {@link PipelineOptions}, then it will be passed the
+   *       options for the current pipeline.
+   * </ul>
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface NewWatermarkEstimator {}
+
+  /**
+   * Parameter annotation for the watermark estimator state for the {@link NewWatermarkEstimator}
+   * method. Must match the return type on the method annotated with {@link
+   * GetInitialWatermarkEstimatorState}.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  @Experimental(Kind.SPLITTABLE_DO_FN)
+  public @interface WatermarkEstimatorState {}
 
   /**
    * Annotation on a <a href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}

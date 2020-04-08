@@ -28,6 +28,8 @@ from __future__ import division
 import base64
 import json
 import logging
+import os
+import subprocess
 import sys
 import threading
 import time
@@ -35,6 +37,8 @@ import traceback
 import urllib
 from builtins import hex
 from collections import defaultdict
+from typing import TYPE_CHECKING
+from typing import List
 
 from future.utils import iteritems
 
@@ -63,11 +67,17 @@ from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
 from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms import window
+from apache_beam.transforms.core import RunnerAPIPTransformHolder
 from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.typehints import typehints
+from apache_beam.utils import processes
 from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
+
+if TYPE_CHECKING:
+  from apache_beam.pipeline import PTransformOverride
 
 if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
@@ -104,7 +114,7 @@ class DataflowRunner(PipelineRunner):
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
 
-  _PTRANSFORM_OVERRIDES = []
+  _PTRANSFORM_OVERRIDES = []  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [
       JrhReadPTransformOverride(),
@@ -240,6 +250,12 @@ class DataflowRunner(PipelineRunner):
     runner.last_error_msg = last_error_msg
 
   @staticmethod
+  def _only_element(iterable):
+    # type: (Iterable[T]) -> T
+    element, = iterable
+    return element
+
+  @staticmethod
   def group_by_key_input_visitor():
     # Imported here to avoid circular dependencies.
     from apache_beam.pipeline import PipelineVisitor
@@ -264,11 +280,7 @@ class DataflowRunner(PipelineRunner):
               pcoll.element_type, transform_node.full_label)
           key_type, value_type = pcoll.element_type.tuple_types
           if transform_node.outputs:
-            from apache_beam.runners.portability.fn_api_runner_transforms import \
-              only_element
-            key = (
-                None if None in transform_node.outputs.keys() else only_element(
-                    transform_node.outputs.keys()))
+            key = DataflowRunner._only_element(transform_node.outputs.keys())
             transform_node.outputs[key].element_type = typehints.KV[
                 key_type, typehints.Iterable[value_type]]
 
@@ -375,7 +387,8 @@ class DataflowRunner(PipelineRunner):
         # pylint: disable=wrong-import-order, wrong-import-position
         from apache_beam import Flatten
         if isinstance(transform_node.transform, Flatten):
-          output_pcoll = transform_node.outputs[None]
+          output_pcoll = DataflowRunner._only_element(
+              transform_node.outputs.values())
           for input_pcoll in transform_node.inputs:
             input_pcoll.element_type = output_pcoll.element_type
 
@@ -592,14 +605,22 @@ class DataflowRunner(PipelineRunner):
         },
     }
 
-  def _get_encoded_output_coder(self, transform_node, window_value=True):
+  def _get_encoded_output_coder(
+      self, transform_node, window_value=True, output_tag=None):
     """Returns the cloud encoding of the coder for the output of a transform."""
-    from apache_beam.runners.portability.fn_api_runner_transforms import \
-      only_element
-    if len(transform_node.outputs) == 1:
-      output_tag = only_element(transform_node.outputs.keys())
+    is_external_transform = isinstance(
+        transform_node.transform, RunnerAPIPTransformHolder)
+
+    if output_tag in transform_node.outputs:
+      element_type = transform_node.outputs[output_tag].element_type
+    elif len(transform_node.outputs) == 1:
+      output_tag = DataflowRunner._only_element(transform_node.outputs.keys())
       # TODO(robertwb): Handle type hints for multi-output transforms.
       element_type = transform_node.outputs[output_tag].element_type
+    elif is_external_transform:
+      raise ValueError(
+          'For external transforms, output_tag must be specified '
+          'since we cannot fallback to a Python only coder.')
     else:
       # TODO(silviuc): Remove this branch (and assert) when typehints are
       # propagated everywhere. Returning an 'Any' as type hint will trigger
@@ -628,9 +649,8 @@ class DataflowRunner(PipelineRunner):
 
     # Main output key of external transforms can be ambiguous, so we only tag if
     # there's only one tag instead of None.
-    from apache_beam.runners.portability.fn_api_runner_transforms import only_element
     output_tag = (
-        only_element(transform_node.outputs.keys()) if len(
+        DataflowRunner._only_element(transform_node.outputs.keys()) if len(
             transform_node.outputs.keys()) == 1 else None)
 
     self._cache.cache_output(transform_node, output_tag, step)
@@ -760,7 +780,9 @@ class DataflowRunner(PipelineRunner):
 
     # TODO(BEAM-6928): Remove this function for release 2.14.0.
     experiments = options.view_as(DebugOptions).experiments or []
-    if (not isinstance(transform, beam.io.WriteToBigQuery) or
+    from apache_beam.runners.dataflow.internal import apiclient
+    use_fnapi = apiclient._use_fnapi(options)
+    if (not isinstance(transform, beam.io.WriteToBigQuery) or use_fnapi or
         'use_beam_bq_sink' in experiments):
       return self.apply_PTransform(transform, pcoll, options)
     if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
@@ -849,15 +871,19 @@ class DataflowRunner(PipelineRunner):
     if common_urns.primitives.PAR_DO.urn == urn:
       self.run_ParDo(transform_node, options)
     else:
-      NotImplementedError(urn)
+      raise NotImplementedError(
+          '%s uses unsupported URN: %s' % (transform_node.full_label, urn))
 
   def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
 
+    is_external_transform = isinstance(transform, RunnerAPIPTransformHolder)
+
     # Attach side inputs.
     si_dict = {}
+    all_input_labels = transform_node.input_tags_to_preserve
     si_labels = {}
     full_label_counts = defaultdict(int)
     lookup_label = lambda side_pval: si_labels[side_pval]
@@ -866,9 +892,15 @@ class DataflowRunner(PipelineRunner):
     for ix, side_pval in enumerate(transform_node.side_inputs):
       assert isinstance(side_pval, AsSideInput)
       step_name = 'SideInput-' + self._get_unique_step_name()
-      si_label = 'side%d-%s' % (ix, transform_node.full_label)
-      old_label = 'side%d' % ix
-      label_renames[old_label] = si_label
+      si_label = ((SIDE_INPUT_PREFIX + '%d-%s') %
+                  (ix, transform_node.full_label)
+                  if side_pval.pvalue not in all_input_labels else
+                  all_input_labels[side_pval.pvalue])
+      old_label = (SIDE_INPUT_PREFIX + '%d') % ix
+
+      if not is_external_transform:
+        label_renames[old_label] = si_label
+
       assert old_label in named_inputs
       pcollection_label = '%s.%s' % (
           side_pval.pvalue.producer.full_label.split('/')[-1],
@@ -956,16 +988,10 @@ class DataflowRunner(PipelineRunner):
     step.add_property(PropertyNames.NON_PARALLEL_INPUTS, si_dict)
 
     # Generate description for the outputs. The output names
-    # will be 'out' for main output and 'out_<tag>' for a tagged output.
-    # Using 'out' as a tag will not clash with the name for main since it will
-    # be transformed into 'out_out' internally.
+    # will be 'None' for main output and '<tag>' for a tagged output.
     outputs = []
-    step.encoding = self._get_encoded_output_coder(transform_node)
 
     all_output_tags = transform_proto.outputs.keys()
-
-    from apache_beam.transforms.core import RunnerAPIPTransformHolder
-    external_transform = isinstance(transform, RunnerAPIPTransformHolder)
 
     # Some external transforms require output tags to not be modified.
     # So we randomly select one of the output tags as the main output and
@@ -973,12 +999,14 @@ class DataflowRunner(PipelineRunner):
     # dependending on which output tag we choose as the main output here.
     # Also, some SDKs do not work correctly if output tags are modified. So for
     # external transforms, we leave tags unmodified.
-    main_output_tag = (
-        all_output_tags[0] if external_transform else PropertyNames.OUT)
-
+    #
     # Python SDK uses 'None' as the tag of the main output.
-    tag_to_ignore = main_output_tag if external_transform else 'None'
-    side_output_tags = set(all_output_tags).difference({tag_to_ignore})
+    main_output_tag = (all_output_tags[0] if is_external_transform else 'None')
+
+    step.encoding = self._get_encoded_output_coder(
+        transform_node, output_tag=main_output_tag)
+
+    side_output_tags = set(all_output_tags).difference({main_output_tag})
 
     # Add the main output to the description.
     outputs.append({
@@ -991,13 +1019,13 @@ class DataflowRunner(PipelineRunner):
       # The assumption here is that all outputs will have the same typehint
       # and coder as the main output. This is certainly the case right now
       # but conceivably it could change in the future.
+      encoding = self._get_encoded_output_coder(
+          transform_node, output_tag=side_tag)
       outputs.append({
           PropertyNames.USER_NAME: (
               '%s.%s' % (transform_node.full_label, side_tag)),
-          PropertyNames.ENCODING: step.encoding,
-          PropertyNames.OUTPUT_NAME: (
-              side_tag if external_transform else '%s_%s' %
-              (PropertyNames.OUT, side_tag))
+          PropertyNames.ENCODING: encoding,
+          PropertyNames.OUTPUT_NAME: side_tag
       })
 
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
@@ -1360,7 +1388,7 @@ class DataflowRunner(PipelineRunner):
 
   # We must mark this method as not a test or else its name is a matcher for
   # nosetest tests.
-  run_TestStream.__test__ = False
+  run_TestStream.__test__ = False  # type: ignore[attr-defined]
 
   @classmethod
   def serialize_windowing_strategy(cls, windowing):
@@ -1393,6 +1421,36 @@ class DataflowRunner(PipelineRunner):
   def json_string_to_byte_array(encoded_string):
     """Implements org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray."""
     return unquote_to_bytes(encoded_string)
+
+  def get_default_gcp_region(self):
+    """Get a default value for Google Cloud region according to
+    https://cloud.google.com/compute/docs/gcloud-compute/#default-properties.
+    If no default can be found, returns None.
+    """
+    environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
+    if environment_region:
+      _LOGGER.info(
+          'Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
+          environment_region)
+      return environment_region
+    try:
+      cmd = ['gcloud', 'config', 'get-value', 'compute/region']
+      # Use subprocess.DEVNULL in Python 3.3+.
+      if hasattr(subprocess, 'DEVNULL'):
+        DEVNULL = subprocess.DEVNULL
+      else:
+        DEVNULL = open(os.devnull, 'ab')
+      raw_output = processes.check_output(cmd, stderr=DEVNULL)
+      formatted_output = raw_output.decode('utf-8').strip()
+      if formatted_output:
+        _LOGGER.info(
+            'Using default GCP region %s from `%s`',
+            formatted_output,
+            ' '.join(cmd))
+        return formatted_output
+    except RuntimeError:
+      pass
+    return None
 
 
 class _DataflowSideInput(beam.pvalue.AsSideInput):
@@ -1537,7 +1595,7 @@ class DataflowPipelineResult(PipelineResult):
       # use thread.join() to wait for the polling thread.
       thread.daemon = True
       thread.start()
-      while thread.isAlive():
+      while thread.is_alive():
         time.sleep(5.0)
 
       # TODO: Merge the termination code in poll_for_job_completion and

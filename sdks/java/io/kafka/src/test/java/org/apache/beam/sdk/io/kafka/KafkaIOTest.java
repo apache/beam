@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.ConfluentSchemaRegistryDeserializerProviderTest.mockDeserializerProvider;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsString;
@@ -31,10 +32,9 @@ import static org.junit.Assume.assumeTrue;
 import static org.junit.internal.matchers.ThrowableCauseMatcher.hasCause;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
-import io.confluent.kafka.schemaregistry.client.MockSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
-import io.confluent.kafka.serializers.KafkaAvroDeserializer;
-import io.confluent.kafka.serializers.KafkaAvroDeserializerConfig;
+import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
+import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -61,19 +61,14 @@ import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.InstantCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
-import org.apache.beam.sdk.io.kafka.serialization.InstantDeserializer;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -122,13 +117,11 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
-import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.IntegerDeserializer;
 import org.apache.kafka.common.serialization.IntegerSerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
 import org.apache.kafka.common.serialization.LongSerializer;
 import org.apache.kafka.common.serialization.Serializer;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.utils.Utils;
 import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.collection.IsIterableWithSize;
@@ -428,82 +421,12 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testReadAvroKeysAsGenericRecords() {
+  public void testReadAvroGenericRecordsWithConfluentSchemaRegistry() {
     int numElements = 100;
     String topic = "my_topic";
-    String keySchemaSubject = topic + "-key";
     String schemaRegistryUrl = "mock://my-scope-name";
-
-    List<KV<GenericRecord, Long>> inputs = new ArrayList<>();
-    for (int i = 0; i < numElements; i++) {
-      inputs.add(KV.of(new AvroGeneratedUser("KeyName" + i, i, "color" + i), (long) i));
-    }
-
-    KafkaIO.Read<GenericRecord, Long> reader =
-        KafkaIO.<GenericRecord, Long>read()
-            .withBootstrapServers("localhost:9092")
-            .withTopic(topic)
-            .withValueDeserializer(LongDeserializer.class)
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic),
-                    1,
-                    numElements,
-                    OffsetResetStrategy.EARLIEST,
-                    new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
-                    i -> ByteBuffer.wrap(new byte[8]).putLong(i).array()))
-            .withMaxNumRecords(numElements)
-            .withCSRClientProvider(
-                new TestCSRClientProvider(schemaRegistryUrl, keySchemaSubject, null));
-
-    PCollection<KV<GenericRecord, Long>> input = p.apply(reader.withoutMetadata());
-
-    PAssert.that(input).containsInAnyOrder(inputs);
-    p.run();
-  }
-
-  @Test
-  public void testReadAvroValuesAsGenericRecords() {
-    int numElements = 100;
-    String topic = "my_topic";
-    String valueSchemaSubject = topic + "-value";
-    String schemaRegistryUrl = "mock://my-scope-name";
-
-    List<KV<Integer, GenericRecord>> inputs = new ArrayList<>();
-    for (int i = 0; i < numElements; i++) {
-      inputs.add(KV.of(i, new AvroGeneratedUser("ValueName" + i, i, "color" + i)));
-    }
-
-    KafkaIO.Read<Integer, GenericRecord> reader =
-        KafkaIO.<Integer, GenericRecord>read()
-            .withBootstrapServers("localhost:9092")
-            .withTopic(topic)
-            .withKeyDeserializer(IntegerDeserializer.class)
-            .withConsumerFactoryFn(
-                new ConsumerFactoryFn(
-                    ImmutableList.of(topic),
-                    1,
-                    numElements,
-                    OffsetResetStrategy.EARLIEST,
-                    i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
-                    new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
-            .withMaxNumRecords(numElements)
-            .withCSRClientProvider(
-                new TestCSRClientProvider(schemaRegistryUrl, null, valueSchemaSubject));
-
-    PCollection<KV<Integer, GenericRecord>> input = p.apply(reader.withoutMetadata());
-
-    PAssert.that(input).containsInAnyOrder(inputs);
-    p.run();
-  }
-
-  @Test
-  public void testReadAvroKeysValuesAsGenericRecords() {
-    int numElements = 100;
-    String topic = "my_topic";
     String keySchemaSubject = topic + "-key";
     String valueSchemaSubject = topic + "-value";
-    String schemaRegistryUrl = "mock://my-scope-name";
 
     List<KV<GenericRecord, GenericRecord>> inputs = new ArrayList<>();
     for (int i = 0; i < numElements; i++) {
@@ -517,6 +440,10 @@ public class KafkaIOTest {
         KafkaIO.<GenericRecord, GenericRecord>read()
             .withBootstrapServers("localhost:9092")
             .withTopic(topic)
+            .withKeyDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, keySchemaSubject, null))
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic),
@@ -525,9 +452,7 @@ public class KafkaIOTest {
                     OffsetResetStrategy.EARLIEST,
                     new KeyAvroSerializableFunction(topic, schemaRegistryUrl),
                     new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
-            .withMaxNumRecords(numElements)
-            .withCSRClientProvider(
-                new TestCSRClientProvider(schemaRegistryUrl, keySchemaSubject, valueSchemaSubject));
+            .withMaxNumRecords(numElements);
 
     PCollection<KV<GenericRecord, GenericRecord>> input = p.apply(reader.withoutMetadata());
 
@@ -536,11 +461,11 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testReadAvroValuesAsSpecificRecords() {
+  public void testReadAvroSpecificRecordsWithConfluentSchemaRegistry() {
     int numElements = 100;
     String topic = "my_topic";
-    String valueSchemaSubject = topic + "-value";
     String schemaRegistryUrl = "mock://my-scope-name";
+    String valueSchemaSubject = topic + "-value";
 
     List<KV<Integer, AvroGeneratedUser>> inputs = new ArrayList<>();
     for (int i = 0; i < numElements; i++) {
@@ -552,7 +477,8 @@ public class KafkaIOTest {
             .withBootstrapServers("localhost:9092")
             .withTopic(topic)
             .withKeyDeserializer(IntegerDeserializer.class)
-            .withConsumerConfigUpdates(ImmutableMap.of("schema.registry.url", schemaRegistryUrl))
+            .withValueDeserializer(
+                mockDeserializerProvider(schemaRegistryUrl, valueSchemaSubject, null))
             .withConsumerFactoryFn(
                 new ConsumerFactoryFn(
                     ImmutableList.of(topic),
@@ -561,11 +487,7 @@ public class KafkaIOTest {
                     OffsetResetStrategy.EARLIEST,
                     i -> ByteBuffer.wrap(new byte[4]).putInt(i).array(),
                     new ValueAvroSerializableFunction(topic, schemaRegistryUrl)))
-            .withMaxNumRecords(numElements)
-            .withValueDeserializerAndCoder(
-                (Class) KafkaAvroDeserializer.class, AvroCoder.of(AvroGeneratedUser.class))
-            .withCSRClientProvider(
-                new TestCSRClientProvider(schemaRegistryUrl, null, valueSchemaSubject));
+            .withMaxNumRecords(numElements);
 
     PCollection<KV<Integer, AvroGeneratedUser>> input = p.apply(reader.withoutMetadata());
 
@@ -604,16 +526,48 @@ public class KafkaIOTest {
                     .withValueDeserializer(LongDeserializer.class)
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(
-                            ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
-                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
-                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
-                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
+                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
+                            5,
+                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
+                            8,
+                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG,
+                            8,
+                            "default.api.timeout.ms",
+                            10))
                     .withMaxNumRecords(10)
                     .withoutMetadata())
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testResolveDefaultApiTimeout() {
+
+    final String defaultApiTimeoutConfig = "default.api.timeout.ms";
+
+    assertEquals(
+        Duration.millis(20),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(
+            KafkaIO.<Integer, Long>read()
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        defaultApiTimeoutConfig,
+                        20,
+                        ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG,
+                        30))));
+
+    assertEquals(
+        Duration.millis(2 * 30),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(
+            KafkaIO.<Integer, Long>read()
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30))));
+
+    assertEquals(
+        Duration.millis(60 * 1000),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(KafkaIO.<Integer, Long>read()));
   }
 
   @Test
@@ -1592,77 +1546,6 @@ public class KafkaIOTest {
     }
   }
 
-  // interface for testing coder inference
-  private interface DummyInterface<T> {}
-
-  // interface for testing coder inference
-  private interface DummyNonparametricInterface {}
-
-  // class for testing coder inference
-  private static class DeserializerWithInterfaces
-      implements DummyInterface<String>, DummyNonparametricInterface, Deserializer<Long> {
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {}
-
-    @Override
-    public Long deserialize(String topic, byte[] bytes) {
-      return 0L;
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  // class for which a coder cannot be infered
-  private static class NonInferableObject {}
-
-  // class for testing coder inference
-  private static class NonInferableObjectDeserializer implements Deserializer<NonInferableObject> {
-
-    @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {}
-
-    @Override
-    public NonInferableObject deserialize(String topic, byte[] bytes) {
-      return new NonInferableObject();
-    }
-
-    @Override
-    public void close() {}
-  }
-
-  @Test
-  public void testInferKeyCoder() {
-    CoderRegistry registry = CoderRegistry.createDefault();
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, LongDeserializer.class).getValueCoder()
-            instanceof VarLongCoder);
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, StringDeserializer.class).getValueCoder()
-            instanceof StringUtf8Coder);
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, InstantDeserializer.class).getValueCoder()
-            instanceof InstantCoder);
-
-    assertTrue(
-        KafkaIO.inferCoder(registry, DeserializerWithInterfaces.class).getValueCoder()
-            instanceof VarLongCoder);
-  }
-
-  @Rule public ExpectedException cannotInferException = ExpectedException.none();
-
-  @Test
-  public void testInferKeyCoderFailure() throws Exception {
-    cannotInferException.expect(RuntimeException.class);
-
-    CoderRegistry registry = CoderRegistry.createDefault();
-    KafkaIO.inferCoder(registry, NonInferableObjectDeserializer.class);
-  }
-
   @Test
   public void testSinkMetrics() throws Exception {
     // Simply read from kafka source and write to kafka sink. Then verify the metrics are reported.
@@ -1967,32 +1850,6 @@ public class KafkaIOTest {
     }
   }
 
-  private static class AvroSerde {
-    private static Serializer<AvroGeneratedUser> getSerializer(
-        boolean isKey, String schemaRegistryUrl) {
-      SchemaRegistryClient registryClient = new MockSchemaRegistryClient();
-      Map<String, Object> map = new HashMap<>();
-      map.put(KafkaAvroDeserializerConfig.AUTO_REGISTER_SCHEMAS, true);
-      map.put(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
-      Serializer<AvroGeneratedUser> serializer =
-          (Serializer) new KafkaAvroSerializer(registryClient);
-      serializer.configure(map, isKey);
-      return serializer;
-    }
-
-    private static Deserializer<AvroGeneratedUser> getDeserializer(
-        boolean key, String schemaRegistryUrl) {
-      SchemaRegistryClient registryClient = new MockSchemaRegistryClient();
-      Map<String, Object> map = new HashMap<>();
-      map.put(KafkaAvroDeserializerConfig.SPECIFIC_AVRO_READER_CONFIG, "true");
-      map.put(KafkaAvroDeserializerConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
-      Deserializer<AvroGeneratedUser> deserializer =
-          (Deserializer) new KafkaAvroDeserializer(registryClient);
-      deserializer.configure(map, key);
-      return deserializer;
-    }
-  }
-
   private abstract static class BaseAvroSerializableFunction
       implements SerializableFunction<Integer, byte[]> {
     static transient Serializer<AvroGeneratedUser> serializer = null;
@@ -2008,7 +1865,13 @@ public class KafkaIOTest {
 
     static Serializer<AvroGeneratedUser> getSerializer(boolean isKey, String schemaRegistryUrl) {
       if (serializer == null) {
-        serializer = AvroSerde.getSerializer(isKey, schemaRegistryUrl);
+        SchemaRegistryClient mockRegistryClient =
+            MockSchemaRegistry.getClientForScope(schemaRegistryUrl);
+        Map<String, Object> map = new HashMap<>();
+        map.put(AbstractKafkaAvroSerDeConfig.AUTO_REGISTER_SCHEMAS, true);
+        map.put(AbstractKafkaAvroSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistryUrl);
+        serializer = (Serializer) new KafkaAvroSerializer(mockRegistryClient);
+        serializer.configure(map, isKey);
       }
       return serializer;
     }

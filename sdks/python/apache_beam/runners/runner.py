@@ -178,7 +178,7 @@ class PipelineRunner(object):
 
   def apply(self,
             transform,  # type: PTransform
-            input,  # type: pvalue.PCollection
+            input,  # type: Optional[pvalue.PValue]
             options  # type: PipelineOptions
            ):
     """Runner callback for a pipeline.apply call.

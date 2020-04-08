@@ -22,31 +22,52 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 // fakeStateClient replicates the call and response protocol
 // of the state channel.
 type fakeStateClient struct {
 	// Blocks the read routine
-	recv    chan *pb.StateResponse
+	recv    chan *fnpb.StateResponse
 	recvErr error
+	recvMu  sync.Mutex
+
 	// Blocks the write routine
-	send    chan *pb.StateRequest
+	send    chan *fnpb.StateRequest
 	sendErr error
+	sendMu  sync.Mutex
 }
 
-func (f *fakeStateClient) Recv() (*pb.StateResponse, error) {
+func (f *fakeStateClient) Recv() (*fnpb.StateResponse, error) {
 	// Blocks until something is sent.
-	return <-f.recv, f.recvErr
+	v := <-f.recv
+	f.recvMu.Lock()
+	defer f.recvMu.Unlock()
+	return v, f.recvErr
 }
 
-func (f *fakeStateClient) Send(req *pb.StateRequest) error {
+func (f *fakeStateClient) Send(req *fnpb.StateRequest) error {
 	f.send <- req // blocks until consumed.
+	f.sendMu.Lock()
+	defer f.sendMu.Unlock()
 	return f.sendErr
+}
+
+func (f *fakeStateClient) setRecvErr(err error) {
+	f.recvMu.Lock()
+	defer f.recvMu.Unlock()
+	f.recvErr = err
+}
+
+func (f *fakeStateClient) setSendErr(err error) {
+	f.sendMu.Lock()
+	defer f.sendMu.Unlock()
+	f.sendErr = err
 }
 
 func TestStateChannel(t *testing.T) {
@@ -71,10 +92,10 @@ func TestStateChannel(t *testing.T) {
 				for i := 0; i < count; i++ {
 					go func() {
 						req := <-client.send
-						client.recv <- &pb.StateResponse{
+						client.recv <- &fnpb.StateResponse{
 							Id: req.Id, // Ids need to match up to ensure routing can occur properly.
-							Response: &pb.StateResponse_Get{
-								Get: &pb.StateGetResponse{
+							Response: &fnpb.StateResponse_Get{
+								Get: &fnpb.StateGetResponse{
 									ContinuationToken: req.GetGet().GetContinuationToken(),
 								},
 							},
@@ -83,9 +104,9 @@ func TestStateChannel(t *testing.T) {
 				}
 				for i := 0; i < count; i++ {
 					token := []byte(fmt.Sprintf("%d", i))
-					resp, err := c.Send(&pb.StateRequest{
-						Request: &pb.StateRequest_Get{
-							Get: &pb.StateGetRequest{
+					resp, err := c.Send(&fnpb.StateRequest{
+						Request: &fnpb.StateRequest_Get{
+							Get: &fnpb.StateGetRequest{
 								ContinuationToken: token,
 							},
 						},
@@ -105,12 +126,12 @@ func TestStateChannel(t *testing.T) {
 				go func() {
 					req := <-client.send // Send should succeed.
 
-					client.recvErr = io.EOF
-					client.recv <- &pb.StateResponse{
+					client.setRecvErr(io.EOF)
+					client.recv <- &fnpb.StateResponse{
 						Id: req.Id,
 					}
 				}()
-				_, err := c.Send(&pb.StateRequest{})
+				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
 			expectedErr:       io.EOF,
@@ -121,12 +142,12 @@ func TestStateChannel(t *testing.T) {
 				go func() {
 					req := <-client.send // Send should succeed.
 
-					client.recvErr = expectedError
-					client.recv <- &pb.StateResponse{
+					client.setRecvErr(expectedError)
+					client.recv <- &fnpb.StateResponse{
 						Id: req.Id,
 					}
 				}()
-				_, err := c.Send(&pb.StateRequest{})
+				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
 			expectedErr:       expectedError,
@@ -142,30 +163,30 @@ func TestStateChannel(t *testing.T) {
 					delete(c.responses, req.Id)
 					c.mu.Unlock()
 
-					resp := &pb.StateResponse{
+					resp := &fnpb.StateResponse{
 						Id: req.Id,
 					}
 					client.recv <- resp
 					// unblock Send.
 					ch <- resp
 				}()
-				_, err := c.Send(&pb.StateRequest{})
+				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
 		}, {
 			name: "writeEOF",
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
-					client.sendErr = io.EOF
+					client.setSendErr(io.EOF)
 					req := <-client.send
 					// This can be plumbed through on either side, write or read,
 					// the important part is that we get it.
-					client.recvErr = expectedError
-					client.recv <- &pb.StateResponse{
+					client.setRecvErr(expectedError)
+					client.recv <- &fnpb.StateResponse{
 						Id: req.Id,
 					}
 				}()
-				_, err := c.Send(&pb.StateRequest{})
+				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
 			expectedErr:       expectedError,
@@ -174,11 +195,11 @@ func TestStateChannel(t *testing.T) {
 			name: "writeOtherError",
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
-					client.sendErr = expectedError
+					client.setSendErr(expectedError)
 					<-client.send
 					// Shouldn't need to unblock any Recv calls.
 				}()
-				_, err := c.Send(&pb.StateRequest{})
+				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
 			expectedErr:       expectedError,
@@ -188,8 +209,8 @@ func TestStateChannel(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			client := &fakeStateClient{
-				recv: make(chan *pb.StateResponse),
-				send: make(chan *pb.StateRequest),
+				recv: make(chan *fnpb.StateResponse),
+				send: make(chan *fnpb.StateRequest),
 			}
 			ctx, cancelFn := context.WithCancel(context.Background())
 			c := makeStateChannel(ctx, cancelFn, "id", client)
@@ -209,13 +230,13 @@ func TestStateChannel(t *testing.T) {
 			// Verify that new Sends return the same error on their reads after client.Recv is done.
 			go func() {
 				// Ensure that the client isn't helping us.
-				client.sendErr = nil
-				client.recvErr = nil
+				client.setSendErr(nil)
+				client.setRecvErr(nil)
 				// Drain the next send, and ensure the response is unblocked.
 				req := <-client.send
-				client.recv <- &pb.StateResponse{Id: req.Id} // Ids need to match up to ensure routing can occur properly.
+				client.recv <- &fnpb.StateResponse{Id: req.Id} // Ids need to match up to ensure routing can occur properly.
 			}()
-			if _, err := c.Send(&pb.StateRequest{}); !contains(err, test.expectedErr) {
+			if _, err := c.Send(&fnpb.StateRequest{}); !contains(err, test.expectedErr) {
 				t.Errorf("Unexpected error from Send: got %v, want %v", err, test.expectedErr)
 			}
 

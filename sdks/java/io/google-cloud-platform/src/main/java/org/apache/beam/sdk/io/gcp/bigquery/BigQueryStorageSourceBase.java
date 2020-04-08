@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 @Experimental(Kind.SOURCE_SINK)
 abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryStorageSourceBase.class);
 
   /**
    * The maximum number of streams which will be requested when creating a read session, regardless
@@ -138,7 +138,7 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     try (StorageClient client = bqServices.getStorageClient(bqOptions)) {
       CreateReadSessionRequest request = requestBuilder.build();
       readSession = client.createReadSession(request);
-      LOGGER.info(
+      LOG.info(
           "Sent BigQuery Storage API CreateReadSession request '{}'; received response '{}'.",
           request,
           readSession);

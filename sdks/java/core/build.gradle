@@ -66,7 +66,7 @@ dependencies {
   // Required to load constants from the model, e.g. max timestamp for global window
   shadow project(path: ":model:pipeline", configuration: "shadow")
   shadow project(path: ":model:job-management", configuration: "shadow")
-  shadow library.java.vendored_bytebuddy_1_9_3
+  shadow library.java.vendored_bytebuddy_1_10_8
   shadow library.java.vendored_guava_26_0_jre
   compile library.java.antlr_runtime
   compile library.java.protobuf_java
@@ -84,6 +84,8 @@ dependencies {
   provided library.java.junit
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
+  provided 'io.airlift:aircompressor:0.16' 
+  provided 'com.facebook.presto.hadoop:hadoop-apache2:3.2.0-1'
   shadowTest library.java.jackson_dataformat_yaml
   shadowTest library.java.guava_testlib
   shadowTest library.java.mockito_core

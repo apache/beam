@@ -218,16 +218,16 @@ class S3IO(object):
         try:
           self.client.copy(request)
           results.append((src_path, dest_path, None))
-        except messages.S3ClientError as e:
-          results.append((src_path, dest_path, e))
+        except messages.S3ClientError as err:
+          results.append((src_path, dest_path, err))
 
       # Mismatched paths (one directory, one non-directory) get an error result
       else:
-        err = messages.S3ClientError(
+        e = messages.S3ClientError(
             "Can't copy mismatched paths (one directory, one non-directory):" +
             ' %s, %s' % (src_path, dest_path),
             400)
-        results.append((src_path, dest_path, err))
+        results.append((src_path, dest_path, e))
 
     return results
 

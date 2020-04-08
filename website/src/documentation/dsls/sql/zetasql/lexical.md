@@ -321,9 +321,9 @@ represents the offset from Coordinated Universal Time (UTC).</p>
 '-7'</code></pre>
 
 <p>Timezones can also be expressed using string timezone names from the
-<a href="http://www.iana.org/time-zones">tz database</a>. For a less comprehensive but
+<a href="https://www.iana.org/time-zones">tz database</a>. For a less comprehensive but
 simpler reference, see the
-<a href="http://en.wikipedia.org/wiki/List_of_tz_database_time_zones">List of tz database timezones</a>
+<a href="https://en.wikipedia.org/wiki/List_of_tz_database_time_zones">List of tz database timezones</a>
 on Wikipedia. Canonical timezone names have the format
 <code>&lt;continent/[region/]city&gt;</code>, such as <code>America/Los_Angeles</code>.</p>
 

@@ -36,6 +36,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -142,7 +143,15 @@ public final class PipelineTranslatorUtils {
     Instant outputTimestamp = timer.getOutputTimestamp();
     WindowedValue<KV<Object, Timer>> timerValue =
         WindowedValue.of(
-            KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
+            KV.of(
+                currentTimerKey,
+                Timer.of(
+                    "",
+                    "",
+                    Collections.singleton(GlobalWindow.INSTANCE),
+                    timestamp,
+                    timestamp,
+                    PaneInfo.NO_FIRING)),
             outputTimestamp,
             Collections.singleton(window),
             PaneInfo.NO_FIRING);

@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import datetime
 import decimal
 import json
 import logging
@@ -35,6 +36,7 @@ import uuid
 import future.tests.base  # pylint: disable=unused-import
 import hamcrest as hc
 import mock
+import pytz
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -560,6 +562,28 @@ class TestWriteToBigQuery(unittest.TestCase):
         beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
     self.assertEqual(expected_dict_schema, dict_schema)
 
+  def test_schema_autodetect_not_allowed_with_avro_file_loads(self):
+    with TestPipeline(
+        additional_pipeline_args=["--experiments=use_beam_bq_sink"]) as p:
+      pc = p | beam.Impulse()
+
+      with self.assertRaisesRegex(ValueError, '^A schema must be provided'):
+        _ = (
+            pc
+            | 'No Schema' >> beam.io.gcp.bigquery.WriteToBigQuery(
+                "dataset.table",
+                schema=None,
+                temp_file_format=bigquery_tools.FileFormat.AVRO))
+
+      with self.assertRaisesRegex(ValueError,
+                                  '^Schema auto-detection is not supported'):
+        _ = (
+            pc
+            | 'Schema Autodetected' >> beam.io.gcp.bigquery.WriteToBigQuery(
+                "dataset.table",
+                schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
+                temp_file_format=bigquery_tools.FileFormat.AVRO))
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryStreamingInsertTransformTests(unittest.TestCase):
@@ -816,7 +840,8 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                   str, '%s:%s' % (self.project, output_table_2)),
               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
               additional_bq_parameters=lambda _: additional_bq_parameters,
-              method='FILE_LOADS'))
+              method='FILE_LOADS',
+              temp_file_format=bigquery_tools.FileFormat.JSON))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
@@ -1010,6 +1035,7 @@ class PubSubBigQueryIT(unittest.TestCase):
       _ = mesages | WriteToBigQuery(
           self.output_table,
           schema=self.SCHEMA,
+          temp_file_format=bigquery_tools.FileFormat.JSON,
           method=method,
           triggering_frequency=triggering_frequency)
 
@@ -1023,6 +1049,104 @@ class PubSubBigQueryIT(unittest.TestCase):
       self.skipTest('https://issuetracker.google.com/issues/118375066')
     self._run_pubsub_bq_pipeline(
         WriteToBigQuery.Method.FILE_LOADS, triggering_frequency=20)
+
+
+class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
+  BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
+
+  def setUp(self):
+    self.test_pipeline = TestPipeline(is_integration_test=True)
+    self.runner_name = type(self.test_pipeline.runner).__name__
+    self.project = self.test_pipeline.get_option('project')
+
+    self.dataset_id = '%s%s%s' % (
+        self.BIG_QUERY_DATASET_ID,
+        str(int(time.time())),
+        random.randint(0, 10000))
+    self.bigquery_client = bigquery_tools.BigQueryWrapper()
+    self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
+    self.output_table = '%s.output_table' % (self.dataset_id)
+    self.table_ref = bigquery_tools.parse_table_reference(self.output_table)
+    _LOGGER.info(
+        'Created dataset %s in project %s', self.dataset_id, self.project)
+
+  @attr('IT')
+  def test_avro_file_load(self):
+    # Construct elements such that they can be written via Avro but not via
+    # JSON. See BEAM-8841.
+    elements = [
+        {
+            'name': u'Negative infinity',
+            'value': -float('inf'),
+            'timestamp': datetime.datetime(1970, 1, 1, tzinfo=pytz.utc),
+        },
+        {
+            'name': u'Not a number',
+            'value': float('nan'),
+            'timestamp': datetime.datetime(2930, 12, 9, tzinfo=pytz.utc),
+        },
+    ]
+
+    schema = beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(
+        bigquery.TableSchema(
+            fields=[
+                bigquery.TableFieldSchema(
+                    name='name', type='STRING', mode='REQUIRED'),
+                bigquery.TableFieldSchema(
+                    name='value', type='FLOAT', mode='REQUIRED'),
+                bigquery.TableFieldSchema(
+                    name='timestamp', type='TIMESTAMP', mode='REQUIRED'),
+            ]))
+
+    pipeline_verifiers = [
+        # Some gymnastics here to avoid comparing NaN since NaN is not equal to
+        # anything, including itself.
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, value, timestamp FROM {} WHERE value<0".format(
+                self.output_table),
+            data=[(d['name'], d['value'], d['timestamp'])
+                  for d in elements[:1]],
+        ),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT name, timestamp FROM {}".format(self.output_table),
+            data=[(d['name'], d['timestamp']) for d in elements],
+        ),
+    ]
+
+    args = self.test_pipeline.get_full_options_as_args(
+        on_success_matcher=hc.all_of(*pipeline_verifiers),
+        experiments='use_beam_bq_sink',
+    )
+
+    with beam.Pipeline(argv=args) as p:
+      input = p | 'CreateInput' >> beam.Create(elements)
+      schema_pc = p | 'CreateSchema' >> beam.Create([schema])
+
+      _ = (
+          input
+          | 'WriteToBigQuery' >> beam.io.gcp.bigquery.WriteToBigQuery(
+              table='%s:%s' % (self.project, self.output_table),
+              schema=lambda _,
+              schema: schema,
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
+              method='FILE_LOADS',
+              temp_file_format=bigquery_tools.FileFormat.AVRO,
+          ))
+
+  def tearDown(self):
+    request = bigquery.BigqueryDatasetsDeleteRequest(
+        projectId=self.project, datasetId=self.dataset_id, deleteContents=True)
+    try:
+      _LOGGER.info(
+          "Deleting dataset %s in project %s", self.dataset_id, self.project)
+      self.bigquery_client.client.datasets.Delete(request)
+    except HttpError:
+      _LOGGER.debug(
+          'Failed to clean up dataset %s in project %s',
+          self.dataset_id,
+          self.project)
 
 
 if __name__ == '__main__':

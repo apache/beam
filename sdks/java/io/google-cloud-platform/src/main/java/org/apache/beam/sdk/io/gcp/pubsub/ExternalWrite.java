@@ -28,7 +28,7 @@ import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -71,8 +71,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
 
     @Override
     public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration config) {
-      PubsubIO.Write.Builder<byte[]> writeBuilder = new AutoValue_PubsubIO_Write.Builder<>();
-      writeBuilder.setFormatFn(new FormatFn());
+      PubsubIO.Write.Builder<byte[]> writeBuilder = PubsubIO.Write.newBuilder(new FormatFn());
       if (config.topic != null) {
         StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
         writeBuilder.setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath));
@@ -87,7 +86,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
     }
   }
 
-  private static class FormatFn extends SimpleFunction<byte[], PubsubMessage> {
+  private static class FormatFn implements SerializableFunction<byte[], PubsubMessage> {
     @Override
     public PubsubMessage apply(byte[] input) {
       try {

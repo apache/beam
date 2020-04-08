@@ -38,7 +38,7 @@ class ExpansionServiceServicer(
     beam_expansion_api_pb2_grpc.ExpansionServiceServicer):
   def __init__(self, options=None):
     self._options = options or beam_pipeline.PipelineOptions(
-        environment_type=python_urns.EMBEDDED_PYTHON)
+        environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
 
   def Expand(self, request, context):
     try:
@@ -64,8 +64,7 @@ class ExpansionServiceServicer(
           pcoll_id in t_proto.outputs.items()
       }
       transform = with_pipeline(
-          ptransform.PTransform.from_runner_api(
-              request.transform.spec, context))
+          ptransform.PTransform.from_runner_api(request.transform, context))
       inputs = transform._pvaluish_from_dict({
           tag:
           with_pipeline(context.pcollections.get_by_id(pcoll_id), pcoll_id)

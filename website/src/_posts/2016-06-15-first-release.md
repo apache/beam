@@ -32,7 +32,7 @@ This release publishes the first set of Apache Beam binaries and source code,
 making them readily available for our users. The initial release includes the
 SDK for Java, along with three runners: Apache Flink, Apache Spark and Google
 Cloud Dataflow, a fully-managed cloud service. The release is available both
-in the [Maven Central Repository](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22),
+in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22),
 as well as a download from the [project’s website]({{ site.baseurl }}/get-started/downloads/).
 
 The goal of this release was process-oriented. In particular, the Beam

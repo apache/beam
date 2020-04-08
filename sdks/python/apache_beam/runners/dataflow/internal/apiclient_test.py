@@ -32,10 +32,14 @@ import mock
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
+from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
+from apache_beam.transforms import Create
 from apache_beam.transforms import DataflowDistributionCounter
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
 from apache_beam.transforms.environments import DockerEnvironment
 
 # Protect against environments where apitools library is not available.
@@ -164,12 +168,6 @@ class UtilTest(unittest.TestCase):
             FLEXRS_SPEED_OPTIMIZED))
 
   def test_sdk_harness_container_images_get_set(self):
-    if 'sdkHarnessContainerImages' not in dataflow.WorkerPool.__dict__:
-      _LOGGER.warning(
-          'Skipping test \'test_sdk_harness_container_images_get_set\' since '
-          'Dataflow API WorkerPool does not have attribute '
-          '\'sdkHarnessContainerImages\'')
-      return
 
     pipeline_options = PipelineOptions([
         '--experiments=beam_fn_api',
@@ -179,18 +177,39 @@ class UtilTest(unittest.TestCase):
     ])
 
     pipeline = Pipeline(options=pipeline_options)
+    pipeline | Create([1, 2, 3]) | ParDo(DoFn())  # pylint:disable=expression-not-assigned
 
-    test_environment = DockerEnvironment(
-        container_image='dummy_container_image')
+    test_environment = DockerEnvironment(container_image='test_default_image')
     proto_pipeline, _ = pipeline.to_runner_api(
         return_context=True, default_environment=test_environment)
+
+    # We have to manually add environments since Dataflow only sets
+    # 'sdkHarnessContainerImages' when there are at least two environments.
+    dummy_env = beam_runner_api_pb2.Environment(
+        urn=common_urns.environments.DOCKER.urn,
+        payload=(
+            beam_runner_api_pb2.DockerPayload(
+                container_image='dummy_image')).SerializeToString())
+    proto_pipeline.components.environments['dummy_env_id'].CopyFrom(dummy_env)
+
+    dummy_transform = beam_runner_api_pb2.PTransform(
+        environment_id='dummy_env_id')
+    proto_pipeline.components.transforms['dummy_transform_id'].CopyFrom(
+        dummy_transform)
 
     env = apiclient.Environment([],  # packages
                                 pipeline_options,
                                 '2.0.0',  # any environment version
-                                FAKE_PIPELINE_URL, proto_pipeline)
+                                FAKE_PIPELINE_URL, proto_pipeline,
+                                _sdk_image_overrides={
+                                    '.*dummy.*':'dummy_image',
+                                  '.*test.*': 'test_default_image'})
     worker_pool = env.proto.workerPools[0]
-    self.assertIsNotNone(1, len(worker_pool.sdkHarnessContainerImages))
+
+    # For the test, a third environment get added since actual default
+    # container image for Dataflow is different from 'test_default_image'
+    # we've provided above.
+    self.assertEqual(3, len(worker_pool.sdkHarnessContainerImages))
 
     # Container image should be overridden by a Dataflow specific URL.
     self.assertTrue(
@@ -199,33 +218,14 @@ class UtilTest(unittest.TestCase):
             'gcr.io/cloud-dataflow/v1beta3/python'))
 
   def test_sdk_harness_container_image_overrides(self):
-    if 'sdkHarnessContainerImages' not in dataflow.WorkerPool.__dict__:
-      _LOGGER.warning(
-          'Skipping test \'test_sdk_harness_container_image_overrides\' since '
-          'Dataflow API WorkerPool does not have attribute '
-          '\'sdkHarnessContainerImages\'')
-      return
-    pipeline_options = PipelineOptions([
-        '--experiments=beam_fn_api',
-        '--experiments=use_unified_worker',
-        '--temp_location',
-        'gs://any-location/temp',
-        '--project',
-        'dummy_project',
-        '--sdk_harness_container_image_overrides',
-        '.*dummy.*,new_dummy_container_image',
-    ])
-
-    pipeline = Pipeline(options=pipeline_options)
-
     test_environment = DockerEnvironment(
         container_image='dummy_container_image')
-    proto_pipeline, _ = pipeline.to_runner_api(
+    proto_pipeline, _ = Pipeline().to_runner_api(
       return_context=True, default_environment=test_environment)
-    dataflow_client = apiclient.DataflowApplicationClient(pipeline_options)
 
     # Accessing non-public method for testing.
-    dataflow_client._apply_sdk_environment_overrides(proto_pipeline)
+    apiclient.DataflowApplicationClient._apply_sdk_environment_overrides(
+        proto_pipeline, {'.*dummy.*': 'new_dummy_container_image'})
 
     self.assertIsNotNone(1, len(proto_pipeline.components.environments))
     env = list(proto_pipeline.components.environments.values())[0]
@@ -416,12 +416,57 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
+  def test_harness_override_absent_in_released_sdks_with_runner_v2(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--streaming',
+        '--experiments=use_runner_v2'
+    ])
+    env = apiclient.Environment(
+        [],  #packages
+        pipeline_options,
+        '2.0.0',  #any environment version
+        FAKE_PIPELINE_URL)
+    if env.proto.experiments:
+      for experiment in env.proto.experiments:
+        self.assertNotIn('runner_harness_container_image=', experiment)
+
+  @mock.patch(
+      'apache_beam.runners.dataflow.internal.apiclient.'
+      'beam_version.__version__',
+      '2.2.0')
   def test_harness_override_custom_in_released_sdks(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
         'gs://any-location/temp',
         '--streaming',
         '--experiments=runner_harness_container_image=fake_image'
+    ])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        1,
+        len([
+            x for x in env.proto.experiments
+            if x.startswith('runner_harness_container_image=')
+        ]))
+    self.assertIn(
+        'runner_harness_container_image=fake_image', env.proto.experiments)
+
+  @mock.patch(
+      'apache_beam.runners.dataflow.internal.apiclient.'
+      'beam_version.__version__',
+      '2.2.0')
+  def test_harness_override_custom_in_released_sdks_with_runner_v2(self):
+    pipeline_options = PipelineOptions([
+        '--temp_location',
+        'gs://any-location/temp',
+        '--streaming',
+        '--experiments=runner_harness_container_image=fake_image',
+        '--experiments=use_runner_v2',
     ])
     env = apiclient.Environment([], #packages
                                 pipeline_options,

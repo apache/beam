@@ -119,6 +119,7 @@ To run the self-executing JAR on Cloud Dataflow, use the following command.
 java -jar target/beam-examples-bundled-1.0.0.jar \
   --runner=DataflowRunner \
   --project=<YOUR_GCP_PROJECT_ID> \
+  --region=<GCP_REGION> \
   --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
 ```
 
@@ -144,6 +145,12 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
   <td><code>project</code></td>
   <td>The project ID for your Google Cloud Project.</td>
   <td>If not set, defaults to the default project in the current environment. The default project is set via <code>gcloud</code>.</td>
+</tr>
+
+<tr>
+  <td><code>region</code></td>
+  <td>The Google Compute Engine region to create the job.</td>
+  <td>If not set, defaults to the default region in the current environment. The default region is set via <code>gcloud</code>.</td>
 </tr>
 
 <tr>

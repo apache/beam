@@ -1013,9 +1013,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(
-    GetitemConstructor,  # type: ignore[misc]
-    TypeConstraint)):
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)):  # type: ignore[misc]
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.

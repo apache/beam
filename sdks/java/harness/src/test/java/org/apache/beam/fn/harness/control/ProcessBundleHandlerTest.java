@@ -106,8 +106,8 @@ import org.mockito.MockitoAnnotations;
 /** Tests for {@link ProcessBundleHandler}. */
 @RunWith(JUnit4.class)
 public class ProcessBundleHandlerTest {
-  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
-  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 

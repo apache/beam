@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -732,7 +733,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 Structs.getObject(
                     processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
 
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+    assertEquals(
+        KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of()), restrictionCoder);
   }
 
   /** Smoke test to fail fast if translation of a splittable ParDo in FnAPI. */
@@ -789,8 +791,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertThat(
         ParDoTranslation.doFnWithExecutionInformationFromProto(payload.getDoFn()).getDoFn(),
         instanceOf(TestSplittableFn.class));
-    assertThat(
-        components.getCoder(payload.getRestrictionCoderId()), instanceOf(SerializableCoder.class));
+    Coder expectedRestrictionAndStateCoder =
+        KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of());
+    assertEquals(
+        expectedRestrictionAndStateCoder, components.getCoder(payload.getRestrictionCoderId()));
 
     // In the Fn API case, we still translate the restriction coder into the RESTRICTION_CODER
     // property as a CloudObject, and it gets passed through the Dataflow backend, but in the end
@@ -800,7 +804,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             (CloudObject)
                 Structs.getObject(
                     splittableParDo.getProperties(), PropertyNames.RESTRICTION_ENCODING));
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+    assertEquals(expectedRestrictionAndStateCoder, restrictionCoder);
   }
 
   @Test

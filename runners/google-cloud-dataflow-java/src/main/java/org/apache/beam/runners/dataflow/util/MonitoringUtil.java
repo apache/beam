@@ -189,7 +189,7 @@ public class MonitoringUtil {
       // Project name is allowed in place of the project id: the user will be redirected to a URL
       // that has the project name replaced with project id.
       return String.format(
-          "https://console.cloud.google.com/dataflow/jobsDetail/locations/%s/jobs/%s?project=%s",
+          "https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s",
           URLEncoder.encode(regionId, StandardCharsets.UTF_8.name()),
           URLEncoder.encode(jobId, StandardCharsets.UTF_8.name()),
           URLEncoder.encode(projectName, StandardCharsets.UTF_8.name()));

@@ -40,6 +40,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -95,7 +96,6 @@ import org.slf4j.LoggerFactory;
  *
  * <pre>{@code
  * public class MyCustomKinesisClientProvider implements AWSClientsProvider {
- *   {@literal @}Override
  *   public AmazonKinesis getKinesisClient() {
  *     // set up your client here
  *   }
@@ -149,12 +149,10 @@ import org.slf4j.LoggerFactory;
  *       this.customWatermarkPolicy = new WatermarkPolicyFactory.CustomWatermarkPolicy(WatermarkParameters.create());
  *     }
  *
- *     @Override
  *     public Instant getWatermark() {
  *       return customWatermarkPolicy.getWatermark();
  *     }
  *
- *     @Override
  *     public void update(KinesisRecord record) {
  *       customWatermarkPolicy.update(record);
  *     }
@@ -162,7 +160,6 @@ import org.slf4j.LoggerFactory;
  *
  * // custom factory
  * class MyCustomPolicyFactory implements WatermarkPolicyFactory {
- *     @Override
  *     public WatermarkPolicy createWatermarkPolicy() {
  *       return new MyCustomPolicy();
  *     }
@@ -172,6 +169,69 @@ import org.slf4j.LoggerFactory;
  *    .withStreamName("streamName")
  *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
  *    .withCustomWatermarkPolicy(new MyCustomPolicyFactory())
+ * }</pre>
+ *
+ * <p>By default Kinesis IO will poll the Kinesis getRecords() API as fast as possible which may
+ * lead to excessive read throttling. To limit the rate of getRecords() calls you can set a rate
+ * limit policy. For example, the default fixed delay policy will limit the rate to one API call per
+ * second per shard:
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withFixedDelayRateLimitPolicy())
+ * }</pre>
+ *
+ * <p>You can also use a fixed delay policy with a specified delay interval, for example:
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withFixedDelayRateLimitPolicy(Duration.millis(500))
+ * }</pre>
+ *
+ * <p>If you need to change the polling interval of a Kinesis pipeline at runtime, for example to
+ * compensate for adding and removing additional consumers to the stream, then you can supply the
+ * delay interval as a function so that you can obtain the current delay interval from some external
+ * source:
+ *
+ * <pre>{@code
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withDynamicDelayRateLimitPolicy(() -> Duration.millis(<some delay interval>))
+ * }</pre>
+ *
+ * <p>Finally, you can create a custom rate limit policy that responds to successful read calls
+ * and/or read throttling exceptions with your own rate-limiting logic:
+ *
+ * <pre>{@code
+ * // custom policy
+ * public class MyCustomPolicy implements RateLimitPolicy {
+ *
+ *   public void onSuccess(List<KinesisRecord> records) throws InterruptedException {
+ *     // handle successful getRecords() call
+ *   }
+ *
+ *   public void onThrottle(KinesisClientThrottledException e) throws InterruptedException {
+ *     // handle Kinesis read throttling exception
+ *   }
+ * }
+ *
+ * // custom factory
+ * class MyCustomPolicyFactory implements RateLimitPolicyFactory {
+ *
+ *   public RateLimitPolicy getRateLimitPolicy() {
+ *     return new MyCustomPolicy();
+ *   }
+ * }
+ *
+ * p.apply(KinesisIO.read()
+ *    .withStreamName("streamName")
+ *    .withInitialPositionInStream(InitialPositionInStream.LATEST)
+ *    .withCustomRateLimitPolicy(new MyCustomPolicyFactory())
  * }</pre>
  *
  * <h3>Writing to Kinesis</h3>
@@ -240,6 +300,7 @@ public final class KinesisIO {
         .setMaxNumRecords(Long.MAX_VALUE)
         .setUpToDateThreshold(Duration.ZERO)
         .setWatermarkPolicyFactory(WatermarkPolicyFactory.withArrivalTimePolicy())
+        .setRateLimitPolicyFactory(RateLimitPolicyFactory.withoutLimiter())
         .setMaxCapacityPerShard(ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD)
         .build();
   }
@@ -274,6 +335,8 @@ public final class KinesisIO {
 
     abstract WatermarkPolicyFactory getWatermarkPolicyFactory();
 
+    abstract RateLimitPolicyFactory getRateLimitPolicyFactory();
+
     abstract Integer getMaxCapacityPerShard();
 
     abstract Builder toBuilder();
@@ -296,6 +359,8 @@ public final class KinesisIO {
       abstract Builder setRequestRecordsLimit(Integer limit);
 
       abstract Builder setWatermarkPolicyFactory(WatermarkPolicyFactory watermarkPolicyFactory);
+
+      abstract Builder setRateLimitPolicyFactory(RateLimitPolicyFactory rateLimitPolicyFactory);
 
       abstract Builder setMaxCapacityPerShard(Integer maxCapacity);
 
@@ -426,6 +491,45 @@ public final class KinesisIO {
       return toBuilder().setWatermarkPolicyFactory(watermarkPolicyFactory).build();
     }
 
+    /** Specifies a fixed delay rate limit policy with the default delay of 1 second. */
+    public Read withFixedDelayRateLimitPolicy() {
+      return toBuilder().setRateLimitPolicyFactory(RateLimitPolicyFactory.withFixedDelay()).build();
+    }
+
+    /**
+     * Specifies a fixed delay rate limit policy with the given delay.
+     *
+     * @param delay Denotes the fixed delay duration.
+     */
+    public Read withFixedDelayRateLimitPolicy(Duration delay) {
+      checkArgument(delay != null, "delay cannot be null");
+      return toBuilder()
+          .setRateLimitPolicyFactory(RateLimitPolicyFactory.withFixedDelay(delay))
+          .build();
+    }
+
+    /**
+     * Specifies a dynamic delay rate limit policy with the given function being called at each
+     * polling interval to get the next delay value. This can be used to change the polling interval
+     * of a running pipeline based on some external configuration source, for example.
+     *
+     * @param delay The function to invoke to get the next delay duration.
+     */
+    public Read withDynamicDelayRateLimitPolicy(Supplier<Duration> delay) {
+      checkArgument(delay != null, "delay cannot be null");
+      return toBuilder().setRateLimitPolicyFactory(RateLimitPolicyFactory.withDelay(delay)).build();
+    }
+
+    /**
+     * Specifies the {@code RateLimitPolicyFactory} for a custom rate limiter.
+     *
+     * @param rateLimitPolicyFactory Custom rate limit policy factory.
+     */
+    public Read withCustomRateLimitPolicy(RateLimitPolicyFactory rateLimitPolicyFactory) {
+      checkArgument(rateLimitPolicyFactory != null, "rateLimitPolicyFactory cannot be null");
+      return toBuilder().setRateLimitPolicyFactory(rateLimitPolicyFactory).build();
+    }
+
     /** Specifies the maximum number of messages per one shard. */
     public Read withMaxCapacityPerShard(Integer maxCapacity) {
       checkArgument(maxCapacity > 0, "maxCapacity must be positive, but was: %s", maxCapacity);
@@ -442,6 +546,7 @@ public final class KinesisIO {
                   getInitialPosition(),
                   getUpToDateThreshold(),
                   getWatermarkPolicyFactory(),
+                  getRateLimitPolicyFactory(),
                   getRequestRecordsLimit(),
                   getMaxCapacityPerShard()));
 

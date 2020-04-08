@@ -23,7 +23,6 @@ from __future__ import absolute_import
 
 from typing import TYPE_CHECKING
 from typing import Dict
-from typing import List
 from typing import Set
 
 from apache_beam import pvalue
@@ -44,12 +43,21 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   """
   def __init__(self):
     self.value_to_consumers = {
-    }  # type: Dict[pvalue.PValue, List[AppliedPTransform]]
+    }  # type: Dict[pvalue.PValue, Set[AppliedPTransform]]
     self.root_transforms = set()  # type: Set[AppliedPTransform]
-    self.views = []  # type: List[pvalue.AsSideInput]
     self.step_names = {}  # type: Dict[AppliedPTransform, str]
 
     self._num_transforms = 0
+    self._views = set()
+
+  @property
+  def views(self):
+    """Returns a list of side intputs extracted from the graph.
+
+    Returns:
+      A list of pvalue.AsSideInput.
+    """
+    return list(self._views)
 
   def visit_transform(self, applied_ptransform):
     # type: (AppliedPTransform) -> None
@@ -59,11 +67,12 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
         if isinstance(input_value, pvalue.PBegin):
           self.root_transforms.add(applied_ptransform)
         if input_value not in self.value_to_consumers:
-          self.value_to_consumers[input_value] = []
-        self.value_to_consumers[input_value].append(applied_ptransform)
+          self.value_to_consumers[input_value] = set()
+        self.value_to_consumers[input_value].add(applied_ptransform)
     else:
       self.root_transforms.add(applied_ptransform)
     self.step_names[applied_ptransform] = 's%d' % (self._num_transforms)
     self._num_transforms += 1
+
     for side_input in applied_ptransform.side_inputs:
-      self.views.append(side_input)
+      self._views.add(side_input)

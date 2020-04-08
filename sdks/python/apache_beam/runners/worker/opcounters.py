@@ -188,12 +188,13 @@ class OperationCounters(object):
       counter_factory,
       step_name,  # type: str
       coder,
-      output_index):
+      index,
+      suffix='out'):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
-        '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
+        '%s-%s%s-ElementCount' % (step_name, suffix, index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
-        '%s-out%s-MeanByteCount' % (step_name, output_index),
+        '%s-%s%s-MeanByteCount' % (step_name, suffix, index),
         Counter.BEAM_DISTRIBUTION)
     self.coder_impl = coder.get_impl() if coder else None
     self.active_accumulator = None  # type: Optional[SumAccumulator]

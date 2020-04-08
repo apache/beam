@@ -40,6 +40,10 @@ from typing import Iterable
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import Set
+from typing import Tuple
+from typing import Type
+from typing import Union
 
 import grpc
 from future.utils import raise_
@@ -52,8 +56,18 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 if TYPE_CHECKING:
-  # TODO: remove from TYPE_CHECKING scope when we drop support for python < 3.6
-  from typing import Collection
+  # TODO(BEAM-9372): move this out of the TYPE_CHECKING scope when we drop
+  #  support for python < 3.5.3
+  from types import TracebackType
+  ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
+  OptExcInfo = Union[ExcInfo, Tuple[None, None, None]]
+  # TODO: move this out of the TYPE_CHECKING scope when we drop support for
+  #  python < 3.6
+  from typing import Collection  # pylint: disable=ungrouped-imports
+  import apache_beam.coders.slow_stream
+  OutputStream = apache_beam.coders.slow_stream.OutputStream
+else:
+  OutputStream = type(coder_impl.create_OutputStream())
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -61,12 +75,6 @@ _LOGGER = logging.getLogger(__name__)
 
 _DEFAULT_SIZE_FLUSH_THRESHOLD = 10 << 20  # 10MB
 _DEFAULT_TIME_FLUSH_THRESHOLD_MS = 0  # disable time-based flush by default
-
-if TYPE_CHECKING:
-  import apache_beam.coders.slow_stream
-  OutputStream = apache_beam.coders.slow_stream.OutputStream
-else:
-  OutputStream = type(coder_impl.create_OutputStream())
 
 
 class ClosableOutputStream(OutputStream):
@@ -76,11 +84,13 @@ class ClosableOutputStream(OutputStream):
     self._close_callback = close_callback
 
   def close(self):
+    # type: () -> None
     if self._close_callback:
       self._close_callback(self.get())
 
   @staticmethod
   def create(close_callback, flush_callback, data_buffer_time_limit_ms):
+    # type: (...) -> SizeBasedBufferingClosableOutputStream
     if data_buffer_time_limit_ms > 0:
       return TimeBasedBufferingClosableOutputStream(
           close_callback,
@@ -312,7 +322,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
-    self._exc_info = None
+    self._exc_info = None  # type: Optional[OptExcInfo]
 
   def close(self):
     self._to_send.put(self._WRITES_FINISHED)
@@ -347,7 +357,7 @@ class _GrpcDataChannel(DataChannel):
       expected_transforms(collection): expected transforms
     """
     received = self._receiving_queue(instruction_id)
-    done_transforms = []  # type: List[str]
+    done_transforms = set()  # type: Set[str]
     abort_callback = abort_callback or (lambda: False)
     try:
       while len(done_transforms) < len(expected_transforms):
@@ -362,8 +372,9 @@ class _GrpcDataChannel(DataChannel):
             t, v, tb = self._exc_info
             raise_(t, v, tb)
         else:
-          if not data.data and data.transform_id in expected_transforms:
-            done_transforms.append(data.transform_id)
+          # TODO(BEAM-9558): Cleanup once dataflow is updated.
+          if not data.data or data.is_last:
+            done_transforms.add(data.transform_id)
           else:
             assert data.transform_id not in done_transforms
             yield data
@@ -391,7 +402,8 @@ class _GrpcDataChannel(DataChannel):
           beam_fn_api_pb2.Elements.Data(
               instruction_id=instruction_id,
               transform_id=transform_id,
-              data=b''))
+              data=b'',
+              is_last=True))
 
     return ClosableOutputStream.create(
         close_callback, add_to_send_queue, self._data_buffer_time_limit_ms)

@@ -53,6 +53,7 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.BundleFinalizerParameter;
@@ -71,6 +72,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimeDomain
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimestampParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures.FnAnalysisContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignaturesTestUtils.FakeDoFn;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -362,13 +364,17 @@ public class DoFnSignaturesTest {
 
               @StartBundle
               public void startBundle(
-                  StartBundleContext context, BundleFinalizer bundleFinalizer) {}
+                  StartBundleContext context,
+                  BundleFinalizer bundleFinalizer,
+                  PipelineOptions options) {}
             }.getClass());
-    assertThat(sig.startBundle().extraParameters().size(), equalTo(2));
+    assertThat(sig.startBundle().extraParameters().size(), equalTo(3));
     assertThat(
         sig.startBundle().extraParameters().get(0), instanceOf(StartBundleContextParameter.class));
     assertThat(
         sig.startBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.startBundle().extraParameters().get(2), instanceOf(PipelineOptionsParameter.class));
   }
 
   @Test
@@ -397,14 +403,18 @@ public class DoFnSignaturesTest {
 
               @FinishBundle
               public void finishBundle(
-                  FinishBundleContext context, BundleFinalizer bundleFinalizer) {}
+                  FinishBundleContext context,
+                  BundleFinalizer bundleFinalizer,
+                  PipelineOptions pipelineOptions) {}
             }.getClass());
-    assertThat(sig.finishBundle().extraParameters().size(), equalTo(2));
+    assertThat(sig.finishBundle().extraParameters().size(), equalTo(3));
     assertThat(
         sig.finishBundle().extraParameters().get(0),
         instanceOf(FinishBundleContextParameter.class));
     assertThat(
         sig.finishBundle().extraParameters().get(1), instanceOf(BundleFinalizerParameter.class));
+    assertThat(
+        sig.finishBundle().extraParameters().get(2), instanceOf(PipelineOptionsParameter.class));
   }
 
   @Test
@@ -549,6 +559,7 @@ public class DoFnSignaturesTest {
   @Test
   public void testWindowParamOnTimer() throws Exception {
     final String timerId = "some-timer-id";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
 
     DoFnSignature sig =
         DoFnSignatures.getSignature(
@@ -563,15 +574,16 @@ public class DoFnSignaturesTest {
               public void onTimer(BoundedWindow w) {}
             }.getClass());
 
-    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(1));
+    assertThat(sig.onTimerMethods().get(timerDeclarationId).extraParameters().size(), equalTo(1));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         instanceOf(WindowParameter.class));
   }
 
   @Test
   public void testAllParamsOnTimer() throws Exception {
     final String timerId = "some-timer-id";
+    final String timerDeclarationId = TimerDeclaration.PREFIX + timerId;
 
     DoFnSignature sig =
         DoFnSignatures.getSignature(
@@ -587,15 +599,15 @@ public class DoFnSignaturesTest {
                   @Timestamp Instant timestamp, TimeDomain timeDomain, BoundedWindow w) {}
             }.getClass());
 
-    assertThat(sig.onTimerMethods().get(timerId).extraParameters().size(), equalTo(3));
+    assertThat(sig.onTimerMethods().get(timerDeclarationId).extraParameters().size(), equalTo(3));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(0),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         instanceOf(TimestampParameter.class));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(1),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(1),
         instanceOf(TimeDomainParameter.class));
     assertThat(
-        sig.onTimerMethods().get(timerId).extraParameters().get(2),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(2),
         instanceOf(WindowParameter.class));
   }
 
@@ -622,7 +634,8 @@ public class DoFnSignaturesTest {
     assertThat(sig.processElement().extraParameters().size(), equalTo(2));
 
     DoFnSignature.TimerDeclaration decl =
-        sig.timerDeclarations().get(DoFnOverridingAbstractTimerUse.TIMER_ID);
+        sig.timerDeclarations()
+            .get(TimerDeclaration.PREFIX + DoFnOverridingAbstractTimerUse.TIMER_ID);
     TimerParameter timerParam = (TimerParameter) sig.processElement().extraParameters().get(1);
 
     assertThat(
@@ -647,9 +660,11 @@ public class DoFnSignaturesTest {
     assertThat(sig.onTimerMethods().size(), equalTo(1));
 
     DoFnSignature.TimerDeclaration decl =
-        sig.timerDeclarations().get(DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
+        sig.timerDeclarations()
+            .get(TimerDeclaration.PREFIX + DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
     DoFnSignature.OnTimerMethod callback =
-        sig.onTimerMethods().get(DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
+        sig.onTimerMethods()
+            .get(TimerDeclaration.PREFIX + DoFnDeclaringTimerAndAbstractCallback.TIMER_ID);
 
     assertThat(
         decl.field(),
@@ -718,10 +733,11 @@ public class DoFnSignaturesTest {
               public void onFoo() {}
             }.getClass());
 
+    final String timerDeclarationId = TimerDeclaration.PREFIX + "foo";
     assertThat(sig.timerDeclarations().size(), equalTo(1));
-    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get(timerDeclarationId);
 
-    assertThat(decl.id(), equalTo("foo"));
+    assertThat(decl.id(), equalTo(timerDeclarationId));
     assertThat(decl.field().getName(), equalTo("bizzle"));
   }
 
@@ -740,14 +756,15 @@ public class DoFnSignaturesTest {
               public void onFoo(OnTimerContext c) {}
             }.getClass());
 
+    final String timerDeclarationId = TimerDeclaration.PREFIX + "foo";
     assertThat(sig.timerDeclarations().size(), equalTo(1));
-    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get(timerDeclarationId);
 
-    assertThat(decl.id(), equalTo("foo"));
+    assertThat(decl.id(), equalTo(timerDeclarationId));
     assertThat(decl.field().getName(), equalTo("bizzle"));
 
     assertThat(
-        sig.onTimerMethods().get("foo").extraParameters().get(0),
+        sig.onTimerMethods().get(timerDeclarationId).extraParameters().get(0),
         equalTo((Parameter) Parameter.onTimerContext()));
   }
 
@@ -787,10 +804,12 @@ public class DoFnSignaturesTest {
     // Test classes at the bottom of the file
     DoFnSignature sig = DoFnSignatures.signatureForDoFn(new DoFnForTestSimpleTimerIdNamedDoFn());
 
-    assertThat(sig.timerDeclarations().size(), equalTo(1));
-    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get("foo");
+    final String timerDeclarationId = TimerDeclaration.PREFIX + "foo";
 
-    assertThat(decl.id(), equalTo("foo"));
+    assertThat(sig.timerDeclarations().size(), equalTo(1));
+    DoFnSignature.TimerDeclaration decl = sig.timerDeclarations().get(timerDeclarationId);
+
+    assertThat(decl.id(), equalTo(timerDeclarationId));
     assertThat(
         decl.field(), equalTo(DoFnForTestSimpleTimerIdNamedDoFn.class.getDeclaredField("bizzle")));
   }

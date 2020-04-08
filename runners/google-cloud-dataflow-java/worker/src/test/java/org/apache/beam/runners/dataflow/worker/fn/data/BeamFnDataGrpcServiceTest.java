@@ -295,7 +295,10 @@ public class BeamFnDataGrpcServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
+                .setIsLast(true))
         .build();
   }
 

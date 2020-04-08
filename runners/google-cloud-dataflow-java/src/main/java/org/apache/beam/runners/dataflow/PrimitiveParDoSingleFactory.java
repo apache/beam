@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
 import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerFamilySpec;
-import static org.apache.beam.runners.core.construction.ParDoTranslation.translateTimerSpec;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
@@ -30,7 +29,6 @@ import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,6 +42,7 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -51,6 +50,7 @@ import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
@@ -206,12 +206,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public List<RunnerApi.Parameter> translateParameters() {
-              return ParDoTranslation.translateParameters(
-                  signature.processElement().extraParameters());
-            }
-
-            @Override
             public Map<String, RunnerApi.SideInput> translateSideInputs(SdkComponents components) {
               return ParDoTranslation.translateSideInputs(
                   parDo.getSideInputs().values().stream().collect(Collectors.toList()), components);
@@ -232,13 +226,14 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(
+            public Map<String, RunnerApi.TimerFamilySpec> translateTimerSpecs(
                 SdkComponents newComponents) {
-              Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
+              Map<String, RunnerApi.TimerFamilySpec> timerSpecs = new HashMap<>();
               for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
                   signature.timerDeclarations().entrySet()) {
-                RunnerApi.TimerSpec spec =
-                    translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
                 timerSpecs.put(timer.getKey(), spec);
               }
               return timerSpecs;
@@ -259,8 +254,20 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
+            public boolean isStateful() {
+              return !signature.stateDeclarations().isEmpty()
+                  || !signature.timerDeclarations().isEmpty()
+                  || !signature.timerFamilyDeclarations().isEmpty();
+            }
+
+            @Override
             public boolean isSplittable() {
               return signature.processElement().isSplittable();
+            }
+
+            @Override
+            public boolean isRequiresStableInput() {
+              return signature.processElement().requiresStableInput();
             }
 
             @Override
@@ -290,11 +297,15 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             @Override
             public String translateRestrictionCoderId(SdkComponents newComponents) {
               if (signature.processElement().isSplittable()) {
-                Coder<?> restrictionCoder =
-                    DoFnInvokers.invokerFor(doFn)
-                        .invokeGetRestrictionCoder(transform.getPipeline().getCoderRegistry());
+                DoFnInvoker<?, ?> doFnInvoker = DoFnInvokers.invokerFor(doFn);
+                final Coder<?> restrictionAndWatermarkStateCoder =
+                    KvCoder.of(
+                        doFnInvoker.invokeGetRestrictionCoder(
+                            transform.getPipeline().getCoderRegistry()),
+                        doFnInvoker.invokeGetWatermarkEstimatorStateCoder(
+                            transform.getPipeline().getCoderRegistry()));
                 try {
-                  return newComponents.registerCoder(restrictionCoder);
+                  return newComponents.registerCoder(restrictionAndWatermarkStateCoder);
                 } catch (IOException e) {
                   throw new IllegalStateException(
                       String.format(

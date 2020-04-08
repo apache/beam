@@ -39,6 +39,9 @@ import zlib
 from builtins import object
 from builtins import zip
 from typing import BinaryIO  # pylint: disable=unused-import
+from typing import Iterator
+from typing import List
+from typing import Optional
 from typing import Tuple
 
 from future.utils import with_metaclass
@@ -128,7 +131,7 @@ class CompressedFile(object):
 
   def __init__(
       self,
-      fileobj,
+      fileobj,  # type: BinaryIO
       compression_type=CompressionTypes.GZIP,
       read_size=DEFAULT_READ_BUFFER_SIZE):
     if not fileobj:
@@ -150,7 +153,7 @@ class CompressedFile(object):
       raise ValueError(
           'File object must be at position 0 but was %d' % self._file.tell())
     self._uncompressed_position = 0
-    self._uncompressed_size = None
+    self._uncompressed_size = None  # type: Optional[int]
 
     if self.readable():
       self._read_size = read_size
@@ -188,14 +191,18 @@ class CompressedFile(object):
           zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, self._gzip_mask)
 
   def readable(self):
+    # type: () -> bool
     mode = self._file.mode
     return 'r' in mode or 'a' in mode
 
   def writeable(self):
+    # type: () -> bool
     mode = self._file.mode
     return 'w' in mode or 'a' in mode
 
   def write(self, data):
+    # type: (bytes) -> None
+
     """Write data to file."""
     if not self._compressor:
       raise ValueError('compressor not initialized')
@@ -205,6 +212,8 @@ class CompressedFile(object):
       self._file.write(compressed)
 
   def _fetch_to_internal_buffer(self, num_bytes):
+    # type: (int) -> None
+
     """Fetch up to num_bytes into the internal buffer."""
     if (not self._read_eof and self._read_position > 0 and
         (self._read_buffer.tell() - self._read_position) < num_bytes):
@@ -259,6 +268,7 @@ class CompressedFile(object):
     return result
 
   def read(self, num_bytes):
+    # type: (int) -> bytes
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
 
@@ -267,6 +277,8 @@ class CompressedFile(object):
         lambda: self._read_buffer.read(num_bytes))
 
   def readline(self):
+    # type: () -> bytes
+
     """Equivalent to standard file.readline(). Same return conventions apply."""
     if not self._decompressor:
       raise ValueError('decompressor not initialized')
@@ -287,9 +299,11 @@ class CompressedFile(object):
     return bytes_io.getvalue()
 
   def closed(self):
+    # type: () -> bool
     return not self._file or self._file.closed()
 
   def close(self):
+    # type: () -> None
     if self.readable():
       self._read_buffer.close()
 
@@ -299,15 +313,19 @@ class CompressedFile(object):
     self._file.close()
 
   def flush(self):
+    # type: () -> None
     if self.writeable():
       self._file.write(self._compressor.flush())
     self._file.flush()
 
   @property
   def seekable(self):
+    # type: () -> bool
     return 'r' in self._file.mode
 
   def _clear_read_buffer(self):
+    # type: () -> None
+
     """Clears the read buffer by removing all the contents and
     resetting _read_position to 0"""
     self._read_position = 0
@@ -315,6 +333,8 @@ class CompressedFile(object):
     self._read_buffer.truncate(0)
 
   def _rewind_file(self):
+    # type: () -> None
+
     """Seeks to the beginning of the input file. Input file's EOF marker
     is cleared and _uncompressed_position is reset to zero"""
     self._file.seek(0, os.SEEK_SET)
@@ -322,6 +342,8 @@ class CompressedFile(object):
     self._uncompressed_position = 0
 
   def _rewind(self):
+    # type: () -> None
+
     """Seeks to the beginning of the input file and resets the internal read
     buffer. The decompressor object is re-initialized to ensure that no data
     left in it's buffer."""
@@ -332,6 +354,8 @@ class CompressedFile(object):
     self._initialize_decompressor()
 
   def seek(self, offset, whence=os.SEEK_SET):
+    # type: (int, int) -> None
+
     """Set the file's current offset.
 
     Seeking behavior:
@@ -396,6 +420,8 @@ class CompressedFile(object):
       bytes_to_skip -= len(data)
 
   def tell(self):
+    # type: () -> int
+
     """Returns current position in uncompressed file."""
     return self._uncompressed_position
 
@@ -439,6 +465,7 @@ class MatchResult(object):
    of matched ``FileMetadata``.
   """
   def __init__(self, pattern, metadata_list):
+    # type: (str, List[FileMetadata]) -> None
     self.metadata_list = metadata_list
     self.pattern = pattern
 
@@ -583,6 +610,8 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
     return self._combine_scheme(scheme, posixpath.dirname(path))
 
   def match_files(self, file_metas, pattern):
+    # type: (List[FileMetadata], str) -> Iterator[FileMetadata]
+
     """Filter :class:`FileMetadata` objects by *pattern*
 
     Args:
@@ -604,6 +633,8 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
 
   @staticmethod
   def translate_pattern(pattern):
+    # type: (str) -> str
+
     """
     Translate a *pattern* to a regular expression.
     There is no way to quote meta-characters.
@@ -663,7 +694,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
         res = res + re.escape(c)
 
     logger.debug('translate_pattern: %r -> %r', pattern, res)
-    return res + r'\Z(?ms)'
+    return r'(?ms)' + res + r'\Z'
 
   def match(self, patterns, limits=None):
     """Find all matching paths to the patterns provided.

@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 class StartingPointShardsFinder implements Serializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(StartingPointShardsFinder.class);
+  private static final Logger LOG = LoggerFactory.getLogger(StartingPointShardsFinder.class);
 
   /**
    * Finds all the shards at the given startingPoint. This method starts by gathering the oldest
@@ -116,7 +116,7 @@ class StartingPointShardsFinder implements Serializable {
       startingPointShards.addAll(validShards);
       expiredShards = Sets.difference(initialShards, validShards);
       if (!expiredShards.isEmpty()) {
-        LOGGER.info(
+        LOG.info(
             "Following shards expired for {} stream at '{}' starting point: {}",
             streamName,
             startingPoint,
@@ -158,7 +158,7 @@ class StartingPointShardsFinder implements Serializable {
     for (Shard shard : allShards) {
       shardIds.add(shard.getShardId());
     }
-    LOGGER.info("Stream {} has following shards: {}", streamName, shardIds);
+    LOG.info("Stream {} has following shards: {}", streamName, shardIds);
     Set<Shard> shardsWithoutParents = new HashSet<>();
     for (Shard shard : allShards) {
       if (!shardIds.contains(shard.getParentShardId())) {

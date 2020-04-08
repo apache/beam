@@ -91,7 +91,7 @@ s.close()
 FLINK_PORT=$(python -c "$SOCKET_SCRIPT")
 
 echo "Starting Flink mini cluster listening on port $FLINK_PORT"
-java -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" &
+java -Dorg.slf4j.simpleLogger.defaultLogLevel=warn -jar "$FLINK_MINI_CLUSTER_JAR" --rest-port "$FLINK_PORT" --rest-bind-address localhost &
 
 PIPELINE_PY="
 import apache_beam as beam

@@ -530,6 +530,42 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         # pylint: disable=expression-not-assigned
         p | beam.Create([]) | beam.WindowInto(CustomWindowTypeWindowFn())
 
+  @mock.patch('os.environ.get', return_value=None)
+  @mock.patch('apache_beam.utils.processes.check_output', return_value=b'')
+  def test_get_default_gcp_region_no_default_returns_none(
+      self, patched_environ, patched_processes):
+    runner = DataflowRunner()
+    result = runner.get_default_gcp_region()
+    self.assertIsNone(result)
+
+  @mock.patch('os.environ.get', return_value='some-region1')
+  @mock.patch('apache_beam.utils.processes.check_output', return_value=b'')
+  def test_get_default_gcp_region_from_environ(
+      self, patched_environ, patched_processes):
+    runner = DataflowRunner()
+    result = runner.get_default_gcp_region()
+    self.assertEqual(result, 'some-region1')
+
+  @mock.patch('os.environ.get', return_value=None)
+  @mock.patch(
+      'apache_beam.utils.processes.check_output',
+      return_value=b'some-region2\n')
+  def test_get_default_gcp_region_from_gcloud(
+      self, patched_environ, patched_processes):
+    runner = DataflowRunner()
+    result = runner.get_default_gcp_region()
+    self.assertEqual(result, 'some-region2')
+
+  @mock.patch('os.environ.get', return_value=None)
+  @mock.patch(
+      'apache_beam.utils.processes.check_output',
+      side_effect=RuntimeError('Executable gcloud not found'))
+  def test_get_default_gcp_region_ignores_error(
+      self, patched_environ, patched_processes):
+    runner = DataflowRunner()
+    result = runner.get_default_gcp_region()
+    self.assertIsNone(result)
+
 
 class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):

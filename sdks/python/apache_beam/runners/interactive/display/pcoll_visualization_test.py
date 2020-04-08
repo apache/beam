@@ -23,19 +23,25 @@ from __future__ import absolute_import
 import sys
 import unittest
 
+import pytz
+
 import apache_beam as beam
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive.display import pcoll_visualization as pv
+from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.utils.windowed_value import PaneInfo
+from apache_beam.utils.windowed_value import PaneInfoTiming
 
 # TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
 # unittest.mock module.
 try:
   from unittest.mock import patch, ANY
 except ImportError:
-  from mock import patch, ANY
+  from mock import patch, ANY  # type: ignore[misc]
 
 try:
   import timeloop
@@ -57,6 +63,7 @@ class PCollectionVisualizationTest(unittest.TestCase):
     # Generally test the logic where notebook is connected to the assumed
     # ipython kernel by forcefully setting notebook check to True.
     ie.current_env()._is_in_notebook = True
+    ib.options.display_timezone = pytz.timezone('US/Pacific')
 
     self._p = beam.Pipeline(ir.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
@@ -81,10 +88,11 @@ class PCollectionVisualizationTest(unittest.TestCase):
     self.assertNotEqual(pv_1._df_display_id, pv_2._df_display_id)
 
   def test_one_shot_visualization_not_return_handle(self):
-    self.assertIsNone(pv.visualize(self._pcoll))
+    self.assertIsNone(pv.visualize(self._pcoll, display_facets=True))
 
   def test_dynamic_plotting_return_handle(self):
-    h = pv.visualize(self._pcoll, dynamic_plotting_interval=1)
+    h = pv.visualize(
+        self._pcoll, dynamic_plotting_interval=1, display_facets=True)
     self.assertIsInstance(h, timeloop.Timeloop)
     h.stop()
 
@@ -103,39 +111,82 @@ class PCollectionVisualizationTest(unittest.TestCase):
       mocked_display_overview,
       mocked_display_dive):
     original_pcollection_visualization = pv.PCollectionVisualization(
-        self._pcoll)
+        self._pcoll, display_facets=True)
     # Dynamic plotting always creates a new PCollectionVisualization.
-    new_pcollection_visualization = pv.PCollectionVisualization(self._pcoll)
+    new_pcollection_visualization = pv.PCollectionVisualization(
+        self._pcoll, display_facets=True)
     # The display uses ANY data the moment display is invoked, and updates
     # web elements with ids fetched from the given updating_pv.
-    new_pcollection_visualization.display_facets(
+    new_pcollection_visualization.display(
         updating_pv=original_pcollection_visualization)
     mocked_display_dataframe.assert_called_once_with(
-        ANY, original_pcollection_visualization._df_display_id)
+        ANY, original_pcollection_visualization)
+    # Below assertions are still true without newer calls.
     mocked_display_overview.assert_called_once_with(
-        ANY, original_pcollection_visualization._overview_display_id)
+        ANY, original_pcollection_visualization)
     mocked_display_dive.assert_called_once_with(
-        ANY, original_pcollection_visualization._dive_display_id)
+        ANY, original_pcollection_visualization)
 
   def test_auto_stop_dynamic_plotting_when_job_is_terminated(self):
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.RUNNING)
-    ie.current_env().set_pipeline_result(
-        self._p, fake_pipeline_result, is_main_job=True)
+    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
     # When job is running, the dynamic plotting will not be stopped.
     self.assertFalse(ie.current_env().is_terminated(self._p))
 
     fake_pipeline_result = runner.PipelineResult(runner.PipelineState.DONE)
-    ie.current_env().set_pipeline_result(
-        self._p, fake_pipeline_result, is_main_job=True)
+    ie.current_env().set_pipeline_result(self._p, fake_pipeline_result)
     # When job is done, the dynamic plotting will be stopped.
     self.assertTrue(ie.current_env().is_terminated(self._p))
 
-  @patch('pandas.DataFrame.sample')
-  def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_sample):
+  @patch('pandas.DataFrame.head')
+  def test_display_plain_text_when_kernel_has_no_frontend(self, _mocked_head):
     # Resets the notebook check to False.
     ie.current_env()._is_in_notebook = False
-    self.assertIsNone(pv.visualize(self._pcoll))
-    _mocked_sample.assert_called_once()
+    self.assertIsNone(pv.visualize(self._pcoll, display_facets=True))
+    _mocked_head.assert_called_once()
+
+  def test_event_time_formatter(self):
+    # In microseconds: Monday, March 2, 2020 3:14:54 PM GMT-08:00
+    event_time_us = 1583190894000000
+    self.assertEqual(
+        '2020-03-02 15:14:54.000000-0800',
+        pv.event_time_formatter(event_time_us))
+
+  def test_event_time_formatter_overflow_lower_bound(self):
+    # A relatively small negative event time, which could be valid in Beam but
+    # has no meaning when visualized.
+    event_time_us = -100000000000000000
+    self.assertEqual('Min Timestamp', pv.event_time_formatter(event_time_us))
+
+  def test_event_time_formatter_overflow_upper_bound(self):
+    # A relatively large event time, which exceeds the upper bound of unix time
+    # Year 2038. It could mean infinite future in Beam but has no meaning
+    # when visualized.
+    # The value in test is supposed to be year 10000.
+    event_time_us = 253402300800000000
+    self.assertEqual('Max Timestamp', pv.event_time_formatter(event_time_us))
+
+  def test_windows_formatter_global(self):
+    gw = GlobalWindow()
+    self.assertEqual(str(gw), pv.windows_formatter([gw]))
+
+  def test_windows_formatter_interval(self):
+    # The unit is second.
+    iw = IntervalWindow(start=1583190894, end=1583200000)
+    self.assertEqual(
+        '2020-03-02 15:14:54.000000-0800 (2h 31m 46s)',
+        pv.windows_formatter([iw]))
+
+  def test_pane_info_formatter(self):
+    self.assertEqual(
+        'Pane 0: Final Early',
+        pv.pane_info_formatter(
+            PaneInfo(
+                is_first=False,
+                is_last=True,
+                timing=PaneInfoTiming.EARLY,
+                index=0,
+                nonspeculative_index=0)))
 
 
 if __name__ == '__main__':

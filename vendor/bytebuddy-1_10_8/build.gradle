@@ -28,6 +28,9 @@ vendorJava(
   relocations: [
     "net.bytebuddy": "org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy"
   ],
+  exclusions: [
+    "**/module-info.class"
+  ],
   groupId: group,
   artifactId: "beam-vendor-bytebuddy-1_10_8",
   version: version

@@ -19,7 +19,9 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasKey;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabel;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType;
+import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -491,6 +493,49 @@ public class ParDoTest implements Serializable {
       DisplayData displayData = DisplayData.from(parDo);
       assertThat(displayData, includesDisplayDataFor("fn", fn));
       assertThat(displayData, hasDisplayItem("fn", fn.getClass()));
+    }
+
+    private static class SerializableClass implements Serializable {}
+
+    @Test
+    public void testStatefulDoFnDisplayData() {
+      DoFn<KV<String, String>, String> fn =
+          new DoFn<KV<String, String>, String>() {
+            @StateId("int")
+            final StateSpec<ValueState<Integer>> intState = StateSpecs.value();
+
+            @StateId("map")
+            final StateSpec<MapState<String, SerializableClass>> mapState = StateSpecs.map();
+
+            @ProcessElement
+            public void proccessElement(ProcessContext c) {}
+          };
+
+      SingleOutput<KV<String, String>, String> parDo = ParDo.of(fn);
+
+      // Use the parDo in a pipeline to cause state coders to be inferred.
+      pipeline.apply(Create.of(KV.of("input", "value"))).apply(parDo);
+
+      DisplayData displayData = DisplayData.from(parDo);
+      assertThat(
+          displayData,
+          hasDisplayItem(
+              allOf(
+                  hasKey("state_int"),
+                  hasType(DisplayData.Type.STRING),
+                  hasValue("ValueState<VarIntCoder>"),
+                  hasLabel("State \"int\""))));
+      assertThat(
+          displayData,
+          hasDisplayItem(
+              allOf(
+                  hasKey("state_map"),
+                  hasType(DisplayData.Type.STRING),
+                  hasValue(
+                      "MapState<StringUtf8Coder, "
+                          + "SerializableCoder(org.apache.beam.sdk.transforms.ParDoTest"
+                          + "$BasicTests$SerializableClass)>"),
+                  hasLabel("State \"map\""))));
     }
 
     @Test
@@ -3465,10 +3510,106 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer.set(window.maxTimestamp().plus(1L));
+                fail("Should have failed due to out-of-bounds timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+
+                // Make sure these words are contained in error messages for
+                // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                List<String> expectedSubstrings = Arrays.asList("timer", "expiration");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
+            }
+
+            @OnTimer(timerId)
+            public void onTimer() {}
+          };
+
+      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutOfBoundsEventTimeTimerHold() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+              try {
+                timer
+                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .set(window.maxTimestamp());
+                fail("Should have failed due to out-of-bounds timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings =
+                    // Make sure these words are contained in error messages for
+                    // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                    Arrays.asList("timer", "output timestamp");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
+            }
+
+            @OnTimer(timerId)
+            public void onTimer() {}
+          };
+
+      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+              try {
+                timer
+                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .offset(Duration.standardSeconds(1))
+                    .setRelative();
                 fail("Should have failed due to processing time with absolute timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
-                List<String> expectedSubstrings = Arrays.asList("event time timer", "expiration");
+                List<String> expectedSubstrings =
+                    // Make sure these words are contained in error messages for
+                    // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                    Arrays.asList("timer", "output timestamp");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(

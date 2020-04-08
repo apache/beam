@@ -99,6 +99,7 @@ from builtins import zip
 from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Iterable
 from typing import List
 from typing import NamedTuple
 from typing import Optional
@@ -119,6 +120,7 @@ except ImportError:
   funcsigs = None
 
 __all__ = [
+    'disable_type_annotations',
     'no_annotations',
     'with_input_types',
     'with_output_types',
@@ -137,8 +139,7 @@ _MethodDescriptorType = type(str.upper)
 
 _ANY_VAR_POSITIONAL = typehints.Tuple[typehints.Any, ...]
 _ANY_VAR_KEYWORD = typehints.Dict[typehints.Any, typehints.Any]
-# TODO(BEAM-8280): Remove this when from_callable is ready to be enabled.
-_enable_from_callable = False
+_disable_from_callable = False
 
 try:
   _original_getfullargspec = inspect.getfullargspec
@@ -230,6 +231,16 @@ def no_annotations(fn):
   return fn
 
 
+def disable_type_annotations():
+  """Prevent Beam from using type hint annotations to determine input and output
+  types of transforms.
+
+  This setting applies globally.
+  """
+  global _disable_from_callable
+  _disable_from_callable = True
+
+
 class IOTypeHints(NamedTuple(
     'IOTypeHints',
     [('input_types', Optional[Tuple[Tuple[Any, ...], Dict[str, Any]]]),
@@ -253,20 +264,20 @@ class IOTypeHints(NamedTuple(
 
   @classmethod
   def _make_origin(cls, bases, tb=True, msg=()):
-    # type: (List[IOTypeHints], bool, List[str]) -> List[str]
+    # type: (List[IOTypeHints], bool, Iterable[str]) -> List[str]
     if msg:
-      res = msg
+      res = list(msg)
     else:
       res = []
     if tb:
       # Omit this method and the IOTypeHints method that called it.
       num_frames_skip = 2
-      tb = traceback.format_stack(limit=cls.traceback_limit +
-                                  num_frames_skip)[:-num_frames_skip]
+      tbs = traceback.format_stack(limit=cls.traceback_limit +
+                                   num_frames_skip)[:-num_frames_skip]
       # tb is a list of strings in the form of 'File ...\n[code]\n'. Split into
       # single lines and flatten.
       res += list(
-          itertools.chain.from_iterable(s.strip().split('\n') for s in tb))
+          itertools.chain.from_iterable(s.strip().split('\n') for s in tbs))
 
     bases = [base for base in bases if base.origin]
     if bases:
@@ -297,7 +308,7 @@ class IOTypeHints(NamedTuple(
     Returns:
       A new IOTypeHints or None if no annotations found.
     """
-    if not _enable_from_callable or getattr(fn, '_beam_no_annotations', False):
+    if _disable_from_callable or getattr(fn, '_beam_no_annotations', False):
       return None
     signature = get_signature(fn)
     if (all(param.annotation == param.empty

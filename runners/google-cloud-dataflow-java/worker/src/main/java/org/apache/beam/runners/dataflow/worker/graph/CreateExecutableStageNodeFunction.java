@@ -94,9 +94,9 @@ import org.joda.time.Duration;
  */
 public class CreateExecutableStageNodeFunction
     implements Function<MutableNetwork<Node, Edge>, Node> {
-  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
 
-  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
@@ -174,7 +174,7 @@ public class CreateExecutableStageNodeFunction
     String intervalWindowEncodingWindowingStrategyId =
         "generatedIntervalWindowEncodingWindowingStrategy" + idGenerator.getId();
 
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents(), null);
     try {
       registerWindowingStrategy(
           globalWindowingStrategyId,
@@ -344,8 +344,8 @@ public class CreateExecutableStageNodeFunction
 
             // Build the necessary components to inform the SDK Harness of the pipeline's
             // user timers and user state.
-            for (Map.Entry<String, RunnerApi.TimerSpec> entry :
-                parDoPayload.getTimerSpecsMap().entrySet()) {
+            for (Map.Entry<String, RunnerApi.TimerFamilySpec> entry :
+                parDoPayload.getTimerFamilySpecsMap().entrySet()) {
               timerIds.add(entry.getKey());
             }
             for (Map.Entry<String, RunnerApi.StateSpec> entry :

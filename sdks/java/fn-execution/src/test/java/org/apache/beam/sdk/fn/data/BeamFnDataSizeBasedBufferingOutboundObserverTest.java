@@ -101,7 +101,8 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
 
     // Test that when we close with an empty buffer we only have one end of stream
     consumer.close();
-    assertEquals(messageWithData(), Iterables.get(values, 2));
+
+    assertEquals(endMessageWithData(), Iterables.get(values, 2));
 
     // Test that we can't write to a closed stream.
     try {
@@ -157,12 +158,13 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
             .addData(
                 BeamFnApi.Elements.Data.newBuilder()
                     .setInstructionId(OUTPUT_LOCATION.getInstructionId())
-                    .setTransformId(OUTPUT_LOCATION.getTransformId()))
+                    .setTransformId(OUTPUT_LOCATION.getTransformId())
+                    .setIsLast(true))
             .build(),
         Iterables.get(values, 1));
   }
 
-  static BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
+  static BeamFnApi.Elements.Builder messageWithDataBuilder(byte[]... datum) throws IOException {
     ByteString.Output output = ByteString.newOutput();
     for (byte[] data : datum) {
       CODER.encode(valueInGlobalWindow(data), output);
@@ -172,8 +174,17 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
             BeamFnApi.Elements.Data.newBuilder()
                 .setInstructionId(OUTPUT_LOCATION.getInstructionId())
                 .setTransformId(OUTPUT_LOCATION.getTransformId())
-                .setData(output.toByteString()))
-        .build();
+                .setData(output.toByteString()));
+  }
+
+  static BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
+    return messageWithDataBuilder(datum).build();
+  }
+
+  static BeamFnApi.Elements endMessageWithData(byte[]... datum) throws IOException {
+    BeamFnApi.Elements.Builder builder = messageWithDataBuilder();
+    builder.getDataBuilder(0).setIsLast(true);
+    return builder.build();
   }
 
   private Consumer<Elements> addToValuesConsumer(final Collection<Elements> values) {

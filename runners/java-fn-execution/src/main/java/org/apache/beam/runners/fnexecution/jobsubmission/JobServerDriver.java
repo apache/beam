@@ -20,11 +20,11 @@ package org.apache.beam.runners.fnexecution.jobsubmission;
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.core.construction.expansion.ExpansionServer;
-import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemArtifactStagingService;
+import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactStagingService;
+import org.apache.beam.sdk.expansion.service.ExpansionServer;
+import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.spi.ExplicitBooleanOptionHandler;
@@ -43,7 +43,7 @@ public abstract class JobServerDriver implements Runnable {
   private final JobInvokerFactory jobInvokerFactory;
 
   private volatile GrpcFnServer<InMemoryJobService> jobServer;
-  private volatile GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingServer;
+  private volatile GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> artifactStagingServer;
   private volatile ExpansionServer expansionServer;
 
   public interface JobInvokerFactory {
@@ -51,7 +51,7 @@ public abstract class JobServerDriver implements Runnable {
   }
 
   protected InMemoryJobService createJobService() throws IOException {
-    artifactStagingServer = createArtifactStagingService();
+    artifactStagingServer = createLegacyArtifactStagingService();
     expansionServer = createExpansionService();
 
     JobInvoker invoker = jobInvokerFactory.create();
@@ -211,7 +211,7 @@ public abstract class JobServerDriver implements Runnable {
   }
 
   protected String createSessionToken(String session) {
-    return BeamFileSystemArtifactStagingService.generateStagingSessionToken(
+    return BeamFileSystemLegacyArtifactStagingService.generateStagingSessionToken(
         session, configuration.artifactStagingPath);
   }
 
@@ -231,10 +231,11 @@ public abstract class JobServerDriver implements Runnable {
     return jobServiceGrpcFnServer;
   }
 
-  private GrpcFnServer<BeamFileSystemArtifactStagingService> createArtifactStagingService()
-      throws IOException {
-    BeamFileSystemArtifactStagingService service = new BeamFileSystemArtifactStagingService();
-    final GrpcFnServer<BeamFileSystemArtifactStagingService> artifactStagingService;
+  private GrpcFnServer<BeamFileSystemLegacyArtifactStagingService>
+      createLegacyArtifactStagingService() throws IOException {
+    BeamFileSystemLegacyArtifactStagingService service =
+        new BeamFileSystemLegacyArtifactStagingService();
+    final GrpcFnServer<BeamFileSystemLegacyArtifactStagingService> artifactStagingService;
     if (configuration.artifactPort == 0) {
       artifactStagingService =
           GrpcFnServer.allocatePortAndCreateFor(service, artifactServerFactory);
@@ -246,7 +247,7 @@ public abstract class JobServerDriver implements Runnable {
       artifactStagingService = GrpcFnServer.create(service, descriptor, artifactServerFactory);
     }
     LOG.info(
-        "ArtifactStagingService started on {}",
+        "LegacyArtifactStagingService started on {}",
         artifactStagingService.getApiServiceDescriptor().getUrl());
     return artifactStagingService;
   }

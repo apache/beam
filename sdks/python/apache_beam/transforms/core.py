@@ -37,6 +37,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders import typecoders
+from apache_beam.coders.coders import ExternalCoder
 from apache_beam.internal import pickler
 from apache_beam.internal import util
 from apache_beam.options.pipeline_options import TypeOptions
@@ -49,6 +50,7 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
 from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.userstate import StateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -66,6 +68,7 @@ from apache_beam.typehints.decorators import with_input_types
 from apache_beam.typehints.decorators import with_output_types
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
+from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 from apache_beam.utils.timestamp import Duration
 
@@ -384,6 +387,10 @@ class RunnerAPIPTransformHolder(PTransform):
     self._proto = proto
     self._context = context
 
+    # For ParDos with side-inputs, this will be populated after this object is
+    # created.
+    self.side_inputs = []
+
   def proto(self):
     """Runner API payload for a `PTransform`"""
     return self._proto
@@ -408,11 +415,38 @@ class RunnerAPIPTransformHolder(PTransform):
             'environments with different payloads '
             '%r and %r',
             env1.payload, env2.to_runner_api(context).payload)
+
+    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
+      # If a restriction coder has been set by an external SDK, we have to
+      # explicitly add it (and all component coders recursively) to the context
+      # to make sure that it does not get dropped by Python SDK.
+
+      def recursively_add_coder_protos(coder_id, old_context, new_context):
+        coder_proto = old_context.coders.get_proto_from_id(coder_id)
+        new_context.coders.put_proto(coder_id, coder_proto, True)
+        for component_coder_id in coder_proto.component_coder_ids:
+          recursively_add_coder_protos(
+              component_coder_id, old_context, new_context)
+
+      par_do_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
+      if par_do_payload.restriction_coder_id:
+        recursively_add_coder_protos(
+            par_do_payload.restriction_coder_id, self._context, context)
+
     return self._proto
 
   def get_restriction_coder(self):
-    # TODO(BEAM-7172): support external transforms that are SDFs.
-    return None
+    # For some runners, restriction coder ID has to be provided to correctly
+    # encode ParDo transforms that are SDF.
+    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
+      par_do_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
+      if par_do_payload.restriction_coder_id:
+        restriction_coder_proto = self._context.coders.get_proto_from_id(
+            par_do_payload.restriction_coder_id)
+
+        return ExternalCoder(restriction_coder_proto)
 
 
 class WatermarkEstimatorProvider(object):
@@ -514,15 +548,18 @@ class _BundleFinalizerParam(_DoFnParam):
         _LOGGER.warning("Got exception from finalization call: %s", e)
 
   def has_callbacks(self):
+    # type: () -> bool
     return len(self._callbacks) > 0
 
   def reset(self):
+    # type: () -> None
     del self._callbacks[:]
 
 
 class _WatermarkEstimatorParam(_DoFnParam):
   """WatermarkEstomator DoFn parameter."""
   def __init__(self, watermark_estimator_provider):
+    # type: (WatermarkEstimatorProvider) -> None
     if not isinstance(watermark_estimator_provider, WatermarkEstimatorProvider):
       raise ValueError(
           'DoFn._WatermarkEstimatorParam expected'
@@ -1302,6 +1339,8 @@ class ParDo(PTransformWithSideInputs):
       restriction_coder = sig.get_restriction_coder()
       restriction_coder_id = context.coders.get_id(
           restriction_coder)  # type: typing.Optional[str]
+      context.add_requirement(
+          common_urns.requirements.REQUIRES_SPLITTABLE_DOFN.urn)
     else:
       restriction_coder_id = None
     has_bundle_finalization = sig.has_bundle_finalization()
@@ -1314,14 +1353,13 @@ class ParDo(PTransformWithSideInputs):
             do_fn=beam_runner_api_pb2.FunctionSpec(
                 urn=python_urns.PICKLED_DOFN_INFO,
                 payload=picked_pardo_fn_data),
-            splittable=is_splittable,
             requests_finalization=has_bundle_finalization,
             restriction_coder_id=restriction_coder_id,
             state_specs={
                 spec.name: spec.to_runner_api(context)
                 for spec in state_specs
             },
-            timer_specs={
+            timer_family_specs={
                 spec.name: spec.to_runner_api(context)
                 for spec in timer_specs
             },
@@ -1330,16 +1368,15 @@ class ParDo(PTransformWithSideInputs):
             # transformation is currently irreversible given how
             # remove_objects_from_args and insert_values_in_args
             # are currently implemented.
-            side_inputs={
-                "side%s" % ix: si.to_runner_api(context)
-                for ix,
-                si in enumerate(self.side_inputs)
-            }))
+            side_inputs={(SIDE_INPUT_PREFIX + '%s') % ix:
+                         si.to_runner_api(context)
+                         for ix,
+                         si in enumerate(self.side_inputs)}))
 
   @staticmethod
   @PTransform.register_urn(
       common_urns.primitives.PAR_DO.urn, beam_runner_api_pb2.ParDoPayload)
-  def from_runner_api_parameter(pardo_payload, context):
+  def from_runner_api_parameter(unused_ptransform, pardo_payload, context):
     assert pardo_payload.do_fn.urn == python_urns.PICKLED_DOFN_INFO
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
         pardo_payload.do_fn.payload)
@@ -1827,6 +1864,14 @@ class CombineGlobally(PTransform):
           | 'DoOnce' >> Create([None])
           | 'InjectDefault' >> typed(Map(lambda _, s: s, view)))
 
+  @staticmethod
+  @PTransform.register_urn(
+      common_urns.composites.COMBINE_GLOBALLY.urn,
+      beam_runner_api_pb2.CombinePayload)
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
+    return CombineGlobally(
+        CombineFn.from_runner_api(combine_payload.combine_fn, context))
+
 
 class CombinePerKey(PTransformWithSideInputs):
   """A per-key Combine transform.
@@ -1932,7 +1977,7 @@ class CombinePerKey(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.composites.COMBINE_PER_KEY.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombinePerKey(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -1975,7 +2020,7 @@ class CombineValues(PTransformWithSideInputs):
   @PTransform.register_urn(
       common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
       beam_runner_api_pb2.CombinePayload)
-  def from_runner_api_parameter(combine_payload, context):
+  def from_runner_api_parameter(unused_ptransform, combine_payload, context):
     return CombineValues(
         CombineFn.from_runner_api(combine_payload.combine_fn, context))
 
@@ -2168,9 +2213,11 @@ class GroupByKey(PTransform):
       reify_output_type = typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
       gbk_input_type = (
-          typehints.KV[key_type,
-                       typehints.Iterable[typehints.WindowedValue[value_type]]]
-      )  # type: ignore[misc]
+          typehints.
+          KV[key_type,
+             typehints.Iterable[
+                 typehints.WindowedValue[  # type: ignore[misc]
+                     value_type]]])
       gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
 
       # pylint: disable=bad-continuation
@@ -2203,7 +2250,8 @@ class GroupByKey(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.primitives.GROUP_BY_KEY.urn, None)
-  def from_runner_api_parameter(unused_payload, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_payload, unused_context):
     return GroupByKey()
 
   def runner_api_requires_keyed_input(self):
@@ -2303,8 +2351,8 @@ class Windowing(object):
   def __init__(self,
                windowfn,  # type: WindowFn
                triggerfn=None,  # type: typing.Optional[TriggerFn]
-               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode]
-               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime]
+               accumulation_mode=None,  # type: typing.Optional[beam_runner_api_pb2.AccumulationMode.Enum]
+               timestamp_combiner=None,  # type: typing.Optional[beam_runner_api_pb2.OutputTime.Enum]
                allowed_lateness=0, # type: typing.Union[int, float]
                ):
     """Class representing the window strategy.
@@ -2494,7 +2542,7 @@ class WindowInto(ParDo):
         self.windowing.to_runner_api(context))
 
   @staticmethod
-  def from_runner_api_parameter(proto, context):
+  def from_runner_api_parameter(unused_ptransform, proto, context):
     windowing = Windowing.from_runner_api(proto, context)
     return WindowInto(
         windowing.windowfn,
@@ -2568,7 +2616,8 @@ class Flatten(PTransform):
     return common_urns.primitives.FLATTEN.urn, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Flatten()
 
 
@@ -2681,5 +2730,6 @@ class Impulse(PTransform):
 
   @staticmethod
   @PTransform.register_urn(common_urns.primitives.IMPULSE.urn, None)
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return Impulse()

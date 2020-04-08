@@ -576,8 +576,7 @@ class Repeatedly(TriggerFn):
     return self.underlying.has_ontime_pane()
 
 
-class _ParallelTriggerFn(with_metaclass(ABCMeta,
-                                        TriggerFn)):  # type: ignore[misc]
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):  # type: ignore[misc]
   def __init__(self, *triggers):
     self.triggers = triggers
 
@@ -1201,6 +1200,10 @@ class GeneralTriggerDriver(TriggerDriver):
             for window in to_be_merged:
               if window != merge_result:
                 merged_away[window] = merge_result
+                # Clear state associated with PaneInfo since it is
+                # not preserved across merges.
+                state.clear_state(window, self.INDEX)
+                state.clear_state(window, self.NONSPECULATIVE_INDEX)
             state.merge(to_be_merged, merge_result)
             # using the outer self argument.
             self.trigger_fn.on_merge(

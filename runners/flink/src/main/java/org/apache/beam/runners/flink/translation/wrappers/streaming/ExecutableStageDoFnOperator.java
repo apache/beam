@@ -83,6 +83,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -100,7 +101,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
@@ -459,13 +459,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  protected void fireTimer(InternalTimer<ByteBuffer, TimerInternals.TimerData> timer) {
-    final ByteBuffer encodedKey = timer.getKey();
+  protected void fireTimerInternal(Object key, TimerInternals.TimerData timer) {
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
     try (Locker locker = Locker.locked(stateBackendLock)) {
-      getKeyedStateBackend().setCurrentKey(encodedKey);
-      super.fireTimer(timer);
+      getKeyedStateBackend().setCurrentKey(key);
+      fireTimer(timer);
     }
   }
 
@@ -685,7 +684,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               timerId);
       WindowedValue<KV<Object, Timer>> timerValue =
           WindowedValue.of(
-              KV.of(timerKey, Timer.of(timestamp, new byte[0])),
+              KV.of(
+                  timerKey,
+                  Timer.of(
+                      "",
+                      "",
+                      Collections.singleton(GlobalWindow.INSTANCE),
+                      timestamp,
+                      timestamp,
+                      PaneInfo.NO_FIRING)),
               outputTimestamp,
               Collections.singleton(window),
               PaneInfo.NO_FIRING);
@@ -749,7 +756,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 TimerInternals.TimerData.of(
                     timerSpec.inputCollectionId(),
                     namespace,
-                    timer.getTimestamp(),
+                    timer.getFireTimestamp(),
                     timerSpec.getTimerSpec().getTimeDomain());
             timerRegistration.accept(windowedValue, timerData);
           }

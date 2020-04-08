@@ -92,6 +92,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
     /** @see Compression#ZSTD */
     ZSTD(Compression.ZSTD),
 
+    /** @see Compression#LZO */
+    LZO(Compression.LZO),
+
+    /** @see Compression#LZOP */
+    LZOP(Compression.LZOP),
+
     /** @see Compression#DEFLATE */
     DEFLATE(Compression.DEFLATE);
 
@@ -139,6 +145,12 @@ public class CompressedSource<T> extends FileBasedSource<T> {
 
         case ZSTD:
           return ZSTD;
+
+        case LZO:
+          return LZO;
+
+        case LZOP:
+          return LZOP;
 
         case DEFLATE:
           return DEFLATE;

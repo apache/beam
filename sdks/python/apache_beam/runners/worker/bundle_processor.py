@@ -80,10 +80,11 @@ if TYPE_CHECKING:
   from google.protobuf import message  # pylint: disable=ungrouped-imports
   from apache_beam import pvalue
   from apache_beam.portability.api import metrics_pb2
+  from apache_beam.runners.sdf_utils import SplitResultPrimary
+  from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker import data_plane
   from apache_beam.runners.worker import sdk_worker
   from apache_beam.transforms import window
-  from apache_beam.utils.timestamp import Timestamp
 
 # This module is experimental. No backwards-compatibility guarantees.
 T = TypeVar('T')
@@ -97,8 +98,8 @@ ConstructorFn = Callable[[
                          operations.Operation]
 OperationT = TypeVar('OperationT', bound=operations.Operation)
 
-DATA_INPUT_URN = 'beam:source:runner:0.1'
-DATA_OUTPUT_URN = 'beam:sink:runner:0.1'
+DATA_INPUT_URN = 'beam:runner:source:v1'
+DATA_OUTPUT_URN = 'beam:runner:sink:v1'
 IDENTITY_DOFN_URN = 'beam:dofn:identity:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate common_urns.
 OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'beam:dofn:javasdk:0.1'
@@ -216,7 +217,7 @@ class DataInputOperation(RunnerIOOperation):
       self.output(decoded_value)
 
   def try_split(self, fraction_of_remainder, total_buffer_size):
-    # type: (...) -> Optional[Tuple[int, Optional[Tuple[operations.DoOperation, common.SplitResultType]], Optional[Tuple[operations.DoOperation, common.SplitResultType]], int]]
+    # type: (...) -> Optional[Tuple[int, Optional[operations.SdfSplitResultsPrimary], Optional[operations.SdfSplitResultsResidual], int]]
     with self.splitting_lock:
       if not self.started:
         return None
@@ -245,7 +246,9 @@ class DataInputOperation(RunnerIOOperation):
         # If it's less than what's left of the current element,
         # try splitting at the current element.
         if keep_of_element_remainder < 1:
-          split = self.receivers[0].try_split(keep_of_element_remainder)
+          split = self.receivers[0].try_split(
+              keep_of_element_remainder
+          )  # type: Optional[Tuple[operations.SdfSplitResultsPrimary, operations.SdfSplitResultsResidual]]
           if split:
             element_primary, element_residual = split
             self.stop = self.index + 1
@@ -258,16 +261,6 @@ class DataInputOperation(RunnerIOOperation):
         self.stop = stop_index
         return self.stop - 1, None, None, self.stop
     return None
-
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    with self.splitting_lock:
-      metrics = super(DataInputOperation, self).progress_metrics()
-      current_element_progress = self.receivers[0].current_element_progress()
-    if current_element_progress:
-      metrics.active_elements.fraction_remaining = (
-          current_element_progress.fraction_remaining)
-    return metrics
 
   def finish(self):
     # type: () -> None
@@ -577,16 +570,36 @@ class OutputTimer(object):
 
   def set(self, ts):
     ts = timestamp.Timestamp.of(ts)
+    # TODO(BEAM-9562): Plumb through actual timer fields.
     self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=ts)),
+        windowed_value.WindowedValue((
+            self._key,
+            userstate.Timer(
+                user_key='',
+                dynamic_timer_tag='',
+                windows=(self._window, ),
+                clear_bit=False,
+                fire_timestamp=ts,
+                hold_timestamp=ts,
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)),
                                      ts, (self._window, )))
 
   def clear(self):
     # type: () -> None
     dummy_millis = int(common_urns.constants.MAX_TIMESTAMP_MILLIS.constant) + 1
     clear_ts = timestamp.Timestamp(micros=dummy_millis * 1000)
+    # TODO(BEAM-9562): Plumb through actual paneinfo.
     self._receiver.receive(
-        windowed_value.WindowedValue((self._key, dict(timestamp=clear_ts)),
+        windowed_value.WindowedValue((
+            self._key,
+            userstate.Timer(
+                user_key='',
+                dynamic_timer_tag='',
+                windows=(self._window, ),
+                clear_bit=False,
+                fire_timestamp=timestamp.Timestamp.of(clear_ts),
+                hold_timestamp=timestamp.Timestamp.of(0),
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN)),
                                      0, (self._window, )))
 
 
@@ -598,7 +611,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
                transform_id,  # type: str
                key_coder,  # type: coders.Coder
                window_coder,  # type: coders.Coder
-               timer_specs  # type: Mapping[str, beam_runner_api_pb2.TimerSpec]
+               timer_family_specs  # type: Mapping[str, beam_runner_api_pb2.TimerFamilySpec]
               ):
     # type: (...) -> None
 
@@ -609,14 +622,14 @@ class FnApiUserStateContext(userstate.UserStateContext):
       transform_id: The name of the PTransform that this context is associated.
       key_coder:
       window_coder:
-      timer_specs: A list of ``userstate.TimerSpec`` objects specifying the
-        timers associated with this operation.
+      timer_family_specs: A list of ``userstate.TimerSpec`` objects specifying
+        the timers associated with this operation.
     """
     self._state_handler = state_handler
     self._transform_id = transform_id
     self._key_coder = key_coder
     self._window_coder = window_coder
-    self._timer_specs = timer_specs
+    self._timer_family_specs = timer_family_specs
     self._timer_receivers = None  # type: Optional[Dict[str, operations.ConsumerSet]]
     self._all_states = {
     }  # type: Dict[tuple, userstate.AccumulatingRuntimeState]
@@ -626,7 +639,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
 
     """TODO"""
     self._timer_receivers = {}
-    for tag in self._timer_specs:
+    for tag in self._timer_family_specs:
       self._timer_receivers[tag] = receivers.pop(tag)
 
   def get_timer(
@@ -901,7 +914,7 @@ class BundleProcessor(object):
 
   def delayed_bundle_application(self,
                                  op,  # type: operations.DoOperation
-                                 deferred_remainder  # type: common.SplitResultType
+                                 deferred_remainder  # type: SplitResultResidual
                                 ):
     # type: (...) -> beam_fn_api_pb2.DelayedBundleApplication
     assert op.input_info is not None
@@ -910,8 +923,9 @@ class BundleProcessor(object):
         deferred_remainder)
     if deferred_timestamp:
       assert isinstance(deferred_timestamp, timestamp.Duration)
-      proto_deferred_watermark = duration_pb2.Duration()
-      proto_deferred_watermark.FromMicroseconds(deferred_timestamp.micros)
+      proto_deferred_watermark = proto_utils.from_micros(
+          duration_pb2.Duration,
+          deferred_timestamp.micros)  # type: Optional[duration_pb2.Duration]
     else:
       proto_deferred_watermark = None
     return beam_fn_api_pb2.DelayedBundleApplication(
@@ -921,16 +935,25 @@ class BundleProcessor(object):
 
   def bundle_application(self,
                          op,  # type: operations.DoOperation
-                         primary  # type: common.SplitResultType
+                         primary  # type: SplitResultPrimary
                         ):
+    # type: (...) -> beam_fn_api_pb2.BundleApplication
     return self.construct_bundle_application(op, None, primary.primary_value)
 
-  def construct_bundle_application(self, op, output_watermark, element):
+  def construct_bundle_application(self,
+                                   op,  # type: operations.DoOperation
+                                   output_watermark,  # type: Optional[timestamp.Timestamp]
+                                   element
+                                  ):
+    # type: (...) -> beam_fn_api_pb2.BundleApplication
     transform_id, main_input_tag, main_input_coder, outputs = op.input_info
     if output_watermark:
-      proto_output_watermark = timestamp_pb2.Timestamp()
-      proto_output_watermark.FromMicroseconds(output_watermark.micros)
-      output_watermarks = {output: proto_output_watermark for output in outputs}
+      proto_output_watermark = proto_utils.from_micros(
+          timestamp_pb2.Timestamp, output_watermark.micros)
+      output_watermarks = {
+          output: proto_output_watermark
+          for output in outputs
+      }  # type: Optional[Dict[str, timestamp_pb2.Timestamp]]
     else:
       output_watermarks = None
     return beam_fn_api_pb2.BundleApplication(
@@ -938,42 +961,6 @@ class BundleProcessor(object):
         input_id=main_input_tag,
         output_watermarks=output_watermarks,
         element=main_input_coder.get_impl().encode_nested(element))
-
-  def metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics
-    # DEPRECATED
-    return beam_fn_api_pb2.Metrics(
-        # TODO(robertwb): Rename to progress?
-        ptransforms={
-            transform_id: self._fix_output_tags(
-                transform_id, op.progress_metrics())
-            for transform_id,
-            op in self.ops.items()
-        })
-
-  def _fix_output_tags(self, transform_id, metrics):
-    # DEPRECATED
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
-
-    # Outputs are still referred to by index, not by name, in many Operations.
-    # However, if there is exactly one output, we can fix up the name here.
-
-    def fix_only_output_tag(actual_output_tag, mapping):
-      if len(mapping) == 1:
-        fake_output_tag, count = only_element(list(mapping.items()))
-        if fake_output_tag != actual_output_tag:
-          del mapping[fake_output_tag]
-          mapping[actual_output_tag] = count
-
-    if len(actual_output_tags) == 1:
-      fix_only_output_tag(
-          actual_output_tags[0],
-          metrics.processed_elements.measured.output_element_counts)
-      fix_only_output_tag(
-          actual_output_tags[0],
-          metrics.active_elements.measured.output_element_counts)
-    return metrics
 
   def monitoring_infos(self):
     # type: () -> List[metrics_pb2.MonitoringInfo]
@@ -1459,23 +1446,13 @@ def _create_pardo_operation(
 
   output_tags = list(transform_proto.outputs.keys())
 
-  # Hack to match out prefix injected by dataflow runner.
-  def mutate_tag(tag):
-    if 'None' in output_tags:
-      if tag == 'None':
-        return 'out'
-      else:
-        return 'out_' + tag
-    else:
-      return tag
-
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
     if pardo_proto:
       other_input_tags = set.union(
           set(pardo_proto.side_inputs),
-          set(pardo_proto.timer_specs))  # type: Container[str]
+          set(pardo_proto.timer_family_specs))  # type: Container[str]
     else:
       other_input_tags = ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
@@ -1485,12 +1462,12 @@ def _create_pardo_operation(
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing, ))
 
   timer_inputs = None  # type: Optional[Dict[str, str]]
-  if pardo_proto and (pardo_proto.timer_specs or pardo_proto.state_specs or
-                      pardo_proto.splittable):
+  if pardo_proto and (pardo_proto.timer_family_specs or pardo_proto.state_specs
+                      or pardo_proto.restriction_coder_id):
     main_input_coder = None  # type: Optional[WindowedValueCoder]
     timer_inputs = {}
     for tag, pcoll_id in transform_proto.inputs.items():
-      if tag in pardo_proto.timer_specs:
+      if tag in pardo_proto.timer_family_specs:
         timer_inputs[tag] = pcoll_id
       elif tag in pardo_proto.side_inputs:
         pass
@@ -1501,13 +1478,13 @@ def _create_pardo_operation(
         main_input_coder = factory.get_windowed_coder(pcoll_id)
     assert main_input_coder is not None
 
-    if pardo_proto.timer_specs or pardo_proto.state_specs:
+    if pardo_proto.timer_family_specs or pardo_proto.state_specs:
       user_state_context = FnApiUserStateContext(
           factory.state_handler,
           transform_id,
           main_input_coder.key_coder(),
           main_input_coder.window_coder,
-          timer_specs=pardo_proto.timer_specs
+          timer_family_specs=pardo_proto.timer_family_specs
       )  # type: Optional[FnApiUserStateContext]
     else:
       user_state_context = None
@@ -1517,7 +1494,7 @@ def _create_pardo_operation(
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
-      output_tags=[mutate_tag(tag) for tag in output_tags],
+      output_tags=output_tags,
       input=None,
       side_inputs=None,  # Fn API uses proto definitions and the Fn State API
       output_coders=[output_coders[tag] for tag in output_tags])
@@ -1534,7 +1511,7 @@ def _create_pardo_operation(
       transform_proto.unique_name,
       consumers,
       output_tags)
-  if pardo_proto and pardo_proto.splittable:
+  if pardo_proto and pardo_proto.restriction_coder_id:
     result.input_info = (
         transform_id,
         main_input_tag,
@@ -1664,6 +1641,20 @@ def create_combine_per_key_extract_outputs(
 
 
 @BeamTransformFactory.register_urn(
+    common_urns.combine_components.COMBINE_PER_KEY_CONVERT_TO_ACCUMULATORS.urn,
+    beam_runner_api_pb2.CombinePayload)
+def create_combine_per_key_convert_to_accumulators(
+    factory,  # type: BeamTransformFactory
+    transform_id,  # type: str
+    transform_proto,  # type: beam_runner_api_pb2.PTransform
+    payload,  # type: beam_runner_api_pb2.CombinePayload
+    consumers  # type: Dict[str, List[operations.Operation]]
+):
+  return _create_combine_phase_operation(
+      factory, transform_id, transform_proto, payload, consumers, 'convert')
+
+
+@BeamTransformFactory.register_urn(
     common_urns.combine_components.COMBINE_GROUPED_VALUES.urn,
     beam_runner_api_pb2.CombinePayload)
 def create_combine_grouped_values(
@@ -1722,7 +1713,7 @@ def create_map_windows(
     factory,  # type: BeamTransformFactory
     transform_id,  # type: str
     transform_proto,  # type: beam_runner_api_pb2.PTransform
-    mapping_fn_spec,  # type: beam_runner_api_pb2.SdkFunctionSpec
+    mapping_fn_spec,  # type: beam_runner_api_pb2.FunctionSpec
     consumers  # type: Dict[str, List[operations.Operation]]
 ):
   assert mapping_fn_spec.urn == python_urns.PICKLED_WINDOW_MAPPING_FN

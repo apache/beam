@@ -62,7 +62,7 @@ public class FinalizeBundleHandler {
     public abstract BundleFinalizer.Callback getCallback();
   }
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FinalizeBundleHandler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(FinalizeBundleHandler.class);
   private final ConcurrentMap<String, Collection<CallbackRegistration>> bundleFinalizationCallbacks;
   private final PriorityQueue<TimestampedValue<String>> cleanUpQueue;
   private final Future<Void> cleanUpResult;

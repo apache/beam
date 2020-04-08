@@ -26,6 +26,7 @@ from __future__ import absolute_import
 
 import types
 from builtins import object
+from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -129,10 +130,24 @@ class CombiningValueStateSpec(StateSpec):
             accumulator_coder_id=context.coders.get_id(self.coder)))
 
 
+Timer = namedtuple(
+    'Timer',
+    'user_key '
+    'dynamic_timer_tag '
+    'windows '
+    'clear_bit '
+    'fire_timestamp '
+    'hold_timestamp '
+    'paneinfo')
+
+
+# TODO(BEAM-9562): Plumb through actual key_coder and window_coder.
 class TimerSpec(object):
   """Specification for a user stateful DoFn timer."""
+  prefix = "ts-"
+
   def __init__(self, name, time_domain):
-    self.name = name
+    self.name = self.prefix + name
     if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
       raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
     self.time_domain = time_domain
@@ -142,10 +157,31 @@ class TimerSpec(object):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.TimerSpec
-    return beam_runner_api_pb2.TimerSpec(
+    # type: (PipelineContext) -> beam_runner_api_pb2.TimerFamilySpec
+    return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
-        timer_coder_id=context.coders.get_id(
+        timer_family_coder_id=context.coders.get_id(
+            coders._TimerCoder(
+                coders.StrUtf8Coder(), coders.GlobalWindowCoder())))
+
+
+# TODO(BEAM-9602): Provide support for dynamic timer.
+class TimerFamilySpec(object):
+  prefix = "tfs-"
+
+  def __init__(self, name, time_domain):
+    self.name = self.prefix + name
+    if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
+      raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
+    self.time_domain = time_domain
+
+  def __repr__(self):
+    return '%s(%s)' % (self.__class__.__name__, self.name)
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.TimerFamilySpec(
+        time_domain=TimeDomain.to_runner_api(self.time_domain),
+        timer_family_coder_id=context.coders.get_id(
             coders._TimerCoder(coders.SingletonCoder(None))))
 
 

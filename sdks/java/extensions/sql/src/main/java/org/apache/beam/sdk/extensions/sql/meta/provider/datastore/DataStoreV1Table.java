@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
 class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
   public static final String KEY_FIELD_PROPERTY = "keyField";
   @VisibleForTesting static final String DEFAULT_KEY_FIELD = "__key__";
-  private static final Logger LOGGER = LoggerFactory.getLogger(DataStoreV1Table.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DataStoreV1Table.class);
   // Should match: `projectId/kind`.
   private static final Pattern locationPattern = Pattern.compile("(?<projectId>.+)/(?<kind>.+)");
   @VisibleForTesting final String keyField;
@@ -166,7 +166,7 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
                   + "` should of type `VARBINARY`. Please change the type or specify a field to"
                   + " store the KEY value.");
         }
-        LOGGER.info("Entity KEY will be stored under `" + keyField + "` field.");
+        LOG.info("Entity KEY will be stored under `" + keyField + "` field.");
       }
     }
 
@@ -300,7 +300,7 @@ class DataStoreV1Table extends SchemaBaseBeamTable implements Serializable {
                   + "` should of type `VARBINARY`. Please change the type or specify a field to"
                   + " write the KEY value from via TableProperties.");
         }
-        LOGGER.info("Field to use as Entity KEY is set to: `" + keyField + "`.");
+        LOG.info("Field to use as Entity KEY is set to: `" + keyField + "`.");
       }
       return input.apply(ParDo.of(new RowToEntityConverter(isFieldPresent)));
     }

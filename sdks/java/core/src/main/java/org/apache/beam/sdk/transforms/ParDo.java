@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.DisplayData.ItemSpec;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.FieldAccessDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.MethodWithExtraParameters;
@@ -785,7 +784,7 @@ public class ParDo {
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      ParDo.populateDisplayData(builder, (HasDisplayData) fn, fnDisplayData);
+      ParDo.populateDisplayData(builder, fn, fnDisplayData);
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -982,11 +981,53 @@ public class ParDo {
     }
   }
 
+  private static String stateDescription(StateSpec<?> spec) {
+    return spec.match(
+        new StateSpec.Cases<String>() {
+          @Override
+          public String dispatchValue(Coder<?> valueCoder) {
+            return "ValueState<" + valueCoder + ">";
+          }
+
+          @Override
+          public String dispatchBag(Coder<?> elementCoder) {
+            return "BagState<" + elementCoder + ">";
+          }
+
+          @Override
+          public String dispatchCombining(
+              Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder) {
+            return "CombiningState<" + accumCoder + ">";
+          }
+
+          @Override
+          public String dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder) {
+            return "MapState<" + keyCoder + ", " + valueCoder + ">";
+          }
+
+          @Override
+          public String dispatchSet(Coder<?> elementCoder) {
+            return "SetState<" + elementCoder + ">";
+          }
+        });
+  }
+
   private static void populateDisplayData(
       DisplayData.Builder builder,
-      HasDisplayData fn,
+      DoFn<?, ?> fn,
       DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
     builder.include("fn", fn).add(fnDisplayData);
+    for (DoFnSignature.StateDeclaration stateDeclaration :
+        DoFnSignatures.signatureForDoFn(fn).stateDeclarations().values()) {
+      try {
+        StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
+        builder.add(
+            DisplayData.item("state_" + stateDeclaration.id(), stateDescription(stateSpec))
+                .withLabel("State \"" + stateDeclaration.id() + "\""));
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   private static boolean isSplittable(DoFn<?, ?> fn) {

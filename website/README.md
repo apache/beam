@@ -22,9 +22,9 @@ https://beam.apache.org/.
 
 ## About this site
 
-The Beam website is built using [Jekyll](http://jekyllrb.com/). Additionally,
+The Beam website is built using [Jekyll](https://jekyllrb.com/). Additionally,
 for additional formatting capabilities, this website uses
-[Twitter Bootstrap](http://getbootstrap.com/).
+[Twitter Bootstrap](https://getbootstrap.com/).
 
 Documentation generated from source code, such as Javadoc and Pydoc, is stored
 separately on the [beam-site
@@ -70,5 +70,5 @@ the site.
 If you modify the site to use additional Jekyll plugins, add them in `Gemfile`
 and then run `bundle update`, which will regenerate the complete `Gemfile.lock`.
 Make sure that the updated `Gemfile.lock` is included in your pull request. For more information,
-see the Bundler [documentation](http://bundler.io/v1.3/rationale.html).
+see the Bundler [documentation](https://bundler.io/v1.3/rationale.html).
 

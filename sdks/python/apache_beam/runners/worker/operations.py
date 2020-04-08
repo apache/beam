@@ -44,16 +44,15 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-from apache_beam import pvalue
+from apache_beam import coders
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
-from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
@@ -68,7 +67,8 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
-  from apache_beam.coders import coders
+  from apache_beam.runners.sdf_utils import SplitResultPrimary
+  from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
 
@@ -88,6 +88,9 @@ _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
 
 _LOGGER = logging.getLogger(__name__)
+
+SdfSplitResultsPrimary = Tuple['DoOperation', 'SplitResultPrimary']
+SdfSplitResultsResidual = Tuple['DoOperation', 'SplitResultResidual']
 
 
 class ConsumerSet(Receiver):
@@ -334,26 +337,6 @@ class Operation(object):
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    return beam_fn_api_pb2.Metrics.PTransform(
-        processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
-            measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
-                total_time_spent=(
-                    self.scoped_start_state.sampled_seconds() +
-                    self.scoped_process_state.sampled_seconds() +
-                    self.scoped_finish_state.sampled_seconds()),
-                # Multi-output operations should override this.
-                output_element_counts=(
-                    # If there is exactly one output, we can unambiguously
-                    # fix its name later, which we do.
-                    # TODO(robertwb): Plumb the actual name here.
-                    {
-                        'ONLY_OUTPUT': self.receivers[0].opcounter.
-                        element_counter.value()
-                    } if len(self.receivers) == 1 else None))),
-        user=self.metrics_container.to_runner_api())
-
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
@@ -379,13 +362,10 @@ class Operation(object):
 
       (unused_mean, sum, count, min, max) = (
           self.receivers[0].opcounter.mean_byte_counter.value())
-      metric = metrics_pb2.Metric(
-          distribution_data=metrics_pb2.DistributionData(
-              int_distribution_data=metrics_pb2.IntDistributionData(
-                  count=count, sum=sum, min=min, max=max)))
+
       sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-          metric,
+          DistributionData(sum, count, min, max),
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
@@ -484,9 +464,9 @@ class ReadOperation(Operation):
 class ImpulseReadOperation(Operation):
   def __init__(
       self,
-      name_context,
+      name_context,  # type: Union[str, common.NameContext]
       counter_factory,
-      state_sampler,
+      state_sampler,  # type: StateSampler
       consumers,
       source,
       output_coder):
@@ -534,6 +514,16 @@ class _TaggedReceivers(dict):
     self[tag] = receiver = ConsumerSet(
         self._counter_factory, self._step_name, tag, [], None)
     return receiver
+
+  def total_output_bytes(self):
+    # type: () -> int
+    total = 0
+    for receiver in self.values():
+      elements = receiver.opcounter.element_counter.value()
+      if elements > 0:
+        mean = (receiver.opcounter.mean_byte_counter.value())[0]
+        total += elements * mean
+    return total
 
 
 class DoOperation(Operation):
@@ -595,25 +585,20 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-        # The tracking of time spend reading and bytes read from side inputs is
-        # behind an experiment flag to test its performance impact.
-        si_counter = opcounters.SideInputReadCounter(
-            self.counter_factory,
-            self.state_sampler,
-            declaring_step=self.name_context.step_name,
-            # Inputs are 1-indexed, so we add 1 to i in the side input id
-            input_index=i + 1)
+      si_counter = opcounters.SideInputReadCounter(
+          self.counter_factory,
+          self.state_sampler,
+          declaring_step=self.name_context.step_name,
+          # Inputs are 1-indexed, so we add 1 to i in the side input id
+          input_index=i + 1)
+      element_counter = opcounters.OperationCounters(
+          self.counter_factory,
+          self.name_context.step_name,
+          view_options['coder'],
+          i,
+          suffix='side-input')
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
-          sources, read_counter=si_counter)
-
-      # Backwards compatibility for pre BEAM-733 SDKs.
-      if isinstance(view_options, tuple):
-        if view_class == pvalue.AsSingleton:
-          has_default, default = view_options
-          view_options = {'default': default} if has_default else {}
-        else:
-          view_options = {}
-
+          sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
@@ -629,21 +614,21 @@ class DoOperation(Operation):
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.name_context.logging_name()
 
-      # Tag to output index map used to dispatch the side output values emitted
+      # Tag to output index map used to dispatch the output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
-      # tagged with None and is associated with its corresponding index.
+      # either the only output or the output tagged with 'None' and is
+      # associated with its corresponding index.
       self.tagged_receivers = _TaggedReceivers(
           self.counter_factory, self.name_context.logging_name())
 
-      output_tag_prefix = PropertyNames.OUT + '_'
-      for index, tag in enumerate(self.spec.output_tags):
-        if tag == PropertyNames.OUT:
-          original_tag = None  # type: Optional[str]
-        elif tag.startswith(output_tag_prefix):
-          original_tag = tag[len(output_tag_prefix):]
-        else:
-          raise ValueError('Unexpected output name for operation: %s' % tag)
-        self.tagged_receivers[original_tag] = self.receivers[index]
+      if len(self.spec.output_tags) == 1:
+        self.tagged_receivers[None] = self.receivers[0]
+        self.tagged_receivers[self.spec.output_tags[0]] = self.receivers[0]
+      else:
+        for index, tag in enumerate(self.spec.output_tags):
+          self.tagged_receivers[tag] = self.receivers[index]
+          if tag == 'None':
+            self.tagged_receivers[None] = self.receivers[index]
 
       if self.user_state_context:
         self.user_state_context.update_timer_receivers(self.tagged_receivers)
@@ -698,7 +683,7 @@ class DoOperation(Operation):
     key, timer_data = windowed_timer.value
     timer_spec = self.timer_specs[tag]
     self.dofn_runner.process_user_timer(
-        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
+        timer_spec, key, windowed_timer.windows[0], timer_data.fire_timestamp)
 
   def finish(self):
     # type: () -> None
@@ -721,16 +706,6 @@ class DoOperation(Operation):
       self.user_state_context.reset()
     self.dofn_runner.bundle_finalizer_param.reset()
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    metrics = super(DoOperation, self).progress_metrics()
-    if self.tagged_receivers:
-      metrics.processed_elements.measured.output_element_counts.clear()
-      for tag, receiver in self.tagged_receivers.items():
-        metrics.processed_elements.measured.output_element_counts[str(
-            tag)] = receiver.opcounter.element_counter.value()
-    return metrics
-
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
     infos = super(DoOperation, self).monitoring_infos(transform_id)
@@ -744,13 +719,9 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-        metric = metrics_pb2.Metric(
-            distribution_data=metrics_pb2.DistributionData(
-                int_distribution_data=metrics_pb2.IntDistributionData(
-                    count=count, sum=sum, min=min, max=max)))
         sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-            metric,
+            DistributionData(sum, count, min, max),
             ptransform=transform_id,
             tag=str(tag))
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
@@ -761,7 +732,7 @@ class SdfProcessSizedElements(DoOperation):
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
-    self.element_start_output_bytes = None
+    self.element_start_output_bytes = None  # type: Optional[int]
 
   def process(self, o):
     # type: (WindowedValue) -> None
@@ -769,7 +740,8 @@ class SdfProcessSizedElements(DoOperation):
     with self.scoped_process_state:
       try:
         with self.lock:
-          self.element_start_output_bytes = self._total_output_bytes()
+          self.element_start_output_bytes = \
+            self.tagged_receivers.total_output_bytes()
           for receiver in self.tagged_receivers.values():
             receiver.opcounter.restart_sampling()
         # Actually processing the element can be expensive; do it without
@@ -784,7 +756,7 @@ class SdfProcessSizedElements(DoOperation):
           self.element_start_output_bytes = None
 
   def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Tuple[Tuple[DoOperation, common.SplitResultType], Tuple[DoOperation, common.SplitResultType]]]
+    # type: (...) -> Optional[Tuple[SdfSplitResultsPrimary, SdfSplitResultsResidual]]
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
       primary, residual = split
@@ -792,34 +764,51 @@ class SdfProcessSizedElements(DoOperation):
     return None
 
   def current_element_progress(self):
+    # type: () -> Optional[iobase.RestrictionProgress]
     with self.lock:
       if self.element_start_output_bytes is not None:
         progress = self.dofn_runner.current_element_progress()
         if progress is not None:
+          assert self.tagged_receivers is not None
           return progress.with_completed(
-              self._total_output_bytes() - self.element_start_output_bytes)
+              self.tagged_receivers.total_output_bytes() -
+              self.element_start_output_bytes)
+      return None
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
+  def monitoring_infos(self, transform_id):
+    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
+    def encode_progress(value):
+      # type: (float) -> bytes
+      coder = coders.IterableCoder(coders.FloatCoder())
+      return coder.encode([value])
+
     with self.lock:
-      metrics = super(SdfProcessSizedElements, self).progress_metrics()
+      infos = super(SdfProcessSizedElements,
+                    self).monitoring_infos(transform_id)
       current_element_progress = self.current_element_progress()
-    if current_element_progress:
-      assert self.input_info is not None
-      metrics.active_elements.measured.input_element_counts[
-          self.input_info[1]] = 1
-      metrics.active_elements.fraction_remaining = (
-          current_element_progress.fraction_remaining)
-    return metrics
-
-  def _total_output_bytes(self):
-    total = 0
-    for receiver in self.tagged_receivers.values():
-      elements = receiver.opcounter.element_counter.value()
-      if elements > 0:
-        mean = (receiver.opcounter.mean_byte_counter.value())[0]
-        total += elements * mean
-    return total
+      if current_element_progress:
+        if current_element_progress.completed_work:
+          completed = current_element_progress.completed_work
+          remaining = current_element_progress.remaining_work
+        else:
+          completed = current_element_progress.fraction_completed
+          remaining = current_element_progress.fraction_remaining
+        assert completed is not None
+        assert remaining is not None
+        completed_mi = metrics_pb2.MonitoringInfo(
+            urn=monitoring_infos.WORK_COMPLETED_URN,
+            type=monitoring_infos.PROGRESS_TYPE,
+            labels=monitoring_infos.create_labels(ptransform=transform_id),
+            payload=encode_progress(completed))
+        remaining_mi = metrics_pb2.MonitoringInfo(
+            urn=monitoring_infos.WORK_REMAINING_URN,
+            type=monitoring_infos.PROGRESS_TYPE,
+            labels=monitoring_infos.create_labels(ptransform=transform_id),
+            payload=encode_progress(remaining))
+        infos[monitoring_infos.to_key(completed_mi)] = completed_mi
+        infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
+    return infos
 
 
 class CombineOperation(Operation):
@@ -843,6 +832,7 @@ class CombineOperation(Operation):
       self.output(o.with_value((key, self.phased_combine_fn.apply(values))))
 
   def finish(self):
+    # type: () -> None
     _LOGGER.debug('Finishing %s', self)
 
 
@@ -880,9 +870,11 @@ class PGBKOperation(Operation):
         self.flush(9 * self.max_size // 10)
 
   def finish(self):
+    # type: () -> None
     self.flush(0)
 
   def flush(self, target):
+    # type: (int) -> None
     limit = self.size - target
     for ix, (kw, vs) in enumerate(list(self.table.items())):
       if ix >= limit:
@@ -973,6 +965,7 @@ class PGBKCVOperation(Operation):
         entry[1] = self.timestamp_combiner.combine(entry[1], wkv.timestamp)
 
   def finish(self):
+    # type: () -> None
     for wkey, value in self.table.items():
       self.output_key(wkey, value[0], value[1])
     self.table = {}
@@ -1130,6 +1123,8 @@ class SimpleMapTaskExecutor(object):
     return self._ops[:]
 
   def execute(self):
+    # type: () -> None
+
     """Executes all the operation_specs.Worker* instructions in a map task.
 
     We update the map_task with the execution status, expressed as counters.

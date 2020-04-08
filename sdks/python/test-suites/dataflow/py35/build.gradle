@@ -66,15 +66,21 @@ task validatesRunnerBatchTests {
   dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-batch"]
+  def argMap = [
+          "test_opts"   : testOpts,
+          "worker_jar"  : dataflowWorkerJar,
+          "sdk_location": files(configurations.distTarBall.files).singleFile,
+          "suite"       : "validatesRunnerBatchTests-df-py35"]
+
+  if (project.hasProperty('useRunnerV2')) {
+    argMap.put("runner_v2", "true")
+    // KMS is not supported for streaming engine.
+    argMap.put("kms_key_name", "\"\"")
+  }
 
   doLast {
-    def testOpts = basicTestOpts + ["--attr=ValidatesRunner"]
-    def cmdArgs = mapToArgString([
-        "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
-        "suite": "validatesRunnerBatchTests-df-py35"
-    ])
+    def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
@@ -89,14 +95,20 @@ task validatesRunnerStreamingTests {
 
   def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
+  // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
+  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
+  def argMap = ["test_opts": testOpts,
+                "streaming": "true",
+                "sdk_location": files(configurations.distTarBall.files).singleFile,
+                "worker_jar": dataflowWorkerJar,
+                "suite": "validatesRunnerStreamingTests-df-py35"]
+  if (project.hasProperty('useRunnerV2')) {
+    argMap.put("runner_v2", "true")
+    // KMS is not supported for streaming engine.
+    argMap.put("kms_key_name", "\"\"")
+  }
+
   doLast {
-    // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-    def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
-    def argMap = ["test_opts": testOpts,
-                  "streaming": "true",
-                  "sdk_location": files(configurations.distTarBall.files).singleFile,
-                  "worker_jar": dataflowWorkerJar,
-                  "suite": "validatesRunnerStreamingTests-df-py35"]
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'

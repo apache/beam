@@ -53,6 +53,7 @@ import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData.Record;
@@ -317,6 +318,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -380,7 +382,9 @@ public class BigQueryIOStorageQueryTest {
 
     TableReference tempTableReference =
         createTempTableReference(
-            options.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            options.getProject(),
+            createJobIdToken(options.getJobName(), stepUuid),
+            Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
@@ -406,6 +410,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -451,7 +456,9 @@ public class BigQueryIOStorageQueryTest {
 
     TableReference tempTableReference =
         createTempTableReference(
-            options.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            options.getProject(),
+            createJobIdToken(options.getJobName(), stepUuid),
+            Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
@@ -477,6 +484,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -587,7 +595,9 @@ public class BigQueryIOStorageQueryTest {
 
     TableReference tempTableReference =
         createTempTableReference(
-            options.getProject(), createJobIdToken(options.getJobName(), stepUuid));
+            options.getProject(),
+            createJobIdToken(options.getJobName(), stepUuid),
+            Optional.empty());
 
     CreateReadSessionRequest expectedRequest =
         CreateReadSessionRequest.newBuilder()
@@ -609,6 +619,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ true,
             /* priority = */ QueryPriority.BATCH,
             /* location = */ null,
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -631,6 +642,7 @@ public class BigQueryIOStorageQueryTest {
             /* useLegacySql = */ false,
             /* priority = */ QueryPriority.INTERACTIVE,
             /* location = */ "asia-northeast1",
+            /* queryTempDataset = */ null,
             /* kmsKey = */ null,
             new TableRowParser(),
             TableRowJsonCoder.of(),

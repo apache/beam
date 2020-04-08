@@ -45,7 +45,7 @@ def flinkCompatibilityMatrix = {
     extra_experiments.add('pre_optimize=all')
   tasks.create(name: name) {
     dependsOn 'setupVirtualenv'
-    dependsOn ':runners:flink:1.9:job-server:shadowJar'
+    dependsOn ':runners:flink:1.10:job-server:shadowJar'
     dependsOn ':sdks:java:container:docker' // required for test_external_transforms
     if (workerType.toLowerCase() == 'docker')
       dependsOn pythonContainerTask
@@ -54,7 +54,7 @@ def flinkCompatibilityMatrix = {
     doLast {
       exec {
         executable 'sh'
-        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.9:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
+        args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.runners.portability.flink_runner_test --flink_job_server_jar=${project(":runners:flink:1.10:job-server:").shadowJar.archivePath} --environment_type=${workerType} ${environment_config} ${streaming ? '--streaming' : ''} ${extra_experiments ? '--extra_experiments=' + extra_experiments.join(',') : ''}"
       }
     }
   }
@@ -83,7 +83,7 @@ task flinkValidatesRunner() {
 // TODO(BEAM-8598): Enable on pre-commit.
 task flinkTriggerTranscript() {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
   doLast {
     exec {
       executable 'sh'
@@ -93,7 +93,7 @@ task flinkTriggerTranscript() {
           && pip install -e .[test] \\
           && python setup.py nosetests \\
               --tests apache_beam.transforms.trigger_test:WeakTestStreamTranscriptTest \\
-              --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:1.9:job-server:").shadowJar.archivePath}'
+              --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:1.10:job-server:").shadowJar.archivePath}'
           """
     }
   }

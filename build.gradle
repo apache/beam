@@ -107,7 +107,8 @@ rat {
     "learning/katas/*/IO/**/*.txt",
 
     // Mockito extensions
-    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
+    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -214,6 +215,13 @@ task pythonPreCommit() {
   // have caught. Note that the same tests will still run in postcommit.
 }
 
+task pythonDockerBuildPreCommit() {
+  dependsOn ":sdks:python:container:py2:docker"
+  dependsOn ":sdks:python:container:py35:docker"
+  dependsOn ":sdks:python:container:py36:docker"
+  dependsOn ":sdks:python:container:py37:docker"
+}
+
 task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
@@ -307,7 +315,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.3"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.4"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

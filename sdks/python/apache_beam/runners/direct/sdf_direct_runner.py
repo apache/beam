@@ -26,8 +26,10 @@ import uuid
 from builtins import object
 from threading import Lock
 from threading import Timer
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Iterable
+from typing import Optional
 
 import apache_beam as beam
 from apache_beam import TimeDomain
@@ -43,11 +45,15 @@ from apache_beam.runners.common import OutputProcessor
 from apache_beam.runners.direct.evaluation_context import DirectStepContext
 from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.runners.sdf_utils import NoOpWatermarkEstimatorProvider
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import ProcessContinuation
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.trigger import _ValueStateTag
 from apache_beam.utils.windowed_value import WindowedValue
+
+if TYPE_CHECKING:
+  from apache_beam.iobase import WatermarkEstimator
 
 
 class SplittableParDoOverride(PTransformOverride):
@@ -462,10 +468,13 @@ class SDFProcessElementInvoker(object):
       checkpoint_state.checkpointed = object()
 
     output_processor.reset()
+    noop_estimator = (
+        NoOpWatermarkEstimatorProvider().create_watermark_estimator(None))
     Timer(self._max_duration, initiate_checkpoint).start()
     sdf_invoker.invoke_process(
         element,
         restriction_tracker=tracker,
+        watermark_estimator=noop_estimator,
         additional_args=args,
         additional_kwargs=kwargs)
 
@@ -511,8 +520,9 @@ class _OutputProcessor(OutputProcessor):
   def __init__(self):
     self.output_iter = None
 
-  def process_outputs(self, windowed_input_element, output_iter):
-    # type: (WindowedValue, Iterable[Any]) -> None
+  def process_outputs(
+      self, windowed_input_element, output_iter, watermark_estimator=None):
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     self.output_iter = output_iter
 
   def reset(self):
@@ -520,5 +530,7 @@ class _OutputProcessor(OutputProcessor):
 
 
 class _NoneShallPassOutputProcessor(OutputProcessor):
-  def process_outputs(self, windowed_input_element, output_iter):
+  def process_outputs(
+      self, windowed_input_element, output_iter, watermark_estimator=None):
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise RuntimeError()

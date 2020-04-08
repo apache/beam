@@ -373,6 +373,40 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
+  @Test
+  public void testLogicalTypes() {
+    DateTime dateTime = DateTime.parse("2020-02-02T00:00:00");
+
+    Schema inputRowSchema =
+        Schema.builder()
+            .addField("timeTypeField", FieldType.logicalType(new DummySqlTimeType()))
+            .addField("dateTypeField", FieldType.logicalType(new DummySqlDateType()))
+            .build();
+
+    Row row =
+        Row.withSchema(inputRowSchema)
+            .addValues(dateTime.getMillis(), dateTime.getMillis())
+            .build();
+
+    Schema outputRowSchema =
+        Schema.builder()
+            .addField("timeTypeField", FieldType.DATETIME)
+            .addNullableField("dateTypeField", FieldType.DATETIME)
+            .build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(row).withRowSchema(inputRowSchema))
+            .apply(
+                SqlTransform.query(
+                    "SELECT timeTypeField, dateTypeField FROM PCOLLECTION GROUP BY timeTypeField, dateTypeField"));
+
+    PAssert.that(outputRow)
+        .containsInAnyOrder(Row.withSchema(outputRowSchema).addValues(dateTime, dateTime).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+  }
+
   private static class DummySqlTimeType implements Schema.LogicalType<Long, Instant> {
     @Override
     public String getIdentifier() {

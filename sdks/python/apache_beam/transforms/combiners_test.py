@@ -482,9 +482,18 @@ class CombineTest(unittest.TestCase):
               trigger=AfterWatermark(early=AfterAll(AfterCount(1))))
           | beam.CombineGlobally(sum).without_defaults().with_fanout(2))
 
-      # The frings for DISCARDING mode is [1, 2, 3, 4, 5, 0, 0].
-      firings = [1, 3, 6, 10, 15, 15, 15]
-      assert_that(result, equal_to(firings))
+      def has_expected_values(actual):
+        from hamcrest.core import assert_that as hamcrest_assert
+        from hamcrest.library.collection import contains
+        from hamcrest.library.collection import only_contains
+        ordered = sorted(actual)
+        # Early firings.
+        hamcrest_assert(ordered[:4], contains(1, 3, 6, 10))
+        # Different runners have different number of 15s, but there should
+        # be at least one 15.
+        hamcrest_assert(ordered[4:], only_contains(15))
+
+      assert_that(result, has_expected_values)
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:
