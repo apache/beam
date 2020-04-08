@@ -320,7 +320,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 
 	case graph.Combine:
 		payload := &pipepb.ParDoPayload{
-			DoFn: &pb.FunctionSpec{
+			DoFn: &pipepb.FunctionSpec{
 				Urn:     URNJavaDoFn,
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
@@ -701,7 +701,7 @@ func marshalWindowingStrategy(c *CoderMarshaller, w *window.WindowingStrategy) *
 	return ws
 }
 
-func makeWindowFn(w *window.Fn) *pb.FunctionSpec {
+func makeWindowFn(w *window.Fn) *pipepb.FunctionSpec {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return &pipepb.FunctionSpec{
