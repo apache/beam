@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DSTU2_PRETTY_BUNDLES;
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.STU3_PRETTY_BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
@@ -67,7 +66,8 @@ public class FhirIODSTU2WriteIT {
     GcpOptions gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
-    options.setGcsTempPath(String.format("gs://%s/FhirIODSTU2WriteIT/%s/temp/", TEMP_BUCKET, testTime));
+    options.setGcsTempPath(
+        String.format("gs://%s/FhirIODSTU2WriteIT/%s/temp/", TEMP_BUCKET, testTime));
     options.setGcsDeadLetterPath(
         String.format("gs://%s/FhirIODSTU2WriteIT/%s/deadletter/", TEMP_BUCKET, testTime));
     options.setFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.R4_PRETTY_BUNDLES;
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.STU3_PRETTY_BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
@@ -45,7 +44,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -72,7 +70,8 @@ public class FhirIOR4WriteIT {
     GcpOptions gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
-    options.setGcsTempPath(String.format("gs://%s/FhirIOR4WriteIT/%s/temp/", TEMP_BUCKET, testTime));
+    options.setGcsTempPath(
+        String.format("gs://%s/FhirIOR4WriteIT/%s/temp/", TEMP_BUCKET, testTime));
     options.setGcsDeadLetterPath(
         String.format("gs://%s/FhirIOR4WriteIT/%s/deadletter/", TEMP_BUCKET, testTime));
     options.setFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
@@ -95,7 +94,6 @@ public class FhirIOR4WriteIT {
     HttpRequestInitializer requestInitializer =
         request -> {
           HttpHeaders requestHeaders = request.getHeaders();
-          requestHeaders.setUserAgent("apache-beam-hl7v2-io");
           if (!credentials.hasRequestMetadata()) {
             return;
           }
@@ -115,6 +113,7 @@ public class FhirIOR4WriteIT {
           request.setConnectTimeout(60000); // 1 minute connect timeout
           request.setReadTimeout(60000); // 1 minute read timeout
         };
+
     Storage storage =
         new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
             .setApplicationName("apache-beam-hl7v2-io")
@@ -135,6 +134,21 @@ public class FhirIOR4WriteIT {
             .apply(Create.of(R4_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
+    // TODO(jaketf): DELETEME
+    writeResult
+        .getFailedInsertsWithErr()
+        .apply(
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    (HealthcareIOError<HttpBody> err) -> {
+                      return String.format(
+                          "Data: %s \n" + "Error: %s \n" + "Stacktrace: %s",
+                          err.getDataResource().getData(),
+                          err.getErrorMessage(),
+                          err.getStackTrace());
+                    }))
+        .apply(TextIO.write().to(options.getGcsDeadLetterPath()));
+
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
@@ -153,19 +167,19 @@ public class FhirIOR4WriteIT {
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
     // TODO(jaketf): DELETEME
-    result.getFailedInsertsWithErr()
+    result
+        .getFailedInsertsWithErr()
         .apply(
-            MapElements
-                .into(TypeDescriptors.strings())
-                 .via((HealthcareIOError<HttpBody> err) -> {
-                   return String.format(
-                       "Data: %s \n"
-                           + "Error: %s \n"
-                           + "Stacktrace: %s",
-                       err.getDataResource(), err.getErrorMessage(), err.getStackTrace());
-                 }))
+            MapElements.into(TypeDescriptors.strings())
+                .via(
+                    (HealthcareIOError<HttpBody> err) -> {
+                      return String.format(
+                          "Data: %s \n" + "Error: %s \n" + "Stacktrace: %s",
+                          err.getDataResource().getData(),
+                          err.getErrorMessage(),
+                          err.getStackTrace());
+                    }))
         .apply(TextIO.write().to(options.getGcsDeadLetterPath()));
-
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 

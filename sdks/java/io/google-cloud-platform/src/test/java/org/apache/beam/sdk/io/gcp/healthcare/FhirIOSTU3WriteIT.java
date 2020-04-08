@@ -66,7 +66,8 @@ public class FhirIOSTU3WriteIT {
     GcpOptions gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
-    options.setGcsTempPath(String.format("gs://%s/FhirIOSTU3WriteIT/%s/temp/", TEMP_BUCKET, testTime));
+    options.setGcsTempPath(
+        String.format("gs://%s/FhirIOSTU3WriteIT/%s/temp/", TEMP_BUCKET, testTime));
     options.setGcsDeadLetterPath(
         String.format("gs://%s/FhirIOSTU3WriteIT/%s/deadletter/", TEMP_BUCKET, testTime));
     options.setFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);

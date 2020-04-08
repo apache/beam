@@ -137,7 +137,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public FhirStore createFhirStore(String dataset, String name, String version) throws IOException {
     FhirStore store = new FhirStore();
-    // TODO add separate integration tests for each FHIR version: https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores#Version
+    // TODO add separate integration tests for each FHIR version:
+    // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores#Version
     // Our integration test data is STU3.
     store.setVersion(version);
     store.setDisableReferentialIntegrity(true);
@@ -347,6 +348,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       initClient();
     }
 
+    // handle case where R4 http bodies aren't valid JSON.
+    if (bundle.getData().startsWith("GenericData{")) {
+      String data = bundle.getData();
+    }
+
     credentials.refreshIfExpired();
     StringEntity requestEntity = new StringEntity(bundle.getData(), ContentType.APPLICATION_JSON);
     URI uri;
@@ -413,7 +419,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     public void initialize(HttpRequest request) throws IOException {
       super.initialize(request);
       HttpHeaders requestHeaders = request.getHeaders();
-      requestHeaders.setUserAgent("apache-beam-hl7v2-io");
+      requestHeaders.setUserAgent("apache-beam-healthcare-io");
       if (!credentials.hasRequestMetadata()) {
         return;
       }
