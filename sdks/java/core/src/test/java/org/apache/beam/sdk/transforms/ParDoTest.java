@@ -4897,8 +4897,8 @@ public class ParDoTest implements Serializable {
             private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
             @ProcessElement
-            public void processElement(@TimerId(timerId) Timer timer) {
-              timer.set(new Instant(3));
+            public void processElement(@TimerId(timerId) Timer timer, BoundedWindow window) {
+              timer.set(window.maxTimestamp());
             }
 
             @OnTimer(timerId)
@@ -4908,14 +4908,16 @@ public class ParDoTest implements Serializable {
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               state.write(currentValue + 1);
-              r.output(currentValue);
             }
 
             @OnWindowExpiration
             public void onWindowExpiration(
-                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              // check the value of state
               assertEquals(1, (int) currentValue);
+              r.output(currentValue);
             }
           };
 
