@@ -490,6 +490,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void dispose() throws Exception {
     try {
+      Optional.ofNullable(flinkMetricContainer)
+          .ifPresent(FlinkMetricContainer::registerMetricsForPipelineResult);
       Optional.ofNullable(checkFinishBundleTimer).ifPresent(timer -> timer.cancel(true));
       Workarounds.deleteStaticCaches();
       Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
@@ -504,7 +506,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void close() throws Exception {
     try {
-      flinkMetricContainer.registerMetricsForPipelineResult();
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
       // processing-time timers when upstream operators have shut down and will also
