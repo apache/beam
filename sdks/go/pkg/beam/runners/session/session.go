@@ -58,7 +58,7 @@ type controlServer struct {
 	wg         *sync.WaitGroup // used to signal when the session is completed
 	ctrlStream fnpb.BeamFnControl_ControlServer
 	dataServer *grpc.Server
-	dataStream fnapb.BeamFnData_DataServer
+	dataStream fnpb.BeamFnData_DataServer
 	dwg        *sync.WaitGroup
 }
 
