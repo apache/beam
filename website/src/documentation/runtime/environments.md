@@ -99,25 +99,6 @@ python -m apache_beam.examples.wordcount \
 --environment_config=path/to/container/image
 ```
 
-(Customized containers are not supported with Dataflow runner yet.)
-To test a customized image on the Google Cloud Dataflow runner, use
-`DataflowRunner` with the `beam_fn_api` experiment and set
-`worker_harness_container_image` to the custom container:
-
-```
-python -m apache_beam.examples.wordcount \ 
---input=path/to/inputfile \
---output=/path/to/write/counts \
---runner=DataflowRunner \
---project={gcp_project_id} \
---temp_location={gcs_location} \ \
---experiment=beam_fn_api \
---sdk_location=[…]/beam/sdks/python/container/py{version}/build/target/apache-beam.tar.gz \
---worker_harness_container_image=path/to/container/image
-
-# The sdk_location option accepts four Python version variables: 2, 35, 36, and 37
-```
-
 ## Building container images
 
 To build Beam SDK container images:
