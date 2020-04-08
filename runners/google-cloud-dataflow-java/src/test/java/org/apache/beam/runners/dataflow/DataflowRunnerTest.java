@@ -600,6 +600,22 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testRegionRequiredForServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("https://dataflow.googleapis.com");
+    assertThrows(IllegalArgumentException.class, () -> DataflowRunner.fromOptions(options));
+  }
+
+  @Test
+  public void testRegionOptionalForNonServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("http://localhost:20281");
+    DataflowRunner.fromOptions(options);
+  }
+
+  @Test
   public void testRun() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Pipeline p = buildDataflowPipeline(options);

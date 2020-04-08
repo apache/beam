@@ -56,6 +56,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
@@ -224,6 +225,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   public static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]+[a-z0-9]";
 
+  /** Dataflow service endpoints are expected to match this pattern. */
+  static final String ENDPOINT_REGEXP = "https://[\\S]*googleapis\\.com[/]?";
+
   /**
    * Construct a runner from the provided options.
    *
@@ -238,7 +242,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (dataflowOptions.getAppName() == null) {
       missing.add("appName");
     }
-    if (Strings.isNullOrEmpty(dataflowOptions.getRegion())) {
+
+    if (Strings.isNullOrEmpty(dataflowOptions.getRegion())
+        && isServiceEndpoint(dataflowOptions.getDataflowEndpoint())) {
       missing.add("region");
     }
     if (missing.size() > 0) {
@@ -350,6 +356,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     dataflowOptions.setUserAgent(userAgent);
 
     return new DataflowRunner(dataflowOptions);
+  }
+
+  static boolean isServiceEndpoint(String endpoint) {
+    return Strings.isNullOrEmpty(endpoint) || Pattern.matches(ENDPOINT_REGEXP, endpoint);
   }
 
   @VisibleForTesting
