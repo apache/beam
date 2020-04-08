@@ -38,9 +38,10 @@ These flags control Beam type safety:
 
 ## Benefits of Type Hints
 
-The Beam SDK for Python includes some automatic type checking: for example, some `PTransforms`, such as `Create` and simple `ParDo` transforms, attempt to deduce their output type given their input. However, the Beam cannot infer types in all cases. Therefore, the recommendation is that you declare type hints to aid you in performing your own type checks if necessary.
-
-When you use type hints, the runner raises exceptions during pipeline construction time, rather than runtime. For example, the runner generates an exception if it detects that your pipeline applies mismatched `PTransforms` (where the expected outputs of one transform do not match the expected inputs of the following transform). These exceptions are raised at pipeline construction time, regardless of where your pipeline will execute. Introducing type hints for the `PTransforms` you define allows you to catch potential bugs up front in the local runner, rather than after minutes of execution into a deep, complex pipeline.
+When you use type hints, Beam raises exceptions during pipeline construction time, rather than runtime.
+For example, Beam generates an exception if it detects that your pipeline applies mismatched `PTransforms` (where the expected outputs of one transform do not match the expected inputs of the following transform).
+These exceptions are raised at pipeline construction time, regardless of where your pipeline will execute.
+Introducing type hints for the `PTransforms` you define allows you to catch potential bugs up front in the local runner, rather than after minutes of execution into a deep, complex pipeline.
 
 Consider the following example, in which `numbers` is a `PCollection` of `str` values:
 
@@ -56,6 +57,10 @@ The code then applies a `Filter` transform to the `numbers` collection with a ca
 
 When you call `p.run()`, this code generates an error because `Filter` expects a `PCollection` of integers, but is given a `PCollection` of strings instead.
 
+The Beam SDK for Python includes some automatic type hinting: for example, some `PTransforms`, such as `Create` and simple `ParDo` transforms, attempt to deduce their output type given their input.
+However, Beam cannot deduce types in all cases.
+Therefore, the recommendation is that you declare type hints to aid you in performing your own type checks.
+
 ## Declaring Type Hints
 
 You can declare type hints on callables, `DoFns`, or entire `PTransforms`. There are three ways to declare type hints: inline during pipeline construction, as properties of the `DoFn` or `PTransform` using decorators, or as Python 3 type annotations on certain functions.
@@ -68,33 +73,11 @@ If you already use a type checker, using annotations instead of decorators reduc
 However, annotations do not cover all the use cases that decorators and inline declarations do.
 Two such are the `expand` of a composite transform and lambda functions.
 
-### Declaring Type Hints Inline
-
-To specify type hints inline, use the methods `with_input_types` and `with_output_types`. The following example code declares an input type hint inline:
-
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_takes %}
-```
-
-When you apply the Filter transform to the numbers collection in the example above, you'll be able to catch the error during pipeline construction.
-
-### Declaring Type Hints Using Decorators
-
-To specify type hints as properties of a `DoFn` or `PTransform`, use the decorators `@with_input_types()` and `@with_output_types()`.
-
-The following code declares an `int` type hint on `FilterEvensDoFn`, using the decorator `@with_input_types()`.
-
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_do_fn %}
-```
-
-Decorators receive an arbitrary number of positional and/or keyword arguments, typically interpreted in the context of the function they're wrapping. Generally the first argument is a type hint for the main input, and additional arguments are type hints for side inputs.
-
-### Declaring Type Hints Using Annotations
+### Declaring Type Hints Using Type Annotations
 
 _New in version 2.21.0._
 
-To specify type hints as annotations on certain functions, use them as usual and omit any decorators or inline hints.
+To specify type hints as annotations on certain functions, use them as usual and omit any decorator hints or inline hints.
 
 Annotations are currently supported on:
 
@@ -124,6 +107,28 @@ Beam will remove the outer `Optional` and (as above) the outer iterable of the r
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test_py3.py tag:type_hints_do_fn_annotations_optional %}
 ```
+
+### Declaring Type Hints Inline
+
+To specify type hints inline, use the methods `with_input_types` and `with_output_types`. The following example code declares an input type hint inline:
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_takes %}
+```
+
+When you apply the Filter transform to the numbers collection in the example above, you'll be able to catch the error during pipeline construction.
+
+### Declaring Type Hints Using Decorators
+
+To specify type hints as properties of a `DoFn` or `PTransform`, use the decorators `@with_input_types()` and `@with_output_types()`.
+
+The following code declares an `int` type hint on `FilterEvensDoFn`, using the decorator `@with_input_types()`.
+
+```py
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_do_fn %}
+```
+
+Decorators receive an arbitrary number of positional and/or keyword arguments, typically interpreted in the context of the function they're wrapping. Generally the first argument is a type hint for the main input, and additional arguments are type hints for side inputs.
 
 #### Disabling Annotations Use
 
