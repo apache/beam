@@ -30,6 +30,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-1-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -52,6 +53,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-2-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -74,6 +76,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-3-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -96,6 +99,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-pardo-4-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
