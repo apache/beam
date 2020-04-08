@@ -136,6 +136,10 @@ class DataflowRunner(PipelineRunner):
   def is_fnapi_compatible(self):
     return False
 
+  def apply(self, transform, input, options):
+    self._maybe_add_unified_worker_missing_options(options)
+    return super(DataflowRunner, self).apply(transform, input, options)
+
   def _get_unique_step_name(self):
     self._unique_step_id += 1
     return 's%s' % self._unique_step_id
@@ -434,6 +438,8 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    self._maybe_add_unified_worker_missing_options(options)
+
     # Convert all side inputs into a form acceptable to Dataflow.
     if apiclient._use_fnapi(options):
       pipeline.visit(
@@ -565,6 +571,15 @@ class DataflowRunner(PipelineRunner):
     self._metrics = DataflowMetrics(self.dataflow_client, result, self.job)
     result.metric_results = self._metrics
     return result
+
+  def _maybe_add_unified_worker_missing_options(self, options):
+    # set default beam_fn_api and use_unified_worker experiment if
+    # use unified worker experiment flag exists, no-op otherwise.
+    debug_options = options.view_as(DebugOptions)
+    from apache_beam.runners.dataflow.internal import apiclient
+    if (apiclient._use_unified_worker(options) and not
+      debug_options.lookup_experiment('beam_fn_api')):
+      debug_options.add_experiment('beam_fn_api')
 
   def _get_typehint_based_encoding(self, typehint, window_coder):
     """Returns an encoding based on a typehint object."""
