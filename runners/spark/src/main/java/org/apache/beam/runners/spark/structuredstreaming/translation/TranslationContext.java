@@ -73,7 +73,10 @@ public class TranslationContext {
 
   public TranslationContext(SparkStructuredStreamingPipelineOptions options) {
     SparkConf sparkConf = new SparkConf();
-    sparkConf.setMaster(options.getSparkMaster());
+    if (!sparkConf.contains("spark.master")) {
+      // set master if not set.
+      sparkConf.setMaster(options.getSparkMaster());
+    }
     sparkConf.setAppName(options.getAppName());
     if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
       sparkConf.setJars(options.getFilesToStage().toArray(new String[0]));

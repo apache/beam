@@ -163,9 +163,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
+    LOG.info("Translation mode is " + (mOptions.isStreaming() ? "streaming" : "batch"));
 
     pipeline.replaceAll(SparkTransformOverrides.getDefaultOverrides(mOptions.isStreaming()));
 
+    LOG.info("Prepare files to stage.");
     prepareFilesToStage(mOptions);
 
     if (mOptions.isStreaming()) {
@@ -218,7 +220,10 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       // update the cache candidates
       updateCacheCandidates(pipeline, translator, evaluationContext);
 
+      LOG.info("Init accumulators.");
       initAccumulators(mOptions, jsc);
+
+      LOG.info("Translate pipeline to spark.");
       startPipeline =
           executorService.submit(
               () -> {
@@ -228,6 +233,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
               });
       executorService.shutdown();
 
+      LOG.info("Create result from the pipeline.");
       result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
     }
 
