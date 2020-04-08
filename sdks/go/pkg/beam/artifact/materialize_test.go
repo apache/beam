@@ -26,7 +26,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
@@ -47,7 +47,7 @@ func TestRetrieve(t *testing.T) {
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
-	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 	for _, a := range artifacts {
 		filename := makeFilename(dst, a.Name)
 		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
@@ -72,7 +72,7 @@ func TestMultiRetrieve(t *testing.T) {
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
-	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 	if err := LegacyMultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
 		t.Errorf("failed to retrieve: %v", err)
 	}
@@ -84,10 +84,10 @@ func TestMultiRetrieve(t *testing.T) {
 
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
-func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*pb.ArtifactMetadata) {
-	scl := pb.NewLegacyArtifactStagingServiceClient(cc)
+func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*jobpb.ArtifactMetadata) {
+	scl := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
-	var artifacts []*pb.ArtifactMetadata
+	var artifacts []*jobpb.ArtifactMetadata
 	for i, key := range keys {
 		a := stage(ctx, scl, t, key, size+7*i, 97+i, st)
 		artifacts = append(artifacts, a)
@@ -102,7 +102,7 @@ func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []str
 
 // stage stages an artifact with the given key, size and chuck size. The content is
 // always 'z's.
-func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *pb.ArtifactMetadata {
+func stage(ctx context.Context, scl jobpb.LegacyArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *jobpb.ArtifactMetadata {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
 		data[i] = 'z'
@@ -138,7 +138,7 @@ func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *te
 
 		chunk := &jobpb.PutArtifactRequest{
 			Content: &jobpb.PutArtifactRequest_Data{
-				Data: &pb.ArtifactChunk{
+				Data: &jobpb.ArtifactChunk{
 					Data: data[i:end],
 				},
 			},
