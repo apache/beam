@@ -105,7 +105,7 @@ task run(type: JavaExec) {
     loadTestArgs = loadTestArgs +
             " --dataflowWorkerJar=${dataflowWorkerJar} " +
             " --workerHarnessContainerImage="
-    loadTestArgs = loadTestArgs + "--region=${dataflowRegion}"
+    loadTestArgs = loadTestArgs + " --region=${dataflowRegion}"
   }
 
   main = mainClass
