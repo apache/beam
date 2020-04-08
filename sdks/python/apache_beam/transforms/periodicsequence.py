@@ -74,29 +74,30 @@ class ImpulseSeqGenRestrictionTracker(OffsetRestrictionTracker):
 
 
 class ImpulseSeqGenDoFn(beam.DoFn):
+  '''
+  ImpulseSeqGenDoFn fn receives tuple elements with three parts:
+
+  * first_timestamp = first timestamp to output element for.
+  * last_timestamp = last timestamp/time to output element for.
+  * fire_interval = how often to fire an element.
+
+  For each input element received, ImpulseSeqGenDoFn fn will start
+  generating output elements in following pattern:
+
+  * if element timestamp is less than current runtime then output element.
+  * if element timestamp is greater than current runtime, wait until next
+    element timestamp.
+
+  ImpulseSeqGenDoFn can't guarantee that each element is output at exact time.
+  ImpulseSeqGenDoFn guarantees that elements would not be output prior to
+  given runtime timestamp.
+  '''
   def process(
       self,
       element,
       restriction_tracker=beam.DoFn.RestrictionParam(
           ImpulseSeqGenRestrictionProvider())):
     '''
-    PeriodicSequence transform receives tuple elements with three parts:
-
-    * first_timestamp = first timestamp to output element for.
-    * last_timestamp = last timestamp/time to output element for.
-    * fire_interval = how often to fire an element.
-
-    For each input element received, PeriodicSequence transform will start
-    generating output elements in following pattern:
-
-    * if element timestamp is less than current runtime then output element.
-    * if element timestamp is greater than current runtime, wait until next
-      element timestamp.
-
-    PeriodicSequence can't guarantee that each element is output at exact time.
-    PeriodicSequence guarantees that elements would not be output prior to given
-    runtime timestamp.
-
     :param element: (start_timestamp, end_timestamp, interval)
     :param restriction_tracker:
     :return: yields elements at processing real-time intervals with value of
@@ -106,47 +107,73 @@ class ImpulseSeqGenDoFn(beam.DoFn):
 
     assert isinstance(restriction_tracker, sdf_utils.RestrictionTrackerView)
 
-    t = time.time()
-    cr = restriction_tracker.current_restriction()
-    current_timestamp = cr.start
+    current_time = time.time()
+    restriction = restriction_tracker.current_restriction()
+    current_output_timestamp = restriction.start
 
-    restriction_tracker.try_claim(current_timestamp)
-    if current_timestamp <= t:
-      if restriction_tracker.try_claim(current_timestamp + interval):
-        current_timestamp += interval
-        yield current_timestamp
+    restriction_tracker.try_claim(current_output_timestamp)
+    if current_output_timestamp <= current_time:
+      if restriction_tracker.try_claim(current_output_timestamp + interval):
+        current_output_timestamp += interval
+        yield current_output_timestamp
 
-    if current_timestamp + interval >= cr.stop:
-      restriction_tracker.try_claim(cr.stop)
+    if current_output_timestamp + interval >= restriction.stop:
+      restriction_tracker.try_claim(restriction.stop)
     else:
       restriction_tracker.defer_remainder(
-          timestamp.Timestamp(current_timestamp))
+          timestamp.Timestamp(current_output_timestamp))
 
 
 class PeriodicSequence(PTransform):
-  """
-  See ImpulseSeqGenDoFn.
-  """
+  '''
+  PeriodicSequence transform receives tuple elements with three parts:
+
+  * first_timestamp = first timestamp to output element for.
+  * last_timestamp = last timestamp/time to output element for.
+  * fire_interval = how often to fire an element.
+
+  For each input element received, PeriodicSequence transform will start
+  generating output elements in following pattern:
+
+  * if element timestamp is less than current runtime then output element.
+  * if element timestamp is greater than current runtime, wait until next
+    element timestamp.
+
+  PeriodicSequence can't guarantee that each element is output at exact time.
+  PeriodicSequence guarantees that elements would not be output prior to given
+  runtime timestamp.
+  '''
   def __init_(self):
     pass
 
-  def expand(self, pbegin):
+  def expand(self, pcoll):
     return (
-        pbegin
+        pcoll
         | 'GenSequence' >> beam.ParDo(ImpulseSeqGenDoFn())
         | 'MapToTimestamped' >> beam.Map(lambda tt: TimestampedValue(tt, tt)))
 
 
 class PeriodicImpulse(PTransform):
-  """
-  See ImpulseSeqGenDoFn.
-  """
+  '''
+  PeriodicImpulse transform generates an infinite sequence of elements with
+  given runtime interval.
+
+  PeriodicImpulse transform behaves same as {@link PeriodicSequence} transform,
+  but can be used as first transform in pipeline.
+  '''
   def __init__(
       self,
       start_timestamp=Timestamp.now(),
       stop_timestamp=MAX_TIMESTAMP,
       fire_interval=360.0,
       apply_windowing=False):
+    '''
+    :param start_timestamp: Timestamp for first element.
+    :param stop_timestamp: Timestamp after which no elements will be output.
+    :param fire_interval: Interval at which to output elements.
+    :param apply_windowing: Whether each element should be assigned to
+      individual window. If false, all elements will reside in global window.
+    '''
     self.start_ts = start_timestamp
     self.stop_ts = stop_timestamp
     self.interval = fire_interval

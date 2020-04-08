@@ -43,18 +43,22 @@ class PeriodicSequenceTest(unittest.TestCase):
 
   def test_periodicsequence_outputs_valid_sequence(self):
     start_offset = 1
-    it = time.time() + start_offset
-    duration = 3
-    et = it + duration
-    interval = 1
+    start_time = time.time() + start_offset
+    duration = 1
+    end_time = start_time + duration
+    interval = 0.25
 
     with TestPipeline() as p:
       result = (
           p
-          | 'ImpulseElement' >> beam.Create([(it, et, interval)])
+          | 'ImpulseElement' >> beam.Create([(start_time, end_time, interval)])
           | 'ImpulseSeqGen' >> PeriodicSequence())
 
-      k = [it + x * interval for x in range(0, int(duration / interval), 1)]
+      k = [
+          start_time + x * interval
+          for x in range(0, int(duration / interval), 1)
+      ]
+
       assert_that(result, equal_to(k))
 
   def test_periodicimpulse_windowing_on_si(self):

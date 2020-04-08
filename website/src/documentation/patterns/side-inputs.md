@@ -57,7 +57,7 @@ This way, you can guarantee side input consistency on the duration of the single
 To do this, you can utilize PeriodicSequence PTransform that will generate infinite sequence
 of elements with some real-time period:
 
-1. Use the PeriodicImpulse transform to genearate windowed periodic sequence.
+1. Use the PeriodicImpulse transform to generate windowed periodic sequence.
 
     a. MAX_TIMESTAMP can be replaced with some closer boundary if you want to stop generating elements at some point.
 
