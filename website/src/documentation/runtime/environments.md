@@ -143,7 +143,7 @@ To tag a local image, set the `docker-tag` option when building the container. T
 To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root` 
 to a repository named `example-repo` on Docker Hub.
 ```
-./gradlew :sdks:python:container:py3.6:docker -Pdocker-repository-root=example-repo
+./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
 ```
 
 ## Pushing container images
