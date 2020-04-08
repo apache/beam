@@ -101,7 +101,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
@@ -460,13 +459,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  protected void fireTimer(InternalTimer<ByteBuffer, TimerInternals.TimerData> timer) {
-    final ByteBuffer encodedKey = timer.getKey();
+  protected void fireTimerInternal(Object key, TimerInternals.TimerData timer) {
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
     try (Locker locker = Locker.locked(stateBackendLock)) {
-      getKeyedStateBackend().setCurrentKey(encodedKey);
-      super.fireTimer(timer);
+      getKeyedStateBackend().setCurrentKey(key);
+      fireTimer(timer);
     }
   }
 
