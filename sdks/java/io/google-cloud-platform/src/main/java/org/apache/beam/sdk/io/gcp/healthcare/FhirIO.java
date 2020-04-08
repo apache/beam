@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -90,7 +91,11 @@ import org.slf4j.LoggerFactory;
  *     <p>Import This is best for use cases where you are populating an empty FHIR store with no
  *     other clients. It is faster than the execute bundles method but does not respect referential
  *     integrity and the resources are not written transactionally (e.g. a historicaly backfill on a
- *     new FHIR store) This requires each resource to contain a client provided ID.
+ *     new FHIR store) This requires each resource to contain a client provided ID. It is important
+ *     that when using import you give the appropriate permissions to the Google Cloud Healthcare
+ *     Service Agent
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
  *     A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
@@ -102,9 +107,13 @@ import org.slf4j.LoggerFactory;
  */
 public class FhirIO {
 
+  @Experimental
   public static class Read extends PTransform<PCollection<String>, FhirIO.Read.Result> {
+    private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
-    public Read() {}
+    public Read() {
+      LOG.warn("FhirIO.Read is experimental and has not been tested.");
+    }
 
     public static class Result implements POutput, PInput {
       private PCollection<HttpBody> resources;
@@ -411,12 +420,17 @@ public class FhirIO {
           .build();
     }
 
+    private static final Logger LOG = LoggerFactory.getLogger(Write.class);
+
     @Override
     public Result expand(PCollection<HttpBody> input) {
       PCollection<HealthcareIOError<HttpBody>> failedBundles;
       PCollection<HealthcareIOError<String>> failedImports;
       switch (this.getWriteMethod()) {
         case IMPORT:
+          LOG.warn(
+              "Make sure the Cloud Healthcare Service Agent has permissions when using import:"
+                  + " https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions");
           String tempPath = getImportGcsTempPath().orElseThrow(IllegalArgumentException::new);
           String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
           ContentStructure contentStructure =

@@ -30,6 +30,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 
 class FhirIOTestUtil {
+  public static final String TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
   private static Stream<HttpBody> readPrettyBundles() {
     Path resourceDir = Paths.get("src", "test", "resources", "synthea_fhir_stu3_pretty");

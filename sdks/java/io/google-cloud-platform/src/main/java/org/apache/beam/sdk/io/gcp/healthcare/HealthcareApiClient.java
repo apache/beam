@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
@@ -147,4 +148,8 @@ public interface HealthcareApiClient {
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 
   Empty deleteHL7v2Store(String store) throws IOException;
+
+  FhirStore createFhirStore(String dataset, String name) throws IOException;
+
+  Empty deleteFhirStore(String store) throws IOException;
 }

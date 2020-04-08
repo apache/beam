@@ -28,6 +28,7 @@ import com.google.api.services.healthcare.v1beta1.CloudHealthcare.Projects.Locat
 import com.google.api.services.healthcare.v1beta1.CloudHealthcareScopes;
 import com.google.api.services.healthcare.v1beta1.model.CreateMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.GoogleCloudHealthcareV1beta1FhirRestGcsSource;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
@@ -134,8 +135,28 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
+  public FhirStore createFhirStore(String dataset, String name) throws IOException {
+    FhirStore store = new FhirStore();
+    store.setDisableReferentialIntegrity(true);
+    store.setEnableUpdateCreate(true);
+    return client
+        .projects()
+        .locations()
+        .datasets()
+        .fhirStores()
+        .create(dataset, store)
+        .setFhirStoreId(name)
+        .execute();
+  }
+
+  @Override
   public Empty deleteHL7v2Store(String name) throws IOException {
     return client.projects().locations().datasets().hl7V2Stores().delete(name).execute();
+  }
+
+  @Override
+  public Empty deleteFhirStore(String name) throws IOException {
+    return client.projects().locations().datasets().fhirStores().delete(name).execute();
   }
 
   @Override
@@ -307,6 +328,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException {
+    LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
     while (operation.getDone() == null || !operation.getDone()) {
       // Update the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.
@@ -376,7 +398,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         .execute();
   }
 
-  private static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
+  public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
     GoogleCredentials credentials;
 
     public AuthenticatedRetryInitializer(GoogleCredentials credentials) {
