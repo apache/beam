@@ -25,7 +25,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 const extraData = 2
@@ -40,16 +40,16 @@ type fakeDataClient struct {
 	skipFirstError bool
 }
 
-func (f *fakeDataClient) Recv() (*pb.Elements, error) {
+func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
 	f.calls++
 	data := []byte{1, 2, 3, 4}
-	elemData := pb.Elements_Data{
+	elemData := fnpb.Elements_Data{
 		InstructionId: "inst_ref",
 		Data:          data,
 		TransformId:   "ptr",
 	}
 
-	msg := pb.Elements{}
+	msg := fnpb.Elements{}
 
 	// Send extraData more than the number of elements buffered in the channel.
 	for i := 0; i < bufElements+extraData; i++ {
@@ -66,7 +66,7 @@ func (f *fakeDataClient) Recv() (*pb.Elements, error) {
 		return &msg, f.err
 	case 3:
 		elemData.Data = []byte{}
-		msg.Data = []*pb.Elements_Data{&elemData}
+		msg.Data = []*fnpb.Elements_Data{&elemData}
 		// Broadcasting done here means that this code providing messages
 		// has not been blocked by the bug blocking the dataReader
 		// from getting more messages.
@@ -77,7 +77,7 @@ func (f *fakeDataClient) Recv() (*pb.Elements, error) {
 	}
 }
 
-func (f *fakeDataClient) Send(*pb.Elements) error {
+func (f *fakeDataClient) Send(*fnpb.Elements) error {
 	// We skip errors on the first call to test that  errors can be returned
 	// on the sentinel value send in dataWriter.Close
 	// Otherwise, we return an io.EOF similar to semantics documented
