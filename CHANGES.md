@@ -67,6 +67,7 @@
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
     and an upcoming
     [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
+* --direct_num_workers=0 is supported for FnApi. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
 
 ## Breaking Changes
 

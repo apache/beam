@@ -25,6 +25,7 @@ from __future__ import print_function
 import contextlib
 import copy
 import itertools
+import multiprocessing
 import logging
 import os
 import subprocess
@@ -159,8 +160,12 @@ class FnApiRunner(runner.PipelineRunner):
     pipeline.visit(DataflowRunner.group_by_key_input_visitor())
     self._bundle_repeat = self._bundle_repeat or options.view_as(
         pipeline_options.DirectOptions).direct_runner_bundle_repeat
-    self._num_workers = options.view_as(
-        pipeline_options.DirectOptions).direct_num_workers or self._num_workers
+    pipeline_direct_num_workers = options.view_as(
+        pipeline_options.DirectOptions).direct_num_workers
+    if pipeline_direct_num_workers == 0:
+      self._num_workers = multiprocessing.cpu_count()
+    else:
+      self._num_workers = pipeline_direct_num_workers or self._num_workers
 
     # set direct workers running mode if it is defined with pipeline options.
     running_mode = \
