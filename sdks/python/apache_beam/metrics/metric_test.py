@@ -28,9 +28,7 @@ from nose.plugins.attrib import attr
 import apache_beam as beam
 from apache_beam import metrics
 from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metric import MetricResults
@@ -38,6 +36,8 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
+from apache_beam.testing.metric_result_matchers import DistributionMatcher
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -171,14 +171,13 @@ class MetricsTest(unittest.TestCase):
 
     # Verify user distribution counter.
     metric_results = res.metrics().query()
-    namespace = 'apache_beam.metrics.metric_test.SomeDoFn'
+    matcher = MetricResultMatcher(
+        namespace='apache_beam.metrics.metric_test.SomeDoFn',
+        name='element_dist',
+        committed=DistributionMatcher(
+            sum_value=10, count_value=4, min_value=1, max_value=4))
     hc.assert_that(
-        metric_results['distributions'],
-        hc.contains_inanyorder(
-            MetricResult(
-                MetricKey('ApplyPardo', MetricName(namespace, 'element_dist')),
-                DistributionResult(DistributionData(10, 4, 1, 4)),
-                None, True)))
+        metric_results['distributions'], hc.contains_inanyorder(matcher))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
