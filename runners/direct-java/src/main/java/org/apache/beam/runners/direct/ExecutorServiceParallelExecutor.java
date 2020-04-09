@@ -239,33 +239,36 @@ final class ExecutorServiceParallelExecutor
       completionTime = Instant.now().plus(duration);
     }
 
-    VisibleExecutorUpdate update = null;
-    while (Instant.now().isBefore(completionTime)
-        && (update == null || isTerminalStateUpdate(update))) {
+    while (Instant.now().isBefore(completionTime)) {
       // Get an update; don't block forever if another thread has handled it. The call to poll will
       // wait the entire timeout; this call primarily exists to relinquish any core.
-      update = visibleUpdates.tryNext(Duration.millis(25L));
+      VisibleExecutorUpdate update = visibleUpdates.tryNext(Duration.millis(25L));
+
       if (update == null && pipelineState.get().isTerminal()) {
         // there are no updates to process and no updates will ever be published because the
         // executor is shutdown
         return pipelineState.get();
-      } else if (update != null && update.thrown.isPresent()) {
-        Throwable thrown = update.thrown.get();
-        if (thrown instanceof Exception) {
-          throw (Exception) thrown;
-        } else if (thrown instanceof Error) {
-          throw (Error) thrown;
-        } else {
-          throw new Exception("Unknown Type of Throwable", thrown);
+      }
+
+      if (update != null) {
+        if (isTerminalStateUpdate(update)) {
+          return pipelineState.get();
+        }
+
+        if (update.thrown.isPresent()) {
+          Throwable thrown = update.thrown.get();
+          if (thrown instanceof Exception) {
+            throw (Exception) thrown;
+          } else if (thrown instanceof Error) {
+            throw (Error) thrown;
+          } else {
+            throw new Exception("Unknown Type of Throwable", thrown);
+          }
         }
       }
     }
 
-    if (Instant.now().isAfter(completionTime)) {
-      return null;
-    }
-
-    return pipelineState.get();
+    return null;
   }
 
   @Override
@@ -274,7 +277,7 @@ final class ExecutorServiceParallelExecutor
   }
 
   private boolean isTerminalStateUpdate(VisibleExecutorUpdate update) {
-    return !(update.getNewState() == null && update.getNewState().isTerminal());
+    return update.getNewState() != null && update.getNewState().isTerminal();
   }
 
   @Override
