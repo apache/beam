@@ -41,7 +41,6 @@ import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -306,17 +305,22 @@ public class SolrIO {
 
     abstract int getBatchSize();
 
+    @Nullable
+    abstract ReplicaInfo getReplicaInfo();
+
     abstract Builder builder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConnectionConfiguration(ConnectionConfiguration connectionConfiguration);
 
+      abstract Builder setCollection(String collection);
+
       abstract Builder setQuery(String query);
 
       abstract Builder setBatchSize(int batchSize);
 
-      abstract Builder setCollection(String collection);
+      abstract Builder setReplicaInfo(ReplicaInfo replicaInfo);
 
       abstract Read build();
     }
@@ -364,10 +368,16 @@ public class SolrIO {
       // by tuning batchSize when pipelines run.
       checkArgument(
           batchSize > 0 && batchSize < MAX_BATCH_SIZE,
-          "Valid values for batchSize are 1 (inclusize) to %s (exclusive), but was: %s ",
+          "Valid values for batchSize are 1 (inclusive) to %s (exclusive), but was: %s ",
           MAX_BATCH_SIZE,
           batchSize);
       return builder().setBatchSize(batchSize).build();
+    }
+
+    /** Read from a specific Replica (partition). */
+    public Read withReplicaInfo(ReplicaInfo replicaInfo) {
+      checkArgument(replicaInfo != null, "replicaInfo can not be null");
+      return builder().setReplicaInfo(replicaInfo).build();
     }
 
     @Override
@@ -386,14 +396,18 @@ public class SolrIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(DisplayData.item("query", getQuery()));
       getConnectionConfiguration().populateDisplayData(builder);
+      builder.add(DisplayData.item("collection", getCollection()));
+      builder.addIfNotNull(DisplayData.item("query", getQuery()));
+      builder.add(DisplayData.item("batchSize", getBatchSize()));
+      final String replicaInfo = (getReplicaInfo() != null) ? getReplicaInfo().toString() : null;
+      builder.addIfNotNull(DisplayData.item("replicaInfo", replicaInfo));
     }
   }
 
   /** A POJO describing a replica of Solr. */
   @AutoValue
-  abstract static class ReplicaInfo implements Serializable {
+  public abstract static class ReplicaInfo implements Serializable {
     public abstract String coreName();
 
     public abstract String coreUrl();
@@ -408,10 +422,9 @@ public class SolrIO {
     }
   }
 
-  static class SplitFn extends DoFn<SolrIO.Read, KV<Read, ReplicaInfo>> {
+  private static class SplitFn extends DoFn<Read, Read> {
     @ProcessElement
-    public void process(@Element SolrIO.Read spec, OutputReceiver<KV<Read, ReplicaInfo>> out)
-        throws IOException {
+    public void process(@Element Read spec, OutputReceiver<Read> out) throws IOException {
       ConnectionConfiguration connectionConfig = spec.getConnectionConfiguration();
       try (AuthorizedSolrClient<CloudSolrClient> client = connectionConfig.createClient()) {
         String collection = spec.getCollection();
@@ -437,19 +450,17 @@ public class SolrIO {
               randomActiveReplica != null,
               "Can not found an active replica for slice %s",
               slice.getName());
-          out.output(KV.of(spec, ReplicaInfo.create(checkNotNull(randomActiveReplica))));
+          out.output(spec.withReplicaInfo(ReplicaInfo.create(checkNotNull(randomActiveReplica))));
         }
       }
     }
   }
 
-  static class ReadFn extends DoFn<KV<SolrIO.Read, ReplicaInfo>, SolrDocument> {
+  private static class ReadFn extends DoFn<Read, SolrDocument> {
     @ProcessElement
-    public void process(
-        @Element KV<SolrIO.Read, ReplicaInfo> specAndReplica, OutputReceiver<SolrDocument> out)
-        throws IOException {
-      Read spec = specAndReplica.getKey();
-      ReplicaInfo replica = specAndReplica.getValue();
+    public void process(@Element Read spec, OutputReceiver<SolrDocument> out) throws IOException {
+      ReplicaInfo replicaInfo = spec.getReplicaInfo();
+      checkArgument(replicaInfo != null, "replicaInfo is required");
       String cursorMark = CursorMarkParams.CURSOR_MARK_START;
       String query = spec.getQuery();
       if (query == null) {
@@ -459,7 +470,7 @@ public class SolrIO {
       solrQuery.setRows(spec.getBatchSize());
       solrQuery.setDistrib(false);
       try (AuthorizedSolrClient<HttpSolrClient> client =
-          spec.getConnectionConfiguration().createClient(replica.baseUrl())) {
+          spec.getConnectionConfiguration().createClient(replicaInfo.baseUrl())) {
         SchemaRequest.UniqueKey request = new SchemaRequest.UniqueKey();
         try {
           SchemaResponse.UniqueKeyResponse response = client.process(spec.getCollection(), request);
@@ -472,7 +483,7 @@ public class SolrIO {
           solrQuery.set(CursorMarkParams.CURSOR_MARK_PARAM, cursorMark);
           try {
             QueryResponse response;
-            response = client.query(replica.coreName(), solrQuery);
+            response = client.query(replicaInfo.coreName(), solrQuery);
             if (cursorMark.equals(response.getNextCursorMark())) {
               break;
             }
@@ -599,7 +610,7 @@ public class SolrIO {
       }
 
       @Setup
-      public void setup() throws Exception {
+      public void setup() {
         solrClient = spec.getConnectionConfiguration().createClient();
 
         retryBackoff =
