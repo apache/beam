@@ -1302,10 +1302,11 @@ class BeamModulePlugin implements Plugin<Project> {
           def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-
+          def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
-            '--dataflowWorkerJar=${dataflowWorkerJar}',
+            "--dataflowWorkerJar=${dataflowWorkerJar}",
+            "--region=${dataflowRegion}"
           ])
 
           pipelineOptionsString = JsonOutput.toJson(allOptionsList)
