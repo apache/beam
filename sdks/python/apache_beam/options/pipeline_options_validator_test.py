@@ -467,6 +467,19 @@ class SetupTest(unittest.TestCase):
     self.assertIsNone(options.view_as(WorkerOptions).zone)
     self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
 
+  def test_region_optional_for_non_service_runner(self):
+    runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    runner.get_default_gcp_region = lambda: None
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--dataflow_endpoint=http://localhost:20281',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+
   def test_test_matcher(self):
     def get_validator(matcher):
       options = [

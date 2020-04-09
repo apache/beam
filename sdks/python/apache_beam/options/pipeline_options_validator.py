@@ -204,7 +204,7 @@ class PipelineOptionsValidator(object):
               self._validate_error(
                   self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
           break
-    if view.region is None:
+    if view.region is None and self.is_service_runner():
       default_region = self.runner.get_default_gcp_region()
       if default_region is None:
         errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'region'))
