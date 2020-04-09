@@ -60,7 +60,7 @@ final class ForwardingClientResponseObserver<ReqT, RespT>
   }
 
   @Override
-  public void beforeStart(ClientCallStreamObserver<RespT> stream) {
-    stream.setOnReadyHandler(onReadyHandler);
+  public void beforeStart(ClientCallStreamObserver<RespT> requestStream) {
+    requestStream.setOnReadyHandler(onReadyHandler);
   }
 }
