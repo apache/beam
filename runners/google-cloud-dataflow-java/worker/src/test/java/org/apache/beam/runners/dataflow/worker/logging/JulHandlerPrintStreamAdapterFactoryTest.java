@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.logging;
 
 import static org.apache.beam.runners.dataflow.worker.LogRecordMatcher.hasLogItem;
+import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -130,6 +131,26 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
     byte[] newlineMsgBytes = newlineMsg.getBytes(Charset.defaultCharset());
     printStream.write(newlineMsgBytes, 0, newlineMsgBytes.length);
     assertThat(handler.getLogs(), hasLogItem(msg + newlineMsg));
+  }
+
+  @Test
+  public void testNoEmptyMessages() {
+    try (PrintStream printStream = createPrintStreamAdapter()) {
+      printStream.println("blah");
+      printStream.print("\n");
+      printStream.flush();
+      printStream.println("");
+      printStream.flush();
+      printStream.print("");
+      printStream.flush();
+      byte[] bytes = "a".getBytes(Charset.defaultCharset());
+      printStream.write(bytes, 0, 0);
+      printStream.flush();
+    }
+
+    for (LogRecord log : handler.getLogs()) {
+      assertThat(log.getMessage(), not(blankOrNullString()));
+    }
   }
 
   private PrintStream createPrintStreamAdapter() {
