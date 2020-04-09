@@ -573,8 +573,8 @@ class DataflowRunner(PipelineRunner):
     return result
 
   def _maybe_add_unified_worker_missing_options(self, options):
-    # set default beam_fn_api and use_unified_worker experiment if
-    # use unified worker experiment flag exists, no-op otherwise.
+    # set default beam_fn_api experiment if use unified worker experiment flag
+    # exists, no-op otherwise.
     debug_options = options.view_as(DebugOptions)
     from apache_beam.runners.dataflow.internal import apiclient
     if (apiclient._use_unified_worker(options) and not
