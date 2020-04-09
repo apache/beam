@@ -123,6 +123,10 @@ public class SolrIO {
     return new AutoValue_SolrIO_Read.Builder().setBatchSize(1000).setQuery("*:*").build();
   }
 
+  public static ReadAll readAll() {
+    return new ReadAll();
+  }
+
   public static Write write() {
     // 1000 for batch size is good enough in many cases,
     // ex: if document size is large, around 10KB, the request's size will be around 10MB
@@ -385,12 +389,7 @@ public class SolrIO {
       checkArgument(
           getConnectionConfiguration() != null, "withConnectionConfiguration() is required");
       checkArgument(getCollection() != null, "from() is required");
-
-      return input
-          .apply("Create", Create.of(this))
-          .apply("Split", ParDo.of(new SplitFn()))
-          .apply("Reshuffle", Reshuffle.viaRandomKey())
-          .apply("Read", ParDo.of(new ReadFn()));
+      return input.apply("Create", Create.of(this)).apply("ReadAll", readAll());
     }
 
     @Override
@@ -496,6 +495,16 @@ public class SolrIO {
           }
         }
       }
+    }
+  }
+
+  public static class ReadAll extends PTransform<PCollection<Read>, PCollection<SolrDocument>> {
+    @Override
+    public PCollection<SolrDocument> expand(PCollection<Read> input) {
+      return input
+          .apply("Split", ParDo.of(new SplitFn()))
+          .apply("Reshuffle", Reshuffle.viaRandomKey())
+          .apply("Read", ParDo.of(new ReadFn()));
     }
   }
 
