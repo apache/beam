@@ -26,6 +26,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 
 /**
  * Source function which sends a single global impulse to a downstream operator. It may keep the
@@ -55,6 +56,7 @@ public class ImpulseSourceFunction
       synchronized (sourceContext.getCheckpointLock()) {
         // emit single impulse element
         sourceContext.collect(WindowedValue.valueInGlobalWindow(new byte[0]));
+        sourceContext.emitWatermark(Watermark.MAX_WATERMARK);
         impulseEmitted.add(true);
       }
     }
