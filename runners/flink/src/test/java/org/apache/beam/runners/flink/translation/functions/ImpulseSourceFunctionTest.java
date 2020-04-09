@@ -34,6 +34,7 @@ import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -75,8 +76,9 @@ public class ImpulseSourceFunctionTest {
     source.run(sourceContext);
     // 2) Should use checkpoint lock
     verify(sourceContext).getCheckpointLock();
-    // 3) Should emit impulse element
+    // 3) Should emit impulse element and the final watermark
     verify(sourceContext).collect(argThat(elementMatcher));
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
     verifyNoMoreInteractions(sourceContext);
     // 4) Should modify checkpoint state
     verify(mockListState).get();
@@ -128,6 +130,7 @@ public class ImpulseSourceFunctionTest {
       sourceThread.join();
     }
     verify(sourceContext).collect(argThat(elementMatcher));
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
     verify(mockListState).add(true);
     verify(mockListState).get();
     verifyNoMoreInteractions(mockListState);
