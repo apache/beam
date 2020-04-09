@@ -31,14 +31,14 @@ import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.DataSourceV2;
 import org.apache.spark.sql.sources.v2.ReadSupport;
-import org.apache.spark.sql.sources.v2.reader.DataReader;
-import org.apache.spark.sql.sources.v2.reader.DataReaderFactory;
 import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
+import org.apache.spark.sql.sources.v2.reader.InputPartition;
+import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.types.StructType;
 
 /**
@@ -93,16 +93,16 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     }
 
     @Override
-    public List<DataReaderFactory<Row>> createDataReaderFactories() {
+    public List<InputPartition<InternalRow>> planInputPartitions() {
       PipelineOptions options = serializablePipelineOptions.get();
-      List<DataReaderFactory<Row>> result = new ArrayList<>();
+      List<InputPartition<InternalRow>> result = new ArrayList<>();
       long desiredSizeBytes;
       try {
         desiredSizeBytes = source.getEstimatedSizeBytes(options) / numPartitions;
         List<? extends BoundedSource<T>> splits = source.split(desiredSizeBytes, options);
         for (BoundedSource<T> split : splits) {
           result.add(
-              (DataReaderFactory<Row>)
+              (InputPartition<InternalRow>)
                   () -> new DatasetPartitionReader<>(split, serializablePipelineOptions));
         }
         return result;
@@ -115,7 +115,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
   }
 
   /** This class can be mapped to Beam {@link BoundedReader}. */
-  private static class DatasetPartitionReader<T> implements DataReader<Row> {
+  private static class DatasetPartitionReader<T> implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
     private final BoundedSource<T> source;
@@ -145,7 +145,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     }
 
     @Override
-    public Row get() {
+    public InternalRow get() {
       WindowedValue<T> windowedValue =
           WindowedValue.timestampedValueInGlobalWindow(
               reader.getCurrent(), reader.getCurrentTimestamp());

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.helpers;
 
+import static scala.collection.JavaConversions.asScalaBuffer;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -27,7 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericRow;
+import org.apache.spark.sql.catalyst.InternalRow;
 
 /** Helper functions for working with {@link Row}. */
 public final class RowHelpers {
@@ -54,7 +56,8 @@ public final class RowHelpers {
    * Serialize a windowedValue to bytes using windowedValueCoder {@link
    * WindowedValue.FullWindowedValueCoder} and stores it an InternalRow.
    */
-  public static <T> Row storeWindowedValueInRow(WindowedValue<T> windowedValue, Coder<T> coder) {
+  public static <T> InternalRow storeWindowedValueInRow(
+      WindowedValue<T> windowedValue, Coder<T> coder) {
     List<Object> list = new ArrayList<>();
     // serialize the windowedValue to bytes array to comply with dataset binary schema
     WindowedValue.FullWindowedValueCoder<T> windowedValueCoder =
@@ -67,6 +70,6 @@ public final class RowHelpers {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-    return new GenericRow(list.toArray());
+    return InternalRow.apply(asScalaBuffer(list).toList());
   }
 }

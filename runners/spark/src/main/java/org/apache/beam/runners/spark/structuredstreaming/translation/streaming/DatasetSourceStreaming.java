@@ -34,13 +34,13 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.ContinuousReadSupport;
 import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.sources.v2.DataSourceV2;
 import org.apache.spark.sql.sources.v2.MicroBatchReadSupport;
-import org.apache.spark.sql.sources.v2.reader.DataReader;
-import org.apache.spark.sql.sources.v2.reader.DataReaderFactory;
+import org.apache.spark.sql.sources.v2.reader.InputPartition;
+import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.sources.v2.reader.streaming.MicroBatchReader;
 import org.apache.spark.sql.sources.v2.reader.streaming.Offset;
 import org.apache.spark.sql.types.StructType;
@@ -165,22 +165,25 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
     }
 
     @Override
-    public List<DataReaderFactory<Row>> createDataReaderFactories() {
+    public List<InputPartition<InternalRow>> planInputPartitions() {
       PipelineOptions options = serializablePipelineOptions.get();
-      List<DataReaderFactory<Row>> result = new ArrayList<>();
+      List<InputPartition<InternalRow>> result = new ArrayList<>();
       try {
         List<? extends UnboundedSource<T, CheckpointMarkT>> splits =
             source.split(numPartitions, options);
         for (UnboundedSource<T, CheckpointMarkT> split : splits) {
           result.add(
-              (DataReaderFactory<Row>)
-                  () -> {
-                    DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
-                    datasetPartitionReader =
-                        new DatasetPartitionReader<>(split, serializablePipelineOptions);
-                    partitionReaders.add(datasetPartitionReader);
-                    return datasetPartitionReader;
-                  });
+              new InputPartition<InternalRow>() {
+
+                @Override
+                public InputPartitionReader<InternalRow> createPartitionReader() {
+                  DatasetPartitionReader<T, CheckpointMarkT> datasetPartitionReader;
+                  datasetPartitionReader =
+                      new DatasetPartitionReader<>(split, serializablePipelineOptions);
+                  partitionReaders.add(datasetPartitionReader);
+                  return datasetPartitionReader;
+                }
+              });
         }
         return result;
 
@@ -194,7 +197,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
   /** This class can be mapped to Beam {@link BoundedSource.BoundedReader}. */
   private static class DatasetPartitionReader<
           T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
-      implements DataReader<Row> {
+      implements InputPartitionReader<InternalRow> {
     private boolean started;
     private boolean closed;
     private final UnboundedSource<T, CheckpointMarkT> source;
@@ -231,7 +234,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
     }
 
     @Override
-    public Row get() {
+    public InternalRow get() {
       WindowedValue<T> windowedValue =
           WindowedValue.timestampedValueInGlobalWindow(
               reader.getCurrent(), reader.getCurrentTimestamp());
