@@ -17,23 +17,12 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DSTU2_PRETTY_BUNDLES;
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.STU3_PRETTY_BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
-import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.services.storage.Storage;
-import com.google.api.services.storage.model.StorageObject;
-import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
-import java.net.URI;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
@@ -49,14 +38,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class FhirIODSTU2WriteIT {
+public class FhirIOWriteSTU3IT {
 
   private FhirIOTestOptions options;
   private transient HealthcareApiClient client;
   private static String healthcareDataset;
   private static long testTime = System.currentTimeMillis();
   private static final String FHIR_STORE_NAME =
-      "FHIR_store_dstu2_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+      "FHIR_store_stu3_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
 
   @Before
   public void setup() throws Exception {
@@ -67,9 +56,9 @@ public class FhirIODSTU2WriteIT {
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
     options.setGcsTempPath(
-        String.format("gs://%s/FhirIODSTU2WriteIT/%s/temp/", TEMP_BUCKET, testTime));
+        String.format("gs://%s/FhirIOWriteSTU3IT/%s/temp/", TEMP_BUCKET, testTime));
     options.setGcsDeadLetterPath(
-        String.format("gs://%s/FhirIODSTU2WriteIT/%s/deadletter/", TEMP_BUCKET, testTime));
+        String.format("gs://%s/FhirIOWriteSTU3IT/%s/deadletter/", TEMP_BUCKET, testTime));
     options.setFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
   }
 
@@ -78,7 +67,7 @@ public class FhirIODSTU2WriteIT {
     String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.createFhirStore(healthcareDataset, FHIR_STORE_NAME, "DSTU2");
+    client.createFhirStore(healthcareDataset, FHIR_STORE_NAME, "STU3");
   }
 
   @AfterClass
@@ -94,7 +83,7 @@ public class FhirIODSTU2WriteIT {
     Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result writeResult =
         pipeline
-            .apply(Create.of(DSTU2_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
+            .apply(Create.of(STU3_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
@@ -107,7 +96,7 @@ public class FhirIODSTU2WriteIT {
     Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result result =
         pipeline
-            .apply(Create.of(DSTU2_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
+            .apply(Create.of(STU3_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
             .apply(
                 FhirIO.Write.fhirStoresImport(
                     options.getFhirStore(),

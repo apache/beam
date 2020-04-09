@@ -77,12 +77,14 @@ class FhirIOTestUtil {
   static final List<HttpBody> R4_PRETTY_BUNDLES =
       readPrettyBundles("R4").collect(Collectors.toList());
 
-  /** Populate the test resources into the FHIR store. */
-  static void executeFhirBundles(HealthcareApiClient client, String fhirStore) throws IOException {
-    for (HttpBody bundle : STU3_PRETTY_BUNDLES) {
+  /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
+  static void executeFhirBundles(
+      HealthcareApiClient client, String fhirStore, List<HttpBody> bundles) throws IOException {
+    for (HttpBody bundle : bundles) {
       client.executeFhirBundle(fhirStore, bundle);
     }
   }
+
   public static void tearDownTempBucket() throws IOException {
 
     GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
@@ -109,8 +111,7 @@ class FhirIOTestUtil {
           request.setReadTimeout(60000); // 1 minute read timeout
         };
     Storage storage =
-        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer)
-            .build();
+        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer).build();
     List<StorageObject> blobs = storage.objects().list(TEMP_BUCKET).execute().getItems();
     if (blobs != null) {
       for (StorageObject blob : blobs) {

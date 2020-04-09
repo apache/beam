@@ -56,7 +56,6 @@ import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.codehaus.jackson.JsonProcessingException;
-import org.omg.CORBA.WrongTransaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,10 +72,10 @@ import org.slf4j.LoggerFactory;
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
- * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID
- * strings {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to
- * retrieved a {@link PCollection} containing the successfully fetched {@link HttpBody}s and/or
- * {@link FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
+ * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID strings
+ * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieved a
+ * {@link PCollection} containing the successfully fetched {@link HttpBody}s and/or {@link
+ * FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
  * HealthcareIOError}* containing the resource ID that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
@@ -84,24 +83,62 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Write Resources can be written to FHIR with two different methods: Import or Execute Bundle.
  *
- * <p>Execute Bundle This is best for use cases where you are writing to a non-empty FHIR store
- * with other clients or otherwise need referential integrity (e.g. A Streaming HL7v2 to FHIR ETL
+ * <p>Execute Bundle This is best for use cases where you are writing to a non-empty FHIR store with
+ * other clients or otherwise need referential integrity (e.g. A Streaming HL7v2 to FHIR ETL
  * pipeline).
  *
- * @see <a     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
- * <p>Import This is best for use cases where you are populating an empty FHIR store with no
- * other clients. It is faster than the execute bundles method but does not respect referential
- * integrity and the resources are not written transactionally (e.g. a historicaly backfill on a new
- * FHIR store) This requires each resource to contain a client provided ID. It is important that
- * when using import you give the appropriate permissions to the Google Cloud Healthcare Service
- * Agent
- * @see <a     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
- * @see <a     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
- * A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
- * FhirIO.Write#fhirStoresImport(String, String, String, ContentStructure)} This will return a
- * {@link FhirIO.Write.Result} on which you can call {@link FhirIO.Write.Result#getFailedInsertsWithErr()}
- * to retrieve a {@link PCollection} of {@link HealthcareIOError} containing the {@link HttpBody}
- * that failed to be ingested and the     exception.
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
+ *     <p>Import This is best for use cases where you are populating an empty FHIR store with no
+ *     other clients. It is faster than the execute bundles method but does not respect referential
+ *     integrity and the resources are not written transactionally (e.g. a historicaly backfill on a
+ *     new FHIR store) This requires each resource to contain a client provided ID. It is important
+ *     that when using import you give the appropriate permissions to the Google Cloud Healthcare
+ *     Service Agent
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
+ * @see <a
+ *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
+ *     A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
+ *     FhirIO.Write#fhirStoresImport(String, String, String, ContentStructure)} This will return a
+ *     {@link FhirIO.Write.Result} on which you can call {@link
+ *     FhirIO.Write.Result#getFailedInsertsWithErr()} to retrieve a {@link PCollection} of {@link
+ *     HealthcareIOError} containing the {@link HttpBody} that failed to be ingested and the
+ *     exception.
+ *     <p>Example
+ *     <pre>{@code
+ * Pipeline pipeline = ...
+ *
+ * // Tail the FHIR store by retrieving resources based on Pub/Sub notifications.
+ * FHIRIO.Read.Result readResult = p
+ *   .apply("Read FHIR notifications",
+ *     PubsubIO.readStrings().fromSubscription(options.getNotificationSubscription()))
+ *   .apply(FhirIO.readResources());
+ *
+ * // happily retrived messages
+ * PCollection<HttpBody> resources = readResult.getResources();
+ * // message IDs that couldn't be retrieved + error context
+ * PCollection<HealthcareIOError<String>> failedReads = readResult.getFailedReads();
+ *
+ * failedReads.apply("Write Message IDs of Failed Reads to BigQuery",
+ *     BigQueryIO
+ *         .write()
+ *         .to(option.getBQFhirExecuteBundlesDeadLetterTable())
+ *         .withFormatFunction(new HealthcareIOErrorToTableRow()));
+ *
+ * output = resources.apply("Happy path transformations", ...);
+ * FhirIO.Write.Result writeResult =
+ *     output.apply("Execute FHIR Bundles", FhirIO.executeBundles(options.getFhirStore()));
+ *
+ * PCollection<HealthcareIOError<HttpBody>> failedBundles = writeResult.getFailedInsertsWithErr();
+ *
+ * failedBundles.apply("Write failed bundles to BigQuery",
+ *     BigQueryIO
+ *         .write()
+ *         .to(option.getBQFhirExecuteBundlesDeadLetterTable())
+ *         .withFormatFunction(new HealthcareIOErrorToTableRow()));
+ * }***
+ * </pre>
  */
 public class FhirIO {
 
@@ -110,7 +147,7 @@ public class FhirIO {
    * notifications)
    *
    * @return the read
-   * @see ExecuteBundles
+   * @see Read
    */
   public static Read readResources() {
     return new Read();
@@ -126,7 +163,10 @@ public class FhirIO {
    * @return the import
    * @see Import
    */
-  public static Import importResources(String fhirStore, String tempDir, String deadLetterDir,
+  public static Import importResources(
+      String fhirStore,
+      String tempDir,
+      String deadLetterDir,
       @Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
@@ -141,37 +181,31 @@ public class FhirIO {
    * @return the import
    * @see Import
    */
-  public static Import importResources(ValueProvider<String> fhirStore,
-      ValueProvider<String> tempDir, ValueProvider<String> deadLetterDir,
+  public static Import importResources(
+      ValueProvider<String> fhirStore,
+      ValueProvider<String> tempDir,
+      ValueProvider<String> deadLetterDir,
       @Nullable ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
-  /**
-   * The type Read.
-   */
+  /** The type Read. */
   @Experimental // TODO(jaketf) add IT and remove this tag.
   public static class Read extends PTransform<PCollection<String>, FhirIO.Read.Result> {
     private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
-    /**
-     * Instantiates a new Read.
-     */
+    /** Instantiates a new Read. */
     public Read() {
       // TODO(jaketf) add IT and remove this tag.
       LOG.warn("FhirIO.Read is experimental and has not been tested.");
     }
 
-    /**
-     * The type Result.
-     */
+    /** The type Result. */
     public static class Result implements POutput, PInput {
       private PCollection<HttpBody> resources;
 
       private PCollection<HealthcareIOError<String>> failedReads;
-      /**
-       * The Pct.
-       */
+      /** The Pct. */
       PCollectionTuple pct;
 
       /**
@@ -233,13 +267,9 @@ public class FhirIO {
           String transformName, PInput input, PTransform<?, ?> transform) {}
     }
 
-    /**
-     * The tag for the main output of Fhir Messages.
-     */
+    /** The tag for the main output of Fhir Messages. */
     public static final TupleTag<HttpBody> OUT = new TupleTag<HttpBody>() {};
-    /**
-     * The tag for the deadletter output of Fhir Messages.
-     */
+    /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
 
@@ -268,9 +298,7 @@ public class FhirIO {
      */
     public static class FetchHttpBody extends PTransform<PCollection<String>, FhirIO.Read.Result> {
 
-      /**
-       * Instantiates a new Fetch Fhir message DoFn.
-       */
+      /** Instantiates a new Fetch Fhir message DoFn. */
       public FetchHttpBody() {}
 
       @Override
@@ -281,9 +309,7 @@ public class FhirIO {
                     .withOutputTags(FhirIO.Read.OUT, TupleTagList.of(FhirIO.Read.DEAD_LETTER))));
       }
 
-      /**
-       * DoFn for fetching messages from the Fhir store with error handling.
-       */
+      /** DoFn for fetching messages from the Fhir store with error handling. */
       public static class HttpBodyGetFn extends DoFn<String, HttpBody> {
 
         private Counter failedMessageGets =
@@ -295,9 +321,7 @@ public class FhirIO {
                 FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
 
-        /**
-         * Instantiates a new Hl 7 v 2 message get fn.
-         */
+        /** Instantiates a new Hl 7 v 2 message get fn. */
         HttpBodyGetFn() {}
 
         /**
@@ -349,21 +373,15 @@ public class FhirIO {
     }
   }
 
-  /**
-   * The type Write.
-   */
+  /** The type Write. */
   @AutoValue
   public abstract static class Write extends PTransform<PCollection<HttpBody>, Write.Result> {
 
-    /**
-     * The tag for the failed writes to FHIR store`.
-     */
+    /** The tag for the failed writes to FHIR store`. */
     public static final TupleTag<HealthcareIOError<HttpBody>> FAILED_BODY =
         new TupleTag<HealthcareIOError<HttpBody>>() {};
 
-    /**
-     * The enum Write method.
-     */
+    /** The enum Write method. */
     public enum WriteMethod {
       /**
        * Execute Bundle Method executes a batch of requests as a single transaction @see <a
@@ -372,20 +390,19 @@ public class FhirIO {
       EXECUTE_BUNDLE,
       /**
        * Import Method bulk imports resources from GCS. This is ideal for initial loads to empty
-       * FHIR stores. <a href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>.
+       * FHIR stores. <a
+       * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>.
        */
       IMPORT
     }
 
-    /**
-     * The type Result.
-     */
+    /** The type Result. */
     public static class Result implements POutput {
       private final Pipeline pipeline;
       private final PCollection<HealthcareIOError<HttpBody>> failedInsertsWithErr;
 
       /**
-       * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}.  @param pipeline the
+       * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}. @param pipeline the
        * pipeline
        *
        * @param failedInserts the failed inserts
@@ -461,9 +478,7 @@ public class FhirIO {
      */
     abstract Optional<String> getImportGcsDeadLetterPath();
 
-    /**
-     * The type Builder.
-     */
+    /** The type Builder. */
     @AutoValue.Builder
     abstract static class Builder {
 
@@ -520,7 +535,8 @@ public class FhirIO {
     }
 
     /**
-     * Create Method creates a single FHIR resource. @see <a href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create></a>
+     * Create Method creates a single FHIR resource. @see <a
+     * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create></a>
      *
      * @param fhirStore the hl 7 v 2 store
      * @param gcsTempPath the gcs temp path
@@ -665,13 +681,9 @@ public class FhirIO {
           ParDo.of(new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)));
     }
 
-    /**
-     * The enum Content structure.
-     */
+    /** The enum Content structure. */
     public enum ContentStructure {
-      /**
-       * If the content structure is not specified, the default value BUNDLE will be used.
-       */
+      /** If the content structure is not specified, the default value BUNDLE will be used. */
       CONTENT_STRUCTURE_UNSPECIFIED,
       /**
        * The source file contains one or more lines of newline-delimited JSON (ndjson). Each line is
@@ -684,19 +696,13 @@ public class FhirIO {
        * a single resource.
        */
       RESOURCE,
-      /**
-       * The entire file is one JSON bundle. The JSON can span multiple lines.
-       */
+      /** The entire file is one JSON bundle. The JSON can span multiple lines. */
       BUNDLE_PRETTY,
-      /**
-       * The entire file is one JSON resource. The JSON can span multiple lines.
-       */
+      /** The entire file is one JSON resource. The JSON can span multiple lines. */
       RESOURCE_PRETTY
     }
 
-    /**
-     * The type Import fn.
-     */
+    /** The type Import fn. */
     static class ImportFn extends DoFn<HttpBody, HealthcareIOError<HttpBody>> {
       private final String fhirStore;
       private final String tempGcsPath;
@@ -822,9 +828,7 @@ public class FhirIO {
     }
   }
 
-  /**
-   * The type Execute bundles.
-   */
+  /** The type Execute bundles. */
   public static class ExecuteBundles extends PTransform<PCollection<HttpBody>, Write.Result> {
     private final String fhirStore;
 
@@ -852,9 +856,7 @@ public class FhirIO {
           input.getPipeline(), input.apply(ParDo.of(new ExecuteBundlesFn(fhirStore))));
     }
 
-    /**
-     * The type Write Fhir fn.
-     */
+    /** The type Write Fhir fn. */
     static class ExecuteBundlesFn extends DoFn<HttpBody, HealthcareIOError<HttpBody>> {
 
       private Counter failedBundles = Metrics.counter(ExecuteBundlesFn.class, "failed-bundles");
