@@ -1018,9 +1018,9 @@ def _use_unified_worker(pipeline_options):
   use_unified_worker_flag = 'use_unified_worker'
   use_runner_v2_flag = 'use_runner_v2'
 
-  if (debug_options.lookup_experiment(use_runner_v2_flag) and not
-  debug_options.lookup_experiment(use_unified_worker_flag)):
-      debug_options.add_experiment(use_unified_worker_flag)
+  if (debug_options.lookup_experiment(use_runner_v2_flag) and
+      not debug_options.lookup_experiment(use_unified_worker_flag)):
+    debug_options.add_experiment(use_unified_worker_flag)
 
   return debug_options.lookup_experiment(use_unified_worker_flag)
 
