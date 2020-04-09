@@ -25,13 +25,14 @@ import unittest
 import pytest
 
 from apache_beam.runners.interactive.testing.integration.screen_diff import BaseTestCase
+from apache_beam.runners.interactive.testing.integration.screen_diff import should_skip
 
 
 @unittest.skipIf(
-    BaseTestCase.should_skip(),
+    should_skip(),
     '[interactive] and [interactive_test] dependency are both required.')
 @pytest.mark.skipif(
-    BaseTestCase.should_skip(),
+    should_skip(),
     reason='[interactive] and [interactive_test] dependency are both required.')
 class InitSquareCubeTest(BaseTestCase):
   def test_init_square_cube_notebook(self):

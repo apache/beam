@@ -113,99 +113,107 @@ class ScreenDiffIntegrationTestEnvironment(object):
     return self._notebook_executor.notebook_path_to_execution_id
 
 
-def _should_skip():
+def should_skip():
   """Whether a screen diff test should be skipped."""
   return not (
       ie.current_env().is_interactive_ready and _interactive_integration_ready)
 
 
-class BaseTestCase(NeedleTestCase):
-  """A base test case to execute screen diff integration tests."""
-  # Whether the browser should be headless.
-  _headless = True
+if should_skip():
 
-  def __init__(self, *args, **kwargs):
-    """Initializes a test.
-
-    Some kwargs that could be configured:
-
-      #. golden_dir=<path>. A directory path pointing to all the golden
-         screenshots as baselines for comparison.
-      #. test_notebook_dir=<path>. A path pointing to a directory of
-         notebook files in ipynb format.
-      #. headless=<True/False>. Whether the browser should be headless when
-         executing the tests.
-      #. golden_size=<(int, int)>. The size of the screenshot to take and
-         compare.
-      #. cleanup=<True/False>. Whether to clean up the output directory. Should
-         always be True in automated test environment. When debugging, turn it
-         False to manually check the output for difference.
+  class BaseTestCase(unittest.TestCase):
+    """A noop base test case if interactive_test dependency is not installed.
     """
-    self._golden_dir = kwargs.pop(
-        'golden_dir',
-        'apache_beam/runners/interactive/testing/integration/goldens')
-    self._test_notebook_dir = kwargs.pop(
-        'test_notebook_dir',
-        'apache_beam/runners/interactive/testing/integration/test_notebooks')
-    BaseTestCase._headless = kwargs.pop('headless', True)
-    self._test_env = None
-    self._viewport_width, self._viewport_height = kwargs.pop(
-      'golden_size', (1024, 10000))
-    self._cleanup = kwargs.pop('cleanup', True)
-    NeedleTestCase.baseline_directory = os.path.join(
-        os.getcwd(), self._golden_dir)
-    NeedleTestCase.output_directory = os.path.join(
-        os.getcwd(), self._test_notebook_dir, 'output')
-    super(BaseTestCase, self).__init__(*args, **kwargs)
+    def assert_all(self):
+      pass
 
-  @classmethod
-  def should_skip(cls):
-    """Whether the tests should be skipped."""
-    return _should_skip()
+    def assert_single(self):
+      pass
 
-  @classmethod
-  def get_web_driver(cls):
-    chrome_options = Options()
-    if cls._headless:
-      chrome_options.add_argument("--headless")
-    return NeedleChrome(options=chrome_options)
+    def assert_notebook(self):
+      pass
 
-  def setUp(self):
-    self.set_viewport_size(self._viewport_width, self._viewport_height)
+else:
 
-  def run(self, result=None):
-    if BaseTestCase.should_skip():
-      return
-    with ScreenDiffIntegrationTestEnvironment(self._test_notebook_dir,
-                                              self._golden_dir,
-                                              self._cleanup) as test_env:
-      self._test_env = test_env
-      super(BaseTestCase, self).run(result)
+  class BaseTestCase(NeedleTestCase):
+    """A base test case to execute screen diff integration tests."""
+    # Whether the browser should be headless.
+    _headless = True
 
-  def assert_all(self):
-    """Asserts screenshots for all notebooks in the test_notebook_path."""
-    for test_id, test_url in self._test_env.test_urls.items():
+    def __init__(self, *args, **kwargs):
+      """Initializes a test.
+
+      Some kwargs that could be configured:
+
+        #. golden_dir=<path>. A directory path pointing to all the golden
+           screenshots as baselines for comparison.
+        #. test_notebook_dir=<path>. A path pointing to a directory of
+           notebook files in ipynb format.
+        #. headless=<True/False>. Whether the browser should be headless when
+           executing the tests.
+        #. golden_size=<(int, int)>. The size of the screenshot to take and
+           compare.
+        #. cleanup=<True/False>. Whether to clean up the output directory.
+           Should always be True in automated test environment. When debugging,
+           turn it False to manually check the output for difference.
+      """
+      self._golden_dir = kwargs.pop(
+          'golden_dir',
+          'apache_beam/runners/interactive/testing/integration/goldens')
+      self._test_notebook_dir = kwargs.pop(
+          'test_notebook_dir',
+          'apache_beam/runners/interactive/testing/integration/test_notebooks')
+      BaseTestCase._headless = kwargs.pop('headless', True)
+      self._test_env = None
+      self._viewport_width, self._viewport_height = kwargs.pop(
+        'golden_size', (1024, 10000))
+      self._cleanup = kwargs.pop('cleanup', True)
+      self.baseline_directory = os.path.join(os.getcwd(), self._golden_dir)
+      self.output_directory = os.path.join(
+          os.getcwd(), self._test_notebook_dir, 'output')
+      super(BaseTestCase, self).__init__(*args, **kwargs)
+
+    @classmethod
+    def get_web_driver(cls):
+      chrome_options = Options()
+      if cls._headless:
+        chrome_options.add_argument("--headless")
+      return NeedleChrome(options=chrome_options)
+
+    def setUp(self):
+      self.set_viewport_size(self._viewport_width, self._viewport_height)
+
+    def run(self, result=None):
+      with ScreenDiffIntegrationTestEnvironment(self._test_notebook_dir,
+                                                self._golden_dir,
+                                                self._cleanup) as test_env:
+        self._test_env = test_env
+        super(BaseTestCase, self).run(result)
+
+    def assert_all(self):
+      """Asserts screenshots for all notebooks in the test_notebook_path."""
+      for test_id, test_url in self._test_env.test_urls.items():
+        self.driver.get(test_url)
+        self.assertScreenshot('body', test_id)
+
+    def assert_single(self, test_id):
+      """Asserts the screenshot for a single test. The given test id will be the
+      name of the golden screenshot."""
+      test_url = self._test_env.test_urls.get(test_id, None)
+      assert test_url, '{} is not a valid test id.'.format(test_id)
       self.driver.get(test_url)
       self.assertScreenshot('body', test_id)
 
-  def assert_single(self, test_id):
-    """Asserts the screenshot for a single test. The given test id will be the
-    name of the golden screenshot."""
-    test_url = self._test_env.test_urls.get(test_id, None)
-    assert test_url, '{} is not a valid test id.'.format(test_id)
-    self.driver.get(test_url)
-    self.assertScreenshot('body', test_id)
-
-  def assert_notebook(self, notebook_name):
-    """Asserts the screenshot for a single notebook. The notebook with the
-    given notebook_name under test_notebook_dir will be executed and asserted.
-    """
-    if not notebook_name.endswith('.ipynb'):
-      notebook_name += '.ipynb'
-    notebook_path = os.path.join(self._test_notebook_dir, notebook_name)
-    test_id = self._test_env.notebook_path_to_test_id.get(notebook_path, None)
-    assert test_id, 'Cannot find notebook with name {}.'.format(notebook_name)
-    self.assert_single(test_id)
+    def assert_notebook(self, notebook_name):
+      """Asserts the screenshot for a single notebook. The notebook with the
+      given notebook_name under test_notebook_dir will be executed and asserted.
+      """
+      if not notebook_name.endswith('.ipynb'):
+        notebook_name += '.ipynb'
+      notebook_path = os.path.join(self._test_notebook_dir, notebook_name)
+      test_id = self._test_env.notebook_path_to_test_id.get(notebook_path, None)
+      assert test_id, 'Cannot find notebook with name {}.'.format(notebook_name)
+      self.assert_single(test_id)
 
 
 # This file contains no tests. Below lines are purely for passing lint.
