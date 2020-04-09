@@ -34,4 +34,5 @@ pip uninstall -y tenacity
 
 mkdir sdks/java/container/third_party_licenses
 cp -r java_third_party_licenses/*.jar sdks/java/container/third_party_licenses/
+cp -r java_third_party_licenses/*.csv sdks/java/container/third_party_licenses/
 rm -rf java_third_party_licenses
