@@ -580,7 +580,6 @@ class SdkWorker(object):
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
         process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
-            metrics=processor.metrics() if processor else None,
             monitoring_infos=monitoring_infos,
             monitoring_data={
                 SHORT_ID_CACHE.getShortId(info): info.payload
