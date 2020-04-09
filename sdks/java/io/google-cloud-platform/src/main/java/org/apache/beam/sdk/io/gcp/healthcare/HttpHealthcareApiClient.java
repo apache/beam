@@ -137,9 +137,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public FhirStore createFhirStore(String dataset, String name, String version) throws IOException {
     FhirStore store = new FhirStore();
-    // TODO add separate integration tests for each FHIR version:
-    // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores#Version
-    // Our integration test data is STU3.
     store.setVersion(version);
     store.setDisableReferentialIntegrity(true);
     store.setEnableUpdateCreate(true);
