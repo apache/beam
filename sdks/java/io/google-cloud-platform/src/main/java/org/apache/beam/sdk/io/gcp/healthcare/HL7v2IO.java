@@ -97,7 +97,7 @@ import org.slf4j.LoggerFactory;
  * that failed to be ingested and the exception. This can be used to write to the dead letter
  * storage system of your chosing.
  *
- * <p>Unbounded Example:
+ * <p>Unbounded Read Example:
  *
  * <pre>{@code
  * PipelineOptions options = ...;
@@ -106,7 +106,7 @@ import org.slf4j.LoggerFactory;
  * HL7v2IO.Read.Result readResult = p
  *   .apply(
  *     "Read HL7v2 notifications",
- *     PubSubIO.readStrings().fromTopic(options.getNotificationSubscription()))
+ *     PubsubIO.readStrings().fromSubscription(options.getNotificationSubscription()))
  *   .apply(HL7v2IO.getAll());
  *
  * // Write errors to your favorite dead letter  queue (e.g. Pub/Sub, GCS, BigQuery)
