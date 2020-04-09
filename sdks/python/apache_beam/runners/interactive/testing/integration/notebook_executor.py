@@ -24,11 +24,13 @@ from __future__ import absolute_import
 
 import os
 import shutil
+import subprocess
 
 from apache_beam.runners.interactive.utils import obfuscate
 
 try:
   import nbformat
+  from jupyter_client.kernelspec import KernelSpecManager
   from nbconvert.preprocessors import ExecutePreprocessor
   _interactive_integration_ready = True
 except ImportError:
@@ -59,6 +61,14 @@ class NotebookExecutor(object):
     self.cleanup()
     self._output_html_paths = {}
     self._notebook_path_to_execution_id = {}
+    kernel_specs = KernelSpecManager().get_all_specs()
+    if 'test' not in kernel_specs:
+      # Install a test ipython kernel in current runtime environment. If this
+      # errors out, it means the test env is broken and should fail the test.
+      process = subprocess.run(
+          ['python', '-m', 'ipykernel', 'install', '--user', '--name', 'test'],
+          check=True)
+      process.check_returncode()
 
   def cleanup(self):
     """Cleans up the output folder."""
@@ -70,7 +80,7 @@ class NotebookExecutor(object):
     for path in self._paths:
       with open(path, 'r') as nb_f:
         nb = nbformat.read(nb_f, as_version=4)
-        ep = ExecutePreprocessor(allow_errors=True)
+        ep = ExecutePreprocessor(allow_errors=True, kernel_name='test')
         ep.preprocess(nb, {'metadata': {'path': os.path.dirname(path)}})
 
       execution_id = obfuscate(path)

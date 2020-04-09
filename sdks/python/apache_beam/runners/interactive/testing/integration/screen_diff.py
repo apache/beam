@@ -45,8 +45,8 @@ except ImportError:
 class ScreenDiffIntegrationTestEnvironment(object):
   """A test environment to conduct screen diff integration tests for notebooks.
   """
-  def __init__(self, test_notebook_path, golden_dir):
-    # type: (str, str) -> None
+  def __init__(self, test_notebook_path, golden_dir, cleanup=True):
+    # type: (str, str, bool) -> None
 
     assert _interactive_integration_ready, (
         '[interactive_test] dependency is not installed.')
@@ -56,7 +56,7 @@ class ScreenDiffIntegrationTestEnvironment(object):
     self._golden_dir = golden_dir
     self._notebook_executor = notebook_executor.NotebookExecutor(
         test_notebook_path)
-    self._test_path_to_id = {}
+    self._cleanup = cleanup
     self._test_urls = {}
     self._server = None
     self._server_daemon = None
@@ -80,7 +80,7 @@ class ScreenDiffIntegrationTestEnvironment(object):
       return self
 
   def __exit__(self, exc_type, exc_value, traceback):
-    if self._notebook_executor:
+    if self._notebook_executor and self._cleanup:
       self._notebook_executor.cleanup()
     if self._server:
 
@@ -113,6 +113,12 @@ class ScreenDiffIntegrationTestEnvironment(object):
     return self._notebook_executor.notebook_path_to_execution_id
 
 
+def _should_skip():
+  """Whether a screen diff test should be skipped."""
+  return not (
+      ie.current_env().is_interactive_ready and _interactive_integration_ready)
+
+
 class BaseTestCase(NeedleTestCase):
   """A base test case to execute screen diff integration tests."""
   # Whether the browser should be headless.
@@ -131,6 +137,9 @@ class BaseTestCase(NeedleTestCase):
          executing the tests.
       #. golden_size=<(int, int)>. The size of the screenshot to take and
          compare.
+      #. cleanup=<True/False>. Whether to clean up the output directory. Should
+         always be True in automated test environment. When debugging, turn it
+         False to manually check the output for difference.
     """
     self._golden_dir = kwargs.pop(
         'golden_dir',
@@ -142,6 +151,7 @@ class BaseTestCase(NeedleTestCase):
     self._test_env = None
     self._viewport_width, self._viewport_height = kwargs.pop(
       'golden_size', (1024, 10000))
+    self._cleanup = kwargs.pop('cleanup', True)
     NeedleTestCase.baseline_directory = os.path.join(
         os.getcwd(), self._golden_dir)
     NeedleTestCase.output_directory = os.path.join(
@@ -151,9 +161,7 @@ class BaseTestCase(NeedleTestCase):
   @classmethod
   def should_skip(cls):
     """Whether the tests should be skipped."""
-    return not (
-        ie.current_env().is_interactive_ready and
-        _interactive_integration_ready)
+    return _should_skip()
 
   @classmethod
   def get_web_driver(cls):
@@ -169,7 +177,8 @@ class BaseTestCase(NeedleTestCase):
     if BaseTestCase.should_skip():
       return
     with ScreenDiffIntegrationTestEnvironment(self._test_notebook_dir,
-                                              self._golden_dir) as test_env:
+                                              self._golden_dir,
+                                              self._cleanup) as test_env:
       self._test_env = test_env
       super(BaseTestCase, self).run(result)
 
@@ -199,5 +208,6 @@ class BaseTestCase(NeedleTestCase):
     self.assert_single(test_id)
 
 
+# This file contains no tests. Below lines are purely for passing lint.
 if __name__ == '__main__':
   unittest.main()
