@@ -41,7 +41,9 @@ import argparse
 import json
 import logging
 import math
+import sys
 import time
+from random import Random
 
 import apache_beam as beam
 from apache_beam.io import WriteToText
@@ -59,6 +61,31 @@ try:
   import numpy as np
 except ImportError:
   np = None
+
+
+class _Random(Random):
+  """A subclass of `random.Random` from the Python Standard Library that
+  provides a method returning random bytes of arbitrary length.
+  """
+
+  # `numpy.random.RandomState` does not provide `random()` method, we keep this
+  # for compatibility reasons.
+  random_sample = Random.random
+
+  def bytes(self, length):
+    """Returns random bytes.
+
+    Args:
+      length (int): Number of random bytes.
+    """
+    return self.getrandbits(length * 8).to_bytes(length, sys.byteorder)
+
+
+Generator = _Random
+
+# TODO(BEAM-7372): Remove this when Beam drops Python 2.
+if np is not None and sys.version_info.major == 2:
+  Generator = np.random.RandomState
 
 
 def parse_byte_size(s):
@@ -415,25 +442,29 @@ class SyntheticSource(iobase.BoundedSource):
       tracker = range_trackers.UnsplittableRangeTracker(tracker)
     return tracker
 
-  def _gen_kv_pair(self, index):
-    r = np.random.RandomState(index)
-    rand = r.random_sample()
+  def _gen_kv_pair(self, generator, index):
+    generator.seed(index)
+    rand = generator.random_sample()
 
     # Determines whether to generate hot key or not.
     if rand < self._hot_key_fraction:
       # Generate hot key.
       # An integer is randomly selected from the range [0, numHotKeys-1]
       # with equal probability.
-      r_hot = np.random.RandomState(index % self._num_hot_keys)
-      return r_hot.bytes(self._key_size), r.bytes(self._value_size)
+      generator_hot = Generator(index % self._num_hot_keys)
+      bytes_ = generator_hot.bytes(self._key_size), generator.bytes(
+        self._value_size)
     else:
-      return r.bytes(self._key_size), r.bytes(self._value_size)
+      bytes_ = generator.bytes(self.element_size)
+      bytes_ = bytes_[:self._key_size], bytes_[self._key_size:]
+    return bytes_
 
   def read(self, range_tracker):
     index = range_tracker.start_position()
+    generator = Generator()
     while range_tracker.try_claim(index):
       time.sleep(self._sleep_per_input_record_sec)
-      yield self._gen_kv_pair(index)
+      yield self._gen_kv_pair(generator, index)
       index += 1
 
   def default_output_coder(self):
@@ -551,7 +582,8 @@ class SyntheticSDFAsSource(beam.DoFn):
           SyntheticSDFSourceRestrictionProvider())):
     cur = restriction_tracker.current_restriction().start
     while restriction_tracker.try_claim(cur):
-      r = np.random.RandomState(cur)
+      r = Generator()
+      r.seed(cur)
       time.sleep(element['sleep_per_input_record_sec'])
       yield r.bytes(element['key_size']), r.bytes(element['value_size'])
       cur += 1
