@@ -4993,8 +4993,8 @@ public class ParDoTest implements Serializable {
             @OnTimer(timerId)
             public void onTimer(
                 @Timestamp Instant timestamp,
-                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
-                OutputReceiver<Integer> r) {
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
+              // To check if state is persisted until OnWindowExpiration
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               state.write(currentValue + 1);
             }
@@ -5004,8 +5004,10 @@ public class ParDoTest implements Serializable {
                 @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
                 OutputReceiver<Integer> r) {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
-              // check the value of state
+              // verify state
               assertEquals(1, (int) currentValue);
+
+              // To check output is received from OnWindowExpiration
               r.output(currentValue);
             }
           };
@@ -5024,9 +5026,11 @@ public class ParDoTest implements Serializable {
 
       PAssert.that(output)
           .inWindow(firstWindow)
-          .containsInAnyOrder(0)
+          // verify output
+          .containsInAnyOrder(1)
           .inWindow(secondWindow)
-          .containsInAnyOrder(0);
+          // verify output
+          .containsInAnyOrder(1);
       pipeline.run();
     }
   }
