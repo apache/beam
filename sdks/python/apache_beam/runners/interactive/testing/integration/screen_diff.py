@@ -28,6 +28,8 @@ from http.server import SimpleHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from multiprocessing import Process
 
+import pytest
+
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.testing.integration import notebook_executor
 
@@ -121,17 +123,14 @@ def should_skip():
 
 if should_skip():
 
+  @unittest.skip(
+      reason='[interactive] and [interactive_test] deps are both required.')
+  @pytest.mark.skip(
+      reason='[interactive] and [interactive_test] deps are both required.')
   class BaseTestCase(unittest.TestCase):
-    """A noop base test case if interactive_test dependency is not installed.
+    """A skipped base test case if interactive_test dependency is not installed.
     """
-    def assert_all(self):
-      pass
-
-    def assert_single(self):
-      pass
-
-    def assert_notebook(self):
-      pass
+    pass
 
 else:
 
