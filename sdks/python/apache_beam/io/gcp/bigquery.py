@@ -762,18 +762,22 @@ class _CustomBigQuerySource(BoundedSource):
     """
     job_id = uuid.uuid4().hex
     if self.backwards_compatible:
-      file_format = bigquery_tools.FileFormat.AVRO
+      job_ref = bq.perform_extract_job([self.gcs_location],
+                                       job_id,
+                                       self.table_reference,
+                                       bigquery_tools.FileFormat.JSON,
+                                       project=self._get_project(),
+                                       job_labels=self.bigquery_job_labels,
+                                       include_header=False)
     else:
-      file_format = bigquery_tools.FileFormat.JSON
-
-    job_ref = bq.perform_extract_job([self.gcs_location],
-                                     job_id,
-                                     self.table_reference,
-                                     file_format,
-                                     project=self._get_project(),
-                                     include_header=False,
-                                     job_labels=self.bigquery_job_labels,
-                                     use_avro_logical_types=True)
+      job_ref = bq.perform_extract_job([self.gcs_location],
+                                       job_id,
+                                       self.table_reference,
+                                       bigquery_tools.FileFormat.AVRO,
+                                       project=self._get_project(),
+                                       include_header=False,
+                                       job_labels=self.bigquery_job_labels,
+                                       use_avro_logical_types=True)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
