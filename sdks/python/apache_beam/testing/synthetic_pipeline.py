@@ -38,11 +38,9 @@ from __future__ import absolute_import
 from __future__ import division
 
 import argparse
-import itertools
 import json
 import logging
 import math
-import struct
 import sys
 import time
 from random import Random
@@ -80,11 +78,7 @@ class _Random(Random):
     Args:
       length (int): Number of random bytes.
     """
-    n = length // 8 + 1
-    # pylint: disable=map-builtin-not-iterating
-    return struct.pack(
-        '{}Q'.format(n),
-        *map(self.getrandbits, itertools.repeat(64, n)))[:length]
+    return self.getrandbits(length * 8).to_bytes(length, sys.byteorder)
 
 
 Generator = _Random
