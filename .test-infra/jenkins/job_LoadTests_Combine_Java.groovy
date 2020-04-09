@@ -31,6 +31,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                   runner         : CommonTestProperties.Runner.DATAFLOW,
                   pipelineOptions: [
                           project             : 'apache-beam-testing',
+                          region              : 'us-central1',
                           appName             : "load_tests_Java_Dataflow_${jobType}_Combine_1",
                           tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                           publishToBigQuery   : true,
@@ -58,6 +59,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_Combine_4",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
@@ -85,6 +87,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_Combine_5",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
