@@ -21,8 +21,5 @@ require (
 	github.com/apache/beam v2.19.0+incompatible
 	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/google/go-cmp v0.4.0 // indirect
-	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
-	go.opencensus.io v0.22.3 // indirect
-	google.golang.org/api v0.21.0 // indirect
 	google.golang.org/grpc v1.28.0 // indirect
 )

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module task3
+module task
 
 go 1.13
 
@@ -21,5 +21,7 @@ require (
 	github.com/apache/beam v2.19.0+incompatible
 	github.com/golang/protobuf v1.3.5 // indirect
 	github.com/google/go-cmp v0.4.0 // indirect
+	go.opencensus.io v0.22.3 // indirect
+	google.golang.org/api v0.21.0 // indirect
 	google.golang.org/grpc v1.28.0 // indirect
 )

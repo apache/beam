@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,22 +18,5 @@
 # under the License.
 #
 
-type: edu
-custom_name: Hello Test
-files:
-- name: test/task_test.go
-  visible: true
-  placeholders:
-  - offset: 1067
-    length: 22
-    placeholder_text: 'TODO: provide a value to validate the test.'
-  - offset: 1124
-    length: 31
-    placeholder_text: 'TODO: assert got == want here.'
-  - offset: 1165
-    length: 12
-    placeholder_text: 'TODO: run the test.'
-- name: go.mod
-  visible: false
-- name: go.sum
-  visible: true
+content:
+  - Hello Test

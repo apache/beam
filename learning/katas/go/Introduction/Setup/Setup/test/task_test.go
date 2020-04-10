@@ -21,23 +21,27 @@ import (
 	"testing"
 )
 
+const (
+	outputPath = "output.txt"
+)
+
 func TestTask(t *testing.T) {
 	err := task.Task()
 	if err != nil {
 		t.Error(err)
 	}
-	data, err := ioutil.ReadFile(task.OutputFile)
+	data, err := ioutil.ReadFile(outputPath)
 	if err != nil {
 		t.Error(err)
 	}
 
-	want := "Hello Beam\n"
+	want := "This proves your pipeline is running.\n"
 	got := string(data)
 	if want != got {
 		t.Errorf("want: %s got: %s", want, got)
 	}
 
-	err = ioutil.WriteFile(task.OutputFile, []byte{}, 0644)
+	err = ioutil.WriteFile(outputPath, []byte{}, 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

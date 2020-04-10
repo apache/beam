@@ -18,22 +18,20 @@
 #
 
 type: edu
-custom_name: Setup
 files:
 - name: test/task_test.go
+  visible: false
+- name: test/output.txt
   visible: false
 - name: task.go
   visible: true
   placeholders:
-  - offset: 961
-    length: 26
-    placeholder_text: 'TODO: create a new pipeline'
-  - offset: 1012
-    length: 34
-    placeholder_text: 'TODO: execute the pipeline'
+  - offset: 1143
+    length: 28
+    placeholder_text: 'TODO: inject your pipeline with "Hello Beam".'
 - name: go.mod
   visible: false
 - name: go.sum
-  visible: true
+  visible: false
 - name: check.go
   visible: false

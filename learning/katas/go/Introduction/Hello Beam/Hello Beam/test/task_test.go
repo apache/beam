@@ -13,16 +13,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module task1
+package test
 
-go 1.13
-
-require (
-	github.com/apache/beam v2.19.0+incompatible
-	github.com/golang/protobuf v1.3.5 // indirect
-	github.com/google/go-cmp v0.4.0 // indirect
-	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
-	go.opencensus.io v0.22.3 // indirect
-	google.golang.org/api v0.21.0 // indirect
-	google.golang.org/grpc v1.28.0 // indirect
+import (
+	"io/ioutil"
+	"task"
+	"testing"
 )
+
+func TestTask(t *testing.T) {
+	err := task.Task()
+	if err != nil {
+		t.Error(err)
+	}
+
+	data, err := ioutil.ReadFile(task.OutputFile)
+	if err != nil {
+		t.Error(err)
+	}
+
+	want := "Hello Beam\n"
+	got := string(data)
+	if want != got {
+		t.Errorf("want: %s got: %s", want, got)
+	}
+
+	// This is intended to clear the output.txt to revert back to the original state
+	err = ioutil.WriteFile(task.OutputFile, []byte{}, 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

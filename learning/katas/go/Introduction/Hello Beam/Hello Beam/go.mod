@@ -13,36 +13,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+module task
 
-import (
-	"io/ioutil"
-	task "task1"
-	"testing"
+go 1.13
+
+require (
+	github.com/apache/beam v2.19.0+incompatible
+	github.com/golang/protobuf v1.3.5 // indirect
+	github.com/google/go-cmp v0.4.0 // indirect
+	go.opencensus.io v0.22.3 // indirect
+	google.golang.org/api v0.21.0 // indirect
+	google.golang.org/grpc v1.28.0 // indirect
 )
-
-const (
-	outputPath = "output.txt"
-)
-
-func TestTask(t *testing.T) {
-	err := task.Task()
-	if err != nil {
-		t.Error(err)
-	}
-	data, err := ioutil.ReadFile(outputPath)
-	if err != nil {
-		t.Error(err)
-	}
-
-	want := "This proves your pipeline is running.\n"
-	got := string(data)
-	if want != got {
-		t.Errorf("want: %s got: %s", want, got)
-	}
-
-	err = ioutil.WriteFile(outputPath, []byte{}, 0644)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
