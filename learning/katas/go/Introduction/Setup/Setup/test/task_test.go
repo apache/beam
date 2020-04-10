@@ -41,6 +41,7 @@ func TestTask(t *testing.T) {
 		t.Errorf("want: %s got: %s", want, got)
 	}
 
+	// This is intended to clear the output.txt to revert back to the original state
 	err = ioutil.WriteFile(outputPath, []byte{}, 0644)
 	if err != nil {
 		t.Fatal(err)
