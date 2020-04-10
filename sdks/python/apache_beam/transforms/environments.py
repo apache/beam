@@ -258,7 +258,7 @@ class DockerEnvironment(Environment):
 
   @classmethod
   def from_container_image(cls, container_image, artifacts=()):
-    # type: (ContainerImage) -> DockerEnvironment
+    # type: (str) -> DockerEnvironment
     return cls(
         container_image=container_image,
         capabilities=python_sdk_capabilities(),
