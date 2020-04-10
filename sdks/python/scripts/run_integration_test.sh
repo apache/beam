@@ -29,6 +29,7 @@
 #     runner        -> Runner that execute pipeline job.
 #                      e.g. TestDataflowRunner, TestDirectRunner
 #     project       -> Project name of the cloud service.
+#     region        -> Compute Engine region to create the Dataflow job.
 #     gcs_location  -> Base location on GCS. Some pipeline options are
 #                      derived from it including output, staging_location
 #                      and temp_location.
@@ -68,6 +69,7 @@
 # Default pipeline options
 PROJECT=apache-beam-testing
 RUNNER=TestDataflowRunner
+REGION=us-central1
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 SDK_LOCATION=build/apache-beam.tar.gz
 NUM_WORKERS=1
@@ -93,6 +95,11 @@ case $key in
         ;;
     --project)
         PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --region)
+        REGION="$2"
         shift # past argument
         shift # past value
         ;;
@@ -210,6 +217,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
   opts=(
     "--runner=$RUNNER"
     "--project=$PROJECT"
+    "--region=$REGION"
     "--staging_location=$GCS_LOCATION/staging-it"
     "--temp_location=$GCS_LOCATION/temp-it"
     "--output=$GCS_LOCATION/py-it-cloud/output"
@@ -232,8 +240,6 @@ if [[ -z $PIPELINE_OPTS ]]; then
   # Add --runner_v2 if provided
   if [[ "$RUNNER_V2" = true ]]; then
     opts+=("--experiments=use_runner_v2")
-    # Cleanup jira BEAM-9391
-    opts+=("--experiments=runner_harness_container_image=gcr.io/cloud-dataflow/v1beta3/unified-harness:20200227-rc01")
     if [[ "$STREAMING" = true ]]; then
       # Dataflow Runner V2 only supports streaming engine.
       opts+=("--enable_streaming_engine")

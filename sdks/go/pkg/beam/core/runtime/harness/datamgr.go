@@ -24,7 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 const (
@@ -133,10 +133,10 @@ type clientID struct {
 
 // This is a reduced version of the full gRPC interface to help with testing.
 // TODO(wcn): need a compile-time assertion to make sure this stays synced with what's
-// in pb.BeamFnData_DataClient
+// in fnpb.BeamFnData_DataClient
 type dataClient interface {
-	Send(*pb.Elements) error
-	Recv() (*pb.Elements, error)
+	Send(*fnpb.Elements) error
+	Recv() (*fnpb.Elements, error)
 }
 
 // DataChannel manages a single gRPC stream over the Data API. Data from
@@ -166,7 +166,7 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
 	}
-	client, err := pb.NewBeamFnDataClient(cc).Data(ctx)
+	client, err := fnpb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
 		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
@@ -391,7 +391,7 @@ type dataWriter struct {
 }
 
 // send requires the ch.mu lock to be held.
-func (w *dataWriter) send(msg *pb.Elements) error {
+func (w *dataWriter) send(msg *fnpb.Elements) error {
 	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
@@ -423,13 +423,13 @@ func (w *dataWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.writers, w.id)
-	msg := &pb.Elements{
-		Data: []*pb.Elements_Data{
+	msg := &fnpb.Elements{
+		Data: []*fnpb.Elements_Data{
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
-				IsLast:        true,
+				IsLast: true,
 			},
 		},
 	}
@@ -446,8 +446,8 @@ func (w *dataWriter) Flush() error {
 		return nil
 	}
 
-	msg := &pb.Elements{
-		Data: []*pb.Elements_Data{
+	msg := &fnpb.Elements{
+		Data: []*fnpb.Elements_Data{
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,

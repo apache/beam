@@ -344,8 +344,8 @@ public class CreateExecutableStageNodeFunction
 
             // Build the necessary components to inform the SDK Harness of the pipeline's
             // user timers and user state.
-            for (Map.Entry<String, RunnerApi.TimerSpec> entry :
-                parDoPayload.getTimerSpecsMap().entrySet()) {
+            for (Map.Entry<String, RunnerApi.TimerFamilySpec> entry :
+                parDoPayload.getTimerFamilySpecsMap().entrySet()) {
               timerIds.add(entry.getKey());
             }
             for (Map.Entry<String, RunnerApi.StateSpec> entry :

@@ -1156,6 +1156,9 @@ public abstract class DoFnSignature {
    */
   @AutoValue
   public abstract static class TimerDeclaration {
+
+    public static final String PREFIX = "ts-";
+
     public abstract String id();
 
     public abstract Field field();
@@ -1171,6 +1174,9 @@ public abstract class DoFnSignature {
    */
   @AutoValue
   public abstract static class TimerFamilyDeclaration {
+
+    public static final String PREFIX = "tfs-";
+
     public abstract String id();
 
     public abstract Field field();

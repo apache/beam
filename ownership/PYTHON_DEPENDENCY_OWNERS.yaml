@@ -54,9 +54,6 @@ deps:
   google-cloud-pubsub:
     owners: markflyhigh
 
-  googledatastore:
-    owners:
-
   grpcio:
     owners: robertwb
 
@@ -73,9 +70,6 @@ deps:
     owners: yichi
 
   oauth2client:
-    owners:
-
-  proto-google-cloud-datastore-v1:
     owners:
 
   proto-google-cloud-pubsub-v1:

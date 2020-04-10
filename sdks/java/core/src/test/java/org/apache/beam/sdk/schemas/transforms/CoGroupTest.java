@@ -475,7 +475,7 @@ public class CoGroupTest {
                 Create.of(Row.withSchema(CG_SCHEMA_1).addValues("user1", 9, "us").build()))
             .setRowSchema(CG_SCHEMA_1);
 
-    thrown.expect(IllegalStateException.class);
+    thrown.expect(IllegalArgumentException.class);
     PCollection<Row> joined =
         PCollectionTuple.of("pc1", pc1, "pc2", pc2)
             .apply(

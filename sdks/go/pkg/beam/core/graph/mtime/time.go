@@ -100,18 +100,16 @@ func (t Time) String() string {
 func Min(a, b Time) Time {
 	if int64(a) < int64(b) {
 		return a
-	} else {
-		return b
 	}
+	return b
 }
 
 // Max returns the largest (latest) time.
 func Max(a, b Time) Time {
 	if int64(a) < int64(b) {
 		return b
-	} else {
-		return a
 	}
+	return a
 }
 
 // Normalize ensures a Time is within [MinTimestamp,MaxTimestamp].

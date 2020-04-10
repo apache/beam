@@ -53,7 +53,7 @@ var (
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
+	region               = flag.String("region", "", "GCP Region (required)")
 	network              = flag.String("network", "", "GCP network (optional)")
 	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
@@ -93,10 +93,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *region == "" {
-		*region = "us-central1"
-		log.Warn(ctx, "--region not set; will default to us-central1. Future releases of Beam will "+
-			"require the user to set the region explicitly. "+
-			"https://cloud.google.com/compute/docs/regions-zones/regions-zones")
+		return errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
 	}
 	if *image == "" {
 		*image = getContainerImage(ctx)

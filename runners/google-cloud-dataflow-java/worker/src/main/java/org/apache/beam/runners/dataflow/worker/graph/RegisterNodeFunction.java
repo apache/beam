@@ -124,8 +124,10 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   public static RegisterNodeFunction forPipeline(
       RunnerApi.Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
-    return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+    return new RegisterNodeFunction(
+        pipeline, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
   /**
@@ -134,14 +136,18 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
    * harnesses, then this method should be removed.
    */
   public static RegisterNodeFunction withoutPipeline(
-      IdGenerator idGenerator, Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
-    return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
+      IdGenerator idGenerator,
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+    return new RegisterNodeFunction(
+        null, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
       @Nullable RunnerApi.Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
     this.pipeline = pipeline;
     this.idGenerator = idGenerator;
     this.stateApiServiceDescriptor = stateApiServiceDescriptor;

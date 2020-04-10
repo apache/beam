@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
-import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.transforms.CoGroup;
 import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -63,16 +62,6 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
         inputs);
     PCollection<Row> leftRows = inputs.get(0);
     PCollection<Row> rightRows = inputs.get(1);
-    Schema leftSchema = leftRows.getSchema();
-    Schema rightSchema = rightRows.getSchema();
-    if (!leftSchema.typesEqual(rightSchema)) {
-      throw new IllegalArgumentException(
-          "Can't intersect two tables with different schemas."
-              + "lhsSchema: "
-              + leftSchema
-              + "  rhsSchema: "
-              + rightSchema);
-    }
 
     WindowFn leftWindow = leftRows.getWindowingStrategy().getWindowFn();
     WindowFn rightWindow = rightRows.getWindowingStrategy().getWindowFn();

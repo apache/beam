@@ -230,9 +230,6 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Generating and Pushing Java images-----------------'
   ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
-  echo '-------------------Generating and Pushing Go images-----------------'
-  ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
-
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
   for ver in "${FLINK_VER[@]}"; do
@@ -249,7 +246,6 @@ if [[ $confirmation = "y" ]]; then
      docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM}
   done
   docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}_rc${RC_NUM}
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}_rc${RC_NUM}
   for ver in "${FLINK_VER[@]}"; do
     docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
   done
