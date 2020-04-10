@@ -204,7 +204,7 @@ class PipelineOptionsValidator(object):
               self._validate_error(
                   self.ERR_INVALID_TRANSFORM_NAME_MAPPING, key, value))
           break
-    if view.region is None:
+    if view.region is None and self.is_service_runner():
       default_region = self.runner.get_default_gcp_region()
       if default_region is None:
         errors.extend(self._validate_error(self.ERR_MISSING_OPTION, 'region'))
@@ -230,6 +230,11 @@ class PipelineOptionsValidator(object):
       errors.extend(
           self._validate_error(
               'worker_region and worker_zone are mutually exclusive.'))
+    if view.zone:
+      _LOGGER.warning(
+          'Option --zone is deprecated. Please use --worker_zone instead.')
+      view.worker_zone = view.zone
+      view.zone = None
     return errors
 
   def validate_optional_argument_positive(self, view, arg_name):

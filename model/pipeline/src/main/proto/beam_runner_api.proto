@@ -739,9 +739,54 @@ message StandardCoders {
     // Components: None
     GLOBAL_WINDOW = 7 [(beam_urn) = "beam:coder:global_window:v1"];
 
-    // Encodes an element, the window the value is in, the timestamp of the element, and the pane
-    // of the element
-    // Components: The element coder and the window coder, in that order
+    // Encodes an element, the windows it is in, the timestamp of the element,
+    // and the pane of the element. The encoding is represented as:
+    // timestamp windows pane element
+    //   timestamp - A big endian 8 byte integer representing millis-since-epoch.
+    //     The encoded representation is shifted so that the byte representation
+    //     of negative values are lexicographically ordered before the byte
+    //     representation of positive values. This is typically done by
+    //     subtracting -9223372036854775808 from the value and encoding it as a
+    //     signed big endian integer. Example values:
+    //
+    //     -9223372036854775808: 00 00 00 00 00 00 00 00
+    //                     -255: 7F FF FF FF FF FF FF 01
+    //                       -1: 7F FF FF FF FF FF FF FF
+    //                        0: 80 00 00 00 00 00 00 00
+    //                        1: 80 00 00 00 00 00 00 01
+    //                      256: 80 00 00 00 00 00 01 00
+    //      9223372036854775807: FF FF FF FF FF FF FF FF
+    //
+    //   windows - The windows are encoded using the beam:coder:iterable:v1
+    //     format, where the windows are encoded using the supplied window
+    //     coder.
+    //
+    //   pane - The first byte of the pane info determines which type of
+    //     encoding is used, as well as the is_first, is_last, and timing
+    //     fields. If this byte is bits [0 1 2 3 4 5 6 7], then:
+    //     * bits [0 1 2 3] determine the encoding as follows:
+    //         0000 - The entire pane info is encoded as a single byte.
+    //                The is_first, is_last, and timing fields are encoded
+    //                as below, and the index and non-speculative index are
+    //                both zero (and hence are not encoded here).
+    //         0001 - The pane info is encoded as this byte plus a single
+    //                VarInt encoed integer representing the pane index. The
+    //                non-speculative index can be derived as follows:
+    //                  -1 if the pane is early, otherwise equal to index.
+    //         0010 - The pane info is encoded as this byte plus two VarInt
+    //                encoded integers representing the pane index and
+    //                non-speculative index respectively.
+    //     * bits [4 5] encode the timing as follows:
+    //         00 - early
+    //         01 - on time
+    //         10 - late
+    //         11 - unknown
+    //     * bit 6 is 1 if this is the first pane, 0 otherwise.
+    //     * bit 7 is 1 if this is the last pane, 0 otherwise.
+    //
+    //   element - The element incoded using the supplied element coder.
+    //
+    // Components: The element coder and the window coder, in that order.
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
 
     // A windowed value coder with parameterized timestamp, windows and pane info.

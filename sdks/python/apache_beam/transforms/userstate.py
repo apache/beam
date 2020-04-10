@@ -130,6 +130,7 @@ class CombiningValueStateSpec(StateSpec):
             accumulator_coder_id=context.coders.get_id(self.coder)))
 
 
+# TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
 Timer = namedtuple(
     'Timer',
     'user_key '
@@ -156,13 +157,12 @@ class TimerSpec(object):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context):
+  def to_runner_api(self, context, key_coder, window_coder):
     # type: (PipelineContext) -> beam_runner_api_pb2.TimerFamilySpec
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
-            coders._TimerCoder(
-                coders.StrUtf8Coder(), coders.GlobalWindowCoder())))
+            coders._TimerCoder(key_coder, window_coder)))
 
 
 # TODO(BEAM-9602): Provide support for dynamic timer.
@@ -178,11 +178,11 @@ class TimerFamilySpec(object):
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context):
+  def to_runner_api(self, context, key_coder, window_coder):
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+            coders._TimerCoder(key_coder, window_coder)))
 
 
 def on_timer(timer_spec):
@@ -349,7 +349,7 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
-  def get_timer(self, timer_spec, key, window):
+  def get_timer(self, timer_spec, key, window, timestamp, pane):
     raise NotImplementedError(type(self))
 
   def get_state(self, state_spec, key, window):

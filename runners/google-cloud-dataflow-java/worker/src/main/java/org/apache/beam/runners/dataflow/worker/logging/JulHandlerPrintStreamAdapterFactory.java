@@ -91,12 +91,15 @@ class JulHandlerPrintStreamAdapterFactory {
 
     @Override
     public void flush() {
-      publish(flushToString());
+      publishIfNonEmpty(flushToString());
     }
 
     private synchronized String flushToString() {
       if (buffer.length() > 0 && buffer.charAt(buffer.length() - 1) == '\n') {
         buffer.setLength(buffer.length() - 1);
+      }
+      if (buffer.length() == 0) {
+        return null;
       }
       String result = buffer.toString();
       buffer.setLength(0);
@@ -163,9 +166,7 @@ class JulHandlerPrintStreamAdapterFactory {
           }
         }
       }
-      if (msg != null) {
-        publish(msg);
-      }
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -214,7 +215,7 @@ class JulHandlerPrintStreamAdapterFactory {
         }
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -228,7 +229,7 @@ class JulHandlerPrintStreamAdapterFactory {
         }
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -248,7 +249,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(b);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -258,7 +259,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(c);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -268,7 +269,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(i);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -278,7 +279,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(l);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -288,7 +289,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(f);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -298,7 +299,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(d);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -308,7 +309,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(a);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -318,7 +319,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(s);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -328,7 +329,7 @@ class JulHandlerPrintStreamAdapterFactory {
         buffer.append(o);
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
     }
 
     @Override
@@ -348,7 +349,7 @@ class JulHandlerPrintStreamAdapterFactory {
         }
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
       return this;
     }
 
@@ -370,15 +371,18 @@ class JulHandlerPrintStreamAdapterFactory {
         }
         msg = flushToString();
       }
-      publish(msg);
+      publishIfNonEmpty(msg);
       return this;
     }
 
     // Note to avoid a deadlock, publish may never be called synchronized. See BEAM-9399.
-    private void publish(Level messageLevel, String message) {
+    private void publishIfNonEmpty(String message) {
       checkState(
           !Thread.holdsLock(this),
           "BEAM-9399: publish should not be called with the lock as it may cause deadlock");
+      if (message == null || message.isEmpty()) {
+        return;
+      }
       if (logger.isLoggable(messageLevel)) {
         if (outputWarning.compareAndSet(false, true)) {
           LogRecord log = new LogRecord(Level.WARNING, LOGGING_DISCLAIMER);
@@ -389,10 +393,6 @@ class JulHandlerPrintStreamAdapterFactory {
         log.setLoggerName(loggerName);
         handler.publish(log);
       }
-    }
-
-    private void publish(String message) {
-      publish(messageLevel, message);
     }
   }
 

@@ -36,6 +36,7 @@ Example test run:
 python -m apache_beam.testing.load_tests.group_by_key_test \
     --test-pipeline-options="
     --project=big-query-project
+    --region=...
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
@@ -52,6 +53,7 @@ or:
 ./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=gbk
     --fanout=1

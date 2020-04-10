@@ -306,7 +306,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.21.0'
+    project.version = '2.22.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -1302,10 +1302,11 @@ class BeamModulePlugin implements Plugin<Project> {
           def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-
+          def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
-            '--dataflowWorkerJar=${dataflowWorkerJar}',
+            "--dataflowWorkerJar=${dataflowWorkerJar}",
+            "--region=${dataflowRegion}"
           ])
 
           pipelineOptionsString = JsonOutput.toJson(allOptionsList)

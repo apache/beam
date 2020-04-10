@@ -38,7 +38,7 @@ It's often easier to write a new Dockerfile. However, by modifying the original 
 
 ### Writing new Dockerfiles on top of the original {#writing-new-dockerfiles}
 
-1. Pull a [prebuilt SDK container image](https://hub.docker.com/u/apachebeam) for your [target](https://docs.docker.com/docker-hub/repos/#searching-for-repositories) language and version. The following example pulls the latest Python SDK:
+1. Pull a [prebuilt SDK container image](https://hub.docker.com/search?q=apache%2Fbeam&type=image) for your [target](https://docs.docker.com/docker-hub/repos/#searching-for-repositories) language and version. The following example pulls the latest Python SDK:
 ```
 docker pull apache/beam_python3.7_sdk
 ```
@@ -99,25 +99,6 @@ python -m apache_beam.examples.wordcount \
 --environment_config=path/to/container/image
 ```
 
-To test a customized image on the Google Cloud Dataflow runner, use
-`DataflowRunner` with the `beam_fn_api` experiment and set
-`worker_harness_container_image` to the custom container:
-
-```
-python -m apache_beam.examples.wordcount \ 
---input=path/to/inputfile \
---output=/path/to/write/counts \
---runner=DataflowRunner \
---project={gcp_project_id} \
---region={gce_region_id} \
---temp_location={gcs_location} \ \
---experiment=beam_fn_api \
---sdk_location=[…]/beam/sdks/python/container/py{version}/build/target/apache-beam.tar.gz \
---worker_harness_container_image=path/to/container/image
-
-# The sdk_location option accepts four Python version variables: 2, 35, 36, and 37
-```
-
 ## Building container images
 
 To build Beam SDK container images:
@@ -141,46 +122,46 @@ To build Beam SDK container images:
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
 ```
 REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java_sdk                 latest              16ca619d489e        2 weeks ago        550MB
-apache/beam_python2.7_sdk            latest              b6fb40539c29        2 weeks ago       1.78GB
-apache/beam_python3.5_sdk            latest              bae309000d09        2 weeks ago       1.85GB
-apache/beam_python3.6_sdk            latest              42faad307d1a        2 weeks ago       1.86GB
-apache/beam_python3.7_sdk            latest              18267df54139        2 weeks ago       1.86GB
-apache/beam_go_sdk                   latest              30cf602e9763        2 weeks ago        124MB
+apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
+apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
+apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
+apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
+apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
+apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
 ```
 
 ### Overriding default Docker targets
 
-The default [tag](https://docs.docker.com/engine/reference/commandline/tag/) is `latest` and the default repositories are in the Docker Hub `apachebeam` namespace. The `docker` command-line tool implicitly [pushes container images](#pushing-container-images) to this location.
+The default [tag](https://docs.docker.com/engine/reference/commandline/tag/) is sdk_version defined at [gradle.properties](https://github.com/apache/beam/blob/master/gradle.properties) and the default repositories are in the Docker Hub `apache` namespace. 
+The `docker` command-line tool implicitly [pushes container images](#pushing-container-images) to this location.
 
 To tag a local image, set the `docker-tag` option when building the container. The following command tags a Python SDK image with a date.
 ```
-./gradlew :sdks:python:container:py2:docker -Pdocker-tag=2019-10-04
+./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
 ```
 
-To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root` to a Bintray repository named `apache`.
+To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root` 
+to a repository named `example-repo` on Docker Hub.
 ```
-./gradlew :sdks:python:container:py2:docker -Pdocker-repository-root=$USER-docker-apache.bintray.io/beam/python
+./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
 ```
 
 ## Pushing container images
 
 After [building a container image](#building-container-images), you can store it in a remote Docker repository.
 
-The following steps push a Python SDK image to the [`docker-root-repository` value](#overriding-default-docker-targets).
+The following steps push a Python3.6 SDK image to the [`docker-root-repository` value](#overriding-default-docker-targets). 
+Please log in to the destination repository as needed. 
 
-1. Sign in to your Docker registry:
 ```
-docker login
+Upload it to the remote repository:
 ```
-2. Navigate to the local copy of your container image and upload it to the remote repository:
-```
-docker push apache/beam_python2.7_sdk
+docker push example-repo/beam_python3.6_sdk
 ```
 
 To download the image again, run `docker pull`:
 ```
-docker pull apache/beam_python2.7_sdk
+docker pull example-repo/beam_python3.6_sdk
 ```
 
 > **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.

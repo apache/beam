@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -66,9 +65,9 @@ import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
-import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers;
@@ -83,7 +82,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -94,6 +92,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.sdk.v2.sdk.extensions.protobuf.ByteStringCoder;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
@@ -101,7 +100,6 @@ import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateBackend;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.joda.time.Instant;
@@ -438,16 +436,21 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     return this.<ByteBuffer>getKeyedStateBackend().getCurrentKey();
   }
 
-  private void setTimer(WindowedValue<InputT> timerElement, TimerInternals.TimerData timerData) {
+  private void setTimer(Timer<?> timerElement, TimerInternals.TimerData timerData) {
     try {
       LOG.debug("Setting timer: {} {}", timerElement, timerData);
-      // KvToByteBufferKeySelector returns the key encoded
-      ByteBuffer encodedKey = (ByteBuffer) keySelector.getKey(timerElement);
+      // KvToByteBufferKeySelector returns the key encoded, it doesn't care about the
+      // window, timestamp or pane information.
+      ByteBuffer encodedKey =
+          (ByteBuffer)
+              keySelector.getKey(
+                  WindowedValue.valueInGlobalWindow(
+                      (InputT) KV.of(timerElement.getUserKey(), null)));
       // We have to synchronize to ensure the state backend is not concurrently accessed by the
       // state requests
       try (Locker locker = Locker.locked(stateBackendLock)) {
         getKeyedStateBackend().setCurrentKey(encodedKey);
-        if (timerData.getTimestamp().isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        if (timerElement.getClearBit()) {
           timerInternals.deleteTimer(
               timerData.getNamespace(), timerData.getTimerId(), timerData.getDomain());
         } else {
@@ -460,13 +463,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  protected void fireTimer(InternalTimer<ByteBuffer, TimerInternals.TimerData> timer) {
-    final ByteBuffer encodedKey = timer.getKey();
+  protected void fireTimerInternal(Object key, TimerInternals.TimerData timer) {
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
     try (Locker locker = Locker.locked(stateBackendLock)) {
-      getKeyedStateBackend().setCurrentKey(encodedKey);
-      super.fireTimer(timer);
+      getKeyedStateBackend().setCurrentKey(key);
+      fireTimer(timer);
     }
   }
 
@@ -502,7 +504,6 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     sdkHarnessRunner =
         new SdkHarnessDoFnRunner<>(
             wrappedRunner.getFn(),
-            executableStage.getInputPCollection().getId(),
             stageBundleFactory,
             stateRequestHandler,
             progressHandler,
@@ -573,18 +574,15 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       implements DoFnRunner<InputT, OutputT> {
 
     private final DoFn<InputT, OutputT> doFn;
-    private final String mainInput;
     private final LinkedBlockingQueue<KV<String, OutputT>> outputQueue;
     private final StageBundleFactory stageBundleFactory;
     private final StateRequestHandler stateRequestHandler;
     private final BundleProgressHandler progressHandler;
     private final BufferedOutputManager<OutputT> outputManager;
     private final Map<String, TupleTag<?>> outputMap;
-    /** Timer Output Pcollection id => TimerSpec. */
-    private final Map<String, TimerSpec> timerOutputIdToSpecMap;
 
     private final Coder<BoundedWindow> windowCoder;
-    private final BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration;
+    private final BiConsumer<Timer<?>, TimerInternals.TimerData> timerRegistration;
     private final Supplier<Object> keyForTimer;
 
     /**
@@ -600,33 +598,23 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
 
     public SdkHarnessDoFnRunner(
         DoFn<InputT, OutputT> doFn,
-        String mainInput,
         StageBundleFactory stageBundleFactory,
         StateRequestHandler stateRequestHandler,
         BundleProgressHandler progressHandler,
         BufferedOutputManager<OutputT> outputManager,
         Map<String, TupleTag<?>> outputMap,
         Coder<BoundedWindow> windowCoder,
-        BiConsumer<WindowedValue<InputT>, TimerInternals.TimerData> timerRegistration,
+        BiConsumer<Timer<?>, TimerInternals.TimerData> timerRegistration,
         Supplier<Object> keyForTimer) {
 
       this.doFn = doFn;
-      this.mainInput = mainInput;
       this.stageBundleFactory = stageBundleFactory;
       this.stateRequestHandler = stateRequestHandler;
       this.progressHandler = progressHandler;
       this.outputManager = outputManager;
       this.outputMap = outputMap;
       this.timerRegistration = timerRegistration;
-      this.timerOutputIdToSpecMap = new HashMap<>();
       this.keyForTimer = keyForTimer;
-      // Gather all timers from all transforms by their output pCollectionId which is unique
-      for (Map<String, ProcessBundleDescriptors.TimerSpec> transformTimerMap :
-          stageBundleFactory.getProcessBundleDescriptor().getTimerSpecs().values()) {
-        for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerMap.values()) {
-          timerOutputIdToSpecMap.put(timerSpec.outputCollectionId(), timerSpec);
-        }
-      }
       this.windowCoder = windowCoder;
       this.outputQueue = new LinkedBlockingQueue<>();
     }
@@ -643,14 +631,14 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
               };
             }
           };
+      TimerReceiverFactory timerReceiverFactory =
+          new TimerReceiverFactory(stageBundleFactory, timerRegistration, windowCoder);
 
       try {
         remoteBundle =
-            stageBundleFactory.getBundle(receiverFactory, stateRequestHandler, progressHandler);
-        mainInputReceiver =
-            Preconditions.checkNotNull(
-                remoteBundle.getInputReceivers().get(mainInput),
-                "Failed to retrieve main input receiver.");
+            stageBundleFactory.getBundle(
+                receiverFactory, timerReceiverFactory, stateRequestHandler, progressHandler);
+        mainInputReceiver = Iterables.getOnlyElement(remoteBundle.getInputReceivers().values());
       } catch (Exception e) {
         throw new RuntimeException("Failed to start remote bundle", e);
       }
@@ -678,25 +666,29 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       Object timerKey = keyForTimer.get();
       Preconditions.checkNotNull(timerKey, "Key for timer needs to be set before calling onTimer");
       Preconditions.checkNotNull(remoteBundle, "Call to onTimer outside of a bundle");
-      LOG.debug("timer callback: {} {} {} {}", timerId, window, timestamp, timeDomain);
-      FnDataReceiver<WindowedValue<?>> timerReceiver =
+      KV<String, String> transformAndTimerFamilyId =
+          TimerReceiverFactory.decodeTimerDataTimerId(timerId);
+      LOG.debug(
+          "timer callback: {} {} {} {} {}",
+          transformAndTimerFamilyId.getKey(),
+          transformAndTimerFamilyId.getValue(),
+          window,
+          timestamp,
+          timeDomain);
+      FnDataReceiver<Timer> timerReceiver =
           Preconditions.checkNotNull(
-              remoteBundle.getInputReceivers().get(timerId),
-              "No receiver found for timer %s",
-              timerId);
-      WindowedValue<KV<Object, Timer>> timerValue =
-          WindowedValue.of(
-              KV.of(
-                  timerKey,
-                  Timer.of(
-                      "",
-                      "",
-                      Collections.singleton(GlobalWindow.INSTANCE),
-                      timestamp,
-                      timestamp,
-                      PaneInfo.NO_FIRING)),
+              remoteBundle.getTimerReceivers().get(transformAndTimerFamilyId),
+              "No receiver found for timer %s %s",
+              transformAndTimerFamilyId.getKey(),
+              transformAndTimerFamilyId.getValue());
+      Timer<?> timerValue =
+          Timer.of(
+              timerKey,
+              "",
+              Collections.singletonList(window),
+              timestamp,
               outputTimestamp,
-              Collections.singleton(window),
+              // TODO: Support propagating the PaneInfo through.
               PaneInfo.NO_FIRING);
       try {
         timerReceiver.accept(timerValue);
@@ -741,32 +733,12 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
                 (WindowedValue) result.getValue(),
                 "Received a null value from the SDK harness for %s",
                 outputPCollectionId);
-        if (tag != null) {
-          // process regular elements
-          outputManager.output(tag, windowedValue);
-        } else {
-          TimerSpec timerSpec =
-              Preconditions.checkNotNull(
-                  timerOutputIdToSpecMap.get(outputPCollectionId),
-                  "Unknown Pcollectionid %s",
-                  outputPCollectionId);
-          Timer timer =
-              Preconditions.checkNotNull(
-                  (Timer) ((KV) windowedValue.getValue()).getValue(),
-                  "Received null Timer from SDK harness: %s",
-                  windowedValue);
-          LOG.debug("Timer received: {} {}", outputPCollectionId, timer);
-          for (Object window : windowedValue.getWindows()) {
-            StateNamespace namespace = StateNamespaces.window(windowCoder, (BoundedWindow) window);
-            TimerInternals.TimerData timerData =
-                TimerInternals.TimerData.of(
-                    timerSpec.inputCollectionId(),
-                    namespace,
-                    timer.getFireTimestamp(),
-                    timerSpec.getTimerSpec().getTimeDomain());
-            timerRegistration.accept(windowedValue, timerData);
-          }
+        if (tag == null) {
+          throw new IllegalStateException(
+              String.format("Received output for unknown PCollection %s", outputPCollectionId));
         }
+        // process regular elements
+        outputManager.output(tag, windowedValue);
       }
     }
 

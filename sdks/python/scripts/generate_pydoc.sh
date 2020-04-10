@@ -165,6 +165,7 @@ ignore_identifiers = [
   'apache_beam.pvalue.DoOutputsTuple',
   'apache_beam.pvalue.PValue',
   'apache_beam.runners.direct.executor.CallableTask',
+  'apache_beam.testing.synthetic_pipeline._Random',
   'apache_beam.transforms.core.CallableWrapperCombineFn',
   'apache_beam.transforms.ptransform.PTransformWithSideInputs',
   'apache_beam.transforms.trigger._ParallelTriggerFn',
