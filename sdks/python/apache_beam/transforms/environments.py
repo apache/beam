@@ -252,10 +252,17 @@ class DockerEnvironment(Environment):
   @classmethod
   def from_options(cls, options):
     # type: (PipelineOptions) -> DockerEnvironment
-    return cls(
+    return from_container_image(
         container_image=options.environment_config,
-        capabilities=python_sdk_capabilities(),
         artifacts=python_sdk_dependencies(options))
+
+  @classmethod
+  def from_container_image(cls, container_image, artifacts=()):
+    # type: (str) -> DockerEnvironment
+    return cls(
+        container_image=container_image,
+        capabilities=python_sdk_capabilities(),
+        artifacts=artifacts)
 
   @staticmethod
   def default_docker_image():
