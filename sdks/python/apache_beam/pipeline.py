@@ -636,7 +636,7 @@ class Pipeline(object):
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)
 
-      for result in ptransform.get_nested_pvalues(pvalueish_result):
+      for tag, result in ptransform.get_named_nested_pvalues(pvalueish_result):
         assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
 
         # Make sure we set the producer only for a leaf node in the transform
@@ -669,12 +669,16 @@ class Pipeline(object):
           current.add_output(result, tag)
           continue
 
-        # TODO(BEAM-9322): Find the best auto-generated tags for nested
-        # PCollections.
-        # If the user wants the old implementation of always generated
-        # PCollection output ids, then set the tag to None first, then count up
-        # from 1.
-        tag = len(current.outputs) if None in current.outputs else None
+        if self._options.view_as(DebugOptions).lookup_experiment(
+            'force_generated_pcollection_output_ids', default=False):
+          tag = len(current.outputs) if None in current.outputs else None
+        else:
+          base = tag
+          counter = 0
+          while tag in current.outputs:
+            counter += 1
+            tag = '%s_%d' % (base, counter)
+
         current.add_output(result, tag)
 
       if (type_options is not None and
@@ -1099,6 +1103,13 @@ class AppliedPTransform(object):
       if transform is None:
         return None
       else:
+        # We only populate inputs information to ParDo in order to expose
+        # key_coder and window_coder to stateful DoFn.
+        if isinstance(transform, ParDo):
+          return transform.to_runner_api(
+              context,
+              has_parts=bool(self.parts),
+              named_inputs=self.named_inputs())
         return transform.to_runner_api(context, has_parts=bool(self.parts))
 
     # Iterate over inputs and outputs by sorted key order, so that ids are
@@ -1252,7 +1263,8 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class PTransformOverride(with_metaclass(abc.ABCMeta,
+                                        object)):  # type: ignore[misc]
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.

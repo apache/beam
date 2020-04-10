@@ -1898,8 +1898,11 @@ public class DoFnOperatorTest {
                 Whitebox.getInternalState(doFnOperator, metricContainerFieldName));
     Whitebox.setInternalState(doFnOperator, metricContainerFieldName, monitoredContainer);
 
+    // Closes and disposes the operator
     testHarness.close();
-    Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
+    // Ensure that dispose has the metrics code
+    doFnOperator.dispose();
+    Mockito.verify(monitoredContainer, Mockito.times(2)).registerMetricsForPipelineResult();
   }
 
   /**

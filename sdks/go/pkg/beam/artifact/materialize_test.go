@@ -26,8 +26,8 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	"github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
@@ -47,7 +47,7 @@ func TestRetrieve(t *testing.T) {
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
-	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 	for _, a := range artifacts {
 		filename := makeFilename(dst, a.Name)
 		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
@@ -72,7 +72,7 @@ func TestMultiRetrieve(t *testing.T) {
 	dst := makeTempDir(t)
 	defer os.RemoveAll(dst)
 
-	client := pb.NewLegacyArtifactRetrievalServiceClient(cc)
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
 	if err := LegacyMultiRetrieve(ctx, client, 10, artifacts, rt, dst); err != nil {
 		t.Errorf("failed to retrieve: %v", err)
 	}
@@ -84,10 +84,10 @@ func TestMultiRetrieve(t *testing.T) {
 
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
-func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*pb.ArtifactMetadata) {
-	scl := pb.NewLegacyArtifactStagingServiceClient(cc)
+func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*jobpb.ArtifactMetadata) {
+	scl := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
-	var artifacts []*pb.ArtifactMetadata
+	var artifacts []*jobpb.ArtifactMetadata
 	for i, key := range keys {
 		a := stage(ctx, scl, t, key, size+7*i, 97+i, st)
 		artifacts = append(artifacts, a)
@@ -102,7 +102,7 @@ func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []str
 
 // stage stages an artifact with the given key, size and chuck size. The content is
 // always 'z's.
-func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *pb.ArtifactMetadata {
+func stage(ctx context.Context, scl jobpb.LegacyArtifactStagingServiceClient, t *testing.T, key string, size, chunkSize int, st string) *jobpb.ArtifactMetadata {
 	data := make([]byte, size)
 	for i := 0; i < size; i++ {
 		data[i] = 'z'
@@ -112,7 +112,7 @@ func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *te
 	sha256W.Write(data)
 	hash := hex.EncodeToString(sha256W.Sum(nil))
 	md := makeArtifact(key, hash)
-	pmd := &pb.PutArtifactMetadata{
+	pmd := &jobpb.PutArtifactMetadata{
 		Metadata:            md,
 		StagingSessionToken: st,
 	}
@@ -121,8 +121,8 @@ func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *te
 	if err != nil {
 		t.Fatalf("put failed: %v", err)
 	}
-	header := &pb.PutArtifactRequest{
-		Content: &pb.PutArtifactRequest_Metadata{
+	header := &jobpb.PutArtifactRequest{
+		Content: &jobpb.PutArtifactRequest_Metadata{
 			Metadata: pmd,
 		},
 	}
@@ -136,9 +136,9 @@ func stage(ctx context.Context, scl pb.LegacyArtifactStagingServiceClient, t *te
 			end = size
 		}
 
-		chunk := &pb.PutArtifactRequest{
-			Content: &pb.PutArtifactRequest_Data{
-				Data: &pb.ArtifactChunk{
+		chunk := &jobpb.PutArtifactRequest{
+			Content: &jobpb.PutArtifactRequest_Data{
+				Data: &jobpb.ArtifactChunk{
 					Data: data[i:end],
 				},
 			},
@@ -193,7 +193,7 @@ func TestNewRetrieveWithResolution(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
-func checkStagedFiles(mds []*pb.ArtifactMetadata, dest string, expected map[string]string, t *testing.T) {
+func checkStagedFiles(mds []*jobpb.ArtifactMetadata, dest string, expected map[string]string, t *testing.T) {
 	if len(mds) != len(expected) {
 		t.Errorf("wrong number of artifacts staged %v vs %v", len(mds), len(expected))
 	}
@@ -221,12 +221,12 @@ type fakeRetrievalService struct {
 	artifacts map[string]string // name -> content
 }
 
-func (fake *fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInformation {
-	var artifacts []*pipeline_v1.ArtifactInformation
+func (fake *fakeRetrievalService) resolvedArtifacts() []*pipepb.ArtifactInformation {
+	var artifacts []*pipepb.ArtifactInformation
 	for name, contents := range fake.artifacts {
-		payload, _ := proto.Marshal(&pipeline_v1.ArtifactStagingToRolePayload{
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
 			StagedName: name})
-		artifacts = append(artifacts, &pipeline_v1.ArtifactInformation{
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     "resolved",
 			TypePayload: []byte(contents),
 			RoleUrn:     URNStagingTo,
@@ -236,16 +236,16 @@ func (fake *fakeRetrievalService) resolvedArtifacts() []*pipeline_v1.ArtifactInf
 	return artifacts
 }
 
-func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipeline_v1.ArtifactInformation {
-	return []*pipeline_v1.ArtifactInformation{
-		&pipeline_v1.ArtifactInformation{
+func (fake *fakeRetrievalService) unresolvedArtifacts() []*pipepb.ArtifactInformation {
+	return []*pipepb.ArtifactInformation{
+		&pipepb.ArtifactInformation{
 			TypeUrn: "unresolved",
 		},
 	}
 }
 
-func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request *pb.ResolveArtifactsRequest, opts ...grpc.CallOption) (*pb.ResolveArtifactsResponse, error) {
-	response := pb.ResolveArtifactsResponse{}
+func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request *jobpb.ResolveArtifactsRequest, opts ...grpc.CallOption) (*jobpb.ResolveArtifactsResponse, error) {
+	response := jobpb.ResolveArtifactsResponse{}
 	for _, dep := range request.Artifacts {
 		if dep.TypeUrn == "unresolved" {
 			response.Replacements = append(response.Replacements, fake.resolvedArtifacts()...)
@@ -256,7 +256,7 @@ func (fake *fakeRetrievalService) ResolveArtifacts(ctx context.Context, request 
 	return &response, nil
 }
 
-func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *pb.GetArtifactRequest, opts ...grpc.CallOption) (pb.ArtifactRetrievalService_GetArtifactClient, error) {
+func (fake *fakeRetrievalService) GetArtifact(ctx context.Context, request *jobpb.GetArtifactRequest, opts ...grpc.CallOption) (jobpb.ArtifactRetrievalService_GetArtifactClient, error) {
 	if request.Artifact.TypeUrn == "resolved" {
 		return &fakeGetArtifactResponseStream{data: request.Artifact.TypePayload}, nil
 	}
@@ -268,10 +268,10 @@ type fakeGetArtifactResponseStream struct {
 	index int
 }
 
-func (fake *fakeGetArtifactResponseStream) Recv() (*pb.GetArtifactResponse, error) {
+func (fake *fakeGetArtifactResponseStream) Recv() (*jobpb.GetArtifactResponse, error) {
 	if fake.index < len(fake.data) {
-		fake.index += 1
-		return &pb.GetArtifactResponse{Data: fake.data[fake.index-1 : fake.index]}, nil
+		fake.index++
+		return &jobpb.GetArtifactResponse{Data: fake.data[fake.index-1 : fake.index]}, nil
 	}
 	return nil, io.EOF
 }
@@ -293,7 +293,7 @@ func (fake *fakeGetArtifactResponseStream) Trailer() metadata.MD {
 }
 
 func (fake *fakeGetArtifactResponseStream) Context() context.Context {
-	return nil
+	return context.Background()
 }
 
 func (fake *fakeGetArtifactResponseStream) CloseSend() error {
@@ -346,8 +346,8 @@ func makeTempFile(t *testing.T, filename string, size int) string {
 	return hex.EncodeToString(sha256W.Sum(nil))
 }
 
-func makeArtifact(key, hash string) *pb.ArtifactMetadata {
-	return &pb.ArtifactMetadata{
+func makeArtifact(key, hash string) *jobpb.ArtifactMetadata {
+	return &jobpb.ArtifactMetadata{
 		Name:        key,
 		Sha256:      hash,
 		Permissions: 0644,

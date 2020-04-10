@@ -30,6 +30,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_1",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -55,6 +56,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_2",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -81,6 +83,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_3",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -107,6 +110,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : 'load_tests_Java_Dataflow_${mode}_GBK_4',
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -132,6 +136,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_5",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -157,6 +162,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_6",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -184,6 +190,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_GBK_7",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,

@@ -50,8 +50,6 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
@@ -59,7 +57,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** Provides access to side inputs and state via a {@link BeamFnStateClient}. */
-public class FnApiStateAccessor implements SideInputReader, StateBinder {
+public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
   private final PipelineOptions pipelineOptions;
   private final Map<StateKey, Object> stateKeyObjectCache;
   private final Map<TupleTag<?>, SideInputSpec> sideInputSpecMap;
@@ -79,9 +77,9 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
       Supplier<String> processBundleInstructionId,
       Map<TupleTag<?>, SideInputSpec> sideInputSpecMap,
       BeamFnStateClient beamFnStateClient,
-      Coder<?> keyCoder,
+      Coder<K> keyCoder,
       Coder<BoundedWindow> windowCoder,
-      Supplier<WindowedValue<?>> currentElementSupplier,
+      Supplier<K> currentKeySupplier,
       Supplier<BoundedWindow> currentWindowSupplier) {
     this.pipelineOptions = pipelineOptions;
     this.stateKeyObjectCache = Maps.newHashMap();
@@ -93,22 +91,14 @@ public class FnApiStateAccessor implements SideInputReader, StateBinder {
     this.currentWindowSupplier = currentWindowSupplier;
     this.encodedCurrentKeySupplier =
         memoizeFunction(
-            currentElementSupplier,
-            element -> {
-              checkState(
-                  element.getValue() instanceof KV,
-                  "Accessing state in unkeyed context. Current element is not a KV: %s.",
-                  element);
+            currentKeySupplier,
+            key -> {
               checkState(
                   keyCoder != null, "Accessing state in unkeyed context, no key coder available");
 
               ByteString.Output encodedKeyOut = ByteString.newOutput();
               try {
-                ((Coder) keyCoder)
-                    .encode(
-                        ((KV<?, ?>) element.getValue()).getKey(),
-                        encodedKeyOut,
-                        Coder.Context.NESTED);
+                ((Coder) keyCoder).encode(key, encodedKeyOut, Coder.Context.NESTED);
               } catch (IOException e) {
                 throw new IllegalStateException(e);
               }

@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BooleanCoder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -50,14 +49,14 @@ import org.joda.time.Instant;
  * org.apache.beam.sdk.state.Timer}.
  */
 @AutoValue
-public abstract class Timer<T> {
+public abstract class Timer<K> {
 
   /**
    * Returns a non-cleared timer for the given {@code userKey}, {@code dynamicTimerTag}, {@code
    * fireTimestamp}, {@code holdTimestamp}, {@code windows} and {@code pane}.
    */
-  public static <T> Timer<T> of(
-      T userKey,
+  public static <K> Timer<K> of(
+      K userKey,
       String dynamicTimerTag,
       Collection<? extends BoundedWindow> windows,
       Instant fireTimestamp,
@@ -71,13 +70,13 @@ public abstract class Timer<T> {
    * Returns a cleared timer for the given {@code userKey}, {@code dynamicTimerTag} and {@code
    * windows}.
    */
-  public static <T> Timer<T> cleared(
-      T userKey, String dynamicTimerTag, Collection<? extends BoundedWindow> windows) {
+  public static <K> Timer<K> cleared(
+      K userKey, String dynamicTimerTag, Collection<? extends BoundedWindow> windows) {
     return new AutoValue_Timer(userKey, dynamicTimerTag, windows, true, null, null, null);
   }
 
   /** Returns the key that the timer is set on. */
-  public abstract T getUserKey();
+  public abstract K getUserKey();
 
   /**
    * Returns the tag that the timer is set on. The tag is {@code ""} when the timer is for a {@link
@@ -155,21 +154,21 @@ public abstract class Timer<T> {
    * <p>This coder is inexpensive for size estimation of elements if the key coder and window coder
    * are inexpensive for size estimation.
    */
-  public static class Coder<T> extends StructuredCoder<Timer<T>> {
+  public static class Coder<K> extends StructuredCoder<Timer<K>> {
 
-    public static <T> Coder<T> of(
-        org.apache.beam.sdk.coders.Coder<T> keyCoder,
+    public static <K> Coder<K> of(
+        org.apache.beam.sdk.coders.Coder<K> keyCoder,
         org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
       return new Coder<>(keyCoder, windowCoder);
     }
 
-    private final org.apache.beam.sdk.coders.Coder<T> keyCoder;
+    private final org.apache.beam.sdk.coders.Coder<K> keyCoder;
     private final org.apache.beam.sdk.coders.Coder<Collection<? extends BoundedWindow>>
         windowsCoder;
     private final org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder;
 
     private Coder(
-        org.apache.beam.sdk.coders.Coder<T> keyCoder,
+        org.apache.beam.sdk.coders.Coder<K> keyCoder,
         org.apache.beam.sdk.coders.Coder<? extends BoundedWindow> windowCoder) {
       this.windowCoder = windowCoder;
       this.keyCoder = keyCoder;
@@ -177,7 +176,7 @@ public abstract class Timer<T> {
     }
 
     @Override
-    public void encode(Timer<T> timer, OutputStream outStream) throws CoderException, IOException {
+    public void encode(Timer<K> timer, OutputStream outStream) throws IOException {
       keyCoder.encode(timer.getUserKey(), outStream);
       StringUtf8Coder.of().encode(timer.getDynamicTimerTag(), outStream);
       windowsCoder.encode(timer.getWindows(), outStream);
@@ -190,8 +189,8 @@ public abstract class Timer<T> {
     }
 
     @Override
-    public Timer<T> decode(InputStream inStream) throws CoderException, IOException {
-      T userKey = keyCoder.decode(inStream);
+    public Timer<K> decode(InputStream inStream) throws IOException {
+      K userKey = keyCoder.decode(inStream);
       String dynamicTimerTag = StringUtf8Coder.of().decode(inStream);
       Collection<? extends BoundedWindow> windows = windowsCoder.decode(inStream);
       boolean clearBit = BooleanCoder.of().decode(inStream);
@@ -222,7 +221,7 @@ public abstract class Timer<T> {
       return windowsCoder;
     }
 
-    public org.apache.beam.sdk.coders.Coder<T> getValueCoder() {
+    public org.apache.beam.sdk.coders.Coder<K> getValueCoder() {
       return keyCoder;
     }
 
@@ -233,7 +232,7 @@ public abstract class Timer<T> {
     }
 
     @Override
-    public void registerByteSizeObserver(Timer<T> value, ElementByteSizeObserver observer)
+    public void registerByteSizeObserver(Timer<K> value, ElementByteSizeObserver observer)
         throws Exception {
       keyCoder.registerByteSizeObserver(value.getUserKey(), observer);
       StringUtf8Coder.of().registerByteSizeObserver(value.getDynamicTimerTag(), observer);

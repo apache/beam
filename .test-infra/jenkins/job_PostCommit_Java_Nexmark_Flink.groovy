@@ -40,7 +40,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
               '--shutdownSourcesOnFinalWatermark=true',
@@ -56,7 +57,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
               '--shutdownSourcesOnFinalWatermark=true',
@@ -72,7 +74,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
               '--shutdownSourcesOnFinalWatermark=true',
@@ -88,7 +91,8 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
               '--shutdownSourcesOnFinalWatermark=true',

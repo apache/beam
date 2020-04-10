@@ -95,6 +95,7 @@ import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.StateInitializationContext;
@@ -489,6 +490,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void dispose() throws Exception {
     try {
+      Optional.ofNullable(flinkMetricContainer)
+          .ifPresent(FlinkMetricContainer::registerMetricsForPipelineResult);
       Optional.ofNullable(checkFinishBundleTimer).ifPresent(timer -> timer.cancel(true));
       Workarounds.deleteStaticCaches();
       Optional.ofNullable(doFnInvoker).ifPresent(DoFnInvoker::invokeTeardown);
@@ -503,23 +506,26 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void close() throws Exception {
     try {
-      flinkMetricContainer.registerMetricsForPipelineResult();
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
       // processing-time timers when upstream operators have shut down and will also
       // shut down this operator with pending processing-time timers.
-      while (this.numProcessingTimeTimers() > 0) {
-        getContainingTask().getCheckpointLock().wait(100);
+      if (numProcessingTimeTimers() > 0) {
+        timerInternals.processPendingProcessingTimeTimers();
       }
-      if (this.numProcessingTimeTimers() > 0) {
+      if (numProcessingTimeTimers() > 0) {
         throw new RuntimeException(
-            "There are still processing-time timers left, this indicates a bug");
+            "There are still "
+                + numProcessingTimeTimers()
+                + " processing-time timers left, this indicates a bug");
       }
-
       // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
       // in processWatermark*() but have holds, so we have to re-evaluate here.
       processWatermark(new Watermark(Long.MAX_VALUE));
-      invokeFinishBundle();
+      // Make sure to finish the current bundle
+      while (bundleStarted) {
+        invokeFinishBundle();
+      }
       if (currentOutputWatermark < Long.MAX_VALUE) {
         throw new RuntimeException(
             "There are still watermark holds. Watermark held at " + currentOutputWatermark);
@@ -820,23 +826,27 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   @Override
   public void onEventTime(InternalTimer<ByteBuffer, TimerData> timer) {
     checkInvokeStartBundle();
-    fireTimer(timer);
+    fireTimerInternal(timer.getKey(), timer.getNamespace());
   }
 
   @Override
   public void onProcessingTime(InternalTimer<ByteBuffer, TimerData> timer) {
     checkInvokeStartBundle();
-    fireTimer(timer);
+    fireTimerInternal(timer.getKey(), timer.getNamespace());
+  }
+
+  // allow overriding this in ExecutableStageDoFnOperator to set the key context
+  protected void fireTimerInternal(Object key, TimerData timerData) {
+    fireTimer(timerData);
   }
 
   // allow overriding this in WindowDoFnOperator
-  protected void fireTimer(InternalTimer<ByteBuffer, TimerData> timer) {
-    TimerInternals.TimerData timerData = timer.getNamespace();
+  protected void fireTimer(TimerData timerData) {
     StateNamespace namespace = timerData.getNamespace();
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
     BoundedWindow window = ((WindowNamespace) namespace).getWindow();
-    timerInternals.onFiredOrDeletedTimer(timer.getNamespace());
+    timerInternals.onFiredOrDeletedTimer(timerData);
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
@@ -1143,6 +1153,27 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
         return Long.MAX_VALUE;
       } else {
         return outputTimestampQueue.peek();
+      }
+    }
+
+    /**
+     * Processes all pending processing timers. This is intended for use during shutdown. From Flink
+     * 1.10 on, processing timer execution is stopped when the operator is closed. This leads to
+     * problems for applications which assume all pending timers will be completed. Although Flink
+     * does drain the remaining timers after close(), this is not sufficient because no new timers
+     * are allowed to be scheduled anymore. This breaks Beam pipelines which rely on all processing
+     * timers to be scheduled and executed.
+     */
+    void processPendingProcessingTimeTimers() {
+      final KeyedStateBackend<Object> keyedStateBackend = getKeyedStateBackend();
+      final InternalPriorityQueue<InternalTimer<Object, TimerData>> processingTimeTimersQueue =
+          Workarounds.retrieveInternalProcessingTimerQueue(timerService);
+
+      InternalTimer<Object, TimerData> internalTimer;
+      while ((internalTimer = processingTimeTimersQueue.poll()) != null) {
+        keyedStateBackend.setCurrentKey(internalTimer.getKey());
+        TimerData timer = internalTimer.getNamespace();
+        fireTimer(timer);
       }
     }
 

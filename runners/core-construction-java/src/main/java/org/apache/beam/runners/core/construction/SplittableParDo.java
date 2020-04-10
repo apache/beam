@@ -402,12 +402,6 @@ public class SplittableParDo<InputT, OutputT, RestrictionT, WatermarkEstimatorSt
                 }
 
                 @Override
-                public Map<String, TimerFamilySpec> translateTimerSpecs(SdkComponents components) {
-                  // SDFs don't have timers.
-                  return ImmutableMap.of();
-                }
-
-                @Override
                 public Map<String, TimerFamilySpec> translateTimerFamilySpecs(
                     SdkComponents newComponents) {
                   // SDFs don't have timers.

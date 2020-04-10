@@ -703,7 +703,8 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'GCE availability zone for launching workers. Default is up to the '
-            'Dataflow service.'))
+            'Dataflow service. This flag is deprecated, and will be replaced '
+            'by worker_zone.'))
     parser.add_argument(
         '--network',
         default=None,

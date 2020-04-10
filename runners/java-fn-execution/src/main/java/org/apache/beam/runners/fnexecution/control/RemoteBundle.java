@@ -18,7 +18,9 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import java.util.Map;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.values.KV;
 
 /**
  * A bundle capable of handling input data elements for a {@link
@@ -37,6 +39,12 @@ public interface RemoteBundle extends AutoCloseable {
    * forwarding them to the remote environment.
    */
   Map<String, FnDataReceiver> getInputReceivers();
+
+  /**
+   * Get a map of (transform id, timer id) to {@link FnDataReceiver receiver}s which consume timers,
+   * forwarding them to the remote environment.
+   */
+  Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers();
 
   /**
    * Ask the remote bundle to split its current processing based upon its knowledge of remaining

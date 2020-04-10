@@ -591,6 +591,31 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testZoneAliasWorkerZone() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setZone("us-east1-b");
+    DataflowRunner.validateWorkerSettings(options);
+    assertNull(options.getZone());
+    assertEquals("us-east1-b", options.getWorkerZone());
+  }
+
+  @Test
+  public void testRegionRequiredForServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("https://dataflow.googleapis.com");
+    assertThrows(IllegalArgumentException.class, () -> DataflowRunner.fromOptions(options));
+  }
+
+  @Test
+  public void testRegionOptionalForNonServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("http://localhost:20281");
+    DataflowRunner.fromOptions(options);
+  }
+
+  @Test
   public void testRun() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Pipeline p = buildDataflowPipeline(options);

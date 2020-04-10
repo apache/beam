@@ -535,15 +535,13 @@ class DoOperation(Operation):
                counter_factory,
                sampler,
                side_input_maps=None,
-               user_state_context=None,
-               timer_inputs=None
+               user_state_context=None
               ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    self.timer_inputs = timer_inputs or {}
     self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
 
   def _read_side_inputs(self, tags_and_types):
@@ -631,7 +629,6 @@ class DoOperation(Operation):
             self.tagged_receivers[None] = self.receivers[index]
 
       if self.user_state_context:
-        self.user_state_context.update_timer_receivers(self.tagged_receivers)
         self.timer_specs = {
             spec.name: spec
             for spec in userstate.get_dofn_specs(fn)[1]
@@ -679,11 +676,16 @@ class DoOperation(Operation):
     # type: () -> bool
     return self.dofn_runner.bundle_finalizer_param.has_callbacks()
 
-  def process_timer(self, tag, windowed_timer):
-    key, timer_data = windowed_timer.value
+  def add_timer_info(self, timer_family_id, timer_info):
+    self.user_state_context.add_timer_info(timer_family_id, timer_info)
+
+  def process_timer(self, tag, timer_data):
     timer_spec = self.timer_specs[tag]
     self.dofn_runner.process_user_timer(
-        timer_spec, key, windowed_timer.windows[0], timer_data.fire_timestamp)
+        timer_spec,
+        timer_data.user_key,
+        timer_data.windows[0],
+        timer_data.fire_timestamp)
 
   def finish(self):
     # type: () -> None

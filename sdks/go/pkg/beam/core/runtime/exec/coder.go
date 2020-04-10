@@ -368,9 +368,9 @@ func (c *kvDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
 //
 // Example:
 //   KV<int, KV<...>> decodes to *FullValue{Elm: int, Elm2: *FullValue{...}}
-func (d *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
+func (c *kvDecoder) Decode(r io.Reader) (*FullValue, error) {
 	fv := &FullValue{}
-	if err := d.DecodeTo(r, fv); err != nil {
+	if err := c.DecodeTo(r, fv); err != nil {
 		return nil, err
 	}
 	return fv, nil

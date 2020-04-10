@@ -308,7 +308,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.21.0'
+    project.version = '2.22.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -376,7 +376,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.8.0"
     def classgraph_version = "4.8.65"
     def google_clients_version = "1.30.3"
-    def google_cloud_bigdataoss_version = "2.0.0"
+    def google_cloud_bigdataoss_version = "2.1.2"
     // Try to keep grpc_version consistent with gRPC version in google_cloud_platform_libraries_bom
     def grpc_version = "1.27.2"
     def guava_version = "25.1-jre"
@@ -1329,10 +1329,11 @@ class BeamModulePlugin implements Plugin<Project> {
           def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-
+          def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
-            '--dataflowWorkerJar=${dataflowWorkerJar}',
+            "--dataflowWorkerJar=${dataflowWorkerJar}",
+            "--region=${dataflowRegion}"
           ])
 
           pipelineOptionsString = JsonOutput.toJson(allOptionsList)
