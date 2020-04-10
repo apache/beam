@@ -138,7 +138,7 @@ public class SparkPipelineStateTest implements Serializable {
 
     final SparkPipelineResult result = (SparkPipelineResult) pipeline.run();
 
-    result.waitUntilFinish(Duration.millis(1));
+    result.waitUntilFinish(Duration.millis(10));
 
     assertThat(result.getState(), is(PipelineResult.State.RUNNING));
 

@@ -161,6 +161,8 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
 
     MetricsEnvironment.setMetricsSupported(true);
 
+    LOG.info("Spark master is " + mOptions.getSparkMaster());
+
     // visit the pipeline to determine the translation mode
     detectTranslationMode(pipeline);
     LOG.info("Translation mode is " + (mOptions.isStreaming() ? "streaming" : "batch"));
@@ -213,6 +215,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
       // create the evaluation context
+      LOG.info("Get spark context for batch.");
       final JavaSparkContext jsc = SparkContextFactory.getSparkContext(mOptions);
       final EvaluationContext evaluationContext = new EvaluationContext(jsc, pipeline, mOptions);
       translator = new TransformTranslator.Translator();
