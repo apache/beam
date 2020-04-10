@@ -900,7 +900,7 @@ class BundleProcessor(object):
       for data_channel, expected_inputs in data_channels.items():
         for element in data_channel.input_elements(instruction_id,
                                                    expected_inputs):
-          if isinstance(element, beam_fn_api_pb2.Elements.Timer):
+          if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             timer_coder_impl = (
                 self.timers_info[(
                     element.transform_id,
