@@ -50,8 +50,8 @@ public class BeamFnDataGrpcMultiplexerTest {
                   .setInstructionId(DATA_LOCATION.getInstructionId())
                   .setTransformId(DATA_LOCATION.getTransformId())
                   .setData(ByteString.copyFrom(new byte[1])))
-          .addTimer(
-              BeamFnApi.Elements.Timer.newBuilder()
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
                   .setInstructionId(TIMER_LOCATION.getInstructionId())
                   .setTransformId(TIMER_LOCATION.getTransformId())
                   .setTimerFamilyId(TIMER_LOCATION.getTimerFamilyId())
@@ -64,8 +64,8 @@ public class BeamFnDataGrpcMultiplexerTest {
                   .setInstructionId(DATA_LOCATION.getInstructionId())
                   .setTransformId(DATA_LOCATION.getTransformId())
                   .setIsLast(true))
-          .addTimer(
-              BeamFnApi.Elements.Timer.newBuilder()
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
                   .setInstructionId(TIMER_LOCATION.getInstructionId())
                   .setTransformId(TIMER_LOCATION.getTransformId())
                   .setTimerFamilyId(TIMER_LOCATION.getTimerFamilyId())
@@ -122,6 +122,6 @@ public class BeamFnDataGrpcMultiplexerTest {
         contains(KV.of(ELEMENTS.getData(0).getData(), false), KV.of(ByteString.EMPTY, true)));
     assertThat(
         timerInboundValues,
-        contains(KV.of(ELEMENTS.getTimer(0).getTimers(), false), KV.of(ByteString.EMPTY, true)));
+        contains(KV.of(ELEMENTS.getTimers(0).getTimers(), false), KV.of(ByteString.EMPTY, true)));
   }
 }
