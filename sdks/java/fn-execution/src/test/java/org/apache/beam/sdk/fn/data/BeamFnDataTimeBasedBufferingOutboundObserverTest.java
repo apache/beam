@@ -156,8 +156,8 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     }
     if (endpoint.isTimer()) {
       return BeamFnApi.Elements.newBuilder()
-          .addTimer(
-              BeamFnApi.Elements.Timer.newBuilder()
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
                   .setInstructionId(endpoint.getInstructionId())
                   .setTransformId(endpoint.getTransformId())
                   .setTimerFamilyId(endpoint.getTimerFamilyId())

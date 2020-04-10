@@ -964,7 +964,7 @@ class BundleManager(object):
           expect_reads,
           abort_callback=lambda:
           (result_future.is_done() and result_future.get().error)):
-        if isinstance(output, beam_fn_api_pb2.Elements.Timer):
+        if isinstance(output, beam_fn_api_pb2.Elements.Timers):
           with BundleManager._lock:
             self._get_buffer(
                 expected_output_timers[(
