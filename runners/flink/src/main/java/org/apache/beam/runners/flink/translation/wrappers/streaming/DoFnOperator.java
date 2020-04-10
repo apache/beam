@@ -851,7 +851,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
-        timer.getKey(),
+        keyedStateInternals.getKey(),
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
