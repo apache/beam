@@ -431,7 +431,7 @@ public class POJOUtils {
             new StackManipulation.Compound(
                 typeConversionsFactory
                     .createGetterConversions(readValue)
-                    .convert(TypeDescriptor.of(field.getType())),
+                    .convert(TypeDescriptor.of(field.getGenericType())),
                 MethodReturn.REFERENCE);
 
         StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);

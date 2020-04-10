@@ -186,31 +186,28 @@ public class ProcessManager {
       LOG.debug("Attempting to stop process with id {}", id);
       // first try to kill gracefully
       process.destroy();
-      long maxTimeToWait = 2000;
-      if (waitForProcessToDie(process, maxTimeToWait)) {
-        LOG.debug("Process for worker {} shut down gracefully.", id);
-      } else {
-        LOG.info("Process for worker {} still running. Killing.", id);
-        process.destroyForcibly();
+      long maxTimeToWait = 500;
+      try {
         if (waitForProcessToDie(process, maxTimeToWait)) {
-          LOG.debug("Process for worker {} killed.", id);
-        } else {
-          LOG.warn("Process for worker {} could not be killed.", id);
+          LOG.debug("Process for worker {} shut down gracefully.", id);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } finally {
+        if (process.isAlive()) {
+          LOG.info("Process for worker {} still running. Killing.", id);
+          process.destroyForcibly();
         }
       }
     }
   }
 
   /** Returns true if the process exists within maxWaitTimeMillis. */
-  private static boolean waitForProcessToDie(Process process, long maxWaitTimeMillis) {
+  private static boolean waitForProcessToDie(Process process, long maxWaitTimeMillis)
+      throws InterruptedException {
     final long startTime = System.currentTimeMillis();
     while (process.isAlive() && System.currentTimeMillis() - startTime < maxWaitTimeMillis) {
-      try {
-        Thread.sleep(100);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted while waiting on process", e);
-      }
+      Thread.sleep(50);
     }
     return !process.isAlive();
   }
@@ -228,19 +225,18 @@ public class ProcessManager {
     public void run() {
       synchronized (ALL_PROCESS_MANAGERS) {
         ALL_PROCESS_MANAGERS.forEach(ProcessManager::stopAllProcesses);
-        for (ProcessManager pm : ALL_PROCESS_MANAGERS) {
-          if (pm.processes.values().stream().anyMatch(Process::isAlive)) {
-            try {
-              // Graceful shutdown period
-              Thread.sleep(200);
-              break;
-            } catch (InterruptedException e) {
-              Thread.currentThread().interrupt();
-              throw new RuntimeException(e);
-            }
+        // If any processes are still alive, wait for 200 ms.
+        try {
+          if (ALL_PROCESS_MANAGERS.stream()
+              .anyMatch(pm -> pm.processes.values().stream().anyMatch(Process::isAlive))) {
+            // Graceful shutdown period after asking processes to quit
+            Thread.sleep(200);
           }
+        } catch (InterruptedException ignored) {
+          // Ignore interruptions here to proceed with killing processes
+        } finally {
+          ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
         }
-        ALL_PROCESS_MANAGERS.forEach(ProcessManager::killAllProcesses);
       }
     }
   }

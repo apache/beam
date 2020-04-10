@@ -58,16 +58,21 @@ class JoinScanWithRefConverter extends RelConverter<ResolvedJoinScan> {
     List<ResolvedColumn> zetaLeftColumnList = getColumnsForScan(zetaNode.getLeftScan());
     List<ResolvedColumn> zetaRightColumnList = getColumnsForScan(zetaNode.getRightScan());
 
-    RexNode condition =
-        getExpressionConverter()
-            .convertRexNodeFromResolvedExprWithRefScan(
-                zetaNode.getJoinExpr(),
-                zetaNode.getLeftScan().getColumnList(),
-                calciteLeftInput.getRowType().getFieldList(),
-                zetaLeftColumnList,
-                zetaNode.getRightScan().getColumnList(),
-                calciteRightInput.getRowType().getFieldList(),
-                zetaRightColumnList);
+    final RexNode condition;
+    if (zetaNode.getJoinExpr() == null) {
+      condition = getExpressionConverter().trueLiteral();
+    } else {
+      condition =
+          getExpressionConverter()
+              .convertRexNodeFromResolvedExprWithRefScan(
+                  zetaNode.getJoinExpr(),
+                  zetaNode.getLeftScan().getColumnList(),
+                  calciteLeftInput.getRowType().getFieldList(),
+                  zetaLeftColumnList,
+                  zetaNode.getRightScan().getColumnList(),
+                  calciteRightInput.getRowType().getFieldList(),
+                  zetaRightColumnList);
+    }
 
     return LogicalJoin.create(
         calciteLeftInput,

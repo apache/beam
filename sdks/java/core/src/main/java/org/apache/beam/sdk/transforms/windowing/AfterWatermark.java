@@ -47,12 +47,12 @@ import org.joda.time.Instant;
  * Thus, if absolute correctness over time is important to your use case, you may want to consider
  * using a trigger that accounts for late data. The default trigger, {@code
  * Repeatedly.forever(AfterWatermark.pastEndOfWindow())}, which fires once when the watermark passes
- * the end of the window and then immediately therafter when any late data arrives, is one such
+ * the end of the window and then immediately thereafter when any late data arrives, is one such
  * example.
  *
  * <p>The watermark is the clock that defines {@link TimeDomain#EVENT_TIME}.
  *
- * <p>Additionaly firings before or after the watermark can be requested by calling {@code
+ * <p>Additionally firings before or after the watermark can be requested by calling {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withLateFirings(OnceTrigger)}.
  */

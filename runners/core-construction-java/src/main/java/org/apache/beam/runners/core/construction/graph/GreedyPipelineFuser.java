@@ -46,6 +46,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNo
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ComparisonChain;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.slf4j.Logger;
@@ -72,7 +73,11 @@ public class GreedyPipelineFuser {
       unfusedRootNodes.addAll(descendants.getUnfusedNodes());
       rootConsumers.addAll(descendants.getFusibleConsumers());
     }
-    this.fusedPipeline = fusePipeline(unfusedRootNodes, groupSiblings(rootConsumers));
+    this.fusedPipeline =
+        fusePipeline(
+            unfusedRootNodes,
+            groupSiblings(rootConsumers),
+            ImmutableSet.copyOf(p.getRequirementsList()));
   }
 
   /**
@@ -114,7 +119,8 @@ public class GreedyPipelineFuser {
    */
   private FusedPipeline fusePipeline(
       Collection<PTransformNode> initialUnfusedTransforms,
-      NavigableSet<NavigableSet<CollectionConsumer>> initialConsumers) {
+      NavigableSet<NavigableSet<CollectionConsumer>> initialConsumers,
+      Set<String> requirements) {
     Map<CollectionConsumer, ExecutableStage> consumedCollectionsAndTransforms = new HashMap<>();
     Set<ExecutableStage> stages = new LinkedHashSet<>();
     Set<PTransformNode> unfusedTransforms = new LinkedHashSet<>(initialUnfusedTransforms);
@@ -174,7 +180,8 @@ public class GreedyPipelineFuser {
                         deduplicated
                             .getDeduplicatedTransforms()
                             .getOrDefault(transform.getId(), transform))
-                .collect(Collectors.toSet())));
+                .collect(Collectors.toSet())),
+        requirements);
   }
 
   private DescendantConsumers getRootConsumers(PTransformNode rootNode) {

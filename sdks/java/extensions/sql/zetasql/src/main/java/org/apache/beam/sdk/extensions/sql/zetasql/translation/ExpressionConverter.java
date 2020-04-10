@@ -513,6 +513,10 @@ public class ExpressionConverter {
     }
   }
 
+  public RexNode trueLiteral() {
+    return rexBuilder().makeLiteral(true);
+  }
+
   /** Convert a resolved literal to a RexNode. */
   public RexNode convertResolvedLiteral(ResolvedLiteral resolvedLiteral) {
     TypeKind kind = resolvedLiteral.getType().getKind();
@@ -612,11 +616,14 @@ public class ExpressionConverter {
                     TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_DOUBLE:
+        double val = value.getDoubleValue();
+        if (Double.isInfinite(val) || Double.isNaN(val)) {
+          throw new UnsupportedOperationException("Does not support Infinite or NaN literals.");
+        }
         ret =
             rexBuilder()
                 .makeApproxLiteral(
-                    new BigDecimal(value.getDoubleValue()),
-                    TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
+                    new BigDecimal(val), TypeUtils.toSimpleRelDataType(kind, rexBuilder()));
         break;
       case TYPE_STRING:
         // has to allow CAST because Calcite create CHAR type first and does a CAST to VARCHAR.
@@ -657,17 +664,18 @@ public class ExpressionConverter {
   }
 
   private RexNode convertArrayValueToRexNode(ArrayType arrayType, Value value) {
+    // TODO: should the nullable be false for a array?
+    RelDataType outputType = TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false);
+
     if (value.isNull()) {
-      // TODO: should the nullable be false for a array?
-      return rexBuilder()
-          .makeNullLiteral(TypeUtils.toArrayRelDataType(rexBuilder(), arrayType, false));
+      return rexBuilder().makeNullLiteral(outputType);
     }
 
     List<RexNode> operands = new ArrayList<>();
     for (Value v : value.getElementList()) {
       operands.add(convertValueToRexNode(arrayType.getElementType(), v));
     }
-    return rexBuilder().makeCall(SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
+    return rexBuilder().makeCall(outputType, SqlStdOperatorTable.ARRAY_VALUE_CONSTRUCTOR, operands);
   }
 
   private RexNode convertStructValueToRexNode(StructType structType, Value value) {
@@ -782,7 +790,7 @@ public class ExpressionConverter {
           break;
         default:
           throw new UnsupportedOperationException(
-              "Only support TUMBLE, HOP AND SESSION functions right now.");
+              "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
     } else if ("ZetaSQL".equals(funGroup)) {
       if (op == null) {

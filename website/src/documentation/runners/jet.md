@@ -22,7 +22,7 @@ limitations under the License.
 ## Overview
 
 The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcast
-Jet](https://jet.hazelcast.org/). 
+Jet](https://jet-start.sh/). 
 
 The Jet Runner and Jet are suitable for large scale continuous jobs and provide:
 * Support for both batch (bounded) and streaming (unbounded) data sets
@@ -59,24 +59,81 @@ Issue following command in the Beam examples project to start new Jet cluster an
 ```
 
 ### Running WordCount on a Remote Jet Cluster ##
-Download latest stable Hazelcast Jet code from [Hazelcast Website](https://jet.hazelcast.org/download/) and 
-start Jet cluster. 
-The simplest way is to start Jet cluster member using the `jet-start` script that comes with Jet distribution.
-The members use the [auto discovery feature](https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters) 
+The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that's what
+the `archetypeVersion` property is about). Each Beam version that contains the Jet Runner (ie. from 2.14.0 onwards)
+uses a certain version of Jet. Because of this, when we start a stand-alone Jet cluster and try to run Beam examples on
+it we need to make sure the two are compatible. See following table for which Jet version is recommended for various
+Beam versions.  
+
+<table class="table table-bordered">
+<tr>
+  <th>Beam Version</th>
+  <th>Compatible Jet Versions</th>
+</tr>
+<tr>
+  <td>2.20.0 or newer</td>
+  <td>4.x</td>
+</tr>
+<tr>
+  <td>2.14.0 - 2.19.0</td>
+  <td>3.x</td>
+</tr>
+<tr>
+  <td>2.13.0 or older</td>
+  <td>N/A</td>
+</tr>
+</table>
+
+Download latest Hazelcast Jet version compatible with the Beam you are using from 
+[Hazelcast Jet Website](https://jet-start.sh/download). 
+
+<nav class="version-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="version-jet3">Hazelcast Jet 3.x</li>
+    <li data-type="version-jet4">Hazelcast Jet 4.x</li>
+  </ul>
+</nav>
+
+Once the download has finished you need to start a Jet cluster. The simplest way to do so is to start Jet cluster
+members using the `jet-start` script that comes with the downloaded Jet distribution. The members use the 
+<span class="version-jet3">
+[auto discovery feature](https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters)
+</span>
+<span class="version-jet4">
+[auto discovery feature](https://docs.hazelcast.org/docs/4.0/manual/html-single/#setting-up-clusters)
+</span>
 to form a cluster. Let's start up a cluster formed by two members:
 
+{:.version-jet3}
 ```
-    $ cd hazelcast-jet
-    $ bin/jet-start.sh &
-    $ bin/jet-start.sh &
+$ cd hazelcast-jet
+$ bin/jet-start.sh &
+$ bin/jet-start.sh &
+```
+
+{:.version-jet4}
+```
+$ cd hazelcast-jet
+$ bin/jet-start &
+$ bin/jet-start &
 ```
 
 Check the cluster is up and running:
+
+{:.version-jet3}
 ```
-    $ ./jet.sh cluster
+$ bin/jet.sh cluster
+```
+
+{:.version-jet4}
+```
+$ bin/jet cluster
 ```
 
 You should see something like:
+
+{:.version-jet3}
 ```
 State: ACTIVE
 Version: 3.0
@@ -87,8 +144,16 @@ ADDRESS                  UUID
 [192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
 ```
 
-Download [Jet Management Center](https://docs.hazelcast.org/docs/jet-management-center/3.0/manual/)
-from the same location and use it to monitor your cluster and later executions.
+{:.version-jet4}
+```
+State: ACTIVE
+Version: 4.0
+Size: 2
+
+ADDRESS                  UUID               
+[192.168.0.117]:5701     b9937bba-32aa-48ba-8e32-423aafed763b
+[192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937
+```
 
 Change directory to the Beam Examples project and issue following command to submit and execute your 
 Pipeline on the remote Jet cluster.
@@ -122,10 +187,13 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td>Set to <code>JetRunner</code> to run using Jet.</td>
 </tr>
 <tr>
-  <td><code>jetGroupName</code></td>
-  <td>The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that will be 
-  used by the Runner. With groups it is possible to create multiple clusters where each cluster has its own 
-  group and doesn't interfere with other clusters.</td>
+    <td><code><span class="version-jet3">jetGroupName</span><span class="version-jet4">jetClusterName</span></code></td>
+    <td>
+        <span class="version-jet3">The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that
+        will be used by the Runner. With groups it is possible to create multiple clusters where each cluster has its
+        own group and doesn't interfere with other clusters.</span> 
+        <span class="version-jet4">The name of the Hazelcast Cluster that will be used by the Runner.</span> 
+    </td>
   <td><code>jet</code></td>
 </tr>
 <tr>

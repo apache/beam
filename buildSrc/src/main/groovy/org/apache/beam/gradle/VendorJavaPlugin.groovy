@@ -125,6 +125,10 @@ artifactId=${project.name}
         classifier = null
         mergeServiceFiles()
         zip64 true
+        exclude "META-INF/INDEX.LIST"
+        exclude "META-INF/*.SF"
+        exclude "META-INF/*.DSA"
+        exclude "META-INF/*.RSA"
       }
 
       project.task('validateVendoring', dependsOn: 'shadowJar') {

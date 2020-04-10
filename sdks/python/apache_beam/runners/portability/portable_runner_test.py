@@ -42,8 +42,8 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
-from apache_beam.runners.portability import fn_api_runner_test
 from apache_beam.runners.portability import portable_runner
+from apache_beam.runners.portability.fn_api_runner import fn_runner_test
 from apache_beam.runners.portability.local_job_service import LocalJobServicer
 from apache_beam.runners.portability.portable_runner import PortableRunner
 from apache_beam.runners.worker import worker_pool_main
@@ -59,7 +59,7 @@ _LOGGER = logging.getLogger(__name__)
 # Disable timeout since this test implements its own.
 # TODO(BEAM-9011): Consider using pytest-timeout's mechanism instead.
 @pytest.mark.timeout(0)
-class PortableRunnerTest(fn_api_runner_test.FnApiRunnerTest):
+class PortableRunnerTest(fn_runner_test.FnApiRunnerTest):
 
   TIMEOUT_SECS = 60
 
@@ -315,7 +315,8 @@ class PortableRunnerInternalTest(unittest.TestCase):
   def test__create_default_environment(self):
     docker_image = environments.DockerEnvironment.default_docker_image()
     self.assertEqual(
-        PortableRunner._create_environment(PipelineOptions.from_dictionary({})),
+        PortableRunner._create_environment(
+            PipelineOptions.from_dictionary({'sdk_location': 'container'})),
         environments.DockerEnvironment(container_image=docker_image))
 
   def test__create_docker_environment(self):
@@ -325,6 +326,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
             PipelineOptions.from_dictionary({
                 'environment_type': 'DOCKER',
                 'environment_config': docker_image,
+                'sdk_location': 'container',
             })),
         environments.DockerEnvironment(container_image=docker_image))
 
@@ -336,6 +338,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
                 'environment_config': '{"os": "linux", "arch": "amd64", '
                 '"command": "run.sh", '
                 '"env":{"k1": "v1"} }',
+                'sdk_location': 'container',
             })),
         environments.ProcessEnvironment(
             'run.sh', os='linux', arch='amd64', env={'k1': 'v1'}))
@@ -344,6 +347,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
             PipelineOptions.from_dictionary({
                 'environment_type': 'PROCESS',
                 'environment_config': '{"command": "run.sh"}',
+                'sdk_location': 'container',
             })),
         environments.ProcessEnvironment('run.sh'))
 
@@ -353,6 +357,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
             PipelineOptions.from_dictionary({
                 'environment_type': "EXTERNAL",
                 'environment_config': 'localhost:50000',
+                'sdk_location': 'container',
             })),
         environments.ExternalEnvironment('localhost:50000'))
     raw_config = ' {"url":"localhost:50000", "params":{"k1":"v1"}} '
@@ -362,6 +367,7 @@ class PortableRunnerInternalTest(unittest.TestCase):
               PipelineOptions.from_dictionary({
                   'environment_type': "EXTERNAL",
                   'environment_config': env_config,
+                  'sdk_location': 'container',
               })),
           environments.ExternalEnvironment(
               'localhost:50000', params={"k1": "v1"}))
@@ -370,12 +376,14 @@ class PortableRunnerInternalTest(unittest.TestCase):
           PipelineOptions.from_dictionary({
               'environment_type': "EXTERNAL",
               'environment_config': '{invalid}',
+              'sdk_location': 'container',
           }))
     with self.assertRaises(ValueError) as ctx:
       PortableRunner._create_environment(
           PipelineOptions.from_dictionary({
               'environment_type': "EXTERNAL",
               'environment_config': '{"params":{"k1":"v1"}}',
+              'sdk_location': 'container',
           }))
     self.assertIn(
         'External environment endpoint must be set.', ctx.exception.args)

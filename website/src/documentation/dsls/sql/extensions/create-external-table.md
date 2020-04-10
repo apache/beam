@@ -89,7 +89,7 @@ tableElement: columnName fieldType [ NOT NULL ]
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
-TBLPROPERTIES '{"method": "DEFAULT"}'
+TBLPROPERTIES '{"method": "DIRECT_READ"}'
 ```
 
 *   `LOCATION`: Location of the table in the BigQuery CLI format.
@@ -98,9 +98,9 @@ TBLPROPERTIES '{"method": "DEFAULT"}'
     *   `TABLE`: BigQuery Table ID within the Dataset.
 *   `TBLPROPERTIES`:
     *   `method`: Optional. Read method to use. Following options are available:
-        *   `DEFAULT`: If no property is set, will be used as default. Currently uses `EXPORT`.
         *   `DIRECT_READ`: Use the BigQuery Storage API.
         *   `EXPORT`: Export data to Google Cloud Storage in Avro format and read data files from that location.
+        *   Default is `DIRECT_READ` for Beam 2.21+ (older versions use `EXPORT`).
 
 ### Read Mode
 

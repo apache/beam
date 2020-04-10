@@ -910,7 +910,8 @@ public class AvroUtils {
             EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
             return GenericData.get()
                 .createEnum(
-                    enumerationType.valueOf((int) value).toString(), typeWithNullability.type);
+                    enumerationType.toString((EnumerationType.Value) value),
+                    typeWithNullability.type);
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());

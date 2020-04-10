@@ -91,13 +91,19 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * operations.
    *
    * <p>Default is set on a per-service basis.
+   *
+   * @deprecated Use {@link #getWorkerZone()} instead.
    */
+  @Deprecated
   @Description(
       "GCP availability zone for running GCP operations. "
           + "and GCE availability zone for launching workers "
-          + "Default is up to the individual service.")
+          + "Default is up to the individual service. "
+          + "This option is deprecated, and will be replaced by workerZone.")
   String getZone();
 
+  /** @deprecated Use {@link #setWorkerZone} instead. */
+  @Deprecated
   void setZone(String value);
 
   /**

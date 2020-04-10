@@ -26,15 +26,36 @@ tagged PCollection.
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import print_function
+
+import itertools
 
 from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam import pvalue
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.testing.test_stream import ElementEvent
+from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import window
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
+from apache_beam.utils.timestamp import Duration
+from apache_beam.utils.timestamp import Timestamp
+
+try:
+  import grpc
+  from apache_beam.portability.api import beam_runner_api_pb2_grpc  # pylint: disable=ungrouped-imports
+except ImportError:
+  grpc = None
+  beam_runner_api_pb2_grpc = None
+  # A workaround for directrunner users who would cannot depend
+  # on grpc which are missing grpc dependencyy.
+  print(
+      'Exception: grpc was not able to be imported. '
+      'Skip importing all grpc related moduels.')
 
 
 class _WatermarkController(PTransform):
@@ -65,7 +86,6 @@ class _ExpandableTestStream(PTransform):
   def expand(self, pbegin):
     """Expands the TestStream into the DirectRunner implementation.
 
-
     Takes the TestStream transform and creates a _TestStream -> multiplexer ->
     _WatermarkController.
     """
@@ -79,7 +99,8 @@ class _ExpandableTestStream(PTransform):
           | _TestStream(
               self.test_stream.output_tags,
               events=self.test_stream._events,
-              coder=self.test_stream.coder)
+              coder=self.test_stream.coder,
+              endpoint=self.test_stream._endpoint)
           | _WatermarkController(list(self.test_stream.output_tags)[0]))
 
     # Multiplex to the correct PCollection based upon the event tag.
@@ -94,7 +115,8 @@ class _ExpandableTestStream(PTransform):
         | _TestStream(
             self.test_stream.output_tags,
             events=self.test_stream._events,
-            coder=self.test_stream.coder)
+            coder=self.test_stream.coder,
+            endpoint=self.test_stream._endpoint)
         | 'TestStream Multiplexer' >> ParDo(mux).with_outputs())
 
     # Apply a way to control the watermark per output. It is necessary to
@@ -131,12 +153,17 @@ class _TestStream(PTransform):
   WATERMARK_CONTROL_TAG = '_TestStream_Watermark'
 
   def __init__(
-      self, output_tags, coder=coders.FastPrimitivesCoder(), events=None):
+      self,
+      output_tags,
+      coder=coders.FastPrimitivesCoder(),
+      events=None,
+      endpoint=None):
     assert coder is not None
     self.coder = coder
     self._raw_events = events
     self._events = self._add_watermark_advancements(output_tags, events)
     self.output_tags = output_tags
+    self.endpoint = endpoint
 
   def _watermark_starts(self, output_tags):
     """Sentinel values to hold the watermark of outputs to -inf.
@@ -226,17 +253,50 @@ class _TestStream(PTransform):
   def _infer_output_coder(self, input_type=None, input_coder=None):
     return self.coder
 
-  def _events_from_script(self, index):
-    yield self._events[index]
+  @staticmethod
+  def events_from_script(events):
+    """Yields the in-memory events.
+    """
+    return itertools.chain(events)
 
-  def events(self, index):
-    return self._events_from_script(index)
+  @staticmethod
+  def events_from_rpc(endpoint, output_tags, coder):
+    """Yields the events received from the given endpoint.
+    """
+    stub_channel = grpc.insecure_channel(endpoint)
+    stub = beam_runner_api_pb2_grpc.TestStreamServiceStub(stub_channel)
 
-  def begin(self):
-    return 0
+    # Request the PCollections that we are looking for from the service.
+    event_request = beam_runner_api_pb2.EventsRequest(
+        output_ids=[str(tag) for tag in output_tags])
 
-  def end(self, index):
-    return index >= len(self._events)
+    event_stream = stub.Events(event_request)
+    for e in event_stream:
+      yield _TestStream.test_stream_payload_to_events(e, coder)
 
-  def next(self, index):
-    return index + 1
+  @staticmethod
+  def test_stream_payload_to_events(payload, coder):
+    """Returns a TestStream Python event object from a TestStream event Proto.
+    """
+    if payload.HasField('element_event'):
+      element_event = payload.element_event
+      elements = [
+          TimestampedValue(
+              coder.decode(e.encoded_element), Timestamp(micros=e.timestamp))
+          for e in element_event.elements
+      ]
+      return ElementEvent(timestamped_values=elements, tag=element_event.tag)
+
+    if payload.HasField('watermark_event'):
+      watermark_event = payload.watermark_event
+      return WatermarkEvent(
+          Timestamp(micros=watermark_event.new_watermark),
+          tag=watermark_event.tag)
+
+    if payload.HasField('processing_time_event'):
+      processing_time_event = payload.processing_time_event
+      return ProcessingTimeEvent(
+          Duration(micros=processing_time_event.advance_duration))
+
+    raise RuntimeError(
+        'Received a proto without the specified fields: {}'.format(payload))

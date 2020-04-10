@@ -570,7 +570,7 @@ class TestWriteToBigQuery(unittest.TestCase):
       with self.assertRaisesRegex(ValueError, '^A schema must be provided'):
         _ = (
             pc
-            | beam.io.gcp.bigquery.WriteToBigQuery(
+            | 'No Schema' >> beam.io.gcp.bigquery.WriteToBigQuery(
                 "dataset.table",
                 schema=None,
                 temp_file_format=bigquery_tools.FileFormat.AVRO))
@@ -579,7 +579,7 @@ class TestWriteToBigQuery(unittest.TestCase):
                                   '^Schema auto-detection is not supported'):
         _ = (
             pc
-            | beam.io.gcp.bigquery.WriteToBigQuery(
+            | 'Schema Autodetected' >> beam.io.gcp.bigquery.WriteToBigQuery(
                 "dataset.table",
                 schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
                 temp_file_format=bigquery_tools.FileFormat.AVRO))
@@ -1035,6 +1035,7 @@ class PubSubBigQueryIT(unittest.TestCase):
       _ = mesages | WriteToBigQuery(
           self.output_table,
           schema=self.SCHEMA,
+          temp_file_format=bigquery_tools.FileFormat.JSON,
           method=method,
           triggering_frequency=triggering_frequency)
 

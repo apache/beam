@@ -29,6 +29,7 @@ def bqio_read_test = [
         pipelineOptions: [
                 job_name             : 'performance-tests-bqio-read-python-10gb' + now,
                 project              : 'apache-beam-testing',
+                region               : 'us-central1',
                 temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                 input_dataset        : 'beam_performance',
                 input_table          : 'bqio_read_10GB',
@@ -51,6 +52,7 @@ def bqio_write_test = [
         pipelineOptions: [
                 job_name             : 'performance-tests-bqio-write-python-batch-10gb' + now,
                 project              : 'apache-beam-testing',
+                region               : 'us-central1',
                 temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                 output_dataset       : 'beam_performance',
                 output_table         : 'bqio_write_10GB',

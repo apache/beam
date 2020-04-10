@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,8 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor.FieldDescriptor.Qualifier;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.IfNullElse;
+import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ShortCircuitReturnNull;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.asm.AsmVisitorWrapper;
@@ -54,6 +57,7 @@ import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.assign.TypeCasting;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -67,7 +71,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
-public class SelectByteBuddyHelpers {
+class SelectByteBuddyHelpers {
   private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final String SELECT_SCHEMA_FIELD_NAME = "OUTPUTSCHEMA";
 
@@ -137,7 +141,7 @@ public class SelectByteBuddyHelpers {
   private static final Map<SchemaAndDescriptor, RowSelector> CACHED_SELECTORS =
       Maps.newConcurrentMap();
 
-  public static RowSelector getRowSelector(
+  static RowSelector getRowSelector(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
     return CACHED_SELECTORS.computeIfAbsent(
         SchemaAndDescriptor.of(inputSchema, fieldAccessDescriptor),
@@ -234,7 +238,7 @@ public class SelectByteBuddyHelpers {
       this.arraySize = arraySize;
     }
 
-    public StackManipulation createArray() {
+    StackManipulation createArray() {
       return new StackManipulation() {
         @Override
         public boolean isValid() {
@@ -252,11 +256,15 @@ public class SelectByteBuddyHelpers {
       };
     }
 
-    public StackManipulation append(StackManipulation valueToWrite) {
+    StackManipulation append(StackManipulation valueToWrite) {
       return store(currentArrayField++, valueToWrite);
     }
 
-    public StackManipulation store(int arrayIndexToWrite, StackManipulation valueToWrite) {
+    int reserveSlot() {
+      return currentArrayField++;
+    }
+
+    StackManipulation store(int arrayIndexToWrite, StackManipulation valueToWrite) {
       Preconditions.checkArgument(arrayIndexToWrite < arraySize);
       return new StackManipulation() {
         @Override
@@ -360,11 +368,6 @@ public class SelectByteBuddyHelpers {
                             ElementMatchers.named("attachValues")
                                 .and(ElementMatchers.takesArguments(Object[].class)))
                         .getOnly()),
-                MethodInvocation.invoke(
-                    new ForLoadedType(Row.Builder.class)
-                        .getDeclaredMethods()
-                        .filter(ElementMatchers.named("build"))
-                        .getOnly()),
                 MethodReturn.REFERENCE);
         size = size.aggregate(attachToRow.apply(methodVisitor, implementationContext));
         return new Size(size.getMaximalSize(), localVariables.getTotalNumVariables());
@@ -374,16 +377,20 @@ public class SelectByteBuddyHelpers {
     // Selects a field from the current row being selected (the one stored in
     // currentSelectRowArg).
     private StackManipulation getCurrentRowFieldValue(int i) {
-      return new StackManipulation.Compound(
-          localVariables.readVariable(currentSelectRowArg, Row.class),
-          IntegerConstant.forValue(i),
-          MethodInvocation.invoke(
-              ROW_LOADED_TYPE
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.named("getValue")
-                          .and(ElementMatchers.takesArguments(int.class)))
-                  .getOnly()));
+      StackManipulation readRow = localVariables.readVariable(currentSelectRowArg, Row.class);
+      StackManipulation getValue =
+          new StackManipulation.Compound(
+              localVariables.readVariable(currentSelectRowArg, Row.class),
+              IntegerConstant.forValue(i),
+              MethodInvocation.invoke(
+                  ROW_LOADED_TYPE
+                      .getDeclaredMethods()
+                      .filter(
+                          ElementMatchers.named("getValue")
+                              .and(ElementMatchers.takesArguments(int.class)))
+                      .getOnly()));
+
+      return new ShortCircuitReturnNull(readRow, getValue);
     }
 
     // Generate bytecode to select all specified fields from the Row. The current row being selected
@@ -536,24 +543,42 @@ public class SelectByteBuddyHelpers {
           IntStream.range(0, nestedSchema.getFieldCount())
               .map(i -> localVariables.createVariable())
               .toArray();
-
       // Each field returned in nestedSchema will become it's own list in the output. So let's
       // iterate and create arrays and store each one in the output.
       StackManipulation createAllArrayLists =
           new StackManipulation.Compound(
-              IntStream.range(0, nestedSchema.getFieldCount())
+              Arrays.stream(localVariablesForArrays)
                   .mapToObj(
-                      i -> {
+                      v -> {
                         StackManipulation createArrayList =
                             new StackManipulation.Compound(
                                 MethodInvocation.invoke(LISTS_NEW_ARRAYLIST),
                                 // Store the ArrayList in a local variable.
                                 Duplication.SINGLE,
-                                localVariables.writeVariable(localVariablesForArrays[i]));
-                        return arrayManager.append(createArrayList);
+                                localVariables.writeVariable(v));
+                        StackManipulation storeNull =
+                            new StackManipulation.Compound(
+                                NullConstant.INSTANCE,
+                                localVariables.writeVariable(v),
+                                NullConstant.INSTANCE);
+
+                        // Create the array only if the input isn't null. Otherwise store a null
+                        // value into the output
+                        // array.
+                        int arraySlot = arrayManager.reserveSlot();
+                        return new IfNullElse(
+                            loadFieldValue(fieldId),
+                            arrayManager.store(arraySlot, storeNull),
+                            arrayManager.store(arraySlot, createArrayList));
                       })
                   .collect(Collectors.toList()));
       size = size.aggregate(createAllArrayLists.apply(methodVisitor, implementationContext));
+
+      // If the input variable is null, then don't try and iterate over it.
+      Label onNullLabel = new Label();
+      size = size.aggregate(loadFieldValue(fieldId).apply(methodVisitor, implementationContext));
+      methodVisitor.visitJumpInsn(Opcodes.IFNULL, onNullLabel);
+      size = size.aggregate(StackSize.SINGLE.toDecreasingSize());
 
       // Now iterate over the value, selecting from each element.
       StackManipulation readListIterator =
@@ -563,9 +588,9 @@ public class SelectByteBuddyHelpers {
               MethodInvocation.invoke(ITERABLE_ITERATOR));
       size = size.aggregate(readListIterator.apply(methodVisitor, implementationContext));
 
-      // Loop over the entire iterable.
       Label startLoopLabel = new Label();
       Label exitLoopLabel = new Label();
+      // Loop over the entire iterable.
       methodVisitor.visitLabel(startLoopLabel);
 
       StackManipulation checkTerminationCondition =
@@ -663,6 +688,7 @@ public class SelectByteBuddyHelpers {
       methodVisitor.visitLabel(exitLoopLabel);
       // Remove the iterator from the top of the stack.
       size = size.aggregate(Removal.SINGLE.apply(methodVisitor, implementationContext));
+      methodVisitor.visitLabel(onNullLabel);
       return size;
     }
 
@@ -690,19 +716,34 @@ public class SelectByteBuddyHelpers {
       // iterate and create arrays and store each one in the output.
       StackManipulation createAllHashMaps =
           new StackManipulation.Compound(
-              IntStream.range(0, nestedSchema.getFieldCount())
+              Arrays.stream(localVariablesForMaps)
                   .mapToObj(
-                      i -> {
+                      v -> {
                         StackManipulation createHashMap =
                             new StackManipulation.Compound(
                                 MethodInvocation.invoke(MAPS_NEW_HASHMAP),
                                 // Store the HashMap in a local variable.
                                 Duplication.SINGLE,
-                                localVariables.writeVariable(localVariablesForMaps[i]));
-                        return arrayManager.append(createHashMap);
+                                localVariables.writeVariable(v));
+                        StackManipulation storeNull =
+                            new StackManipulation.Compound(
+                                NullConstant.INSTANCE,
+                                localVariables.writeVariable(v),
+                                NullConstant.INSTANCE);
+                        int arraySlot = arrayManager.reserveSlot();
+                        return new IfNullElse(
+                            loadFieldValue(fieldId),
+                            arrayManager.store(arraySlot, storeNull),
+                            arrayManager.store(arraySlot, createHashMap));
                       })
                   .collect(Collectors.toList()));
       size = size.aggregate(createAllHashMaps.apply(methodVisitor, implementationContext));
+
+      // If the input variable is null, then don't try and iterate over it.
+      Label onNullLabel = new Label();
+      size = size.aggregate(loadFieldValue(fieldId).apply(methodVisitor, implementationContext));
+      methodVisitor.visitJumpInsn(Opcodes.IFNULL, onNullLabel);
+      size = size.aggregate(StackSize.SINGLE.toDecreasingSize());
 
       // Now iterate over the value, selecting from each element.
       StackManipulation readMapEntriesIterator =
@@ -822,6 +863,7 @@ public class SelectByteBuddyHelpers {
       methodVisitor.visitLabel(exitLoopLabel);
       // Remove the iterator from the top of the stack.
       size = size.aggregate(Removal.SINGLE.apply(methodVisitor, implementationContext));
+      methodVisitor.visitLabel(onNullLabel);
       return size;
     }
 

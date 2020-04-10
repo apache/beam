@@ -70,8 +70,8 @@ from apache_beam.utils import proto_utils
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
 # are expected by the workers.
-_LEGACY_ENVIRONMENT_MAJOR_VERSION = '7'
-_FNAPI_ENVIRONMENT_MAJOR_VERSION = '7'
+_LEGACY_ENVIRONMENT_MAJOR_VERSION = '8'
+_FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -196,6 +196,17 @@ class Environment(object):
     # TODO: Use enumerated type instead of strings for job types.
     if job_type.startswith('FNAPI_'):
       self.debug_options.experiments = self.debug_options.experiments or []
+
+      # TODO(BEAM-9707) : Remove hardcoding runner_harness_container for
+      #  Unified worker.
+      if _use_unified_worker(
+          options) and not self.debug_options.lookup_experiment(
+              'runner_harness_container_image'
+          ) and 'dev' in beam_version.__version__:
+        self.debug_options.add_experiment(
+            'runner_harness_container_image='
+            'gcr.io/cloud-dataflow/v1beta3/unified-harness:20200402-rc00')
+
       if self.debug_options.lookup_experiment(
           'runner_harness_container_image') or _use_unified_worker(options):
         # Default image is not used if user provides a runner harness image.
@@ -571,7 +582,7 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resource_stager = _LegacyDataflowStager(self)
-    _, resources = resource_stager.stage_job_resources(
+    _, resources = resource_stager.create_and_stage_job_resources(
         options,
         temp_dir=tempfile.mkdtemp(),
         staging_location=google_cloud_options.staging_location)
@@ -1003,15 +1014,12 @@ def _use_fnapi(pipeline_options):
 
 
 def _use_unified_worker(pipeline_options):
-  if not _use_fnapi(pipeline_options):
-    return False
   debug_options = pipeline_options.view_as(DebugOptions)
   use_unified_worker_flag = 'use_unified_worker'
+  use_runner_v2_flag = 'use_runner_v2'
 
-  if debug_options.lookup_experiment(use_unified_worker_flag):
-    return debug_options.lookup_experiment(use_unified_worker_flag)
-
-  if debug_options.lookup_experiment('use_runner_v2'):
+  if (debug_options.lookup_experiment(use_runner_v2_flag) and
+      not debug_options.lookup_experiment(use_unified_worker_flag)):
     debug_options.add_experiment(use_unified_worker_flag)
 
   return debug_options.lookup_experiment(use_unified_worker_flag)

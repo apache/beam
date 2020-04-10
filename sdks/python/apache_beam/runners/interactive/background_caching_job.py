@@ -56,7 +56,7 @@ class BackgroundCachingJob(object):
   """A simple abstraction that controls necessary components of a timed and
   space limited background caching job.
 
-  A background caching job successfully complete source data capture in 2
+  A background caching job successfully completes source data capture in 2
   conditions:
 
     #. The job is finite and runs into DONE state;
@@ -86,7 +86,7 @@ class BackgroundCachingJob(object):
       time.sleep(5)
 
   def _should_end_condition_checker(self):
-    if ie.current_env().options.capture_control.is_capture_size_reached():
+    if ie.current_env().options.capture_control.is_capture_size_limit_reached():
       self._condition_checker_triggered = True
       self.cancel()
       return True
@@ -166,6 +166,12 @@ def is_background_caching_job_needed(user_pipeline):
   # If this is True, we can invalidate a previous done/running job if there is
   # one.
   cache_changed = is_source_to_cache_changed(user_pipeline)
+  # When capture replay is disabled, cache is always needed for capturable
+  # sources (if any).
+  if need_cache and not ie.current_env().options.enable_capture_replay:
+    from apache_beam.runners.interactive.options import capture_control
+    capture_control.evict_captured_data()
+    return True
   return (
       need_cache and
       # Checks if it's the first time running a job from the pipeline.
@@ -181,6 +187,20 @@ def is_background_caching_job_needed(user_pipeline):
               job.is_running()) or
           # Or checks if we can invalidate the previous job.
           cache_changed))
+
+
+def is_cache_complete(pipeline_id):
+  # type: (str) -> bool
+
+  """Returns True if the backgrond cache for the given pipeline is done.
+  """
+  user_pipeline = ie.current_env().pipeline_id_to_pipeline(pipeline_id)
+  job = ie.current_env().get_background_caching_job(user_pipeline)
+  is_done = job and job.is_done()
+  cache_changed = is_source_to_cache_changed(
+      user_pipeline, update_cached_source_signature=False)
+
+  return is_done and not cache_changed
 
 
 def has_source_to_cache(user_pipeline):
@@ -202,10 +222,12 @@ def has_source_to_cache(user_pipeline):
   if has_cache:
     if not isinstance(ie.current_env().cache_manager(),
                       streaming_cache.StreamingCache):
-      # TODO(BEAM-8335): convert the cache manager into a streaming cache
-      # manager. Note this does not invalidate the current cache including the
-      # source data capture.
-      pass
+
+      ie.current_env().set_cache_manager(
+          streaming_cache.StreamingCache(
+              ie.current_env().cache_manager()._cache_dir,
+              is_cache_complete=is_cache_complete,
+              sample_resolution_sec=1.0))
   return has_cache
 
 
@@ -259,20 +281,31 @@ def is_source_to_cache_changed(
   # The computation of extract_unbounded_source_signature is expensive, track on
   # change by default.
   if is_changed and update_cached_source_signature:
-    if ie.current_env().options.enable_capture_replay:
+    options = ie.current_env().options
+    # No info needed when capture replay is disabled.
+    if options.enable_capture_replay:
       if not recorded_signature:
+
+        def sizeof_fmt(num, suffix='B'):
+          for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+            if abs(num) < 1000.0:
+              return "%3.1f%s%s" % (num, unit, suffix)
+            num /= 1000.0
+          return "%.1f%s%s" % (num, 'Yi', suffix)
+
         _LOGGER.info(
-            'Interactive Beam has detected you have unbounded sources '
-            'in your pipeline. In order to have a deterministic replay '
-            'of your pipeline, data from sources will be captured. %s',
-            ie.current_env().options.capture_control)
+            'Interactive Beam has detected unbounded sources in your pipeline. '
+            'In order to have a deterministic replay, a segment of data will '
+            'be recorded from all sources for %s seconds or until a total of '
+            '%s have been written to disk.',
+            options.capture_duration.total_seconds(),
+            sizeof_fmt(options.capture_size_limit))
       else:
         _LOGGER.info(
             'Interactive Beam has detected a new streaming source was '
-            'added to the pipeline. In order for the captured streaming '
-            'data to start at the same time, all captured data have been '
-            'cleared. %s',
-            ie.current_env().options.capture_control)
+            'added to the pipeline. In order for the cached streaming '
+            'data to start at the same time, all captured data has been '
+            'cleared and a new segment of data will be recorded.')
 
     ie.current_env().cleanup()
     ie.current_env().set_cached_source_signature(
@@ -293,7 +326,7 @@ def extract_source_to_cache_signature(user_pipeline):
       user_pipeline)
   unbounded_sources_as_ptransforms = set(
       map(lambda x: x.transform, unbounded_sources_as_applied_transforms))
-  context, _ = user_pipeline.to_runner_api(
+  _, context = user_pipeline.to_runner_api(
       return_context=True, use_fake_coders=True)
   signature = set(
       map(

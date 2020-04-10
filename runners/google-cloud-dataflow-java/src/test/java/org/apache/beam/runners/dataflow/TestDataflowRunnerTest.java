@@ -88,6 +88,7 @@ public class TestDataflowRunnerTest {
     options = PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
     options.setAppName("TestAppName");
     options.setProject("test-project");
+    options.setRegion("some-region1");
     options.setTempLocation("gs://test/temp/location");
     options.setTempRoot("gs://test");
     options.setGcpCredential(new TestCredential());
