@@ -164,7 +164,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         }
       }
 
-      for (BeamFnApi.Elements.Timer timer : value.getTimerList()) {
+      for (BeamFnApi.Elements.Timers timer : value.getTimersList()) {
         try {
           LogicalEndpoint key =
               LogicalEndpoint.timer(
