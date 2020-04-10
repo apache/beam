@@ -97,8 +97,8 @@ public class LateDataDroppingDoFnRunner<K, InputT, OutputT, W extends BoundedWin
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    doFnRunner.onWindowExpiration(window, timestamp, timeDomain);
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
+    doFnRunner.onWindowExpiration(window, timestamp);
   }
 
   /** It filters late data in a {@link KeyedWorkItem}. */

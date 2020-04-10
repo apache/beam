@@ -499,6 +499,8 @@ public abstract class DoFnSignature {
         new AutoValue_DoFnSignature_Parameter_PipelineOptionsParameter();
     private static final BundleFinalizerParameter BUNDLE_FINALIZER_PARAMETER =
         new AutoValue_DoFnSignature_Parameter_BundleFinalizerParameter();
+    private static final OnWindowExpirationContextParameter ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER =
+        new AutoValue_DoFnSignature_Parameter_OnWindowExpirationContextParameter();
 
     /** Returns a {@link ProcessContextParameter}. */
     public static ProcessContextParameter processContext() {
@@ -564,6 +566,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link OnTimerContextParameter}. */
     public static OnTimerContextParameter onTimerContext() {
       return ON_TIMER_CONTEXT_PARAMETER;
+    }
+
+    /** Returns a {@link OnWindowExpirationContextParameter}. */
+    public static OnWindowExpirationContextParameter onWindowExpirationContext() {
+      return ON_WINDOW_EXPIRATION_CONTEXT_PARAMETER;
     }
 
     public static PaneInfoParameter paneInfoParameter() {
@@ -781,6 +788,16 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class OnTimerContextParameter extends Parameter {
       OnTimerContextParameter() {}
+    }
+
+    /**
+     * Descriptor for a {@link Parameter} of type {@link DoFn.OnWindowExpirationContext}.
+     *
+     * <p>All such descriptors are equal.
+     */
+    @AutoValue
+    public abstract static class OnWindowExpirationContextParameter extends Parameter {
+      OnWindowExpirationContextParameter() {}
     }
 
     /**

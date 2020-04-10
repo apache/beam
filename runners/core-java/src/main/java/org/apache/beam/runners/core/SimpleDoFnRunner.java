@@ -240,9 +240,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    invoker.invokeOnWindowExpiration(
-        new OnWindowExpirationArgumentProvider(window, timestamp, timeDomain));
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
+    invoker.invokeOnWindowExpiration(new OnWindowExpirationArgumentProvider(window, timestamp));
   }
 
   private RuntimeException wrapUserCodeException(Throwable t) {
@@ -851,12 +850,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
    * DoFn} on window expiration.
    */
-  private class OnWindowExpirationArgumentProvider extends DoFn<InputT, OutputT>.OnTimerContext
+  private class OnWindowExpirationArgumentProvider
+      extends DoFn<InputT, OutputT>.OnWindowExpirationContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     private final BoundedWindow window;
     private final Instant timestamp;
-    private final TimeDomain timeDomain;
-
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
@@ -874,22 +872,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return namespace;
     }
 
-    private OnWindowExpirationArgumentProvider(
-        BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
+    private OnWindowExpirationArgumentProvider(BoundedWindow window, Instant timestamp) {
       fn.super();
       this.window = window;
       this.timestamp = timestamp;
-      this.timeDomain = timeDomain;
-    }
-
-    @Override
-    public Instant timestamp() {
-      return timestamp;
-    }
-
-    @Override
-    public Instant fireTimestamp() {
-      throw new UnsupportedOperationException("Timer parameters are not supported.");
     }
 
     @Override
@@ -920,11 +906,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public TimeDomain timeDomain() {
-      return timeDomain;
-    }
-
-    @Override
     public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("ProcessContext parameters are not supported.");
     }
@@ -946,7 +927,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
-      return timestamp();
+      return timestamp;
     }
 
     @Override
@@ -956,7 +937,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-      return timeDomain();
+      throw new UnsupportedOperationException(
+          "Cannot access time domain outside of @ProcessTimer method.");
     }
 
     @Override
@@ -981,7 +963,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
-      return this;
+      throw new UnsupportedOperationException("OnTimerContext parameters are not supported.");
     }
 
     @Override
@@ -1024,7 +1006,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       try {
         TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
         return new TimerInternalsTimer(
-            window, getNamespace(), timerId, spec, timestamp(), stepContext.timerInternals());
+            window, getNamespace(), timerId, spec, timestamp, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
@@ -1036,12 +1018,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         TimerSpec spec =
             (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
         return new TimerInternalsTimerMap(
-            timerFamilyId,
-            window(),
-            getNamespace(),
-            spec,
-            timestamp(),
-            stepContext.timerInternals());
+            timerFamilyId, window(), getNamespace(), spec, timestamp, stepContext.timerInternals());
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }

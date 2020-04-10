@@ -94,8 +94,8 @@ public class StreamingSideInputDoFnRunner<InputT, OutputT, W extends BoundedWind
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    simpleDoFnRunner.onWindowExpiration(window, timestamp, timeDomain);
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
+    simpleDoFnRunner.onWindowExpiration(window, timestamp);
   }
 
   @Override

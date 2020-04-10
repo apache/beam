@@ -56,7 +56,7 @@ public interface DoFnRunner<InputT, OutputT> {
    * Calls a {@link DoFn DoFn's} {@link DoFn.OnWindowExpiration @OnWindowExpiration} method and
    * performs additional task, such as extracts a value saved in a state before garbage collection.
    */
-  void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain);
+  void onWindowExpiration(BoundedWindow window, Instant timestamp);
 
   /**
    * @since 2.5.0

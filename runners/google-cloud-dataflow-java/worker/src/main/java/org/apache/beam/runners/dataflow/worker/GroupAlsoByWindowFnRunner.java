@@ -131,7 +131,7 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
   public void finishBundle() {}
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {}
 
   @Override
   public DoFn<InputT, OutputT> getFn() {

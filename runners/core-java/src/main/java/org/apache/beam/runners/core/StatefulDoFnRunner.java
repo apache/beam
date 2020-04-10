@@ -130,8 +130,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {
-    doFnRunner.onWindowExpiration(window, timestamp, timeDomain);
+  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
+    doFnRunner.onWindowExpiration(window, timestamp);
   }
 
   @Override
@@ -214,7 +214,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
       if (requiresTimeSortedInput) {
         onSortFlushTimer(window, BoundedWindow.TIMESTAMP_MAX_VALUE);
       }
-      doFnRunner.onWindowExpiration(window, outputTimestamp, timeDomain);
+      doFnRunner.onWindowExpiration(window, outputTimestamp);
       stateCleaner.clearForWindow(window);
     } else {
       // An event-time timer can never be late because we don't allow setting timers after GC time.

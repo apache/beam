@@ -288,8 +288,7 @@ public class SamzaDoFnRunners {
     }
 
     @Override
-    public void onWindowExpiration(
-        BoundedWindow window, Instant timestamp, TimeDomain timeDomain) {}
+    public void onWindowExpiration(BoundedWindow window, Instant timestamp) {}
 
     @Override
     public DoFn<InT, FnOutT> getFn() {
