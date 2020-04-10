@@ -690,9 +690,14 @@ public class StreamingDataflowWorker {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                  idGenerator,
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  pipeline,
+                  idGenerator,
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>

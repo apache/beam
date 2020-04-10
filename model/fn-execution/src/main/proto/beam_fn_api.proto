@@ -498,7 +498,7 @@ message Elements {
     // represents the producer of these timers.
     string transform_id = 2;
 
-    // (Optional) The local timer family name used to identify the associated
+    // (Required) The local timer family name used to identify the associated
     // timer family specification
     string timer_family_id = 3;
 

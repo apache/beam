@@ -28,6 +28,7 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -86,6 +87,7 @@ public class BeamFnDataReadRunner<OutputT> {
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
+        BeamFnTimerClient beamFnTimerClient,
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,
@@ -160,7 +162,7 @@ public class BeamFnDataReadRunner<OutputT> {
     this.readFuture =
         beamFnDataClient.receive(
             apiServiceDescriptor,
-            LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), pTransformId),
+            LogicalEndpoint.data(processBundleInstructionIdSupplier.get(), pTransformId),
             coder,
             this::forwardElementToConsumer);
   }
