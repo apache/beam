@@ -138,6 +138,7 @@ class ReadFromBigtable(beam.PTransform):
                     each row. If noe is provided, all rows are read by default.
     """
     super(self.__class__, self).__init__()
+    self._keys = []
     self._options = {'project_id': project_id,
                      'instance_id': instance_id,
                      'table_id': table_id,
@@ -149,28 +150,28 @@ class ReadFromBigtable(beam.PTransform):
   def __setstate__(self, options):
     self._options = options
 
+  def _chunks(self):
+    for i in range(1, len(self._keys)):
+      start_key = self._keys[i - 1].row_key
+      end_key = self._keys[i].row_key
+      yield [start_key, end_key]
+
   def expand(self, pbegin):
     table = Client(project=self._options['project_id'], admin=True) \
       .instance(instance_id=self._options['instance_id']) \
       .table(table_id=self._options['table_id'])
 
-    keys = list(table.sample_row_keys())
-    if len(keys) < 1:
+    self._keys = list(table.sample_row_keys())
+    if len(self._keys) < 1:
       raise ValueError('The list of Table.sample_row_keys is empty. A Bigtable'
                        ' table must have at least one valid sample row key.')
 
     # Creating sample row key to define starting read position of '0th' chunk
     SampleRowKey = namedtuple("SampleRowKey", "row_key offset_bytes")
-    keys.insert(0, SampleRowKey(b'', 0))
-
-    def chunks():
-      for i in range(1, len(keys)):
-        start_key = keys[i - 1].row_key
-        end_key = keys[i].row_key
-        yield [start_key, end_key]
+    self._keys.insert(0, SampleRowKey(b'', 0))
 
     return (pbegin
-            | 'Bundles' >> beam.Create(iter(chunks()))
+            | 'Bundles' >> beam.Create(iter(self._chunks()))
             | 'Reshuffle' >> util.Reshuffle()
             | 'Read' >> beam.ParDo(_BigtableReadFn(self._options['project_id'],
                                                    self._options['instance_id'],
