@@ -235,7 +235,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       // Open the inbound consumer
       InboundDataClient waitForInboundTermination =
           beamFnDataService.receive(
-              LogicalEndpoint.of(processRequestInstructionId, "write"),
+              LogicalEndpoint.data(processRequestInstructionId, "write"),
               inboundCoder,
               outputValue::add);
 
@@ -245,7 +245,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       // Open the outbound consumer
       try (CloseableFnDataReceiver<WindowedValue<KV<byte[], BoundedWindow>>> outboundConsumer =
           beamFnDataService.send(
-              LogicalEndpoint.of(processRequestInstructionId, "read"), outboundCoder)) {
+              LogicalEndpoint.data(processRequestInstructionId, "read"), outboundCoder)) {
 
         outboundConsumer.accept(WindowedValue.valueInGlobalWindow(KV.of(EMPTY_ARRAY, mainWindow)));
       }

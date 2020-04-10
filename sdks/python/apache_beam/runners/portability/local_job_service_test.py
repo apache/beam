@@ -41,9 +41,9 @@ class TestJobServicePlan(JobServiceHandle):
   def get_pipeline_options(self):
     return None
 
-  def stage(self, artifact_staging_endpoint, staging_session_token):
+  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token):
     channel = grpc.insecure_channel(artifact_staging_endpoint)
-    staging_stub = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
+    staging_stub = beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceStub(
         channel)
     manifest_response = staging_stub.CommitManifest(
         beam_artifact_api_pb2.CommitManifestRequest(

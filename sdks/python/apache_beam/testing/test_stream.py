@@ -39,6 +39,7 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import core
 from apache_beam.transforms import window
@@ -92,16 +93,14 @@ class Event(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
       return ElementEvent([
           TimestampedValue(
               element_coder.decode(tv.encoded_element),
-              timestamp.Timestamp(micros=1000 * tv.timestamp))
+              Timestamp(micros=1000 * tv.timestamp))
           for tv in proto.element_event.elements
       ], tag=tag) # yapf: disable
     elif proto.HasField('watermark_event'):
       event = proto.watermark_event
       tag = None if event.tag == 'None' else event.tag
       return WatermarkEvent(
-          timestamp.Timestamp(
-              micros=1000 * proto.watermark_event.new_watermark),
-          tag=tag)
+          Timestamp(micros=1000 * proto.watermark_event.new_watermark), tag=tag)
     elif proto.HasField('processing_time_event'):
       return ProcessingTimeEvent(
           timestamp.Duration(
@@ -155,7 +154,7 @@ class ElementEvent(Event):
 class WatermarkEvent(Event):
   """Watermark-advancing test stream event."""
   def __init__(self, new_watermark, tag=None):
-    self.new_watermark = timestamp.Timestamp.of(new_watermark)
+    self.new_watermark = Timestamp.of(new_watermark)
     self.tag = tag
 
   def __eq__(self, other):
@@ -176,9 +175,8 @@ class WatermarkEvent(Event):
   def to_runner_api(self, unused_element_coder):
     tag = 'None' if self.tag is None else self.tag
 
-    # Assert that no prevision is lost.
-    assert 1000 * (
-        self.new_watermark.micros // 1000) == self.new_watermark.micros
+    # Assert that no precision is lost.
+    assert self.new_watermark.micros % 1000 == 0
     return beam_runner_api_pb2.TestStreamPayload.Event(
         watermark_event=beam_runner_api_pb2.TestStreamPayload.Event.
         AdvanceWatermark(
@@ -209,6 +207,7 @@ class ProcessingTimeEvent(Event):
     return self.advance_by < other.advance_by
 
   def to_runner_api(self, unused_element_coder):
+    assert self.advance_by.micros % 1000 == 0
     return beam_runner_api_pb2.TestStreamPayload.Event(
         processing_time_event=beam_runner_api_pb2.TestStreamPayload.Event.
         AdvanceProcessingTime(advance_duration=self.advance_by.micros // 1000))
@@ -217,12 +216,27 @@ class ProcessingTimeEvent(Event):
     return 'ProcessingTimeEvent: <{}>'.format(self.advance_by)
 
 
+class WindowedValueHolder:
+  """A class that holds a WindowedValue.
+
+  This is a special class that can be used by the runner that implements the
+  TestStream as a signal that the underlying value should be unreified to the
+  specified window.
+  """
+  def __init__(self, windowed_value):
+    self.windowed_value = windowed_value
+
+
 class TestStream(PTransform):
   """Test stream that generates events on an unbounded PCollection of elements.
 
   Each event emits elements, advances the watermark or advances the processing
   time. After all of the specified elements are emitted, ceases to produce
   output.
+
+  Applying the PTransform will return a single PCollection if only the default
+  output or only one output tag has been used. Otherwise a dictionary of output
+  names to PCollections will be returned.
 
   To use the multi-output functionality pelase use the
   'passthrough_pcollection_output_ids' flag. See BEAM-9322 for more info.
@@ -233,23 +247,39 @@ class TestStream(PTransform):
     options = ...
     options.view_as(DebugOptions).add_experiment(
         'passthrough_pcollection_output_ids')
-
   """
   def __init__(
-      self, coder=coders.FastPrimitivesCoder(), events=None, output_tags=None):
+      self,
+      coder=coders.FastPrimitivesCoder(),
+      events=None,
+      output_tags=None,
+      endpoint=None):
+    """
+    Args:
+      coder: (apache_beam.Coder) the coder to encode/decode elements.
+      events: (List[Event]) a list of instructions for the TestStream to
+        execute. If specified, the events tags must exist in the output_tags.
+      output_tags: (List[str]) Initial set of outputs. If no event references an
+        output tag, no output will be produced for that tag.
+      endpoint: (str) a URL locating a TestStreamService.
+    """
+
     super(TestStream, self).__init__()
     assert coder is not None
 
     self.coder = coder
     self.watermarks = {None: timestamp.MIN_TIMESTAMP}
-    self._events = [] if events is None else list(events)
     self.output_tags = set(output_tags) if output_tags else set()
+    self._events = [] if events is None else list(events)
+    self._endpoint = endpoint
 
     event_tags = set(
         e.tag for e in self._events
         if isinstance(e, (WatermarkEvent, ElementEvent)))
     assert event_tags.issubset(self.output_tags), \
         '{} is not a subset of {}'.format(event_tags, output_tags)
+    assert not (self._events and self._endpoint), \
+        'Only either events or an endpoint can be given at once.'
 
   def get_windowing(self, unused_inputs):
     return core.Windowing(window.GlobalWindows())
@@ -354,7 +384,8 @@ class TestStream(PTransform):
         common_urns.primitives.TEST_STREAM.urn,
         beam_runner_api_pb2.TestStreamPayload(
             coder_id=context.coders.get_id(self.coder),
-            events=[e.to_runner_api(self.coder) for e in self._events]))
+            events=[e.to_runner_api(self.coder) for e in self._events],
+            endpoint=ApiServiceDescriptor(url=self._endpoint)))
 
   @staticmethod
   @PTransform.register_urn(
@@ -367,13 +398,14 @@ class TestStream(PTransform):
     return TestStream(
         coder=coder,
         events=[Event.from_runner_api(e, coder) for e in payload.events],
-        output_tags=output_tags)
+        output_tags=output_tags,
+        endpoint=payload.endpoint.url)
 
 
 class TimingInfo(object):
   def __init__(self, processing_time, watermark):
-    self._processing_time = timestamp.Timestamp.of(processing_time)
-    self._watermark = timestamp.Timestamp.of(watermark)
+    self._processing_time = Timestamp.of(processing_time)
+    self._watermark = Timestamp.of(watermark)
 
   @property
   def processing_time(self):

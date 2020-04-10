@@ -116,50 +116,20 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         environment_type     : 'DOCKER',
                 ]
         ],
-        [
-                title          : 'CoGroupByKey Python Load test: reiterate 4 times 2MB values',
-                test           : 'apache_beam.testing.load_tests.co_group_by_key_test',
-                runner         : CommonTestProperties.Runner.PORTABLE,
-                pipelineOptions: [
-                        project              : 'apache-beam-testing',
-                        job_name             : 'load-tests-python-flink-batch-cogbk-4-' + now,
-                        temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
-                        publish_to_big_query : true,
-                        metrics_dataset      : datasetName,
-                        metrics_table        : 'python_flink_batch_cogbk_4',
-                        input_options        : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 1000,' +
-                                '"hot_key_fraction": 1}\'',
-                        co_input_options      : '\'{' +
-                                '"num_records": 20000000,' +
-                                '"key_size": 10,' +
-                                '"value_size": 90,' +
-                                '"num_hot_keys": 1000,' +
-                                '"hot_key_fraction": 1}\'',
-                        iterations           : 4,
-                        parallelism          : 5,
-                        job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
-                        environment_type     : 'DOCKER',
-                ]
-        ],
 ]}
 
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
+  String pythonHarnessImageTag = publisher.getFullImageName('beam_python2.7_sdk')
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
   publisher.publish(':sdks:python:container:py2:docker', 'beam_python2.7_sdk')
-  publisher.publish(':runners:flink:1.9:job-server-container:docker', 'beam_flink1.9_job_server')
+  publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
   def flink = new Flink(scope, 'beam_LoadTests_Python_CoGBK_Flink_Batch')
-  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.9_job_server'))
+  flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
 
   loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'CoGBK', 'batch')
 }

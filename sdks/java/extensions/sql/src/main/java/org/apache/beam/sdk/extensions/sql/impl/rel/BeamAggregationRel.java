@@ -24,6 +24,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.transform.agg.AggregationCombineFnAdapter;
@@ -256,8 +257,10 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           // Combining over a single field, so extract just that field.
           combined =
               (combined == null)
-                  ? byFields.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
-                  : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
+                  ? byFields.aggregateFieldBaseValue(
+                      inputs.get(0), combineFn, fieldAggregation.outputField)
+                  : combined.aggregateFieldBaseValue(
+                      inputs.get(0), combineFn, fieldAggregation.outputField);
         }
       }
 
@@ -278,9 +281,13 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         ignoreValues = true;
       }
 
+      boolean verifyRowValues =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
       return windowedStream
           .apply(combiner)
-          .apply("mergeRecord", ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues)))
+          .apply(
+              "mergeRecord",
+              ParDo.of(mergeRecord(outputSchema, windowFieldIndex, ignoreValues, verifyRowValues)))
           .setRowSchema(outputSchema);
     }
 
@@ -322,25 +329,33 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
     }
 
     static DoFn<Row, Row> mergeRecord(
-        Schema outputSchema, int windowStartFieldIndex, boolean ignoreValues) {
+        Schema outputSchema,
+        int windowStartFieldIndex,
+        boolean ignoreValues,
+        boolean verifyRowValues) {
       return new DoFn<Row, Row>() {
         @ProcessElement
         public void processElement(
             @Element Row kvRow, BoundedWindow window, OutputReceiver<Row> o) {
-          List<Object> fieldValues =
-              Lists.newArrayListWithCapacity(
-                  kvRow.getRow(0).getValues().size() + kvRow.getRow(1).getValues().size());
+          int capacity =
+              kvRow.getRow(0).getFieldCount()
+                  + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
+          List<Object> fieldValues = Lists.newArrayListWithCapacity(capacity);
 
-          fieldValues.addAll(kvRow.getRow(0).getValues());
+          fieldValues.addAll(kvRow.getRow(0).getBaseValues());
           if (!ignoreValues) {
-            fieldValues.addAll(kvRow.getRow(1).getValues());
+            fieldValues.addAll(kvRow.getRow(1).getBaseValues());
           }
 
           if (windowStartFieldIndex != -1) {
             fieldValues.add(windowStartFieldIndex, ((IntervalWindow) window).start());
           }
 
-          o.output(Row.withSchema(outputSchema).addValues(fieldValues).build());
+          Row row =
+              verifyRowValues
+                  ? Row.withSchema(outputSchema).addValues(fieldValues).build()
+                  : Row.withSchema(outputSchema).attachValues(fieldValues);
+          o.output(row);
         }
       };
     }

@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.L
 
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -39,19 +40,40 @@ public class KinesisMockReadTest {
 
   @Rule public final transient TestPipeline p = TestPipeline.create();
 
+  private final int noOfShards = 3;
+  private final int noOfEventsPerShard = 100;
+
   @Test
   public void readsDataFromMockKinesis() {
-    int noOfShards = 3;
-    int noOfEventsPerShard = 100;
-    List<List<AmazonKinesisMock.TestData>> testData =
-        provideTestData(noOfShards, noOfEventsPerShard);
+    List<List<AmazonKinesisMock.TestData>> testData = defaultTestData();
+    verifyReadWithProvider(new AmazonKinesisMock.Provider(testData, 10), testData);
+  }
 
+  @Test
+  public void readsDataFromMockKinesisWithDescribeStreamRateLimit() {
+    List<List<AmazonKinesisMock.TestData>> testData = defaultTestData();
+    verifyReadWithProvider(
+        new AmazonKinesisMock.Provider(testData, 10).withRateLimitedDescribeStream(2), testData);
+  }
+
+  @Test(expected = PipelineExecutionException.class)
+  public void readsDataFromMockKinesisWithDescribeStreamRateLimitFailure() {
+    List<List<AmazonKinesisMock.TestData>> testData = defaultTestData();
+    // Verify with a provider that will generate more LimitExceededExceptions then we
+    // will retry. Should result in generation of a TransientKinesisException and subsequently
+    // a PipelineExecutionException.
+    verifyReadWithProvider(
+        new AmazonKinesisMock.Provider(testData, 10).withRateLimitedDescribeStream(11), testData);
+  }
+
+  public void verifyReadWithProvider(
+      AmazonKinesisMock.Provider provider, List<List<AmazonKinesisMock.TestData>> testData) {
     PCollection<AmazonKinesisMock.TestData> result =
         p.apply(
                 KinesisIO.read()
                     .withStreamName("stream")
                     .withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
-                    .withAWSClientsProvider(new AmazonKinesisMock.Provider(testData, 10))
+                    .withAWSClientsProvider(provider)
                     .withArrivalTimeWatermarkPolicy()
                     .withMaxNumRecords(noOfShards * noOfEventsPerShard))
             .apply(ParDo.of(new KinesisRecordToTestData()));
@@ -65,6 +87,10 @@ public class KinesisMockReadTest {
     public void processElement(ProcessContext c) throws Exception {
       c.output(new AmazonKinesisMock.TestData(c.element()));
     }
+  }
+
+  private List<List<AmazonKinesisMock.TestData>> defaultTestData() {
+    return provideTestData(noOfShards, noOfEventsPerShard);
   }
 
   private List<List<AmazonKinesisMock.TestData>> provideTestData(

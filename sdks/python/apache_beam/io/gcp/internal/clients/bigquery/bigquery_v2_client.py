@@ -30,10 +30,11 @@ class BigqueryV2(base_api.BaseApiClient):
   """Generated client library for service bigquery version v2."""
 
   MESSAGES_MODULE = messages
-  BASE_URL = u'https://www.googleapis.com/bigquery/v2/'
+  BASE_URL = u'https://bigquery.googleapis.com/bigquery/v2/'
+  MTLS_BASE_URL = u''
 
   _PACKAGE = u'bigquery'
-  _SCOPES = [u'https://www.googleapis.com/auth/bigquery', u'https://www.googleapis.com/auth/bigquery.insertdata', u'https://www.googleapis.com/auth/cloud-platform', u'https://www.googleapis.com/auth/cloud-platform.read-only', u'https://www.googleapis.com/auth/devstorage.full_control', u'https://www.googleapis.com/auth/devstorage.read_only', u'https://www.googleapis.com/auth/devstorage.read_write']
+  _SCOPES = [u'https://www.googleapis.com/auth/bigquery', u'https://www.googleapis.com/auth/bigquery.insertdata', u'https://www.googleapis.com/auth/bigquery.readonly', u'https://www.googleapis.com/auth/cloud-platform', u'https://www.googleapis.com/auth/cloud-platform.read-only', u'https://www.googleapis.com/auth/devstorage.full_control', u'https://www.googleapis.com/auth/devstorage.read_only', u'https://www.googleapis.com/auth/devstorage.read_write']
   _VERSION = u'v2'
   _CLIENT_ID = '1042881264118.apps.googleusercontent.com'
   _CLIENT_SECRET = 'x_Tw5K8nnjoRAqULM9PFAC2b'
@@ -59,7 +60,9 @@ class BigqueryV2(base_api.BaseApiClient):
         response_encoding=response_encoding)
     self.datasets = self.DatasetsService(self)
     self.jobs = self.JobsService(self)
+    self.models = self.ModelsService(self)
     self.projects = self.ProjectsService(self)
+    self.routines = self.RoutinesService(self)
     self.tabledata = self.TabledataService(self)
     self.tables = self.TablesService(self)
 
@@ -373,7 +376,7 @@ class BigqueryV2(base_api.BaseApiClient):
         method_id=u'bigquery.jobs.list',
         ordered_params=[u'projectId'],
         path_params=[u'projectId'],
-        query_params=[u'allUsers', u'maxCreationTime', u'maxResults', u'minCreationTime', u'pageToken', u'projection', u'stateFilter'],
+        query_params=[u'allUsers', u'maxCreationTime', u'maxResults', u'minCreationTime', u'pageToken', u'parentJobId', u'projection', u'stateFilter'],
         relative_path=u'projects/{projectId}/jobs',
         request_field='',
         request_type_name=u'BigqueryJobsListRequest',
@@ -404,6 +407,125 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field=u'queryRequest',
         request_type_name=u'BigqueryJobsQueryRequest',
         response_type_name=u'QueryResponse',
+        supports_download=False,
+    )
+
+  class ModelsService(base_api.BaseApiService):
+    """Service class for the models resource."""
+
+    _NAME = u'models'
+
+    def __init__(self, client):
+      super(BigqueryV2.ModelsService, self).__init__(client)
+      self._upload_configs = {
+          }
+
+    def Delete(self, request, global_params=None):
+      r"""Deletes the model specified by modelId from the dataset.
+
+      Args:
+        request: (BigqueryModelsDeleteRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (BigqueryModelsDeleteResponse) The response message.
+      """
+      config = self.GetMethodConfig('Delete')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Delete.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
+        http_method=u'DELETE',
+        method_id=u'bigquery.models.delete',
+        ordered_params=[u'projectId', u'datasetId', u'modelId'],
+        path_params=[u'datasetId', u'modelId', u'projectId'],
+        query_params=[],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
+        request_field='',
+        request_type_name=u'BigqueryModelsDeleteRequest',
+        response_type_name=u'BigqueryModelsDeleteResponse',
+        supports_download=False,
+    )
+
+    def Get(self, request, global_params=None):
+      r"""Gets the specified model resource by model ID.
+
+      Args:
+        request: (BigqueryModelsGetRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Model) The response message.
+      """
+      config = self.GetMethodConfig('Get')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Get.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
+        http_method=u'GET',
+        method_id=u'bigquery.models.get',
+        ordered_params=[u'projectId', u'datasetId', u'modelId'],
+        path_params=[u'datasetId', u'modelId', u'projectId'],
+        query_params=[],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
+        request_field='',
+        request_type_name=u'BigqueryModelsGetRequest',
+        response_type_name=u'Model',
+        supports_download=False,
+    )
+
+    def List(self, request, global_params=None):
+      r"""Lists all models in the specified dataset. Requires the READER dataset.
+role.
+
+      Args:
+        request: (BigqueryModelsListRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (ListModelsResponse) The response message.
+      """
+      config = self.GetMethodConfig('List')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    List.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/models',
+        http_method=u'GET',
+        method_id=u'bigquery.models.list',
+        ordered_params=[u'projectId', u'datasetId'],
+        path_params=[u'datasetId', u'projectId'],
+        query_params=[u'maxResults', u'pageToken'],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/models',
+        request_field='',
+        request_type_name=u'BigqueryModelsListRequest',
+        response_type_name=u'ListModelsResponse',
+        supports_download=False,
+    )
+
+    def Patch(self, request, global_params=None):
+      r"""Patch specific fields in the specified model.
+
+      Args:
+        request: (BigqueryModelsPatchRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Model) The response message.
+      """
+      config = self.GetMethodConfig('Patch')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Patch.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/models/{modelsId}',
+        http_method=u'PATCH',
+        method_id=u'bigquery.models.patch',
+        ordered_params=[u'projectId', u'datasetId', u'modelId'],
+        path_params=[u'datasetId', u'modelId', u'projectId'],
+        query_params=[],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/models/{+modelId}',
+        request_field=u'model',
+        request_type_name=u'BigqueryModelsPatchRequest',
+        response_type_name=u'Model',
         supports_download=False,
     )
 
@@ -466,6 +588,153 @@ class BigqueryV2(base_api.BaseApiClient):
         request_field='',
         request_type_name=u'BigqueryProjectsListRequest',
         response_type_name=u'ProjectList',
+        supports_download=False,
+    )
+
+  class RoutinesService(base_api.BaseApiService):
+    """Service class for the routines resource."""
+
+    _NAME = u'routines'
+
+    def __init__(self, client):
+      super(BigqueryV2.RoutinesService, self).__init__(client)
+      self._upload_configs = {
+          }
+
+    def Delete(self, request, global_params=None):
+      r"""Deletes the routine specified by routineId from the dataset.
+
+      Args:
+        request: (BigqueryRoutinesDeleteRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (BigqueryRoutinesDeleteResponse) The response message.
+      """
+      config = self.GetMethodConfig('Delete')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Delete.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
+        http_method=u'DELETE',
+        method_id=u'bigquery.routines.delete',
+        ordered_params=[u'projectId', u'datasetId', u'routineId'],
+        path_params=[u'datasetId', u'projectId', u'routineId'],
+        query_params=[],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
+        request_field='',
+        request_type_name=u'BigqueryRoutinesDeleteRequest',
+        response_type_name=u'BigqueryRoutinesDeleteResponse',
+        supports_download=False,
+    )
+
+    def Get(self, request, global_params=None):
+      r"""Gets the specified routine resource by routine ID.
+
+      Args:
+        request: (BigqueryRoutinesGetRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Routine) The response message.
+      """
+      config = self.GetMethodConfig('Get')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Get.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
+        http_method=u'GET',
+        method_id=u'bigquery.routines.get',
+        ordered_params=[u'projectId', u'datasetId', u'routineId'],
+        path_params=[u'datasetId', u'projectId', u'routineId'],
+        query_params=[u'readMask'],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
+        request_field='',
+        request_type_name=u'BigqueryRoutinesGetRequest',
+        response_type_name=u'Routine',
+        supports_download=False,
+    )
+
+    def Insert(self, request, global_params=None):
+      r"""Creates a new routine in the dataset.
+
+      Args:
+        request: (BigqueryRoutinesInsertRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Routine) The response message.
+      """
+      config = self.GetMethodConfig('Insert')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Insert.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/routines',
+        http_method=u'POST',
+        method_id=u'bigquery.routines.insert',
+        ordered_params=[u'projectId', u'datasetId'],
+        path_params=[u'datasetId', u'projectId'],
+        query_params=[],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/routines',
+        request_field=u'routine',
+        request_type_name=u'BigqueryRoutinesInsertRequest',
+        response_type_name=u'Routine',
+        supports_download=False,
+    )
+
+    def List(self, request, global_params=None):
+      r"""Lists all routines in the specified dataset. Requires the READER dataset.
+role.
+
+      Args:
+        request: (BigqueryRoutinesListRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (ListRoutinesResponse) The response message.
+      """
+      config = self.GetMethodConfig('List')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    List.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/routines',
+        http_method=u'GET',
+        method_id=u'bigquery.routines.list',
+        ordered_params=[u'projectId', u'datasetId'],
+        path_params=[u'datasetId', u'projectId'],
+        query_params=[u'filter', u'maxResults', u'pageToken', u'readMask'],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/routines',
+        request_field='',
+        request_type_name=u'BigqueryRoutinesListRequest',
+        response_type_name=u'ListRoutinesResponse',
+        supports_download=False,
+    )
+
+    def Update(self, request, global_params=None):
+      r"""Updates information in an existing routine. The update method replaces the.
+entire Routine resource.
+
+      Args:
+        request: (BigqueryRoutinesUpdateRequest) input message
+        global_params: (StandardQueryParameters, default: None) global arguments
+      Returns:
+        (Routine) The response message.
+      """
+      config = self.GetMethodConfig('Update')
+      return self._RunMethod(
+          config, request, global_params=global_params)
+
+    Update.method_config = lambda: base_api.ApiMethodInfo(
+        flat_path=u'projects/{projectsId}/datasets/{datasetsId}/routines/{routinesId}',
+        http_method=u'PUT',
+        method_id=u'bigquery.routines.update',
+        ordered_params=[u'projectId', u'datasetId', u'routineId'],
+        path_params=[u'datasetId', u'projectId', u'routineId'],
+        query_params=[],
+        relative_path=u'projects/{+projectId}/datasets/{+datasetId}/routines/{+routineId}',
+        request_field=u'routine',
+        request_type_name=u'BigqueryRoutinesUpdateRequest',
+        response_type_name=u'Routine',
         supports_download=False,
     )
 

@@ -30,7 +30,7 @@ def mainClassProperty = "loadTest.mainClass"
 def mainClass = project.findProperty(mainClassProperty)
 
 // When running via Gradle, this property can be used to pass commandline arguments
-// to the nexmark launch
+// to the load-tests launch
 def loadTestArgsProperty = "loadTest.args"
 
 // When running via Gradle, this property sets the runner dependency
@@ -80,6 +80,7 @@ dependencies {
     gradleRun library.java.spark_core, {
       exclude group:"org.slf4j", module:"jul-to-slf4j"
     }
+    gradleRun library.java.spark_sql
   }
 }
 

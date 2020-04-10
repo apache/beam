@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -94,8 +95,22 @@ public class SelectHelpers {
    */
   public static Schema getOutputSchema(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
+    return getOutputSchemaTrackingNullable(inputSchema, fieldAccessDescriptor, false);
+  }
+
+  private static Schema getOutputSchemaTrackingNullable(
+      Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor, boolean isNullable) {
     if (fieldAccessDescriptor.getAllFields()) {
-      return inputSchema;
+      Schema schemaToReturn = inputSchema;
+      if (isNullable) {
+        // Some parent field in the selector was nullable, so we must mark all of these fields
+        // nullable.
+        schemaToReturn =
+            inputSchema.getFields().stream()
+                .map(f -> f.withNullable(true))
+                .collect(Schema.toSchema());
+      }
+      return schemaToReturn;
     }
 
     List<Schema> schemas = Lists.newArrayList();
@@ -104,6 +119,13 @@ public class SelectHelpers {
       Field field = inputSchema.getField(fieldDescriptor.getFieldId());
       if (fieldDescriptor.getFieldRename() != null) {
         field = field.withName(fieldDescriptor.getFieldRename());
+      }
+
+      // If any parent field is nullable, this one should be as well. So if selecting a.b, the
+      // resulting field should
+      // be nullable if a is nullable (even if b was not in the original schema).
+      if (isNullable) {
+        field = field.withNullable(true);
       }
       builder.addField(field);
     }
@@ -118,7 +140,12 @@ public class SelectHelpers {
         field = field.withName(fieldDescriptor.getFieldRename());
       }
       Schema outputSchema =
-          getOutputSchemaHelper(field.getType(), nestedAccess, fieldDescriptor.getQualifiers(), 0);
+          getOutputSchemaHelper(
+              field.getType(),
+              nestedAccess,
+              fieldDescriptor.getQualifiers(),
+              0,
+              isNullable || field.getType().getNullable());
       schemas.add(outputSchema);
     }
 
@@ -129,12 +156,14 @@ public class SelectHelpers {
       FieldType inputFieldType,
       FieldAccessDescriptor fieldAccessDescriptor,
       List<Qualifier> qualifiers,
-      int qualifierPosition) {
+      int qualifierPosition,
+      boolean isNullable) {
     if (qualifierPosition >= qualifiers.size()) {
       // We have walked through any containers, and are at a row type. Extract the subschema
       // for the row, preserving nullable attributes.
       checkArgument(inputFieldType.getTypeName().isCompositeType());
-      return getOutputSchema(inputFieldType.getRowSchema(), fieldAccessDescriptor);
+      return getOutputSchemaTrackingNullable(
+          inputFieldType.getRowSchema(), fieldAccessDescriptor, isNullable);
     }
 
     Qualifier qualifier = qualifiers.get(qualifierPosition);
@@ -145,20 +174,16 @@ public class SelectHelpers {
         FieldType componentType = checkNotNull(inputFieldType.getCollectionElementType());
         Schema outputComponent =
             getOutputSchemaHelper(
-                componentType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1);
+                componentType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1, false);
         for (Field field : outputComponent.getFields()) {
           Field newField;
           if (TypeName.ARRAY.equals(inputFieldType.getTypeName())) {
-            newField =
-                Field.of(field.getName(), FieldType.array(field.getType()))
-                    .withNullable(inputFieldType.getNullable());
+            newField = Field.of(field.getName(), FieldType.array(field.getType()));
           } else {
             checkArgument(TypeName.ITERABLE.equals(inputFieldType.getTypeName()));
-            newField =
-                Field.of(field.getName(), FieldType.iterable(field.getType()))
-                    .withNullable(inputFieldType.getNullable());
+            newField = Field.of(field.getName(), FieldType.iterable(field.getType()));
           }
-          builder.addField(newField);
+          builder.addField(newField.withNullable(isNullable));
         }
         return builder.build();
       case MAP:
@@ -167,12 +192,10 @@ public class SelectHelpers {
         FieldType valueType = checkNotNull(inputFieldType.getMapValueType());
         Schema outputValueSchema =
             getOutputSchemaHelper(
-                valueType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1);
+                valueType, fieldAccessDescriptor, qualifiers, qualifierPosition + 1, false);
         for (Field field : outputValueSchema.getFields()) {
-          Field newField =
-              Field.of(field.getName(), FieldType.map(keyType, field.getType()))
-                  .withNullable(inputFieldType.getNullable());
-          builder.addField(newField);
+          Field newField = Field.of(field.getName(), FieldType.map(keyType, field.getType()));
+          builder.addField(newField.withNullable(isNullable));
         }
         return builder.build();
       default:
@@ -188,7 +211,7 @@ public class SelectHelpers {
   public static RowSelector getRowSelector(
       Schema inputSchema, FieldAccessDescriptor fieldAccessDescriptor) {
     Schema outputSchema = getOutputSchema(inputSchema, fieldAccessDescriptor);
-    return input -> selectRow(input, fieldAccessDescriptor, outputSchema);
+    return input -> selectRow(input, fieldAccessDescriptor, inputSchema, outputSchema);
   }
 
   public static class RowSelectorContainer implements RowSelector, Serializable {
@@ -218,27 +241,37 @@ public class SelectHelpers {
 
   /** Select a sub Row from an input Row. */
   private static Row selectRow(
-      Row input, FieldAccessDescriptor fieldAccessDescriptor, Schema outputSchema) {
+      Row input,
+      FieldAccessDescriptor fieldAccessDescriptor,
+      Schema inputSchema,
+      Schema outputSchema) {
     if (fieldAccessDescriptor.getAllFields()) {
       return input;
     }
 
     Row.Builder output = Row.withSchema(outputSchema);
-    selectIntoRow(input, output, fieldAccessDescriptor);
+    selectIntoRow(inputSchema, input, output, fieldAccessDescriptor);
     return output.build();
   }
 
   /** Select out of a given {@link Row} object. */
   private static void selectIntoRow(
-      Row input, Row.Builder output, FieldAccessDescriptor fieldAccessDescriptor) {
+      Schema inputSchema,
+      Row input,
+      Row.Builder output,
+      FieldAccessDescriptor fieldAccessDescriptor) {
     if (fieldAccessDescriptor.getAllFields()) {
-      output.addValues(input.getValues());
+      List<Object> values =
+          (input != null)
+              ? input.getValues()
+              : Collections.nCopies(inputSchema.getFieldCount(), null);
+      output.addValues(values);
       return;
     }
 
     for (int fieldId : fieldAccessDescriptor.fieldIdsAccessed()) {
       // TODO: Once we support specific qualifiers (like array slices), extract them here.
-      output.addValue(input.getValue(fieldId));
+      output.addValue((input != null) ? input.getValue(fieldId) : null);
     }
 
     Schema outputSchema = output.getSchema();
@@ -246,7 +279,7 @@ public class SelectHelpers {
         fieldAccessDescriptor.getNestedFieldsAccessed().entrySet()) {
       FieldDescriptor field = nested.getKey();
       FieldAccessDescriptor nestedAccess = nested.getValue();
-      FieldType nestedInputType = input.getSchema().getField(field.getFieldId()).getType();
+      FieldType nestedInputType = inputSchema.getField(field.getFieldId()).getType();
       FieldType nestedOutputType = outputSchema.getField(output.nextFieldId()).getType();
       selectIntoRowWithQualifiers(
           field.getQualifiers(),
@@ -270,7 +303,7 @@ public class SelectHelpers {
     if (qualifierPosition >= qualifiers.size()) {
       // We have already constructed all arrays and maps. What remains must be a Row.
       Row row = (Row) value;
-      selectIntoRow(row, output, fieldAccessDescriptor);
+      selectIntoRow(inputType.getRowSchema(), row, output, fieldAccessDescriptor);
       return;
     }
 
@@ -292,29 +325,33 @@ public class SelectHelpers {
               FieldAccessDescriptor.create()
                   .withNestedField("a", fieldAccessDescriptor)
                   .resolve(tempSchema);
-          // TODO: doing this on each element might be inefficient. Consider caching this, or
-          // using codegen based on the schema.
           Schema nestedSchema = getOutputSchema(tempSchema, tempAccessDescriptor);
 
           List<List<Object>> selectedLists =
               Lists.newArrayListWithCapacity(nestedSchema.getFieldCount());
           for (int i = 0; i < nestedSchema.getFieldCount(); i++) {
-            selectedLists.add(Lists.newArrayListWithCapacity(Iterables.size(iterable)));
+            if (iterable == null) {
+              selectedLists.add(null);
+            } else {
+              selectedLists.add(Lists.newArrayListWithCapacity(Iterables.size(iterable)));
+            }
           }
-          for (Object o : iterable) {
-            Row.Builder selectElementBuilder = Row.withSchema(nestedSchema);
-            selectIntoRowWithQualifiers(
-                qualifiers,
-                qualifierPosition + 1,
-                o,
-                selectElementBuilder,
-                fieldAccessDescriptor,
-                nestedInputType,
-                nestedOutputType);
+          if (iterable != null) {
+            for (Object o : iterable) {
+              Row.Builder selectElementBuilder = Row.withSchema(nestedSchema);
+              selectIntoRowWithQualifiers(
+                  qualifiers,
+                  qualifierPosition + 1,
+                  o,
+                  selectElementBuilder,
+                  fieldAccessDescriptor,
+                  nestedInputType,
+                  nestedOutputType);
 
-            Row elementBeforeDistribution = selectElementBuilder.build();
-            for (int i = 0; i < nestedSchema.getFieldCount(); ++i) {
-              selectedLists.get(i).add(elementBeforeDistribution.getValue(i));
+              Row elementBeforeDistribution = selectElementBuilder.build();
+              for (int i = 0; i < nestedSchema.getFieldCount(); ++i) {
+                selectedLists.get(i).add(elementBeforeDistribution.getValue(i));
+              }
             }
           }
           for (List aList : selectedLists) {
@@ -338,24 +375,30 @@ public class SelectHelpers {
           Schema nestedSchema = getOutputSchema(tempSchema, tempAccessDescriptor);
           List<Map> selectedMaps = Lists.newArrayListWithExpectedSize(nestedSchema.getFieldCount());
           for (int i = 0; i < nestedSchema.getFieldCount(); ++i) {
-            selectedMaps.add(Maps.newHashMap());
+            if (value == null) {
+              selectedMaps.add(null);
+            } else {
+              selectedMaps.add(Maps.newHashMap());
+            }
           }
 
-          Map<Object, Object> map = (Map) value;
-          for (Map.Entry<Object, Object> entry : map.entrySet()) {
-            Row.Builder selectValueBuilder = Row.withSchema(nestedSchema);
-            selectIntoRowWithQualifiers(
-                qualifiers,
-                qualifierPosition + 1,
-                entry.getValue(),
-                selectValueBuilder,
-                fieldAccessDescriptor,
-                nestedInputType,
-                nestedOutputType);
+          if (value != null) {
+            Map<Object, Object> map = (Map) value;
+            for (Map.Entry<Object, Object> entry : map.entrySet()) {
+              Row.Builder selectValueBuilder = Row.withSchema(nestedSchema);
+              selectIntoRowWithQualifiers(
+                  qualifiers,
+                  qualifierPosition + 1,
+                  entry.getValue(),
+                  selectValueBuilder,
+                  fieldAccessDescriptor,
+                  nestedInputType,
+                  nestedOutputType);
 
-            Row valueBeforeDistribution = selectValueBuilder.build();
-            for (int i = 0; i < nestedSchema.getFieldCount(); ++i) {
-              selectedMaps.get(i).put(entry.getKey(), valueBeforeDistribution.getValue(i));
+              Row valueBeforeDistribution = selectValueBuilder.build();
+              for (int i = 0; i < nestedSchema.getFieldCount(); ++i) {
+                selectedMaps.get(i).put(entry.getKey(), valueBeforeDistribution.getValue(i));
+              }
             }
           }
           for (Map aMap : selectedMaps) {
@@ -388,7 +431,7 @@ public class SelectHelpers {
   public static FieldAccessDescriptor allLeavesDescriptor(
       Schema schema, SerializableFunction<List<String>, String> nameFn) {
     List<String> nameComponents = Lists.newArrayList();
-    Map<String, String> fieldsSelected = Maps.newHashMap();
+    Map<String, String> fieldsSelected = Maps.newLinkedHashMap();
     allLeafFields(schema, nameComponents, nameFn, fieldsSelected);
     return FieldAccessDescriptor.withFieldNamesAs(fieldsSelected).resolve(schema);
   }

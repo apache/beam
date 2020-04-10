@@ -18,6 +18,12 @@
 package org.apache.beam.runners.flink.translation.utils;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import java.lang.reflect.Field;
+import org.apache.beam.runners.core.TimerInternals;
+import org.apache.flink.runtime.state.InternalPriorityQueue;
+import org.apache.flink.streaming.api.operators.InternalTimer;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.InternalTimerServiceImpl;
 
 /** Workarounds for dealing with limitations of Flink or its libraries. */
 public class Workarounds {
@@ -26,5 +32,24 @@ public class Workarounds {
     // Clear cache to get rid of any references to the Flink Classloader
     // See https://jira.apache.org/jira/browse/BEAM-6460
     TypeFactory.defaultInstance().clearCache();
+  }
+
+  @SuppressWarnings("all")
+  public static InternalPriorityQueue<InternalTimer<Object, TimerInternals.TimerData>>
+      retrieveInternalProcessingTimerQueue(
+          InternalTimerService<TimerInternals.TimerData> timerService) {
+    Field internalProcessingTimerQueue = null;
+    try {
+      internalProcessingTimerQueue =
+          InternalTimerServiceImpl.class.getDeclaredField("processingTimeTimersQueue");
+      internalProcessingTimerQueue.setAccessible(true);
+      return (InternalPriorityQueue) internalProcessingTimerQueue.get(timerService);
+    } catch (Exception e) {
+      throw new IllegalStateException("Failed to retrieve processing timer queue.", e);
+    } finally {
+      if (internalProcessingTimerQueue != null) {
+        internalProcessingTimerQueue.setAccessible(false);
+      }
+    }
   }
 }

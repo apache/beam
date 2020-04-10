@@ -34,8 +34,13 @@ public abstract class GaugeData implements Serializable {
 
   public abstract Instant timestamp();
 
+  /** Returns a {@link GaugeData} using the current time. */
   public static GaugeData create(long value) {
-    return new AutoValue_GaugeData(value, Instant.now());
+    return create(value, Instant.now());
+  }
+
+  public static GaugeData create(long value, Instant timestamp) {
+    return new AutoValue_GaugeData(value, timestamp);
   }
 
   public static GaugeData empty() {

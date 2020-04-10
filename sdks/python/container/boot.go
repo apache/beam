@@ -130,7 +130,7 @@ func main() {
 	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
-		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
+		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 		if err != nil {
 			log.Fatalf("Failed to retrieve staged files: %v", err)
 		}

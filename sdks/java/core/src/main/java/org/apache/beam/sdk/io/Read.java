@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -40,8 +41,10 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -202,8 +205,7 @@ public class Read {
 
       if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           && !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
-          && !source.requiresDeduping()) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
@@ -222,13 +224,13 @@ public class Read {
                         new UnboundedSourceAsSDFWrapperFn<>(
                             (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
                 .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
-        // TODO(BEAM-2939): Add support for deduplication.
-        // if (source.requiresDeduping()) {
-        //   outputWithIds.apply(
-        //       Distinct.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
-        //               element -> element.getId())
-        //           .withRepresentativeType(TypeDescriptor.of(byte[].class)));
-        // }
+
+        if (source.requiresDeduping()) {
+          outputWithIds.apply(
+              Deduplicate.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+                      element -> element.getId())
+                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
+        }
         return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
       }
 
@@ -518,6 +520,7 @@ public class Read {
         RestrictionTracker<
                 KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
             tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator,
         OutputReceiver<ValueWithRecordId<OutputT>> receiver,
         BundleFinalizer bundleFinalizer)
         throws IOException {
@@ -525,7 +528,7 @@ public class Read {
       while (tracker.tryClaim(out)) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
-        context.updateWatermark(out[0].getWatermark());
+        watermarkEstimator.setWatermark(out[0].getWatermark());
       }
 
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
@@ -545,6 +548,17 @@ public class Read {
         return ProcessContinuation.stop();
       }
       return ProcessContinuation.resume();
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.Manual(watermarkEstimatorState);
     }
 
     @GetRestrictionCoder

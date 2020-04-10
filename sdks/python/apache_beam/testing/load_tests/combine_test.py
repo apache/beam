@@ -35,6 +35,7 @@ Example test run:
 python -m apache_beam.testing.load_tests.combine_test \
     --test-pipeline-options="
     --project=big-query-project
+    --region=...
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=combine
@@ -51,8 +52,11 @@ or:
 ./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=combine
+    --top_count=1000
+    --fanout=1
     --input_options='{
       \"num_records\": 1,
       \"key_size\": 1,

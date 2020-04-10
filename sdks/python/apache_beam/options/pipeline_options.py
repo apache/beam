@@ -24,8 +24,6 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
-import os
-import subprocess
 from builtins import list
 from builtins import object
 from typing import Any
@@ -40,7 +38,6 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.utils import processes
 
 __all__ = [
     'PipelineOptions',
@@ -256,7 +253,8 @@ class PipelineOptions(HasDisplayData):
   def get_all_options(
       self,
       drop_default=False,
-      add_extra_args_fn=None  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      add_extra_args_fn=None,  # type: Optional[Callable[[_BeamArgumentParser], None]]
+      retain_unknown_options=False
   ):
     # type: (...) -> Dict[str, Any]
 
@@ -270,6 +268,9 @@ class PipelineOptions(HasDisplayData):
         values, are not returned as part of the result dictionary.
       add_extra_args_fn: Callback to populate additional arguments, can be used
         by runner to supply otherwise unknown args.
+      retain_unknown_options: If set to true, options not recognized by any
+        known pipeline options class will still be included in the result. If
+        set to false, they will be discarded.
 
     Returns:
       Dictionary of all args and values.
@@ -285,10 +286,29 @@ class PipelineOptions(HasDisplayData):
       cls._add_argparse_args(parser)  # pylint: disable=protected-access
     if add_extra_args_fn:
       add_extra_args_fn(parser)
+
     known_args, unknown_args = parser.parse_known_args(self._flags)
-    if unknown_args:
-      _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
-    result = vars(known_args)
+    if retain_unknown_options:
+      i = 0
+      while i < len(unknown_args):
+        # Treat all unary flags as booleans, and all binary argument values as
+        # strings.
+        if i + 1 >= len(unknown_args) or unknown_args[i + 1].startswith('-'):
+          split = unknown_args[i].split('=', 1)
+          if len(split) == 1:
+            parser.add_argument(unknown_args[i], action='store_true')
+          else:
+            parser.add_argument(split[0], type=str)
+          i += 1
+        else:
+          parser.add_argument(unknown_args[i], type=str)
+          i += 2
+      parsed_args = parser.parse_args(self._flags)
+    else:
+      if unknown_args:
+        _LOGGER.warning("Discarding unparseable args: %s", unknown_args)
+      parsed_args = known_args
+    result = vars(parsed_args)
 
     overrides = self._all_options.copy()
     # Apply the overrides if any
@@ -498,8 +518,7 @@ class GoogleCloudOptions(PipelineOptions):
         help='GCS path for saving temporary workflow jobs.')
     # The Google Compute Engine region for creating Dataflow jobs. See
     # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
-    # list of valid options. Currently defaults to us-central1, but future
-    # releases of Beam will require the user to set the region explicitly.
+    # list of valid options.
     parser.add_argument(
         '--region',
         default=None,
@@ -563,41 +582,6 @@ class GoogleCloudOptions(PipelineOptions):
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
 
-  def _get_default_gcp_region(self):
-    """Get a default value for Google Cloud region according to
-    https://cloud.google.com/compute/docs/gcloud-compute/#default-properties.
-    If no other default can be found, returns 'us-central1'.
-    """
-    environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
-    if environment_region:
-      _LOGGER.info(
-          'Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
-          environment_region)
-      return environment_region
-    try:
-      cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      # Use subprocess.DEVNULL in Python 3.3+.
-      if hasattr(subprocess, 'DEVNULL'):
-        DEVNULL = subprocess.DEVNULL
-      else:
-        DEVNULL = open(os.devnull, 'ab')
-      raw_output = processes.check_output(cmd, stderr=DEVNULL)
-      formatted_output = raw_output.decode('utf-8').strip()
-      if formatted_output:
-        _LOGGER.info(
-            'Using default GCP region %s from `%s`',
-            formatted_output,
-            ' '.join(cmd))
-        return formatted_output
-    except RuntimeError:
-      pass
-    _LOGGER.warning(
-        '--region not set; will default to us-central1. Future releases of '
-        'Beam will require the user to set --region explicitly, or else have a '
-        'default set via the gcloud tool. '
-        'https://cloud.google.com/compute/docs/regions-zones')
-    return 'us-central1'
-
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
@@ -612,11 +596,6 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
-
-    runner = self.view_as(StandardOptions).runner
-    if runner == 'DataflowRunner' or runner == 'TestDataflowRunner':
-      if self.view_as(GoogleCloudOptions).region is None:
-        self.view_as(GoogleCloudOptions).region = self._get_default_gcp_region()
 
     return errors
 
@@ -724,7 +703,8 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'GCE availability zone for launching workers. Default is up to the '
-            'Dataflow service.'))
+            'Dataflow service. This flag is deprecated, and will be replaced '
+            'by worker_zone.'))
     parser.add_argument(
         '--network',
         default=None,
@@ -1048,7 +1028,7 @@ class JobServerOptions(PipelineOptions):
 
 class FlinkRunnerOptions(PipelineOptions):
 
-  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9', '1.10']
 
   @classmethod
   def _add_argparse_args(cls, parser):

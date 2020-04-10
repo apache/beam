@@ -163,6 +163,51 @@ public class SelectTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testSelectWithOutputSchema() {
+    Schema outputSchema =
+        Schema.builder()
+            .addStringField("stringField")
+            .addStringField("nestedStringField")
+            .addDoubleField("nestedDoubleField")
+            .build();
+
+    Schema2 input = Schema2.create();
+    PCollection<Row> rows =
+        pipeline
+            .apply(Create.of(input))
+            .apply(
+                Select.<Schema2>fieldNames("field1", "field2.field1", "field2.field3")
+                    .withOutputSchema(outputSchema));
+    Row expectedOutput =
+        Row.withSchema(outputSchema)
+            .addValues(
+                input.getField1(), input.getField2().getField1(), input.getField2().getField3())
+            .build();
+    PAssert.that(rows).containsInAnyOrder(expectedOutput);
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSelectWithOutputSchemaIncorrectSchema() {
+    Schema outputSchema =
+        Schema.builder()
+            .addStringField("stringField")
+            .addStringField("nestedStringField")
+            .addStringField("nestedDoubleField")
+            .build();
+
+    thrown.expect(IllegalArgumentException.class);
+    pipeline
+        .apply(Create.of(Schema2.create()))
+        .apply(
+            Select.<Schema2>fieldNames("field1", "field2.field1", "field2.field3")
+                .withOutputSchema(outputSchema));
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testSelectNestedAll() {
     PCollection<Schema1> rows =
         pipeline
@@ -662,6 +707,26 @@ public class SelectTest {
                     .keepMostNestedFieldName()
                     .withFieldNameAs("nested2.field1", "n2field1")
                     .withFieldNameAs("nested2.field2", "n2field2"));
+    assertEquals(CLASHING_NAME_UNNESTED_SCHEMA, unnested.getSchema());
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlattenWithOutputSchema() {
+    List<Row> bottomRow =
+        IntStream.rangeClosed(0, 2)
+            .mapToObj(i -> Row.withSchema(SIMPLE_SCHEMA).addValues(i, Integer.toString(i)).build())
+            .collect(Collectors.toList());
+    List<Row> rows =
+        bottomRow.stream()
+            .map(r -> Row.withSchema(NESTED_SCHEMA).addValues(r, r).build())
+            .collect(Collectors.toList());
+
+    PCollection<Row> unnested =
+        pipeline
+            .apply(Create.of(rows).withRowSchema(NESTED_SCHEMA))
+            .apply(Select.<Row>flattenedSchema().withOutputSchema(CLASHING_NAME_UNNESTED_SCHEMA));
     assertEquals(CLASHING_NAME_UNNESTED_SCHEMA, unnested.getSchema());
     pipeline.run();
   }

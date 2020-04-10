@@ -108,7 +108,7 @@ public class RemoteGrpcPortWriteOperation<T> extends ReceivingOperation {
       elementsFlushed = 0;
       super.start();
       bundleId = bundleIdSupplier.getId();
-      receiver = beamFnDataService.send(LogicalEndpoint.of(bundleId, ptransformId), coder);
+      receiver = beamFnDataService.send(LogicalEndpoint.data(bundleId, ptransformId), coder);
     }
   }
 

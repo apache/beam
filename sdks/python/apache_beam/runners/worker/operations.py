@@ -28,7 +28,6 @@ import collections
 import logging
 import sys
 import threading
-import time
 from builtins import filter
 from builtins import object
 from builtins import zip
@@ -46,12 +45,11 @@ from typing import Tuple
 from typing import Union
 
 from apache_beam import coders
-from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
+from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -339,26 +337,6 @@ class Operation(object):
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    return beam_fn_api_pb2.Metrics.PTransform(
-        processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
-            measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
-                total_time_spent=(
-                    self.scoped_start_state.sampled_seconds() +
-                    self.scoped_process_state.sampled_seconds() +
-                    self.scoped_finish_state.sampled_seconds()),
-                # Multi-output operations should override this.
-                output_element_counts=(
-                    # If there is exactly one output, we can unambiguously
-                    # fix its name later, which we do.
-                    # TODO(robertwb): Plumb the actual name here.
-                    {
-                        'ONLY_OUTPUT': self.receivers[0].opcounter.
-                        element_counter.value()
-                    } if len(self.receivers) == 1 else None))),
-        user=self.metrics_container.to_runner_api())
-
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
@@ -384,13 +362,10 @@ class Operation(object):
 
       (unused_mean, sum, count, min, max) = (
           self.receivers[0].opcounter.mean_byte_counter.value())
-      metric = metrics_pb2.Metric(
-          distribution_data=metrics_pb2.DistributionData(
-              int_distribution_data=metrics_pb2.IntDistributionData(
-                  count=count, sum=sum, min=min, max=max)))
+
       sampled_byte_count = monitoring_infos.int64_distribution(
           monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-          metric,
+          DistributionData(sum, count, min, max),
           ptransform=transform_id,
           tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
       )
@@ -560,15 +535,13 @@ class DoOperation(Operation):
                counter_factory,
                sampler,
                side_input_maps=None,
-               user_state_context=None,
-               timer_inputs=None
+               user_state_context=None
               ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    self.timer_inputs = timer_inputs or {}
     self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
 
   def _read_side_inputs(self, tags_and_types):
@@ -610,25 +583,20 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-        # The tracking of time spend reading and bytes read from side inputs is
-        # behind an experiment flag to test its performance impact.
-        si_counter = opcounters.SideInputReadCounter(
-            self.counter_factory,
-            self.state_sampler,
-            declaring_step=self.name_context.step_name,
-            # Inputs are 1-indexed, so we add 1 to i in the side input id
-            input_index=i + 1)
+      si_counter = opcounters.SideInputReadCounter(
+          self.counter_factory,
+          self.state_sampler,
+          declaring_step=self.name_context.step_name,
+          # Inputs are 1-indexed, so we add 1 to i in the side input id
+          input_index=i + 1)
+      element_counter = opcounters.OperationCounters(
+          self.counter_factory,
+          self.name_context.step_name,
+          view_options['coder'],
+          i,
+          suffix='side-input')
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
-          sources, read_counter=si_counter)
-
-      # Backwards compatibility for pre BEAM-733 SDKs.
-      if isinstance(view_options, tuple):
-        if view_class == pvalue.AsSingleton:
-          has_default, default = view_options
-          view_options = {'default': default} if has_default else {}
-        else:
-          view_options = {}
-
+          sources, read_counter=si_counter, element_counter=element_counter)
       yield apache_sideinputs.SideInputMap(
           view_class, view_options, sideinputs.EmulatedIterable(iterator_fn))
 
@@ -661,7 +629,6 @@ class DoOperation(Operation):
             self.tagged_receivers[None] = self.receivers[index]
 
       if self.user_state_context:
-        self.user_state_context.update_timer_receivers(self.tagged_receivers)
         self.timer_specs = {
             spec.name: spec
             for spec in userstate.get_dofn_specs(fn)[1]
@@ -709,11 +676,16 @@ class DoOperation(Operation):
     # type: () -> bool
     return self.dofn_runner.bundle_finalizer_param.has_callbacks()
 
-  def process_timer(self, tag, windowed_timer):
-    key, timer_data = windowed_timer.value
+  def add_timer_info(self, timer_family_id, timer_info):
+    self.user_state_context.add_timer_info(timer_family_id, timer_info)
+
+  def process_timer(self, tag, timer_data):
     timer_spec = self.timer_specs[tag]
     self.dofn_runner.process_user_timer(
-        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
+        timer_spec,
+        timer_data.user_key,
+        timer_data.windows[0],
+        timer_data.fire_timestamp)
 
   def finish(self):
     # type: () -> None
@@ -736,16 +708,6 @@ class DoOperation(Operation):
       self.user_state_context.reset()
     self.dofn_runner.bundle_finalizer_param.reset()
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    metrics = super(DoOperation, self).progress_metrics()
-    if self.tagged_receivers:
-      metrics.processed_elements.measured.output_element_counts.clear()
-      for tag, receiver in self.tagged_receivers.items():
-        metrics.processed_elements.measured.output_element_counts[str(
-            tag)] = receiver.opcounter.element_counter.value()
-    return metrics
-
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
     infos = super(DoOperation, self).monitoring_infos(transform_id)
@@ -759,13 +721,9 @@ class DoOperation(Operation):
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
-        metric = metrics_pb2.Metric(
-            distribution_data=metrics_pb2.DistributionData(
-                int_distribution_data=metrics_pb2.IntDistributionData(
-                    count=count, sum=sum, min=min, max=max)))
         sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-            metric,
+            DistributionData(sum, count, min, max),
             ptransform=transform_id,
             tag=str(tag))
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
@@ -819,45 +777,37 @@ class SdfProcessSizedElements(DoOperation):
               self.element_start_output_bytes)
       return None
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    with self.lock:
-      metrics = super(SdfProcessSizedElements, self).progress_metrics()
-      current_element_progress = self.current_element_progress()
-    if current_element_progress:
-      assert self.input_info is not None
-      metrics.active_elements.measured.input_element_counts[
-          self.input_info[1]] = 1
-      metrics.active_elements.fraction_remaining = (
-          current_element_progress.fraction_remaining)
-    return metrics
-
   def monitoring_infos(self, transform_id):
     # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
+    def encode_progress(value):
+      # type: (float) -> bytes
+      coder = coders.IterableCoder(coders.FloatCoder())
+      return coder.encode([value])
+
     with self.lock:
       infos = super(SdfProcessSizedElements,
                     self).monitoring_infos(transform_id)
       current_element_progress = self.current_element_progress()
       if current_element_progress:
-        if current_element_progress.completed_work():
-          completed = current_element_progress.completed_work()
-          remaining = current_element_progress.remaining_work()
+        if current_element_progress.completed_work:
+          completed = current_element_progress.completed_work
+          remaining = current_element_progress.remaining_work
         else:
-          completed = current_element_progress.fraction_completed()
-          remaining = current_element_progress.fraction_remaining()
-
+          completed = current_element_progress.fraction_completed
+          remaining = current_element_progress.fraction_remaining
+        assert completed is not None
+        assert remaining is not None
         completed_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_COMPLETED_URN,
-            type=monitoring_infos.LATEST_DOUBLES_URN,
+            type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=coders.FloatCoder().get_impl().encode_nested(completed),
-            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+            payload=encode_progress(completed))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
-            type=monitoring_infos.LATEST_DOUBLES_URN,
+            type=monitoring_infos.PROGRESS_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
-            payload=coders.FloatCoder().get_impl().encode_nested(remaining),
-            timestamp=monitoring_infos.to_timestamp_proto(time.time()))
+            payload=encode_progress(remaining))
         infos[monitoring_infos.to_key(completed_mi)] = completed_mi
         infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
     return infos

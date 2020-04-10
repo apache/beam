@@ -18,25 +18,21 @@
 package org.apache.beam.sdk.extensions.sql.impl.transform;
 
 import static java.util.stream.Collectors.toList;
-import static org.apache.beam.sdk.values.Row.toRow;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexFieldAccess;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexInputRef;
 import org.apache.beam.sdk.extensions.sql.impl.utils.SerializableRexNode;
+import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRelType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
@@ -45,111 +41,35 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Pair;
 /** Collections of {@code PTransform} and {@code DoFn} used to perform JOIN operation. */
 public class BeamJoinTransforms {
 
-  /** A {@code SimpleFunction} to extract join fields from the specified row. */
-  public static class ExtractJoinFields extends SimpleFunction<Row, KV<Row, Row>> {
-    private final List<SerializableRexNode> joinColumns;
-    private final Schema schema;
-    private int leftRowColumnCount;
-
-    public ExtractJoinFields(
-        boolean isLeft,
-        List<Pair<RexNode, RexNode>> joinColumns,
-        Schema schema,
-        int leftRowColumnCount) {
-      this.joinColumns =
-          joinColumns.stream()
-              .map(pair -> SerializableRexNode.builder(isLeft ? pair.left : pair.right).build())
-              .collect(toList());
-      this.schema = schema;
-      this.leftRowColumnCount = leftRowColumnCount;
-    }
-
-    @Override
-    public KV<Row, Row> apply(Row input) {
-      Row row =
-          joinColumns.stream()
-              .map(v -> getValue(v, input, leftRowColumnCount))
-              .collect(toRow(schema));
-      return KV.of(row, input);
-    }
-
-    @SuppressWarnings("unused")
-    private Schema.Field toField(Schema schema, Integer fieldIndex) {
-      Schema.Field original = schema.getField(fieldIndex);
-      return original.withName("c" + fieldIndex);
-    }
-
-    private Object getValue(
-        SerializableRexNode serializableRexNode, Row input, int leftRowColumnCount) {
-      if (serializableRexNode instanceof SerializableRexInputRef) {
-        return input.getValue(
-            ((SerializableRexInputRef) serializableRexNode).getIndex() - leftRowColumnCount);
-      } else { // It can only be SerializableFieldAccess.
-        List<Integer> indexes = ((SerializableRexFieldAccess) serializableRexNode).getIndexes();
-        // retrieve row based on the first column reference.
-        Row rowField = input.getValue(indexes.get(0) - leftRowColumnCount);
-        for (int i = 1; i < indexes.size() - 1; i++) {
-          rowField = rowField.getRow(indexes.get(i));
-        }
-        return rowField.getValue(indexes.get(indexes.size() - 1));
-      }
-    }
+  public static FieldAccessDescriptor getJoinColumns(
+      boolean isLeft,
+      List<Pair<RexNode, RexNode>> joinColumns,
+      int leftRowColumnCount,
+      Schema schema) {
+    List<SerializableRexNode> joinColumnsBuilt =
+        joinColumns.stream()
+            .map(pair -> SerializableRexNode.builder(isLeft ? pair.left : pair.right).build())
+            .collect(toList());
+    return FieldAccessDescriptor.union(
+        joinColumnsBuilt.stream()
+            .map(v -> getJoinColumn(v, leftRowColumnCount).resolve(schema))
+            .collect(Collectors.toList()));
   }
 
-  /** A {@code DoFn} which implement the sideInput-JOIN. */
-  public static class SideInputJoinDoFn extends DoFn<KV<Row, Row>, Row> {
-    private final PCollectionView<Map<Row, Iterable<Row>>> sideInputView;
-    private final JoinRelType joinType;
-    private final Row rightNullRow;
-    private final boolean swap;
-    private final Schema schema;
-
-    public SideInputJoinDoFn(
-        JoinRelType joinType,
-        Row rightNullRow,
-        PCollectionView<Map<Row, Iterable<Row>>> sideInputView,
-        boolean swap,
-        Schema schema) {
-      this.joinType = joinType;
-      this.rightNullRow = rightNullRow;
-      this.sideInputView = sideInputView;
-      this.swap = swap;
-      this.schema = schema;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      Row key = context.element().getKey();
-      Row leftRow = context.element().getValue();
-      Map<Row, Iterable<Row>> key2Rows = context.sideInput(sideInputView);
-      Iterable<Row> rightRowsIterable = key2Rows.get(key);
-
-      if (rightRowsIterable != null && rightRowsIterable.iterator().hasNext()) {
-        for (Row aRightRowsIterable : rightRowsIterable) {
-          context.output(combineTwoRowsIntoOne(leftRow, aRightRowsIterable, swap, schema));
-        }
-      } else {
-        if (joinType == JoinRelType.LEFT) {
-          context.output(combineTwoRowsIntoOne(leftRow, rightNullRow, swap, schema));
-        }
+  private static FieldAccessDescriptor getJoinColumn(
+      SerializableRexNode serializableRexNode, int leftRowColumnCount) {
+    if (serializableRexNode instanceof SerializableRexInputRef) {
+      SerializableRexInputRef inputRef = (SerializableRexInputRef) serializableRexNode;
+      return FieldAccessDescriptor.withFieldIds(inputRef.getIndex() - leftRowColumnCount);
+    } else { // It can only be SerializableFieldAccess.
+      List<Integer> indexes = ((SerializableRexFieldAccess) serializableRexNode).getIndexes();
+      FieldAccessDescriptor fieldAccessDescriptor =
+          FieldAccessDescriptor.withFieldIds(indexes.get(0) - leftRowColumnCount);
+      for (int i = 1; i < indexes.size(); i++) {
+        fieldAccessDescriptor =
+            FieldAccessDescriptor.withFieldIds(fieldAccessDescriptor, indexes.get(i));
       }
-    }
-  }
-
-  /** A {@code SimpleFunction} to combine two rows into one. */
-  public static class JoinParts2WholeRow extends SimpleFunction<KV<Row, KV<Row, Row>>, Row> {
-    private final Schema schema;
-
-    public JoinParts2WholeRow(Schema schema) {
-      this.schema = schema;
-    }
-
-    @Override
-    public Row apply(KV<Row, KV<Row, Row>> input) {
-      KV<Row, Row> parts = input.getValue();
-      Row leftRow = parts.getKey();
-      Row rightRow = parts.getValue();
-      return combineTwoRowsIntoOne(leftRow, rightRow, false, schema);
+      return fieldAccessDescriptor;
     }
   }
 
@@ -166,8 +86,8 @@ public class BeamJoinTransforms {
   /** As the method name suggests: combine two rows into one wide row. */
   private static Row combineTwoRowsIntoOneHelper(Row leftRow, Row rightRow, Schema ouputSchema) {
     return Row.withSchema(ouputSchema)
-        .addValues(leftRow.getValues())
-        .addValues(rightRow.getValues())
+        .addValues(leftRow.getBaseValues())
+        .addValues(rightRow.getBaseValues())
         .build();
   }
 
@@ -250,7 +170,9 @@ public class BeamJoinTransforms {
 
                     private Row extractJoinSubRow(Row factRow) {
                       List<Object> joinSubsetValues =
-                          factJoinIdx.stream().map(factRow::getValue).collect(toList());
+                          factJoinIdx.stream()
+                              .map(i -> factRow.getBaseValue(i, Object.class))
+                              .collect(toList());
 
                       return Row.withSchema(joinSubsetType).addValues(joinSubsetValues).build();
                     }

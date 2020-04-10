@@ -30,6 +30,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_1",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -63,6 +64,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_2",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -97,6 +99,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_3",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,
@@ -131,6 +134,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project               : 'apache-beam-testing',
+                            region                : 'us-central1',
                             appName               : "load_tests_Java_Dataflow_${mode}_CoGBK_4",
                             tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery     : true,

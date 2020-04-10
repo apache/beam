@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -80,6 +81,8 @@ public class JsonToRow {
     private Schema schema;
 
     static JsonToRowFn forSchema(Schema rowSchema) {
+      // Throw exception if this schema is not supported by RowJson
+      RowJson.verifySchemaSupported(rowSchema);
       return new JsonToRowFn(rowSchema);
     }
 

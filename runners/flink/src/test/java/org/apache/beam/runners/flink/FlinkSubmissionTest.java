@@ -40,7 +40,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.jobgraph.JobStatus;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.junit.AfterClass;
@@ -152,7 +151,7 @@ public class FlinkSubmissionTest {
       Collection<JobStatusMessage> allJobsStates = flinkCluster.listJobs().get();
       if (allJobsStates.size() == expectedNumberOfJobs
           && allJobsStates.stream()
-              .allMatch(jobStatus -> jobStatus.getJobState() == JobStatus.FINISHED)) {
+              .allMatch(jobStatus -> jobStatus.getJobState().name().equals("FINISHED"))) {
         return;
       }
       Thread.sleep(50);

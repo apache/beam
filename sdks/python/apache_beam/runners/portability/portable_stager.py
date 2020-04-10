@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-"""A :class:`FileHandler` to work with :class:`ArtifactStagingServiceStub`.
+"""A :class:`FileHandler` to work with :class:`LegacyArtifactStagingServiceStub`.
 """
 
 # pytype: skip-file
@@ -35,7 +35,7 @@ from apache_beam.runners.portability.stager import Stager
 
 class PortableStager(Stager):
   """An implementation of :class:`Stager` to stage files on
-  ArtifactStagingService.
+  LegacyArtifactStagingService.
 
   The class keeps track of pushed files and commit manifest once all files are
   uploaded.
@@ -44,26 +44,26 @@ class PortableStager(Stager):
   thread safety.
   """
   def __init__(self, artifact_service_channel, staging_session_token):
-    """Creates a new Stager to stage file to ArtifactStagingService.
+    """Creates a new Stager to stage file to LegacyArtifactStagingService.
 
     Args:
       artifact_service_channel: Channel used to interact with
-        ArtifactStagingService. User owns the channel and should close it when
+        LegacyArtifactStagingService. User owns the channel and should close it when
         finished.
       staging_session_token: A token to stage artifacts on
-        ArtifactStagingService. The token is provided by the JobService prepare
+        LegacyArtifactStagingService. The token is provided by the JobService prepare
         call.
     """
     super(PortableStager, self).__init__()
     self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
-        ArtifactStagingServiceStub(channel=artifact_service_channel)
+        LegacyArtifactStagingServiceStub(channel=artifact_service_channel)
     self._staging_session_token = staging_session_token
     self._artifacts = []  # type: List[beam_artifact_api_pb2.ArtifactMetadata]
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
     # type: (str, str) -> None
 
-    """Stage a file to ArtifactStagingService.
+    """Stage a file to LegacyArtifactStagingService.
 
     Args:
       local_path_to_artifact: Path of file to be uploaded.
