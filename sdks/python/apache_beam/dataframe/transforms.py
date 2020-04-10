@@ -126,14 +126,14 @@ class DataframeTransform(transforms.PTransform):
         if self.stage.is_grouping:
           # Arrange such that partitioned_pcoll is properly partitioned.
           input_pcolls = {
-              k: pcoll | 'Flat%s' % k >> beam.FlatMap(partition_by_index)
-              for k,
-              pcoll in pcolls.items()
+              tag: pcoll | 'Flat%s' % tag >> beam.FlatMap(partition_by_index)
+              for (tag, pcoll) in pcolls.items()
           }
           partitioned_pcoll = input_pcolls | beam.CoGroupByKey(
           ) | beam.MapTuple(
-              lambda _, inputs: {k: pd.concat(vs)
-                                 for k, vs in inputs.items()})
+              lambda _,
+              inputs: {tag: pd.concat(vs)
+                       for tag, vs in inputs.items()})
         else:
           # Already partitioned, or no partitioning needed.
           (k, pcoll), = pcolls.items()
@@ -179,10 +179,11 @@ class DataframeTransform(transforms.PTransform):
       hashes = sum(
           pd.util.hash_array(df.index.get_level_values(level))
           for level in levels)
-      for k in range(parts):
-        yield k, df[hashes % parts == k]
+      for key in range(parts):
+        yield key, df[hashes % parts == key]
 
     def common_stages(stage_lists):
+      # Set intersection, with a preference for earlier items in the list.
       if stage_lists:
         for stage in stage_lists[0]:
           if all(stage in other for other in stage_lists[1:]):
@@ -193,6 +194,11 @@ class DataframeTransform(transforms.PTransform):
       assert expr not in inputs
       # First attempt to compute this expression as part of an existing stage,
       # if possible.
+      #
+      # If expr does not require partitioning, just grab any stage, else grab
+      # the first stage where all of expr's inputs are partitioned as required.
+      # In either case, use the first such stage because earlier stages are
+      # closer to the inputs (have fewer intermediate stages).
       for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
                                   if arg not in inputs]):
         if (not expr.requires_partition_by_index() or
@@ -204,7 +210,10 @@ class DataframeTransform(transforms.PTransform):
         stage = Stage(expr.args(), expr.requires_partition_by_index())
         for arg in expr.args():
           if arg not in inputs:
+            # For each non-input argument, declare that it is also available in
+            # this new stage.
             expr_to_stages(arg).append(stage)
+            # It also must be declared as an output of the producing stage.
             expr_to_stage(arg).outputs.add(arg)
       stage.ops.append(expr)
       # This is a list as given expression may be available in many stages.
