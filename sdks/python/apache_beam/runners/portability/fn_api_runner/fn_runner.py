@@ -44,7 +44,6 @@ from typing import Tuple
 from typing import TypeVar
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
-from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.metrics import metric
 from apache_beam.metrics import monitoring_infos
@@ -294,8 +293,8 @@ class FnApiRunner(runner.PipelineRunner):
             translations.greedily_fuse,
             translations.read_to_impulse,
             translations.impulse_to_input,
-            translations.inject_timer_pcollections,
             translations.sort_stages,
+            translations.setup_timer_mapping,
             translations.populate_data_channel_coders,
         ],
         known_runner_urns=frozenset([
@@ -386,6 +385,8 @@ class FnApiRunner(runner.PipelineRunner):
       bundle_context_manager,  # type: execution.BundleContextManager
       data_input,
       data_output,  # type: DataOutput
+      fired_timers,
+      expected_output_timers,
       cache_token_generator
   ):
     # type: (...) -> None
@@ -408,48 +409,35 @@ class FnApiRunner(runner.PipelineRunner):
             k,
             num_workers=self._num_workers,
             cache_token_generator=cache_token_generator)
-        testing_bundle_manager.process_bundle(data_input, data_output)
+        testing_bundle_manager.process_bundle(
+            data_input, data_output, fired_timers, expected_output_timers)
       finally:
         runner_execution_context.state_servicer.restore()
 
-  def _collect_written_timers_and_add_to_deferred_inputs(
+  def _collect_written_timers_and_add_to_fired_timers(
       self,
-      runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
       bundle_context_manager,  # type: execution.BundleContextManager
-      deferred_inputs,  # type: MutableMapping[str, PartitionableBuffer]
+      fired_timers  # type: Dict[Tuple[str, str], ListBuffer]
   ):
     # type: (...) -> None
 
-    for (transform_id,
-         timer_writes) in bundle_context_manager.stage.timer_pcollections:
-
-      # Queue any set timers as new inputs.
-      windowed_timer_coder_impl = (
-          runner_execution_context.pipeline_context.coders[
-              runner_execution_context.data_channel_coders[timer_writes]].
-          get_impl())
+    for (transform_id, timer_family_id) in bundle_context_manager.stage.timers:
       written_timers = bundle_context_manager.get_buffer(
-          create_buffer_id(timer_writes, kind='timers'), transform_id)
+          create_buffer_id(timer_family_id, kind='timers'), transform_id)
+      timer_coder_impl = bundle_context_manager.get_timer_coder_impl(
+          transform_id, timer_family_id)
       if not written_timers.cleared:
-        # Keep only the "last" timer set per key and window.
         timers_by_key_and_window = {}
-        for elements_data in written_timers:
-          input_stream = create_InputStream(elements_data)
-          while input_stream.size() > 0:
-            windowed_key_timer = windowed_timer_coder_impl.decode_from_stream(
-                input_stream, True)
-            key, _ = windowed_key_timer.value
-            # TODO: Explode and merge windows.
-            assert len(windowed_key_timer.windows) == 1
-            timers_by_key_and_window[
-                key, windowed_key_timer.windows[0]] = windowed_key_timer
+        for elements_timers in written_timers:
+          for decoded_timer in timer_coder_impl.decode_all(elements_timers):
+            timers_by_key_and_window[decoded_timer.user_key,
+                                     decoded_timer.windows[0]] = decoded_timer
         out = create_OutputStream()
-        for windowed_key_timer in timers_by_key_and_window.values():
-          windowed_timer_coder_impl.encode_to_stream(
-              windowed_key_timer, out, True)
-        deferred_inputs[transform_id] = ListBuffer(
-            coder_impl=windowed_timer_coder_impl)
-        deferred_inputs[transform_id].append(out.get())
+        for decoded_timer in timers_by_key_and_window.values():
+          timer_coder_impl.encode_to_stream(decoded_timer, out, True)
+        fired_timers[(transform_id, timer_family_id)] = ListBuffer(
+            coder_impl=timer_coder_impl)
+        fired_timers[(transform_id, timer_family_id)].append(out.get())
         written_timers.clear()
 
   def _add_residuals_and_channel_splits_to_deferred_inputs(
@@ -520,8 +508,9 @@ class FnApiRunner(runner.PipelineRunner):
     worker_handler_list = bundle_context_manager.worker_handlers
     worker_handler_manager = runner_execution_context.worker_handler_manager
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
-    data_input, data_side_input, data_output = self._extract_endpoints(
-        bundle_context_manager, runner_execution_context)
+    (data_input, data_side_input, data_output,
+     expected_timer_output) = self._extract_endpoints(
+         bundle_context_manager, runner_execution_context)
     worker_handler_manager.register_process_bundle_descriptor(
         bundle_context_manager.process_bundle_descriptor)
 
@@ -536,7 +525,8 @@ class FnApiRunner(runner.PipelineRunner):
         runner_execution_context,
         bundle_context_manager,
         data_input,
-        data_output,
+        data_output, {},
+        expected_timer_output,
         cache_token_generator=cache_token_generator)
 
     bundle_manager = ParallelBundleManager(
@@ -548,7 +538,11 @@ class FnApiRunner(runner.PipelineRunner):
         num_workers=self._num_workers,
         cache_token_generator=cache_token_generator)
 
-    result, splits = bundle_manager.process_bundle(data_input, data_output)
+    # For the first time of processing, we don't have fired timers as inputs.
+    result, splits = bundle_manager.process_bundle(data_input,
+                                                   data_output,
+                                                   {},
+                                                   expected_timer_output)
 
     last_result = result
     last_sent = data_input
@@ -556,12 +550,14 @@ class FnApiRunner(runner.PipelineRunner):
     # We cannot split deferred_input until we include residual_roots to
     # merged results. Without residual_roots, pipeline stops earlier and we
     # may miss some data.
+    # We also don't partition fired timer inputs for the same reason.
     bundle_manager._num_workers = 1
     while True:
       deferred_inputs = {}  # type: Dict[str, PartitionableBuffer]
+      fired_timers = {}
 
-      self._collect_written_timers_and_add_to_deferred_inputs(
-          runner_execution_context, bundle_context_manager, deferred_inputs)
+      self._collect_written_timers_and_add_to_fired_timers(
+          bundle_context_manager, fired_timers)
       # Queue any process-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
         name = bundle_context_manager.input_for(
@@ -575,7 +571,7 @@ class FnApiRunner(runner.PipelineRunner):
       self._add_residuals_and_channel_splits_to_deferred_inputs(
           splits, bundle_context_manager, last_sent, deferred_inputs)
 
-      if deferred_inputs:
+      if deferred_inputs or fired_timers:
         # The worker will be waiting on these inputs as well.
         for other_input in data_input:
           if other_input not in deferred_inputs:
@@ -586,7 +582,7 @@ class FnApiRunner(runner.PipelineRunner):
         # TODO(BEAM-8486): this should be changed to _registered
         bundle_manager._skip_registration = True  # type: ignore[attr-defined]
         last_result, splits = bundle_manager.process_bundle(
-            deferred_inputs, data_output)
+            deferred_inputs, data_output, fired_timers, expected_timer_output)
         last_sent = deferred_inputs
         result = beam_fn_api_pb2.InstructionResponse(
             process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
@@ -623,6 +619,8 @@ class FnApiRunner(runner.PipelineRunner):
     data_input = {}  # type: Dict[str, PartitionableBuffer]
     data_side_input = {}  # type: DataSideInput
     data_output = {}  # type: DataOutput
+    # A mapping of {(transform_id, timer_family_id) : buffer_id}
+    expected_timer_output = {}  # type: Dict[Tuple(str, str), str]
     for transform in bundle_context_manager.stage.transforms:
       if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                 bundle_processor.DATA_OUTPUT_URN):
@@ -661,7 +659,10 @@ class FnApiRunner(runner.PipelineRunner):
         for tag, si in payload.side_inputs.items():
           data_side_input[transform.unique_name, tag] = (
               create_buffer_id(transform.inputs[tag]), si.access_pattern)
-    return data_input, data_side_input, data_output
+        for timer_family_id in payload.timer_family_specs.keys():
+          expected_timer_output[(transform.unique_name, timer_family_id)] = (
+              create_buffer_id(timer_family_id, 'timers'))
+    return data_input, data_side_input, data_output, expected_timer_output
 
   @staticmethod
   def get_cache_token_generator(static=True):
@@ -802,6 +803,15 @@ class BundleManager(object):
       data_out.write(byte_stream)
     data_out.close()
 
+  def _send_timers_to_worker(
+      self, process_bundle_id, transform_id, timer_family_id, timers):
+    assert self._worker_handler is not None
+    timer_out = self._worker_handler.data_conn.output_timer_stream(
+        process_bundle_id, transform_id, timer_family_id)
+    for timer in timers:
+      timer_out.write(timer)
+    timer_out.close()
+
   def _register_bundle_descriptor(self):
     # type: () -> Optional[ControlFuture]
     if self._registered:
@@ -896,7 +906,9 @@ class BundleManager(object):
 
   def process_bundle(self,
                      inputs,  # type: Mapping[str, PartitionableBuffer]
-                     expected_outputs  # type: DataOutput
+                     expected_outputs,  # type: DataOutput
+                     fired_timers,  # type: Mapping[Tuple[str, str], PartitionableBuffer]
+                     expected_output_timers  # type: Dict[str, Dict[str, str]]
                     ):
     # type: (...) -> BundleProcessResult
     # Unique id for the instruction processing this bundle.
@@ -914,6 +926,14 @@ class BundleManager(object):
 
     split_manager = self._select_split_manager()
     if not split_manager:
+      # Send timers.
+      for transform_id, timer_family_id in expected_output_timers.keys():
+        self._send_timers_to_worker(
+            process_bundle_id,
+            transform_id,
+            timer_family_id,
+            fired_timers.get((transform_id, timer_family_id), []))
+
       # If there is no split_manager, write all input data to the channel.
       for transform_id, elements in inputs.items():
         self._send_input_to_worker(process_bundle_id, transform_id, elements)
@@ -935,13 +955,22 @@ class BundleManager(object):
         split_results = self._generate_splits_for_testing(
             split_manager, inputs, process_bundle_id)
 
+      expect_reads = list(expected_outputs.keys())
+      expect_reads.extend(list(expected_output_timers.keys()))
+
       # Gather all output data.
       for output in self._worker_handler.data_conn.input_elements(
           process_bundle_id,
-          expected_outputs.keys(),
+          expect_reads,
           abort_callback=lambda:
           (result_future.is_done() and result_future.get().error)):
-        if output.transform_id in expected_outputs:
+        if isinstance(output, beam_fn_api_pb2.Elements.Timer):
+          with BundleManager._lock:
+            self._get_buffer(
+                expected_output_timers[(
+                    output.transform_id, output.timer_family_id)],
+                output.transform_id).append(output.timers)
+        if isinstance(output, beam_fn_api_pb2.Elements.Data):
           with BundleManager._lock:
             self._get_buffer(
                 expected_outputs[output.transform_id],
@@ -987,8 +1016,10 @@ class ParallelBundleManager(BundleManager):
 
   def process_bundle(self,
                      inputs,  # type: Mapping[str, PartitionableBuffer]
-                     expected_outputs  # type: DataOutput
-                    ):
+                     expected_outputs,  # type: DataOutput
+                     fired_timers,  # type: Mapping[Tuple[str, str], PartitionableBuffer]
+                     expected_output_timers  # type: Dict[Tuple[str, str], str]
+                     ):
     # type: (...) -> BundleProcessResult
     part_inputs = [{} for _ in range(self._num_workers)
                    ]  # type: List[Dict[str, List[bytes]]]
@@ -1010,7 +1041,8 @@ class ParallelBundleManager(BundleManager):
           self._progress_frequency,
           self._registered,
           cache_token_generator=self._cache_token_generator)
-      return bundle_manager.process_bundle(part_map, expected_outputs)
+      return bundle_manager.process_bundle(
+          part_map, expected_outputs, fired_timers, expected_output_timers)
 
     with UnboundedThreadPoolExecutor() as executor:
       for result, split_result in executor.map(execute, part_inputs):
