@@ -643,7 +643,8 @@ public class TFRecordIO {
    * Codec for TFRecords file format. See
    * https://www.tensorflow.org/versions/r1.11/api_guides/python/python_io#TFRecords_Format_Details
    */
-  private static class TFRecordCodec {
+  @VisibleForTesting
+  static class TFRecordCodec {
     private static final int HEADER_LEN = (Long.SIZE + Integer.SIZE) / Byte.SIZE;
     private static final int FOOTER_LEN = Integer.SIZE / Byte.SIZE;
     private static HashFunction crc32c = Hashing.crc32c();
@@ -669,15 +670,14 @@ public class TFRecordIO {
 
     public @Nullable byte[] read(ReadableByteChannel inChannel) throws IOException {
       header.clear();
-      int headerBytes = inChannel.read(header);
-      if (headerBytes <= 0) {
+      int firstRead = read(inChannel, header);
+      if (firstRead == 0) {
         return null;
       }
-      checkState(headerBytes == HEADER_LEN, "Not a valid TFRecord. Fewer than 12 bytes.");
 
       header.rewind();
-      long length = header.getLong();
-      long lengthHash = hashLong(length);
+      long length64 = header.getLong();
+      long lengthHash = hashLong(length64);
       int maskedCrc32OfLength = header.getInt();
       if (lengthHash != maskedCrc32OfLength) {
         throw new IOException(
@@ -685,18 +685,16 @@ public class TFRecordIO {
                 "Mismatch of length mask when reading a record. Expected %d but received %d.",
                 maskedCrc32OfLength, lengthHash));
       }
-
-      ByteBuffer data = ByteBuffer.allocate((int) length);
-      while (data.hasRemaining() && inChannel.read(data) >= 0) {}
-      if (data.hasRemaining()) {
-        throw new IOException(
-            String.format(
-                "EOF while reading record of length %d. Read only %d bytes. Input might be truncated.",
-                length, data.position()));
+      int length = (int) length64;
+      if (length != length64) {
+        throw new IOException(String.format("length overflow %d", length64));
       }
 
+      ByteBuffer data = ByteBuffer.allocate(length);
+      readFully(inChannel, data);
+
       footer.clear();
-      inChannel.read(footer);
+      readFully(inChannel, footer);
       footer.rewind();
 
       int maskedCrc32OfData = footer.getInt();
@@ -717,14 +715,38 @@ public class TFRecordIO {
       header.clear();
       header.putLong(data.length).putInt(maskedCrc32OfLength);
       header.rewind();
-      outChannel.write(header);
+      writeFully(outChannel, header);
 
-      outChannel.write(ByteBuffer.wrap(data));
+      writeFully(outChannel, ByteBuffer.wrap(data));
 
       footer.clear();
       footer.putInt(maskedCrc32OfData);
       footer.rewind();
-      outChannel.write(footer);
+      writeFully(outChannel, footer);
+    }
+
+    @VisibleForTesting
+    static void readFully(ReadableByteChannel in, ByteBuffer bb) throws IOException {
+      int expected = bb.remaining();
+      int actual = read(in, bb);
+      if (expected != actual) {
+        throw new IOException(String.format("expected %d, but got %d", expected, expected));
+      }
+    }
+
+    private static int read(ReadableByteChannel in, ByteBuffer bb) throws IOException {
+      int n, read = 0;
+      while (bb.hasRemaining() && (n = in.read(bb)) >= 0) {
+        read += n;
+      }
+      return read;
+    }
+
+    @VisibleForTesting
+    static void writeFully(WritableByteChannel channel, ByteBuffer buffer) throws IOException {
+      while (buffer.hasRemaining()) {
+        channel.write(buffer);
+      }
     }
   }
 }
