@@ -58,6 +58,7 @@ from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker import statesampler
 from apache_beam.testing.synthetic_pipeline import SyntheticSDFAsSource
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -1606,7 +1607,7 @@ class StateBackedTestElementType(object):
     StateBackedTestElementType.live_element_count += 1
     # Due to using state backed iterable, we expect there is a few instances
     # alive at any given time.
-    if StateBackedTestElementType.live_element_count > 5:
+    if StateBackedTestElementType.live_element_count > 200:
       raise RuntimeError('Too many live instances.')
 
   def __del__(self):
@@ -1618,12 +1619,8 @@ class StateBackedTestElementType(object):
 
 @attr('ValidatesRunner')
 class FnApiBasedStateBackedCoderTest(unittest.TestCase):
-  def create_pipeline(self):
-    return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner(use_state_iterables=True))
-
   def test_gbk_many_values(self):
-    with self.create_pipeline() as p:
+    with TestPipeline() as p:
       # The number of integers could be a knob to test against
       # different runners' default settings on page size.
       VALUES_PER_ELEMENT = 300
