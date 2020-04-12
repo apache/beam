@@ -731,7 +731,7 @@ public class TFRecordIO {
       int expected = bb.remaining();
       int actual = read(in, bb);
       if (expected != actual) {
-        throw new IOException(String.format("expected %d, but got %d", expected, expected));
+        throw new IOException(String.format("expected %d, but got %d", expected, actual));
       }
     }
 
