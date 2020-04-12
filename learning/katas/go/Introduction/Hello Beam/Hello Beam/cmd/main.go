@@ -13,17 +13,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package main
 
 import (
+	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"hello_beam/pkg/task"
 )
 
-const (
-	OutputFile = "output.txt"
-)
+func main() {
+	p, s := beam.NewPipelineWithRoot()
 
-func checkSolution(s beam.Scope, col beam.PCollection) {
-	textio.Write(s, OutputFile, col)
+	hello := task.HelloBeam(s)
+
+	debug.Print(s, hello)
+
+	err := beamx.Run(context.Background(), p)
+	if err != nil {
+		log.Fatal(context.Background(), err)
+	}
 }

@@ -13,37 +13,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package task
 
 import (
-	"io/ioutil"
-	"task"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"hello_beam_test/pkg/task"
 	"testing"
 )
 
-const (
-	outputPath = "output.txt"
-)
+func TestHelloBeam(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
 
-func TestTask(t *testing.T) {
-	err := task.Task()
+	got := task.HelloBeam(s)
+
+	passert.Equals(s, got, "Hello Beam")
+
+	err := ptest.Run(p)
 	if err != nil {
 		t.Error(err)
-	}
-	data, err := ioutil.ReadFile(outputPath)
-	if err != nil {
-		t.Error(err)
-	}
-
-	want := "This proves your pipeline is running.\n"
-	got := string(data)
-	if want != got {
-		t.Errorf("want: %s got: %s", want, got)
-	}
-
-	// This is intended to clear the output.txt to revert back to the original state
-	err = ioutil.WriteFile(outputPath, []byte{}, 0644)
-	if err != nil {
-		t.Fatal(err)
 	}
 }

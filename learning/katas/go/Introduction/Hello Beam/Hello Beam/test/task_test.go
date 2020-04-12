@@ -16,31 +16,20 @@
 package test
 
 import (
-	"io/ioutil"
-	"task"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"hello_beam/pkg/task"
 	"testing"
 )
 
 func TestTask(t *testing.T) {
-	err := task.Task()
+	p, s := beam.NewPipelineWithRoot()
+
+	passert.Equals(s, task.HelloBeam(s), "Hello Beam")
+
+	err := ptest.Run(p)
 	if err != nil {
 		t.Error(err)
-	}
-
-	data, err := ioutil.ReadFile(task.OutputFile)
-	if err != nil {
-		t.Error(err)
-	}
-
-	want := "Hello Beam\n"
-	got := string(data)
-	if want != got {
-		t.Errorf("want: %s got: %s", want, got)
-	}
-
-	// This is intended to clear the output.txt to revert back to the original state
-	err = ioutil.WriteFile(task.OutputFile, []byte{}, 0644)
-	if err != nil {
-		t.Fatal(err)
 	}
 }

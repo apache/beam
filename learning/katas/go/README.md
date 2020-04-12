@@ -19,11 +19,11 @@
 
 ### How to Setup
 Please follow the below steps in order to setup the project properly:
-* Using Goland Education (or Goland with EduTools plugin), select "+ New Project"
+* Using GoLand with the EduTools plugin, select "+ New Project"
 * Click "Yes" to create project from existing sources when prompted
 * Wait for indexing to finish
 * Open the "Project" tool window, and select the "Course" view
 * Your project is ready
 
-For further instructions on how the Goland Education works, you can refer 
+For further instructions on how the GoLand Education works, you can refer 
 [here](https://www.jetbrains.com/help/education/educator-start-guide.html?section=Go).

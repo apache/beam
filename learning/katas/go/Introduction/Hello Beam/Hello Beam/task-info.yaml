@@ -19,19 +19,17 @@
 
 type: edu
 files:
-- name: test/task_test.go
-  visible: false
-- name: test/output.txt
-  visible: false
-- name: task.go
-  visible: true
-  placeholders:
-  - offset: 1143
-    length: 28
-    placeholder_text: 'TODO: inject your pipeline with "Hello Beam".'
 - name: go.mod
   visible: false
+- name: cmd/main.go
+  visible: true
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 920
+    length: 28
+    placeholder_text: TODO()
 - name: go.sum
   visible: false
-- name: check.go
+- name: test/task_test.go
   visible: false

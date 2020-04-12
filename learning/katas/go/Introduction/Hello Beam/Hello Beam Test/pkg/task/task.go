@@ -13,25 +13,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package task
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"testing"
 )
 
-func TestBeam(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-
-	want := []interface{}{1, 2, 3}
-	got := beam.Create(s, 1, 2, 3)
-
-	passert.Equals(s, got, want...)
-
-	err := ptest.Run(p)
-	if err != nil {
-		t.Error(err)
-	}
+func HelloBeam(s beam.Scope) beam.PCollection {
+	return beam.Create(s, "Hello Beam")
 }

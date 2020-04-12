@@ -17,11 +17,26 @@
     under the License.
 -->
 
-# Hello Beam Pipeline
+# Welcome to Apache Beam!
 
-Now that you have a pipeline setup and running, this lesson gets you started building a pipeline.
+Apache Beam is an open source, unified model for defining both batch and streaming data-parallel
+processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the
+pipeline. The pipeline is then executed by one of Beam’s supported distributed processing
+back-ends, which include Apache Apex, Apache Flink, Apache Spark, and Google Cloud Dataflow.
 
-**Kata:** Your second kata is to create a simple pipeline that takes a hardcoded input element "Hello Beam".
+Beam is particularly useful for Embarrassingly Parallel data processing tasks, in which the
+problem can be decomposed into many smaller bundles of data that can be processed independently
+and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data
+integration. These tasks are useful for moving data between different storage media and data
+sources, transforming data into a more desirable format, or loading data onto a new system.
+
+To learn more about Apache Beam, refer to [Apache Beam Overview](https://beam.apache.org/get-started/beam-overview/).
+
+This series of katas assumes some familiarity with the Go language and is not meant to teach you the language.
+We encourage you to head on over to [https://golang.org/doc/#learning](https://golang.org/doc/#learning) if you need
+a resource to get started with the Go language.
+
+**Kata:** Your first kata is to create a simple pipeline that takes a hardcoded input element "Hello Beam".
 
 <div class="hint">
   Hardcoded input can be created using

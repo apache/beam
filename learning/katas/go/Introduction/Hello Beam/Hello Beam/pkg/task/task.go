@@ -17,14 +17,8 @@ package task
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 )
 
-const (
-	outputPath = "output.txt"
-)
-
-func checkSetup(s beam.Scope) {
-	col := beam.Create(s, "This proves your pipeline is running.")
-	textio.Write(s, outputPath, col)
+func HelloBeam(s beam.Scope) beam.PCollection {
+	return beam.Create(s, "Hello Beam")
 }
