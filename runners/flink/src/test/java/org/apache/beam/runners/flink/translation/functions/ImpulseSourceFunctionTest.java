@@ -95,11 +95,13 @@ public class ImpulseSourceFunctionTest {
 
     // 1) Should finish
     source.run(sourceContext);
-    // 2) Should _not_ emit impulse element
-    verifyNoMoreInteractions(sourceContext);
-    // 3) Should keep checkpoint state
+    // 2) Should keep checkpoint state
     verify(mockListState).get();
     verifyNoMoreInteractions(mockListState);
+    // 3) Should always emit the final watermark
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
+    // 4) Should _not_ emit impulse element
+    verifyNoMoreInteractions(sourceContext);
   }
 
   @Test(timeout = 10_000)
@@ -165,7 +167,9 @@ public class ImpulseSourceFunctionTest {
     sourceThread.interrupt();
     sourceThread.join();
 
-    // nothing should have been emitted because the impulse was emitted before restore
+    // Should always emit the final watermark
+    verify(sourceContext).emitWatermark(Watermark.MAX_WATERMARK);
+    // no element should have been emitted because the impulse was emitted before restore
     verifyNoMoreInteractions(sourceContext);
   }
 
