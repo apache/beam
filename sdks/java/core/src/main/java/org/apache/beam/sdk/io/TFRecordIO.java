@@ -670,10 +670,11 @@ public class TFRecordIO {
 
     public @Nullable byte[] read(ReadableByteChannel inChannel) throws IOException {
       header.clear();
-      int firstRead = read(inChannel, header);
-      if (firstRead == 0) {
+      int headerBytes = read(inChannel, header);
+      if (headerBytes == 0) {
         return null;
       }
+      checkState(headerBytes == HEADER_LEN, "Not a valid TFRecord. Fewer than 12 bytes.");
 
       header.rewind();
       long length64 = header.getLong();
