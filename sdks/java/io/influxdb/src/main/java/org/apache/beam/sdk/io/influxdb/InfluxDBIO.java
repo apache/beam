@@ -1,43 +1,26 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.beam.sdk.io.influxdb;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.influxdb.BatchOptions.DEFAULT_BATCH_INTERVAL_DURATION;
+import static org.influxdb.BatchOptions.DEFAULT_BUFFER_LIMIT;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
-import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
-import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import okhttp3.OkHttpClient;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -55,66 +38,69 @@ import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
+import org.influxdb.dto.QueryResult.Result;
+import org.influxdb.dto.QueryResult.Series;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * IO to read and write to InfluxDB.
  *
- * <h3>Reading from InfluxDB datasource</h3>
+ * <h3>Reading from InfluxDB</h3>
  *
- * <p>InfluxDBIO source returns a bounded collection of {@code String} as a {@code
+ * <p>InfluxDBIO {@link #read()} returns a bounded collection of {@code String} as a {@code
  * PCollection<String>}.
  *
- * <p>To configure the InfluxDB source, you have to provide a {@link DataSourceConfiguration} using
- * <br>
- * {@link DataSourceConfiguration#create(String, String, String)}(durl, username and password).
+ * <p>you have to provide a {@link DataSourceConfiguration} using<br>
+ * {@link DataSourceConfiguration#create(String, String, String)}(url, userName and password).
  * Optionally, {@link DataSourceConfiguration#withUsername(String)} and {@link
- * DataSourceConfiguration#withPassword(String)} allows you to define username and password.
+ * DataSourceConfiguration#withPassword(String)} allows you to define userName and password.
  *
  * <p>For example:
  *
  * <pre>{@code
- * PCollection<Stringn> collection = pipeline.apply(InfluxDBIO.read()
- *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
- *          "https://localhost:8086","username","password"))
+ * PCollection<String> collection = pipeline.apply(InfluxDBIO.read()
+ *   .withDataSourceConfiguration(InfluxDBIO.DataSourceConfiguration.create(
+ *          "https://localhost:8086","userName","password"))
  *   .withDatabase("metrics")
  *   .withRetentionPolicy("autogen")
  *   .withSslInvalidHostNameAllowed(true)
- *   withSslEnabled(true));
+ *   .withSslEnabled(true));
  * }</pre>
  *
- * <p>For example (Read from query):
+ * <p>Read with query example:
  *
  * <pre>{@code
- * PCollection<Stringn> collection = pipeline.apply(InfluxDBIO.read()
- *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
- *          "https://localhost:8086","username","password"))
+ * PCollection<String> collection = pipeline.apply(InfluxDBIO.read()
+ *   .withDataSourceConfiguration(InfluxDBIO.DataSourceConfiguration.create(
+ *          "https://localhost:8086","userName","password"))
  *   .withDatabase("metrics")
- *   .withQuery("Select * from cpu")
+ *   .withQuery("SELECT * FROM CPU")
  *   .withRetentionPolicy("autogen")
  *   .withSslInvalidHostNameAllowed(true)
- *   withSslEnabled(true));
+ *   .withSslEnabled(true));
  * }</pre>
  *
- * <h3>Writing to Influx datasource</h3>
+ * <h3>Writing to InfluxDB </h3>
  *
  * <p>InfluxDB sink supports writing records into a database. It writes a {@link PCollection} to the
  * database by converting each T. The T should implement getLineProtocol() from {@link
  * LineProtocolConvertable}.
  *
- * <p>Like the source, to configure the sink, you have to provide a {@link DataSourceConfiguration}.
+ * <p>Like the {@link #read()}, to configure the {@link #write()}, you have to provide a {@link
+ * DataSourceConfiguration}.
  *
  * <pre>{@code
  * pipeline
  *   .apply(...)
  *   .apply(InfluxDb.write()
- *      .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(
- *            "https://localhost:8086","username","password"))
+ *      .withDataSourceConfiguration(InfluxDBIO.DataSourceConfiguration.create(
+ *            "https://localhost:8086","userName","password"))
  *   .withRetentionPolicy("autogen")
  *   .withDatabase("metrics")
  *   .withSslInvalidHostNameAllowed(true)
- *   withSslEnabled(true));
+ *   .withSslEnabled(true));
  *    );
  * }</pre>
  *
@@ -125,19 +111,29 @@ public class InfluxDBIO {
   private static final Logger LOG = LoggerFactory.getLogger(InfluxDBIO.class);
 
   public static Write write() {
-    return new AutoValue_InfluxDBIO_Write.Builder().build();
+    return new AutoValue_InfluxDBIO_Write.Builder()
+        .setSslEnabled(false)
+        .setSslInvalidHostNameAllowed(false)
+        .setFlushDuration(DEFAULT_BATCH_INTERVAL_DURATION)
+        .setNoOfElementsToBatch(DEFAULT_BUFFER_LIMIT)
+        .build();
   }
 
   public static Read read() {
-    return new AutoValue_InfluxDBIO_Read.Builder().build();
+    return new AutoValue_InfluxDBIO_Read.Builder()
+        .setSslEnabled(false)
+        .setSslInvalidHostNameAllowed(false)
+        .setStartDateTime(DateTime.parse("1677-09-21T00:12:43.145224194Z"))
+        .setEndDateTime(DateTime.parse("2262-04-11T23:47:16.854775806Z"))
+        .setRetentionPolicy("autogen")
+        .build();
   }
 
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
-    @Nullable
-    abstract Boolean sslInvalidHostNameAllowed();
 
-    @Nullable
+    abstract boolean sslInvalidHostNameAllowed();
+
     abstract String retentionPolicy();
 
     @Nullable
@@ -146,14 +142,23 @@ public class InfluxDBIO {
     @Nullable
     abstract String query();
 
-    @Nullable
-    abstract Boolean sslEnabled();
+    abstract boolean sslEnabled();
 
     @Nullable
     abstract DataSourceConfiguration dataSourceConfiguration();
 
     @Nullable
-    abstract List<String> metric();
+    abstract List<String> metrics();
+
+    abstract DateTime startDateTime();
+
+    abstract DateTime endDateTime();
+
+    @Nullable
+    abstract DateTime fromDateTime();
+
+    @Nullable
+    abstract DateTime toDateTime();
 
     abstract Builder builder();
 
@@ -163,15 +168,23 @@ public class InfluxDBIO {
 
       abstract Builder setDatabase(String database);
 
-      abstract Builder setSslInvalidHostNameAllowed(Boolean value);
+      abstract Builder setSslInvalidHostNameAllowed(boolean value);
 
       abstract Builder setRetentionPolicy(String retentionPolicy);
 
       abstract Builder setQuery(String query);
 
-      abstract Builder setSslEnabled(Boolean sslEnabled);
+      abstract Builder setToDateTime(DateTime toDateTime);
 
-      abstract Builder setMetric(List<String> metric);
+      abstract Builder setFromDateTime(DateTime fromDateTime);
+
+      abstract Builder setStartDateTime(DateTime startDateTime);
+
+      abstract Builder setEndDateTime(DateTime endDateTime);
+
+      abstract Builder setSslEnabled(boolean sslEnabled);
+
+      abstract Builder setMetrics(List<String> metrics);
 
       abstract Read build();
     }
@@ -184,40 +197,62 @@ public class InfluxDBIO {
 
     /** Reads from the specified database. */
     public Read withDatabase(String database) {
-      return builder().setDatabase(database).build();
-    }
-    /** Reads from the specified query. */
-    public Read withQuery(String query) {
-      return builder().setQuery(query).build();
+      return builder()
+          .setDatabase(database)
+          .setDataSourceConfiguration(dataSourceConfiguration())
+          .build();
     }
 
-    public Read withMetric(List<String> metric) {
-      return builder().setMetric(metric).build();
+    public Read withToDateTime(DateTime toDateTime) {
+      return builder().setToDateTime(toDateTime).build();
+    }
+
+    public Read withFromDateTime(DateTime fromDateTime) {
+      return builder().setFromDateTime(fromDateTime).build();
+    }
+
+    public Read withStartDateTime(DateTime startDateTime) {
+      return builder().setStartDateTime(startDateTime).build();
+    }
+
+    public Read withEndDateTime(DateTime endDateTime) {
+      return builder().setEndDateTime(endDateTime).build();
+    }
+
+    public Read withMetrics(List<String> metrics) {
+      return builder().setMetrics(metrics).build();
+    }
+
+    public Read withMetrics(String... metrics) {
+      return withMetrics(Arrays.asList(metrics));
     }
 
     public Read withSslEnabled(boolean sslEnabled) {
       return builder().setSslEnabled(sslEnabled).build();
     }
 
-    public Read withSslInvalidHostNameAllowed(Boolean value) {
+    public Read withSslInvalidHostNameAllowed(boolean value) {
       return builder().setSslInvalidHostNameAllowed(value).build();
     }
 
-    public Read withRetentionPolicy(String rp) {
-      return builder().setRetentionPolicy(rp).build();
+    public Read withRetentionPolicy(String retentionPolicy) {
+      return builder().setRetentionPolicy(retentionPolicy).build();
+    }
+
+    public Read withQuery(String query) {
+      return builder().setQuery(query).build();
     }
 
     @Override
     public PCollection<String> expand(PBegin input) {
-      checkArgument(dataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
-      checkArgument(
-          query() != null || database() != null, "withDatabase() or withQuery() is required");
+      checkArgument(dataSourceConfiguration() != null, "configuration is required");
+      checkArgument(query() != null || database() != null, "database or query is required");
       if (database() != null) {
-        try (InfluxDB connection =
-            getConnection(dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled())) {
-          checkArgument(
-              connection.databaseExists(database()), "Database %s does not exist", database());
-        }
+        checkArgument(
+            checkDatabase(
+                database(), dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled()),
+            "Database %s does not exist",
+            database());
       }
       return input.apply(org.apache.beam.sdk.io.Read.from(new InfluxDBSource(this)));
     }
@@ -244,48 +279,69 @@ public class InfluxDBIO {
     }
 
     @Override
-    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) throws Exception {
-      int size = 0;
+    public long getEstimatedSizeBytes(PipelineOptions pipelineOptions) {
+      String noOfBlocks = "NUMBER OF BLOCKS";
+      String sizeOfBlocks = "SIZE OF BLOCKS";
+      LinkedHashSet<Long> noOfBlocksValue = new LinkedHashSet<>();
+      LinkedHashSet<Long> sizeOfBlocksValue = new LinkedHashSet<>();
       try (InfluxDB connection =
           getConnection(
               spec.dataSourceConfiguration(),
               spec.sslInvalidHostNameAllowed(),
               spec.sslEnabled())) {
-        connection.setDatabase(spec.database());
-        QueryResult queryResult = connection.query(new Query(getQueryToRun(spec), spec.database()));
-        if (queryResult != null) {
-          List databaseNames = queryResult.getResults().get(0).getSeries().get(0).getValues();
-          if (databaseNames != null) {
-            Iterator var4 = databaseNames.iterator();
-            while (var4.hasNext()) {
-              List database = (List) var4.next();
-              size += database.size();
+        String query = spec.query();
+        if (query == null)
+          query =
+              String.format(
+                  "SELECT * FROM %s.%s", spec.retentionPolicy(), String.join(",", spec.metrics()));
+        QueryResult result = connection.query(new Query(query, spec.database()));
+        List<Result> results = result.getResults();
+        for (Result res : results) {
+          for (Series series : res.getSeries()) {
+            for (List<Object> data : series.getValues()) {
+              String s = data.get(0).toString();
+              if (s.startsWith(noOfBlocks))
+                noOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+              if (s.startsWith(sizeOfBlocks))
+                sizeOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
             }
           }
         }
       }
-      LOG.info("Estimated number of elements {} for database {}", size, spec.database());
+
+      Iterator<Long> noOfBlocksValueItr = noOfBlocksValue.iterator();
+      Iterator<Long> sizeOfBlocksValueItr = sizeOfBlocksValue.iterator();
+      long size = 0;
+      while (noOfBlocksValueItr.hasNext() && sizeOfBlocksValueItr.hasNext()) {
+        size = size + (noOfBlocksValueItr.next() * sizeOfBlocksValueItr.next());
+      }
       return size;
     }
 
-    /**
-     * @param desiredElementsInABundle
-     * @param options
-     * @return
-     * @throws Exception
-     */
     @Override
     public List<? extends BoundedSource<String>> split(
-        long desiredElementsInABundle, PipelineOptions options) throws Exception {
-      List<BoundedSource<String>> sources = new ArrayList<BoundedSource<String>>();
-      if (spec.metric() != null && spec.metric().size() > 1) {
-        for (String metric : spec.metric()) {
-          sources.add(new InfluxDBSource(spec.withMetric(Arrays.asList(metric))));
+        long desiredElementsInABundle, PipelineOptions options) {
+      List<ShardInformation> shardInfo =
+          getDBShardedInformation(
+              spec.database(),
+              spec.dataSourceConfiguration(),
+              spec.sslInvalidHostNameAllowed(),
+              spec.sslEnabled());
+      List<BoundedSource<String>> sources = new ArrayList<>();
+      if (spec.query() == null) {
+        for (ShardInformation sInfo : shardInfo) {
+          if (sInfo.getStartTime().compareTo(spec.startDateTime()) > 0) {
+            sources.add(
+                new InfluxDBSource(
+                    spec.withMetrics(spec.metrics())
+                        .withRetentionPolicy(sInfo.getRetentionPolicy())
+                        .withToDateTime(sInfo.getStartTime())
+                        .withFromDateTime(sInfo.getEndTime())));
+          }
         }
       } else {
         sources.add(this);
       }
-      checkArgument(!sources.isEmpty(), "No primary shard found");
       return sources;
     }
 
@@ -306,38 +362,32 @@ public class InfluxDBIO {
 
     @Override
     public Coder<String> getOutputCoder() {
-      return SerializableCoder.of(String.class);
+      return StringUtf8Coder.of();
     }
   }
 
   private static String getQueryToRun(Read spec) {
     if (spec.query() == null) {
-      return "SELECT * FROM " + String.join(",", spec.metric());
+      if (spec.toDateTime() != null && spec.fromDateTime() != null) {
+        return String.format(
+            "SELECT * FROM %s.%s WHERE time >= '%s' and time <= '%s'",
+            spec.retentionPolicy(),
+            String.join(",", spec.metrics()),
+            spec.toDateTime(),
+            spec.fromDateTime());
+      } else {
+        return String.format(
+            "SELECT * FROM %s.%s", spec.retentionPolicy(), String.join(",", spec.metrics()));
+      }
     }
     return spec.query();
   }
 
-  private static InfluxDB getConnection(
-      DataSourceConfiguration configuration,
-      boolean sslInvalidHostNameAllowed,
-      boolean sslEnabled) {
-    if (sslInvalidHostNameAllowed && sslEnabled) {
-      return InfluxDBFactory.connect(
-          configuration.getUrl().get(),
-          configuration.getUsername().get(),
-          configuration.getPassword().get(),
-          getUnsafeOkHttpClient());
-    } else {
-      return InfluxDBFactory.connect(
-          configuration.getUrl().get(),
-          configuration.getUsername().get(),
-          configuration.getPassword().get());
-    }
-  }
-
   private static class BoundedInfluxDbReader extends BoundedSource.BoundedReader<String> {
     private final InfluxDBIO.InfluxDBSource source;
-    private Iterator cursor;
+    private Iterator<Result> resultIterator;
+    private Iterator<Series> seriesIterator;
+    private Iterator<List<Object>> valuesIterator;
     private List current;
 
     public BoundedInfluxDbReader(InfluxDBIO.InfluxDBSource source) {
@@ -352,18 +402,16 @@ public class InfluxDBIO {
               spec.dataSourceConfiguration(),
               spec.sslInvalidHostNameAllowed(),
               spec.sslEnabled())) {
-        if (spec.database() != null) {
-          influxDB.setDatabase(spec.database());
-        }
+        if (spec.database() != null) influxDB.setDatabase(spec.database());
+        if (spec.retentionPolicy() != null) influxDB.setRetentionPolicy(spec.retentionPolicy());
         String query = getQueryToRun(spec);
-        LOG.debug("BoundedInfluxDbReader.start() ==> " + query);
-
         QueryResult queryResult = influxDB.query(new Query(query, spec.database()));
-
-        List databaseNames = queryResult.getResults().get(0).getSeries().get(0).getValues();
-
-        if (databaseNames != null) {
-          cursor = databaseNames.iterator();
+        resultIterator = queryResult.getResults().iterator();
+        if (resultIterator.hasNext()) {
+          seriesIterator = resultIterator.next().getSeries().iterator();
+        }
+        if (seriesIterator.hasNext()) {
+          valuesIterator = seriesIterator.next().getValues().iterator();
         }
       }
       return advance();
@@ -371,8 +419,17 @@ public class InfluxDBIO {
 
     @Override
     public boolean advance() {
-      if (cursor.hasNext()) {
-        current = (List) cursor.next();
+      if (valuesIterator.hasNext()) {
+        current = valuesIterator.next();
+        return true;
+      } else if (seriesIterator.hasNext()) {
+        valuesIterator = seriesIterator.next().getValues().iterator();
+        current = valuesIterator.next();
+        return true;
+      } else if (resultIterator.hasNext()) {
+        seriesIterator = resultIterator.next().getSeries().iterator();
+        valuesIterator = seriesIterator.next().getValues().iterator();
+        current = valuesIterator.next();
         return true;
       } else {
         return false;
@@ -380,19 +437,17 @@ public class InfluxDBIO {
     }
 
     @Override
-    public BoundedSource<String> getCurrentSource() {
+    public BoundedSource getCurrentSource() {
       return source;
     }
 
     @Override
-    public String getCurrent() throws NoSuchElementException {
+    public String getCurrent() {
       return current.toString();
     }
 
     @Override
-    public void close() {
-      return;
-    }
+    public void close() {}
   }
 
   @AutoValue
@@ -402,11 +457,11 @@ public class InfluxDBIO {
     public PDone expand(PCollection<String> input) {
       checkArgument(dataSourceConfiguration() != null, "withConfiguration() is required");
       checkArgument(database() != null && !database().isEmpty(), "withDatabase() is required");
-      try (InfluxDB connection =
-          getConnection(dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled())) {
-        checkArgument(
-            connection.databaseExists(database()), "Database %s does not exist", database());
-      }
+      checkArgument(
+          checkDatabase(
+              database(), dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled()),
+          "Database %s does not exist",
+          database());
       input.apply(ParDo.of(new InfluxWriterFn(this)));
       return PDone.in(input.getPipeline());
     }
@@ -431,17 +486,13 @@ public class InfluxDBIO {
     @Nullable
     abstract String retentionPolicy();
 
-    @Nullable
-    abstract Boolean sslInvalidHostNameAllowed();
+    abstract boolean sslInvalidHostNameAllowed();
 
-    @Nullable
-    abstract Boolean sslEnabled();
+    abstract boolean sslEnabled();
 
-    @Nullable
-    abstract Integer noOfElementsToBatch();
+    abstract int noOfElementsToBatch();
 
-    @Nullable
-    abstract Integer flushDuration();
+    abstract int flushDuration();
 
     @Nullable
     abstract DataSourceConfiguration dataSourceConfiguration();
@@ -454,13 +505,13 @@ public class InfluxDBIO {
 
       abstract Builder setDatabase(String database);
 
-      abstract Builder setSslInvalidHostNameAllowed(Boolean value);
+      abstract Builder setSslInvalidHostNameAllowed(boolean value);
 
-      abstract Builder setNoOfElementsToBatch(Integer noOfElementsToBatch);
+      abstract Builder setNoOfElementsToBatch(int noOfElementsToBatch);
 
-      abstract Builder setFlushDuration(Integer flushDuration);
+      abstract Builder setFlushDuration(int flushDuration);
 
-      abstract Builder setSslEnabled(Boolean sslEnabled);
+      abstract Builder setSslEnabled(boolean sslEnabled);
 
       abstract Builder setRetentionPolicy(String retentionPolicy);
 
@@ -480,15 +531,15 @@ public class InfluxDBIO {
       return builder().setSslEnabled(sslEnabled).build();
     }
 
-    public Write withSslInvalidHostNameAllowed(Boolean value) {
+    public Write withSslInvalidHostNameAllowed(boolean value) {
       return builder().setSslInvalidHostNameAllowed(value).build();
     }
 
-    public Write withNoOfElementsToBatch(Integer noOfElementsToBatch) {
+    public Write withNoOfElementsToBatch(int noOfElementsToBatch) {
       return builder().setNoOfElementsToBatch(noOfElementsToBatch).build();
     }
 
-    public Write withFlushDuration(Integer flushDuration) {
+    public Write withFlushDuration(int flushDuration) {
       return builder().setFlushDuration(flushDuration).build();
     }
 
@@ -506,18 +557,15 @@ public class InfluxDBIO {
       }
 
       @Setup
-      public void setup() throws Exception {
+      public void setup() {
         connection =
             getConnection(
                 spec.dataSourceConfiguration(), sslInvalidHostNameAllowed(), sslEnabled());
-        int flushDuration =
-            spec.flushDuration() != null ? spec.flushDuration() : defaultFlushDuration;
-        int noOfBatchPoints =
-            spec.noOfElementsToBatch() != null
-                ? spec.noOfElementsToBatch()
-                : defaultNumberOfDuration;
+        int flushDuration = spec.flushDuration();
+        int noOfBatchPoints = spec.noOfElementsToBatch();
         connection.enableBatch(
             BatchOptions.DEFAULTS.actions(noOfBatchPoints).flushDuration(flushDuration));
+        connection.setRetentionPolicy(spec.retentionPolicy());
         connection.setDatabase(spec.database());
       }
 
@@ -527,12 +575,12 @@ public class InfluxDBIO {
       }
 
       @FinishBundle
-      public void finishBundle() throws Exception {
+      public void finishBundle() {
         connection.flush();
       }
 
       @Teardown
-      public void tearDown() throws Exception {
+      public void tearDown() {
         if (connection != null) {
           connection.flush();
           connection.close();
@@ -544,13 +592,10 @@ public class InfluxDBIO {
       public void populateDisplayData(DisplayData.Builder builder) {
         builder.delegate(Write.this);
       }
-
-      private final Integer defaultNumberOfDuration = 1000;
-      private final Integer defaultFlushDuration = 100;
     }
   }
 
-  public static OkHttpClient.Builder getUnsafeOkHttpClient() {
+  private static OkHttpClient.Builder getUnsafeOkHttpClient() {
     try {
       // Create a trust manager that does not validate certificate chains
       final TrustManager[] trustAllCerts =
@@ -558,13 +603,11 @@ public class InfluxDBIO {
             new X509TrustManager() {
               @Override
               public void checkClientTrusted(
-                  java.security.cert.X509Certificate[] chain, String authType)
-                  throws CertificateException {}
+                  java.security.cert.X509Certificate[] chain, String authType) {}
 
               @Override
               public void checkServerTrusted(
-                  java.security.cert.X509Certificate[] chain, String authType)
-                  throws CertificateException {}
+                  java.security.cert.X509Certificate[] chain, String authType) {}
 
               @Override
               public java.security.cert.X509Certificate[] getAcceptedIssuers() {
@@ -581,33 +624,24 @@ public class InfluxDBIO {
 
       OkHttpClient.Builder builder = new OkHttpClient.Builder();
       builder.sslSocketFactory(sslSocketFactory, (X509TrustManager) trustAllCerts[0]);
-      builder.hostnameVerifier(
-          new HostnameVerifier() {
-            @Override
-            public boolean verify(String hostname, SSLSession session) {
-              return true;
-            }
-          });
-
+      builder.hostnameVerifier((hostname, session) -> true);
       return builder;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
-  /**
-   * A POJO describing a {}, either providing directly a or all properties allowing to create a {}.
-   */
+  /** A POJO describing a DataSourceConfiguration such as URL, userName and password. */
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
 
     @Nullable
-    abstract ValueProvider<String> getUrl();
+    abstract ValueProvider<String> url();
 
     @Nullable
-    abstract ValueProvider<String> getUsername();
+    abstract ValueProvider<String> userName();
 
     @Nullable
-    abstract ValueProvider<String> getPassword();
+    abstract ValueProvider<String> password();
 
     abstract Builder builder();
 
@@ -616,43 +650,43 @@ public class InfluxDBIO {
 
       abstract Builder setUrl(ValueProvider<String> url);
 
-      abstract Builder setUsername(ValueProvider<String> username);
+      abstract Builder setUserName(ValueProvider<String> userName);
 
       abstract Builder setPassword(ValueProvider<String> password);
 
       abstract DataSourceConfiguration build();
     }
 
-    public static DataSourceConfiguration create(String url, String username, String password) {
+    public static DataSourceConfiguration create(String url, String userName, String password) {
       checkArgument(url != null, "url can not be null");
-      checkArgument(username != null, "username can not be null");
+      checkArgument(userName != null, "userName can not be null");
       checkArgument(password != null, "password can not be null");
 
       return create(
           ValueProvider.StaticValueProvider.of(url),
-          ValueProvider.StaticValueProvider.of(username),
+          ValueProvider.StaticValueProvider.of(userName),
           ValueProvider.StaticValueProvider.of(password));
     }
 
     public static DataSourceConfiguration create(
-        ValueProvider<String> url, ValueProvider<String> username, ValueProvider<String> password) {
+        ValueProvider<String> url, ValueProvider<String> userName, ValueProvider<String> password) {
       checkArgument(url != null, "url can not be null");
-      checkArgument(username != null, "username can not be null");
+      checkArgument(userName != null, "userName can not be null");
       checkArgument(password != null, "password can not be null");
 
       return new AutoValue_InfluxDBIO_DataSourceConfiguration.Builder()
           .setUrl(url)
-          .setUsername(username)
+          .setUserName(userName)
           .setPassword(password)
           .build();
     }
 
-    public DataSourceConfiguration withUsername(String username) {
-      return withUsername(ValueProvider.StaticValueProvider.of(username));
+    public DataSourceConfiguration withUsername(String userName) {
+      return withUsername(ValueProvider.StaticValueProvider.of(userName));
     }
 
-    public DataSourceConfiguration withUsername(ValueProvider<String> username) {
-      return builder().setUsername(username).build();
+    public DataSourceConfiguration withUsername(ValueProvider<String> userName) {
+      return builder().setUserName(userName).build();
     }
 
     public DataSourceConfiguration withPassword(String password) {
@@ -673,9 +707,9 @@ public class InfluxDBIO {
 
     void populateDisplayData(DisplayData.Builder builder) {
 
-      builder.addIfNotNull(DisplayData.item("url", getUrl()));
-      builder.addIfNotNull(DisplayData.item("username", getUsername()));
-      builder.addIfNotNull(DisplayData.item("password", getPassword()));
+      builder.addIfNotNull(DisplayData.item("url", url()));
+      builder.addIfNotNull(DisplayData.item("userName", userName()));
+      builder.addIfNotNull(DisplayData.item("password", password()));
     }
   }
 
@@ -705,5 +739,66 @@ public class InfluxDBIO {
     public DataSourceConfiguration apply(Void input) {
       return config;
     }
+  }
+
+  private static List<ShardInformation> getDBShardedInformation(
+      String database,
+      DataSourceConfiguration configuration,
+      boolean sslInvalidHostNameAllowed,
+      boolean sslEnabled) {
+    String query = "show shards";
+    DBShardInformation dbInfo = new DBShardInformation();
+    try (InfluxDB connection =
+        getConnection(configuration, sslInvalidHostNameAllowed, sslEnabled)) {
+      QueryResult result = connection.query(new Query(query));
+      List<Result> results = result.getResults();
+      for (Result res : results) {
+        for (Series series : res.getSeries()) {
+          dbInfo.loadShardInformation(database, series);
+        }
+      }
+    }
+    Collections.sort(dbInfo.getShardInformation(database));
+    return dbInfo.getShardInformation(database);
+  }
+
+  private static boolean checkDatabase(
+      String dbName,
+      DataSourceConfiguration configuration,
+      boolean sslInvalidHostNameAllowed,
+      boolean sslEnabled) {
+    try (InfluxDB connection =
+        getConnection(configuration, sslInvalidHostNameAllowed, sslEnabled)) {
+      QueryResult result = connection.query(new Query("SHOW DATABASES"));
+      List<Series> results = result.getResults().get(0).getSeries();
+      for (Series series : results) {
+        List<List<Object>> values = series.getValues();
+        for (List<Object> listObj : values) {
+          for (Object dataObj : listObj) {
+            if (dataObj.toString().equals(dbName)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  private static InfluxDB getConnection(
+      DataSourceConfiguration configuration,
+      boolean sslInvalidHostNameAllowed,
+      boolean sslEnabled) {
+    if (sslInvalidHostNameAllowed && sslEnabled)
+      return InfluxDBFactory.connect(
+          configuration.url().get(),
+          configuration.userName().get(),
+          configuration.password().get(),
+          getUnsafeOkHttpClient());
+    else
+      return InfluxDBFactory.connect(
+          configuration.url().get(),
+          configuration.userName().get(),
+          configuration.password().get());
   }
 }
