@@ -56,10 +56,20 @@ public class ImpulseSourceFunction
       synchronized (sourceContext.getCheckpointLock()) {
         // emit single impulse element
         sourceContext.collect(WindowedValue.valueInGlobalWindow(new byte[0]));
-        sourceContext.emitWatermark(Watermark.MAX_WATERMARK);
         impulseEmitted.add(true);
       }
     }
+    // Always emit a final watermark.
+    // (1) In case we didn't restore the pipeline, this is important to close the global window;
+    // if no operator holds back this watermark.
+    // (2) In case we are restoring the pipeline, this is needed to initialize the operators with
+    // the current watermark and trigger execution of any pending timers.
+    sourceContext.emitWatermark(Watermark.MAX_WATERMARK);
+    // Wait to allow checkpoints of the pipeline
+    waitToEnsureCheckpointingWorksCorrectly();
+  }
+
+  private void waitToEnsureCheckpointingWorksCorrectly() {
     // Do nothing, but still look busy ...
     // we can't return here since Flink requires that all operators stay up,
     // otherwise checkpointing would not work correctly anymore
