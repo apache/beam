@@ -33,6 +33,6 @@ func main() {
 
 	err := beamx.Run(context.Background(), p)
 	if err != nil {
-		log.Fatal(context.Background(), err)
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
 	}
 }

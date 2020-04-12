@@ -16,7 +16,9 @@
 package task
 
 import (
+	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"hello_beam_test/pkg/task"
@@ -32,6 +34,6 @@ func TestHelloBeam(t *testing.T) {
 
 	err := ptest.Run(p)
 	if err != nil {
-		t.Error(err)
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
 	}
 }
