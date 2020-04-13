@@ -684,7 +684,6 @@ public class Read {
       private final KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
       private UnboundedSource.UnboundedReader<OutputT> currentReader;
-      private boolean claimedAll;
 
       UnboundedSourceAsSDFRestrictionTracker(
           KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction,
@@ -695,9 +694,6 @@ public class Read {
 
       @Override
       public boolean tryClaim(UnboundedSourceValue<OutputT>[] position) {
-        if (claimedAll) {
-          return false;
-        }
         try {
           if (currentReader == null) {
             currentReader =
@@ -705,12 +701,6 @@ public class Read {
                     .getKey()
                     .createReader(pipelineOptions, initialRestriction.getValue());
             if (!currentReader.start()) {
-              claimedAll = true;
-              try {
-                currentReader.close();
-              } finally {
-                currentReader = null;
-              }
               return false;
             }
             position[0] =
@@ -722,12 +712,6 @@ public class Read {
             return true;
           }
           if (!currentReader.advance()) {
-            claimedAll = true;
-            try {
-              currentReader.close();
-            } finally {
-              currentReader = null;
-            }
             return false;
           }
           position[0] =
@@ -743,8 +727,6 @@ public class Read {
               currentReader.close();
             } catch (IOException closeException) {
               e.addSuppressed(closeException);
-            } finally {
-              currentReader = null;
             }
           }
           throw new RuntimeException(e);
@@ -777,29 +759,23 @@ public class Read {
       public SplitResult<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> trySplit(
           double fractionOfRemainder) {
         // Don't split if we have claimed all since the SDF wrapper will be finishing soon.
-        if (claimedAll) {
-          return null;
-        }
-
         // Our split result sets the primary to have no checkpoint mark associated
         // with it since when we resume we don't have any state but we specifically pass
         // the checkpoint mark to the current reader so that when we finish the current bundle
         // we may register for finalization.
-        CheckpointT checkpoint = (CheckpointT) currentReader.getCheckpointMark();
+        KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction =
+            currentRestriction();
         SplitResult<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> result =
-            SplitResult.of(
-                KV.of(EmptyUnboundedSource.INSTANCE, null),
-                KV.of(
-                    (UnboundedSource<OutputT, CheckpointT>) currentReader.getCurrentSource(),
-                    checkpoint));
-        currentReader = EmptyUnboundedSource.INSTANCE.createReader(null, checkpoint);
+            SplitResult.of(KV.of(EmptyUnboundedSource.INSTANCE, null), currentRestriction);
+        currentReader =
+            EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getValue());
         return result;
       }
 
       @Override
       public void checkDone() throws IllegalStateException {
         checkState(
-            claimedAll,
+            currentReader instanceof EmptyUnboundedSource.UnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
       }
