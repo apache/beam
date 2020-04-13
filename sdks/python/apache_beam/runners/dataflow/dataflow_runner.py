@@ -456,8 +456,8 @@ class DataflowRunner(PipelineRunner):
 
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
-    default_environment = environments.DockerEnvironment(
-        container_image=apiclient.get_container_image_from_options(options))
+    default_environment = environments.DockerEnvironment.from_container_image(
+        apiclient.get_container_image_from_options(options))
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
