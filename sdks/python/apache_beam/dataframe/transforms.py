@@ -22,7 +22,6 @@ import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
-from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 

@@ -25,13 +25,40 @@ from apache_beam.dataframe import transforms
 
 
 # TODO: Or should this be called as_dataframe?
-def to_dataframe(pcoll, proxy):
+def to_dataframe(
+    pcoll,  # type: pvalue.PCollection
+    proxy,  # type: pandas.core.generic.NDFrame
+):
+  # type: (...) -> frame_base.DeferredFrame
+  """Convers a PCollection to a deferred dataframe-like object, which can
+  manipulated with pandas methods like `filter` and `groupby`.
+
+  For example, one might write::
+
+    pcoll = ...
+    df = to_dataframe(pcoll, proxy=...)
+    result = df.groupby('col').sum()
+    pcoll_result = to_pcollection(result)
+
+  A proxy object must be given if the schema for the PCollection is not known.
+  """
   return frame_base.DeferredFrame.wrap(
       expressions.PlaceholderExpression(proxy, pcoll))
 
 
 # TODO: Or should this be called from_dataframe?
-def to_pcollection(*dataframes, **kwargs):
+def to_pcollection(
+    *dataframes,  # type: Tuple[frame_base.DeferredFrame]
+    **kwargs):
+  # type: (...) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection]]
+  """Converts one or more deferred dataframe-like objects back to a PCollection.
+
+  This method creates and applies the actual Beam operations that compute
+  the given deferred dataframes, returning a PCollection of their results.
+
+  If more than one (related) result is desired, it can be more efficient to
+  pass them all at the same time to this method.
+  """
   label = kwargs.pop('label', None)
   always_return_tuple = kwargs.pop('always_return_tuple', False)
   assert not kwargs  # TODO(Py3): Use PEP 3102
