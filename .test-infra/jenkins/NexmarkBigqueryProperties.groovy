@@ -22,6 +22,7 @@ class NexmarkBigqueryProperties {
     static String nexmarkBigQueryArgs = ['--bigQueryTable=nexmark',
                                          '--bigQueryDataset=nexmark',
                                          '--project=apache-beam-testing',
+                                         '--region=us-central1',
                                          '--resourceNameMode=QUERY_RUNNER_AND_MODE',
                                          '--exportSummaryToBigQuery=true',
                                          '--tempLocation=gs://temp-storage-for-perf-tests/nexmark'].join(' ')

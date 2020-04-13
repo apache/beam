@@ -86,7 +86,6 @@ class _ExpandableTestStream(PTransform):
   def expand(self, pbegin):
     """Expands the TestStream into the DirectRunner implementation.
 
-
     Takes the TestStream transform and creates a _TestStream -> multiplexer ->
     _WatermarkController.
     """

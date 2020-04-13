@@ -53,6 +53,7 @@ import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMatchers;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
@@ -74,12 +75,10 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.MultimapSi
 import org.apache.beam.runners.fnexecution.state.StateRequestHandlers.SideInputHandlerFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
@@ -105,6 +104,7 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -113,12 +113,9 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
@@ -686,40 +683,40 @@ public class RemoteExecutionTest implements Serializable {
             // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, processUserCounterName);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(1);
+            builder.setInt64SumValue(1);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, startUserCounterName);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(10);
+            builder.setInt64SumValue(10);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserCounterName);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64Value(100);
+            builder.setInt64SumValue(100);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // User Distributions.
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, processUserDistributionName);
@@ -730,7 +727,7 @@ public class RemoteExecutionTest implements Serializable {
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, startUserDistributionName);
@@ -741,7 +738,7 @@ public class RemoteExecutionTest implements Serializable {
 
             builder = new SimpleMonitoringInfoBuilder();
             builder
-                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER)
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
                 .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserDistributionName);
@@ -755,14 +752,14 @@ public class RemoteExecutionTest implements Serializable {
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "impulse.out");
-            builder.setInt64Value(2);
+            builder.setInt64SumValue(2);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(3);
+            builder.setInt64SumValue(3);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Verify that the element count is not double counted if two PCollections consume it.
@@ -771,7 +768,7 @@ public class RemoteExecutionTest implements Serializable {
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION,
                 "processA/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
+            builder.setInt64SumValue(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
@@ -779,37 +776,37 @@ public class RemoteExecutionTest implements Serializable {
             builder.setLabel(
                 MonitoringInfoConstants.Labels.PCOLLECTION,
                 "processB/ParMultiDo(Anonymous).output");
-            builder.setInt64Value(6);
+            builder.setInt64SumValue(6);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS);
-            builder.setInt64TypeUrn();
+            builder.setType(TypeUrns.SUM_INT64_TYPE);
             builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.valueGreaterThan(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
             // Check for execution time metrics for the testPTransformId
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.PROCESS_BUNDLE_MSECS);
-            builder.setInt64TypeUrn();
+            builder.setType(TypeUrns.SUM_INT64_TYPE);
             builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.valueGreaterThan(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(Urns.FINISH_BUNDLE_MSECS);
-            builder.setInt64TypeUrn();
+            builder.setType(TypeUrns.SUM_INT64_TYPE);
             builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             matchers.add(
                 allOf(
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
-                    MonitoringInfoMatchers.valueGreaterThan(0)));
+                    MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
             for (Matcher<MonitoringInfo> matcher : matchers) {
               assertThat(response.getMonitoringInfosList(), Matchers.hasItem(matcher));
@@ -1031,7 +1028,7 @@ public class RemoteExecutionTest implements Serializable {
                     context.output(KV.of("event", ""));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
-                        .set(context.timestamp().plus(11L));
+                        .set(context.fireTimestamp().plus(11L));
                     processingTimeTimer.offset(Duration.millis(12L));
                     processingTimeTimer.setRelative();
                   }
@@ -1044,7 +1041,7 @@ public class RemoteExecutionTest implements Serializable {
                     context.output(KV.of("processing", ""));
                     eventTimeTimer
                         .withOutputTimestamp(context.timestamp())
-                        .set(context.timestamp().plus(21L));
+                        .set(context.fireTimestamp().plus(21L));
                     processingTimeTimer.offset(Duration.millis(22L));
                     processingTimeTimer.setRelative();
                   }
@@ -1071,11 +1068,11 @@ public class RemoteExecutionTest implements Serializable {
         controlClient.getProcessor(
             descriptor.getProcessBundleDescriptor(),
             descriptor.getRemoteInputDestinations(),
-            stateDelegator);
-    Map<String, Coder> remoteOutputCoders = descriptor.getRemoteOutputCoders();
+            stateDelegator,
+            descriptor.getTimerSpecs());
     Map<String, Collection<WindowedValue<?>>> outputValues = new HashMap<>();
     Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
-    for (Entry<String, Coder> remoteOutputCoder : remoteOutputCoders.entrySet()) {
+    for (Entry<String, Coder> remoteOutputCoder : descriptor.getRemoteOutputCoders().entrySet()) {
       List<WindowedValue<?>> outputContents = Collections.synchronizedList(new ArrayList<>());
       outputValues.put(remoteOutputCoder.getKey(), outputContents);
       outputReceivers.put(
@@ -1083,20 +1080,36 @@ public class RemoteExecutionTest implements Serializable {
           RemoteOutputReceiver.of(
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
+    Map<KV<String, String>, Collection<org.apache.beam.runners.core.construction.Timer<?>>>
+        timerValues = new HashMap<>();
+    Map<
+            KV<String, String>,
+            RemoteOutputReceiver<org.apache.beam.runners.core.construction.Timer<?>>>
+        timerReceivers = new HashMap<>();
+    for (Map.Entry<String, Map<String, ProcessBundleDescriptors.TimerSpec>> transformTimerSpecs :
+        descriptor.getTimerSpecs().entrySet()) {
+      for (ProcessBundleDescriptors.TimerSpec timerSpec : transformTimerSpecs.getValue().values()) {
+        KV<String, String> key = KV.of(timerSpec.transformId(), timerSpec.timerId());
+        List<org.apache.beam.runners.core.construction.Timer<?>> outputContents =
+            Collections.synchronizedList(new ArrayList<>());
+        timerValues.put(key, outputContents);
+        timerReceivers.put(
+            key,
+            RemoteOutputReceiver.of(
+                (Coder<org.apache.beam.runners.core.construction.Timer<?>>) timerSpec.coder(),
+                outputContents::add));
+      }
+    }
 
-    String eventTimeInputPCollectionId = null;
-    String eventTimeOutputTransformId = null;
-    String processingTimeInputPCollectionId = null;
-    String processingTimeOutputTransformId = null;
+    ProcessBundleDescriptors.TimerSpec eventTimerSpec = null;
+    ProcessBundleDescriptors.TimerSpec processingTimerSpec = null;
     for (Map<String, ProcessBundleDescriptors.TimerSpec> timerSpecs :
         descriptor.getTimerSpecs().values()) {
       for (ProcessBundleDescriptors.TimerSpec timerSpec : timerSpecs.values()) {
         if (TimeDomain.EVENT_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          eventTimeInputPCollectionId = timerSpec.inputCollectionId();
-          eventTimeOutputTransformId = timerSpec.outputTransformId();
+          eventTimerSpec = timerSpec;
         } else if (TimeDomain.PROCESSING_TIME.equals(timerSpec.getTimerSpec().getTimeDomain())) {
-          processingTimeInputPCollectionId = timerSpec.inputCollectionId();
-          processingTimeOutputTransformId = timerSpec.outputTransformId();
+          processingTimerSpec = timerSpec;
         } else {
           fail(String.format("Unknown timer specification %s", timerSpec));
         }
@@ -1105,47 +1118,47 @@ public class RemoteExecutionTest implements Serializable {
 
     // Set the current system time to a fixed value to get stable values for processing time timer
     // output.
-    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
+    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis() + 10000L);
 
     try (RemoteBundle bundle =
         processor.newBundle(
-            outputReceivers, StateRequestHandler.unsupported(), BundleProgressHandler.ignored())) {
-      bundle
-          .getInputReceivers()
-          .get(stage.getInputPCollection().getId())
+            outputReceivers,
+            timerReceivers,
+            StateRequestHandler.unsupported(),
+            BundleProgressHandler.ignored())) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(WindowedValue.valueInGlobalWindow(KV.of("X", "X")));
       bundle
-          .getInputReceivers()
-          .get(eventTimeInputPCollectionId)
-          .accept(WindowedValue.valueInGlobalWindow(timerBytes("Y", 100L)));
+          .getTimerReceivers()
+          .get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId()))
+          .accept(timerForTest("Y", 1000L, 100L));
       bundle
-          .getInputReceivers()
-          .get(processingTimeInputPCollectionId)
-          .accept(WindowedValue.valueInGlobalWindow(timerBytes("Z", 200L)));
+          .getTimerReceivers()
+          .get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId()))
+          .accept(timerForTest("Z", 2000L, 200L));
     }
-    Set<String> timerOutputCoders =
-        ImmutableSet.of(eventTimeOutputTransformId, processingTimeOutputTransformId);
     String mainOutputTransform =
-        Iterables.getOnlyElement(
-            Sets.difference(descriptor.getRemoteOutputCoders().keySet(), timerOutputCoders));
+        Iterables.getOnlyElement(descriptor.getRemoteOutputCoders().keySet());
     assertThat(
         outputValues.get(mainOutputTransform),
         containsInAnyOrder(
             WindowedValue.valueInGlobalWindow(KV.of("mainX", "")),
-            WindowedValue.valueInGlobalWindow(KV.of("event", "")),
-            WindowedValue.valueInGlobalWindow(KV.of("processing", ""))));
+            WindowedValue.timestampedValueInGlobalWindow(
+                KV.of("event", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(100L)),
+            WindowedValue.timestampedValueInGlobalWindow(
+                KV.of("processing", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(200L))));
     assertThat(
-        timerStructuralValues(outputValues.get(eventTimeOutputTransformId)),
+        timerValues.get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId())),
         containsInAnyOrder(
-            timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("X", 1L))),
-            timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("Y", 11L))),
-            timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("Z", 21L)))));
+            timerForTest("X", 1L, 0L),
+            timerForTest("Y", 1011L, 100L),
+            timerForTest("Z", 2021L, 200L)));
     assertThat(
-        timerStructuralValues(outputValues.get(processingTimeOutputTransformId)),
+        timerValues.get(KV.of(processingTimerSpec.transformId(), processingTimerSpec.timerId())),
         containsInAnyOrder(
-            timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("X", 2L))),
-            timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("Y", 12L))),
-            timerStructuralValue(WindowedValue.valueInGlobalWindow(timerBytes("Z", 22L)))));
+            timerForTest("X", 10002L, 0L),
+            timerForTest("Y", 10012L, 100L),
+            timerForTest("Z", 10022L, 200L)));
   }
 
   @Test
@@ -1232,9 +1245,7 @@ public class RemoteExecutionTest implements Serializable {
               outputReceivers,
               StateRequestHandler.unsupported(),
               BundleProgressHandler.ignored())) {
-        bundle
-            .getInputReceivers()
-            .get(stage.getInputPCollection().getId())
+        Iterables.getOnlyElement(bundle.getInputReceivers().values())
             .accept(
                 WindowedValue.valueInGlobalWindow(
                     CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
@@ -1251,25 +1262,14 @@ public class RemoteExecutionTest implements Serializable {
     return KV.of(key, CoderUtils.encodeToByteArray(BigEndianLongCoder.of(), value));
   }
 
-  private KV<String, org.apache.beam.runners.core.construction.Timer<byte[]>> timerBytes(
-      String key, long timestampOffset) throws CoderException {
-    return KV.of(
+  private org.apache.beam.runners.core.construction.Timer<String> timerForTest(
+      String key, long fireTimestamp, long holdTimestamp) {
+    return org.apache.beam.runners.core.construction.Timer.of(
         key,
-        org.apache.beam.runners.core.construction.Timer.of(
-            BoundedWindow.TIMESTAMP_MIN_VALUE.plus(timestampOffset),
-            CoderUtils.encodeToByteArray(VoidCoder.of(), null, Coder.Context.NESTED)));
-  }
-
-  private Object timerStructuralValue(Object timer) {
-    return WindowedValue.FullWindowedValueCoder.of(
-            KvCoder.of(
-                StringUtf8Coder.of(),
-                org.apache.beam.runners.core.construction.Timer.Coder.of(ByteArrayCoder.of())),
-            GlobalWindow.Coder.INSTANCE)
-        .structuralValue(timer);
-  }
-
-  private Collection<Object> timerStructuralValues(Collection<?> timers) {
-    return Collections2.transform(timers, this::timerStructuralValue);
+        "",
+        Collections.singletonList(GlobalWindow.INSTANCE),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(fireTimestamp),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(holdTimestamp),
+        PaneInfo.NO_FIRING);
   }
 }

@@ -35,7 +35,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string, files ...artifa
 	}
 	defer cc.Close()
 
-	client := jobpb.NewArtifactStagingServiceClient(cc)
+	client := jobpb.NewLegacyArtifactStagingServiceClient(cc)
 
 	files = append(files, artifact.KeyedFile{Key: "worker", Filename: binary})
 

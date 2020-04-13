@@ -218,7 +218,7 @@ docker login docker.io
 After successful login, authorization info will be stored at ~/.docker/config.json file. For example,
 ```
 "https://index.docker.io/v1/": {
-   "auth": "aGFubmFoamlhbmc6cmtkdGpmZ2hrMTIxMw=="
+   "auth": "xxxxxx"
 }
 ```
 Release managers should have push permission; please ask for help at dev@.
@@ -702,12 +702,6 @@ done
 ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
-* Build Go images and push to DockerHub.
-
-```
-./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-```
-
 * Build Flink job server images and push to DockerHub.
 
 ```
@@ -730,7 +724,6 @@ for ver in "${PYTHON_VER[@]}"; do
    docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
 docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apache/beam_go_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
    docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
@@ -1185,6 +1178,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     ```
     python -m apache_beam.examples.complete.game.leader_board \ 
     --project=${YOUR_PROJECT} \ 
+    --region=${GCE_REGION} \
     --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
     --dataset ${USER}_test \ 
     --runner DataflowRunner \ 
@@ -1214,6 +1208,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     ```
     python -m apache_beam.examples.complete.game.game_stats \ 
     --project=${YOUR_PROJECT} \ 
+    --region=${GCE_REGION} \
     --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
     --dataset ${USER}_test \ 
     --runner DataflowRunner \ 
@@ -1283,7 +1278,7 @@ Make sure the download address for last release version is upldaed, [example PR]
 ./beam/release/src/main/scripts/publish_docker_images.sh
 ```
 Verify that:
-* Images are published at [DockerHub](https://hub.docker.com/u/apachebeam) with tags {RELEASE} and *latest*.
+* Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE} and *latest*.
 * Images with *latest* tag are pointing to current release by confirming 
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
 

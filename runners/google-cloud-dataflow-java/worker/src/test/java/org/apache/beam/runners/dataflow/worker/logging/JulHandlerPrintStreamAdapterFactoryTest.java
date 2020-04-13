@@ -18,12 +18,14 @@
 package org.apache.beam.runners.dataflow.worker.logging;
 
 import static org.apache.beam.runners.dataflow.worker.LogRecordMatcher.hasLogItem;
+import static org.hamcrest.Matchers.blankOrNullString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 
 import java.io.PrintStream;
+import java.nio.charset.Charset;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import org.apache.beam.runners.dataflow.worker.LogSaver;
@@ -113,6 +115,42 @@ public class JulHandlerPrintStreamAdapterFactoryTest {
       printStream.print("blah");
     }
     assertThat(handler.getLogs(), hasLogItem("blah"));
+  }
+
+  @Test
+  public void testLogRawBytes() {
+    PrintStream printStream = createPrintStreamAdapter();
+    String msg = "♠ ♡ ♢ ♣ ♤ ♥ ♦ ♧";
+    byte[] bytes = msg.getBytes(Charset.defaultCharset());
+    printStream.write(bytes, 0, 1);
+    printStream.write(bytes, 1, 4);
+    printStream.write(bytes, 5, 15);
+    printStream.write(bytes, 20, bytes.length - 20);
+    assertThat(handler.getLogs(), is(empty()));
+    String newlineMsg = "♠ ♡ \n♦ ♧";
+    byte[] newlineMsgBytes = newlineMsg.getBytes(Charset.defaultCharset());
+    printStream.write(newlineMsgBytes, 0, newlineMsgBytes.length);
+    assertThat(handler.getLogs(), hasLogItem(msg + newlineMsg));
+  }
+
+  @Test
+  public void testNoEmptyMessages() {
+    try (PrintStream printStream = createPrintStreamAdapter()) {
+      printStream.println("blah");
+      printStream.print("\n");
+      printStream.flush();
+      printStream.println("");
+      printStream.flush();
+      printStream.print("");
+      printStream.flush();
+      byte[] bytes = "a".getBytes(Charset.defaultCharset());
+      printStream.write(bytes, 0, 0);
+      printStream.flush();
+    }
+
+    for (LogRecord log : handler.getLogs()) {
+      assertThat(log.getMessage(), not(blankOrNullString()));
+    }
   }
 
   private PrintStream createPrintStreamAdapter() {

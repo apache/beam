@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
+
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
@@ -26,6 +28,8 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
@@ -54,8 +58,6 @@ class UserMonitoringInfoToCounterUpdateTransformer
     this.specValidator = specMonitoringInfoValidator;
   }
 
-  static final String BEAM_METRICS_USER_URN = MonitoringInfoConstants.Urns.USER_COUNTER;
-
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);
     if (validatorResult.isPresent()) {
@@ -63,11 +65,19 @@ class UserMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.equals(BEAM_METRICS_USER_URN)) {
+    if (!urn.equals(Urns.USER_SUM_INT64)) {
       throw new RuntimeException(
           String.format(
               "Received unexpected counter urn. Expected urn: %s, received: %s",
-              BEAM_METRICS_USER_URN, urn));
+              Urns.USER_SUM_INT64, urn));
+    }
+
+    String type = monitoringInfo.getType();
+    if (!type.equals(TypeUrns.SUM_INT64_TYPE)) {
+      throw new RuntimeException(
+          String.format(
+              "Received unexpected counter type. Expected type: %s, received: %s",
+              TypeUrns.SUM_INT64_TYPE, type));
     }
 
     final String ptransform =
@@ -95,8 +105,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    long value = monitoringInfo.getMetric().getCounterData().getInt64Value();
-
+    long value = decodeInt64Counter(monitoringInfo.getPayload());
     Map<String, String> miLabels = monitoringInfo.getLabelsMap();
     final String ptransform = miLabels.get(MonitoringInfoConstants.Labels.PTRANSFORM);
     final String counterName = miLabels.get(MonitoringInfoConstants.Labels.NAME);
@@ -119,7 +128,7 @@ class UserMonitoringInfoToCounterUpdateTransformer
   }
 
   /** @return MonitoringInfo urns prefix that this transformer can convert to CounterUpdates. */
-  public String getSupportedUrnPrefix() {
-    return BEAM_METRICS_USER_URN;
+  public static String getSupportedUrn() {
+    return Urns.USER_SUM_INT64;
   }
 }

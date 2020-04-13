@@ -23,6 +23,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -44,6 +45,7 @@ public interface PTransformRunnerFactory<T> {
    * @param pipelineOptions Pipeline options
    * @param beamFnDataClient A client for handling inbound and outbound data streams.
    * @param beamFnStateClient A client for handling state requests.
+   * @param beamFnTimerClient A client for handling inbound and outbound timer streams.
    * @param pTransformId The id of the PTransform.
    * @param pTransform The PTransform definition.
    * @param processBundleInstructionId A supplier containing the active process bundle instruction
@@ -68,6 +70,7 @@ public interface PTransformRunnerFactory<T> {
       PipelineOptions pipelineOptions,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateClient beamFnStateClient,
+      BeamFnTimerClient beamFnTimerClient,
       String pTransformId,
       RunnerApi.PTransform pTransform,
       Supplier<String> processBundleInstructionId,

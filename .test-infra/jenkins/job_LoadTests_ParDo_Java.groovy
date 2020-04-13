@@ -30,6 +30,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
             runner         : CommonTestProperties.Runner.DATAFLOW,
             pipelineOptions: [
                     project             : 'apache-beam-testing',
+                    region              : 'us-central1',
                     appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_1",
                     tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                     publishToBigQuery   : true,
@@ -56,6 +57,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_2",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
@@ -83,6 +85,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_3",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
@@ -110,6 +113,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_4",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,

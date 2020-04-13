@@ -610,12 +610,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
   private static Schema getFieldSchema(FieldType type) {
     if (TypeName.ROW.equals(type.getTypeName())) {
       return type.getRowSchema();
-    } else if (type.getTypeName().isCollectionType()
-        && TypeName.ROW.equals(type.getCollectionElementType().getTypeName())) {
-      return type.getCollectionElementType().getRowSchema();
-    } else if (TypeName.MAP.equals(type.getTypeName())
-        && TypeName.ROW.equals(type.getMapValueType().getTypeName())) {
-      return type.getMapValueType().getRowSchema();
+    } else if (type.getTypeName().isCollectionType()) {
+      return getFieldSchema(type.getCollectionElementType());
+    } else if (TypeName.MAP.equals(type.getTypeName())) {
+      return getFieldSchema(type.getMapValueType());
+    } else if (TypeName.LOGICAL_TYPE.equals(type.getTypeName())) {
+      return getFieldSchema(type.getLogicalType().getBaseType());
     } else {
       throw new IllegalArgumentException(
           "FieldType " + type + " must be either a row or a container containing rows");

@@ -35,6 +35,7 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaUtils;
 import org.apache.beam.sdk.schemas.transforms.CoGroup.ConvertCoGbkResult.ConvertType;
 import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
@@ -399,9 +400,7 @@ public class CoGroup {
         if (keySchema == null) {
           keySchema = currentKeySchema;
         } else {
-          if (!currentKeySchema.typesEqual(keySchema)) {
-            throw new IllegalStateException("All keys must have the same schema");
-          }
+          keySchema = SchemaUtils.mergeWideningNullable(keySchema, currentKeySchema);
         }
 
         // Create a new tag for the output.
@@ -548,7 +547,7 @@ public class CoGroup {
       List<Object> fields = Lists.newArrayListWithCapacity(getIterables().size() + 1);
       fields.add(getKey());
       fields.addAll(getIterables());
-      o.output(Row.withSchema(outputSchema).attachValues(fields).build());
+      o.output(Row.withSchema(outputSchema).attachValues(fields));
     }
 
     static void verifyExpandedArgs(JoinInformation joinInformation, JoinArguments joinArgs) {
@@ -632,9 +631,7 @@ public class CoGroup {
       if (atBottom) {
         // Bottom of recursive call, so output the row we've accumulated.
         Row row =
-            Row.withSchema(getOutputSchema())
-                .attachValues(Lists.newArrayList(accumulatedRows))
-                .build();
+            Row.withSchema(getOutputSchema()).attachValues(Lists.newArrayList(accumulatedRows));
         o.output(row);
       } else {
         crossProduct(tagIndex + 1, accumulatedRows, iterables, o);

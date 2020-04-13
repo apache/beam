@@ -17,12 +17,10 @@
  */
 package org.apache.beam.sdk.extensions.protobuf;
 
+import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.SCHEMA_OPTION_META_NUMBER;
+import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.SCHEMA_OPTION_META_TYPE_NAME;
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getFieldNumber;
-import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getMapKeyMessageName;
-import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getMapValueMessageName;
-import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.getMessageName;
 import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withFieldNumber;
-import static org.apache.beam.sdk.extensions.protobuf.ProtoSchemaTranslator.withMessageName;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Descriptors;
@@ -110,28 +108,34 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
 
   Convert createConverter(Schema.Field field) {
     Schema.FieldType fieldType = field.getType();
-    String messageName = getMessageName(fieldType);
-    if (messageName != null && messageName.length() > 0) {
+    if (fieldType.getNullable()) {
       Schema.Field valueField =
-          Schema.Field.of("value", withFieldNumber(Schema.FieldType.BOOLEAN, 1));
-      switch (messageName) {
-        case "google.protobuf.StringValue":
-        case "google.protobuf.DoubleValue":
-        case "google.protobuf.FloatValue":
-        case "google.protobuf.BoolValue":
-        case "google.protobuf.Int64Value":
-        case "google.protobuf.Int32Value":
-        case "google.protobuf.UInt64Value":
-        case "google.protobuf.UInt32Value":
+          withFieldNumber(Schema.Field.of("value", Schema.FieldType.BOOLEAN), 1);
+      switch (fieldType.getTypeName()) {
+        case BYTE:
+        case INT16:
+        case INT32:
+        case INT64:
+        case FLOAT:
+        case DOUBLE:
+        case STRING:
+        case BOOLEAN:
           return new WrapperConvert(field, new PrimitiveConvert(valueField));
-        case "google.protobuf.BytesValue":
+        case BYTES:
           return new WrapperConvert(field, new BytesConvert(valueField));
-        case "google.protobuf.Timestamp":
-        case "google.protobuf.Duration":
-          // handled by logical type case
-          break;
+        case LOGICAL_TYPE:
+          String identifier = field.getType().getLogicalType().getIdentifier();
+          switch (identifier) {
+            case ProtoSchemaLogicalTypes.UInt32.IDENTIFIER:
+            case ProtoSchemaLogicalTypes.UInt64.IDENTIFIER:
+              return new WrapperConvert(field, new PrimitiveConvert(valueField));
+            default:
+          }
+          // fall through
+        default:
       }
     }
+
     switch (fieldType.getTypeName()) {
       case BYTE:
       case INT16:
@@ -260,7 +264,8 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
 
     @Override
     public Context getSubContext(Schema.Field field) {
-      String messageName = getMessageName(field.getType());
+      String messageName =
+          field.getType().getRowSchema().getOptions().getValue(SCHEMA_OPTION_META_TYPE_NAME);
       return new DescriptorContext(messageName, domain);
     }
   }
@@ -274,9 +279,10 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     private int number;
 
     Convert(Schema.Field field) {
-      try {
-        this.number = getFieldNumber(field.getType());
-      } catch (NumberFormatException e) {
+      Schema.Options options = field.getOptions();
+      if (options.hasOption(SCHEMA_OPTION_META_NUMBER)) {
+        this.number = options.getValue(SCHEMA_OPTION_META_NUMBER);
+      } else {
         this.number = -1;
       }
     }
@@ -546,16 +552,8 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     MapConvert(ProtoDynamicMessageSchema protoSchema, Schema.Field field) {
       super(field);
       Schema.FieldType fieldType = field.getType();
-      key =
-          protoSchema.createConverter(
-              Schema.Field.of(
-                  "KEY",
-                  withMessageName(fieldType.getMapKeyType(), getMapKeyMessageName(fieldType))));
-      value =
-          protoSchema.createConverter(
-              Schema.Field.of(
-                  "VALUE",
-                  withMessageName(fieldType.getMapValueType(), getMapValueMessageName(fieldType))));
+      key = protoSchema.createConverter(Schema.Field.of("KEY", fieldType.getMapKeyType()));
+      value = protoSchema.createConverter(Schema.Field.of("VALUE", fieldType.getMapValueType()));
     }
 
     @Override
@@ -617,11 +615,7 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
     ArrayConvert(ProtoDynamicMessageSchema protoSchema, Schema.Field field) {
       super(field);
       Schema.FieldType collectionElementType = field.getType().getCollectionElementType();
-      this.element =
-          protoSchema.createConverter(
-              Schema.Field.of(
-                  "ELEMENT",
-                  withMessageName(collectionElementType, getMessageName(field.getType()))));
+      this.element = protoSchema.createConverter(Schema.Field.of("ELEMENT", collectionElementType));
     }
 
     @Override
@@ -703,9 +697,11 @@ public class ProtoDynamicMessageSchema<T> implements Serializable {
       super(field);
       this.logicalType = (OneOfType) logicalType;
       for (Schema.Field oneOfField : this.logicalType.getOneOfSchema().getFields()) {
-        int fieldNumber = getFieldNumber(oneOfField.getType());
+        int fieldNumber = getFieldNumber(oneOfField);
         oneOfConvert.put(
-            fieldNumber, new NullableConvert(oneOfField, protoSchema.createConverter(oneOfField)));
+            fieldNumber,
+            new NullableConvert(
+                oneOfField, protoSchema.createConverter(oneOfField.withNullable(false))));
       }
     }
 
