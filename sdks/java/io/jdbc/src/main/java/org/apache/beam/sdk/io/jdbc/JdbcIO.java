@@ -48,13 +48,10 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -64,7 +61,6 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -819,9 +815,10 @@ public class JdbcIO {
                           getRowMapper(),
                           getFetchSize())))
               .setCoder(getCoder());
-
       if (getOutputParallelization()) {
-        output = output.apply(new Reparallelize<>());
+        output =
+            output.apply(
+                Reshuffle.<OutputT>viaRandomKey().withHintHighFanoutAndLimitedInputParallelism());
       }
 
       try {
@@ -1336,38 +1333,6 @@ public class JdbcIO {
         }
         records.clear();
       }
-    }
-  }
-
-  private static class Reparallelize<T> extends PTransform<PCollection<T>, PCollection<T>> {
-    @Override
-    public PCollection<T> expand(PCollection<T> input) {
-      // See https://issues.apache.org/jira/browse/BEAM-2803
-      // We use a combined approach to "break fusion" here:
-      // (see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion)
-      // 1) force the data to be materialized by passing it as a side input to an identity fn,
-      // then 2) reshuffle it with a random key. Initial materialization provides some parallelism
-      // and ensures that data to be shuffled can be generated in parallel, while reshuffling
-      // provides perfect parallelism.
-      // In most cases where a "fusion break" is needed, a simple reshuffle would be sufficient.
-      // The current approach is necessary only to support the particular case of JdbcIO where
-      // a single query may produce many gigabytes of query results.
-      PCollectionView<Iterable<T>> empty =
-          input
-              .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
-              .apply(View.asIterable());
-      PCollection<T> materialized =
-          input.apply(
-              "Identity",
-              ParDo.of(
-                      new DoFn<T, T>() {
-                        @ProcessElement
-                        public void process(ProcessContext c) {
-                          c.output(c.element());
-                        }
-                      })
-                  .withSideInputs(empty));
-      return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 

@@ -29,18 +29,14 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
@@ -309,7 +305,10 @@ public class RedisIO {
               .apply(ParDo.of(new ReadFn(connectionConfiguration(), batchSize())))
               .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
       if (outputParallelization()) {
-        output = output.apply(new Reparallelize());
+        output =
+            output.apply(
+                Reshuffle.<KV<String, String>>viaRandomKey()
+                    .withHintHighFanoutAndLimitedInputParallelism());
       }
       return output;
     }
@@ -422,31 +421,6 @@ public class RedisIO {
       bundles = ArrayListMultimap.create();
       batchCount.set(0);
       return kvs;
-    }
-  }
-
-  private static class Reparallelize
-      extends PTransform<PCollection<KV<String, String>>, PCollection<KV<String, String>>> {
-
-    @Override
-    public PCollection<KV<String, String>> expand(PCollection<KV<String, String>> input) {
-      // reparallelize mimics the same behavior as in JdbcIO, used to break fusion
-      PCollectionView<Iterable<KV<String, String>>> empty =
-          input
-              .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
-              .apply(View.asIterable());
-      PCollection<KV<String, String>> materialized =
-          input.apply(
-              "Identity",
-              ParDo.of(
-                      new DoFn<KV<String, String>, KV<String, String>>() {
-                        @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          c.output(c.element());
-                        }
-                      })
-                  .withSideInputs(empty));
-      return materialized.apply(Reshuffle.viaRandomKey());
     }
   }
 

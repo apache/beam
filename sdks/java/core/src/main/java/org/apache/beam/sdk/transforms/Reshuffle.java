@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.IdentityWindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
@@ -107,10 +108,57 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
   /** Implementation of {@link #viaRandomKey()}. */
   public static class ViaRandomKey<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private boolean isHighFanoutAndLimitedInputParallelism;
+
     private ViaRandomKey() {}
+
+    /**
+     * Use a different strategy that materializes the input and prepares it to be consumed in a
+     * highly parallel fashion.
+     *
+     * <p>It is tailored to the case when input was produced in an extremely sequential way -
+     * typically by a ParDo that emits millions of outputs _per input element_, e.g., executing a
+     * large database query or a large simulation and emitting all of their results.
+     *
+     * <p>Internally, it materializes the input at a moderate cost before reshuffling it, making the
+     * reshuffling itself significantly cheaper in these extreme cases on some runners. Use this
+     * only if your benchmarks show an improvement.
+     */
+    public ViaRandomKey<T> withHintHighFanoutAndLimitedInputParallelism() {
+      this.isHighFanoutAndLimitedInputParallelism = true;
+      return this;
+    }
 
     @Override
     public PCollection<T> expand(PCollection<T> input) {
+      if (isHighFanoutAndLimitedInputParallelism) {
+        // See https://issues.apache.org/jira/browse/BEAM-2803
+        // We use a combined approach to "break fusion" here:
+        // (see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion)
+        // 1) force the data to be materialized by passing it as a side input to an identity fn,
+        // then 2) reshuffle it with a random key. Initial materialization provides some parallelism
+        // and ensures that data to be shuffled can be generated in parallel, while reshuffling
+        // provides perfect parallelism.
+        // In most cases where a "fusion break" is needed, a simple reshuffle would be sufficient.
+        // The current approach is necessary only to support the particular case of JdbcIO where
+        // a single query may produce many gigabytes of query results.
+        PCollectionView<Iterable<T>> empty =
+            input
+                .apply("Consume", Filter.by(SerializableFunctions.constant(false)))
+                .apply(View.asIterable());
+        PCollection<T> materialized =
+            input.apply(
+                "Identity",
+                ParDo.of(
+                        new DoFn<T, T>() {
+                          @ProcessElement
+                          public void process(ProcessContext c) {
+                            c.output(c.element());
+                          }
+                        })
+                    .withSideInputs(empty));
+        input = materialized;
+      }
       return input
           .apply("Pair with random key", ParDo.of(new AssignShardFn<>()))
           .apply(Reshuffle.of())
