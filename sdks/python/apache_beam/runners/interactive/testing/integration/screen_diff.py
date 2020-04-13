@@ -24,14 +24,20 @@ from __future__ import absolute_import
 import os
 import threading
 import unittest
-from http.server import SimpleHTTPRequestHandler
-from http.server import ThreadingHTTPServer
 from multiprocessing import Process
 
 import pytest
 
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive.testing.integration import notebook_executor
+
+# TODO(BEAM-8288): clean up the work-around when Python2 support is deprecated.
+try:
+  from http.server import SimpleHTTPRequestHandler
+  from http.server import HTTPServer
+except ImportError:
+  import SimpleHTTPServer as HTTPServer
+  from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 try:
   import chromedriver_binary  # pylint: disable=unused-import
@@ -65,7 +71,7 @@ class ScreenDiffIntegrationTestEnvironment(object):
 
   def __enter__(self):
     self._notebook_executor.execute()
-    with ThreadingHTTPServer(('', 0), SimpleHTTPRequestHandler) as server:
+    with HTTPServer(('', 0), SimpleHTTPRequestHandler) as server:
       self._server = server
 
       def start_serving(server):
@@ -118,6 +124,7 @@ class ScreenDiffIntegrationTestEnvironment(object):
 def should_skip():
   """Whether a screen diff test should be skipped."""
   return not (
+      ie.current_env().is_py_version_ready and
       ie.current_env().is_interactive_ready and _interactive_integration_ready)
 
 
