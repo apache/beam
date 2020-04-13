@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import
 
+import concurrent.futures
 import logging
 import os
 import queue
@@ -46,6 +47,7 @@ from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability.fn_api_runner import fn_runner
+from apache_beam.runners.portability.fn_api_runner import worker_handlers
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
@@ -77,8 +79,10 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     super(LocalJobServicer, self).__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
-    self._artifact_service = artifact_service.BeamFilesystemArtifactService(
-        self._staging_dir)
+    self._legacy_artifact_service = (
+        artifact_service.BeamFilesystemArtifactService(self._staging_dir))
+    self._artifact_service = artifact_service.ArtifactStagingService(
+        artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
     self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
 
   def create_beam_job(self,
@@ -93,14 +97,20 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     if not self._artifact_staging_endpoint:
       # The front-end didn't try to stage anything, but the worker may
       # request what's here so we should at least store an empty manifest.
-      self._artifact_service.CommitManifest(
+      self._legacy_artifact_service.CommitManifest(
           beam_artifact_api_pb2.CommitManifestRequest(
               staging_session_token=preparation_id,
               manifest=beam_artifact_api_pb2.Manifest()))
+    self._artifact_service.register_job(
+        staging_token=preparation_id,
+        dependency_sets={
+            id: env.dependencies
+            for (id, env) in pipeline.components.environments.items()
+        })
     provision_info = fn_runner.ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
             pipeline_options=options,
-            retrieval_token=self._artifact_service.retrieval_token(
+            retrieval_token=self._legacy_artifact_service.retrieval_token(
                 preparation_id)),
         self._staging_dir,
         job_name=job_name)
@@ -109,7 +119,8 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
         pipeline,
         options,
         provision_info,
-        self._artifact_staging_endpoint)
+        self._artifact_staging_endpoint,
+        self._artifact_service)
 
   def get_bind_address(self):
     """Return the address used to open the port on the gRPC server.
@@ -134,6 +145,8 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
+    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
+        self._legacy_artifact_service, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
     hostname = self.get_service_address()
@@ -160,8 +173,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     # Filter out system metrics
     user_monitoring_info_list = [
         x for x in monitoring_info_list
-        if monitoring_infos._is_user_monitoring_info(x) or
-        monitoring_infos._is_user_distribution_monitoring_info(x)
+        if monitoring_infos.is_user_monitoring_info(x)
     ]
 
     return beam_job_api_pb2.GetJobMetricsResponse(
@@ -202,7 +214,7 @@ class SubprocessSdkWorker(object):
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    with fn_runner.SUBPROCESS_LOCK:
+    with worker_handlers.SUBPROCESS_LOCK:
       p = subprocess.Popen(self._worker_command_line, shell=True, env=env_dict)
     try:
       p.wait()
@@ -226,12 +238,14 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
                pipeline,
                options,
                provision_info,  # type: fn_runner.ExtendedProvisionInfo
-               artifact_staging_endpoint  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
+               artifact_staging_endpoint,  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
+               artifact_service,  # type: artifact_service.ArtifactStagingService
               ):
     super(BeamJob,
           self).__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
+    self._artifact_service = artifact_service
     self._state_queues = []  # type: List[queue.Queue]
     self._log_queues = []  # type: List[queue.Queue]
     self.daemon = True
@@ -259,6 +273,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
   def _run_job(self):
     self.set_state(beam_job_api_pb2.JobState.RUNNING)
     with JobLogHandler(self._log_queues):
+      self._update_dependencies()
       try:
         result = fn_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
@@ -271,6 +286,17 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         _LOGGER.exception(traceback)
         self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
+
+  def _update_dependencies(self):
+    try:
+      for env_id, deps in self._artifact_service.resolved_deps(
+          self._job_id, timeout=0).items():
+        # Slice assignment not supported for repeated fields.
+        env = self._pipeline_proto.components.environments[env_id]
+        del env.dependencies[:]
+        env.dependencies.extend(deps)
+    except concurrent.futures.TimeoutError:
+      pass  # TODO(BEAM-9577): Require this once all SDKs support it.
 
   def cancel(self):
     if not self.is_terminal_state(self.state):

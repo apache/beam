@@ -39,6 +39,9 @@ from apache_beam.testing.test_stream import OutputFormat
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.utils import timestamp
 
+# We don't have an explicit pathlib dependency because this code only works with
+# the interactive target installed which has an indirect dependency on pathlib
+# and pathlib2 through ipython>=5.9.0.
 try:
   from pathlib import Path
 except ImportError:

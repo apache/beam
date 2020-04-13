@@ -50,7 +50,6 @@ import org.apache.beam.runners.core.construction.PTransformTranslation.Transform
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -70,10 +69,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -179,32 +178,6 @@ public class ParDoTranslation {
               .build());
       builder.setEnvironmentId(components.getOnlyEnvironmentId());
 
-      String mainInputName = getMainInputName(builder, payload);
-      PCollection<KV<?, ?>> mainInput =
-          (PCollection) appliedPTransform.getInputs().get(new TupleTag(mainInputName));
-
-      // https://s.apache.org/beam-portability-timers
-      // Add a PCollection and coder for each timer. Also treat them as inputs and outputs.
-      for (String localTimerName : payload.getTimerSpecsMap().keySet()) {
-        PCollection<?> timerPCollection =
-            PCollection.createPrimitiveOutputInternal(
-                // Create a dummy pipeline since we don't want to modify the current
-                // users view of the pipeline they have constructed.
-                Pipeline.create(),
-                mainInput.getWindowingStrategy(),
-                mainInput.isBounded(),
-                KvCoder.of(
-                    ((KvCoder) mainInput.getCoder()).getKeyCoder(),
-                    // TODO: Add support for timer payloads to the SDK
-                    // We currently assume that all payloads are unspecified.
-                    Timer.Coder.of(VoidCoder.of())));
-        timerPCollection.setName(
-            String.format("%s.%s", appliedPTransform.getFullName(), localTimerName));
-        String timerPCollectionId = components.registerPCollection(timerPCollection);
-        builder.putInputs(localTimerName, timerPCollectionId);
-        builder.putOutputs(localTimerName, timerPCollectionId);
-      }
-
       return builder.build();
     }
   }
@@ -215,7 +188,6 @@ public class ParDoTranslation {
     final ParDo.MultiOutput<?, ?> parDo = appliedPTransform.getTransform();
     final Pipeline pipeline = appliedPTransform.getPipeline();
     final DoFn<?, ?> doFn = parDo.getFn();
-    final DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
 
     // Get main input.
     Set<String> allInputs =
@@ -226,20 +198,20 @@ public class ParDoTranslation {
         parDo.getSideInputs().values().stream()
             .map(s -> s.getTagInternal().getId())
             .collect(Collectors.toSet());
-    Set<String> timerInputs = signature.timerDeclarations().keySet();
-    String mainInputName =
-        Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
+    String mainInputName = Iterables.getOnlyElement(Sets.difference(allInputs, sideInputs));
     PCollection<?> mainInput =
         (PCollection<?>) appliedPTransform.getInputs().get(new TupleTag<>(mainInputName));
 
     final DoFnSchemaInformation doFnSchemaInformation =
         ParDo.getDoFnSchemaInformation(doFn, mainInput);
-    return translateParDo(parDo, doFnSchemaInformation, pipeline, components);
+    return translateParDo(
+        (ParDo.MultiOutput) parDo, mainInput, doFnSchemaInformation, pipeline, components);
   }
 
   /** Translate a ParDo. */
-  public static ParDoPayload translateParDo(
-      ParDo.MultiOutput<?, ?> parDo,
+  public static <InputT> ParDoPayload translateParDo(
+      ParDo.MultiOutput<InputT, ?> parDo,
+      PCollection<InputT> mainInput,
       DoFnSchemaInformation doFnSchemaInformation,
       Pipeline pipeline,
       SdkComponents components)
@@ -256,6 +228,19 @@ public class ParDoTranslation {
       restrictionCoderId = components.registerCoder(restrictionAndWatermarkStateCoder);
     } else {
       restrictionCoderId = "";
+    }
+
+    Coder<BoundedWindow> windowCoder =
+        (Coder<BoundedWindow>) mainInput.getWindowingStrategy().getWindowFn().windowCoder();
+    Coder<?> keyCoder;
+    if (signature.usesState() || signature.usesTimers()) {
+      checkArgument(
+          mainInput.getCoder() instanceof KvCoder,
+          "DoFn's that use state or timers must have an input PCollection with a KvCoder but received %s",
+          mainInput.getCoder());
+      keyCoder = ((KvCoder) mainInput.getCoder()).getKeyCoder();
+    } else {
+      keyCoder = null;
     }
 
     return payloadForParDoLike(
@@ -294,31 +279,49 @@ public class ParDoTranslation {
           }
 
           @Override
-          public Map<String, RunnerApi.TimerSpec> translateTimerSpecs(SdkComponents newComponents) {
-            Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
-            for (Map.Entry<String, TimerDeclaration> timer :
-                signature.timerDeclarations().entrySet()) {
-              RunnerApi.TimerSpec spec =
-                  translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
-              timerSpecs.put(timer.getKey(), spec);
-            }
-
-            return timerSpecs;
-          }
-
-          @Override
           public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
               SdkComponents newComponents) {
             Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
+
+            for (Map.Entry<String, TimerDeclaration> timer :
+                signature.timerDeclarations().entrySet()) {
+              RunnerApi.TimerFamilySpec spec =
+                  translateTimerFamilySpec(
+                      getTimerSpecOrThrow(timer.getValue(), doFn),
+                      newComponents,
+                      keyCoder,
+                      windowCoder);
+              timerFamilySpecs.put(timer.getKey(), spec);
+            }
+
             for (Map.Entry<String, DoFnSignature.TimerFamilyDeclaration> timerFamily :
                 signature.timerFamilyDeclarations().entrySet()) {
               RunnerApi.TimerFamilySpec spec =
                   translateTimerFamilySpec(
                       DoFnSignatures.getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
-                      newComponents);
+                      newComponents,
+                      keyCoder,
+                      windowCoder);
               timerFamilySpecs.put(timerFamily.getKey(), spec);
             }
             return timerFamilySpecs;
+          }
+
+          @Override
+          public boolean isStateful() {
+            return !signature.stateDeclarations().isEmpty()
+                || !signature.timerDeclarations().isEmpty()
+                || !signature.timerFamilyDeclarations().isEmpty();
+          }
+
+          @Override
+          public boolean isSplittable() {
+            return signature.processElement().isSplittable();
+          }
+
+          @Override
+          public boolean isRequiresStableInput() {
+            return signature.processElement().requiresStableInput();
           }
 
           @Override
@@ -522,7 +525,8 @@ public class ParDoTranslation {
     return Iterables.getOnlyElement(
         Sets.difference(
             ptransform.getInputsMap().keySet(),
-            Sets.union(payload.getSideInputsMap().keySet(), payload.getTimerSpecsMap().keySet())));
+            Sets.union(
+                payload.getSideInputsMap().keySet(), payload.getTimerFamilySpecsMap().keySet())));
   }
 
   /** Translate state specs. */
@@ -638,20 +642,15 @@ public class ParDoTranslation {
     }
   }
 
-  public static RunnerApi.TimerSpec translateTimerSpec(TimerSpec timer, SdkComponents components) {
-    return RunnerApi.TimerSpec.newBuilder()
-        .setTimeDomain(translateTimeDomain(timer.getTimeDomain()))
-        // TODO: Add support for timer payloads to the SDK
-        // We currently assume that all payloads are unspecified.
-        .setTimerCoderId(registerCoderOrThrow(components, Timer.Coder.of(VoidCoder.of())))
-        .build();
-  }
-
   public static RunnerApi.TimerFamilySpec translateTimerFamilySpec(
-      TimerSpec timer, SdkComponents components) {
+      TimerSpec timer,
+      SdkComponents components,
+      Coder<?> keyCoder,
+      Coder<BoundedWindow> windowCoder) {
     return RunnerApi.TimerFamilySpec.newBuilder()
         .setTimeDomain(translateTimeDomain(timer.getTimeDomain()))
-        .setTimerFamilyCoderId(registerCoderOrThrow(components, Timer.Coder.of(VoidCoder.of())))
+        .setTimerFamilyCoderId(
+            registerCoderOrThrow(components, Timer.Coder.of(keyCoder, windowCoder)))
         .build();
   }
 
@@ -740,9 +739,7 @@ public class ParDoTranslation {
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
     ParDoPayload payload = getParDoPayload(transform);
-    return payload.getStateSpecsCount() > 0
-        || payload.getTimerSpecsCount() > 0
-        || payload.getTimerFamilySpecsCount() > 0;
+    return payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0;
   }
 
   public static boolean isSplittable(AppliedPTransform<?, ?, ?> transform) throws IOException {
@@ -767,9 +764,13 @@ public class ParDoTranslation {
     Map<String, RunnerApi.StateSpec> translateStateSpecs(SdkComponents components)
         throws IOException;
 
-    Map<String, RunnerApi.TimerSpec> translateTimerSpecs(SdkComponents newComponents);
-
     Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(SdkComponents newComponents);
+
+    boolean isStateful();
+
+    boolean isSplittable();
+
+    boolean isRequiresStableInput();
 
     boolean isRequiresTimeSortedInput();
 
@@ -781,12 +782,28 @@ public class ParDoTranslation {
   public static ParDoPayload payloadForParDoLike(ParDoLike parDo, SdkComponents components)
       throws IOException {
 
+    if (parDo.isStateful()) {
+      components.addRequirement(REQUIRES_STATEFUL_PROCESSING_URN);
+    }
+    if (parDo.isSplittable()) {
+      components.addRequirement(REQUIRES_SPLITTABLE_DOFN_URN);
+    }
+    if (parDo.requestsFinalization()) {
+      components.addRequirement(REQUIRES_BUNDLE_FINALIZATION_URN);
+    }
+    if (parDo.isRequiresStableInput()) {
+      components.addRequirement(REQUIRES_STABLE_INPUT_URN);
+    }
+    if (parDo.isRequiresTimeSortedInput()) {
+      components.addRequirement(REQUIRES_TIME_SORTED_INPUT_URN);
+    }
+
     return ParDoPayload.newBuilder()
         .setDoFn(parDo.translateDoFn(components))
         .putAllStateSpecs(parDo.translateStateSpecs(components))
-        .putAllTimerSpecs(parDo.translateTimerSpecs(components))
         .putAllTimerFamilySpecs(parDo.translateTimerFamilySpecs(components))
         .putAllSideInputs(parDo.translateSideInputs(components))
+        .setRequiresStableInput(parDo.isRequiresStableInput())
         .setRequiresTimeSortedInput(parDo.isRequiresTimeSortedInput())
         .setRestrictionCoderId(parDo.translateRestrictionCoderId(components))
         .setRequestsFinalization(parDo.requestsFinalization())

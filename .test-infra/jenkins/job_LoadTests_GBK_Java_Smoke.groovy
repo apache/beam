@@ -41,6 +41,7 @@ def smokeTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project          : 'apache-beam-testing',
+                        region           : 'us-central1',
                         tempLocation     : 'gs://temp-storage-for-perf-tests/smoketests',
                         publishToBigQuery: true,
                         bigQueryDataset  : datasetName,

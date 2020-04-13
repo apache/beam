@@ -168,6 +168,7 @@ Make sure you complete the setup steps at {{ site.baseurl }}/documentation/runne
 
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--runner=DataflowRunner --project=<your-gcp-project> \
+                  --region=<your-gcp-region> \
                   --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
                   --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
      -Pdataflow-runner
@@ -233,6 +234,7 @@ Make sure you complete the setup steps at {{ site.baseurl }}/documentation/runne
 
 PS> mvn compile exec:java -D exec.mainClass=org.apache.beam.examples.WordCount `
  -D exec.args="--runner=DataflowRunner --project=<your-gcp-project> `
+               --region=<your-gcp-region> \
                --gcpTempLocation=gs://<your-gcs-bucket>/tmp `
                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" `
  -P dataflow-runner

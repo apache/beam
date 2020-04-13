@@ -188,7 +188,8 @@ public final class ZetaSqlUtils {
     return Value.createStructValue(createZetaSqlStructTypeFromBeamSchema(schema), values);
   }
 
-  public static Object zetaSqlValueToJavaObject(Value value, FieldType fieldType) {
+  public static Object zetaSqlValueToJavaObject(
+      Value value, FieldType fieldType, boolean verifyValues) {
     if (value.isNull()) {
       return null;
     }
@@ -213,9 +214,10 @@ public final class ZetaSqlUtils {
       case BYTES:
         return value.getBytesValue().toByteArray();
       case ARRAY:
-        return zetaSqlArrayValueToJavaList(value, fieldType.getCollectionElementType());
+        return zetaSqlArrayValueToJavaList(
+            value, fieldType.getCollectionElementType(), verifyValues);
       case ROW:
-        return zetaSqlStructValueToBeamRow(value, fieldType.getRowSchema());
+        return zetaSqlStructValueToBeamRow(value, fieldType.getRowSchema(), verifyValues);
       default:
         throw new UnsupportedOperationException(
             "Unsupported Beam fieldType: " + fieldType.getTypeName());
@@ -227,18 +229,25 @@ public final class ZetaSqlUtils {
     return Instant.ofEpochMilli(millis);
   }
 
-  private static List<Object> zetaSqlArrayValueToJavaList(Value arrayValue, FieldType elementType) {
+  private static List<Object> zetaSqlArrayValueToJavaList(
+      Value arrayValue, FieldType elementType, boolean verifyValues) {
     return arrayValue.getElementList().stream()
-        .map(e -> zetaSqlValueToJavaObject(e, elementType))
+        .map(e -> zetaSqlValueToJavaObject(e, elementType, verifyValues))
         .collect(Collectors.toList());
   }
 
-  private static Row zetaSqlStructValueToBeamRow(Value structValue, Schema schema) {
+  private static Row zetaSqlStructValueToBeamRow(
+      Value structValue, Schema schema, boolean verifyValues) {
     List<Object> objects = new ArrayList<>(schema.getFieldCount());
     List<Value> values = structValue.getFieldList();
     for (int i = 0; i < values.size(); i++) {
-      objects.add(zetaSqlValueToJavaObject(values.get(i), schema.getField(i).getType()));
+      objects.add(
+          zetaSqlValueToJavaObject(values.get(i), schema.getField(i).getType(), verifyValues));
     }
-    return Row.withSchema(schema).addValues(objects).build();
+    Row row =
+        verifyValues
+            ? Row.withSchema(schema).addValues(objects).build()
+            : Row.withSchema(schema).attachValues(objects);
+    return row;
   }
 }

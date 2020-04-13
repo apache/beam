@@ -108,6 +108,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -120,10 +121,22 @@ public class WorkerCustomSourcesTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(WorkerCustomSources.class);
 
+  private DataflowPipelineOptions options;
+
+  @Before
+  public void setUp() throws Exception {
+    options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setAppName("TestAppName");
+    options.setProject("test-project");
+    options.setRegion("some-region1");
+    options.setTempLocation("gs://test/temp/location");
+    options.setGcpCredential(new TestCredential());
+    options.setRunner(DataflowRunner.class);
+    options.setPathValidatorClass(NoopPathValidator.class);
+  }
+
   @Test
   public void testSplitAndReadBundlesBack() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-
     com.google.api.services.dataflow.model.Source source =
         translateIOToCloudSource(CountingSource.upTo(10L), options);
     List<WindowedValue<Integer>> elems = readElemsFromSource(options, source);
@@ -162,8 +175,6 @@ public class WorkerCustomSourcesTest {
     // Same as previous test, but now using BasicSerializableSourceFormat wrappers.
     // We know that the underlying reader behaves correctly (because of the previous test),
     // now check that we are wrapping it correctly.
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     NativeReader<WindowedValue<Integer>> reader =
         (NativeReader<WindowedValue<Integer>>)
             ReaderRegistry.defaultRegistry()
@@ -275,7 +286,6 @@ public class WorkerCustomSourcesTest {
 
   @Test
   public void testSplittingProducedInvalidSource() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source cloudSource =
         translateIOToCloudSource(new SourceProducingInvalidSplits("original", null), options);
 
@@ -354,7 +364,6 @@ public class WorkerCustomSourcesTest {
 
   @Test
   public void testFailureToStartReadingIncludesSourceDetails() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source source =
         translateIOToCloudSource(new SourceProducingFailingReader(), options);
     // Unfortunately Hamcrest doesn't have a matcher that can match on the exception's
@@ -373,12 +382,6 @@ public class WorkerCustomSourcesTest {
 
   static com.google.api.services.dataflow.model.Source translateIOToCloudSource(
       BoundedSource<?> io, DataflowPipelineOptions options) throws Exception {
-    options.setRunner(DataflowRunner.class);
-    options.setProject("test-project");
-    options.setTempLocation("gs://test-tmp");
-    options.setPathValidatorClass(NoopPathValidator.class);
-    options.setGcpCredential(new TestCredential());
-
     DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
     Pipeline p = Pipeline.create(options);
     p.begin().apply(Read.from(io));
@@ -435,7 +438,6 @@ public class WorkerCustomSourcesTest {
 
   @Test
   public void testUnboundedSplits() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source source =
         serializeToCloudSource(new TestCountingSource(Integer.MAX_VALUE), options);
     List<String> serializedSplits =
@@ -471,7 +473,6 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             Long.MAX_VALUE);
 
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setNumWorkers(5);
 
     ByteString state = ByteString.EMPTY;
@@ -543,7 +544,6 @@ public class WorkerCustomSourcesTest {
   @Test
   public void testLargeSerializedSizeResplits() throws Exception {
     final long apiSizeLimitForTest = 5 * 1024;
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     // Figure out how many splits of CountingSource are needed to exceed the API limits, using an
     // extra factor of 2 to ensure that we go over the limits.
     BoundedSource<Long> justForSizing = CountingSource.upTo(1000000L);
@@ -571,7 +571,6 @@ public class WorkerCustomSourcesTest {
   @Test
   public void testLargeNumberOfSplitsReturnsSplittableOnlyBoundedSources() throws Exception {
     final long apiSizeLimitForTest = 500 * 1024;
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     // Generate a CountingSource and split it into the desired number of splits
     // (desired size = 1 byte), triggering the re-split with a larger bundle size.
     // Thus below we expect to produce 451 splits.
@@ -624,7 +623,6 @@ public class WorkerCustomSourcesTest {
     // Create a source that greatly oversplits but with coalescing/compression it would still fit
     // under the API limit. Test that the API limit gets applied first, so oversplitting is
     // reduced.
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source source =
         translateIOToCloudSource(CountingSource.upTo(8000), options);
 
@@ -654,7 +652,6 @@ public class WorkerCustomSourcesTest {
 
   @Test
   public void testTooLargeSplitResponseFails() throws Exception {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     com.google.api.services.dataflow.model.Source source =
         translateIOToCloudSource(CountingSource.upTo(1000), options);
 

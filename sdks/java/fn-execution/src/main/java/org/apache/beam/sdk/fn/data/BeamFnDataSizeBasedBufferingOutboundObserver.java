@@ -69,11 +69,20 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
     closed = true;
     BeamFnApi.Elements.Builder elements = convertBufferForTransmission();
     // This will add an empty data block representing the end of stream.
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId())
-        .setIsLast(true);
+    if (outputLocation.isTimer()) {
+      elements
+          .addTimersBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setTimerFamilyId(outputLocation.getTimerFamilyId())
+          .setIsLast(true);
+    } else {
+      elements
+          .addDataBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setIsLast(true);
+    }
 
     LOG.debug(
         "Closing stream for instruction {} and "
@@ -110,11 +119,20 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
       return elements;
     }
 
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId())
-        .setData(bufferedElements.toByteString());
+    if (outputLocation.isTimer()) {
+      elements
+          .addTimersBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setTimerFamilyId(outputLocation.getTimerFamilyId())
+          .setTimers(bufferedElements.toByteString());
+    } else {
+      elements
+          .addDataBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setData(bufferedElements.toByteString());
+    }
 
     byteCounter += bufferedElements.size();
     bufferedElements.reset();

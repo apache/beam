@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.SynchronousQueue;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -26,6 +28,8 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.dataflow.worker.fn.grpc.BeamFnService;
 import org.apache.beam.runners.fnexecution.HeaderAccessor;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClient;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,6 +48,8 @@ public class BeamFnControlService extends BeamFnControlGrpc.BeamFnControlImplBas
       streamObserverFactory;
   private final SynchronousQueue<FnApiControlClient> newClients;
   private final HeaderAccessor headerAccessor;
+  private final ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
+      new ConcurrentHashMap<>();
 
   public BeamFnControlService(
       Endpoints.ApiServiceDescriptor serviceDescriptor,
@@ -71,7 +77,9 @@ public class BeamFnControlService extends BeamFnControlGrpc.BeamFnControlImplBas
     LOG.info("Beam Fn Control client connected with id {}", headerAccessor.getSdkWorkerId());
     FnApiControlClient newClient =
         FnApiControlClient.forRequestObserver(
-            headerAccessor.getSdkWorkerId(), streamObserverFactory.apply(outboundObserver));
+            headerAccessor.getSdkWorkerId(),
+            streamObserverFactory.apply(outboundObserver),
+            processBundleDescriptors);
     try {
       newClients.put(newClient);
     } catch (InterruptedException e) {
@@ -89,6 +97,24 @@ public class BeamFnControlService extends BeamFnControlGrpc.BeamFnControlImplBas
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    }
+  }
+
+  @Override
+  public void getProcessBundleDescriptor(
+      BeamFnApi.GetProcessBundleDescriptorRequest request,
+      StreamObserver<BeamFnApi.ProcessBundleDescriptor> responseObserver) {
+    String bundleDescriptorId = request.getProcessBundleDescriptorId();
+    LOG.info("getProcessBundleDescriptor request with id {}", bundleDescriptorId);
+    BeamFnApi.ProcessBundleDescriptor descriptor = processBundleDescriptors.get(bundleDescriptorId);
+    if (descriptor == null) {
+      String msg =
+          String.format("ProcessBundleDescriptor with id %s not found", bundleDescriptorId);
+      responseObserver.onError(new StatusException(Status.NOT_FOUND.withDescription(msg)));
+      LOG.error(msg);
+    } else {
+      responseObserver.onNext(descriptor);
+      responseObserver.onCompleted();
     }
   }
 

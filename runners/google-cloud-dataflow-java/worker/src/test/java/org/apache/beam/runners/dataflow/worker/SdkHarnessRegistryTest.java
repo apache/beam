@@ -66,7 +66,7 @@ public class SdkHarnessRegistryTest {
             i -> {
               String workerId = "worker_" + i;
               sdkHarnessRegistry.registerWorkerClient(
-                  FnApiControlClient.forRequestObserver(workerId, null));
+                  FnApiControlClient.forRequestObserver(workerId, null, null));
               workerIds.add(workerId);
             });
     assertEquals(
@@ -81,7 +81,7 @@ public class SdkHarnessRegistryTest {
             i -> {
               String workerId = "worker_" + i;
               sdkHarnessRegistry.registerWorkerClient(
-                  FnApiControlClient.forRequestObserver(workerId, null));
+                  FnApiControlClient.forRequestObserver(workerId, null, null));
               workerIds.add(workerId);
             });
 

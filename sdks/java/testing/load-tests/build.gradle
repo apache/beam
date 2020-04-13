@@ -80,6 +80,7 @@ dependencies {
     gradleRun library.java.spark_core, {
       exclude group:"org.slf4j", module:"jul-to-slf4j"
     }
+    gradleRun library.java.spark_sql
   }
 }
 

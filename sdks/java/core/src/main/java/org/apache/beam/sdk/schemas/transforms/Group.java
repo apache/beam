@@ -859,8 +859,7 @@ public class Group {
                     public void process(@Element KV<Row, Iterable<Row>> e, OutputReceiver<Row> o) {
                       o.output(
                           Row.withSchema(outputSchema)
-                              .attachValues(Lists.newArrayList(e.getKey(), e.getValue()))
-                              .build());
+                              .attachValues(Lists.newArrayList(e.getKey(), e.getValue())));
                     }
                   }))
           .setRowSchema(outputSchema);
@@ -1140,8 +1139,7 @@ public class Group {
                       o.output(
                           Row.withSchema(outputSchema)
                               .attachValues(
-                                  Lists.newArrayList(element.getKey(), element.getValue()))
-                              .build());
+                                  Lists.newArrayList(element.getKey(), element.getValue())));
                     }
                   }))
           .setRowSchema(outputSchema);

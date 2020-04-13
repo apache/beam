@@ -86,12 +86,12 @@ class CoderTranslators {
     return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
       @Override
       public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
-        return from.getCoderArguments();
+        return from.getComponents();
       }
 
       @Override
       public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
-        return Timer.Coder.of(components.get(0));
+        return Timer.Coder.of(components.get(0), (Coder<BoundedWindow>) components.get(1));
       }
     };
   }
