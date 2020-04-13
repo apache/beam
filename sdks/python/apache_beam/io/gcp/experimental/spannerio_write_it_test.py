@@ -170,8 +170,7 @@ class SpannerWriteTest(unittest.TestCase):
   def test_spanner_error(self):
     mutations_update = [
         WriteMutation.update(
-            'Users', ('UserId', 'Key'),
-            [('INVALD_ID', 'Error-error')]),
+            'Users', ('UserId', 'Key'), [('INVALD_ID', 'Error-error')]),
     ]
 
     with self.assertRaises(NotFound):
@@ -181,7 +180,7 @@ class SpannerWriteTest(unittest.TestCase):
               project_id=self.project,
               instance_id=self.instance,
               database_id=self.TEST_DATABASE))
-  
+
       res = p.run()
       res.wait_until_finish()
 
