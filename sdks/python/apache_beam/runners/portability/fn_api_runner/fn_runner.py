@@ -25,8 +25,8 @@ from __future__ import print_function
 import contextlib
 import copy
 import itertools
-import multiprocessing
 import logging
+import multiprocessing
 import os
 import subprocess
 import sys
