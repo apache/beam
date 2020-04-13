@@ -1055,9 +1055,12 @@ class DataflowRunner(PipelineRunner):
           PropertyNames.RESTRICTION_ENCODING,
           self._get_cloud_encoding(restriction_coder))
 
-    if options.view_as(StandardOptions).streaming and DoFnSignature(
-        transform.dofn).is_stateful_dofn():
-      step.add_property(PropertyNames.USES_KEYED_STATE, "true")
+    if options.view_as(StandardOptions).streaming:
+      is_stateful_dofn = (
+          transform.is_pardo_with_stateful_dofn if is_external_transform else
+          DoFnSignature(transform.dofn).is_stateful_dofn())
+      if is_stateful_dofn:
+        step.add_property(PropertyNames.USES_KEYED_STATE, 'true')
 
   @staticmethod
   def _pardo_fn_data(transform_node, get_label):
