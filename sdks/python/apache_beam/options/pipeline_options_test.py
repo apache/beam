@@ -300,6 +300,47 @@ class PipelineOptionsTest(unittest.TestCase):
             'option with space'),
         ' value with space')
 
+  def test_retain_unknown_options_binary_store_string(self):
+    options = PipelineOptions(['--unknown_option', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+
+  def test_retain_unknown_options_binary_equals_store_string(self):
+    options = PipelineOptions(['--unknown_option=some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'some_value')
+
+  def test_retain_unknown_options_binary_multi_equals_store_string(self):
+    options = PipelineOptions(['--unknown_option=expr = "2 + 2 = 5"'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], 'expr = "2 + 2 = 5"')
+
+  def test_retain_unknown_options_binary_single_dash_store_string(self):
+    options = PipelineOptions(['-i', 'some_value'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['i'], 'some_value')
+
+  def test_retain_unknown_options_unary_store_true(self):
+    options = PipelineOptions(['--unknown_option'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['unknown_option'], True)
+
+  def test_retain_unknown_options_consecutive_unary_store_true(self):
+    options = PipelineOptions(['--option_foo', '--option_bar'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['option_foo'], True)
+    self.assertEqual(result['option_bar'], True)
+
+  def test_retain_unknown_options_unary_single_dash_store_true(self):
+    options = PipelineOptions(['-i'])
+    result = options.get_all_options(retain_unknown_options=True)
+    self.assertEqual(result['i'], True)
+
+  def test_retain_unknown_options_unary_missing_prefix(self):
+    options = PipelineOptions(['bad_option'])
+    with self.assertRaises(SystemExit):
+      options.get_all_options(retain_unknown_options=True)
+
   def test_override_options(self):
     base_flags = ['--num_workers', '5']
     options = PipelineOptions(base_flags)

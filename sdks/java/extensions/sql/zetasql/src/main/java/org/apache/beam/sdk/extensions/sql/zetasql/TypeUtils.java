@@ -42,6 +42,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Utility to convert types from Calcite Schema types. */
@@ -128,11 +129,23 @@ public class TypeUtils {
         .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1);
   }
 
+  private static List<String> toNameList(List<StructField> fields) {
+    ImmutableList.Builder<String> b = ImmutableList.builder();
+    for (int i = 0; i < fields.size(); i++) {
+      String name = fields.get(i).getName();
+      if ("".equals(name)) {
+        name = "$col" + String.valueOf(i);
+      }
+      b.add(name);
+    }
+    return b.build();
+  }
+
   public static RelDataType toStructRelDataType(
       RexBuilder rexBuilder, StructType structType, boolean isNullable) {
 
     List<StructField> fields = structType.getFieldList();
-    List<String> fieldNames = fields.stream().map(StructField::getName).collect(toList());
+    List<String> fieldNames = toNameList(fields);
     List<RelDataType> fieldTypes =
         fields.stream()
             .map(f -> toRelDataType(rexBuilder, f.getType(), isNullable))

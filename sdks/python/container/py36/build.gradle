@@ -43,6 +43,11 @@ task copyDockerfileDependencies(type: Copy) {
   }
 }
 
+task copyLicenseScrips(type: Copy){
+  from ("../license_scripts")
+  into "build/target/license_scripts"
+}
+
 task copyLauncherDependencies(type: Copy) {
   from configurations.sdkHarnessLauncher
   into "build/target/launcher"
@@ -65,3 +70,4 @@ docker {
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn copyLicenseScrips

@@ -84,7 +84,7 @@ public class GroupCombineFunctions {
     return groupedRDD
         .mapValues(
             it -> Iterables.transform(it, new CoderHelpers.FromByteFunction<>(keyCoder, wvCoder)))
-        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction()))
+        .mapValues(it -> Iterables.transform(it, new TranslationUtils.FromPairFunction<>()))
         .mapValues(
             it -> Iterables.transform(it, new TranslationUtils.ToKVByWindowInValueFunction<>()));
   }
@@ -188,7 +188,7 @@ public class GroupCombineFunctions {
     // Use coders to convert objects in the PCollection to byte arrays, so they
     // can be transferred over the network for the shuffle.
     return rdd.map(CoderHelpers.toByteFunction(wvCoder))
-        .repartition(rdd.getNumPartitions())
+        .repartition(Math.max(rdd.context().defaultParallelism(), rdd.getNumPartitions()))
         .map(CoderHelpers.fromByteFunction(wvCoder));
   }
 }

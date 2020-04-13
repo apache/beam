@@ -104,6 +104,7 @@ import org.slf4j.LoggerFactory;
 public class MqttIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MqttIO.class);
+  private static final int MQTT_3_1_MAX_CLIENT_ID_LENGTH = 23;
 
   public static Read read() {
     return new AutoValue_MqttIO_Read.Builder()
@@ -231,10 +232,14 @@ public class MqttIO {
       }
       if (getClientId() != null) {
         String clientId = getClientId() + "-" + UUID.randomUUID().toString();
+        clientId =
+            clientId.substring(0, Math.min(clientId.length(), MQTT_3_1_MAX_CLIENT_ID_LENGTH));
         LOG.debug("MQTT client id set to {}", clientId);
         client.setClientId(clientId);
       } else {
         String clientId = UUID.randomUUID().toString();
+        clientId =
+            clientId.substring(0, Math.min(clientId.length(), MQTT_3_1_MAX_CLIENT_ID_LENGTH));
         LOG.debug("MQTT client id set to random value {}", clientId);
         client.setClientId(clientId);
       }

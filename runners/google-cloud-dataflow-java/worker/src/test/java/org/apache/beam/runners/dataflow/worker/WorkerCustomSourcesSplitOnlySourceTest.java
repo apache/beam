@@ -25,8 +25,11 @@ import com.google.api.services.dataflow.model.DerivedSource;
 import com.google.api.services.dataflow.model.SourceSplitResponse;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnlyBoundedSource;
+import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
+import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -57,8 +60,14 @@ public class WorkerCustomSourcesSplitOnlySourceTest {
   @Test
   public void testAllSplitsAreReturned() throws Exception {
     final long apiSizeLimitForTest = 500 * 1024;
-    DataflowPipelineOptions options =
-        PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
+    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    options.setAppName("TestAppName");
+    options.setProject("test-project");
+    options.setRegion("some-region1");
+    options.setTempLocation("gs://test/temp/location");
+    options.setGcpCredential(new TestCredential());
+    options.setRunner(DataflowRunner.class);
+    options.setPathValidatorClass(NoopPathValidator.class);
     // Generate a CountingSource and split it into the desired number of splits
     // (desired size = 1 byte), triggering the re-split with a larger bundle size.
     // Thus below we expect to produce 'numberOfSplits' splits.

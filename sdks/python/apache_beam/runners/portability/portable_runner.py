@@ -39,10 +39,12 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
+from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_metrics
 from apache_beam.runners.portability import portable_stager
@@ -88,10 +90,11 @@ class JobServiceHandle(object):
   - stage
   - run
   """
-  def __init__(self, job_service, options):
+  def __init__(self, job_service, options, retain_unknown_options=False):
     self.job_service = job_service
     self.options = options
     self.timeout = options.view_as(PortableOptions).job_server_timeout
+    self._retain_unknown_options = retain_unknown_options
 
   def submit(self, proto_pipeline):
     # type: (beam_runner_api_pb2.Pipeline) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
@@ -157,7 +160,8 @@ class JobServiceHandle(object):
           _LOGGER.debug("Runner option '%s' was already added" % option.name)
 
     all_options = self.options.get_all_options(
-        add_extra_args_fn=add_runner_options)
+        add_extra_args_fn=add_runner_options,
+        retain_unknown_options=self._retain_unknown_options)
     # TODO: Define URNs for options.
     # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
     p_options = {
@@ -183,28 +187,47 @@ class JobServiceHandle(object):
 
     """Stage artifacts"""
     if artifact_staging_endpoint:
-      stager = portable_stager.PortableStager(
-          grpc.insecure_channel(artifact_staging_endpoint),
-          staging_session_token)
-      resources = []
-      for _, env in pipeline.components.environments.items():
-        for dep in env.dependencies:
-          if dep.type_urn != common_urns.artifact_types.FILE.urn:
-            raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
-          if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
-            raise RuntimeError('unsupported role type %s' % dep.role_urn)
-          type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
-              dep.type_payload)
-          role_payload = \
-              beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
-                  dep.role_payload)
-          resources.append((type_payload.path, role_payload.staged_name))
-      stager.stage_job_resources(resources, staging_location='')
-      retrieval_token = stager.commit_manifest()
+      channel = grpc.insecure_channel(artifact_staging_endpoint)
+      try:
+        return self._stage_via_portable_service(channel, staging_session_token)
+      except grpc.RpcError as exn:
+        if exn.code() == grpc.StatusCode.UNIMPLEMENTED:
+          # This job server doesn't yet support the new protocol.
+          return self._stage_via_legacy_service(
+              pipeline, channel, staging_session_token)
+        else:
+          raise
     else:
-      retrieval_token = None
+      return None
 
-    return retrieval_token
+  def _stage_via_portable_service(
+      self, artifact_staging_channel, staging_session_token):
+    artifact_service.offer_artifacts(
+        beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
+            channel=artifact_staging_channel),
+        artifact_service.ArtifactRetrievalService(
+            artifact_service.BeamFilesystemHandler(None).file_reader),
+        staging_session_token)
+
+  def _stage_via_legacy_service(
+      self, pipeline, artifact_staging_channel, staging_session_token):
+    stager = portable_stager.PortableStager(
+        artifact_staging_channel, staging_session_token)
+    resources = []
+    for _, env in pipeline.components.environments.items():
+      for dep in env.dependencies:
+        if dep.type_urn != common_urns.artifact_types.FILE.urn:
+          raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
+        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
+          raise RuntimeError('unsupported role type %s' % dep.role_urn)
+        type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+            dep.type_payload)
+        role_payload = \
+            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                dep.role_payload)
+        resources.append((type_payload.path, role_payload.staged_name))
+    stager.stage_job_resources(resources, staging_location='')
+    return stager.commit_manifest()
 
   def run(self, preparation_id, retrieval_token):
     # type: (str, str) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
@@ -288,6 +311,9 @@ class PortableRunner(runner.PipelineRunner):
           job_server.DockerizedJobServer())
     return self._dockerized_job_server
 
+  def create_job_service_handle(self, job_service, options):
+    return JobServiceHandle(job_service, options)
+
   def create_job_service(self, options):
     # type: (PipelineOptions) -> JobServiceHandle
 
@@ -303,7 +329,7 @@ class PortableRunner(runner.PipelineRunner):
         server = job_server.ExternalJobServer(job_endpoint, job_server_timeout)
     else:
       server = self.default_job_server(options)
-    return JobServiceHandle(server.start(), options)
+    return self.create_job_service_handle(server.start(), options)
 
   @staticmethod
   def get_proto_pipeline(pipeline, options):

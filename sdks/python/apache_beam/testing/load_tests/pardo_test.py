@@ -41,6 +41,7 @@ python -m apache_beam.testing.load_tests.pardo_test \
     --number_of_counters=1
     --number_of_counter_operations=1
     --project=big-query-project
+    --region=...
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=pardo
@@ -55,6 +56,7 @@ or:
 ./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=pardo
     --input_options='{

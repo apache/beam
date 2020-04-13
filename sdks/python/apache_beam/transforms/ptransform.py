@@ -256,21 +256,29 @@ def get_nested_pvalues(pvalueish):
   return pvalues
 
 
-def get_nested_pvalues0(pvalueish):
-  if isinstance(pvalueish, (tuple, list)):
+def get_named_nested_pvalues(pvalueish):
+  if isinstance(pvalueish, tuple):
+    # Check to see if it's a named tuple.
+    fields = getattr(pvalueish, '_fields', None)
+    if fields and len(fields) == len(pvalueish):
+      tagged_values = zip(fields, pvalueish)
+    else:
+      tagged_values = enumerate(pvalueish)
+  elif isinstance(pvalueish, list):
     tagged_values = enumerate(pvalueish)
-  if isinstance(pvalueish, dict):
+  elif isinstance(pvalueish, dict):
     tagged_values = pvalueish.items()
   else:
-    yield None, pvalueish
+    if isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
+      yield None, pvalueish
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_nested_pvalues(subvalue):
+    for subtag, subsubvalue in get_named_nested_pvalues(subvalue):
       if subtag is None:
         yield tag, subsubvalue
       else:
-        yield '%s.%s' % (tag, subsubvalue), subsubvalue
+        yield '%s.%s' % (tag, subtag), subsubvalue
 
 
 class _ZipPValues(object):
@@ -655,10 +663,10 @@ class PTransform(WithTypeHints, HasDisplayData):
       # Used as a decorator.
       return register
 
-  def to_runner_api(self, context, has_parts=False):
+  def to_runner_api(self, context, has_parts=False, **extra_kwargs):
     # type: (PipelineContext, bool) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
-    urn, typed_param = self.to_runner_api_parameter(context)
+    urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
       # TODO(BEAM-3812): Remove this fallback.
       urn, typed_param = self.to_runner_api_pickled(context)

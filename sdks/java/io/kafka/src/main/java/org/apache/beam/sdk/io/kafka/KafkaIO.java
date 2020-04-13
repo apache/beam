@@ -163,6 +163,14 @@ import org.slf4j.LoggerFactory;
  * <br>
  * 3. Start from <em>latest</em> offset by default;
  *
+ * <p>Seek to initial offset is a blocking operation in Kafka API, which can block forever for
+ * certain versions of Kafka client library. This is resolved by <a
+ * href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-266%3A+Fix+consumer+indefinite+blocking+behavior">KIP-266</a>
+ * which provides `default.api.timeout.ms` consumer config setting to control such timeouts.
+ * KafkaIO.read implements timeout itself, to not to block forever in case older Kafka client is
+ * used. It does recognize `default.api.timeout.ms` setting and will honor the timeout value if it
+ * is passes in consumer config.
+ *
  * <h3>Use Avro schema with Confluent Schema Registry</h3>
  *
  * <p>If you want to deserialize the keys and/or values based on a schema available in Confluent

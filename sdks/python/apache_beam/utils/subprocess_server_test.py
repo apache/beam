@@ -22,11 +22,15 @@
 from __future__ import absolute_import
 
 import os
+import re
 import shutil
 import socketserver
 import tempfile
 import threading
 import unittest
+
+# patches unittest.TestCase to be python3 compatible
+import future.tests.base  # pylint: disable=unused-import
 
 from apache_beam.utils import subprocess_server
 
@@ -55,18 +59,26 @@ class JavaJarServerTest(unittest.TestCase):
             'sdks:java:fake:fatJar', appendix='A', version='VERSION'))
 
   def test_gradle_jar_dev(self):
-    # TODO(Py3): Use assertRaisesRegex instead.
-    # pylint: disable=deprecated-method
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         Exception,
-        'sdks/java/fake/build/libs/beam-sdks-java-fake-VERSION-SNAPSHOT.jar '
-        'not found.'):
+        re.escape(os.path.join('sdks',
+                               'java',
+                               'fake',
+                               'build',
+                               'libs',
+                               'beam-sdks-java-fake-VERSION-SNAPSHOT.jar')) +
+        ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           'sdks:java:fake:fatJar', version='VERSION.dev')
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         Exception,
-        'sdks/java/fake/build/libs/beam-sdks-java-fake-A-VERSION-SNAPSHOT.jar '
-        'not found.'):
+        re.escape(os.path.join('sdks',
+                               'java',
+                               'fake',
+                               'build',
+                               'libs',
+                               'beam-sdks-java-fake-A-VERSION-SNAPSHOT.jar')) +
+        ' not found.'):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           'sdks:java:fake:fatJar', appendix='A', version='VERSION.dev')
 

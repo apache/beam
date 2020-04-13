@@ -347,7 +347,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
-        rehydratedComponents.getSdkComponents().withNewIdPrefix(request.getNamespace());
+        rehydratedComponents.getSdkComponents(null).withNewIdPrefix(request.getNamespace());
     sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
     Map<String, String> outputMap =
         outputs.entrySet().stream()
@@ -381,6 +381,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     return ExpansionApi.ExpansionResponse.newBuilder()
         .setComponents(components.toBuilder().removeTransforms(expandedTransformId))
         .setTransform(expandedTransform)
+        .addAllRequirements(pipelineProto.getRequirementsList())
         .build();
   }
 

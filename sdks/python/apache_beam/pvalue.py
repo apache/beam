@@ -44,6 +44,7 @@ from typing import Union
 
 from past.builtins import unicode
 
+from apache_beam import coders
 from apache_beam import typehints
 from apache_beam.internal import pickler
 from apache_beam.portability import common_urns
@@ -366,11 +367,20 @@ class AsSideInput(object):
     Returns:
       Tuple of options for the given view.
     """
-    return {'window_mapping_fn': self._window_mapping_fn}
+    return {
+        'window_mapping_fn': self._window_mapping_fn,
+        'coder': self._windowed_coder(),
+    }
 
   @property
   def element_type(self):
     return typehints.Any
+
+  def _windowed_coder(self):
+    return coders.WindowedValueCoder(
+        coders.registry.get_coder(
+            self.pvalue.element_type or self.element_type),
+        self.pvalue.windowing.windowfn.get_window_coder())
 
   # TODO(robertwb): Get rid of _from_runtime_iterable and _view_options
   # in favor of _side_input_data().
@@ -417,6 +427,7 @@ class _UnpickledSideInput(AsSideInput):
         'data': self._data,
         # For non-fn-api runners.
         'window_mapping_fn': self._data.window_mapping_fn,
+        'coder': self._windowed_coder(),
     }
 
   def _side_input_data(self):

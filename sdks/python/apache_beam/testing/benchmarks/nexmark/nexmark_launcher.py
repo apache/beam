@@ -47,6 +47,7 @@ Usage
       python nexmark_launcher.py \
           --query/q <query number> \
           --project <project id> \
+          --region <GCE region> \
           --loglevel=DEBUG (optional) \
           --wait_until_finish_duration <time_in_ms> \
           --streaming \

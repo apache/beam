@@ -75,6 +75,15 @@ public final class LogRecordMatcher extends TypeSafeMatcher<LogRecord> {
   }
 
   @Override
+  public void describeMismatchSafely(LogRecord item, Description description) {
+    description
+        .appendText("was log with message \"")
+        .appendText(item.getMessage())
+        .appendText("\" at severity ")
+        .appendValue(item.getLevel());
+  }
+
+  @Override
   protected boolean matchesSafely(LogRecord item) {
     return levelMatcher.matches(item.getLevel()) && item.getMessage().contains(substring);
   }

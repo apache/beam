@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -155,6 +156,7 @@ const (
 	createInitialRestrictionName = "CreateInitialRestriction"
 	splitRestrictionName         = "SplitRestriction"
 	restrictionSizeName          = "RestrictionSize"
+	createTrackerName            = "CreateTracker"
 
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
@@ -174,12 +176,14 @@ var doFnNames = []string{
 	createInitialRestrictionName,
 	splitRestrictionName,
 	restrictionSizeName,
+	createTrackerName,
 }
 
 var sdfNames = []string{
 	createInitialRestrictionName,
 	splitRestrictionName,
 	restrictionSizeName,
+	createTrackerName,
 }
 
 // DoFn represents a DoFn.
@@ -223,20 +227,30 @@ func (f *DoFn) IsSplittable() bool {
 	return ok
 }
 
+// SplittableDoFn represents a DoFn implementing SDF methods.
 type SplittableDoFn DoFn
 
+// CreateInitialRestrictionFn returns the "CreateInitialRestriction" function, if present.
 func (f *SplittableDoFn) CreateInitialRestrictionFn() *funcx.Fn {
 	return f.methods[createInitialRestrictionName]
 }
 
+// SplitRestrictionFn returns the "SplitRestriction" function, if present.
 func (f *SplittableDoFn) SplitRestrictionFn() *funcx.Fn {
 	return f.methods[splitRestrictionName]
 }
 
+// RestrictionSizeFn returns the "RestrictionSize" function, if present.
 func (f *SplittableDoFn) RestrictionSizeFn() *funcx.Fn {
 	return f.methods[restrictionSizeName]
 }
 
+// CreateTrackerFn returns the "CreateTracker" function, if present.
+func (f *SplittableDoFn) CreateTrackerFn() *funcx.Fn {
+	return f.methods[createTrackerName]
+}
+
+// Name returns the name of the function or struct.
 func (f *SplittableDoFn) Name() string {
 	return (*Fn)(f).Name()
 }
@@ -402,8 +416,8 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		}
 	}
 
-	// Check whether to perform SDF validation by seeing if SDF methods are present.
-	isSdf, err := validateSdfMethodsPresent(fn)
+	// Check whether to perform SDF validation.
+	isSdf, err := validateIsSdf(fn)
 	if err != nil {
 		return nil, addContext(err, fn)
 	}
@@ -615,13 +629,18 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 	return nil
 }
 
-// validateSdfMethods validates that all SDF methods are either present or
-// missing in a Fn, and then returns true if they're present and false
-// otherwise. If some are present and some are missing, it returns an error.
-func validateSdfMethodsPresent(fn *Fn) (bool, error) {
-	// Check if first sdf method is present or not, and compare all subsequent
-	// methods to that result. If there's a mismatch, then we only fail after
-	// finishing the loop so we can output all the missing methods.
+// validateIsSdf checks whether a Fn either is or is not an SDF, and returns
+// true if it is, false if it isn't, or an error if it doesn't fulfill the
+// requirements for either case.
+//
+// For a Fn to be an SDF it must:
+//   * Implement all the SDF methods.
+//   * Include an RTracker parameter in ProcessElement.
+// For a Fn to not be an SDF, it must:
+//   * Implement none of the SDF methods.
+//   * Not include an RTracker parameter in ProcessElement.
+func validateIsSdf(fn *Fn) (bool, error) {
+	// Store missing method names so we can output them to the user if validation fails.
 	var missing []string
 	for _, name := range sdfNames {
 		_, ok := fn.methods[name]
@@ -630,18 +649,38 @@ func validateSdfMethodsPresent(fn *Fn) (bool, error) {
 		}
 	}
 
+	var isSdf bool
 	switch len(missing) {
 	case 0: // All SDF methods present.
-		return true, nil
+		isSdf = true
 	case len(sdfNames): // No SDF methods.
-		return false, nil
+		isSdf = false
 	default: // Anything else means an invalid # of SDF methods.
 		err := errors.Errorf("not all SplittableDoFn methods are present. Missing methods: %v", missing)
 		return false, err
 	}
+
+	processFn := fn.methods[processElementName]
+	if pos, ok := processFn.RTracker(); ok != isSdf {
+		if ok {
+			err := errors.Errorf("method %v has sdf.RTracker as param %v, expected none",
+				processElementName, pos)
+			return false, errors.SetTopLevelMsgf(err, "Method %v has an sdf.RTracker parameter at index %v, "+
+				"but is not part of a splittable DoFn. sdf.RTracker is invalid in %v in non-splittable DoFns.",
+				processElementName, pos, processElementName)
+		}
+		pos, _, _ = processFn.Inputs()
+		err := errors.Errorf("method %v missing sdf.RTracker, expected one at index %v",
+			processElementName, pos)
+		return false, errors.SetTopLevelMsgf(err, "Method %v is missing an sdf.RTracker "+
+			"parameter despite being part of a splittable DoFn. %v in splittable DoFns requires an "+
+			"sdf.RTracker parameter before main inputs (in this case, at index %v).",
+			processElementName, processElementName, pos)
+	}
+	return isSdf, nil
 }
 
-// validateSdfTypes validates that types in the SDF methods of a Fn are
+// validateSdfSignatures validates that types in the SDF methods of a Fn are
 // consistent with each other (for example, element and restriction types should
 // match with each other). Returns an error if one is found, or nil if the
 // types are all valid.
@@ -686,6 +725,7 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 		createInitialRestrictionName: num,
 		splitRestrictionName:         num + 1,
 		restrictionSizeName:          num + 1,
+		createTrackerName:            1,
 	}
 	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
 
@@ -716,6 +756,7 @@ func validateSdfSigNumbers(fn *Fn, num int) error {
 // values has already been validated.
 func validateSdfSigTypes(fn *Fn, num int) error {
 	restrictionT := fn.methods[createInitialRestrictionName].Ret[0].T
+	rTrackerT := reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
 
 	for _, name := range sdfNames {
 		method := fn.methods[name]
@@ -763,6 +804,31 @@ func validateSdfSigTypes(fn *Fn, num int) error {
 				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
 					"return value at index %v. Got: %v, Want: %v. Sizing information in SDF methods must be in float64.",
 					restrictionSizeName, 0, method.Ret[0].T, reflectx.Float64)
+			}
+		case createTrackerName:
+			if method.Param[0].T != restrictionT {
+				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
+					createTrackerName, 0, method.Param[0].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
+			}
+			if method.Ret[0].T.Implements(rTrackerT) == false {
+				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
+					createTrackerName, 0, method.Ret[0].T)
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v (type: %v). Output of method %v must implement sdf.RTracker.",
+					createTrackerName, 0, method.Ret[0].T, createTrackerName)
+			}
+			processFn := fn.methods[processElementName]
+			pos, _ := processFn.RTracker()
+			if method.Ret[0].T != processFn.Param[pos].T {
+				err := errors.Errorf("mismatched output type in method %v, return %v: got: %v, want: %v",
+					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T)
+				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v).",
+					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
 			}
 		}
 	}

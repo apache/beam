@@ -17,8 +17,6 @@
 
 """
 Beam Datastore types.
-
-This module is experimental, no backwards compatibility guarantees.
 """
 
 # pytype: skip-file
@@ -26,6 +24,11 @@ This module is experimental, no backwards compatibility guarantees.
 from __future__ import absolute_import
 
 import copy
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Text
+from typing import Union
 
 from google.cloud.datastore import entity
 from google.cloud.datastore import key
@@ -152,7 +155,12 @@ class Query(object):
 
 
 class Key(object):
-  def __init__(self, path_elements, parent=None, project=None, namespace=None):
+  def __init__(self,
+               path_elements,  # type: List[Union[Text, int]]
+               parent=None,  # type: Optional[Key]
+               project=None,  # type: Optional[Text]
+               namespace=None  # type: Optional[Text]
+               ):
     """
     Represents a Datastore key.
 
@@ -223,7 +231,11 @@ class Key(object):
 
 
 class Entity(object):
-  def __init__(self, key, exclude_from_indexes=()):
+  def __init__(
+      self,
+      key,  # type: Key
+      exclude_from_indexes=()  # type: Iterable[str]
+  ):
     """
     Represents a Datastore entity.
 

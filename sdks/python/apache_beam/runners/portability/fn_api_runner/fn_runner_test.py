@@ -797,18 +797,18 @@ class FnApiRunnerTest(unittest.TestCase):
 # the sampling counter.
 class FnApiRunnerMetricsTest(unittest.TestCase):
   def assert_has_counter(
-      self, monitoring_infos, urn, labels, value=None, ge_value=None):
+      self, mon_infos, urn, labels, value=None, ge_value=None):
     # TODO(ajamato): Consider adding a matcher framework
     found = 0
     matches = []
-    for mi in monitoring_infos:
+    for mi in mon_infos:
       if has_urn_and_labels(mi, urn, labels):
-        matches.append(mi.metric.counter_data.int64_value)
+        extracted_value = monitoring_infos.extract_counter_value(mi)
         if ge_value is not None:
-          if mi.metric.counter_data.int64_value >= ge_value:
+          if extracted_value >= ge_value:
             found = found + 1
         elif value is not None:
-          if mi.metric.counter_data.int64_value == value:
+          if extracted_value == value:
             found = found + 1
         else:
           found = found + 1
@@ -824,14 +824,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
         ))
 
   def assert_has_distribution(
-      self,
-      monitoring_infos,
-      urn,
-      labels,
-      sum=None,
-      count=None,
-      min=None,
-      max=None):
+      self, mon_infos, urn, labels, sum=None, count=None, min=None, max=None):
     # TODO(ajamato): Consider adding a matcher framework
     sum = _matcher_or_equal_to(sum)
     count = _matcher_or_equal_to(count)
@@ -839,29 +832,30 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
     max = _matcher_or_equal_to(max)
     found = 0
     description = StringDescription()
-    for mi in monitoring_infos:
+    for mi in mon_infos:
       if has_urn_and_labels(mi, urn, labels):
-        int_dist = mi.metric.distribution_data.int_distribution_data
+        (extracted_count, extracted_sum, extracted_min,
+         extracted_max) = monitoring_infos.extract_distribution(mi)
         increment = 1
         if sum is not None:
           description.append_text(' sum: ')
           sum.describe_to(description)
-          if not sum.matches(int_dist.sum):
+          if not sum.matches(extracted_sum):
             increment = 0
         if count is not None:
           description.append_text(' count: ')
           count.describe_to(description)
-          if not count.matches(int_dist.count):
+          if not count.matches(extracted_count):
             increment = 0
         if min is not None:
           description.append_text(' min: ')
           min.describe_to(description)
-          if not min.matches(int_dist.min):
+          if not min.matches(extracted_min):
             increment = 0
         if max is not None:
           description.append_text(' max: ')
           max.describe_to(description)
-          if not max.matches(int_dist.max):
+          if not max.matches(extracted_max):
             increment = 0
         found += increment
     self.assertEqual(
@@ -1135,40 +1129,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       return False
 
     try:
-      # TODO(ajamato): Delete this block after deleting the legacy metrics code.
-      # Test the DEPRECATED legacy metrics
-      pregbk_metrics, postgbk_metrics = list(res._metrics_by_stage.values())
-      if 'Create/Map(decode)' not in pregbk_metrics.ptransforms:
-        # The metrics above are actually unordered. Swap.
-        pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
-      self.assertEqual(
-          4,
-          pregbk_metrics.ptransforms['Create/Map(decode)'].processed_elements.
-          measured.output_element_counts['None'])
-      self.assertEqual(
-          4,
-          pregbk_metrics.ptransforms['Map(sleep)'].processed_elements.measured.
-          output_element_counts['None'])
-      self.assertLessEqual(
-          4e-3 * DEFAULT_SAMPLING_PERIOD_MS,
-          pregbk_metrics.ptransforms['Map(sleep)'].processed_elements.measured.
-          total_time_spent)
-      self.assertEqual(
-          1,
-          postgbk_metrics.ptransforms['GroupByKey/Read'].processed_elements.
-          measured.output_element_counts['None'])
-
-      # The actual stage name ends up being something like 'm_out/lamdbda...'
-      m_out, = [
-          metrics for name, metrics in list(postgbk_metrics.ptransforms.items())
-          if name.startswith('m_out')]
-      self.assertEqual(
-          5, m_out.processed_elements.measured.output_element_counts['None'])
-      self.assertEqual(
-          1, m_out.processed_elements.measured.output_element_counts['once'])
-      self.assertEqual(
-          2, m_out.processed_elements.measured.output_element_counts['twice'])
-
       # Test the new MonitoringInfo monitoring format.
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())

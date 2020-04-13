@@ -28,11 +28,6 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.model.pipeline.v1.MetricsApi.CounterData;
-import org.apache.beam.model.pipeline.v1.MetricsApi.DoubleDistributionData;
-import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
-import org.apache.beam.model.pipeline.v1.MetricsApi.Metric;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.DistributionCell;
@@ -134,18 +129,18 @@ public class FlinkMetricContainerTest {
 
     MonitoringInfo userCountMonitoringInfo =
         new SimpleMonitoringInfoBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
+            .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
             .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns1")
             .setLabel(MonitoringInfoConstants.Labels.NAME, "metric1")
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
-            .setInt64Value(111)
+            .setInt64SumValue(111)
             .build();
     assertNotNull(userCountMonitoringInfo);
 
     MonitoringInfo pCollectionScoped =
         new SimpleMonitoringInfoBuilder()
             .setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT)
-            .setInt64Value(222)
+            .setInt64SumValue(222)
             .setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "pcoll")
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .build();
@@ -154,7 +149,7 @@ public class FlinkMetricContainerTest {
     MonitoringInfo transformScoped =
         new SimpleMonitoringInfoBuilder()
             .setUrn(MonitoringInfoConstants.Urns.START_BUNDLE_MSECS)
-            .setInt64Value(333)
+            .setInt64SumValue(333)
             .setLabel(MonitoringInfoConstants.Labels.NAME, "myMetric")
             .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "anyPTransform")
             .build();
@@ -175,59 +170,39 @@ public class FlinkMetricContainerTest {
     MetricsContainerImpl step = container.getMetricsContainer("step");
 
     MonitoringInfo intCounter =
-        MonitoringInfo.newBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "ns1")
-            .putLabels(MonitoringInfoConstants.Labels.NAME, "int_counter")
-            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
-            .setMetric(
-                Metric.newBuilder().setCounterData(CounterData.newBuilder().setInt64Value(111)))
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns1")
+            .setLabel(MonitoringInfoConstants.Labels.NAME, "int_counter")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
+            .setInt64SumValue(111)
             .build();
 
     MonitoringInfo doubleCounter =
-        MonitoringInfo.newBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "ns2")
-            .putLabels(MonitoringInfoConstants.Labels.NAME, "double_counter")
-            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
-            .setMetric(
-                Metric.newBuilder().setCounterData(CounterData.newBuilder().setDoubleValue(222)))
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.USER_SUM_DOUBLE)
+            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns2")
+            .setLabel(MonitoringInfoConstants.Labels.NAME, "double_counter")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
+            .setDoubleSumValue(222)
             .build();
 
     MonitoringInfo intDistribution =
-        MonitoringInfo.newBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "ns3")
-            .putLabels(MonitoringInfoConstants.Labels.NAME, "int_distribution")
-            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
-            .setMetric(
-                Metric.newBuilder()
-                    .setDistributionData(
-                        MetricsApi.DistributionData.newBuilder()
-                            .setIntDistributionData(
-                                IntDistributionData.newBuilder()
-                                    .setSum(30)
-                                    .setCount(10)
-                                    .setMin(1)
-                                    .setMax(5))))
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
+            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns3")
+            .setLabel(MonitoringInfoConstants.Labels.NAME, "int_distribution")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
+            .setInt64DistributionValue(DistributionData.create(30, 10, 1, 5))
             .build();
 
     MonitoringInfo doubleDistribution =
-        MonitoringInfo.newBuilder()
-            .setUrn(MonitoringInfoConstants.Urns.USER_COUNTER)
-            .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "ns4")
-            .putLabels(MonitoringInfoConstants.Labels.NAME, "double_distribution")
-            .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
-            .setMetric(
-                Metric.newBuilder()
-                    .setDistributionData(
-                        MetricsApi.DistributionData.newBuilder()
-                            .setDoubleDistributionData(
-                                DoubleDistributionData.newBuilder()
-                                    .setSum(30)
-                                    .setCount(10)
-                                    .setMin(1)
-                                    .setMax(5))))
+        new SimpleMonitoringInfoBuilder()
+            .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_DOUBLE)
+            .setLabel(MonitoringInfoConstants.Labels.NAMESPACE, "ns4")
+            .setLabel(MonitoringInfoConstants.Labels.NAME, "double_distribution")
+            .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, "step")
+            .setDoubleDistributionValue(10, 30, 1, 5)
             .build();
 
     // Mock out the counter that Flink returns; the distribution gets created by

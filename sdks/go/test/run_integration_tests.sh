@@ -36,6 +36,7 @@ GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
 # Project for the container and integration test
 PROJECT=apache-beam-testing
 DATAFLOW_PROJECT=apache-beam-testing
+REGION=us-central1
 
 # Number of tests to run in parallel
 PARALLEL=10
@@ -51,6 +52,11 @@ case $key in
         ;;
     --project)
         PROJECT="$2"
+        shift # past argument
+        shift # past value
+        ;;
+    --region)
+        REGION="$2"
         shift # past argument
         shift # past value
         ;;
@@ -174,6 +180,7 @@ echo ">>> RUNNING $RUNNER INTEGRATION TESTS"
 ./sdks/go/build/bin/integration \
     --runner=$RUNNER \
     --project=$DATAFLOW_PROJECT \
+    --region=$REGION \
     --environment_type=DOCKER \
     --environment_config=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \

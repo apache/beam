@@ -32,7 +32,7 @@ class TestStreamServiceController(TestStreamServiceServicer):
 
   This server is used as a way for TestStreams to receive events from file.
   """
-  def __init__(self, reader, endpoint=None):
+  def __init__(self, reader, endpoint=None, exception_handler=None):
     self._server = grpc.server(ThreadPoolExecutor(max_workers=10))
 
     if endpoint:
@@ -45,6 +45,9 @@ class TestStreamServiceController(TestStreamServiceServicer):
     beam_runner_api_pb2_grpc.add_TestStreamServiceServicer_to_server(
         self, self._server)
     self._reader = reader
+    self._exception_handler = exception_handler
+    if not self._exception_handler:
+      self._exception_handler = lambda _: False
 
   def start(self):
     self._server.start()
@@ -62,6 +65,13 @@ class TestStreamServiceController(TestStreamServiceServicer):
     # TODO(srohde): Once we get rid of the CacheManager, get rid of this 'full'
     # label.
     tags = [None if tag == 'None' else tag for tag in request.output_ids]
-    reader = self._reader.read_multiple([('full', tag) for tag in tags])
-    for e in reader:
-      yield e
+    try:
+      reader = self._reader.read_multiple([('full', tag) for tag in tags])
+      while True:
+        e = next(reader)
+        yield e
+    except StopIteration:
+      pass
+    except Exception as e:
+      if not self._exception_handler(e):
+        raise e

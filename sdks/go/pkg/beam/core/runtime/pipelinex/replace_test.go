@@ -18,34 +18,34 @@ package pipelinex
 import (
 	"testing"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestEnsureUniqueName(t *testing.T) {
 	tests := []struct {
-		in, exp map[string]*pb.PTransform
+		in, exp map[string]*pipepb.PTransform
 	}{
 		{
-			in: map[string]*pb.PTransform{
+			in: map[string]*pipepb.PTransform{
 				"1": {UniqueName: "a"},
 				"2": {UniqueName: "b"},
 				"3": {UniqueName: "c"},
 			},
-			exp: map[string]*pb.PTransform{
+			exp: map[string]*pipepb.PTransform{
 				"1": {UniqueName: "a"},
 				"2": {UniqueName: "b"},
 				"3": {UniqueName: "c"},
 			},
 		},
 		{
-			in: map[string]*pb.PTransform{
+			in: map[string]*pipepb.PTransform{
 				"2": {UniqueName: "a"},
 				"1": {UniqueName: "a"},
 				"3": {UniqueName: "a"},
 			},
-			exp: map[string]*pb.PTransform{
+			exp: map[string]*pipepb.PTransform{
 				"1": {UniqueName: "a"},
 				"2": {UniqueName: "a'1"},
 				"3": {UniqueName: "a'2"},
@@ -63,10 +63,10 @@ func TestEnsureUniqueName(t *testing.T) {
 
 func TestComputeInputOutput(t *testing.T) {
 	tests := []struct {
-		in, exp map[string]*pb.PTransform
+		in, exp map[string]*pipepb.PTransform
 	}{
 		{ // singleton composite
-			in: map[string]*pb.PTransform{
+			in: map[string]*pipepb.PTransform{
 				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2"},
@@ -77,7 +77,7 @@ func TestComputeInputOutput(t *testing.T) {
 					Outputs:    map[string]string{"i0": "p2"},
 				},
 			},
-			exp: map[string]*pb.PTransform{
+			exp: map[string]*pipepb.PTransform{
 				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2"},
@@ -92,7 +92,7 @@ func TestComputeInputOutput(t *testing.T) {
 			},
 		},
 		{ // closed composite
-			in: map[string]*pb.PTransform{
+			in: map[string]*pipepb.PTransform{
 				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2", "3"},
@@ -100,7 +100,7 @@ func TestComputeInputOutput(t *testing.T) {
 				"2": {UniqueName: "b", Outputs: map[string]string{"i0": "p1"}},
 				"3": {UniqueName: "c", Inputs: map[string]string{"i0": "p1"}},
 			},
-			exp: map[string]*pb.PTransform{
+			exp: map[string]*pipepb.PTransform{
 				"1": {
 					UniqueName:    "a",
 					Subtransforms: []string{"2", "3"},
