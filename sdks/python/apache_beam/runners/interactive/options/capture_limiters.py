@@ -32,7 +32,7 @@ class Limiter:
   def is_triggered(self):
     # type: () -> bool
 
-    """Returns True if the limiter has triggered."""
+    """Returns True if the limiter has triggered, and caching should stop."""
     raise NotImplementedError
 
 
