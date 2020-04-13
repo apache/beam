@@ -160,8 +160,8 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
 
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder(new byte[1]);
     if (endpoint.isTimer()) {
-      builder.addTimer(
-          BeamFnApi.Elements.Timer.newBuilder()
+      builder.addTimers(
+          BeamFnApi.Elements.Timers.newBuilder()
               .setInstructionId(endpoint.getInstructionId())
               .setTransformId(endpoint.getTransformId())
               .setTimerFamilyId(endpoint.getTimerFamilyId())
@@ -183,8 +183,8 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
     }
     if (endpoint.isTimer()) {
       return BeamFnApi.Elements.newBuilder()
-          .addTimer(
-              BeamFnApi.Elements.Timer.newBuilder()
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
                   .setInstructionId(endpoint.getInstructionId())
                   .setTransformId(endpoint.getTransformId())
                   .setTimerFamilyId(endpoint.getTimerFamilyId())
@@ -206,7 +206,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserverTest {
   BeamFnApi.Elements endMessageWithData() throws IOException {
     BeamFnApi.Elements.Builder builder = messageWithDataBuilder();
     if (endpoint.isTimer()) {
-      builder.getTimerBuilder(0).setIsLast(true);
+      builder.getTimersBuilder(0).setIsLast(true);
     } else {
       builder.getDataBuilder(0).setIsLast(true);
     }
