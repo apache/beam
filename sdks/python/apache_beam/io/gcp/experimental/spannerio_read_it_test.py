@@ -38,10 +38,6 @@ try:
   from apache_beam.io.gcp.experimental.spannerio import create_transaction
   from apache_beam.io.gcp.experimental.spannerio import ReadOperation
   from apache_beam.io.gcp.experimental.spannerio import ReadFromSpanner
-  from apache_beam.io.gcp.experimental.spannerio import WriteMutation
-  from apache_beam.io.gcp.experimental.spannerio import MutationGroup
-  from apache_beam.io.gcp.experimental.spannerio import WriteToSpanner
-  from apache_beam.io.gcp.experimental.spannerio import _BatchFn
 except ImportError:
   spanner = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
