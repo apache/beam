@@ -58,3 +58,7 @@ class ConverTest(unittest.TestCase):
       assert_that(pc_2a, equal_to_unordered_series(2 * a), label='Check2a')
       assert_that(pc_3a, equal_to_unordered_series(3 * a), label='Check3a')
       assert_that(pc_ab, equal_to_unordered_series(a * b), label='Checkab')
+
+
+if __name__ == '__main__':
+  unittest.main()

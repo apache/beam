@@ -24,10 +24,6 @@ from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
 
 
-def to_dataframe(pc):
-  pass
-
-
 # TODO: Or should this be called as_dataframe?
 def to_dataframe(pcoll, proxy):
   return frame_base.DeferredFrame.wrap(
@@ -37,9 +33,11 @@ def to_dataframe(pcoll, proxy):
 # TODO: Or should this be called from_dataframe?
 def to_pcollection(*dataframes, **kwargs):
   label = kwargs.pop('label', None)
+  always_return_tuple = kwargs.pop('always_return_tuple', False)
   assert not kwargs  # TODO(Py3): Use PEP 3102
   if label is None:
-    # Attempt to come up with a reasonable, stable label.
+    # Attempt to come up with a reasonable, stable label by retrieving the name
+    # of these variables in the calling context.
     previous_frame = inspect.currentframe().f_back
 
     def name(obj):
@@ -63,9 +61,9 @@ def to_pcollection(*dataframes, **kwargs):
       frozenset(), *[df._expr.placeholders() for df in dataframes])
   results = {p: extract_input(p)
              for p in placeholders
-             } | label >> transforms.DataframeExpressionsTransform(
+             } | label >> transforms._DataframeExpressionsTransform(
                  dict((ix, df._expr) for ix, df in enumerate(dataframes)))
-  if len(results) == 1:
+  if len(results) == 1 and not always_return_tuple:
     return results[0]
   else:
     return tuple(value for key, value in sorted(results.items()))
