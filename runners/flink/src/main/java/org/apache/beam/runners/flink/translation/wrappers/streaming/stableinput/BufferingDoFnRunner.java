@@ -98,8 +98,7 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
               new ListStateDescriptor<>(
                   stateName + stateId,
                   new CoderTypeSerializer<>(
-                      new BufferedElements.Coder(
-                          inputCoder, windowCoder, stepContext.stateInternals().getKey())));
+                      new BufferedElements.Coder(inputCoder, windowCoder, null)));
           if (keyedStateBackend != null) {
             return KeyedBufferingElementsHandler.create(keyedStateBackend, stateDescriptor);
           } else {

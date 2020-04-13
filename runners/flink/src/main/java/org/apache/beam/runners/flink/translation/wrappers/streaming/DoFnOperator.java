@@ -838,11 +838,11 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
   protected void fireTimerInternal(Object key, TimerData timerData) {
-    fireTimer(timerData);
+    fireTimer(key, timerData);
   }
 
   // allow overriding this in WindowDoFnOperator
-  protected void fireTimer(TimerData timerData) {
+  protected void fireTimer(Object key, TimerData timerData) {
     StateNamespace namespace = timerData.getNamespace();
     // This is a user timer, so namespace must be WindowNamespace
     checkArgument(namespace instanceof WindowNamespace);
@@ -851,7 +851,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
-        keyedStateInternals.getKey(),
+        key,
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
@@ -1175,7 +1175,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       while ((internalTimer = processingTimeTimersQueue.poll()) != null) {
         keyedStateBackend.setCurrentKey(internalTimer.getKey());
         TimerData timer = internalTimer.getNamespace();
-        fireTimer(timer);
+        fireTimer(internalTimer.getKey(), timer);
       }
     }
 

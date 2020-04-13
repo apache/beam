@@ -123,7 +123,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   }
 
   @Override
-  protected void fireTimer(TimerData timer) {
+  protected void fireTimer(Object key, TimerData timer) {
     timerInternals.onFiredOrDeletedTimer(timer);
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
