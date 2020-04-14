@@ -102,30 +102,16 @@ func TestSdfNodes(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
-				ctx := context.Background()
-				fake := &FakeNode{}
-				node := PairWithRestriction{UID: 0, Fn: test.fn, Out: []Node{fake}}
+				fake := &FakeNode{UID: 2}
+				node := &PairWithRestriction{UID: 1, Fn: test.fn, Out: fake}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: *test.in}}, Out: node}
+				units := []Unit{root, node, fake}
+				constructAndExecutePlan(t, units)
 
-				if err := node.Up(ctx); err != nil {
-					t.Fatalf("Up failed: %v", err)
-				}
-				if err := node.StartBundle(ctx, "bundle_id", DataContext{}); err != nil {
-					t.Fatalf("StartBundle failed: %v", err)
-				}
-
-				if err := node.ProcessElement(ctx, test.in); err != nil {
-					t.Fatalf("ProcessElement failed: %v", err)
-				}
 				got := fake.Vals[0]
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("ProcessElement(%v) has incorrect output: got: %v, want: %v",
 						test.in, got, test.want)
-				}
-				if err := node.FinishBundle(ctx); err != nil {
-					t.Fatalf("FinishBundle failed: %v", err)
-				}
-				if err := node.Down(ctx); err != nil {
-					t.Fatalf("Down failed: %v", err)
 				}
 			})
 		}
@@ -234,31 +220,17 @@ func TestSdfNodes(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
-				ctx := context.Background()
-				fake := &FakeNode{}
-				node := SplitAndSizeRestrictions{UID: 0, Fn: test.fn, Out: []Node{fake}}
+				fake := &FakeNode{UID: 2}
+				node := &SplitAndSizeRestrictions{UID: 1, Fn: test.fn, Out: fake}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: *test.in}}, Out: node}
+				units := []Unit{root, node, fake}
+				constructAndExecutePlan(t, units)
 
-				if err := node.Up(ctx); err != nil {
-					t.Fatalf("Up failed: %v", err)
-				}
-				if err := node.StartBundle(ctx, "bundle_id", DataContext{}); err != nil {
-					t.Fatalf("StartBundle failed: %v", err)
-				}
-
-				if err := node.ProcessElement(ctx, test.in); err != nil {
-					t.Fatalf("ProcessElement failed: %v", err)
-				}
 				for i, got := range fake.Vals {
 					if !cmp.Equal(got, test.want[i]) {
 						t.Errorf("ProcessElement(%v) has incorrect output %v: got: %v, want: %v",
 							test.in, i, got, test.want)
 					}
-				}
-				if err := node.FinishBundle(ctx); err != nil {
-					t.Fatalf("FinishBundle failed: %v", err)
-				}
-				if err := node.Down(ctx); err != nil {
-					t.Fatalf("Down failed: %v", err)
 				}
 			})
 		}
@@ -325,31 +297,17 @@ func TestSdfNodes(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
-				ctx := context.Background()
-				fake := &FakeNode{}
-				n := &ParDo{UID: 0, Fn: test.fn, Out: []Node{fake}}
-				node := ProcessSizedElementsAndRestrictions{PDo: n}
+				fake := &FakeNode{UID: 2}
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{fake}}
+				node := &ProcessSizedElementsAndRestrictions{PDo: n}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: *test.in}}, Out: node}
+				units := []Unit{root, node, fake}
+				constructAndExecutePlan(t, units)
 
-				if err := node.Up(ctx); err != nil {
-					t.Fatalf("Up failed: %v", err)
-				}
-				if err := node.StartBundle(ctx, "bundle_id", DataContext{}); err != nil {
-					t.Fatalf("StartBundle failed: %v", err)
-				}
-
-				if err := node.ProcessElement(ctx, test.in); err != nil {
-					t.Fatalf("ProcessElement failed: %v", err)
-				}
 				got := fake.Vals[0]
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("ProcessElement(%v) has incorrect output: got: %v, want: %v",
 						test.in, got, test.want)
-				}
-				if err := node.FinishBundle(ctx); err != nil {
-					t.Fatalf("FinishBundle failed: %v", err)
-				}
-				if err := node.Down(ctx); err != nil {
-					t.Fatalf("Down failed: %v", err)
 				}
 			})
 		}
@@ -373,12 +331,13 @@ func TestProcessSizedElementsAndRestrictions(t *testing.T) {
 // TestSdfNodes. FakeNode appends each element that it receives in its
 // ProcessElement method to its Vals struct, which can then be read by the test.
 type FakeNode struct {
+	UID  UnitID
 	Vals []*FullValue
 }
 
 // ID is a no-op.
-func (*FakeNode) ID() UnitID {
-	return 0
+func (n *FakeNode) ID() UnitID {
+	return n.UID
 }
 
 // Up is a no-op.

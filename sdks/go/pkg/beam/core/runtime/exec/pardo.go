@@ -121,10 +121,14 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...Re
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
 
-	return n.ProcessMainInput(&MainInput{Key: *elm, Values: values})
+	return n.processMainInput(&MainInput{Key: *elm, Values: values})
 }
 
-func (n *ParDo) ProcessMainInput(mainIn *MainInput) error {
+// processMainInput processes an element that has been converted into a
+// MainInput. Splitting this away from ProcessElement allows other nodes to wrap
+// a ParDo's ProcessElement functionality with their own construction of
+// MainInputs.
+func (n *ParDo) processMainInput(mainIn *MainInput) error {
 	elm := &mainIn.Key
 
 	// If the function observes windows, we must invoke it for each window. The expected fast path

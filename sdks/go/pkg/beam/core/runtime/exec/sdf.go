@@ -31,7 +31,7 @@ import (
 type PairWithRestriction struct {
 	UID UnitID
 	Fn  *graph.DoFn
-	Out []Node
+	Out Node
 
 	inv *cirInvoker
 }
@@ -53,7 +53,7 @@ func (n *PairWithRestriction) Up(ctx context.Context) error {
 
 // StartBundle currently does nothing.
 func (n *PairWithRestriction) StartBundle(ctx context.Context, id string, data DataContext) error {
-	return n.Out[0].StartBundle(ctx, id, data)
+	return n.Out.StartBundle(ctx, id, data)
 }
 
 // ProcessElement expects elm to be the main input to the ParDo. See
@@ -77,13 +77,13 @@ func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue
 	rest := n.inv.Invoke(elm)
 	output := FullValue{Elm: elm, Elm2: rest, Timestamp: elm.Timestamp, Windows: elm.Windows}
 
-	return n.Out[0].ProcessElement(ctx, &output, values...)
+	return n.Out.ProcessElement(ctx, &output, values...)
 }
 
 // FinishBundle does some teardown for the end of the bundle.
 func (n *PairWithRestriction) FinishBundle(ctx context.Context) error {
 	n.inv.Reset()
-	return n.Out[0].FinishBundle(ctx)
+	return n.Out.FinishBundle(ctx)
 }
 
 // Down currently does nothing.
@@ -93,7 +93,7 @@ func (n *PairWithRestriction) Down(ctx context.Context) error {
 
 // String outputs a human-readable description of this transform.
 func (n *PairWithRestriction) String() string {
-	return fmt.Sprintf("SDF.PairWithRestriction[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out...))
+	return fmt.Sprintf("SDF.PairWithRestriction[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out))
 }
 
 // SplitAndSizeRestrictions is an executor for the expanded SDF step of the
@@ -104,7 +104,7 @@ func (n *PairWithRestriction) String() string {
 type SplitAndSizeRestrictions struct {
 	UID UnitID
 	Fn  *graph.DoFn
-	Out []Node
+	Out Node
 
 	splitInv *srInvoker
 	sizeInv  *rsInvoker
@@ -133,7 +133,7 @@ func (n *SplitAndSizeRestrictions) Up(ctx context.Context) error {
 
 // StartBundle currently does nothing.
 func (n *SplitAndSizeRestrictions) StartBundle(ctx context.Context, id string, data DataContext) error {
-	return n.Out[0].StartBundle(ctx, id, data)
+	return n.Out.StartBundle(ctx, id, data)
 }
 
 // ProcessElement expects elm.Elm to hold the original input while elm.Elm2
@@ -183,7 +183,7 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 		output.Elm = &FullValue{Elm: mainElm, Elm2: splitRest}
 		output.Elm2 = size
 
-		if err := n.Out[0].ProcessElement(ctx, output, values...); err != nil {
+		if err := n.Out.ProcessElement(ctx, output, values...); err != nil {
 			return err
 		}
 	}
@@ -195,7 +195,7 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 func (n *SplitAndSizeRestrictions) FinishBundle(ctx context.Context) error {
 	n.splitInv.Reset()
 	n.sizeInv.Reset()
-	return n.Out[0].FinishBundle(ctx)
+	return n.Out.FinishBundle(ctx)
 }
 
 // Down currently does nothing.
@@ -205,7 +205,7 @@ func (n *SplitAndSizeRestrictions) Down(ctx context.Context) error {
 
 // String outputs a human-readable description of this transform.
 func (n *SplitAndSizeRestrictions) String() string {
-	return fmt.Sprintf("SDF.SplitAndSizeRestrictions[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out...))
+	return fmt.Sprintf("SDF.SplitAndSizeRestrictions[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out))
 }
 
 // ProcessSizedElementsAndRestrictions is an executor for the expanded SDF step
@@ -267,7 +267,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 	rest := elm.Elm.(*FullValue).Elm2
 	rt := n.inv.Invoke(rest)
 
-	return n.PDo.ProcessMainInput(&MainInput{
+	return n.PDo.processMainInput(&MainInput{
 		Key: FullValue{ // User userElm's values but the top-level windows and timestamp.
 			Elm:       userElm.Elm,
 			Elm2:      userElm.Elm2,

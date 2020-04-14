@@ -258,7 +258,6 @@ func (fn *Sdf) CreateTracker(rest Restriction) *RTracker {
 // RTracker.Rest.Val. The second is the input + RTracker.Val.
 func (fn *Sdf) ProcessElement(rt *RTracker, i int, emit func(int, int)) {
 	emit(i+rt.Rest.Val, i+rt.Val)
-	return
 }
 
 type KvSdf struct {
@@ -291,5 +290,4 @@ func (fn *KvSdf) CreateTracker(rest Restriction) *RTracker {
 // RTracker.Rest.Val. The second is the second input (value) + RTracker.Val.
 func (fn *KvSdf) ProcessElement(rt *RTracker, i1 int, i2 int, emit func(int, int)) {
 	emit(i1+rt.Rest.Val, i2+rt.Val)
-	return
 }
