@@ -16,7 +16,6 @@
 package exec
 
 import (
-	"context"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -53,19 +52,19 @@ func TestSdfNodes(t *testing.T) {
 		tests := []struct {
 			name string
 			fn   *graph.DoFn
-			in   *FullValue
-			want *FullValue
+			in   FullValue
+			want FullValue
 		}{
 			{
 				name: "SingleElem",
 				fn:   dfn,
-				in: &FullValue{
+				in: FullValue{
 					Elm:       5,
 					Elm2:      nil,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
-				want: &FullValue{
+				want: FullValue{
 					Elm: &FullValue{
 						Elm:       5,
 						Elm2:      nil,
@@ -80,13 +79,13 @@ func TestSdfNodes(t *testing.T) {
 			{
 				name: "KvElem",
 				fn:   kvdfn,
-				in: &FullValue{
+				in: FullValue{
 					Elm:       5,
 					Elm2:      2,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
-				want: &FullValue{
+				want: FullValue{
 					Elm: &FullValue{
 						Elm:       5,
 						Elm2:      2,
@@ -102,13 +101,13 @@ func TestSdfNodes(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
-				fake := &FakeNode{UID: 2}
-				node := &PairWithRestriction{UID: 1, Fn: test.fn, Out: fake}
-				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: *test.in}}, Out: node}
-				units := []Unit{root, node, fake}
+				capt := &CaptureNode{UID: 2}
+				node := &PairWithRestriction{UID: 1, Fn: test.fn, Out: capt}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
 				constructAndExecutePlan(t, units)
 
-				got := fake.Vals[0]
+				got := capt.Elements[0]
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("ProcessElement(%v) has incorrect output: got: %v, want: %v",
 						test.in, got, test.want)
@@ -123,13 +122,13 @@ func TestSdfNodes(t *testing.T) {
 		tests := []struct {
 			name string
 			fn   *graph.DoFn
-			in   *FullValue
-			want []*FullValue
+			in   FullValue
+			want []FullValue
 		}{
 			{
 				name: "SingleElem",
 				fn:   dfn,
-				in: &FullValue{
+				in: FullValue{
 					Elm: &FullValue{
 						Elm:       2,
 						Elm2:      nil,
@@ -140,7 +139,7 @@ func TestSdfNodes(t *testing.T) {
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
-				want: []*FullValue{
+				want: []FullValue{
 					{
 						Elm: &FullValue{
 							Elm: &FullValue{
@@ -174,7 +173,7 @@ func TestSdfNodes(t *testing.T) {
 			{
 				name: "KvElem",
 				fn:   kvdfn,
-				in: &FullValue{
+				in: FullValue{
 					Elm: &FullValue{
 						Elm:       2,
 						Elm2:      5,
@@ -185,7 +184,7 @@ func TestSdfNodes(t *testing.T) {
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
-				want: []*FullValue{
+				want: []FullValue{
 					{
 						Elm: &FullValue{
 							Elm: &FullValue{
@@ -220,13 +219,13 @@ func TestSdfNodes(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
-				fake := &FakeNode{UID: 2}
-				node := &SplitAndSizeRestrictions{UID: 1, Fn: test.fn, Out: fake}
-				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: *test.in}}, Out: node}
-				units := []Unit{root, node, fake}
+				capt := &CaptureNode{UID: 2}
+				node := &SplitAndSizeRestrictions{UID: 1, Fn: test.fn, Out: capt}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
 				constructAndExecutePlan(t, units)
 
-				for i, got := range fake.Vals {
+				for i, got := range capt.Elements {
 					if !cmp.Equal(got, test.want[i]) {
 						t.Errorf("ProcessElement(%v) has incorrect output %v: got: %v, want: %v",
 							test.in, i, got, test.want)
@@ -242,13 +241,13 @@ func TestSdfNodes(t *testing.T) {
 		tests := []struct {
 			name string
 			fn   *graph.DoFn
-			in   *FullValue
-			want *FullValue
+			in   FullValue
+			want FullValue
 		}{
 			{
 				name: "SingleElem",
 				fn:   dfn,
-				in: &FullValue{
+				in: FullValue{
 					Elm: &FullValue{
 						Elm: &FullValue{
 							Elm:       3,
@@ -262,7 +261,7 @@ func TestSdfNodes(t *testing.T) {
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
-				want: &FullValue{
+				want: FullValue{
 					Elm:       8,
 					Elm2:      4,
 					Timestamp: testTimestamp,
@@ -272,7 +271,7 @@ func TestSdfNodes(t *testing.T) {
 			{
 				name: "KvElem",
 				fn:   kvdfn,
-				in: &FullValue{
+				in: FullValue{
 					Elm: &FullValue{
 						Elm: &FullValue{
 							Elm:       3,
@@ -286,7 +285,7 @@ func TestSdfNodes(t *testing.T) {
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
-				want: &FullValue{
+				want: FullValue{
 					Elm:       8,
 					Elm2:      12,
 					Timestamp: testTimestamp,
@@ -297,14 +296,14 @@ func TestSdfNodes(t *testing.T) {
 		for _, test := range tests {
 			test := test
 			t.Run(test.name, func(t *testing.T) {
-				fake := &FakeNode{UID: 2}
-				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{fake}}
+				capt := &CaptureNode{UID: 2}
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{capt}}
 				node := &ProcessSizedElementsAndRestrictions{PDo: n}
-				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: *test.in}}, Out: node}
-				units := []Unit{root, node, fake}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
 				constructAndExecutePlan(t, units)
 
-				got := fake.Vals[0]
+				got := capt.Elements[0]
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("ProcessElement(%v) has incorrect output: got: %v, want: %v",
 						test.in, got, test.want)
@@ -312,56 +311,4 @@ func TestSdfNodes(t *testing.T) {
 			})
 		}
 	})
-}
-
-// TestSplitAndSizeRestrictions verifies that the SplitAndSizeRestrictions node
-// both fulfills its contract and successfully invokes the accompanying SDF's
-// SplitRestriction and RestrictionSize methods to do so.
-func TestSplitAndSizeRestrictions(t *testing.T) {
-}
-
-// TestProcessSizedElementsAndRestrictions verifies that the
-// ProcessSizedElementsAndRestrictions node both fulfills its contract and
-// successfully invokes the accompanying SDF's CreateTracker and ProcessElement
-// methods to do so.
-func TestProcessSizedElementsAndRestrictions(t *testing.T) {
-}
-
-// FakeNode is used to capture the outputs of the node being tested by
-// TestSdfNodes. FakeNode appends each element that it receives in its
-// ProcessElement method to its Vals struct, which can then be read by the test.
-type FakeNode struct {
-	UID  UnitID
-	Vals []*FullValue
-}
-
-// ID is a no-op.
-func (n *FakeNode) ID() UnitID {
-	return n.UID
-}
-
-// Up is a no-op.
-func (*FakeNode) Up(ctx context.Context) error {
-	return nil
-}
-
-// StartBundle is a no-op.
-func (*FakeNode) StartBundle(ctx context.Context, id string, data DataContext) error {
-	return nil
-}
-
-// ProcessElement appends elm to this FakeNode's slice of elements received.
-func (n *FakeNode) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
-	n.Vals = append(n.Vals, elm)
-	return nil
-}
-
-// FinishBundle is a no-op.
-func (*FakeNode) FinishBundle(ctx context.Context) error {
-	return nil
-}
-
-// Down is a no-op.
-func (*FakeNode) Down(ctx context.Context) error {
-	return nil
 }
