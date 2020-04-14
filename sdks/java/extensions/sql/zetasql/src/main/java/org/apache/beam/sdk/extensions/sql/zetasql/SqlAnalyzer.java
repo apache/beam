@@ -32,6 +32,7 @@ import com.google.zetasql.FunctionProtos.FunctionArgumentTypeOptionsProto;
 import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.SimpleCatalog;
 import com.google.zetasql.TVFRelation;
+import com.google.zetasql.TableValuedFunction;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLBuiltinFunctionOptions;
