@@ -112,12 +112,15 @@ const (
 	RetEventTime ReturnKind = 0x1
 	RetValue     ReturnKind = 0x2
 	RetError     ReturnKind = 0x4
+	RetRTracker  ReturnKind = 0x8
 )
 
 func (k ReturnKind) String() string {
 	switch k {
 	case RetError:
 		return "Error"
+	case RetRTracker:
+		return "RTracker"
 	case RetEventTime:
 		return "EventTime"
 	case RetValue:
@@ -331,6 +334,8 @@ func New(fn reflectx.Func) (*Fn, error) {
 		switch {
 		case t == reflectx.Error:
 			kind = RetError
+		case t.Implements(reflect.TypeOf((*sdf.RTracker)(nil)).Elem()):
+			kind = RetRTracker
 		case t == typex.EventTimeType:
 			kind = RetEventTime
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
@@ -528,7 +533,7 @@ func nextRetState(cur retState, transition ReturnKind) (retState, error) {
 	switch transition {
 	case RetEventTime:
 		return -1, errEventTimeRetPrecedence
-	case RetValue:
+	case RetValue, RetRTracker:
 		return rsOutput, nil
 	case RetError:
 		return rsError, nil
