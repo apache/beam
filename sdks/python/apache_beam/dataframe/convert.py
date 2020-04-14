@@ -30,6 +30,7 @@ def to_dataframe(
     proxy,  # type: pandas.core.generic.NDFrame
 ):
   # type: (...) -> frame_base.DeferredFrame
+
   """Convers a PCollection to a deferred dataframe-like object, which can
   manipulated with pandas methods like `filter` and `groupby`.
 
@@ -51,6 +52,7 @@ def to_pcollection(
     *dataframes,  # type: Tuple[frame_base.DeferredFrame]
     **kwargs):
   # type: (...) -> Union[pvalue.PCollection, Tuple[pvalue.PCollection]]
+
   """Converts one or more deferred dataframe-like objects back to a PCollection.
 
   This method creates and applies the actual Beam operations that compute

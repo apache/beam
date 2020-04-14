@@ -20,7 +20,6 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam import transforms
-from apache_beam.dataframe import convert
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
@@ -42,6 +41,9 @@ class DataframeTransform(transforms.PTransform):
     self._proxy = proxy
 
   def expand(self, input_pcolls):
+    # Avoid circular import.
+    from apache_beam.dataframe import convert
+
     # Convert inputs to a flat dict.
     input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
     proxies = _flatten(self._proxy)
@@ -61,7 +63,8 @@ class DataframeTransform(transforms.PTransform):
 
     # Compute results as a tuple.
     result_frames_dict = _flatten(result_frames)
-    keys, result_frames_tuple = list(zip(*result_frames_dict.items()))
+    keys = list(result_frames_dict.keys())
+    result_frames_tuple = tuple(result_frames_dict[key] for key in keys)
     result_pcolls_tuple = convert.to_pcollection(
         *result_frames_tuple, label='Eval', always_return_tuple=True)
 
