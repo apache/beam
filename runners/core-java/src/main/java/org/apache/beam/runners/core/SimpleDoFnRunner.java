@@ -389,11 +389,6 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void updateWatermark(Instant watermark) {
-      throw new UnsupportedOperationException("Only splittable DoFn's can use updateWatermark()");
-    }
-
-    @Override
     public void output(OutputT output) {
       output(mainOutputTag, output);
     }
@@ -992,12 +987,27 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
 
       Instant windowExpiry = window.maxTimestamp().plus(allowedLateness);
-      checkArgument(
-          !target.isAfter(windowExpiry),
-          "Attempted to set event time timer that outputs for %s but that is"
-              + " after the expiration of window %s",
-          target,
-          windowExpiry);
+      if (TimeDomain.EVENT_TIME.equals(spec.getTimeDomain())) {
+        checkArgument(
+            !outputTimestamp.isAfter(target),
+            "Attempted to set an event-time timer with an output timestamp of %s that is"
+                + " after the timer firing timestamp %s",
+            outputTimestamp,
+            target);
+        checkArgument(
+            !target.isAfter(windowExpiry),
+            "Attempted to set an event-time timer with a firing timestamp of %s that is"
+                + " after the expiration of window %s",
+            target,
+            windowExpiry);
+      } else {
+        checkArgument(
+            !outputTimestamp.isAfter(windowExpiry),
+            "Attempted to set a processing-time timer with an output timestamp of %s that is"
+                + " after the expiration of window %s",
+            outputTimestamp,
+            windowExpiry);
+      }
     }
 
     /**

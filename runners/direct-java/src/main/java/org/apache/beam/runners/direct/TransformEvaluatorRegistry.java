@@ -136,12 +136,12 @@ class TransformEvaluatorRegistry {
    * once SDF is reorganized appropriately.
    */
   private static class SplittableParDoProcessElementsTranslator
-      extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?>> {
+      extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?, ?>> {
 
     private SplittableParDoProcessElementsTranslator() {}
 
     @Override
-    public String getUrn(ProcessElements<?, ?, ?, ?> transform) {
+    public String getUrn(ProcessElements<?, ?, ?, ?, ?> transform) {
       return SPLITTABLE_PROCESS_URN;
     }
   }

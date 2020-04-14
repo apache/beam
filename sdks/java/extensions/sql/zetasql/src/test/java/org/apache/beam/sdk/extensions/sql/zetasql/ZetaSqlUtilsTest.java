@@ -127,6 +127,7 @@ public class ZetaSqlUtilsTest {
 
   @Test
   public void testZetaSqlValueToJavaObject() {
-    assertEquals(ZetaSqlUtils.zetaSqlValueToJavaObject(TEST_VALUE, TEST_FIELD_TYPE), TEST_ROW);
+    assertEquals(
+        ZetaSqlUtils.zetaSqlValueToJavaObject(TEST_VALUE, TEST_FIELD_TYPE, true), TEST_ROW);
   }
 }

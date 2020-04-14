@@ -429,12 +429,18 @@ class ApproximateQuantilesCombineFn(CombineFn):
 
   def __init__(
       self, num_quantiles, buffer_size, num_buffers, key=None, reverse=False):
-    if key:
-      self._comparator = lambda a, b: (key(a) < key(b)) - (key(a) > key(b)) \
-        if reverse else (key(a) > key(b)) - (key(a) < key(b))
-    else:
-      self._comparator = lambda a, b: (a < b) - (a > b) if reverse \
-        else (a > b) - (a < b)
+    def _comparator(a, b):
+      if key:
+        a, b = key(a), key(b)
+
+      retval = int(a > b) - int(a < b)
+
+      if reverse:
+        return -retval
+
+      return retval
+
+    self._comparator = _comparator
 
     self._num_quantiles = num_quantiles
     self._buffer_size = buffer_size

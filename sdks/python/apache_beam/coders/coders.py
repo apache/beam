@@ -359,19 +359,20 @@ class Coder(object):
 
     Prefer registering a urn with its parameter type and constructor.
     """
-    parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
-    try:
+    if (context.allow_proto_holders and
+        coder_proto.spec.urn not in cls._known_urns):
+      # We hold this in proto form since there's no coder available in Python
+      # SDK.
+      # This is potentially a coder that is only available in an external SDK.
+      return ExternalCoder(coder_proto)
+    else:
+      parameter_type, constructor = cls._known_urns[coder_proto.spec.urn]
       return constructor(
           proto_utils.parse_Bytes(coder_proto.spec.payload, parameter_type), [
               context.coders.get_by_id(c)
               for c in coder_proto.component_coder_ids
           ],
           context)
-    except Exception:
-      if context.allow_proto_holders:
-        # ignore this typing scenario for now, since it can't be easily tracked
-        return RunnerAPICoderHolder(coder_proto)  # type: ignore
-      raise
 
   def to_runner_api_parameter(self, context):
     # type: (Optional[PipelineContext]) -> Tuple[str, Any, Sequence[Coder]]
@@ -588,28 +589,32 @@ class _TimerCoder(FastCoder):
   """A coder used for timer values.
 
   For internal use."""
-  def __init__(self, payload_coder):
+  def __init__(self, key_coder, window_coder):
     # type: (Coder) -> None
-    self._payload_coder = payload_coder
+    self._key_coder = key_coder
+    self._window_coder = window_coder
 
   def _get_component_coders(self):
     # type: () -> List[Coder]
-    return [self._payload_coder]
+    return [self._key_coder, self._window_coder]
 
   def _create_impl(self):
-    return coder_impl.TimerCoderImpl(self._payload_coder.get_impl())
+    return coder_impl.TimerCoderImpl(
+        self._key_coder.get_impl(), self._window_coder.get_impl())
 
   def is_deterministic(self):
     # () -> bool
-    return self._payload_coder.is_deterministic()
+    return (
+        self._key_coder.is_deterministic() and
+        self._window_coder.is_deterministic())
 
   def __eq__(self, other):
     return (
-        type(self) == type(other) and
-        self._payload_coder == other._payload_coder)
+        type(self) == type(other) and self._key_coder == other._key_coder and
+        self._window_coder == other._window_coder)
 
   def __hash__(self):
-    return hash(type(self)) + hash(self._payload_coder)
+    return hash(type(self)) + hash(self._key_coder) + hash(self._window_coder)
 
 
 Coder.register_structured_urn(common_urns.coders.TIMER.urn, _TimerCoder)
@@ -1328,12 +1333,15 @@ Coder.register_structured_urn(
 
 
 class StateBackedIterableCoder(FastCoder):
+
+  DEFAULT_WRITE_THRESHOLD = 1
+
   def __init__(
       self,
       element_coder,  # type: Coder
       read_state=None,  # type: Optional[coder_impl.IterableStateReader]
       write_state=None,  # type: Optional[coder_impl.IterableStateWriter]
-      write_state_threshold=1):
+      write_state_threshold=DEFAULT_WRITE_THRESHOLD):
     self._element_coder = element_coder
     self._read_state = read_state
     self._write_state = write_state
@@ -1380,10 +1388,17 @@ class StateBackedIterableCoder(FastCoder):
         components[0],
         read_state=context.iterable_state_read,
         write_state=context.iterable_state_write,
-        write_state_threshold=int(payload))
+        write_state_threshold=int(payload)
+        if payload else StateBackedIterableCoder.DEFAULT_WRITE_THRESHOLD)
 
 
-class RunnerAPICoderHolder(Coder):
+class CoderElementType(typehints.TypeConstraint):
+  """An element type that just holds a coder."""
+  def __init__(self, coder):
+    self.coder = coder
+
+
+class ExternalCoder(Coder):
   """A `Coder` that holds a runner API `Coder` proto.
 
   This is used for coders for which corresponding objects cannot be
@@ -1391,14 +1406,34 @@ class RunnerAPICoderHolder(Coder):
   be available in Python SDK transform graph when expanding a cross-language
   transform.
   """
-  def __init__(self, proto):
-    self._proto = proto
+  def __init__(self, coder_proto):
+    self._coder_proto = coder_proto
 
-  def proto(self):
-    return self._proto
+  def as_cloud_object(self, coders_context=None):
+    if not coders_context:
+      raise Exception(
+          'coders_context must be specified to correctly encode external coders'
+      )
+    coder_id = coders_context.get_by_proto(self._coder_proto, deduplicate=True)
 
-  def to_runner_api(self, context):
-    return self._proto
+    # 'kind:external' is just a placeholder kind. Dataflow will get the actual
+    # coder from pipeline proto using the pipeline_proto_coder_id property.
+    return {'@type': 'kind:external', 'pipeline_proto_coder_id': coder_id}
+
+  @staticmethod
+  def from_type_hint(typehint, unused_registry):
+    if isinstance(typehint, CoderElementType):
+      return typehint.coder
+    else:
+      raise ValueError((
+          'Expected an instance of CoderElementType'
+          ', but got a %s' % typehint))
+
+  def to_runner_api_parameter(self, context):
+    return (
+        self._coder_proto.spec.urn,
+        self._coder_proto.spec.payload,
+        self._coder_proto.component_coder_ids)
 
   def to_type_hint(self):
-    return Any
+    return CoderElementType(self)

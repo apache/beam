@@ -63,8 +63,7 @@ from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 from apache_beam.transforms.timeutil import TimeDomain
 from apache_beam.transforms.trigger import AccumulationMode
-from apache_beam.transforms.trigger import AfterCount
-from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.trigger import Always
 from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import TimerSpec
@@ -679,7 +678,7 @@ class ReshufflePerKey(PTransform):
     # accept only standard coders.
     ungrouped._windowing = Windowing(
         window.GlobalWindows(),
-        triggerfn=Repeatedly(AfterCount(1)),
+        triggerfn=Always(),
         accumulation_mode=AccumulationMode.DISCARDING,
         timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST)
     result = (

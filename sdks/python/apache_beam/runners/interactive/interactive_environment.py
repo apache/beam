@@ -33,9 +33,9 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
-from apache_beam.utils.interactive_utils import register_ipython_log_handler
 
 # Interactive Beam user flow is data-centric rather than pipeline-centric, so
 # there is only one global interactive environment instance that manages
@@ -134,19 +134,19 @@ class InteractiveEnvironment(object):
     self._watching_set = set()
     # Holds variables list of (Dict[str, object]).
     self._watching_dict_list = []
-    # Holds results of main jobs as Dict[Pipeline, PipelineResult].
+    # Holds results of main jobs as Dict[str, PipelineResult].
     # Each key is a pipeline instance defined by the end user. The
     # InteractiveRunner is responsible for populating this dictionary
     # implicitly.
     self._main_pipeline_results = {}
-    # Holds background caching jobs as Dict[Pipeline, BackgroundCachingJob].
+    # Holds background caching jobs as Dict[str, BackgroundCachingJob].
     # Each key is a pipeline instance defined by the end user. The
     # InteractiveRunner or its enclosing scope is responsible for populating
     # this dictionary implicitly when a background caching jobs is started.
     self._background_caching_jobs = {}
     # Holds TestStreamServiceControllers that controls gRPC servers serving
     # events as test stream of TestStreamPayload.Event.
-    # Dict[Pipeline, TestStreamServiceController]. Each key is a pipeline
+    # Dict[str, TestStreamServiceController]. Each key is a pipeline
     # instance defined by the end user. The InteractiveRunner or its enclosing
     # scope is responsible for populating this dictionary implicitly when a new
     # controller is created to start a new gRPC server. The server stays alive
@@ -169,7 +169,6 @@ class InteractiveEnvironment(object):
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
-      import jsons  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
       from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
       self._is_interactive_ready = True
@@ -302,15 +301,15 @@ class InteractiveEnvironment(object):
     assert issubclass(type(result), runner.PipelineResult), (
         'result must be an instance of '
         'apache_beam.runners.runner.PipelineResult or its subclass')
-    self._main_pipeline_results[pipeline] = result
+    self._main_pipeline_results[str(id(pipeline))] = result
 
   def evict_pipeline_result(self, pipeline):
     """Evicts the tracking of given pipeline run. Noop if absent."""
-    return self._main_pipeline_results.pop(pipeline, None)
+    return self._main_pipeline_results.pop(str(id(pipeline)), None)
 
   def pipeline_result(self, pipeline):
     """Gets the pipeline run result. None if absent."""
-    return self._main_pipeline_results.get(pipeline, None)
+    return self._main_pipeline_results.get(str(id(pipeline)), None)
 
   def set_background_caching_job(self, pipeline, background_caching_job):
     """Sets the background caching job started from the given pipeline."""
@@ -319,32 +318,32 @@ class InteractiveEnvironment(object):
     from apache_beam.runners.interactive.background_caching_job import BackgroundCachingJob
     assert isinstance(background_caching_job, BackgroundCachingJob), (
         'background_caching job must be an instance of BackgroundCachingJob')
-    self._background_caching_jobs[pipeline] = background_caching_job
+    self._background_caching_jobs[str(id(pipeline))] = background_caching_job
 
   def get_background_caching_job(self, pipeline):
     """Gets the background caching job started from the given pipeline."""
-    return self._background_caching_jobs.get(pipeline, None)
+    return self._background_caching_jobs.get(str(id(pipeline)), None)
 
   def set_test_stream_service_controller(self, pipeline, controller):
     """Sets the test stream service controller that has started a gRPC server
     serving the test stream for any job started from the given user-defined
     pipeline.
     """
-    self._test_stream_service_controllers[pipeline] = controller
+    self._test_stream_service_controllers[str(id(pipeline))] = controller
 
   def get_test_stream_service_controller(self, pipeline):
     """Gets the test stream service controller that has started a gRPC server
     serving the test stream for any job started from the given user-defined
     pipeline.
     """
-    return self._test_stream_service_controllers.get(pipeline, None)
+    return self._test_stream_service_controllers.get(str(id(pipeline)), None)
 
   def evict_test_stream_service_controller(self, pipeline):
     """Evicts and pops the test stream service controller that has started a
     gRPC server serving the test stream for any job started from the given
     user-defined pipeline.
     """
-    return self._test_stream_service_controllers.pop(pipeline, None)
+    return self._test_stream_service_controllers.pop(str(id(pipeline)), None)
 
   def is_terminated(self, pipeline):
     """Queries if the most recent job (by executing the given pipeline) state
@@ -355,14 +354,14 @@ class InteractiveEnvironment(object):
     return True
 
   def set_cached_source_signature(self, pipeline, signature):
-    self._cached_source_signature[pipeline] = signature
+    self._cached_source_signature[str(id(pipeline))] = signature
 
   def get_cached_source_signature(self, pipeline):
-    return self._cached_source_signature.get(pipeline, set())
+    return self._cached_source_signature.get(str(id(pipeline)), set())
 
   def evict_cached_source_signature(self, pipeline=None):
     if pipeline:
-      self._cached_source_signature.pop(pipeline, None)
+      self._cached_source_signature.pop(str(id(pipeline)), None)
     else:
       self._cached_source_signature.clear()
 
@@ -395,6 +394,13 @@ class InteractiveEnvironment(object):
   @property
   def tracked_user_pipelines(self):
     return self._tracked_user_pipelines
+
+  def pipeline_id_to_pipeline(self, pid):
+    """Converts a pipeline id to a user pipeline.
+    """
+
+    pid_to_pipelines = {str(id(p)): p for p in self._tracked_user_pipelines}
+    return pid_to_pipelines[pid]
 
   def mark_pcollection_computed(self, pcolls):
     """Marks computation completeness for the given pcolls.

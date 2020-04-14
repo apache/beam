@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.TestPOJOs.ENUMERATION;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAYS_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_ARRAY_POJO_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestPOJOs.NESTED_MAP_POJO_SCHEMA;
@@ -577,7 +578,7 @@ public class JavaFieldSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ITERABLE, schema);
 
     List<String> list = Lists.newArrayList("one", "two");
-    Row iterableRow = Row.withSchema(POJO_WITH_ITERABLE).addIterable(list).build();
+    Row iterableRow = Row.withSchema(POJO_WITH_ITERABLE).attachValues((Object) list);
     PojoWithIterable converted =
         registry.getFromRowFunction(PojoWithIterable.class).apply(iterableRow);
     assertEquals(list, Lists.newArrayList(converted.strings));
@@ -592,20 +593,32 @@ public class JavaFieldSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(PojoWithEnum.class);
     SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ENUM_SCHEMA, schema);
-    EnumerationType enumerationType =
-        POJO_WITH_ENUM_SCHEMA.getField(0).getType().getLogicalType(EnumerationType.class);
+    EnumerationType enumerationType = ENUMERATION;
 
+    List<EnumerationType.Value> allColors =
+        Lists.newArrayList(
+            enumerationType.valueOf("RED"),
+            enumerationType.valueOf("GREEN"),
+            enumerationType.valueOf("BLUE"));
     Row redRow =
-        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("RED")).build();
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA)
+            .addValues(enumerationType.valueOf("RED"), allColors)
+            .build();
     Row greenRow =
-        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("GREEN")).build();
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA)
+            .addValues(enumerationType.valueOf("GREEN"), allColors)
+            .build();
     Row blueRow =
-        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("BLUE")).build();
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA)
+            .addValues(enumerationType.valueOf("BLUE"), allColors)
+            .build();
+
+    List<Color> allColorsJava = Lists.newArrayList(Color.RED, Color.GREEN, Color.BLUE);
 
     SerializableFunction<PojoWithEnum, Row> toRow = registry.getToRowFunction(PojoWithEnum.class);
-    assertEquals(redRow, toRow.apply(new PojoWithEnum(Color.RED)));
-    assertEquals(greenRow, toRow.apply(new PojoWithEnum(Color.GREEN)));
-    assertEquals(blueRow, toRow.apply(new PojoWithEnum(Color.BLUE)));
+    assertEquals(redRow, toRow.apply(new PojoWithEnum(Color.RED, allColorsJava)));
+    assertEquals(greenRow, toRow.apply(new PojoWithEnum(Color.GREEN, allColorsJava)));
+    assertEquals(blueRow, toRow.apply(new PojoWithEnum(Color.BLUE, allColorsJava)));
   }
 
   @Test
@@ -613,20 +626,32 @@ public class JavaFieldSchemaTest {
     SchemaRegistry registry = SchemaRegistry.createDefault();
     Schema schema = registry.getSchema(PojoWithEnum.class);
     SchemaTestUtils.assertSchemaEquivalent(POJO_WITH_ENUM_SCHEMA, schema);
-    EnumerationType enumerationType =
-        POJO_WITH_ENUM_SCHEMA.getField(0).getType().getLogicalType(EnumerationType.class);
+    EnumerationType enumerationType = ENUMERATION;
+
+    List<EnumerationType.Value> allColors =
+        Lists.newArrayList(
+            enumerationType.valueOf("RED"),
+            enumerationType.valueOf("GREEN"),
+            enumerationType.valueOf("BLUE"));
 
     Row redRow =
-        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("RED")).build();
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA)
+            .addValues(enumerationType.valueOf("RED"), allColors)
+            .build();
     Row greenRow =
-        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("GREEN")).build();
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA)
+            .addValues(enumerationType.valueOf("GREEN"), allColors)
+            .build();
     Row blueRow =
-        Row.withSchema(POJO_WITH_ENUM_SCHEMA).addValue(enumerationType.valueOf("BLUE")).build();
+        Row.withSchema(POJO_WITH_ENUM_SCHEMA)
+            .addValues(enumerationType.valueOf("BLUE"), allColors)
+            .build();
 
     SerializableFunction<Row, PojoWithEnum> fromRow =
         registry.getFromRowFunction(PojoWithEnum.class);
-    assertEquals(new PojoWithEnum(Color.RED), fromRow.apply(redRow));
-    assertEquals(new PojoWithEnum(Color.GREEN), fromRow.apply(greenRow));
-    assertEquals(new PojoWithEnum(Color.BLUE), fromRow.apply(blueRow));
+    List<Color> allColorsJava = Lists.newArrayList(Color.RED, Color.GREEN, Color.BLUE);
+    assertEquals(new PojoWithEnum(Color.RED, allColorsJava), fromRow.apply(redRow));
+    assertEquals(new PojoWithEnum(Color.GREEN, allColorsJava), fromRow.apply(greenRow));
+    assertEquals(new PojoWithEnum(Color.BLUE, allColorsJava), fromRow.apply(blueRow));
   }
 }

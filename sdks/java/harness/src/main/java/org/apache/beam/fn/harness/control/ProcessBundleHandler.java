@@ -39,6 +39,8 @@ import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.BeamFnTimerClient;
+import org.apache.beam.fn.harness.data.BeamFnTimerGrpcClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
@@ -60,9 +62,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowingStrategy;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
@@ -102,7 +107,7 @@ import org.slf4j.LoggerFactory;
 public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
-  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
   public static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
@@ -169,6 +174,7 @@ public class ProcessBundleHandler {
 
   private void createRunnerAndConsumersForPTransformRecursively(
       BeamFnStateClient beamFnStateClient,
+      BeamFnTimerClient beamFnTimerClient,
       BeamFnDataClient queueingClient,
       String pTransformId,
       PTransform pTransform,
@@ -192,6 +198,7 @@ public class ProcessBundleHandler {
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
             beamFnStateClient,
+            beamFnTimerClient,
             queueingClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
@@ -219,6 +226,7 @@ public class ProcessBundleHandler {
           String.format(
               "Cannot process composite transform: %s", TextFormat.printToString(pTransform)));
     }
+
     // Skip reprocessing processed pTransforms.
     if (!processedPTransformIds.contains(pTransformId)) {
       urnToPTransformRunnerFactoryMap
@@ -227,6 +235,7 @@ public class ProcessBundleHandler {
               options,
               queueingClient,
               beamFnStateClient,
+              beamFnTimerClient,
               pTransformId,
               pTransform,
               processBundleInstructionId,
@@ -377,9 +386,7 @@ public class ProcessBundleHandler {
       }
     }
 
-    Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
-
-    // Instantiate a State API call handler depending on whether a State Api service descriptor
+    // Instantiate a State API call handler depending on whether a State ApiServiceDescriptor
     // was specified.
     HandleStateCallsForBundle beamFnStateClient =
         bundleDescriptor.hasStateApiServiceDescriptor()
@@ -387,6 +394,16 @@ public class ProcessBundleHandler {
                 beamFnStateGrpcClientCache.forApiServiceDescriptor(
                     bundleDescriptor.getStateApiServiceDescriptor()))
             : new FailAllStateCallsForBundle(processBundleRequest);
+
+    // Instantiate a Timer client registration handler depending on whether a Timer
+    // ApiServiceDescriptor was specified.
+    BeamFnTimerClient beamFnTimerClient =
+        bundleDescriptor.hasTimerApiServiceDescriptor()
+            ? new BeamFnTimerGrpcClient(
+                queueingClient, bundleDescriptor.getTimerApiServiceDescriptor())
+            : new FailAllTimerRegistrations(processBundleRequest);
+
+    Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
     Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
     BundleSplitListener splitListener =
         (List<BundleApplication> primaries, List<DelayedBundleApplication> residuals) -> {
@@ -441,6 +458,7 @@ public class ProcessBundleHandler {
 
       createRunnerAndConsumersForPTransformRecursively(
           beamFnStateClient,
+          beamFnTimerClient,
           queueingClient,
           entry.getKey(),
           entry.getValue(),
@@ -649,7 +667,7 @@ public class ProcessBundleHandler {
 
   /**
    * A {@link BeamFnStateClient} which fails all requests because the {@link ProcessBundleRequest}
-   * does not contain a State API {@link ApiServiceDescriptor}.
+   * does not contain a State {@link ApiServiceDescriptor}.
    */
   private static class FailAllStateCallsForBundle extends HandleStateCallsForBundle {
     private final ProcessBundleRequest request;
@@ -673,6 +691,30 @@ public class ProcessBundleHandler {
     }
   }
 
+  /**
+   * A {@link BeamFnTimerClient} which fails all registrations because the {@link
+   * ProcessBundleRequest} does not contain a Timer {@link ApiServiceDescriptor}.
+   */
+  private static class FailAllTimerRegistrations implements BeamFnTimerClient {
+    private final ProcessBundleRequest request;
+
+    private FailAllTimerRegistrations(ProcessBundleRequest request) {
+      this.request = request;
+    }
+
+    @Override
+    public <T> TimerHandler<T> register(
+        LogicalEndpoint timerEndpoint,
+        org.apache.beam.sdk.coders.Coder<Timer<T>> coder,
+        FnDataReceiver<Timer<T>> receiver) {
+      throw new IllegalStateException(
+          String.format(
+              "Timers are unsupported because the "
+                  + "ProcessBundleRequest %s does not provide a timer ApiServiceDescriptor.",
+              request));
+    }
+  }
+
   abstract static class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {}
 
   private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory<Object> {
@@ -687,6 +729,7 @@ public class ProcessBundleHandler {
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
+        BeamFnTimerClient beamFnTimerClient,
         String pTransformId,
         PTransform pTransform,
         Supplier<String> processBundleInstructionId,

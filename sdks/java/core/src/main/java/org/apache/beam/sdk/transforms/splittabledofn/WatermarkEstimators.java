@@ -34,6 +34,7 @@ public class WatermarkEstimators {
   /** Concrete implementation of a {@link ManualWatermarkEstimator}. */
   public static class Manual implements ManualWatermarkEstimator<Instant> {
     private Instant watermark;
+    private Instant lastReportedWatermark;
 
     public Manual(Instant watermark) {
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
@@ -48,25 +49,17 @@ public class WatermarkEstimators {
 
     @Override
     public void setWatermark(Instant watermark) {
-      if (watermark.isBefore(GlobalWindow.TIMESTAMP_MIN_VALUE)
-          || watermark.isAfter(GlobalWindow.TIMESTAMP_MAX_VALUE)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Provided watermark %s must be within bounds [%s, %s].",
-                watermark, GlobalWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.TIMESTAMP_MAX_VALUE));
-      }
-      if (watermark.isBefore(this.watermark)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Watermark must be monotonically increasing. Provided watermark %s is less then "
-                    + "current watermark %s.",
-                watermark, this.watermark));
-      }
-      this.watermark = watermark;
+      this.lastReportedWatermark = watermark;
     }
 
     @Override
     public Instant currentWatermark() {
+      // Beyond bounds error checking isn't important since the runner is expected to perform
+      // watermark bounds checking.
+      if (lastReportedWatermark != null && lastReportedWatermark.isAfter(watermark)) {
+        watermark = lastReportedWatermark;
+      }
+
       return watermark;
     }
 
@@ -76,7 +69,14 @@ public class WatermarkEstimators {
     }
   }
 
-  /** A watermark estimator that tracks wall time. */
+  /**
+   * A watermark estimator that tracks wall time.
+   *
+   * <p>Note that this watermark estimator expects wall times of all machines performing the
+   * processing to be close to each other. Any machine with a wall clock that is far in the past may
+   * cause the pipeline to perform poorly while a watermark far in the future may cause records to
+   * be marked as late.
+   */
   public static class WallTime implements WatermarkEstimator<Instant> {
     private Instant watermark;
 
@@ -93,6 +93,8 @@ public class WatermarkEstimators {
 
     @Override
     public Instant currentWatermark() {
+      // Beyond bounds error checking isn't important since the runner is expected to perform
+      // watermark bounds checking.
       Instant now = Instant.now();
       this.watermark = now.isAfter(watermark) ? now : watermark;
       return watermark;
@@ -105,15 +107,17 @@ public class WatermarkEstimators {
   }
 
   /**
-   * A watermark estimator that observes and timestamps of records output from a DoFn reporting the
+   * A watermark estimator that observes timestamps of records output from a DoFn reporting the
    * timestamp of the last element seen as the current watermark.
    *
-   * <p>Note that this watermark estimator requires output timestamps in monotonically increasing
-   * order.
+   * <p>Note that this watermark estimator expects output timestamps in monotonically increasing
+   * order. If they are not, then the watermark will advance based upon the last observed timestamp
+   * as long as it is greater then any previously reported watermark.
    */
   public static class MonotonicallyIncreasing
       implements TimestampObservingWatermarkEstimator<Instant> {
     private Instant watermark;
+    private Instant lastObservedTimestamp;
 
     public MonotonicallyIncreasing(Instant watermark) {
       this.watermark = checkNotNull(watermark, "timestamp must not be null.");
@@ -128,20 +132,16 @@ public class WatermarkEstimators {
 
     @Override
     public void observeTimestamp(Instant timestamp) {
-      // Beyond bounds error checking isn't important since the system is expected to perform output
-      // timestamp bounds checking already.
-      if (timestamp.isBefore(this.watermark)) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Timestamp must be monotonically increasing. Provided timestamp %s is less then "
-                    + "previously provided timestamp %s.",
-                timestamp, this.watermark));
-      }
-      this.watermark = timestamp;
+      this.lastObservedTimestamp = timestamp;
     }
 
     @Override
     public Instant currentWatermark() {
+      // Beyond bounds error checking isn't important since the runner is expected to perform
+      // watermark bounds checking.
+      if (lastObservedTimestamp != null && lastObservedTimestamp.isAfter(watermark)) {
+        watermark = lastObservedTimestamp;
+      }
       return watermark;
     }
 
@@ -150,4 +150,7 @@ public class WatermarkEstimators {
       return watermark;
     }
   }
+
+  // prevent instantiation
+  private WatermarkEstimators() {}
 }

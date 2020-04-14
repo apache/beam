@@ -42,8 +42,8 @@ class CaptureControl(object):
     self._enable_capture_replay = True
     self._capturable_sources = {
         ReadFromPubSub,
-    }
-    self._capture_duration = timedelta(seconds=5)
+    }  # yapf: disable
+    self._capture_duration = timedelta(seconds=60)
     self._capture_size_limit = 1e9
 
   def is_capture_size_limit_reached(self):

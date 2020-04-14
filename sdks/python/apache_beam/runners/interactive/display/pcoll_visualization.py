@@ -31,16 +31,17 @@ import logging
 from datetime import timedelta
 
 from dateutil import tz
-from pandas.io.json import json_normalize
 
 from apache_beam import pvalue
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import pipeline_instrument as instr
+from apache_beam.runners.interactive.utils import elements_to_df
+from apache_beam.runners.interactive.utils import obfuscate
+from apache_beam.runners.interactive.utils import to_element_list
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 
 try:
-  import jsons  # pylint: disable=import-error
   from IPython import get_ipython  # pylint: disable=import-error
   from IPython.core.display import HTML  # pylint: disable=import-error
   from IPython.core.display import Javascript  # pylint: disable=import-error
@@ -58,9 +59,6 @@ except ImportError:
   _pcoll_visualization_ready = False
 
 _LOGGER = logging.getLogger(__name__)
-
-# 1-d types that need additional normalization to be compatible with DataFrame.
-_one_dimension_types = (int, float, str, bool, list, tuple)
 
 _CSS = """
             <style>
@@ -119,10 +117,12 @@ _DATAFRAME_SCRIPT_TEMPLATE = """
             var dt;
             if ($.fn.dataTable.isDataTable("#{table_id}")) {{
               dt = $("#{table_id}").dataTable();
-            }} else {{
+            }} else if ($("#{table_id}_wrapper").length == 0) {{
               dt = $("#{table_id}").dataTable({{
                 """ + _DATATABLE_INITIALIZATION_CONFIG + """
               }});
+            }} else {{
+              return;
             }}
             dt.api()
               .clear()
@@ -243,12 +243,16 @@ class PCollectionVisualization(object):
     # With only the constructor of PipelineInstrument, any interactivity related
     # pre-process or instrument is not triggered for performance concerns.
     self._pin = instr.PipelineInstrument(pcoll.pipeline)
+    # Variable name as the title for element value in the rendered data table.
+    self._pcoll_var = self._pin.cacheable_var_by_pcoll_id(
+        self._pin.pcolls_to_pcoll_id.get(str(pcoll), None))
+    if not self._pcoll_var:
+      self._pcoll_var = 'Value'
     self._cache_key = self._pin.cache_key(self._pcoll)
-    self._dive_display_id = 'facets_dive_{}_{}'.format(
-        self._cache_key, id(self))
-    self._overview_display_id = 'facets_overview_{}_{}'.format(
-        self._cache_key, id(self))
-    self._df_display_id = 'df_{}_{}'.format(self._cache_key, id(self))
+    obfuscated_id = obfuscate(self._cache_key, id(self))
+    self._dive_display_id = 'facets_dive_{}'.format(obfuscated_id)
+    self._overview_display_id = 'facets_overview_{}'.format(obfuscated_id)
+    self._df_display_id = 'df_{}'.format(obfuscated_id)
     self._include_window_info = include_window_info
     self._display_facets = display_facets
     self._is_datatable_empty = True
@@ -286,6 +290,12 @@ class PCollectionVisualization(object):
     # Ensures that dive, overview and table render the same data because the
     # materialized PCollection data might being updated continuously.
     data = self._to_dataframe()
+    # Give the numbered column names when visualizing.
+    data.columns = [
+        self._pcoll_var + '.' +
+        str(column) if isinstance(column, int) else column
+        for column in data.columns
+    ]
     # String-ify the dictionaries for display because elements of type dict
     # cannot be ordered.
     data = data.applymap(lambda x: str(x) if isinstance(x, dict) else x)
@@ -325,6 +335,9 @@ class PCollectionVisualization(object):
         all(column in data.columns
             for column in ('event_time', 'windows', 'pane_info'))):
       data = data.drop(['event_time', 'windows', 'pane_info'], axis=1)
+
+    # GFSG expects all column names to be strings.
+    data.columns = data.columns.astype(str)
 
     gfsg = GenericFeatureStatisticsGenerator()
     proto = gfsg.ProtoFromDataFrames([{'name': 'data', 'table': data}])
@@ -383,34 +396,15 @@ class PCollectionVisualization(object):
         if not data.empty:
           self._is_datatable_empty = False
 
-  def _to_element_list(self):
-    pcoll_list = []
-    if ie.current_env().cache_manager().exists('full', self._cache_key):
-      pcoll_list, _ = ie.current_env().cache_manager().read('full',
-                                                            self._cache_key)
-    return pcoll_list
-
-  # TODO(BEAM-7926): Refactor to new non-flatten dataframe conversion logic.
   def _to_dataframe(self):
-    normalized_list = []
-    # Column name for _one_dimension_types if presents.
-    normalized_column = str(self._pcoll)
-    # Normalization needs to be done for each element because they might be of
-    # different types. The check is only done on the root level, pandas json
-    # normalization I/O would take care of the nested levels.
-    for el in self._to_element_list():
-      if self._is_one_dimension_type(el):
-        # Makes such data structured.
-        normalized_list.append({normalized_column: el})
-      else:
-        normalized_list.append(jsons.load(jsons.dump(el)))
-    # Creates a dataframe that str() 1-d iterable elements after
-    # normalization so that facets_overview can treat such data as categorical.
-    return json_normalize(normalized_list).applymap(
-        lambda x: str(x) if type(x) in (list, tuple) else x)
+    results = []
+    cache_manager = ie.current_env().cache_manager()
+    if cache_manager.exists('full', self._cache_key):
+      coder = cache_manager.load_pcoder('full', self._cache_key)
+      reader, _ = cache_manager.read('full', self._cache_key)
+      results = list(to_element_list(reader, coder, include_window_info=True))
 
-  def _is_one_dimension_type(self, val):
-    return type(val) in _one_dimension_types
+    return elements_to_df(results, self._include_window_info)
 
 
 def format_window_info_in_dataframe(data):

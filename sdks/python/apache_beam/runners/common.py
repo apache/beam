@@ -228,7 +228,8 @@ class MethodWrapper(object):
       for kw, state_spec in self.state_args_to_replace.items():
         kwargs[kw] = user_state_context.get_state(state_spec, key, window)
       for kw, timer_spec in self.timer_args_to_replace.items():
-        kwargs[kw] = user_state_context.get_timer(timer_spec, key, window)
+        kwargs[kw] = user_state_context.get_timer(
+            timer_spec, key, window, None, None)
 
     if self.timestamp_arg_name:
       kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
@@ -785,7 +786,12 @@ class PerWindowInvoker(DoFnInvoker):
       elif isinstance(p, core.DoFn.TimerParam):
         assert self.user_state_context is not None
         args_for_process[i] = (
-            self.user_state_context.get_timer(p.timer_spec, key, window))
+            self.user_state_context.get_timer(
+                p.timer_spec,
+                key,
+                window,
+                windowed_value.timestamp,
+                windowed_value.pane_info))
       elif core.DoFn.BundleFinalizerParam == p:
         args_for_process[i] = self.bundle_finalizer_param
 

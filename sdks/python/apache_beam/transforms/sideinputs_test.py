@@ -340,7 +340,8 @@ class SideInputsTest(unittest.TestCase):
     assert_that(results, equal_to(['a', 'b']))
     pipeline.run()
 
-  @attr('ValidatesRunner', 'sickbay-batch')
+  # TODO(BEAM-9499): Disable this test in streaming temporarily.
+  @attr('ValidatesRunner', 'sickbay-batch', 'sickbay-streaming')
   def test_multi_triggered_gbk_side_input(self):
     """Test a GBK sideinput, with multiple triggering."""
     # TODO(BEAM-9322): Remove use of this experiment.

@@ -17,12 +17,21 @@
  */
 package org.apache.beam.runners.portability;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.DISTRIBUTION_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.LATEST_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns.SUM_INT64_TYPE;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Counter;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Gauge;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
+import org.apache.beam.runners.core.metrics.DistributionData;
+import org.apache.beam.runners.core.metrics.GaugeData;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricFiltering;
@@ -32,19 +41,9 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.joda.time.Instant;
 
 public class PortableMetrics extends MetricResults {
-
-  private static final List<String> COUNTER_METRIC_TYPES =
-      ImmutableList.of("beam:metrics:sum_int_64");
-  private static final List<String> DISTRIBUTION_METRIC_TYPES =
-      ImmutableList.of("beam:metrics:distribution_int_64");
-  private static final List<String> GAUGE_METRIC_TYPES =
-      ImmutableList.of("beam:metrics:latest_int_64");
-
   private static final String NAMESPACE_LABEL = "NAMESPACE";
   private static final String METRIC_NAME_LABEL = "NAME";
   private static final String STEP_NAME_LABEL = "PTRANSFORM";
@@ -93,7 +92,7 @@ public class PortableMetrics extends MetricResults {
   private static Iterable<MetricResult<DistributionResult>>
       extractDistributionMetricsFromJobMetrics(List<MetricsApi.MonitoringInfo> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .filter(item -> DISTRIBUTION_METRIC_TYPES.contains(item.getType()))
+        .filter(item -> DISTRIBUTION_INT64_TYPE.equals(item.getType()))
         .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
         .map(PortableMetrics::convertDistributionMonitoringInfoToDistribution)
         .collect(Collectors.toList());
@@ -102,7 +101,7 @@ public class PortableMetrics extends MetricResults {
   private static Iterable<MetricResult<GaugeResult>> extractGaugeMetricsFromJobMetrics(
       List<MetricsApi.MonitoringInfo> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .filter(item -> GAUGE_METRIC_TYPES.contains(item.getType()))
+        .filter(item -> LATEST_INT64_TYPE.equals(item.getType()))
         .filter(item -> item.getLabelsMap().get(NAMESPACE_LABEL) != null)
         .map(PortableMetrics::convertGaugeMonitoringInfoToGauge)
         .collect(Collectors.toList());
@@ -115,17 +114,10 @@ public class PortableMetrics extends MetricResults {
         MetricKey.create(
             labelsMap.get(STEP_NAME_LABEL),
             MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
-    MetricsApi.IntExtremaData extremaData =
-        monitoringInfo.getMetric().getExtremaData().getIntExtremaData();
-    // Get only last value of the extrema table
-    Instant timestamp = Instant.ofEpochSecond(monitoringInfo.getTimestamp().getSeconds());
-    if (extremaData.getIntValuesCount() > 0) {
-      GaugeResult result =
-          GaugeResult.create(
-              extremaData.getIntValues(extremaData.getIntValuesCount() - 1), timestamp);
-      return MetricResult.create(key, false, result);
-    }
-    return null;
+
+    GaugeData data = decodeInt64Gauge(monitoringInfo.getPayload());
+    GaugeResult result = GaugeResult.create(data.value(), data.timestamp());
+    return MetricResult.create(key, false, result);
   }
 
   private static MetricResult<DistributionResult> convertDistributionMonitoringInfoToDistribution(
@@ -135,21 +127,16 @@ public class PortableMetrics extends MetricResults {
         MetricKey.create(
             labelsMap.get(STEP_NAME_LABEL),
             MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
-    MetricsApi.IntDistributionData intDistributionData =
-        monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
+    DistributionData data = decodeInt64Distribution(monitoringInfo.getPayload());
     DistributionResult result =
-        DistributionResult.create(
-            intDistributionData.getSum(),
-            intDistributionData.getCount(),
-            intDistributionData.getMin(),
-            intDistributionData.getMax());
+        DistributionResult.create(data.sum(), data.count(), data.min(), data.max());
     return MetricResult.create(key, false, result);
   }
 
   private static Iterable<MetricResult<Long>> extractCountersFromJobMetrics(
       List<MetricsApi.MonitoringInfo> monitoringInfoList) {
     return monitoringInfoList.stream()
-        .filter(item -> COUNTER_METRIC_TYPES.contains(item.getType()))
+        .filter(item -> SUM_INT64_TYPE.equals(item.getType()))
         .filter(
             item ->
                 item.getLabelsMap().get(NAMESPACE_LABEL) != null) // filter out pcollection metrics
@@ -164,7 +151,6 @@ public class PortableMetrics extends MetricResults {
         MetricKey.create(
             labelsMap.get(STEP_NAME_LABEL),
             MetricName.named(labelsMap.get(NAMESPACE_LABEL), labelsMap.get(METRIC_NAME_LABEL)));
-    return MetricResult.create(
-        key, false, counterMonInfo.getMetric().getCounterData().getInt64Value());
+    return MetricResult.create(key, false, decodeInt64Counter(counterMonInfo.getPayload()));
   }
 }

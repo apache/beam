@@ -526,16 +526,48 @@ public class KafkaIOTest {
                     .withValueDeserializer(LongDeserializer.class)
                     .withConsumerConfigUpdates(
                         ImmutableMap.of(
-                            ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
-                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
-                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
-                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
+                            ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG,
+                            5,
+                            ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG,
+                            8,
+                            ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG,
+                            8,
+                            "default.api.timeout.ms",
+                            10))
                     .withMaxNumRecords(10)
                     .withoutMetadata())
             .apply(Values.create());
 
     addCountingAsserts(input, numElements);
     p.run();
+  }
+
+  @Test
+  public void testResolveDefaultApiTimeout() {
+
+    final String defaultApiTimeoutConfig = "default.api.timeout.ms";
+
+    assertEquals(
+        Duration.millis(20),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(
+            KafkaIO.<Integer, Long>read()
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(
+                        defaultApiTimeoutConfig,
+                        20,
+                        ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG,
+                        30))));
+
+    assertEquals(
+        Duration.millis(2 * 30),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(
+            KafkaIO.<Integer, Long>read()
+                .withConsumerConfigUpdates(
+                    ImmutableMap.of(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 30))));
+
+    assertEquals(
+        Duration.millis(60 * 1000),
+        KafkaUnboundedReader.resolveDefaultApiTimeout(KafkaIO.<Integer, Long>read()));
   }
 
   @Test

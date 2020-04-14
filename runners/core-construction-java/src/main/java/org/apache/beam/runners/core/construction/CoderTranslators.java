@@ -86,12 +86,12 @@ class CoderTranslators {
     return new SimpleStructuredCoderTranslator<Timer.Coder<?>>() {
       @Override
       public List<? extends Coder<?>> getComponents(Timer.Coder<?> from) {
-        return from.getCoderArguments();
+        return from.getComponents();
       }
 
       @Override
       public Timer.Coder<?> fromComponents(List<Coder<?>> components) {
-        return Timer.Coder.of(components.get(0));
+        return Timer.Coder.of(components.get(0), (Coder<BoundedWindow>) components.get(1));
       }
     };
   }
@@ -163,7 +163,7 @@ class CoderTranslators {
             components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
         try {
-          schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(payload));
+          schema = SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(payload));
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }

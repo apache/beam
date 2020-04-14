@@ -93,6 +93,7 @@ public abstract class PubsubMessageToRow
                         : new NestedSchemaPubsubMessageToRow(messageSchema(), useDlq()))
                 .withOutputTags(
                     MAIN_TAG, useDlq() ? TupleTagList.of(DLQ_TAG) : TupleTagList.empty()));
+    rows.get(MAIN_TAG).setRowSchema(messageSchema());
     return rows;
   }
 
@@ -104,12 +105,20 @@ public abstract class PubsubMessageToRow
 
     private final Schema messageSchema;
 
+    private final Schema payloadSchema;
+
     private final boolean useDlq;
 
     private transient volatile @Nullable ObjectMapper objectMapper;
 
     protected FlatSchemaPubsubMessageToRoW(Schema messageSchema, boolean useDlq) {
       this.messageSchema = messageSchema;
+      // Construct flat payload schema.
+      this.payloadSchema =
+          new Schema(
+              messageSchema.getFields().stream()
+                  .filter(f -> !f.getName().equals(TIMESTAMP_FIELD))
+                  .collect(Collectors.toList()));
       this.useDlq = useDlq;
     }
 
@@ -128,14 +137,6 @@ public abstract class PubsubMessageToRow
 
     private Row parsePayload(PubsubMessage pubsubMessage) {
       String payloadJson = new String(pubsubMessage.getPayload(), StandardCharsets.UTF_8);
-      // Construct flat payload schema.
-      Schema payloadSchema =
-          new Schema(
-              messageSchema.getFields().stream()
-                  .filter(f -> !f.getName().equals(TIMESTAMP_FIELD))
-                  .collect(Collectors.toList()));
-      ;
-
       if (objectMapper == null) {
         objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema));
       }
@@ -144,17 +145,18 @@ public abstract class PubsubMessageToRow
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(
+        @Element PubsubMessage element, @Timestamp Instant timestamp, MultiOutputReceiver o) {
       try {
-        Row payload = parsePayload(context.element());
+        Row payload = parsePayload(element);
         List<Object> values =
             messageSchema.getFields().stream()
-                .map(field -> getValueForFieldFlatSchema(field, context.timestamp(), payload))
+                .map(field -> getValueForFieldFlatSchema(field, timestamp, payload))
                 .collect(toList());
-        context.output(Row.withSchema(messageSchema).addValues(values).build());
+        o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
       } catch (UnsupportedRowJsonException jsonException) {
         if (useDlq) {
-          context.output(DLQ_TAG, context.element());
+          o.get(DLQ_TAG).output(element);
         } else {
           throw new RuntimeException("Error parsing message", jsonException);
         }
@@ -204,7 +206,6 @@ public abstract class PubsubMessageToRow
       String payloadJson = new String(pubsubMessage.getPayload(), StandardCharsets.UTF_8);
       // Retrieve nested payload schema.
       Schema payloadSchema = messageSchema.getField(PAYLOAD_FIELD).getType().getRowSchema();
-
       if (objectMapper == null) {
         objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(payloadSchema));
       }
@@ -213,23 +214,21 @@ public abstract class PubsubMessageToRow
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(
+        @Element PubsubMessage element, @Timestamp Instant timestamp, MultiOutputReceiver o) {
       try {
-        Row payload = parsePayload(context.element());
+        Row payload = parsePayload(element);
         List<Object> values =
             messageSchema.getFields().stream()
                 .map(
                     field ->
                         getValueForFieldNestedSchema(
-                            field,
-                            context.timestamp(),
-                            context.element().getAttributeMap(),
-                            payload))
+                            field, timestamp, element.getAttributeMap(), payload))
                 .collect(toList());
-        context.output(Row.withSchema(messageSchema).addValues(values).build());
+        o.get(MAIN_TAG).output(Row.withSchema(messageSchema).addValues(values).build());
       } catch (UnsupportedRowJsonException jsonException) {
         if (useDlq) {
-          context.output(DLQ_TAG, context.element());
+          o.get(DLQ_TAG).output(element);
         } else {
           throw new RuntimeException("Error parsing message", jsonException);
         }

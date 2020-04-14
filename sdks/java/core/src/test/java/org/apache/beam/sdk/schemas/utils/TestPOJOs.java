@@ -872,10 +872,12 @@ public class TestPOJOs {
     };
 
     public final Color color;
+    public final List<Color> colors;
 
     @SchemaCreate
-    public PojoWithEnum(Color color) {
+    public PojoWithEnum(Color color, List<Color> colors) {
       this.color = color;
+      this.colors = colors;
     }
 
     @Override
@@ -887,19 +889,22 @@ public class TestPOJOs {
         return false;
       }
       PojoWithEnum that = (PojoWithEnum) o;
-      return color == that.color;
+      return color == that.color && Objects.equals(colors, that.colors);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(color);
+      return Objects.hash(color, colors);
     }
   }
 
   /** The schema for {@link PojoWithEnum}. */
+  public static final EnumerationType ENUMERATION = EnumerationType.create("RED", "GREEN", "BLUE");
+
   public static final Schema POJO_WITH_ENUM_SCHEMA =
       Schema.builder()
-          .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
+          .addLogicalTypeField("color", ENUMERATION)
+          .addArrayField("colors", FieldType.logicalType(ENUMERATION))
           .build();
 
   /** A simple POJO containing nullable basic types. * */

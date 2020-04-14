@@ -41,8 +41,10 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -518,6 +520,7 @@ public class Read {
         RestrictionTracker<
                 KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
             tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator,
         OutputReceiver<ValueWithRecordId<OutputT>> receiver,
         BundleFinalizer bundleFinalizer)
         throws IOException {
@@ -525,7 +528,7 @@ public class Read {
       while (tracker.tryClaim(out)) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
-        context.updateWatermark(out[0].getWatermark());
+        watermarkEstimator.setWatermark(out[0].getWatermark());
       }
 
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
@@ -545,6 +548,17 @@ public class Read {
         return ProcessContinuation.stop();
       }
       return ProcessContinuation.resume();
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.Manual(watermarkEstimatorState);
     }
 
     @GetRestrictionCoder
