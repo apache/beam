@@ -29,11 +29,11 @@ You can retrieve side inputs from global windows to use them in a pipeline job w
 To slowly update global window side inputs in pipelines with non-global windows:
 
 1. Write a `DoFn` that periodically pulls data from a bounded source into a global window.
-    
+
     a. Use the `GenerateSequence` source transform to periodically emit a value.
 
     b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.
-    
+
     c. Fire the trigger to pass the data into the global window.
 
 1. Create the side input for downstream transforms. The side input should fit into memory.
@@ -46,3 +46,29 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:SideInputPatternSlowUpdateGlobalWindowSnip1
 %}
 ```
+
+
+## Slowly updating side input using windowing
+
+You can read side input pcollection periodically into distinct windows.
+Later, when you apply side input to your main input, windows will be matched automatically 1:1.
+This way, you can guarantee side input consistency on the duration of the single window.
+
+To do this, you can utilize PeriodicSequence PTransform that will generate infinite sequence
+of elements with some real-time period:
+
+1. Use the PeriodicImpulse transform to generate windowed periodic sequence.
+
+    a. MAX_TIMESTAMP can be replaced with some closer boundary if you want to stop generating elements at some point.
+
+1. Read data using Read operation triggered by arrival of PCollection element.
+
+1. Apply side input.
+
+```python
+{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:SideInputSlowUpdateSnip1
+%}
+```
+
+
+

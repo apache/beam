@@ -1444,3 +1444,51 @@ def accessing_valueprovider_info_after_run():
         | beam.combiners.Sum.Globally())
 
   # [END AccessingValueProviderInfoAfterRunSnip1]
+
+
+def side_input_slow_update(
+    src_file_pattern,
+    first_timestamp,
+    last_timestamp,
+    interval,
+    sample_main_input_elements,
+    main_input_windowing_interval):
+  # [START SideInputSlowUpdateSnip1]
+  from apache_beam.transforms.periodicsequence import PeriodicImpulse
+  from apache_beam.transforms.window import TimestampedValue
+  from apache_beam.transforms import window
+
+  # from apache_beam.utils.timestamp import MAX_TIMESTAMP
+  # last_timestamp = MAX_TIMESTAMP to go on indefninitely
+
+  # Any user-defined function.
+  # cross join is used as an example.
+  def cross_join(left, rights):
+    for x in rights:
+      yield (left, x)
+
+  # Create pipeline.
+  pipeline_options = PipelineOptions()
+  p = beam.Pipeline(options=pipeline_options)
+  side_input = (
+      p
+      | 'PeriodicImpulse' >> PeriodicImpulse(
+          first_timestamp, last_timestamp, interval, True)
+      | 'MapToFileName' >> beam.Map(lambda x: src_file_pattern + str(x))
+      | 'ReadFromFile' >> beam.io.ReadAllFromText())
+
+  main_input = (
+      p
+      | 'MpImpulse' >> beam.Create(sample_main_input_elements)
+      |
+      'MapMpToTimestamped' >> beam.Map(lambda src: TimestampedValue(src, src))
+      | 'WindowMpInto' >> beam.WindowInto(
+          window.FixedWindows(main_input_windowing_interval)))
+
+  result = (
+      main_input
+      | 'ApplyCrossJoin' >> beam.FlatMap(
+          cross_join, rights=beam.pvalue.AsIter(side_input)))
+  # [END SideInputSlowUpdateSnip1]
+
+  return p, result
