@@ -313,7 +313,7 @@ func TestStateKeyReader(t *testing.T) {
 			numReads: 4,
 		}, {
 			name:     "closed",
-			buflens:  []int{readLen, readLen},
+			buflens:  []int{-1, -1},
 			numReads: 1,
 			closed:   true,
 		}, {
@@ -379,7 +379,6 @@ func TestStateKeyReader(t *testing.T) {
 				}
 			}
 
-			// Read all the bytes.
 			var totalBytes int
 			for _, l := range test.buflens {
 				if l > 0 {
@@ -387,8 +386,9 @@ func TestStateKeyReader(t *testing.T) {
 				}
 			}
 			var finalerr error
-			// We check until one after total bytes read, to get the error.
 			var count, reads int
+
+			// Read all the bytes.
 			for count <= totalBytes {
 				reads++
 				b := make([]byte, readLen) // io.Read is keyed off of length, not capacity.
@@ -403,14 +403,20 @@ func TestStateKeyReader(t *testing.T) {
 					t.Error("expected byte count read, last read is 0, but no EOF")
 				}
 			}
+			if got, want := reads, test.numReads; got != want {
+				t.Errorf("read %d times, want %d", got, want)
+			}
+			if got, want := count, totalBytes; got != want {
+				t.Errorf("read %v bytes, want %v", got, want)
+			}
 			if test.closed {
 				if got, want := finalerr, errors.New("side input closed"); !contains(got, want) {
-					t.Errorf("got %v, want to contain %v", got, want)
+					t.Errorf("got err %v, want to contain %v", got, want)
 				}
 				return
 			}
-			if reads != test.numReads || count != totalBytes || finalerr != io.EOF {
-				t.Errorf("read %d times, want %d; read %v bytes, want %v; err = %v, want %v", reads, test.numReads, count, totalBytes, finalerr, io.EOF)
+			if got, want := finalerr, io.EOF; got != want {
+				t.Errorf("got err %v, want %v", got, want)
 			}
 		})
 	}
