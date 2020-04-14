@@ -30,7 +30,6 @@ import os
 import sys
 import tempfile
 import time
-import typing
 import unittest
 import uuid
 from builtins import map
