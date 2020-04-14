@@ -33,6 +33,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -76,6 +78,16 @@ class FhirIOTestUtil {
       readPrettyBundles("STU3").collect(Collectors.toList());
   static final List<HttpBody> R4_PRETTY_BUNDLES =
       readPrettyBundles("R4").collect(Collectors.toList());
+
+  static final Map<String, List<HttpBody>> BUNDLES;
+
+  static {
+    Map<String, List<HttpBody>> m = new HashMap<>();
+    m.put("DSTU2", DSTU2_PRETTY_BUNDLES);
+    m.put("STU3", STU3_PRETTY_BUNDLES);
+    m.put("R4", R4_PRETTY_BUNDLES);
+    BUNDLES = Collections.unmodifiableMap(m);
+  }
 
   /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
   static void executeFhirBundles(

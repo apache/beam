@@ -70,14 +70,14 @@ public class FhirIOTest {
             FhirIO.Write.executeBundles(
                 "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
 
-    PCollection<HealthcareIOError<HttpBody>> failedInserts =
-        writeResult.getFailedInsertsWithErr();
+    PCollection<HealthcareIOError<HttpBody>> failedInserts = writeResult.getFailedInsertsWithErr();
 
     PAssert.thatSingleton(failedInserts)
-        .satisfies((HealthcareIOError<HttpBody> err) ->{
-            Assert.assertEquals("bad", err.getDataResource().getData());
-          return null;
-        });
+        .satisfies(
+            (HealthcareIOError<HttpBody> err) -> {
+              Assert.assertEquals("bad", err.getDataResource().getData());
+              return null;
+            });
     PCollection<Long> numFailedInserts = failedInserts.apply(Count.globally());
 
     PAssert.thatSingleton(numFailedInserts).isEqualTo(1L);

@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.STU3_PRETTY_BUNDLES;
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.Collection;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
@@ -30,51 +32,63 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(JUnit4.class)
-public class FhirIOWriteSTU3IT {
+@RunWith(Parameterized.class)
+public class FhirIOWriteIT {
 
+  @Parameters(name = "{0}")
+  public static Collection<String> versions() {
+    return Arrays.asList("DSTU2", "STU3", "R4");
+  }
+
+  private final String fhirStoreName;
   private FhirIOTestOptions options;
   private transient HealthcareApiClient client;
-  private static String healthcareDataset;
-  private static long testTime = System.currentTimeMillis();
-  private static final String FHIR_STORE_NAME =
-      "FHIR_store_stu3_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+  private String healthcareDataset;
+  private long testTime = System.currentTimeMillis();
+
+  public String version;
+
+  public FhirIOWriteIT(String version) {
+    this.version = version;
+    this.fhirStoreName =
+        "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+  }
 
   @Before
   public void setup() throws Exception {
     if (client == null) {
       client = new HttpHealthcareApiClient();
     }
-    GcpOptions gcpOptions = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
     PipelineOptionsFactory.register(FhirIOTestOptions.class);
-    options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
-    options.setGcsTempPath(
-        String.format("gs://%s/FhirIOWriteSTU3IT/%s/temp/", TEMP_BUCKET, testTime));
-    options.setGcsDeadLetterPath(
-        String.format("gs://%s/FhirIOWriteSTU3IT/%s/deadletter/", TEMP_BUCKET, testTime));
-    options.setFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
-  }
-
-  @BeforeClass
-  public static void setupEnvironment() throws IOException {
     String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
+    options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
+    options.setGcsTempPath(
+        String.format("gs://%s/FhirIOWrite%sIT/%s/temp/", TEMP_BUCKET, version, testTime));
+    options.setGcsDeadLetterPath(
+        String.format("gs://%s/FhirIOWrite%sIT/%s/deadletter/", TEMP_BUCKET, version, testTime));
+    options.setFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.createFhirStore(healthcareDataset, FHIR_STORE_NAME, "STU3");
+    client.createFhirStore(healthcareDataset, fhirStoreName, version);
+  }
+
+  @After
+  public void teardownFhirStore() throws IOException {
+    HealthcareApiClient client = new HttpHealthcareApiClient();
+    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
+    // clean up GCS objects if any.
   }
 
   @AfterClass
-  public static void teardownEnvironment() throws IOException {
-    HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
-    // clean up GCS objects if any.
+  public static void teardownBucket() throws IOException {
     FhirIOTestUtil.tearDownTempBucket();
   }
 
@@ -83,7 +97,7 @@ public class FhirIOWriteSTU3IT {
     Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result writeResult =
         pipeline
-            .apply(Create.of(STU3_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
+            .apply(Create.of(BUNDLES.get(version)).withCoder(new HttpBodyCoder()))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
@@ -96,7 +110,7 @@ public class FhirIOWriteSTU3IT {
     Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result result =
         pipeline
-            .apply(Create.of(STU3_PRETTY_BUNDLES).withCoder(new HttpBodyCoder()))
+            .apply(Create.of(BUNDLES.get(version)).withCoder(new HttpBodyCoder()))
             .apply(
                 FhirIO.Write.fhirStoresImport(
                     options.getFhirStore(),

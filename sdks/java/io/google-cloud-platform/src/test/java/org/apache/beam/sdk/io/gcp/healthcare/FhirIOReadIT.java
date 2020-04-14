@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
@@ -49,7 +48,12 @@ public class FhirIOReadIT {
   private static long testTime = System.currentTimeMillis();
   private static final String FHIR_VERSION = "R4";
   private static final String FHIR_STORE_NAME =
-      "FHIR_store_"+ FHIR_VERSION +"_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+      "FHIR_store_"
+          + FHIR_VERSION
+          + "_write_it_"
+          + testTime
+          + "_"
+          + (new SecureRandom().nextInt(32));
   private static List<String> resourceIds = new ArrayList<>();
 
   @BeforeClass
@@ -70,9 +74,8 @@ public class FhirIOReadIT {
         FhirIOTestUtil.R4_PRETTY_BUNDLES);
     SearchResourcesRequest query = new SearchResourcesRequest();
     query.set("_summary", "id");
-    HttpBody result = client.fhirSearch(
-    healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME,
-        query);
+    HttpBody result =
+        client.fhirSearch(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME, query);
     // TODO(jaketf) Get all FHIR IDs and set resourceIds
   }
 
@@ -81,7 +84,6 @@ public class FhirIOReadIT {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
   }
-
 
   @Test
   public void testFhirIORead() {
