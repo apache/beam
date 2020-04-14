@@ -22,7 +22,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -336,25 +335,24 @@ func TestStateKeyReader(t *testing.T) {
 
 			// Handle the channel behavior asynchronously.
 			go func() {
+				if test.noGet {
+					req := <-ch.requests
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
+					return
+				}
 				for i, buflen := range test.buflens {
-					token := []byte(strconv.Itoa(i))
 					var buf []byte
 					if buflen >= 0 {
 						buf = bytes.Repeat([]byte{42}, buflen)
 					}
-					// On the last request response pair, send no token.
+					token := []byte(fmt.Sprint(i))
 					if i+1 == len(test.buflens) {
+						// On the last request response pair, send no token.
 						token = nil
 					}
-
 					req := <-ch.requests
-
-					if test.noGet {
-						ch.responses[req.Id] <- &fnpb.StateResponse{
-							Id: req.Id,
-						}
-						return
-					}
 
 					ch.responses[req.Id] <- &fnpb.StateResponse{
 						Id: req.Id,
