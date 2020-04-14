@@ -66,61 +66,40 @@ class BackgroundCachingJob(object):
   In both situations, the background caching job should be treated as done
   successfully.
   """
-  def __init__(self, pipeline_result, start_limit_checkers=True):
+  def __init__(self, pipeline_result, limiters):
     self._pipeline_result = pipeline_result
-    self._timer = threading.Timer(
-        ie.current_env().options.capture_duration.total_seconds(), self._cancel)
-    self._timer.daemon = True
     self._condition_checker = threading.Thread(
         target=self._background_caching_job_condition_checker, daemon=True)
-    if start_limit_checkers:
-      self._timer.start()
-      self._condition_checker.start()
-    self._timer_triggered = False
-    self._condition_checker_triggered = False
+
+    # Limiters are checks s.t. if any are triggered then the background caching
+    # job gets cancelled.
+    self._limiters = limiters
+    self._condition_checker.start()
 
   def _background_caching_job_condition_checker(self):
     while not PipelineState.is_terminal(self._pipeline_result.state):
       if self._should_end_condition_checker():
+        self.cancel()
         break
-      time.sleep(5)
+      time.sleep(0.5)
 
   def _should_end_condition_checker(self):
-    if ie.current_env().options.capture_control.is_capture_size_limit_reached():
-      self._condition_checker_triggered = True
-      self.cancel()
-      return True
-    if not self._timer.is_alive():
-      # If the timer is not alive any more, the background caching job must
-      # have been cancelled by the business logic or the timer.
-      return True
-    return False
+    return any([l.is_triggered() for l in self._limiters])
 
   def is_done(self):
-    return (
-        self._pipeline_result.state is PipelineState.DONE or
-        ((self._timer_triggered or self._condition_checker_triggered) and
-         self._pipeline_result.state in
-         (PipelineState.CANCELLED, PipelineState.CANCELLING)))
+    is_terminated = self._pipeline_result.state is PipelineState.DONE
+    is_triggered = self._should_end_condition_checker()
+    is_cancelling = (
+        self._pipeline_result.state in (
+            PipelineState.CANCELLED, PipelineState.CANCELLING))
+    return is_terminated or (is_triggered and is_cancelling)
 
   def is_running(self):
     return self._pipeline_result.state is PipelineState.RUNNING
 
   def cancel(self):
-    """Cancels this background caching job and its terminating timer because
-    the job is invalidated and no longer useful.
-
-    This process cancels any non-terminated job and its terminating timer.
+    """Cancels this background caching job.
     """
-    self._cancel()
-    # Whenever this function is invoked, the cancellation is not done by the
-    # terminating timer, thus re-mark the timer as not triggered.
-    self._timer_triggered = False
-    if self._timer.is_alive():
-      self._timer.cancel()
-
-  def _cancel(self):
-    self._timer_triggered = True
     if not PipelineState.is_terminal(self._pipeline_result.state):
       try:
         self._pipeline_result.cancel()
@@ -150,8 +129,11 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
             runner_pipeline).background_caching_pipeline_proto(),
         runner,
         options).run()
+
+    limiters = ie.current_env().options.capture_control.limiters()
     ie.current_env().set_background_caching_job(
-        user_pipeline, BackgroundCachingJob(background_caching_job_result))
+        user_pipeline,
+        BackgroundCachingJob(background_caching_job_result, limiters=limiters))
 
 
 def is_background_caching_job_needed(user_pipeline):
