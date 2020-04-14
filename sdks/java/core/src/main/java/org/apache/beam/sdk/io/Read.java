@@ -437,6 +437,7 @@ public class Read {
   @UnboundedPerElement
   static class UnboundedSourceAsSDFWrapperFn<OutputT, CheckpointT extends CheckpointMark>
       extends DoFn<UnboundedSource<OutputT, CheckpointT>, ValueWithRecordId<OutputT>> {
+
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
@@ -575,6 +576,7 @@ public class Read {
      */
     @AutoValue
     abstract static class UnboundedSourceValue<T> {
+
       public static <T> UnboundedSourceValue<T> create(
           byte[] id, T value, Instant timestamp, Instant watermark) {
         return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_UnboundedSourceValue<T>(
@@ -598,6 +600,7 @@ public class Read {
      */
     private static class EmptyUnboundedSource<OutputT, CheckpointT extends CheckpointMark>
         extends UnboundedSource<OutputT, CheckpointT> {
+
       private static final EmptyUnboundedSource INSTANCE = new EmptyUnboundedSource();
 
       @Override
@@ -609,52 +612,60 @@ public class Read {
       @Override
       public UnboundedReader<OutputT> createReader(
           PipelineOptions options, @Nullable CheckpointT checkpointMark) {
-        return new UnboundedReader<OutputT>() {
-          @Override
-          public boolean start() throws IOException {
-            return false;
-          }
-
-          @Override
-          public boolean advance() throws IOException {
-            return false;
-          }
-
-          @Override
-          public OutputT getCurrent() throws NoSuchElementException {
-            throw new UnsupportedOperationException("getCurrent is never meant to be invoked.");
-          }
-
-          @Override
-          public Instant getCurrentTimestamp() throws NoSuchElementException {
-            throw new UnsupportedOperationException(
-                "getCurrentTimestamp is never meant to be invoked.");
-          }
-
-          @Override
-          public void close() throws IOException {}
-
-          @Override
-          public Instant getWatermark() {
-            throw new UnsupportedOperationException("getWatermark is never meant to be invoked.");
-          }
-
-          @Override
-          public CheckpointMark getCheckpointMark() {
-            return checkpointMark;
-          }
-
-          @Override
-          public UnboundedSource<OutputT, ?> getCurrentSource() {
-            return EmptyUnboundedSource.INSTANCE;
-          }
-        };
+        return this.new EmptyUnboundedReader(checkpointMark);
       }
 
       @Override
       public Coder<CheckpointT> getCheckpointMarkCoder() {
         throw new UnsupportedOperationException(
             "getCheckpointMarkCoder is never meant to be invoked.");
+      }
+
+      private class EmptyUnboundedReader extends UnboundedReader<OutputT> {
+        private final @Nullable CheckpointT checkpointMark;
+
+        private EmptyUnboundedReader(@Nullable CheckpointT checkpointMark) {
+          this.checkpointMark = checkpointMark;
+        }
+
+        @Override
+        public boolean start() throws IOException {
+          return false;
+        }
+
+        @Override
+        public boolean advance() throws IOException {
+          return false;
+        }
+
+        @Override
+        public OutputT getCurrent() throws NoSuchElementException {
+          throw new UnsupportedOperationException("getCurrent is never meant to be invoked.");
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          throw new UnsupportedOperationException(
+              "getCurrentTimestamp is never meant to be invoked.");
+        }
+
+        @Override
+        public void close() throws IOException {}
+
+        @Override
+        public Instant getWatermark() {
+          throw new UnsupportedOperationException("getWatermark is never meant to be invoked.");
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          return checkpointMark;
+        }
+
+        @Override
+        public UnboundedSource<OutputT, ?> getCurrentSource() {
+          return EmptyUnboundedSource.INSTANCE;
+        }
       }
     }
 
@@ -775,7 +786,7 @@ public class Read {
       @Override
       public void checkDone() throws IllegalStateException {
         checkState(
-            currentReader instanceof EmptyUnboundedSource.UnboundedReader,
+            currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
       }
