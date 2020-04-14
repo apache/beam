@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import javax.annotation.Nullable;
@@ -377,8 +378,6 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertEnum(TypeDescriptor<?> type) {
-      // We represent enums in the Row as Integers. The EnumerationType handles the mapping to the
-      // actual enum type.
       return Integer.class;
     }
 
@@ -576,6 +575,28 @@ public class ByteBuddyUtils {
     @Override
     public Set<Entry<K2, V2>> entrySet() {
       return delegateMap.entrySet();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      TransformingMap<?, ?, ?, ?> that = (TransformingMap<?, ?, ?, ?>) o;
+      return Objects.equals(delegateMap, that.delegateMap);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegateMap);
+    }
+
+    @Override
+    public String toString() {
+      return delegateMap.toString();
     }
   }
 
@@ -1445,7 +1466,7 @@ public class ByteBuddyUtils {
                   stackManipulation,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getType())));
+                      .convert(TypeDescriptor.of(parameter.getParameterizedType())));
         }
         stackManipulation =
             new StackManipulation.Compound(

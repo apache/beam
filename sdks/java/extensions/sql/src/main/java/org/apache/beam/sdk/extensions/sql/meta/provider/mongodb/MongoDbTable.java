@@ -123,9 +123,7 @@ public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
         MongoDbIO.read().withUri(dbUri).withDatabase(dbName).withCollection(dbCollection);
 
     final FieldAccessDescriptor resolved =
-        FieldAccessDescriptor.withFieldNames(fieldNames)
-            .withOrderByFieldInsertionOrder()
-            .resolve(getSchema());
+        FieldAccessDescriptor.withFieldNames(fieldNames).resolve(getSchema());
     final Schema newSchema = SelectHelpers.getOutputSchema(getSchema(), resolved);
 
     FindQuery findQuery = FindQuery.create();

@@ -163,6 +163,7 @@ public class BeamFnDataReadRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
@@ -188,7 +189,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId, pTransformId)),
+            eq(LogicalEndpoint.data(bundleId, pTransformId)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -229,7 +230,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -260,7 +261,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -465,6 +466,7 @@ public class BeamFnDataReadRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,

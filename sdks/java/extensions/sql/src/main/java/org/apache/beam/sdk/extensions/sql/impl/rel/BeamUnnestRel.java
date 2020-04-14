@@ -142,13 +142,13 @@ public class BeamUnnestRel extends Uncollect implements BeamRelNode {
           Row nestedRow = (Row) uncollectedValue;
           out.output(
               Row.withSchema(outputSchema)
-                  .addValues(row.getValues())
-                  .addValues(nestedRow.getValues())
+                  .addValues(row.getBaseValues())
+                  .addValues(nestedRow.getBaseValues())
                   .build());
         } else {
           out.output(
               Row.withSchema(outputSchema)
-                  .addValues(row.getValues())
+                  .addValues(row.getBaseValues())
                   .addValue(uncollectedValue)
                   .build());
         }

@@ -145,11 +145,23 @@ public class Join {
     return new Impl<>(JoinType.RIGHT_OUTER, rhs);
   };
 
+  /** Perform an inner join, broadcasting the right side. */
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> innerBroadcastJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.INNER_BROADCAST, rhs);
+  }
+
+  /** Perform a left outer join, broadcasting the right side. */
+  public static <LhsT, RhsT> Impl<LhsT, RhsT> leftOuterBroadcastJoin(PCollection<RhsT> rhs) {
+    return new Impl<>(JoinType.LEFT_OUTER_BROADCAST, rhs);
+  }
+
   private enum JoinType {
     INNER,
     OUTER,
     LEFT_OUTER,
-    RIGHT_OUTER
+    RIGHT_OUTER,
+    INNER_BROADCAST,
+    LEFT_OUTER_BROADCAST,
   };
 
   /** Implementation class . */
@@ -208,6 +220,13 @@ public class Join {
               CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
                   .join(RHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs))
                   .crossProductJoin());
+        case INNER_BROADCAST:
+          return tuple.apply(
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(
+                      RHS_TAG,
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs).withSideInput())
+                  .crossProductJoin());
         case OUTER:
           return tuple.apply(
               CoGroup.join(
@@ -226,6 +245,15 @@ public class Join {
                       RHS_TAG,
                       CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
                           .withOptionalParticipation())
+                  .crossProductJoin());
+        case LEFT_OUTER_BROADCAST:
+          return tuple.apply(
+              CoGroup.join(LHS_TAG, CoGroup.By.fieldAccessDescriptor(resolvedPredicate.lhs))
+                  .join(
+                      RHS_TAG,
+                      CoGroup.By.fieldAccessDescriptor(resolvedPredicate.rhs)
+                          .withOptionalParticipation()
+                          .withSideInput())
                   .crossProductJoin());
         case RIGHT_OUTER:
           return tuple.apply(

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.util;
 
-import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.BYTE;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.DECIMAL;
@@ -37,6 +36,7 @@ import static org.apache.beam.sdk.util.RowJsonValueExtractors.longValueExtractor
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.shortValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.stringValueExtractor;
 import static org.apache.beam.sdk.values.Row.toRow;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -60,6 +60,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.util.RowJsonValueExtractors.ValueExtractor;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
@@ -84,41 +85,73 @@ public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
       ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
 
+  /**
+   * Throws {@link UnsupportedRowJsonException} if {@code schema} contains an unsupported field
+   * type.
+   */
   public static void verifySchemaSupported(Schema schema) {
-    schema.getFields().forEach(RowJson::verifyFieldTypeSupported);
+    ImmutableList<UnsupportedField> unsupportedFields = findUnsupportedFields(schema);
+    if (!unsupportedFields.isEmpty()) {
+      throw new UnsupportedRowJsonException(
+          String.format(
+              "Field type%s %s not supported when converting between JSON and Rows. Supported types are: %s",
+              unsupportedFields.size() > 1 ? "s" : "",
+              unsupportedFields.toString(),
+              SUPPORTED_TYPES.toString()));
+    }
   }
 
-  static void verifyFieldTypeSupported(Field field) {
-    FieldType fieldType = field.getType();
-    verifyFieldTypeSupported(fieldType);
+  private static class UnsupportedField {
+    final String descriptor;
+    final TypeName typeName;
+
+    UnsupportedField(String descriptor, TypeName typeName) {
+      this.descriptor = descriptor;
+      this.typeName = typeName;
+    }
+
+    @Override
+    public String toString() {
+      return this.descriptor + "=" + this.typeName;
+    }
   }
 
-  static void verifyFieldTypeSupported(FieldType fieldType) {
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(Schema schema) {
+    return schema.getFields().stream()
+        .flatMap((field) -> findUnsupportedFields(field).stream())
+        .collect(toImmutableList());
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(Field field) {
+    return findUnsupportedFields(field.getType(), field.getName());
+  }
+
+  private static ImmutableList<UnsupportedField> findUnsupportedFields(
+      FieldType fieldType, String fieldName) {
     TypeName fieldTypeName = fieldType.getTypeName();
 
     if (fieldTypeName.isCompositeType()) {
-      Schema rowFieldSchema = fieldType.getRowSchema();
-      rowFieldSchema.getFields().forEach(RowJson::verifyFieldTypeSupported);
-      return;
+      return fieldType.getRowSchema().getFields().stream()
+          .flatMap(
+              (field) ->
+                  findUnsupportedFields(field.getType(), fieldName + "." + field.getName())
+                      .stream())
+          .collect(toImmutableList());
     }
 
     if (fieldTypeName.isCollectionType()) {
-      verifyFieldTypeSupported(fieldType.getCollectionElementType());
-      return;
+      return findUnsupportedFields(fieldType.getCollectionElementType(), fieldName + "[]");
     }
 
     if (fieldTypeName.isLogicalType()) {
-      verifyFieldTypeSupported(fieldType.getLogicalType().getBaseType());
-      return;
+      return findUnsupportedFields(fieldType.getLogicalType().getBaseType(), fieldName);
     }
 
     if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
-      throw new UnsupportedRowJsonException(
-          fieldTypeName.name()
-              + " is not supported when converting JSON objects to Rows. "
-              + "Supported types are: "
-              + SUPPORTED_TYPES.toString());
+      return ImmutableList.of(new UnsupportedField(fieldName, fieldTypeName));
     }
+
+    return ImmutableList.of();
   }
 
   /** Jackson deserializer for parsing JSON into {@link Row Rows}. */
@@ -230,7 +263,7 @@ public class RowJson {
                           arrayFieldValue.name() + "[]",
                           arrayFieldValue.arrayElementType(),
                           jsonArrayElement)))
-          .collect(toList());
+          .collect(toImmutableList());
     }
 
     private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {

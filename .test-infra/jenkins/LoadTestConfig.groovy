@@ -269,7 +269,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
         private SDK i_sdk
         private Runner i_runner
         private static final i_required = ["_project", "_publishToBigQuery"]
-        private static final i_dataflowRequired = ["_numWorkers", "_tempLocation", "_autoscalingAlgorithm"]
+        private static final i_dataflowRequired = ["_numWorkers", "_tempLocation", "_autoscalingAlgorithm", "_region"]
         private static final i_portableRequired = ["_jobEndpoint", "_environmentType", "_environmentConfig", "_parallelism"]
         private static final i_javaRequired = ["_bigQueryDataset", "_bigQueryTable", "_sourceOptions", "_appName"]
         private static final i_pythonRequired = ["_metricsDataset", "_metricsTable", "_inputOptions", "_jobName"]
@@ -278,6 +278,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
         private def  _numWorkers
         private String  _tempLocation
         private String  _autoscalingAlgorithm
+        private String _region = 'us-central1'
 
         //flink required
         private String _jobEndpoint
@@ -295,6 +296,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
         void inputOptions(final InputOptions options) { _inputOptions = options }
         void numWorkers(final int workers) { _numWorkers = workers }
         void autoscalingAlgorithm(final String algorithm) { _autoscalingAlgorithm = algorithm }
+        void region(final String region) { _region = region }
         void jobEndpoint(final String endpoint) { _jobEndpoint = endpoint }
         void environmentType(final String type) { _environmentType = type }
         void environmentConfig(final String config) { _environmentConfig = config }
@@ -427,6 +429,7 @@ class LoadTestConfig implements SerializableOption<Map<String, Serializable>> {
                     _metricsTable: _metricsTable,
                     _numWorkers: _numWorkers,
                     _autoscalingAlgorithm: _autoscalingAlgorithm,
+                    _region: _region,
                     _inputOptions: _inputOptions,
                     _coInputOptions: _coInputOptions,
                     _jobEndpoint: _jobEndpoint,

@@ -44,6 +44,7 @@ def smokeTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
                         metrics_dataset     : datasetName,

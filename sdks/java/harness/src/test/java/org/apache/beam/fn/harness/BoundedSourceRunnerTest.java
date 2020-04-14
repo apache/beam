@@ -163,6 +163,7 @@ public class BoundedSourceRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             "pTransformId",
             pTransform,
             Suppliers.ofInstance("57L")::get,

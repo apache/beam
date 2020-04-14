@@ -63,6 +63,7 @@ from apache_beam.typehints.native_type_compatibility import _match_is_named_tupl
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
+from apache_beam.utils import proto_utils
 
 
 # Registry of typings for a schema by UUID
@@ -191,18 +192,35 @@ def typing_from_runner_api(fieldtype_proto):
     user_type = SCHEMA_REGISTRY.get_typing_by_id(schema.id)
     if user_type is None:
       from apache_beam import coders
+
       type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
       user_type = NamedTuple(
           type_name,
           [(field.name, typing_from_runner_api(field.type))
            for field in schema.fields])
+
       user_type.id = schema.id
+
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      def __reduce__(self):
+        return (
+            _hydrate_namedtuple_instance,
+            (schema.SerializeToString(), tuple(self)))
+
+      setattr(user_type, '__reduce__', __reduce__)
+
       SCHEMA_REGISTRY.add(user_type, schema)
       coders.registry.register_coder(user_type, coders.RowCoder)
     return user_type
 
   elif type_info == "logical_type":
     pass  # TODO
+
+
+def _hydrate_namedtuple_instance(encoded_schema, values):
+  return named_tuple_from_schema(
+      proto_utils.parse_Bytes(encoded_schema, schema_pb2.Schema))(*values)
 
 
 def named_tuple_from_schema(schema):

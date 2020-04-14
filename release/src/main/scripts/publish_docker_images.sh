@@ -82,23 +82,6 @@ if [[ $confirmation = "y" ]]; then
   docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}
   docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:latest
 
-  echo '-------------------Generating and Pushing Go images-----------------'
-  # Pull varified RC from dockerhub.
-  docker pull ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}_${RC_VERSION}
-
-  # Tag with ${RELEASE} and push to dockerhub.
-  docker tag ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}_${RC_VERSION} ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}
-  docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}
-
-  # Tag with latest and push to dockerhub.
-  docker tag ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}_${RC_VERSION} ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:latest
-  docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:latest
-
-  # Cleanup images from local
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}_${RC_VERSION}
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:${RELEASE}
-  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}go_sdk:latest
-
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Publishing images for the following Flink versions:" "${FLINK_VER[@]}"
   echo "Make sure the versions are correct, then press any key to proceed."

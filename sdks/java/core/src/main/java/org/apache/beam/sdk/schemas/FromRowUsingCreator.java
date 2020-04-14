@@ -30,6 +30,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.OneOfType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
@@ -126,21 +127,25 @@ class FromRowUsingCreator<T> implements SerializableFunction<Row, T> {
               valueType,
               typeFactory);
     } else {
-      if (type.getTypeName().isLogicalType()
-          && OneOfType.IDENTIFIER.equals(type.getLogicalType().getIdentifier())) {
+      if (type.isLogicalType(OneOfType.IDENTIFIER)) {
         OneOfType oneOfType = type.getLogicalType(OneOfType.class);
-        OneOfType.Value oneOfValue = oneOfType.toInputType((Row) value);
+        EnumerationType oneOfEnum = oneOfType.getCaseEnumType();
+        OneOfType.Value oneOfValue = (OneOfType.Value) value;
         FieldValueTypeInformation oneOfFieldValueTypeInformation =
             checkNotNull(
-                fieldValueTypeInformation.getOneOfTypes().get(oneOfValue.getCaseType().toString()));
+                fieldValueTypeInformation
+                    .getOneOfTypes()
+                    .get(oneOfEnum.toString(oneOfValue.getCaseType())));
         Object fromValue =
             fromValue(
-                oneOfValue.getFieldType(),
+                oneOfType.getFieldType(oneOfValue),
                 oneOfValue.getValue(),
                 oneOfFieldValueTypeInformation.getRawType(),
                 oneOfFieldValueTypeInformation,
                 typeFactory);
         return (ValueT) oneOfType.createValue(oneOfValue.getCaseType(), fromValue);
+      } else if (type.getTypeName().isLogicalType()) {
+        return (ValueT) type.getLogicalType().toBaseType(value);
       }
       return value;
     }

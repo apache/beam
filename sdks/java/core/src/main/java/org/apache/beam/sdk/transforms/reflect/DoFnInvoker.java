@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
@@ -103,6 +104,24 @@ public interface DoFnInvoker<InputT, OutputT> {
   @SuppressWarnings("TypeParameterUnusedInFormals")
   <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> invokeNewTracker(
       ArgumentProvider<InputT, OutputT> arguments);
+
+  /** Invoke the {@link DoFn.NewWatermarkEstimator} method on the bound {@link DoFn}. */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  <WatermarkEstimatorStateT>
+      WatermarkEstimator<WatermarkEstimatorStateT> invokeNewWatermarkEstimator(
+          ArgumentProvider<InputT, OutputT> arguments);
+
+  /** Invoke the {@link DoFn.GetInitialWatermarkEstimatorState} method on the bound {@link DoFn}. */
+  @SuppressWarnings("TypeParameterUnusedInFormals")
+  <WatermarkEstimatorStateT> WatermarkEstimatorStateT invokeGetInitialWatermarkEstimatorState(
+      ArgumentProvider<InputT, OutputT> arguments);
+
+  /**
+   * Invoke the {@link DoFn.GetWatermarkEstimatorStateCoder} method on the bound {@link DoFn}.
+   * Called only during pipeline construction time.
+   */
+  <WatermarkEstimatorStateT> Coder<WatermarkEstimatorStateT> invokeGetWatermarkEstimatorStateCoder(
+      CoderRegistry coderRegistry);
 
   /** Get the bound {@link DoFn}. */
   DoFn<InputT, OutputT> getFn();
@@ -189,6 +208,18 @@ public interface DoFnInvoker<InputT, OutputT> {
      * the current call.
      */
     RestrictionTracker<?, ?> restrictionTracker();
+
+    /**
+     * If this is a splittable {@link DoFn}, returns the associated watermark estimator state with
+     * the current call.
+     */
+    Object watermarkEstimatorState();
+
+    /**
+     * If this is a splittable {@link DoFn}, returns the associated {@link WatermarkEstimator} with
+     * the current call.
+     */
+    WatermarkEstimator<?> watermarkEstimator();
 
     /** Returns the state cell for the given {@link StateId}. */
     State state(String stateId, boolean alwaysFetched);
@@ -338,6 +369,18 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public Object watermarkEstimatorState() {
+      throw new UnsupportedOperationException(
+          String.format("WatermarkEstimatorState unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public WatermarkEstimator<?> watermarkEstimator() {
+      throw new UnsupportedOperationException(
+          String.format("WatermarkEstimator unsupported in %s", getErrorContext()));
+    }
+
+    @Override
     public BundleFinalizer bundleFinalizer() {
       throw new UnsupportedOperationException(
           String.format("BundleFinalizer unsupported in %s", getErrorContext()));
@@ -446,6 +489,16 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public RestrictionTracker<?, ?> restrictionTracker() {
       return delegate.restrictionTracker();
+    }
+
+    @Override
+    public Object watermarkEstimatorState() {
+      return delegate.watermarkEstimatorState();
+    }
+
+    @Override
+    public WatermarkEstimator<?> watermarkEstimator() {
+      return delegate.watermarkEstimator();
     }
 
     @Override

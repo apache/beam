@@ -287,7 +287,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Object[] convertedColumns = new Object[schema.getFields().size()];
     int i = 0;
     for (Schema.Field field : schema.getFields()) {
-      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getBaseValue(i, Object.class));
       ++i;
     }
     return convertedColumns;

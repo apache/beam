@@ -253,7 +253,7 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'after_end_of_window': AfterWatermark,
         'after_processing_time': AfterProcessingTime,
         # after_processing_time, after_synchronized_processing_time
-        # always
+        'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
         # never
@@ -365,6 +365,47 @@ class AfterProcessingTime(TriggerFn):
 
   def has_ontime_pane(self):
     return False
+
+
+class Always(TriggerFn):
+  """Repeatedly invoke the given trigger, never finishing."""
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return 'Always'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return 1
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    pass
+
+  def has_ontime_pane(self):
+    False
+
+  def reset(self, window, context):
+    pass
+
+  def should_fire(self, time_domain, watermark, window, context):
+    return True
+
+  def on_fire(self, watermark, window, context):
+    return False
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return Always()
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        always=beam_runner_api_pb2.Trigger.Always())
 
 
 class AfterWatermark(TriggerFn):
@@ -985,7 +1026,7 @@ def create_trigger_driver(
   if windowing.is_default() and is_batch:
     driver = BatchGlobalTriggerDriver()
   elif (windowing.windowfn == GlobalWindows() and
-        windowing.triggerfn == AfterCount(1) and is_batch):
+        (windowing.triggerfn in [AfterCount(1), Always()]) and is_batch):
     # Here we also just pass through all the values exactly once.
     driver = BatchGlobalTriggerDriver()
   else:
@@ -1200,6 +1241,10 @@ class GeneralTriggerDriver(TriggerDriver):
             for window in to_be_merged:
               if window != merge_result:
                 merged_away[window] = merge_result
+                # Clear state associated with PaneInfo since it is
+                # not preserved across merges.
+                state.clear_state(window, self.INDEX)
+                state.clear_state(window, self.NONSPECULATIVE_INDEX)
             state.merge(to_be_merged, merge_result)
             # using the outer self argument.
             self.trigger_fn.on_merge(

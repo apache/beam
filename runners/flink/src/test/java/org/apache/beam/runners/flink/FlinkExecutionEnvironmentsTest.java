@@ -447,7 +447,7 @@ public class FlinkExecutionEnvironmentsTest {
 
   private String getSavepointPath(Object env) {
     try {
-      return ((SavepointRestoreSettings) Whitebox.getInternalState(env, "restoreSettings"))
+      return ((SavepointRestoreSettings) Whitebox.getInternalState(env, "savepointRestoreSettings"))
           .getRestorePath();
     } catch (FieldNotFoundException t) {
       // for flink 1.10+

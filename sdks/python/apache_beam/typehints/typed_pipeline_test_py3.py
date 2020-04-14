@@ -26,9 +26,6 @@ import unittest
 
 import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.typehints import decorators
-
-decorators._enable_from_callable = True
 
 
 class MainInputTest(unittest.TestCase):

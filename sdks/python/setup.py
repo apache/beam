@@ -160,7 +160,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4',
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.15.1,<0.16.0; python_version >= "3.0" or '
+    ('pyarrow>=0.15.1,<0.17.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
@@ -198,16 +198,12 @@ REQUIRED_TEST_PACKAGES = [
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
     'google-apitools>=0.5.28,<0.5.29',
-    # [BEAM-4543] googledatastore is not supported in Python 3.
-    'googledatastore>=7.0.1,<7.1; python_version < "3.0"',
     'google-cloud-datastore>=1.7.1,<1.8.0',
     'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests
     'google-cloud-bigquery>=1.6.0,<=1.24.0',
     'google-cloud-core>=0.28.1,<2',
     'google-cloud-bigtable>=0.31.1,<1.1.0',
-    # [BEAM-4543] googledatastore is not supported in Python 3.
-    'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4; python_version < "3.0"',
     'google-cloud-spanner>=1.13.0,<1.14.0',
     'grpcio-gcp>=0.2.2,<1',
     # GCP Packages required by ML functionality
@@ -219,11 +215,22 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
-    'ipython>=5.8.0,<6',
-    # jsons is supported by Python 3.5.3+.
-    'jsons>=1.0.0,<2; python_version >= "3.5.3"',
+    'ipython>=5.8.0,<8',
+    'ipykernel>=5.2.0,<6',
     'timeloop>=1.0.2,<2',
 ]
+
+INTERACTIVE_BEAM_TEST = [
+    # notebok utils
+    'nbformat>=5.0.5,<6',
+    'nbconvert>=5.6.1,<6',
+    'jupyter-client>=6.1.2,<7',
+    # headless chrome based integration tests
+    'selenium>=3.141.0,<4',
+    'needle>=0.5.0,<1',
+    'chromedriver-binary>=80,<81',
+]
+
 AWS_REQUIREMENTS = [
     'boto3 >=1.9'
 ]
@@ -288,6 +295,7 @@ setuptools.setup(
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
+        'interactive_test': INTERACTIVE_BEAM_TEST,
         'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,

@@ -31,6 +31,7 @@ from datetime import timedelta
 from apache_beam.io.gcp.pubsub import ReadFromPubSub
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
+from apache_beam.runners.interactive.options import capture_limiters
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,16 +43,23 @@ class CaptureControl(object):
     self._enable_capture_replay = True
     self._capturable_sources = {
         ReadFromPubSub,
-    }
-    self._capture_duration = timedelta(seconds=5)
+    }  # yapf: disable
+    self._capture_duration = timedelta(seconds=60)
     self._capture_size_limit = 1e9
+    self._test_limiters = None
 
-  def is_capture_size_limit_reached(self):
-    """Determines if the capture size limit has been reached."""
-    cache_manager = ie.current_env().cache_manager()
-    if hasattr(cache_manager, 'capture_size'):
-      return cache_manager.capture_size >= self._capture_size_limit
-    return False
+  def limiters(self):
+    # type: () -> List[capture_limiters.Limiter]
+    if self._test_limiters:
+      return self._test_limiters
+    return [
+        capture_limiters.SizeLimiter(self._capture_size_limit),
+        capture_limiters.DurationLimiter(self._capture_duration)
+    ]
+
+  def set_limiters_for_test(self, limiters):
+    # type: (List[capture_limiters.Limiter]) -> None
+    self._test_limiters = limiters
 
 
 def evict_captured_data():
