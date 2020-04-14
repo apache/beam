@@ -67,7 +67,7 @@ def pull_source_code(base_url, dir_name, dep, incorrect_source_url):
     # base_url example: https://repo1.maven.org/maven2/org/mortbay/jetty/jsp-2.1/6.1.14/
     soup = BeautifulSoup(urlopen(base_url).read(), "html.parser")
     for href in (a["href"] for a in soup.select("a[href]")):
-        if href != '../':  # skip a link to parent directory
+        if href.endswith('.jar') and not 'javadoc' in href: # download jar file only
             file_name = dir_name + '/' + href
             url = base_url + '/' + href
             pull_from_url(file_name, url, dep, incorrect_source_url)
