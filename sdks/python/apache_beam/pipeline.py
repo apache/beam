@@ -52,6 +52,7 @@ from __future__ import absolute_import
 import abc
 import logging
 import os
+import re
 import shutil
 import tempfile
 from builtins import object
@@ -85,10 +86,12 @@ from apache_beam.runners import create_runner
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.core import RunnerAPIPTransformHolder
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
+from apache_beam.transforms.sideinputs import SIDE_INPUT_REGEX
 from apache_beam.transforms.sideinputs import get_sideinput_index
-#from apache_beam.transforms import external
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
+from apache_beam.utils import proto_utils
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
 
@@ -633,7 +636,7 @@ class Pipeline(object):
       if type_options is not None and type_options.pipeline_type_check:
         transform.type_check_outputs(pvalueish_result)
 
-      for result in ptransform.get_nested_pvalues(pvalueish_result):
+      for tag, result in ptransform.get_named_nested_pvalues(pvalueish_result):
         assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
 
         # Make sure we set the producer only for a leaf node in the transform
@@ -666,12 +669,16 @@ class Pipeline(object):
           current.add_output(result, tag)
           continue
 
-        # TODO(BEAM-9322): Find the best auto-generated tags for nested
-        # PCollections.
-        # If the user wants the old implementation of always generated
-        # PCollection output ids, then set the tag to None first, then count up
-        # from 1.
-        tag = len(current.outputs) if None in current.outputs else None
+        if self._options.view_as(DebugOptions).lookup_experiment(
+            'force_generated_pcollection_output_ids', default=False):
+          tag = len(current.outputs) if None in current.outputs else None
+        else:
+          base = tag
+          counter = 0
+          while tag in current.outputs:
+            counter += 1
+            tag = '%s_%d' % (base, counter)
+
         current.add_output(result, tag)
 
       if (type_options is not None and
@@ -926,7 +933,8 @@ class AppliedPTransform(object):
                transform,  # type: Optional[ptransform.PTransform]
                full_label,  # type: str
                inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
-               environment_id=None  # type: Optional[str]
+               environment_id=None,  # type: Optional[str]
+               input_tags_to_preserve=None,  # type: Dict[pvalue.PCollection, str]
               ):
     # type: (...) -> None
     self.parent = parent
@@ -943,6 +951,7 @@ class AppliedPTransform(object):
     self.outputs = {}  # type: Dict[Union[str, int, None], pvalue.PValue]
     self.parts = []  # type: List[AppliedPTransform]
     self.environment_id = environment_id if environment_id else None  # type: Optional[str]
+    self.input_tags_to_preserve = input_tags_to_preserve or {}
 
   def __repr__(self):
     # type: () -> str
@@ -1065,10 +1074,8 @@ class AppliedPTransform(object):
         input in enumerate(self.inputs)
         if isinstance(input, pvalue.PCollection)
     }
-    side_inputs = {
-        'side%s' % ix: si.pvalue
-        for ix, si in enumerate(self.side_inputs)
-    }
+    side_inputs = {(SIDE_INPUT_PREFIX + '%s') % ix: si.pvalue
+                   for (ix, si) in enumerate(self.side_inputs)}
     return dict(main_inputs, **side_inputs)
 
   def named_outputs(self):
@@ -1096,6 +1103,13 @@ class AppliedPTransform(object):
       if transform is None:
         return None
       else:
+        # We only populate inputs information to ParDo in order to expose
+        # key_coder and window_coder to stateful DoFn.
+        if isinstance(transform, ParDo):
+          return transform.to_runner_api(
+              context,
+              has_parts=bool(self.parts),
+              named_inputs=self.named_inputs())
         return transform.to_runner_api(context, has_parts=bool(self.parts))
 
     # Iterate over inputs and outputs by sorted key order, so that ids are
@@ -1107,6 +1121,12 @@ class AppliedPTransform(object):
         (transform_urn in Pipeline.sdk_transforms_with_environment())):
       environment_id = context.default_environment_id()
 
+    def _maybe_preserve_tag(new_tag, pc, input_tags_to_preserve):
+      # TODO(BEAM-1833): remove this after we update Python SDK and
+      # DataflowRunner to construct pipelines using runner API.
+      return input_tags_to_preserve[
+          pc] if pc in input_tags_to_preserve else new_tag
+
     return beam_runner_api_pb2.PTransform(
         unique_name=self.full_label,
         spec=transform_spec,
@@ -1115,9 +1135,9 @@ class AppliedPTransform(object):
             for part in self.parts
         ],
         inputs={
-            tag: context.pcollections.get_id(pc)
-            for tag,
-            pc in sorted(self.named_inputs().items())
+            _maybe_preserve_tag(tag, pc, self.input_tags_to_preserve):
+            context.pcollections.get_id(pc)
+            for (tag, pc) in sorted(self.named_inputs().items())
         },
         outputs={
             str(tag): context.pcollections.get_id(out)
@@ -1133,29 +1153,86 @@ class AppliedPTransform(object):
                       context  # type: PipelineContext
                      ):
     # type: (...) -> AppliedPTransform
-    def is_side_input(tag):
-      # type: (str) -> bool
-      # As per named_inputs() above.
-      return tag.startswith('side')
+
+    if common_urns.primitives.PAR_DO.urn == proto.spec.urn:
+      # Preserving side input tags.
+      from apache_beam.portability.api import beam_runner_api_pb2
+      pardo_payload = (
+          proto_utils.parse_Bytes(
+              proto.spec.payload, beam_runner_api_pb2.ParDoPayload))
+      side_input_tags = list(pardo_payload.side_inputs.keys())
+    else:
+      pardo_payload = None
+      side_input_tags = []
 
     main_inputs = [
         context.pcollections.get_by_id(id) for tag,
-        id in proto.inputs.items() if not is_side_input(tag)
+        id in proto.inputs.items() if tag not in side_input_tags
     ]
 
-    # Ordering is important here.
-    indexed_side_inputs = [
-        (get_sideinput_index(tag), context.pcollections.get_by_id(id)) for tag,
-        id in proto.inputs.items() if is_side_input(tag)
-    ]
-    side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    def is_python_side_input(tag):
+      # type: (str) -> bool
+      # As per named_inputs() above.
+      return re.match(SIDE_INPUT_REGEX, tag)
+
+    uses_python_sideinput_tags = (
+        is_python_side_input(side_input_tags[0]) if side_input_tags else False)
+
     transform = ptransform.PTransform.from_runner_api(proto, context)
+    if uses_python_sideinput_tags:
+      # Ordering is important here.
+      # TODO(BEAM-9635): use key, value pairs instead of depending on tags with
+      # index as a suffix.
+      indexed_side_inputs = [
+          (get_sideinput_index(tag), context.pcollections.get_by_id(id))
+          for tag,
+          id in proto.inputs.items() if tag in side_input_tags
+      ]
+      side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    else:
+      # These must be set in the same order for subsequent zip to work.
+      side_inputs = []
+      transform_side_inputs = []
+
+      for tag, id in proto.inputs.items():
+        if tag in side_input_tags:
+          pc = context.pcollections.get_by_id(id)
+          side_inputs.append(pc)
+          assert pardo_payload  # This must be a ParDo with side inputs.
+          side_input_from_pardo = pardo_payload.side_inputs[tag]
+
+          # TODO(BEAM-1833): use 'pvalue.SideInputData.from_runner_api' here
+          # when that is updated to better represent runner API.
+          if (common_urns.side_inputs.MULTIMAP.urn ==
+              side_input_from_pardo.access_pattern.urn):
+            transform_side_inputs.append(pvalue.AsMultiMap(pc))
+          elif (common_urns.side_inputs.ITERABLE.urn ==
+                side_input_from_pardo.access_pattern.urn):
+            transform_side_inputs.append(pvalue.AsIter(pc))
+          else:
+            raise ValueError(
+                'Unsupported side input access pattern %r' %
+                side_input_from_pardo.access_pattern.urn)
+      if transform:
+        transform.side_inputs = transform_side_inputs
+
+    if isinstance(transform, RunnerAPIPTransformHolder):
+      # For external transforms that are ParDos, we have to preserve input tags.
+      input_tags_to_preserve = {
+          context.pcollections.get_by_id(id): tag
+          for (tag, id) in proto.inputs.items()
+      }
+    else:
+      input_tags_to_preserve = {}
+
     result = AppliedPTransform(
         parent=None,
         transform=transform,
         full_label=proto.unique_name,
         inputs=main_inputs,
-        environment_id=proto.environment_id)
+        environment_id=proto.environment_id,
+        input_tags_to_preserve=input_tags_to_preserve)
+
     if result.transform and result.transform.side_inputs:
       for si, pcoll in zip(result.transform.side_inputs, side_inputs):
         si.pvalue = pcoll
@@ -1186,7 +1263,8 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
+class PTransformOverride(with_metaclass(abc.ABCMeta,
+                                        object)):  # type: ignore[misc]
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.

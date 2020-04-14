@@ -51,7 +51,6 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.fn.control.BeamFnMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.fn.control.ProcessRemoteBundleOperation;
 import org.apache.beam.runners.dataflow.worker.fn.control.RegisterAndProcessBundleOperation;
-import org.apache.beam.runners.dataflow.worker.fn.control.TimerReceiver;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortReadOperation;
 import org.apache.beam.runners.dataflow.worker.fn.data.RemoteGrpcPortWriteOperation;
 import org.apache.beam.runners.dataflow.worker.graph.Edges.Edge;
@@ -336,15 +335,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                         outputReceiverNode.getPcollectionId(),
                         outputReceiverNode.getOutputReceiver()));
 
-        DataflowOperationContext operationContextStage =
-            executionContext.createOperationContext(
-                NameContext.create(stageName, stageName, stageName, stageName));
-        TimerReceiver timerReceiver =
-            new TimerReceiver(
-                input.getExecutableStage().getComponents(),
-                executionContext.getStepContext(operationContextStage).namespacedToUser(),
-                stageBundleFactory);
-
         ImmutableMap.Builder<String, DataflowOperationContext>
             ptransformIdToOperationContextBuilder = ImmutableMap.builder();
 
@@ -379,7 +369,6 @@ public class BeamFnMapTaskExecutorFactory implements DataflowMapTaskExecutorFact
                     NameContext.create(stageName, stageName, stageName, stageName)),
                 stageBundleFactory,
                 outputReceiverMap,
-                timerReceiver,
                 ptransformIdToSideInputReaders,
                 ptransformIdToSideInputIdToPCollectionView));
       }

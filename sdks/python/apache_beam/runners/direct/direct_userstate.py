@@ -177,7 +177,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.cached_states = {}
     self.cached_timers = {}
 
-  def get_timer(self, timer_spec, key, window):
+  def get_timer(self, timer_spec, key, window, timestamp, pane):
     assert timer_spec in self.all_timer_specs
     encoded_key = self.key_coder.encode(key)
     cache_key = (encoded_key, window, timer_spec)

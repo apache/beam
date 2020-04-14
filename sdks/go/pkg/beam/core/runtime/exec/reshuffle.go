@@ -148,7 +148,6 @@ func (n *ReshuffleOutput) ProcessElement(ctx context.Context, value *FullValue, 
 			return err
 		}
 	}
-	return nil
 }
 
 // FinishBundle propagates finish bundle to downstream nodes.

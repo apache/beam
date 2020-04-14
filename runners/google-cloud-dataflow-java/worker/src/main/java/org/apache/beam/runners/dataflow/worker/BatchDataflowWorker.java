@@ -238,9 +238,14 @@ public class BatchDataflowWorker implements Closeable {
         sdkFusedStage =
             pipeline == null
                 ? RegisterNodeFunction.withoutPipeline(
-                    idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                    idGenerator,
+                    sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                    sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
                 : RegisterNodeFunction.forPipeline(
-                    pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                    pipeline,
+                    idGenerator,
+                    sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                    sdkHarnessRegistry.beamFnDataApiServiceDescriptor());
         transformToRunnerNetwork =
             new CreateRegisterFnOperationFunction(
                 idGenerator,

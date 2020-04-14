@@ -38,6 +38,7 @@ from io import BytesIO
 from typing import Callable
 from typing import Iterator
 
+import grpc
 from future.moves.urllib.request import urlopen
 from google.protobuf import json_format
 
@@ -50,6 +51,8 @@ from apache_beam.utils import proto_utils
 
 if typing.TYPE_CHECKING:
   from typing import BinaryIO  # pylint: disable=ungrouped-imports
+  from typing import Iterable
+  from typing import MutableMapping
 
 # The legacy artifact staging and retrieval services.
 
@@ -331,8 +334,8 @@ class ArtifactRetrievalService(
     self._file_reader = file_reader
     self._chunk_size = chunk_size or self._DEFAULT_CHUNK_SIZE
 
-  def ResolveArtifact(self, request, context=None):
-    return beam_artifact_api_pb2.ResolveArtifactResponse(
+  def ResolveArtifacts(self, request, context=None):
+    return beam_artifact_api_pb2.ResolveArtifactsResponse(
         replacements=request.artifacts)
 
   def GetArtifact(self, request, context=None):
@@ -372,19 +375,24 @@ class ArtifactStagingService(
     self._jobs_to_stage = {}
     self._file_writer = file_writer
 
-  def register_job(self, staging_token, dependencies):
+  def register_job(
+      self,
+      staging_token,  # type: str
+      dependency_sets  # type: MutableMapping[Any, List[beam_runner_api_pb2.ArtifactInformation]]
+    ):
     if staging_token in self._jobs_to_stage:
       raise ValueError('Already staging %s' % staging_token)
     with self._lock:
-      self._jobs_to_stage[staging_token] = list(dependencies), threading.Event()
+      self._jobs_to_stage[staging_token] = (
+          dict(dependency_sets), threading.Event())
 
   def resolved_deps(self, staging_token, timeout=None):
     with self._lock:
-      dependencies_list, event = self._jobs_to_stage[staging_token]
+      dependency_sets, event = self._jobs_to_stage[staging_token]
     try:
       if not event.wait(timeout):
         raise concurrent.futures.TimeoutError()
-      return dependencies_list
+      return dependency_sets
     finally:
       with self._lock:
         del self._jobs_to_stage[staging_token]
@@ -392,12 +400,18 @@ class ArtifactStagingService(
   def ReverseArtifactRetrievalService(self, responses, context=None):
     staging_token = next(responses).staging_token
     with self._lock:
-      dependencies, event = self._jobs_to_stage[staging_token]
+      try:
+        dependency_sets, event = self._jobs_to_stage[staging_token]
+      except KeyError:
+        if context:
+          context.set_code(grpc.StatusCode.NOT_FOUND)
+          context.set_details('No such staging token: %r' % staging_token)
+        raise
 
     requests = _QueueIter()
 
     class ForwardingRetrievalService(object):
-      def ResolveArtifacts(self, request):
+      def ResolveArtifactss(self, request):
         requests.put(
             beam_artifact_api_pb2.ArtifactRequestWrapper(
                 resolve_artifact=request))
@@ -414,11 +428,13 @@ class ArtifactStagingService(
 
     def resolve():
       try:
-        file_deps = resolve_as_files(
-            ForwardingRetrievalService(),
-            lambda name: self._file_writer(os.path.join(staging_token, name)),
-            dependencies)
-        dependencies[:] = file_deps
+        for key, dependencies in dependency_sets.items():
+          dependency_sets[key] = list(
+              resolve_as_files(
+                  ForwardingRetrievalService(),
+                  lambda name: self._file_writer(
+                      os.path.join(staging_token, name)),
+                  dependencies))
         requests.done()
       except:  # pylint: disable=bare-except
         requests.abort()
@@ -436,8 +452,8 @@ class ArtifactStagingService(
 def resolve_as_files(retrieval_service, file_writer, dependencies):
   """Translates a set of dependencies into file-based dependencies."""
   # Resolve until nothing changes.  This ensures that they can be fetched.
-  resolution = retrieval_service.ResolveArtifacts(
-      beam_artifact_api_pb2.ResolveArtifactRequest(
+  resolution = retrieval_service.ResolveArtifactss(
+      beam_artifact_api_pb2.ResolveArtifactsRequest(
           artifacts=dependencies,
           # Anything fetchable will do.
           # TODO(robertwb): Take advantage of shared filesystems, urls.
@@ -492,7 +508,7 @@ def offer_artifacts(
         responses.put(
             beam_artifact_api_pb2.ArtifactResponseWrapper(
                 resolve_artifact_response=artifact_retrieval_service.
-                ResolveArtifact(request.resolve_artifact)))
+                ResolveArtifacts(request.resolve_artifact)))
       elif request.HasField('get_artifact'):
         for chunk in artifact_retrieval_service.GetArtifact(
             request.get_artifact):

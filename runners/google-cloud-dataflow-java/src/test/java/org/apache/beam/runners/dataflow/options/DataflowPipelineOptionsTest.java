@@ -215,7 +215,7 @@ public class DataflowPipelineOptionsTest {
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenReturn("");
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-      assertEquals("us-central1", options.getRegion());
+      assertEquals("", options.getRegion());
     }
 
     @Test
@@ -225,7 +225,7 @@ public class DataflowPipelineOptionsTest {
       when(DefaultGcpRegionFactory.getRegionFromEnvironment()).thenReturn(null);
       when(DefaultGcpRegionFactory.getRegionFromGcloudCli()).thenThrow(new IOException());
       DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-      assertEquals("us-central1", options.getRegion());
+      assertEquals("", options.getRegion());
     }
 
     @Test

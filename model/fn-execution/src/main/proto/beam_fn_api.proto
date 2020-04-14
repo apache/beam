@@ -81,6 +81,16 @@ service BeamFnControl {
       returns (
           // A stream of instructions requested of the SDK to be performed.
           stream InstructionRequest) {}
+
+  // Used to get the full process bundle descriptors for bundles one
+  // is asked to process.
+  rpc GetProcessBundleDescriptor(GetProcessBundleDescriptorRequest) returns (
+      ProcessBundleDescriptor) {}
+}
+
+// Requests the ProcessBundleDescriptor with the given id.
+message GetProcessBundleDescriptorRequest {
+  string process_bundle_descriptor_id = 1;
 }
 
 // A request sent by a runner which the SDK is asked to fulfill.
@@ -94,12 +104,14 @@ message InstructionRequest {
 
   // (Required) A request that the SDK Harness needs to interpret.
   oneof request {
-    RegisterRequest register = 1000;
     ProcessBundleRequest process_bundle = 1001;
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
     FinalizeBundleRequest finalize_bundle = 1004;
     ProcessBundleProgressMetadataRequest process_bundle_progress_metadata = 1005;
+
+    // DEPRECATED
+    RegisterRequest register = 1000;
   }
 }
 
@@ -119,12 +131,14 @@ message InstructionResponse {
   // If the instruction did not fail, it is required to return an equivalent
   // response type depending on the request this matches.
   oneof response {
-    RegisterResponse register = 1000;
     ProcessBundleResponse process_bundle = 1001;
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
     FinalizeBundleResponse finalize_bundle = 1004;
     ProcessBundleProgressMetadataResponse process_bundle_progress_metadata = 1005;
+
+    // DEPRECATED
+    RegisterResponse register = 1000;
   }
 }
 
@@ -253,18 +267,13 @@ message ProcessBundleRequest {
 }
 
 message ProcessBundleResponse {
-  // (Optional) If metrics reporting is supported by the SDK, this represents
-  // the final metrics to record for this bundle.
-  // DEPRECATED
-  Metrics metrics = 1;
-
   // (Optional) Specifies that the bundle has not been completed and the
   // following applications need to be scheduled and executed in the future.
   // A runner that does not yet support residual roots MUST still check that
   // this is empty for correctness.
   repeated DelayedBundleApplication residual_roots = 2;
 
-  // (Required) The list of metrics or other MonitoredState
+  // DEPRECATED (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
 
@@ -285,6 +294,8 @@ message ProcessBundleResponse {
   // as the MonitoringInfo could be reconstructed fully by overwriting its
   // payload field with the bytes specified here.
   map<string, bytes> monitoring_data = 5;
+
+  reserved 1;
 }
 
 // A request to report progress information for a given bundle.
@@ -311,134 +322,10 @@ message ProcessBundleProgressMetadataRequest {
   repeated string monitoring_info_id = 1;
 }
 
-// DEPRECATED
-message Metrics {
-  // PTransform level metrics.
-  // These metrics are split into processed and active element groups for
-  // progress reporting purposes. This allows a Runner to see what is measured,
-  // what is estimated and what can be extrapolated to be able to accurately
-  // estimate the amount of remaining work.
-  message PTransform {
-    // Metrics that are measured for processed and active element groups.
-    message Measured {
-      // (Optional) Map from local input name to number of elements processed
-      // from this input.
-      // If unset, assumed to be the sum of the outputs of all producers to
-      // this transform (for ProcessedElements) and 0 (for ActiveElements).
-      map<string, int64> input_element_counts = 1;
-
-      // (Required) Map from local output name to number of elements produced
-      // for this output.
-      map<string, int64> output_element_counts = 2;
-
-      // (Optional) The total time spent so far in processing the elements in
-      // this group, in seconds.
-      double total_time_spent = 3;
-
-      // TODO: Add other element group level metrics.
-    }
-
-    // Metrics for fully processed elements.
-    message ProcessedElements {
-      // (Required)
-      Measured measured = 1;
-    }
-
-    // Metrics for active elements.
-    // An element is considered active if the SDK has started but not finished
-    // processing it yet.
-    message ActiveElements {
-      // (Required)
-      Measured measured = 1;
-
-      // Estimated metrics.
-
-      // (Optional) Sum of estimated fraction of known work remaining for all
-      // active elements, as reported by this transform.
-      // If not reported, a Runner could extrapolate this from the processed
-      // elements.
-      // TODO: Handle the case when known work is infinite.
-      double fraction_remaining = 2;
-
-      // (Optional) Map from local output name to sum of estimated number
-      // of elements remaining for this output from all active elements,
-      // as reported by this transform.
-      // If not reported, a Runner could extrapolate this from the processed
-      // elements.
-      map<string, int64> output_elements_remaining = 3;
-    }
-
-    // (Required): Metrics for processed elements.
-    ProcessedElements processed_elements = 1;
-    // (Required): Metrics for active elements.
-    ActiveElements active_elements = 2;
-
-    // (Optional): Map from local output name to its watermark.
-    // The watermarks reported are tentative, to get a better sense of progress
-    // while processing a bundle but before it is committed. At bundle commit
-    // time, a Runner needs to also take into account the timers set to compute
-    // the actual watermarks.
-    map<string, int64> watermarks = 3;
-
-    repeated User user = 4;
-    // TODO: Define other transform level system metrics.
-  }
-
-  // User defined metrics
-  message User {
-    // A key for identifying a metric at the most granular level.
-    message MetricName {
-      // (Required): The namespace of this metric.
-      string namespace = 2;
-
-      // (Required): The name of this metric.
-      string name = 3;
-    }
-
-    // Data associated with a counter metric.
-    message CounterData {
-      int64 value = 1;
-    }
-
-    // Data associated with a distribution metric.
-    message DistributionData {
-      int64 count = 1;
-      int64 sum = 2;
-      int64 min = 3;
-      int64 max = 4;
-    }
-
-    // Data associated with a Gauge metric.
-    message GaugeData {
-      int64 value = 1;
-      google.protobuf.Timestamp timestamp = 2;
-    }
-
-    // (Required) The identifier for this metric.
-    MetricName metric_name = 1;
-
-    // (Required) The data for this metric.
-    oneof data {
-      CounterData counter_data = 1001;
-      DistributionData distribution_data = 1002;
-      GaugeData gauge_data = 1003;
-    }
-  }
-
-  map<string, PTransform> ptransforms = 1;
-}
-
 message ProcessBundleProgressResponse {
-  // DEPRECATED (Required)
-  Metrics metrics = 1;
-
   // DEPRECATED (Required) The list of metrics or other MonitoredState
   // collected while processing this bundle.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo monitoring_infos = 3;
-
-  // The list of currently active primary roots that are being
-  // executed. Required to be populated for PTransforms which can be split.
-  repeated BundleApplication primary_roots = 4;
 
   // An identifier to MonitoringInfo.payload mapping.
   //
@@ -451,6 +338,8 @@ message ProcessBundleProgressResponse {
   // as the MonitoringInfo could be reconstructed fully by overwriting its
   // payload field with the bytes specified here.
   map<string, bytes> monitoring_data = 5;
+
+  reserved 1, 2, 4;
 }
 
 // A response that contains the full mapping information associated with
@@ -598,7 +487,7 @@ message Elements {
 
   // Represent the encoded user timer for a given instruction, transform and
   // timer id.
-  message Timer {
+  message Timers {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
     string instruction_id = 1;
@@ -609,7 +498,7 @@ message Elements {
     // represents the producer of these timers.
     string transform_id = 2;
 
-    // (Optional) The local timer family name used to identify the associated
+    // (Required) The local timer family name used to identify the associated
     // timer family specification
     string timer_family_id = 3;
 
@@ -627,7 +516,7 @@ message Elements {
   repeated Data data = 1;
 
   // (Optional)  A list of timer byte streams.
-  repeated Timer timer = 2;
+  repeated Timers timers = 2;
 }
 
 // Stable

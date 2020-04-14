@@ -31,6 +31,7 @@ def loadTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
@@ -53,6 +54,7 @@ def loadTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-gbk-7-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,

@@ -306,7 +306,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.21.0'
+    project.version = '2.22.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -376,12 +376,13 @@ class BeamModulePlugin implements Plugin<Project> {
     def gax_version = "1.54.0"
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
-    def google_clients_version = "1.30.3"
-    def google_cloud_bigdataoss_version = "2.0.0"
+    def google_clients_version = "1.30.9"
+    def google_cloud_bigdataoss_version = "2.1.2"
     def google_cloud_core_version = "1.92.2"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
     def google_http_clients_version = "1.34.0"
+    def google_oauth_clients_version = "1.30.6"
     def grpc_version = "1.27.2"
     def guava_version = "25.1-jre"
     def hadoop_version = "2.8.5"
@@ -451,11 +452,11 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common:1.8.1",
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20191211-$google_clients_version",
-        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20191003-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20191206-$google_clients_version",
-        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20190927-$google_clients_version",
-        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20191111-$google_clients_version",
-        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20191011-$google_clients_version",
+        google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200313-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200210-$google_clients_version",
+        google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200305-$google_clients_version",
+        google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200312-$google_clients_version",
+        google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200226-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
         google_auth_library_oauth2_http             : "com.google.auth:google-auth-library-oauth2-http:$google_auth_version",
         google_cloud_bigquery                       : "com.google.cloud:google-cloud-bigquery:1.108.0",
@@ -471,8 +472,8 @@ class BeamModulePlugin implements Plugin<Project> {
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_http_clients_version",
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
-        google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_clients_version",
-        google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_clients_version",
+        google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
+        google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
@@ -1302,10 +1303,11 @@ class BeamModulePlugin implements Plugin<Project> {
           def allOptionsList = (new JsonSlurper()).parseText(pipelineOptionsString)
           def dataflowWorkerJar = project.findProperty('dataflowWorkerJar') ?:
                   project.project(":runners:google-cloud-dataflow-java:worker:legacy-worker").shadowJar.archivePath
-
+          def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
           allOptionsList.addAll([
             '--workerHarnessContainerImage=',
-            '--dataflowWorkerJar=${dataflowWorkerJar}',
+            "--dataflowWorkerJar=${dataflowWorkerJar}",
+            "--region=${dataflowRegion}"
           ])
 
           pipelineOptionsString = JsonOutput.toJson(allOptionsList)

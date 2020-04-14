@@ -31,6 +31,7 @@ from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
@@ -39,6 +40,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
@@ -267,6 +269,7 @@ class FnApiRunnerExecutionContext(object):
     :param data_channel_coders:
     """
     self.pcoll_buffers = {}  # type: MutableMapping[bytes, PartitionableBuffer]
+    self.timer_buffers = {}  # type: MutableMapping[bytes, ListBuffer]
     self.worker_handler_manager = worker_handler_manager
     self.pipeline_components = pipeline_components
     self.safe_coders = safe_coders
@@ -314,6 +317,10 @@ class BundleContextManager(object):
     # Properties that are lazily initialized
     self._process_bundle_descriptor = None
     self._worker_handlers = None
+    # a mapping of {(transform_id, timer_family_id): timer_coder_id}. The map
+    # is built after self._process_bundle_descriptor is initialized.
+    # This field can be used to tell whether current bundle has timers.
+    self._timer_coder_ids = None
 
   @property
   def worker_handlers(self):
@@ -337,10 +344,13 @@ class BundleContextManager(object):
   def process_bundle_descriptor(self):
     if self._process_bundle_descriptor is None:
       self._process_bundle_descriptor = self._build_process_bundle_descriptor()
+      self._timer_coder_ids = self._build_timer_coders_id_map()
     return self._process_bundle_descriptor
 
   def _build_process_bundle_descriptor(self):
-    res = beam_fn_api_pb2.ProcessBundleDescriptor(
+    # Cannot be invoked until *after* _extract_endpoints is called.
+    # Always populate the timer_api_service_descriptor.
+    return beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self.bundle_uid,
         transforms={
             transform.unique_name: transform
@@ -354,8 +364,8 @@ class BundleContextManager(object):
             items()),
         environments=dict(
             self.execution_context.pipeline_components.environments.items()),
-        state_api_service_descriptor=self.state_api_service_descriptor())
-    return res
+        state_api_service_descriptor=self.state_api_service_descriptor(),
+        timer_api_service_descriptor=self.data_api_service_descriptor())
 
   def get_input_coder_impl(self, transform_id):
     # type: (str) -> CoderImpl
@@ -363,11 +373,30 @@ class BundleContextManager(object):
         self.process_bundle_descriptor.transforms[transform_id].spec.payload
     ).coder_id
     assert coder_id
+    return self.get_coder_impl(coder_id)
+
+  def _build_timer_coders_id_map(self):
+    timer_coder_ids = {}
+    for transform_id, transform_proto in (self._process_bundle_descriptor
+        .transforms.items()):
+      if transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+        pardo_payload = proto_utils.parse_Bytes(
+            transform_proto.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for id, timer_family_spec in pardo_payload.timer_family_specs.items():
+          timer_coder_ids[(transform_id, id)] = (
+              timer_family_spec.timer_family_coder_id)
+    return timer_coder_ids
+
+  def get_coder_impl(self, coder_id):
     if coder_id in self.execution_context.safe_coders:
       return self.execution_context.pipeline_context.coders[
           self.execution_context.safe_coders[coder_id]].get_impl()
     else:
       return self.execution_context.pipeline_context.coders[coder_id].get_impl()
+
+  def get_timer_coder_impl(self, transform_id, timer_family_id):
+    return self.get_coder_impl(
+        self._timer_coder_ids[(transform_id, timer_family_id)])
 
   def get_buffer(self, buffer_id, transform_id):
     # type: (bytes, str) -> PartitionableBuffer
@@ -377,11 +406,18 @@ class BundleContextManager(object):
     others, we produce a ``ListBuffer``.
     """
     kind, name = split_buffer_id(buffer_id)
-    if kind in ('materialize', 'timers'):
+    if kind == 'materialize':
       if buffer_id not in self.execution_context.pcoll_buffers:
         self.execution_context.pcoll_buffers[buffer_id] = ListBuffer(
             coder_impl=self.get_input_coder_impl(transform_id))
       return self.execution_context.pcoll_buffers[buffer_id]
+    # For timer buffer, name = timer_family_id
+    elif kind == 'timers':
+      if buffer_id not in self.execution_context.timer_buffers:
+        timer_coder_impl = self.get_timer_coder_impl(transform_id, name)
+        self.execution_context.timer_buffers[buffer_id] = ListBuffer(
+            timer_coder_impl)
+      return self.execution_context.timer_buffers[buffer_id]
     elif kind == 'group':
       # This is a grouping write, create a grouping buffer if needed.
       if buffer_id not in self.execution_context.pcoll_buffers:

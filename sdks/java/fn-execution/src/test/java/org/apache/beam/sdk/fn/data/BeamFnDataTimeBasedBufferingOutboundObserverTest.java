@@ -17,16 +17,17 @@
  */
 package org.apache.beam.sdk.fn.data;
 
-import static org.apache.beam.sdk.fn.data.BeamFnDataSizeBasedBufferingOutboundObserverTest.messageWithData;
-import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -35,31 +36,43 @@ import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 /** Tests for {@link BeamFnDataTimeBasedBufferingOutboundObserver}. */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
-  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "555L");
-  private static final Coder<WindowedValue<byte[]>> CODER =
-      LengthPrefixCoder.of(WindowedValue.getValueOnlyCoder(ByteArrayCoder.of()));
+  private static final LogicalEndpoint DATA_OUTPUT_LOCATION = LogicalEndpoint.data("777L", "555L");
+  private static final LogicalEndpoint TIMER_OUTPUT_LOCATION =
+      LogicalEndpoint.timer("999L", "333L", "111L");
+  private static final Coder<byte[]> CODER = LengthPrefixCoder.of(ByteArrayCoder.of());
+
+  @Parameters
+  public static Collection<LogicalEndpoint> data() {
+    return Arrays.asList(DATA_OUTPUT_LOCATION, TIMER_OUTPUT_LOCATION);
+  }
+
+  private final LogicalEndpoint endpoint;
+
+  public BeamFnDataTimeBasedBufferingOutboundObserverTest(LogicalEndpoint endpoint) {
+    this.endpoint = endpoint;
+  }
 
   @Test
   public void testConfiguredTimeLimit() throws Exception {
-    Collection<Elements> values = new ArrayList<>();
+    List<Elements> values = new ArrayList<>();
     PipelineOptions options = PipelineOptionsFactory.create();
     options
         .as(ExperimentalOptions.class)
         .setExperiments(Arrays.asList("data_buffer_time_limit_ms=1"));
     final CountDownLatch waitForFlush = new CountDownLatch(1);
-    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<byte[]> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
             options,
-            OUTPUT_LOCATION,
+            endpoint,
             CODER,
             TestStreams.withOnNext(
                     (Consumer<Elements>)
@@ -70,9 +83,9 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
                 .build());
 
     // Test that it emits when time passed the time limit
-    consumer.accept(valueInGlobalWindow(new byte[1]));
+    consumer.accept(new byte[1]);
     waitForFlush.await(); // wait the flush thread to flush the buffer
-    assertEquals(messageWithData(new byte[1]), Iterables.get(values, 0));
+    assertEquals(messageWithData(new byte[1]), values.get(0));
   }
 
   @Test
@@ -81,11 +94,11 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     options
         .as(ExperimentalOptions.class)
         .setExperiments(Arrays.asList("data_buffer_time_limit_ms=1"));
-    BeamFnDataTimeBasedBufferingOutboundObserver<WindowedValue<byte[]>> consumer =
-        (BeamFnDataTimeBasedBufferingOutboundObserver<WindowedValue<byte[]>>)
+    BeamFnDataTimeBasedBufferingOutboundObserver<byte[]> consumer =
+        (BeamFnDataTimeBasedBufferingOutboundObserver<byte[]>)
             BeamFnDataBufferingOutboundObserver.forLocation(
                 options,
-                OUTPUT_LOCATION,
+                endpoint,
                 CODER,
                 TestStreams.withOnNext(
                         (Consumer<Elements>)
@@ -95,7 +108,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
                     .build());
 
     // Test that it emits when time passed the time limit
-    consumer.accept(valueInGlobalWindow(new byte[1]));
+    consumer.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!consumer.flushFuture.isDone()) {
       Thread.sleep(1);
@@ -103,17 +116,17 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     try {
       // Test that the exception caught in the flush thread is propagate to
       // the main thread when processing the next element
-      consumer.accept(valueInGlobalWindow(new byte[1]));
+      consumer.accept(new byte[1]);
       fail();
     } catch (Exception e) {
       // expected
     }
 
     consumer =
-        (BeamFnDataTimeBasedBufferingOutboundObserver<WindowedValue<byte[]>>)
+        (BeamFnDataTimeBasedBufferingOutboundObserver<byte[]>)
             BeamFnDataBufferingOutboundObserver.forLocation(
                 options,
-                OUTPUT_LOCATION,
+                endpoint,
                 CODER,
                 TestStreams.withOnNext(
                         (Consumer<Elements>)
@@ -121,7 +134,7 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
                               throw new RuntimeException("");
                             })
                     .build());
-    consumer.accept(valueInGlobalWindow(new byte[1]));
+    consumer.accept(new byte[1]);
     // wait the flush thread to flush the buffer
     while (!consumer.flushFuture.isDone()) {
       Thread.sleep(1);
@@ -134,5 +147,32 @@ public class BeamFnDataTimeBasedBufferingOutboundObserverTest {
     } catch (Exception e) {
       // expected
     }
+  }
+
+  BeamFnApi.Elements.Builder messageWithDataBuilder(byte[]... datum) throws IOException {
+    ByteString.Output output = ByteString.newOutput();
+    for (byte[] data : datum) {
+      CODER.encode(data, output);
+    }
+    if (endpoint.isTimer()) {
+      return BeamFnApi.Elements.newBuilder()
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
+                  .setInstructionId(endpoint.getInstructionId())
+                  .setTransformId(endpoint.getTransformId())
+                  .setTimerFamilyId(endpoint.getTimerFamilyId())
+                  .setTimers(output.toByteString()));
+    } else {
+      return BeamFnApi.Elements.newBuilder()
+          .addData(
+              BeamFnApi.Elements.Data.newBuilder()
+                  .setInstructionId(endpoint.getInstructionId())
+                  .setTransformId(endpoint.getTransformId())
+                  .setData(output.toByteString()));
+    }
+  }
+
+  BeamFnApi.Elements messageWithData(byte[]... datum) throws IOException {
+    return messageWithDataBuilder(datum).build();
   }
 }

@@ -46,7 +46,7 @@ readonly FLINK_NETWORK_NUM_BUFFERS=2048
 readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
 
 # Heap memory used by the task managers (slaves) determined by the physical (free) memory of the servers.
-# Flink config entry: taskmanager.heap.mb.
+# Flink config entry: taskmanager.memory.process.size.
 readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
 
 readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
@@ -155,7 +155,9 @@ function configure_flink() {
 # Settings applied by Cloud Dataproc initialization action
 jobmanager.rpc.address: ${master_hostname}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
-taskmanager.heap.mb: ${flink_taskmanager_memory}
+taskmanager.memory.process.size: "${flink_taskmanager_memory} mb"
+taskmanager.memory.jvm-metaspace.size: 512 mb
+taskmanager.memory.managed.fraction: 0.5
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
 parallelism.default: ${flink_parallelism}
 taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}

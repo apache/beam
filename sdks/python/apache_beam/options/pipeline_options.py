@@ -24,8 +24,6 @@ from __future__ import absolute_import
 import argparse
 import json
 import logging
-import os
-import subprocess
 from builtins import list
 from builtins import object
 from typing import Any
@@ -40,7 +38,6 @@ from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
-from apache_beam.utils import processes
 
 __all__ = [
     'PipelineOptions',
@@ -521,8 +518,7 @@ class GoogleCloudOptions(PipelineOptions):
         help='GCS path for saving temporary workflow jobs.')
     # The Google Compute Engine region for creating Dataflow jobs. See
     # https://cloud.google.com/compute/docs/regions-zones/regions-zones for a
-    # list of valid options. Currently defaults to us-central1, but future
-    # releases of Beam will require the user to set the region explicitly.
+    # list of valid options.
     parser.add_argument(
         '--region',
         default=None,
@@ -586,41 +582,6 @@ class GoogleCloudOptions(PipelineOptions):
         choices=['COST_OPTIMIZED', 'SPEED_OPTIMIZED'],
         help='Set the Flexible Resource Scheduling mode')
 
-  def _get_default_gcp_region(self):
-    """Get a default value for Google Cloud region according to
-    https://cloud.google.com/compute/docs/gcloud-compute/#default-properties.
-    If no other default can be found, returns 'us-central1'.
-    """
-    environment_region = os.environ.get('CLOUDSDK_COMPUTE_REGION')
-    if environment_region:
-      _LOGGER.info(
-          'Using default GCP region %s from $CLOUDSDK_COMPUTE_REGION',
-          environment_region)
-      return environment_region
-    try:
-      cmd = ['gcloud', 'config', 'get-value', 'compute/region']
-      # Use subprocess.DEVNULL in Python 3.3+.
-      if hasattr(subprocess, 'DEVNULL'):
-        DEVNULL = subprocess.DEVNULL
-      else:
-        DEVNULL = open(os.devnull, 'ab')
-      raw_output = processes.check_output(cmd, stderr=DEVNULL)
-      formatted_output = raw_output.decode('utf-8').strip()
-      if formatted_output:
-        _LOGGER.info(
-            'Using default GCP region %s from `%s`',
-            formatted_output,
-            ' '.join(cmd))
-        return formatted_output
-    except RuntimeError:
-      pass
-    _LOGGER.warning(
-        '--region not set; will default to us-central1. Future releases of '
-        'Beam will require the user to set --region explicitly, or else have a '
-        'default set via the gcloud tool. '
-        'https://cloud.google.com/compute/docs/regions-zones')
-    return 'us-central1'
-
   def validate(self, validator):
     errors = []
     if validator.is_service_runner():
@@ -635,11 +596,6 @@ class GoogleCloudOptions(PipelineOptions):
         errors.append(
             '--dataflow_job_file and --template_location '
             'are mutually exclusive.')
-
-    runner = self.view_as(StandardOptions).runner
-    if runner == 'DataflowRunner' or runner == 'TestDataflowRunner':
-      if self.view_as(GoogleCloudOptions).region is None:
-        self.view_as(GoogleCloudOptions).region = self._get_default_gcp_region()
 
     return errors
 
@@ -747,7 +703,8 @@ class WorkerOptions(PipelineOptions):
         default=None,
         help=(
             'GCE availability zone for launching workers. Default is up to the '
-            'Dataflow service.'))
+            'Dataflow service. This flag is deprecated, and will be replaced '
+            'by worker_zone.'))
     parser.add_argument(
         '--network',
         default=None,
