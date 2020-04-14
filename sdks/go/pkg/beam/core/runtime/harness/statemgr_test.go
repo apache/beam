@@ -336,11 +336,11 @@ func TestStateKeyReader(t *testing.T) {
 
 			// Handle the channel behavior asynchronously.
 			go func() {
-				for i := 0; i < len(test.buflens); i++ {
+				for i, buflen := range test.buflens {
 					token := []byte(strconv.Itoa(i))
 					var buf []byte
-					if test.buflens[i] >= 0 {
-						buf = bytes.Repeat([]byte{42}, test.buflens[i])
+					if buflen >= 0 {
+						buf = bytes.Repeat([]byte{42}, buflen)
 					}
 					// On the last request response pair, send no token.
 					if i+1 == len(test.buflens) {
