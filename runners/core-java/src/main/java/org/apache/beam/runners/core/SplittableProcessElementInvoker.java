@@ -51,11 +51,6 @@ public abstract class SplittableProcessElementInvoker<
         @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState) {
       checkArgument(continuation != null, "continuation must not be null");
       this.continuation = continuation;
-      if (continuation.shouldResume()) {
-        checkArgument(
-            residualRestriction != null,
-            "residual restriction must not be null if continuation indicate it should resume");
-      }
       this.residualRestriction = residualRestriction;
       this.futureOutputWatermark = futureOutputWatermark;
       this.futureWatermarkEstimatorState = futureWatermarkEstimatorState;

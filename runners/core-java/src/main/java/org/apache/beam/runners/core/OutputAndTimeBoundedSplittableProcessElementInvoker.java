@@ -210,9 +210,10 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // the call says that not the whole restriction has been processed. So we need to take
         // a checkpoint now: checkpoint() guarantees that the primary restriction describes exactly
         // the work that was done in the current ProcessElement call, and returns a residual
-        // restriction that describes exactly the work that wasn't done in the current call.
+        // restriction that describes exactly the work that wasn't done in the current call. The
+        // residual is null when the entire restriction has been processed.
         if (processContext.numClaimedBlocks > 0) {
-          residual = checkNotNull(processContext.takeCheckpointNow());
+          residual = processContext.takeCheckpointNow();
           processContext.tracker.checkDone();
         } else {
           // The call returned resume() without trying to claim any blocks, i.e. it is unaware
@@ -254,9 +255,6 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       processContext.tracker.checkDone();
     }
     if (residual == null) {
-      // Can only be true if cont.shouldResume() is false and no checkpoint was taken.
-      // This means the restriction has been fully processed.
-      checkState(!cont.shouldResume());
       return new Result(null, cont, null, null);
     }
     return new Result(

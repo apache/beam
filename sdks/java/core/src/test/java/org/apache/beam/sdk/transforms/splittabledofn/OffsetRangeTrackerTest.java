@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -47,16 +48,9 @@ public class OffsetRangeTrackerTest {
   @Test
   public void testCheckpointUnstarted() throws Exception {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
-    expected.expect(IllegalStateException.class);
-    tracker.trySplit(0).getResidual();
-  }
-
-  @Test
-  public void testCheckpointOnlyFailedClaim() throws Exception {
-    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
-    assertFalse(tracker.tryClaim(250L));
-    expected.expect(IllegalStateException.class);
-    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
+    SplitResult res = tracker.trySplit(0);
+    assertEquals(new OffsetRange(100, 100), res.getPrimary());
+    assertEquals(new OffsetRange(100, 200), res.getResidual());
   }
 
   @Test
@@ -84,9 +78,9 @@ public class OffsetRangeTrackerTest {
     assertTrue(tracker.tryClaim(105L));
     assertTrue(tracker.tryClaim(110L));
     assertTrue(tracker.tryClaim(199L));
-    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
+    SplitResult checkpoint = tracker.trySplit(0);
     assertEquals(new OffsetRange(100, 200), tracker.currentRestriction());
-    assertEquals(new OffsetRange(200, 200), checkpoint);
+    assertNull(checkpoint);
   }
 
   @Test
@@ -96,9 +90,24 @@ public class OffsetRangeTrackerTest {
     assertTrue(tracker.tryClaim(110L));
     assertTrue(tracker.tryClaim(160L));
     assertFalse(tracker.tryClaim(240L));
-    OffsetRange checkpoint = tracker.trySplit(0).getResidual();
-    assertEquals(new OffsetRange(100, 161), tracker.currentRestriction());
-    assertEquals(new OffsetRange(161, 200), checkpoint);
+    assertNull(tracker.trySplit(0));
+  }
+
+  @Test
+  public void testTrySplitAfterCheckpoint() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.tryClaim(105L);
+    tracker.trySplit(0);
+    assertNull(tracker.trySplit(0.1));
+  }
+
+  @Test
+  public void testTrySplit() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.tryClaim(100L);
+    SplitResult splitRes = tracker.trySplit(0.509);
+    assertEquals(new OffsetRange(100, 150), splitRes.getPrimary());
+    assertEquals(new OffsetRange(150, 200), splitRes.getResidual());
   }
 
   @Test
