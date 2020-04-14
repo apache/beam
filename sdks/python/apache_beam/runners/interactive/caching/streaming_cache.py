@@ -196,11 +196,11 @@ class StreamingCacheSource:
 
       # Check if we are at EOF or if we have an incomplete line.
       if not line or (line and line[-1] != b'\n'[0]):
-        # Complete reading only when the cache is complete.
-        if self._is_cache_complete(self._pipeline_id):
+        if not tail:
           break
 
-        if not tail:
+        # Complete reading only when the cache is complete.
+        if self._is_cache_complete(self._pipeline_id):
           break
 
         # Otherwise wait for new data in the file to be written.

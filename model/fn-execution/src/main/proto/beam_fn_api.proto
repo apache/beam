@@ -487,7 +487,7 @@ message Elements {
 
   // Represent the encoded user timer for a given instruction, transform and
   // timer id.
-  message Timer {
+  message Timers {
     // (Required) A reference to an active instruction request with the given
     // instruction id.
     string instruction_id = 1;
@@ -516,7 +516,7 @@ message Elements {
   repeated Data data = 1;
 
   // (Optional)  A list of timer byte streams.
-  repeated Timer timer = 2;
+  repeated Timers timers = 2;
 }
 
 // Stable

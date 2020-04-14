@@ -71,7 +71,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
     // This will add an empty data block representing the end of stream.
     if (outputLocation.isTimer()) {
       elements
-          .addTimerBuilder()
+          .addTimersBuilder()
           .setInstructionId(outputLocation.getInstructionId())
           .setTransformId(outputLocation.getTransformId())
           .setTimerFamilyId(outputLocation.getTimerFamilyId())
@@ -121,7 +121,7 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
 
     if (outputLocation.isTimer()) {
       elements
-          .addTimerBuilder()
+          .addTimersBuilder()
           .setInstructionId(outputLocation.getInstructionId())
           .setTransformId(outputLocation.getTransformId())
           .setTimerFamilyId(outputLocation.getTimerFamilyId())
