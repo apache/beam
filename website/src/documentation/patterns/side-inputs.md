@@ -22,6 +22,14 @@ limitations under the License.
 
 The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs]({{ site.baseurl }}/documentation/programming-guide/#side-inputs).
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 ## Slowly updating global window side inputs
 
 You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a `FixedWindow`.
@@ -46,6 +54,9 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:SideInputPatternSlowUpdateGlobalWindowSnip1
 %}
 ```
+```py
+No sample present.
+```
 
 
 ## Slowly updating side input using windowing
@@ -53,21 +64,25 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 You can read side input data periodically into distinct PCollection windows.
 Later, when you apply the side input to your main input, each main input
 window is automatically matched to a single side input window.
-This guarantees side input consistency on the duration of the single window,
-meaning that each window on main input side will be matched to a single
+This guarantees consistency on the duration of the single window,
+meaning that each window on the main input will be matched to a single
 version of side input data.
 
-To do this, you can utilize a combination of PeriodicSequence/PeriodicImpulse
-PTransforms that will generate infinite sequence of elements with some real-time
-period and SDF Read operation or similar to read data into side input
-periodically:
+Described approach can be implemented using combination of
+PeriodicSequence or PeriodicImpulse PTransforms and SDF Read or ReadAll
+PTransforms:
 
-1. Use the PeriodicImpulse transform to generate windowed periodic sequence.
+1. Use the PeriodicImpulse or PeriodicSequence PTransform to generate an
+infinite sequence of elements at required processing time intervals and assign
+them to separate windows.
 
 1. Read data using Read operation triggered by arrival of PCollection element.
 
 1. Apply side input.
 
+```java
+No sample present.
+```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:SideInputSlowUpdateSnip1
 %}
