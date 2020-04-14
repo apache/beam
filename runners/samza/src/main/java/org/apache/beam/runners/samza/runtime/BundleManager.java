@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.samza.util.FutureUtils;
@@ -44,10 +45,11 @@ import org.joda.time.Instant;
  * bundles have completed.
  *
  * <p>A bundle is considered complete only when the outputs corresponding to each element in the
- * bundle have been resolved. The output of an element is considered resolved based on the nature of
- * the ParDoFn 1. In case of synchronous ParDo, outputs of the element is resolved immediately after
- * the processElement returns. 2. In case of asynchronous ParDo, outputs of the element is resolved
- * when all the future emitted by the processElement is resolved.
+ * bundle have been resolved and the watermark associated with the bundle(if any) is propagated
+ * downstream. The output of an element is considered resolved based on the nature of the ParDoFn 1.
+ * In case of synchronous ParDo, outputs of the element is resolved immediately after the
+ * processElement returns. 2. In case of asynchronous ParDo, outputs of the element is resolved when
+ * all the future emitted by the processElement is resolved.
  *
  * <p>This class is not thread safe and the current implementation relies on the assumption that
  * messages are dispatched to BundleManager in a single threaded mode.
@@ -80,6 +82,7 @@ public class BundleManager<OutT> {
   private transient List<CompletionStage<Collection<WindowedValue<OutT>>>>
       currentBundleResultFutures;
   private transient CompletionStage<Void> watermarkFuture;
+  private transient BiConsumer<Collection<WindowedValue<OutT>>, Void> watermarkPropagationFn;
 
   public BundleManager(
       BundleProgressListener<OutT> bundleProgressListener,
@@ -144,24 +147,30 @@ public class BundleManager<OutT> {
   }
 
   void processWatermark(Instant watermark, OpEmitter<OutT> emitter) {
-    // only propagate watermark immediately if no bundle is in progress and all of the previous
-    // bundles have completed.
-    if (!isBundleStarted.get() && pendingBundleCount.get() == 0) {
+    // propagate watermark immediately if no bundle is in progress and all the previous bundles have
+    // completed.
+    if (!isBundleStarted() && pendingBundleCount.get() == 0) {
       bundleProgressListener.onWatermark(watermark, emitter);
-    } else {
-      // if there is a bundle in progress, hold back the watermark until end of the bundle
-      this.bundleWatermarkHold = watermark;
-      // for batch mode, the max watermark should force the bundle to close
-      if (watermark.isEqual(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      return;
+    }
+
+    // hold back the watermark since there is either a bundle in progress or previously closed
+    // bundles are unfinished.
+    this.bundleWatermarkHold = watermark;
+
+    // for batch mode, the max watermark should force the bundle to close
+    if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(watermark)) {
+      /*
+       * Due to lack of async watermark function, we block on the previous watermark futures before propagating the watermark
+       * downstream. If a bundle is in progress tryFinishBundle() fill force the bundle to close and emit watermark.
+       * If no bundle in progress, we progress watermark explicitly after the completion of previous watermark futures.
+       */
+      if (isBundleStarted()) {
         tryFinishBundle(emitter);
-        /*
-         * Due to lack of async watermark function, we will need to block here before propagating the watermark
-         * downstream. tryFinishBundle() may or may not emit watermark depending on if there is an active bundle in
-         * progress or not. Hence, we always emit the watermark below since it only updates the OpAdapter and is
-         * idempotent.
-         */
         watermarkFuture.toCompletableFuture().join();
-        emitter.emitWatermark(watermark);
+      } else {
+        watermarkFuture.toCompletableFuture().join();
+        bundleProgressListener.onWatermark(watermark, emitter);
       }
     }
   }
@@ -196,21 +205,23 @@ public class BundleManager<OutT> {
                   outputFuture,
                   (ignored, res) -> {
                     bundleProgressListener.onBundleFinished(emitter);
-                    pendingBundleCount.decrementAndGet();
                     return res;
                   });
 
-      // We chain the current watermark emission with previous watermark and the output futures
-      // since bundles can
-      // finish out of order but we still want the watermark to be emitted in order.
-      if (watermarkHold != null) {
-        watermarkFuture =
-            outputFuture.thenAcceptBoth(
-                watermarkFuture,
-                (ignored, res) -> {
-                  bundleProgressListener.onWatermark(watermarkHold, emitter);
-                });
+      if (watermarkHold == null) {
+        watermarkPropagationFn = (ignored, res) -> pendingBundleCount.decrementAndGet();
+      } else {
+        watermarkPropagationFn =
+            (ignored, res) -> {
+              bundleProgressListener.onWatermark(watermarkHold, emitter);
+              pendingBundleCount.decrementAndGet();
+            };
       }
+
+      // We chain the current watermark emission with previous watermark and the output futures
+      // since bundles can finish out of order but we still want the watermark to be emitted in
+      // order.
+      watermarkFuture = outputFuture.thenAcceptBoth(watermarkFuture, watermarkPropagationFn);
       currentBundleResultFutures.clear();
     } else if (isBundleStarted.get()) {
       currentBundleResultFutures.add(outputFuture);

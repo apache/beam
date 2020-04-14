@@ -238,7 +238,7 @@ public final class BundleManagerTest {
     OpEmitter<String> mockEmitter = mock(OpEmitter.class);
     bundleManager.setPendingBundleCount(1);
     bundleManager.processWatermark(watermark, mockEmitter);
-    verify(mockEmitter, times(1)).emitWatermark(watermark);
+    verify(bundleProgressListener, times(1)).onWatermark(watermark, mockEmitter);
   }
 
   @Test
@@ -255,7 +255,7 @@ public final class BundleManagerTest {
 
     // should force close bundle
     bundleManager.processWatermark(watermark, mockEmitter);
-    verify(mockEmitter, times(1)).emitWatermark(watermark);
+    verify(bundleProgressListener, times(1)).onWatermark(watermark, mockEmitter);
   }
 
   @Test
