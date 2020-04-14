@@ -51,6 +51,7 @@ from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_a
 from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.transforms import environments
 from apache_beam.transforms import window
 from apache_beam.transforms.core import Windowing
 from apache_beam.transforms.core import _GroupByKeyOnly
@@ -219,7 +220,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
             beam_runner_api_pb2.Environment(
                 urn=common_urns.environments.DOCKER.urn,
                 payload=beam_runner_api_pb2.DockerPayload(
-                    container_image='FOO').SerializeToString())
+                    container_image='FOO').SerializeToString(),
+                capabilities=environments.python_sdk_capabilities())
         ])
 
   def test_remote_runner_translation(self):
