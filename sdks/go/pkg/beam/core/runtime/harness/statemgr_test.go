@@ -16,6 +16,7 @@
 package harness
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
@@ -253,6 +255,166 @@ func TestStateChannel(t *testing.T) {
 				if got, want := forceRecreateError, test.expectedErr; !contains(got, want) {
 					t.Errorf("Unexpected error from forceRecreate: got %v, want %v", got, want)
 				}
+			}
+		})
+	}
+}
+
+// TestStateKeyReader validates ordinary Read cases
+func TestStateKeyReader(t *testing.T) {
+	const readLen = 4
+	tests := []struct {
+		name     string
+		buflens  []int // sizes of the buffers received on the state channel.
+		numReads int
+		closed   bool // tries to read from closed reader
+		noGet    bool // tries to read from nil get response reader
+	}{
+		{
+			name:     "emptyData",
+			buflens:  []int{-1},
+			numReads: 1,
+		}, {
+			name:     "singleBufferSingleRead",
+			buflens:  []int{readLen},
+			numReads: 2,
+		}, {
+			name:     "singleBufferMultipleReads",
+			buflens:  []int{2 * readLen},
+			numReads: 3,
+		}, {
+			name:     "singleBufferShortRead",
+			buflens:  []int{readLen - 1},
+			numReads: 2,
+		}, {
+			name:     "multiBuffer",
+			buflens:  []int{readLen, readLen},
+			numReads: 3,
+		}, {
+			name:     "multiBuffer-short-reads",
+			buflens:  []int{readLen - 1, readLen - 1, readLen - 2},
+			numReads: 4,
+		}, {
+			name:     "emptyDataFirst", // Shouldn't happen, but not unreasonable to handle.
+			buflens:  []int{-1, readLen, readLen},
+			numReads: 4,
+		}, {
+			name:     "emptyDataMid", // Shouldn't happen, but not unreasonable to handle.
+			buflens:  []int{readLen, readLen, -1, readLen},
+			numReads: 5,
+		}, {
+			name:     "emptyDataLast", // Shouldn't happen, but not unreasonable to handle.
+			buflens:  []int{readLen, readLen, -1},
+			numReads: 3,
+		}, {
+			name:     "emptyDataLast-short",
+			buflens:  []int{3*readLen - 2, -1},
+			numReads: 4,
+		}, {
+			name:     "closed",
+			buflens:  []int{-1, -1},
+			numReads: 1,
+			closed:   true,
+		}, {
+			name:     "noGet",
+			buflens:  []int{-1},
+			numReads: 1,
+			noGet:    true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancelFn := context.WithCancel(context.Background())
+			ch := &StateChannel{
+				id:        "test",
+				requests:  make(chan *fnpb.StateRequest),
+				responses: make(map[string]chan<- *fnpb.StateResponse),
+				cancelFn:  cancelFn,
+				DoneCh:    ctx.Done(),
+			}
+
+			// Handle the channel behavior asynchronously.
+			go func() {
+				if test.noGet {
+					req := <-ch.requests
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
+					return
+				}
+				for i, buflen := range test.buflens {
+					var buf []byte
+					if buflen >= 0 {
+						buf = bytes.Repeat([]byte{42}, buflen)
+					}
+					token := []byte(fmt.Sprint(i))
+					if i+1 == len(test.buflens) {
+						// On the last request response pair, send no token.
+						token = nil
+					}
+					req := <-ch.requests
+
+					ch.responses[req.Id] <- &fnpb.StateResponse{
+						Id: req.Id,
+						Response: &fnpb.StateResponse_Get{
+							Get: &fnpb.StateGetResponse{
+								ContinuationToken: token,
+								Data:              buf,
+							},
+						},
+					}
+				}
+			}()
+
+			r := stateKeyReader{
+				ch: ch,
+			}
+
+			if test.closed {
+				err := r.Close()
+				if err != nil {
+					t.Errorf("unexpected error on Close(), got %v", err)
+				}
+			}
+
+			var totalBytes int
+			for _, l := range test.buflens {
+				if l > 0 {
+					totalBytes += l
+				}
+			}
+			var finalerr error
+			var count, reads int
+
+			// Read all the bytes.
+			for count <= totalBytes {
+				reads++
+				b := make([]byte, readLen) // io.Read is keyed off of length, not capacity.
+				n, err := r.Read(b)
+				if err != nil {
+					finalerr = err
+					break
+				}
+				count += n
+				// Special check to avoid spurious zero elements.
+				if count == totalBytes && n == 0 {
+					t.Error("expected byte count read, last read is 0, but no EOF")
+				}
+			}
+			if got, want := reads, test.numReads; got != want {
+				t.Errorf("read %d times, want %d", got, want)
+			}
+			if got, want := count, totalBytes; got != want {
+				t.Errorf("read %v bytes, want %v", got, want)
+			}
+			if test.closed {
+				if got, want := finalerr, errors.New("side input closed"); !contains(got, want) {
+					t.Errorf("got err %q, want to contain %q", got.Error(), want.Error())
+				}
+				return
+			}
+			if got, want := finalerr, io.EOF; got != want {
+				t.Errorf("got err %q, want %q", got.Error(), want.Error())
 			}
 		})
 	}

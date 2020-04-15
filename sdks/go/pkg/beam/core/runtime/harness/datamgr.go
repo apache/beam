@@ -164,11 +164,13 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	ctx, cancelFn := context.WithCancel(ctx)
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
 	}
 	client, err := fnpb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
 	return makeDataChannel(ctx, port.URL, client, cancelFn), nil
@@ -369,11 +371,14 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 		r.cur = b
 	}
 
+	// We don't need to check for a 0 length copy from r.cur here, since that's
+	// checked before buffers are handed to the r.buf channel.
 	n := copy(buf, r.cur)
 
-	if len(r.cur) == n {
+	switch {
+	case len(r.cur) == n:
 		r.cur = nil
-	} else {
+	default:
 		r.cur = r.cur[n:]
 	}
 
