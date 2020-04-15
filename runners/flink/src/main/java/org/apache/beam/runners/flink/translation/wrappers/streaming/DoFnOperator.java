@@ -437,7 +437,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   "stable-input-buffer",
                   windowedInputCoder,
                   windowingStrategy.getWindowFn().windowCoder(),
-                  stepContext,
                   getOperatorStateBackend(),
                   getKeyedStateBackend());
     }
@@ -838,6 +837,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
   protected void fireTimerInternal(Object key, TimerData timerData) {
+    if (key instanceof java.nio.ByteBuffer) {
+      key = FlinkKeyUtils.decodeKey((ByteBuffer) key, keyCoder);
+    }
+
     fireTimer(key, timerData);
   }
 
