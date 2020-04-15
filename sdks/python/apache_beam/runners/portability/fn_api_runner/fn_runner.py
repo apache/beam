@@ -723,8 +723,8 @@ class ExtendedProvisionInfo(object):
 
   def for_environment(self, env):
     if env.dependencies:
-      provision_info_with_deps = self.provision_info.copy()
-      provision_info_with_deps.dependencies = env.dependencies
+      provision_info_with_deps = copy.deepcopy(self.provision_info)
+      provision_info_with_deps.dependencies.extend(env.dependencies)
       return ExtendedProvisionInfo(
           provision_info_with_deps, self.artifact_staging_dir, self.job_name)
     else:
