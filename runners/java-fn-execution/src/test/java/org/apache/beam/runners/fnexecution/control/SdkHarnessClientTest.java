@@ -577,7 +577,8 @@ public class SdkHarnessClientTest {
   @Test
   public void verifyCacheTokensAreUsedInNewBundleRequest() throws InterruptedException {
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(createAnyResponse());
+        .thenReturn(CompletableFuture.<InstructionResponse>completedFuture(
+            InstructionResponse.newBuilder().build()));
 
     ProcessBundleDescriptor descriptor1 =
         ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
@@ -713,10 +714,6 @@ public class SdkHarnessClientTest {
     verify(mockProgressHandler).onCompleted(response);
     verify(mockFinalizationHandler).requestsFinalization(bundleId);
     verifyZeroInteractions(mockCheckpointHandler, mockSplitHandler);
-  }
-
-  private CompletableFuture<InstructionResponse> createAnyResponse() {
-    return CompletableFuture.completedFuture(InstructionResponse.newBuilder().build());
   }
 
   private static class TestFn extends DoFn<String, String> {
