@@ -67,8 +67,7 @@ public class FhirIOReadIT {
     this.fhirStoreName =
         "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    this.pubsubTopic =
-        "projects/"+project+"/topics/FhirIO-IT-" + version + "-notifications";
+    this.pubsubTopic = "projects/" + project + "/topics/FhirIO-IT-" + version + "-notifications";
   }
 
   @Before

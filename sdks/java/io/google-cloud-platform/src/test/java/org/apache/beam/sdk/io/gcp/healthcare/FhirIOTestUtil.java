@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
@@ -123,7 +123,8 @@ class FhirIOTestUtil {
           request.setReadTimeout(60000); // 1 minute read timeout
         };
     Storage storage =
-        new Storage.Builder(new NetHttpTransport(), new GsonFactory(), requestInitializer).build();
+        new Storage.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer)
+            .build();
     List<StorageObject> blobs = storage.objects().list(TEMP_BUCKET).execute().getItems();
     if (blobs != null) {
       for (StorageObject blob : blobs) {

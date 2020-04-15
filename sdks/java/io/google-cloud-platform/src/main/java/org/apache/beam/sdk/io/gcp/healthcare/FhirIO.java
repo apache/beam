@@ -193,8 +193,7 @@ public class FhirIO {
     private static final Logger LOG = LoggerFactory.getLogger(Read.class);
 
     /** Instantiates a new Read. */
-    public Read() {
-    }
+    public Read() {}
 
     /** The type Result. */
     public static class Result implements POutput, PInput {
