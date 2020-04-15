@@ -611,7 +611,7 @@ class _CustomBigQuerySource(BoundedSource):
       flatten_results=True,
       kms_key=None,
       bigquery_job_labels=None,
-      backwards_compatible_data_format=False):
+      use_json_exports=False):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -642,12 +642,14 @@ class _CustomBigQuerySource(BoundedSource):
     self.bigquery_job_labels = bigquery_job_labels or {}
 
   def display_data(self):
+    export_format = 'JSON' if self.use_json_exports else 'AVRO'
     return {
         'table': str(self.table_reference),
         'query': str(self.query),
         'project': str(self.project),
         'use_legacy_sql': self.use_legacy_sql,
         'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
+        'export_file_format': export_format,
     }
 
   def estimate_size(self):
@@ -694,7 +696,7 @@ class _CustomBigQuerySource(BoundedSource):
     return project
 
   def _create_source(self, path, schema):
-    if not self.backwards_compatible:
+    if not self.use_json_exports:
       return create_avro_source(path, 0, True, use_fastavro=True)
     else:
       return TextSource(
@@ -761,7 +763,7 @@ class _CustomBigQuerySource(BoundedSource):
       bigquery.TableSchema instance, a list of FileMetadata instances
     """
     job_id = uuid.uuid4().hex
-    if self.backwards_compatible:
+    if self.use_json_exports:
       job_ref = bq.perform_extract_job([self.gcs_location],
                                        job_id,
                                        self.table_reference,
@@ -1687,10 +1689,13 @@ class ReadFromBigQuery(PTransform):
       to BigQuery export and query jobs created by this transform. See:
       https://cloud.google.com/bigquery/docs/reference/rest/v2/\
               Job#JobConfiguration
-    backwards_compatible_data_format (bool): By default, this transform reads
+    use_json_exports (bool): By default, this transform reads
       data in native Python types that come from Avro-exports of BigQuery. By
       setting this flag to True, the transform will return the types from
       exports to JSON files, much like the older BigQuerySource.
+      To learn more about type conversions between BigQuery and Avro, see:
+      https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
+              #avro_conversions
    """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
