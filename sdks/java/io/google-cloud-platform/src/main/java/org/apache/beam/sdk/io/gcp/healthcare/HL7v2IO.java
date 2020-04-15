@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.beam.runners.core.construction.ReshuffleTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -437,6 +436,7 @@ public class HL7v2IO {
       return input
           .apply(Create.of(this.hl7v2Stores))
           .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
+          .setCoder(new HL7v2MessageCoder())
           .apply(Reshuffle.viaRandomKey());
     }
   }
@@ -661,7 +661,8 @@ public class HL7v2IO {
         Sleeper sleeper = Sleeper.DEFAULT;
         switch (writeMethod) {
           case BATCH_IMPORT:
-            // TODO once healthcare API exposes batch import API add that functionality here to improve performance this should be the new default behavior/List.
+            // TODO once healthcare API exposes batch import API add that functionality here to
+            // improve performance this should be the new default behavior/List.
             throw new UnsupportedOperationException("The Batch import API is not available yet");
           case INGEST:
           default:
