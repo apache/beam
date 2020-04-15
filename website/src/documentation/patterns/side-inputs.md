@@ -68,16 +68,14 @@ This guarantees consistency on the duration of the single window,
 meaning that each window on the main input will be matched to a single
 version of side input data.
 
-Described approach can be implemented using combination of
-PeriodicSequence or PeriodicImpulse PTransforms and SDF Read or ReadAll
-PTransforms:
+Implementation of described approach can be narrowed down to:
 
-1. Use the PeriodicImpulse or PeriodicSequence PTransform to generate an
-infinite sequence of elements at required processing time intervals and assign
-them to separate windows.
-
-1. Read data using Read operation triggered by arrival of PCollection element.
-
+1. Use the PeriodicImpulse or PeriodicSequence PTransform to: 
+    * Generate an infinite sequence of elements at required processing time
+    intervals
+    * Assign them to separate windows.
+1. Fetch data using SDF Read or ReadAll PTransform triggered by arrival of
+PCollection element.
 1. Apply side input.
 
 ```java
