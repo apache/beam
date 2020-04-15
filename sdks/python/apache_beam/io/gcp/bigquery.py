@@ -282,7 +282,7 @@ __all__ = [
     'BigQuerySource',
     'BigQuerySink',
     'WriteToBigQuery',
-    '_ReadFromBigQuery',
+    'ReadFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
 
@@ -1527,7 +1527,7 @@ class _PassThroughThenCleanup(PTransform):
 
 
 @experimental()
-class _ReadFromBigQuery(PTransform):
+class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
