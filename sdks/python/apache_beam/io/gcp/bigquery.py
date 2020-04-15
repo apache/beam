@@ -611,7 +611,7 @@ class _CustomBigQuerySource(BoundedSource):
       flatten_results=True,
       kms_key=None,
       bigquery_job_labels=None,
-      backwards_compatible_data_format=None):
+      backwards_compatible_data_format=False):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -1689,8 +1689,8 @@ class ReadFromBigQuery(PTransform):
               Job#JobConfiguration
     backwards_compatible_data_format (bool): By default, this transform reads
       data in native Python types that come from Avro-exports of BigQuery. By
-      setting this flag to True, the transform will return JSON-types, like
-      the older BigQuerySource.
+      setting this flag to True, the transform will return the types from
+      exports to JSON files, much like the older BigQuerySource.
    """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
