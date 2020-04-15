@@ -613,6 +613,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+  @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
     with self.create_pipeline() as p:
       big = (
