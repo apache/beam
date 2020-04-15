@@ -47,6 +47,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
@@ -155,16 +156,13 @@ public class RegisterAndProcessBundleOperationTest {
   public void testSupportsRestart() {
     new RegisterAndProcessBundleOperation(
             IdGenerators.decrementingLongs(),
-            new InstructionRequestHandler() {
+            new TestInstructionRequestHandler() {
               @Override
               public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
                 CompletableFuture<InstructionResponse> responseFuture = new CompletableFuture<>();
                 completeFuture(request, responseFuture);
                 return responseFuture;
               }
-
-              @Override
-              public void close() {}
             },
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -184,7 +182,7 @@ public class RegisterAndProcessBundleOperationTest {
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
             idGenerator,
-            new InstructionRequestHandler() {
+            new TestInstructionRequestHandler() {
               @Override
               public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
                 requests.add(request);
@@ -197,9 +195,6 @@ public class RegisterAndProcessBundleOperationTest {
                     return new CompletableFuture<>();
                 }
               }
-
-              @Override
-              public void close() {}
             },
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -248,7 +243,7 @@ public class RegisterAndProcessBundleOperationTest {
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
             idGenerator,
-            new InstructionRequestHandler() {
+            new TestInstructionRequestHandler() {
               @Override
               public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
                 requests.add(request);
@@ -272,9 +267,6 @@ public class RegisterAndProcessBundleOperationTest {
                     return new CompletableFuture<>();
                 }
               }
-
-              @Override
-              public void close() {}
             },
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -318,7 +310,7 @@ public class RegisterAndProcessBundleOperationTest {
     when(mockUserStepContext.stateInternals()).thenReturn(stateInternals);
 
     InstructionRequestHandler instructionRequestHandler =
-        new InstructionRequestHandler() {
+        new TestInstructionRequestHandler() {
           @Override
           public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
             switch (request.getRequestCase()) {
@@ -385,9 +377,6 @@ public class RegisterAndProcessBundleOperationTest {
                 return new CompletableFuture<>();
             }
           }
-
-          @Override
-          public void close() {}
         };
 
     RegisterAndProcessBundleOperation operation =
@@ -426,7 +415,7 @@ public class RegisterAndProcessBundleOperationTest {
     CountDownLatch waitForStateHandler = new CountDownLatch(1);
     // Issues state calls to the Runner after a process bundle request is sent.
     InstructionRequestHandler fakeClient =
-        new InstructionRequestHandler() {
+        new TestInstructionRequestHandler() {
           @Override
           public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
             switch (request.getRequestCase()) {
@@ -477,9 +466,6 @@ public class RegisterAndProcessBundleOperationTest {
                 return new CompletableFuture<>();
             }
           }
-
-          @Override
-          public void close() {}
         };
 
     SideInputReader fakeSideInputReader =
@@ -551,7 +537,7 @@ public class RegisterAndProcessBundleOperationTest {
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
             idGenerator,
-            new InstructionRequestHandler() {
+            new TestInstructionRequestHandler() {
               @Override
               public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
                 CompletableFuture<InstructionResponse> responseFuture = new CompletableFuture<>();
@@ -568,9 +554,6 @@ public class RegisterAndProcessBundleOperationTest {
                 }
                 return responseFuture;
               }
-
-              @Override
-              public void close() {}
             },
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -599,7 +582,7 @@ public class RegisterAndProcessBundleOperationTest {
     RegisterAndProcessBundleOperation operation =
         new RegisterAndProcessBundleOperation(
             idGenerator,
-            new InstructionRequestHandler() {
+            new TestInstructionRequestHandler() {
               @Override
               public CompletionStage<InstructionResponse> handle(InstructionRequest request) {
                 CompletableFuture<InstructionResponse> responseFuture = new CompletableFuture<>();
@@ -616,9 +599,6 @@ public class RegisterAndProcessBundleOperationTest {
                 }
                 return responseFuture;
               }
-
-              @Override
-              public void close() {}
             },
             mockBeamFnStateDelegator,
             REGISTER_REQUEST,
@@ -714,5 +694,13 @@ public class RegisterAndProcessBundleOperationTest {
         MoreFutures.get(operation.getProcessBundleProgress());
 
     assertSame("Return value from mockInstructionRequestHandler", expectedResult, result);
+  }
+
+  private abstract static class TestInstructionRequestHandler implements InstructionRequestHandler {
+    @Override
+    public void registerProcessBundleDescriptor(ProcessBundleDescriptor descriptor) {}
+
+    @Override
+    public void close() {}
   }
 }

@@ -27,6 +27,7 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -168,6 +169,9 @@ public class FnApiWindowMappingFnTest {
       }
       throw new AssertionError(String.format("Unexpected request %s", request));
     }
+
+    @Override
+    public void registerProcessBundleDescriptor(ProcessBundleDescriptor descriptor) {}
 
     @Override
     public void close() {}
