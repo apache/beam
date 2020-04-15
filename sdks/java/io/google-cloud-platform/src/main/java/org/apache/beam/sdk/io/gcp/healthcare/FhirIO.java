@@ -42,9 +42,12 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
@@ -623,6 +626,7 @@ public class FhirIO {
     private final String tempGcsPath;
     private final String deadLetterGcsPath;
     private final ContentStructure contentStructure;
+    private final long targetResourcesPerFile = 1000;
 
     /**
      * Instantiates a new Import.
@@ -672,8 +676,11 @@ public class FhirIO {
 
     @Override
     public PCollection<HealthcareIOError<HttpBody>> expand(PCollection<HttpBody> input) {
-      return input.apply(
-          ParDo.of(new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)));
+      return input
+          .apply(WithKeys.of("dummyKey"))
+          .apply(GroupIntoBatches.ofSize(targetResourcesPerFile))
+          .apply(
+              ParDo.of(new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)));
     }
 
     /** The enum Content structure. */
@@ -698,7 +705,8 @@ public class FhirIO {
     }
 
     /** The type Import fn. */
-    static class ImportFn extends DoFn<HttpBody, HealthcareIOError<HttpBody>> {
+    static class ImportFn
+        extends DoFn<KV<String, Iterable<HttpBody>>, HealthcareIOError<HttpBody>> {
       private final String fhirStore;
       private final String tempGcsPath;
       private final String deadLetterGcsPath;
@@ -770,21 +778,27 @@ public class FhirIO {
        */
       @ProcessElement
       public void addToBatch(ProcessContext context) throws IOException {
-        HttpBody httpBody = context.element();
-        try {
-          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
-          Object data = this.mapper.readValue(httpBody.getData(), Object.class);
-          String ndJson = this.mapper.writeValueAsString(data) + "\n";
-          this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
-        } catch (JsonProcessingException e) {
-          String resource =
-              String.format(
-                  "Failed to parse payload: %s as json at: %s : %s."
-                      + "Dropping message from batch import.",
-                  httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
-          LOG.warn(resource);
-          context.output(
-              Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
+        Iterable<HttpBody> httpBodies =
+            context.element().getValue(); // we don't care about dummy key.
+        if (httpBodies == null) {
+          throw new RuntimeException("expected Iterable<HttpBody> but got null");
+        }
+        for (HttpBody httpBody : httpBodies) {
+          try {
+            // This will error if not valid JSON an convert Pretty JSON to raw JSON.
+            Object data = this.mapper.readValue(httpBody.getData(), Object.class);
+            String ndJson = this.mapper.writeValueAsString(data) + "\n";
+            this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
+          } catch (JsonProcessingException e) {
+            String resource =
+                String.format(
+                    "Failed to parse payload: %s as json at: %s : %s."
+                        + "Dropping message from batch import.",
+                    httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
+            LOG.warn(resource);
+            context.output(
+                Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
+          }
         }
       }
 
