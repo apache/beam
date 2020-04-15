@@ -328,7 +328,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
     with self.assertRaises(ValueError):
       p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project', dataset='dataset', table='table')
 
   @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
@@ -337,7 +337,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
     try:
       p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project', dataset='dataset', table='table')
     except ValueError:
       self.fail('ValueError was raised unexpectedly')
@@ -345,7 +345,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_gcs_location_validation_works_properly(self):
     with self.assertRaises(ValueError) as context:
       p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project',
           dataset='dataset',
           table='table',
