@@ -68,7 +68,7 @@ This guarantees consistency on the duration of the single window,
 meaning that each window on the main input will be matched to a single
 version of side input data.
 
-Implementation of described approach can be narrowed down to:
+To read side input data periodically into distinct PColleciton windows:
 
 1. Use the PeriodicImpulse or PeriodicSequence PTransform to: 
     * Generate an infinite sequence of elements at required processing time
@@ -76,7 +76,7 @@ Implementation of described approach can be narrowed down to:
     * Assign them to separate windows.
 1. Fetch data using SDF Read or ReadAll PTransform triggered by arrival of
 PCollection element.
-1. Apply side input.
+1. Apply the side input.
 
 ```java
 No sample present.
