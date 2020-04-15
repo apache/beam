@@ -55,6 +55,7 @@ public class FhirIOReadIT {
 
   private final String fhirStoreName;
   private final String pubsubTopic;
+  private final String project;
   private transient HealthcareApiClient client;
   private String healthcareDataset;
 
@@ -65,13 +66,13 @@ public class FhirIOReadIT {
     long testTime = System.currentTimeMillis();
     this.fhirStoreName =
         "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     this.pubsubTopic =
-        "projects/apache-beam-testing/topics/FhirIO-IT-" + version + "-notifications";
+        "projects/"+project+"/topics/FhirIO-IT-" + version + "-notifications";
   }
 
   @Before
   public void setup() throws Exception {
-    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
