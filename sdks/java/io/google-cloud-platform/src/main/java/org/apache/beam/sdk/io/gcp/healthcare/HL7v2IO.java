@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.ReshuffleTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -36,6 +37,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -434,7 +436,8 @@ public class HL7v2IO {
     public PCollection<HL7v2Message> expand(PBegin input) {
       return input
           .apply(Create.of(this.hl7v2Stores))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)));
+          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
+          .apply(Reshuffle.viaRandomKey());
     }
   }
 
@@ -658,7 +661,7 @@ public class HL7v2IO {
         Sleeper sleeper = Sleeper.DEFAULT;
         switch (writeMethod) {
           case BATCH_IMPORT:
-            // TODO once healthcare API exposes batch import API add that functionality here to improve performance this should be the new default behavior.
+            // TODO once healthcare API exposes batch import API add that functionality here to improve performance this should be the new default behavior/List.
             throw new UnsupportedOperationException("The Batch import API is not available yet");
           case INGEST:
           default:
