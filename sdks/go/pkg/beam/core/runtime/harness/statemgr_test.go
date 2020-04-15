@@ -409,12 +409,12 @@ func TestStateKeyReader(t *testing.T) {
 			}
 			if test.closed {
 				if got, want := finalerr, errors.New("side input closed"); !contains(got, want) {
-					t.Errorf("got err %v, want to contain %v", got, want)
+					t.Errorf("got err %q, want to contain %q", got.Error(), want.Error())
 				}
 				return
 			}
 			if got, want := finalerr, io.EOF; got != want {
-				t.Errorf("got err %v, want %v", got, want)
+				t.Errorf("got err %q, want %q", got.Error(), want.Error())
 			}
 		})
 	}
