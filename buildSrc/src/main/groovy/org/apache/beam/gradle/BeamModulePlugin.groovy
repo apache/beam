@@ -470,7 +470,6 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:1.6.3",
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner:$google_cloud_spanner_version",
         google_http_client                          : "com.google.http-client:google-http-client:$google_http_clients_version",
-        google_http_client_gson                     : "com.google.http-client:google-http-client-gson:$google_http_clients_version",
         google_http_client_jackson                  : "com.google.http-client:google-http-client-jackson:1.29.2",
         google_http_client_jackson2                 : "com.google.http-client:google-http-client-jackson2:$google_http_clients_version",
         google_http_client_protobuf                 : "com.google.http-client:google-http-client-protobuf:$google_http_clients_version",
