@@ -577,7 +577,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
           | beam.CombineValues(lambda v, _: sum(v)))
 
     job_dict = json.loads(str(runner.job))
-    self.assertEqual(job_dict[u'steps'][1][u'kind'], u'CombineValues')
+    self.assertIn(
+        u'CombineValues', set(step[u'kind'] for step in job_dict[u'steps']))
 
 
 class CustomMergingWindowFn(window.WindowFn):
