@@ -658,6 +658,7 @@ public class HL7v2IO {
         Sleeper sleeper = Sleeper.DEFAULT;
         switch (writeMethod) {
           case BATCH_IMPORT:
+            // TODO once healthcare API exposes batch import API add that functionality here to improve performance this should be the new default behavior.
             throw new UnsupportedOperationException("The Batch import API is not available yet");
           case INGEST:
           default:
