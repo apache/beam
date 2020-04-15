@@ -577,8 +577,9 @@ public class SdkHarnessClientTest {
   @Test
   public void verifyCacheTokensAreUsedInNewBundleRequest() throws InterruptedException {
     when(fnApiControlClient.handle(any(BeamFnApi.InstructionRequest.class)))
-        .thenReturn(CompletableFuture.<InstructionResponse>completedFuture(
-            InstructionResponse.newBuilder().build()));
+        .thenReturn(
+            CompletableFuture.<InstructionResponse>completedFuture(
+                InstructionResponse.newBuilder().build()));
 
     ProcessBundleDescriptor descriptor1 =
         ProcessBundleDescriptor.newBuilder().setId("descriptor1").build();
