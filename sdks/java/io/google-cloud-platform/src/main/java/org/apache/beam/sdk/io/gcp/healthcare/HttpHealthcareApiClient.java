@@ -332,7 +332,8 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
                 .createScoped(CloudHealthcareScopes.CLOUD_PLATFORM));
 
     client =
-        new CloudHealthcare.Builder(new NetHttpTransport(), new JacksonFactory(), requestInitializer)
+        new CloudHealthcare.Builder(
+                new NetHttpTransport(), new JacksonFactory(), requestInitializer)
             .setApplicationName("apache-beam-hl7v2-io")
             .build();
   }
