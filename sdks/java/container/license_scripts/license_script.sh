@@ -25,7 +25,11 @@ pip install PyYAML==5.3
 pip install tenacity==5.0.4
 
 # pull licenses, notices and source code
-python sdks/java/container/license_scripts/pull_licenses_java.py
+if [ "$1" = 'true' ]; then
+  python sdks/java/container/license_scripts/pull_licenses_java.py --pull_licenses
+else
+  python sdks/java/container/license_scripts/pull_licenses_java.py
+fi
 
 pip uninstall -y beautifulsoup4
 pip uninstall -y future
@@ -33,7 +37,11 @@ pip uninstall -y PyYAML
 pip uninstall -y tenacity
 
 mkdir sdks/java/container/third_party_licenses
-gzip -r java_third_party_licenses/*
-cp -r java_third_party_licenses/*.jar sdks/java/container/third_party_licenses/
-cp -r java_third_party_licenses/*.csv.gz sdks/java/container/third_party_licenses/
+if [ "$1" = 'true' ]; then
+  cp -r java_third_party_licenses/*.jar sdks/java/container/third_party_licenses/
+  cp -r java_third_party_licenses/*.csv sdks/java/container/third_party_licenses/
+else
+  # create an empty file to aviod no file/dir existing error
+  touch sdks/java/container/third_party_licenses/empty
+fi
 rm -rf java_third_party_licenses
