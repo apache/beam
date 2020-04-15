@@ -400,7 +400,7 @@ class FnApiRunner(runner.PipelineRunner):
     If bundle_repeat > 0, replay every bundle for profiling and debugging.
     """
     # all workers share state, so use any worker_handler.
-    for k in range(self._bundle_repeat):
+    for _ in range(self._bundle_repeat):
       try:
         runner_execution_context.state_servicer.checkpoint()
         testing_bundle_manager = ParallelBundleManager(
@@ -411,7 +411,6 @@ class FnApiRunner(runner.PipelineRunner):
             bundle_context_manager.get_input_coder_impl,
             bundle_context_manager.process_bundle_descriptor,
             self._progress_frequency,
-            k,
             num_workers=self._num_workers,
             cache_token_generator=cache_token_generator)
         testing_bundle_manager.process_bundle(
@@ -584,8 +583,6 @@ class FnApiRunner(runner.PipelineRunner):
                 coder_impl=bundle_context_manager.get_input_coder_impl(
                     other_input))
         # TODO(robertwb): merge results
-        # TODO(BEAM-8486): this should be changed to _registered
-        bundle_manager._skip_registration = True  # type: ignore[attr-defined]
         last_result, splits = bundle_manager.process_bundle(
             deferred_inputs, data_output, fired_timers, expected_timer_output)
         last_sent = deferred_inputs
@@ -773,7 +770,6 @@ class BundleManager(object):
                get_input_coder_impl,  # type: Callable[[str], CoderImpl]
                bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
                progress_frequency=None,
-               skip_registration=False,
                cache_token_generator=FnApiRunner.get_cache_token_generator()
               ):
     """Set up a bundle manager.
@@ -784,13 +780,11 @@ class BundleManager(object):
       get_input_coder_impl (Callable[[str], Coder])
       bundle_descriptor (beam_fn_api_pb2.ProcessBundleDescriptor)
       progress_frequency
-      skip_registration
     """
     self._worker_handler_list = worker_handler_list
     self._get_buffer = get_buffer
     self._get_input_coder_impl = get_input_coder_impl
     self._bundle_descriptor = bundle_descriptor
-    self._registered = skip_registration
     self._progress_frequency = progress_frequency
     self._worker_handler = None  # type: Optional[WorkerHandler]
     self._cache_token_generator = cache_token_generator
@@ -816,21 +810,6 @@ class BundleManager(object):
     for timer in timers:
       timer_out.write(timer)
     timer_out.close()
-
-  def _register_bundle_descriptor(self):
-    # type: () -> Optional[ControlFuture]
-    if self._registered:
-      registration_future = None
-    else:
-      assert self._worker_handler is not None
-      process_bundle_registration = beam_fn_api_pb2.InstructionRequest(
-          register=beam_fn_api_pb2.RegisterRequest(
-              process_bundle_descriptor=[self._bundle_descriptor]))
-      registration_future = self._worker_handler.control_conn.push(
-          process_bundle_registration)
-      self._registered = True
-
-    return registration_future
 
   def _select_split_manager(self):
     """TODO(pabloem) WHAT DOES THIS DO"""
@@ -923,12 +902,6 @@ class BundleManager(object):
       self._worker_handler = self._worker_handler_list[
           BundleManager._uid_counter % len(self._worker_handler_list)]
 
-    # Register the bundle descriptor, if needed - noop if already registered.
-    registration_future = self._register_bundle_descriptor()
-    # Check that the bundle was successfully registered.
-    if registration_future and registration_future.get().error:
-      raise RuntimeError(registration_future.get().error)
-
     split_manager = self._select_split_manager()
     if not split_manager:
       # Send timers.
@@ -1005,7 +978,6 @@ class ParallelBundleManager(BundleManager):
       get_input_coder_impl,  # type: Callable[[str], CoderImpl]
       bundle_descriptor,  # type: beam_fn_api_pb2.ProcessBundleDescriptor
       progress_frequency=None,
-      skip_registration=False,
       cache_token_generator=None,
       **kwargs):
     # type: (...) -> None
@@ -1015,7 +987,6 @@ class ParallelBundleManager(BundleManager):
         get_input_coder_impl,
         bundle_descriptor,
         progress_frequency,
-        skip_registration,
         cache_token_generator=cache_token_generator)
     self._num_workers = kwargs.pop('num_workers', 1)
 
@@ -1044,7 +1015,6 @@ class ParallelBundleManager(BundleManager):
           self._get_input_coder_impl,
           self._bundle_descriptor,
           self._progress_frequency,
-          self._registered,
           cache_token_generator=self._cache_token_generator)
       return bundle_manager.process_bundle(
           part_map, expected_outputs, fired_timers, expected_output_timers)
