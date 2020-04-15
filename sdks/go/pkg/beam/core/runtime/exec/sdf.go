@@ -112,7 +112,7 @@ type SplitAndSizeRestrictions struct {
 
 // ID returns the UnitID for this unit.
 func (n *SplitAndSizeRestrictions) ID() UnitID {
-	return n.ID()
+	return n.UID
 }
 
 // Up performs one-time setup for this executor.
