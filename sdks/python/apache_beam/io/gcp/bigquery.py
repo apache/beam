@@ -1533,8 +1533,6 @@ class _ReadFromBigQuery(PTransform):
     This PTransform uses a BigQuery export job to take a snapshot of the table
     on GCS, and then reads from each produced JSON file.
 
-    Do note that currently this source does not work with DirectRunner.
-
   Args:
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. The ID must contain only letters ``a-z``, ``A-Z``,
