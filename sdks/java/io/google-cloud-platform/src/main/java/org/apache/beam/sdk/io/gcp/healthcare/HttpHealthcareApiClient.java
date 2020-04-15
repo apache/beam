@@ -37,6 +37,7 @@ import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
@@ -137,9 +138,13 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   @Override
   public FhirStore createFhirStore(String dataset, String name, String version) throws IOException {
     FhirStore store = new FhirStore();
+    NotificationConfig notificationConfig = new NotificationConfig();
+    notificationConfig.setPubsubTopic(
+        String.format("projects/apache-beam-testing/topics/FhirIO-IT-%s-notifications", version));
     store.setVersion(version);
     store.setDisableReferentialIntegrity(true);
     store.setEnableUpdateCreate(true);
+    store.setNotificationConfig(notificationConfig);
     return client
         .projects()
         .locations()

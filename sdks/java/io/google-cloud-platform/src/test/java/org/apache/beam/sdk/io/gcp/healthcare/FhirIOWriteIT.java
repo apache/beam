@@ -106,7 +106,7 @@ public class FhirIOWriteIT {
   }
 
   @Test
-  public void testFhirIO_Import() throws IOException {
+  public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result result =
         pipeline

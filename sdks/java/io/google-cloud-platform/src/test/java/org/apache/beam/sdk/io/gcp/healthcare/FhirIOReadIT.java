@@ -20,84 +20,100 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
-import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import java.util.Arrays;
+import java.util.Collection;
+import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class FhirIOReadIT {
-  private FhirIOTestOptions options;
-  private transient HealthcareApiClient client;
-  private static String healthcareDataset;
-  private static long testTime = System.currentTimeMillis();
-  private static final String FHIR_VERSION = "R4";
-  private static final String FHIR_STORE_NAME =
-      "FHIR_store_"
-          + FHIR_VERSION
-          + "_write_it_"
-          + testTime
-          + "_"
-          + (new SecureRandom().nextInt(32));
-  private static List<String> resourceIds = new ArrayList<>();
 
-  @BeforeClass
-  public static void createFHIRStore() throws IOException {
-    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
+  @Parameters(name = "{0}")
+  public static Collection<String> versions() {
+    return Arrays.asList("DSTU2", "STU3", "R4");
+  }
+
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
+  @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
+
+  private final String fhirStoreName;
+  private final String pubsubTopic;
+  private transient HealthcareApiClient client;
+  private String healthcareDataset;
+
+  public String version;
+
+  public FhirIOReadIT(String version) {
+    this.version = version;
+    long testTime = System.currentTimeMillis();
+    this.fhirStoreName =
+        "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
+    this.pubsubTopic =
+        "projects/apache-beam-testing/topics/FhirIO-IT-" + version + "-notifications";
   }
 
   @Before
   public void setup() throws Exception {
+    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
     }
-    client.createFhirStore(healthcareDataset, FHIR_STORE_NAME, FHIR_VERSION);
-    FhirIOTestUtil.executeFhirBundles(
-        client,
-        healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME,
-        FhirIOTestUtil.R4_PRETTY_BUNDLES);
-    SearchResourcesRequest query = new SearchResourcesRequest();
-    query.set("_summary", "id");
-    HttpBody result =
-        client.fhirSearch(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME, query);
-    // TODO(jaketf) Get all FHIR IDs and set resourceIds
+    client.createFhirStore(healthcareDataset, fhirStoreName, version);
   }
 
   @After
   public void deleteFHIRtore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + FHIR_STORE_NAME);
+    client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
   }
 
   @Test
-  public void testFhirIORead() {
-    // Should read all messages.
-    Pipeline pipeline = Pipeline.create();
+  public void testFhirIORead() throws Exception {
+    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
     FhirIO.Read.Result result =
-        pipeline
-            .apply(Create.of(resourceIds).withCoder(StringUtf8Coder.of()))
-            .apply(FhirIO.readResources());
-    PCollection<Long> numReadMessages =
-        result.getResources().setCoder(new HttpBodyCoder()).apply(Count.globally());
-    PAssert.thatSingleton(numReadMessages).isEqualTo((long) resourceIds.size());
+        pipeline.apply(PubsubIO.readStrings().fromTopic(pubsubTopic)).apply(FhirIO.readResources());
+
+    PCollection<HttpBody> resources = result.getResources();
+    resources.apply(
+        "waitForAnyMessage", signal.signalSuccessWhen(resources.getCoder(), anyResources -> true));
+    // wait for any resource
     PAssert.that(result.getFailedReads()).empty();
 
-    pipeline.run();
+    Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
+    pipeline.apply(signal.signalStart());
+    PipelineResult job = pipeline.run();
+    start.get();
+
+    // Execute bundles to trigger FHIR notificiations to input topic
+    FhirIOTestUtil.executeFhirBundles(
+        client,
+        healthcareDataset + "/fhirStores/" + fhirStoreName,
+        FhirIOTestUtil.BUNDLES.get(version));
+
+    signal.waitForSuccess(Duration.standardSeconds(30));
+    // A runner may not support cancel
+    try {
+      job.cancel();
+    } catch (UnsupportedOperationException exc) {
+      // noop
+    }
   }
 }
