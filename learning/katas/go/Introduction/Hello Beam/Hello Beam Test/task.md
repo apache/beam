@@ -21,14 +21,12 @@
 
 Now that you have a simple pipeline up and running, let's talk about testing in Apache Beam using the Golang SDK.
 
-Quoting the Apache Beam documentation:
-
-> Testing your pipeline is a particularly important step in developing an effective data processing solution. The indirect nature of the Beam model, in which your user code constructs a pipeline graph to be executed remotely, can make debugging-failed runs a non-trivial task. Often it is faster and simpler to perform local unit testing on your pipeline code than to debug a pipeline’s remote execution.
+Testing your pipeline is a particularly important step in developing an effective data processing solution. The indirect nature of the Beam model, in which your user code constructs a pipeline graph to be executed remotely, can make debugging-failed runs a non-trivial task. Often it is faster and simpler to perform local unit testing on your pipeline code than to debug a pipeline’s remote execution.
 
 You can read more about testing on the Apache Beam website:
 https://beam.apache.org/documentation/pipelines/test-your-pipeline/.
 
-**Kata:** Your second kata is to develop tests for your pipeline.
+**Kata:** Develop test case assertion that checks whether the PCollection elements are equal to the given input from task.HelloBeam.
 
 <div class="hint">
   <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/testing/passert#Equals">passert.Equals</a>
