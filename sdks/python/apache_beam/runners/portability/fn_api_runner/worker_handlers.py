@@ -593,6 +593,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
 
   def start_worker(self):
     # type: () -> None
+    _LOGGER.info("Requesting worker at %s", self._external_payload.endpoint.url)
     stub = beam_fn_api_pb2_grpc.BeamFnExternalWorkerPoolStub(
         GRPCChannelFactory.insecure_channel(
             self._external_payload.endpoint.url))
@@ -614,8 +615,8 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     pass
 
   def host_from_worker(self):
-    # TODO(BEAM-8646): Reconcile the behavior on Windows platform.
-    if sys.platform == 'win32':
+    # TODO(BEAM-8646): Reconcile the across platforms.
+    if sys.platform in ['win32', 'darwin']:
       return 'localhost'
     import socket
     return socket.getfqdn()
