@@ -1366,8 +1366,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
       temp_file_format: The format to use for file loads into BigQuery. The
-        options are NEWLINE_DELIMITED_JSON or AVRO, with AVRO being used
-        by default. For advantages and limitations of the two formats, see
+        options are NEWLINE_DELIMITED_JSON or AVRO, with NEWLINE_DELIMITED_JSON
+        being used by default. For advantages and limitations of the two
+        formats, see
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
@@ -1394,7 +1395,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.triggering_frequency = triggering_frequency
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
-    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.AVRO
+    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()

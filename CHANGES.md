@@ -84,7 +84,17 @@ fully typed and can contain complex rows. *Remark: Schema aware is still experim
 * Java SDK: The protobuf extension is fully schema aware and also includes protobuf option
 conversion to beam schema options. *Remark: Schema aware is still experimental.*
 ([BEAM-9044](https://issues.apache.org/jira/browse/BEAM-9044))
+* Added ability to write to BigQuery via Avro file loads (Python) ([BEAM-8841](https://issues.apache.org/jira/browse/BEAM-8841))
 
+    By default, file loads will be done using JSON, but it is possible to
+    specify the temp_file_format parameter to perform file exports with AVRO.
+    AVRO-based file loads work by exporting Python types into Avro types, so
+    to switch to Avro-based loads, you will need to change your data types
+    from Json-compatible types (string-type dates and timestamp, long numeric
+    values as strings) into Python native types that are written to Avro
+    (Python's date, datetime types, decimal, etc). For more information
+    see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
+ 
 ## Breaking Changes
 
 * Dataflow runner now requires the `--region` option to be set, unless a default value is set in the environment ([BEAM-9199](https://issues.apache.org/jira/browse/BEAM-9199)). See [here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) for more details.
@@ -118,7 +128,6 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 * Added a PTransform for inspection and deidentification of text using Google Cloud DLP. (Python) ([BEAM-9258](https://issues.apache.org/jira/browse/BEAM-9258))
 * New AnnotateText PTransform that integrates Google Cloud Natural Language functionality (Python) ([BEAM-9248](https://issues.apache.org/jira/browse/BEAM-9248))
 * _ReadFromBigQuery_ now supports value providers for the query string (Python) ([BEAM-9305](https://issues.apache.org/jira/browse/BEAM-9305))
-* Added ability to write to BigQuery via Avro file loads (Python) ([BEAM-8841](https://issues.apache.org/jira/browse/BEAM-8841))
 * Direct runner for FnApi supports further parallelism (Python) ([BEAM-9228](https://issues.apache.org/jira/browse/BEAM-9228)) 
 * Support for _@RequiresTimeSortedInput_ in Flink and Spark (Java) ([BEAM-8550](https://issues.apache.org/jira/browse/BEAM-8550))
 
