@@ -3043,6 +3043,44 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testUnnestJoinStruct() {
+    String sql =
+        "SELECT b, x FROM UNNEST("
+            + "[STRUCT(true AS b, [3, 5] AS arr), STRUCT(false AS b, [7, 9] AS arr)]) t "
+            + "LEFT JOIN UNNEST(t.arr) x ON b";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUnnestJoinLiteral() {
+    String sql =
+        "SELECT a, b "
+            + "FROM UNNEST([1, 1, 2, 3, 5, 8, 13, NULL]) a "
+            + "JOIN UNNEST([1, 2, 3, 5, 7, 11, 13, NULL]) b "
+            + "ON a = b";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUnnestJoinSubquery() {
+    String sql =
+        "SELECT a, b "
+            + "FROM UNNEST([1, 2, 3]) a "
+            + "JOIN UNNEST(ARRAY(SELECT b FROM UNNEST([3, 2, 1]) b)) b "
+            + "ON a = b";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
   public void testCaseNoValue() {
     String sql = "SELECT CASE WHEN 1 > 2 THEN 'not possible' ELSE 'seems right' END";
 
