@@ -453,8 +453,6 @@ public class AvroSchemaTest {
 
   @Test
   public void testRowToPojo() {
-
-    LocalDate test = new LocalDate(((Instant) ROW_FOR_POJO.getValue(8)).getMillis());
     SerializableFunction<Row, AvroPojo> fromRow =
         new AvroRecordSchema().fromRowFunction(TypeDescriptor.of(AvroPojo.class));
     assertEquals(AVRO_POJO, fromRow.apply(ROW_FOR_POJO));
