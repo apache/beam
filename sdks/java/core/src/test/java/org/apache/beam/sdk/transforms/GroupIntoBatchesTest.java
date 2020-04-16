@@ -116,7 +116,7 @@ public class GroupIntoBatchesTest implements Serializable {
     pipeline.run();
   }
 
-  /** test behavior when the number of input elements is not evenly divisible by batch size */
+  /** test behavior when the number of input elements is not evenly divisible by batch size. */
   @Test
   @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
   public void testWithUnevenBatches() {

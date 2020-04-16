@@ -27,7 +27,11 @@ import java.util.Collection;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubGrpcClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -58,6 +62,8 @@ public class FhirIOReadIT {
   private final String project;
   private transient HealthcareApiClient client;
   private String healthcareDataset;
+  PubsubClient pubsub;
+  TestPubsubOptions pipelineOptions;
 
   public String version;
 
@@ -67,7 +73,16 @@ public class FhirIOReadIT {
     this.fhirStoreName =
         "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
     this.project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-    this.pubsubTopic = "projects/" + project + "/topics/FhirIO-IT-" + version + "-notifications";
+    this.pubsubTopic =
+        "projects/"
+            + project
+            + "/topics/FhirIO-IT-"
+            + version
+            + "-notifications-"
+            + testTime
+            + "-"
+            + (new SecureRandom().nextInt(32));
+    pipelineOptions = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
   }
 
   @Before
@@ -76,13 +91,18 @@ public class FhirIOReadIT {
     if (client == null) {
       this.client = new HttpHealthcareApiClient();
     }
-    client.createFhirStore(healthcareDataset, fhirStoreName, version);
+    pubsub = PubsubGrpcClient.FACTORY.newClient(null, null, pipelineOptions);
+    TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
+    pubsub.createTopic(topicPath);
+    client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
   }
 
   @After
   public void deleteFHIRtore() throws IOException {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
+    TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
+    pubsub.deleteTopic(topicPath);
   }
 
   @Test

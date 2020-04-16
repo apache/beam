@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.services.healthcare.v1beta1.model.Empty;
 import com.google.api.services.healthcare.v1beta1.model.FhirStore;
-
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
@@ -67,7 +66,7 @@ public interface HealthcareApiClient {
 
   Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException;
-  
+
   /**
    * Gets hl 7 v 2 message id page iterator.
    *
@@ -137,7 +136,6 @@ public interface HealthcareApiClient {
   HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException;
 
   /**
-
    * Read fhir resource http body.
    *
    * @param resourceId the resource
@@ -149,6 +147,9 @@ public interface HealthcareApiClient {
   HttpBody deleteFhirResource(String resourceId) throws IOException;
 
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
+
+  FhirStore createFhirStore(String dataset, String name, String version, String pubsubTopic)
+      throws IOException;
 
   FhirStore createFhirStore(String dataset, String name, String version) throws IOException;
 

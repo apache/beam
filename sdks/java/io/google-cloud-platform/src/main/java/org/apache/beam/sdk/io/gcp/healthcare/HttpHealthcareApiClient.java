@@ -37,7 +37,6 @@ import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
-
 import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
@@ -138,14 +137,23 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   @Override
   public FhirStore createFhirStore(String dataset, String name, String version) throws IOException {
+    return createFhirStore(dataset, name, version, null);
+  }
+
+  @Override
+  public FhirStore createFhirStore(
+      String dataset, String name, String version, @Nullable String pubsubTopic)
+      throws IOException {
     FhirStore store = new FhirStore();
-    NotificationConfig notificationConfig = new NotificationConfig();
-    notificationConfig.setPubsubTopic(
-        String.format("projects/apache-beam-testing/topics/FhirIO-IT-%s-notifications", version));
+
     store.setVersion(version);
     store.setDisableReferentialIntegrity(true);
     store.setEnableUpdateCreate(true);
-    store.setNotificationConfig(notificationConfig);
+    if (pubsubTopic != null) {
+      NotificationConfig notificationConfig = new NotificationConfig();
+      notificationConfig.setPubsubTopic(pubsubTopic);
+      store.setNotificationConfig(notificationConfig);
+    }
     return client
         .projects()
         .locations()
@@ -323,13 +331,14 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     gcsSrc.setUri(gcsSourcePath);
     ImportResourcesRequest importRequest = new ImportResourcesRequest();
     importRequest.setGcsSource(gcsSrc).setContentStructure(contentStructure);
-      return client
+    return client
         .projects()
         .locations()
         .datasets()
         .fhirStores()
         .healthcareImport(fhirStore, importRequest)
-        .execute()
+        .execute();
+  }
 
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
