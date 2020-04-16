@@ -261,7 +261,10 @@ public class AvroUtilsTest {
         .addField(Field.of("string", FieldType.STRING))
         .addField(Field.of("bytes", FieldType.BYTES))
         .addField(Field.of("decimal", FieldType.DECIMAL))
-        .addField(Field.of("timestampMillis", FieldType.DATETIME))
+        .addField(
+            Field.of(
+                "timestampMillis",
+                FieldType.logicalType(org.apache.beam.sdk.schemas.logicaltypes.MillisInstant.of())))
         .addField(Field.of("row", FieldType.row(subSchema)))
         .addField(Field.of("array", FieldType.array(FieldType.row(subSchema))))
         .addField(Field.of("map", FieldType.map(FieldType.STRING, FieldType.row(subSchema))))

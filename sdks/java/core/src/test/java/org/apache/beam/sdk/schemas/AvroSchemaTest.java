@@ -34,6 +34,7 @@ import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.schemas.transforms.Group;
 import org.apache.beam.sdk.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.testing.PAssert;
@@ -50,7 +51,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
-import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.junit.Rule;
 import org.junit.Test;
@@ -271,8 +271,8 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addField("date", FieldType.DATETIME)
-          .addField("timestampMillis", FieldType.DATETIME)
+          .addField("date", FieldType.logicalType(MillisInstant.of()))
+          .addField("timestampMillis", FieldType.logicalType(MillisInstant.of()))
           .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE))
@@ -289,8 +289,8 @@ public class AvroSchemaTest {
           .addNullableField("string", FieldType.STRING)
           .addNullableField("bytes", FieldType.BYTES)
           .addField("fixed", FieldType.logicalType(FixedBytes.of(4)))
-          .addField("date", FieldType.DATETIME)
-          .addField("timestampMillis", FieldType.DATETIME)
+          .addField("date", FieldType.logicalType(MillisInstant.of()))
+          .addField("timestampMillis", FieldType.logicalType(MillisInstant.of()))
           .addField("testEnum", FieldType.logicalType(TEST_ENUM_TYPE))
           .addNullableField("row", SUB_TYPE)
           .addNullableField("array", FieldType.array(SUB_TYPE.withNullable(false)))

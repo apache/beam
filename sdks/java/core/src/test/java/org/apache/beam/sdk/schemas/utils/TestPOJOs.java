@@ -32,6 +32,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -445,8 +446,8 @@ public class TestPOJOs {
           .addInt32Field("anInt")
           .addInt64Field("aLong")
           .addBooleanField("aBoolean")
-          .addDateTimeField("dateTime")
-          .addDateTimeField("instant")
+          .addLogicalTypeField("dateTime", MillisInstant.of())
+          .addLogicalTypeField("instant", MillisInstant.of())
           .addByteArrayField("bytes")
           .addByteArrayField("byteBuffer")
           .addDecimalField("bigDecimal")
@@ -1004,8 +1005,8 @@ public class TestPOJOs {
           .addNullableField("anInt", FieldType.INT32)
           .addNullableField("aLong", FieldType.INT64)
           .addNullableField("aBoolean", FieldType.BOOLEAN)
-          .addNullableField("dateTime", FieldType.DATETIME)
-          .addNullableField("instant", FieldType.DATETIME)
+          .addNullableField("dateTime", FieldType.logicalType(MillisInstant.of()))
+          .addNullableField("instant", FieldType.logicalType(MillisInstant.of()))
           .addNullableField("bytes", FieldType.BYTES)
           .addNullableField("byteBuffer", FieldType.BYTES)
           .addNullableField("bigDecimal", FieldType.DECIMAL)

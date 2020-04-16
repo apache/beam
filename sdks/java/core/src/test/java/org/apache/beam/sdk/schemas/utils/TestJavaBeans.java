@@ -31,6 +31,7 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldName;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 
@@ -305,8 +306,8 @@ public class TestJavaBeans {
           .addInt32Field("anInt")
           .addInt64Field("aLong")
           .addBooleanField("aBoolean")
-          .addDateTimeField("dateTime")
-          .addDateTimeField("instant")
+          .addLogicalTypeField("dateTime", MillisInstant.of())
+          .addLogicalTypeField("instant", MillisInstant.of())
           .addByteArrayField("bytes")
           .addByteArrayField("byteBuffer")
           .addDecimalField("bigDecimal")

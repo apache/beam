@@ -28,6 +28,7 @@ import java.nio.charset.Charset;
 import org.apache.beam.sdk.schemas.AutoValueSchemaTest.SimpleAutoValueWithBuilder.Builder;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaCreate;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
@@ -52,8 +53,8 @@ public class AutoValueSchemaTest {
           .addInt32Field("anInt")
           .addInt64Field("aLong")
           .addBooleanField("aBoolean")
-          .addDateTimeField("dateTime")
-          .addDateTimeField("instant")
+          .addLogicalTypeField("dateTime", MillisInstant.of())
+          .addLogicalTypeField("instant", MillisInstant.of())
           .addByteArrayField("bytes")
           .addByteArrayField("byteBuffer")
           .addDecimalField("bigDecimal")
