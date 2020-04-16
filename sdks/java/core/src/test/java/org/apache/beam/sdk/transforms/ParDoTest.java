@@ -92,6 +92,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -4975,7 +4976,13 @@ public class ParDoTest implements Serializable {
   @RunWith(JUnit4.class)
   public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class,
+    })
     public void testOnWindowExpirationSimpleUnbounded() {
       final String stateId = "foo";
       final String timerId = "bar";
