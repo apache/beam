@@ -591,7 +591,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               timerId,
               "",
               cleanupTime,
-              window.maxTimestamp(),
+              cleanupTime.minus(1L),
               TimeDomain.EVENT_TIME);
     }
 

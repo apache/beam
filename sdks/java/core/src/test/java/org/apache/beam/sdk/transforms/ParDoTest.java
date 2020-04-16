@@ -4976,7 +4976,7 @@ public class ParDoTest implements Serializable {
   public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
-    public void testOnWindowExpirationSimple() {
+    public void testOnWindowExpirationSimpleUnbounded() {
       final String stateId = "foo";
       final String timerId = "bar";
       IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -4994,7 +4994,7 @@ public class ParDoTest implements Serializable {
 
             @ProcessElement
             public void processElement(@TimerId(timerId) Timer timer, BoundedWindow window) {
-              timer.set(window.maxTimestamp());
+              timer.set(new Instant(1));
             }
 
             @OnTimer(timerId)
@@ -5013,7 +5013,6 @@ public class ParDoTest implements Serializable {
               Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
               // verify state
               assertEquals(1, (int) currentValue);
-
               // To check output is received from OnWindowExpiration
               r.output(currentValue);
             }
@@ -5029,6 +5028,7 @@ public class ParDoTest implements Serializable {
                       // second window
                       TimestampedValue.of(KV.of("hello", 35), new Instant(13))))
               .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+              .setIsBoundedInternal(IsBounded.UNBOUNDED)
               .apply(ParDo.of(fn));
 
       PAssert.that(output)
