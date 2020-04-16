@@ -799,7 +799,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         HandlesSplits.SplitResult splitResult =
             trySplitForElementAndRestriction(0, continuation.resumeDelay());
         // After the user has chosen to resume processing later, the Runner may have stolen
-        // the remainder of work through a split call so the above trySplit may fail. If so,
+        // the remainder of work through a split call so the above trySplit may return null. If so,
         // the current restriction must be done.
         if (splitResult == null) {
           currentTracker.checkDone();
