@@ -148,8 +148,8 @@ public class POJOUtilsTest {
     assertEquals((int) 43, getters.get(3).get(simplePojo));
     assertEquals((long) 44, getters.get(4).get(simplePojo));
     assertTrue((Boolean) getters.get(5).get(simplePojo));
-    assertEquals(DATE.toInstant(), getters.get(6).get(simplePojo));
-    assertEquals(INSTANT, getters.get(7).get(simplePojo));
+    assertEquals(DATE.toInstant().getMillis(), getters.get(6).get(simplePojo));
+    assertEquals(INSTANT.getMillis(), getters.get(7).get(simplePojo));
     assertArrayEquals("Unexpected bytes", BYTE_ARRAY, (byte[]) getters.get(8).get(simplePojo));
     assertArrayEquals(
         "Unexpected bytes", BYTE_BUFFER.array(), (byte[]) getters.get(9).get(simplePojo));
@@ -174,8 +174,8 @@ public class POJOUtilsTest {
     setters.get(3).set(simplePojo, (int) 43);
     setters.get(4).set(simplePojo, (long) 44);
     setters.get(5).set(simplePojo, true);
-    setters.get(6).set(simplePojo, DATE.toInstant());
-    setters.get(7).set(simplePojo, INSTANT);
+    setters.get(6).set(simplePojo, DATE.toInstant().getMillis());
+    setters.get(7).set(simplePojo, INSTANT.getMillis());
     setters.get(8).set(simplePojo, BYTE_ARRAY);
     setters.get(9).set(simplePojo, BYTE_BUFFER.array());
     setters.get(10).set(simplePojo, new BigDecimal(42));
