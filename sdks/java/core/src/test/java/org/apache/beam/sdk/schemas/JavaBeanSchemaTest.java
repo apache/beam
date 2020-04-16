@@ -63,7 +63,7 @@ import org.junit.rules.ExpectedException;
 
 /** Tests for the {@link JavaBeanSchema} schema provider. */
 public class JavaBeanSchemaTest {
-  static final DateTime DATE = DateTime.parse("1979-03-14");
+  static final DateTime DATE = DateTime.parse("1979-03-14T00:00:00Z");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
 
   private SimpleBean createSimple(String name) {

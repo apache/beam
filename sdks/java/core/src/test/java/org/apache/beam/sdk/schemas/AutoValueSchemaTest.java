@@ -40,7 +40,7 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link AutoValueSchema}. */
 @RunWith(JUnit4.class)
 public class AutoValueSchemaTest {
-  static final DateTime DATE = DateTime.parse("1979-03-14");
+  static final DateTime DATE = DateTime.parse("1979-03-14T00:00:00Z");
   static final byte[] BYTE_ARRAY = "bytearray".getBytes(Charset.defaultCharset());
   static final StringBuilder STRING_BUILDER = new StringBuilder("stringbuilder");
 

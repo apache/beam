@@ -56,8 +56,8 @@ import org.junit.Test;
 
 /** Tests for the {@link POJOUtils} class. */
 public class POJOUtilsTest {
-  static final DateTime DATE = DateTime.parse("1979-03-14");
-  static final Instant INSTANT = DateTime.parse("1979-03-15").toInstant();
+  static final DateTime DATE = DateTime.parse("1979-03-14T00:00:00Z");
+  static final Instant INSTANT = DateTime.parse("1979-03-15T00:00:00Z").toInstant();
   static final byte[] BYTE_ARRAY = "byteArray".getBytes(Charset.defaultCharset());
   static final ByteBuffer BYTE_BUFFER =
       ByteBuffer.wrap("byteBuffer".getBytes(Charset.defaultCharset()));

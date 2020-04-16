@@ -299,7 +299,7 @@ public class AvroSchemaTest {
 
   private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4};
   private static final DateTime DATE_TIME =
-      new DateTime().withDate(1979, 3, 14).withTime(1, 2, 3, 4);
+      new DateTime(DateTimeZone.UTC).withDate(1979, 3, 14).withTime(1, 2, 3, 4);
   private static final LocalDate DATE = new LocalDate(1979, 3, 14);
   private static final TestAvroNested AVRO_NESTED_SPECIFIC_RECORD = new TestAvroNested(true, 42);
   private static final TestAvro AVRO_SPECIFIC_RECORD =

@@ -57,6 +57,10 @@ import org.junit.Test;
 
 /** Tests for the {@link JavaBeanUtils} class. */
 public class JavaBeanUtilsTest {
+
+  public static final DateTime DATETIME_03_14 = DateTime.parse("1979-03-14T00:00:00Z");
+  public static final DateTime DATETIME_03_15 = DateTime.parse("1979-03-15T00:00:00Z");
+
   @Test
   public void testNullable() {
     Schema schema =
@@ -125,8 +129,8 @@ public class JavaBeanUtilsTest {
     simpleBean.setAnInt(43);
     simpleBean.setaLong(44);
     simpleBean.setaBoolean(true);
-    simpleBean.setDateTime(DateTime.parse("1979-03-14"));
-    simpleBean.setInstant(DateTime.parse("1979-03-15").toInstant());
+    simpleBean.setDateTime(DATETIME_03_14);
+    simpleBean.setInstant(DATETIME_03_15.toInstant());
     simpleBean.setBytes("bytes1".getBytes(Charset.defaultCharset()));
     simpleBean.setByteBuffer(ByteBuffer.wrap("bytes2".getBytes(Charset.defaultCharset())));
     simpleBean.setBigDecimal(new BigDecimal(42));
@@ -147,8 +151,8 @@ public class JavaBeanUtilsTest {
     assertEquals((int) 43, getters.get(3).get(simpleBean));
     assertEquals((long) 44, getters.get(4).get(simpleBean));
     assertTrue((Boolean) getters.get(5).get(simpleBean));
-    assertEquals(DateTime.parse("1979-03-14").toInstant(), getters.get(6).get(simpleBean));
-    assertEquals(DateTime.parse("1979-03-15").toInstant(), getters.get(7).get(simpleBean));
+    assertEquals(DATETIME_03_14.toInstant().getMillis(), getters.get(6).get(simpleBean));
+    assertEquals(DATETIME_03_15.toInstant().getMillis(), getters.get(7).get(simpleBean));
     assertArrayEquals(
         "Unexpected bytes",
         "bytes1".getBytes(Charset.defaultCharset()),
@@ -178,8 +182,8 @@ public class JavaBeanUtilsTest {
     setters.get(3).set(simpleBean, (int) 43);
     setters.get(4).set(simpleBean, (long) 44);
     setters.get(5).set(simpleBean, true);
-    setters.get(6).set(simpleBean, DateTime.parse("1979-03-14").toInstant());
-    setters.get(7).set(simpleBean, DateTime.parse("1979-03-15").toInstant());
+    setters.get(6).set(simpleBean, DATETIME_03_14.toInstant().getMillis());
+    setters.get(7).set(simpleBean, DATETIME_03_15.toInstant().getMillis());
     setters.get(8).set(simpleBean, "bytes1".getBytes(Charset.defaultCharset()));
     setters.get(9).set(simpleBean, "bytes2".getBytes(Charset.defaultCharset()));
     setters.get(10).set(simpleBean, new BigDecimal(42));
@@ -191,8 +195,8 @@ public class JavaBeanUtilsTest {
     assertEquals((int) 43, simpleBean.getAnInt());
     assertEquals((long) 44, simpleBean.getaLong());
     assertTrue(simpleBean.isaBoolean());
-    assertEquals(DateTime.parse("1979-03-14"), simpleBean.getDateTime());
-    assertEquals(DateTime.parse("1979-03-15").toInstant(), simpleBean.getInstant());
+    assertEquals(DATETIME_03_14, simpleBean.getDateTime());
+    assertEquals(DATETIME_03_15.toInstant(), simpleBean.getInstant());
     assertArrayEquals(
         "Unexpected bytes", "bytes1".getBytes(Charset.defaultCharset()), simpleBean.getBytes());
     assertEquals(
