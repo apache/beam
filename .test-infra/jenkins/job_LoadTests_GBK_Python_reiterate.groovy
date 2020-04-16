@@ -79,7 +79,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     for (testConfiguration in loadTestConfigurations(datasetName)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 
