@@ -26,12 +26,14 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableBiMap;
 import org.joda.time.Instant;
+import org.joda.time.ReadableInstant;
 
 /**
  * Utilities for converting between {@link Schema} field types and {@link TypeDescriptor}s that
@@ -49,7 +51,6 @@ public class FieldTypeDescriptors {
           .put(TypeName.FLOAT, TypeDescriptors.floats())
           .put(TypeName.DOUBLE, TypeDescriptors.doubles())
           .put(TypeName.STRING, TypeDescriptors.strings())
-          .put(TypeName.DATETIME, TypeDescriptor.of(Instant.class))
           .put(TypeName.BOOLEAN, TypeDescriptors.booleans())
           .put(TypeName.BYTES, TypeDescriptor.of(byte[].class))
           .build();
@@ -57,8 +58,14 @@ public class FieldTypeDescriptors {
   public static TypeDescriptor javaTypeForFieldType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case LOGICAL_TYPE:
-        // TODO: shouldn't we handle this differently?
-        return javaTypeForFieldType(fieldType.getLogicalType().getBaseType());
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case MillisInstant.IDENTIFIER:
+            return TypeDescriptor.of(Instant.class);
+          default:
+            // TODO: General purpose way for retrieving TypeDescriptor for a logical type's input
+            // type, e.g. LogicalType#getInputTypeDescriptor
+            return javaTypeForFieldType(fieldType.getLogicalType().getBaseType());
+        }
       case ARRAY:
         return TypeDescriptors.lists(javaTypeForFieldType(fieldType.getCollectionElementType()));
       case ITERABLE:
@@ -88,6 +95,10 @@ public class FieldTypeDescriptors {
       throw new IllegalArgumentException(
           "Cannot automatically determine a field type from a Row class"
               + " as we cannot determine the schema. You should set a field type explicitly.");
+    } else if (typeDescriptor.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
+      // TODO: check type descriptor against a registry of logical types (perhaps populated with
+      // LogicalType#getInputTypeDescriptor)
+      return FieldType.logicalType(MillisInstant.of());
     } else {
       TypeName typeName = PRIMITIVE_MAPPING.inverse().get(typeDescriptor);
       if (typeName == null) {
