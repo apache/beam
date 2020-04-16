@@ -615,7 +615,7 @@ class ExternalWorkerHandler(GrpcWorkerHandler):
     pass
 
   def host_from_worker(self):
-    # TODO(BEAM-8646): Reconcile the across platforms.
+    # TODO(BEAM-8646): Reconcile across platforms.
     if sys.platform in ['win32', 'darwin']:
       return 'localhost'
     import socket
