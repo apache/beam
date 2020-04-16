@@ -34,7 +34,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
@@ -68,26 +67,19 @@ public class SdkHarnessClient implements AutoCloseable {
    */
   public class BundleProcessor {
     private final ProcessBundleDescriptor processBundleDescriptor;
-    private final CompletionStage<RegisterResponse> registrationFuture;
     private final List<RemoteInputDestination> remoteInputs;
     private final Map<String, Map<String, TimerSpec>> timerSpecs;
     private final StateDelegator stateDelegator;
 
     private BundleProcessor(
         ProcessBundleDescriptor processBundleDescriptor,
-        CompletionStage<RegisterResponse> registrationFuture,
         List<RemoteInputDestination> remoteInputs,
         Map<String, Map<String, TimerSpec>> timerSpecs,
         StateDelegator stateDelegator) {
       this.processBundleDescriptor = processBundleDescriptor;
-      this.registrationFuture = registrationFuture;
       this.remoteInputs = remoteInputs;
       this.timerSpecs = timerSpecs;
       this.stateDelegator = stateDelegator;
-    }
-
-    public CompletionStage<RegisterResponse> getRegistrationFuture() {
-      return registrationFuture;
     }
 
     /**
@@ -237,16 +229,14 @@ public class SdkHarnessClient implements AutoCloseable {
       String bundleId = idGenerator.getId();
 
       final CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
-          registrationFuture.thenCompose(
-              registration ->
-                  fnApiControlClient.handle(
-                      BeamFnApi.InstructionRequest.newBuilder()
-                          .setInstructionId(bundleId)
-                          .setProcessBundle(
-                              BeamFnApi.ProcessBundleRequest.newBuilder()
-                                  .setProcessBundleDescriptorId(processBundleDescriptor.getId())
-                                  .addAllCacheTokens(stateRequestHandler.getCacheTokens()))
-                          .build()));
+          fnApiControlClient.handle(
+              BeamFnApi.InstructionRequest.newBuilder()
+                  .setInstructionId(bundleId)
+                  .setProcessBundle(
+                      BeamFnApi.ProcessBundleRequest.newBuilder()
+                          .setProcessBundleDescriptorId(processBundleDescriptor.getId())
+                          .addAllCacheTokens(stateRequestHandler.getCacheTokens()))
+                  .build());
       LOG.debug(
           "Sent {} with ID {} for {} with ID {}",
           ProcessBundleRequest.class.getSimpleName(),
@@ -667,26 +657,10 @@ public class SdkHarnessClient implements AutoCloseable {
 
     LOG.debug("Registering {}", processBundleDescriptor);
     // TODO: validate that all the necessary data endpoints are known
-    CompletionStage<BeamFnApi.InstructionResponse> genericResponse =
-        fnApiControlClient.handle(
-            BeamFnApi.InstructionRequest.newBuilder()
-                .setInstructionId(idGenerator.getId())
-                .setRegister(
-                    BeamFnApi.RegisterRequest.newBuilder()
-                        .addProcessBundleDescriptor(processBundleDescriptor)
-                        .build())
-                .build());
-
-    CompletionStage<RegisterResponse> registerResponseFuture =
-        genericResponse.thenApply(InstructionResponse::getRegister);
-
+    fnApiControlClient.registerProcessBundleDescriptor(processBundleDescriptor);
     BundleProcessor bundleProcessor =
         new BundleProcessor(
-            processBundleDescriptor,
-            registerResponseFuture,
-            remoteInputDestinations,
-            timerSpecs,
-            stateDelegator);
+            processBundleDescriptor, remoteInputDestinations, timerSpecs, stateDelegator);
 
     return bundleProcessor;
   }

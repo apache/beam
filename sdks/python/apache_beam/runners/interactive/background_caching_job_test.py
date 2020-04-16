@@ -140,7 +140,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
     p = _build_a_test_stream_pipeline()
     _setup_test_streaming_cache()
     a_running_background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.RUNNING))
+        runner.PipelineResult(runner.PipelineState.RUNNING), limiters=[])
     ie.current_env().set_background_caching_job(
         p, a_running_background_caching_job)
     main_job_result = p.run()
@@ -164,7 +164,7 @@ class BackgroundCachingJobTest(unittest.TestCase):
     p = _build_a_test_stream_pipeline()
     _setup_test_streaming_cache()
     a_done_background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.DONE))
+        runner.PipelineResult(runner.PipelineState.DONE), limiters=[])
     ie.current_env().set_background_caching_job(
         p, a_done_background_caching_job)
     main_job_result = p.run()

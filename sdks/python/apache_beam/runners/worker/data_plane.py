@@ -67,7 +67,7 @@ if TYPE_CHECKING:
   import apache_beam.coders.slow_stream
   OutputStream = apache_beam.coders.slow_stream.OutputStream
   DataOrTimers = \
-    Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timer]
+    Union[beam_fn_api_pb2.Elements.Data, beam_fn_api_pb2.Elements.Timers]
 else:
   OutputStream = type(coder_impl.create_OutputStream())
 
@@ -223,7 +223,7 @@ class DataChannel(with_metaclass(abc.ABCMeta, object)):  # type: ignore[misc]
                     ):
     # type: (...) -> Iterator[DataOrTimers]
 
-    """Returns an iterable of all Element.Data and Element.Timer bundles for
+    """Returns an iterable of all Element.Data and Element.Timers bundles for
     instruction_id.
 
     This iterable terminates only once the full set of data has been recieved
@@ -309,7 +309,7 @@ class InMemoryDataChannel(DataChannel):
     other_inputs = []
     for element in self._inputs:
       if element.instruction_id == instruction_id:
-        if isinstance(element, beam_fn_api_pb2.Elements.Timer):
+        if isinstance(element, beam_fn_api_pb2.Elements.Timers):
           if not element.is_last:
             yield element
         if isinstance(element, beam_fn_api_pb2.Elements.Data):
@@ -323,7 +323,7 @@ class InMemoryDataChannel(DataChannel):
     def add_to_inverse_output(timer):
       if timer:
         self._inverse._inputs.append(
-            beam_fn_api_pb2.Elements.Timer(
+            beam_fn_api_pb2.Elements.Timers(
                 instruction_id=instruction_id,
                 transform_id=transform_id,
                 timer_family_id=timer_family_id,
@@ -333,7 +333,7 @@ class InMemoryDataChannel(DataChannel):
     def close_stream(timer):
       add_to_inverse_output(timer)
       self._inverse._inputs.append(
-          beam_fn_api_pb2.Elements.Timer(
+          beam_fn_api_pb2.Elements.Timers(
               instruction_id=instruction_id,
               transform_id=transform_id,
               timer_family_id='',
@@ -428,7 +428,7 @@ class _GrpcDataChannel(DataChannel):
             t, v, tb = self._exc_info
             raise_(t, v, tb)
         else:
-          if isinstance(element, beam_fn_api_pb2.Elements.Timer):
+          if isinstance(element, beam_fn_api_pb2.Elements.Timers):
             if element.is_last:
               done_inputs.add((element.transform_id, element.timer_family_id))
             else:
@@ -476,7 +476,7 @@ class _GrpcDataChannel(DataChannel):
     def add_to_send_queue(timer):
       if timer:
         self._to_send.put(
-            beam_fn_api_pb2.Elements.Timer(
+            beam_fn_api_pb2.Elements.Timers(
                 instruction_id=instruction_id,
                 transform_id=transform_id,
                 timer_family_id=timer_family_id,
@@ -486,7 +486,7 @@ class _GrpcDataChannel(DataChannel):
     def close_callback(timer):
       add_to_send_queue(timer)
       self._to_send.put(
-          beam_fn_api_pb2.Elements.Timer(
+          beam_fn_api_pb2.Elements.Timers(
               instruction_id=instruction_id,
               transform_id=transform_id,
               timer_family_id=timer_family_id,
@@ -514,19 +514,19 @@ class _GrpcDataChannel(DataChannel):
         data_stream = []
         timer_stream = []
         for stream in streams:
-          if isinstance(stream, beam_fn_api_pb2.Elements.Timer):
+          if isinstance(stream, beam_fn_api_pb2.Elements.Timers):
             timer_stream.append(stream)
           elif isinstance(stream, beam_fn_api_pb2.Elements.Data):
             data_stream.append(stream)
           else:
             raise ValueError('Unexpected output element type %s' % type(stream))
-        yield beam_fn_api_pb2.Elements(data=data_stream, timer=timer_stream)
+        yield beam_fn_api_pb2.Elements(data=data_stream, timers=timer_stream)
 
   def _read_inputs(self, elements_iterator):
     # type: (Iterable[beam_fn_api_pb2.Elements]) -> None
     try:
       for elements in elements_iterator:
-        for timer in elements.timer:
+        for timer in elements.timers:
           self._receiving_queue(timer.instruction_id).put(timer)
         for data in elements.data:
           self._receiving_queue(data.instruction_id).put(data)

@@ -179,23 +179,4 @@ public class FnApiControlClientTest {
     verify(mockConsumer1).accept(client);
     verify(mockConsumer2).accept(client);
   }
-
-  @Test
-  public void testRegisterBundle() {
-    String instructionId = "instructionId";
-    String bundleDescriptorId = "bundleDescriptorId";
-    client.handle(
-        BeamFnApi.InstructionRequest.newBuilder()
-            .setInstructionId(instructionId)
-            .setRegister(
-                BeamFnApi.RegisterRequest.newBuilder()
-                    .addProcessBundleDescriptor(
-                        BeamFnApi.ProcessBundleDescriptor.newBuilder().setId(bundleDescriptorId)))
-            .build());
-
-    verify(mockObserver).onNext(any(BeamFnApi.InstructionRequest.class));
-
-    assertThat(
-        bundleDescriptorId, equalTo(processBundleDescriptors.get(bundleDescriptorId).getId()));
-  }
 }

@@ -22,9 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -50,15 +48,15 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -412,41 +410,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       } else {
         // Pass results via a side input rather than reshuffle, because we need to get an empty
         // iterable to finalize if there are no results.
-        return input.apply("ToList", Combine.globally(new ToListCombineFn<>()));
+        return input
+            .getPipeline()
+            .apply(Reify.viewInGlobalWindow(input.apply(View.asList()), ListCoder.of(resultCoder)));
       }
-    }
-  }
-
-  private static class ToListCombineFn<ResultT>
-      extends CombineFn<ResultT, List<ResultT>, List<ResultT>> {
-
-    @Override
-    public List<ResultT> createAccumulator() {
-      return new ArrayList<>();
-    }
-
-    @Override
-    public List<ResultT> addInput(List<ResultT> mutableAccumulator, ResultT input) {
-      mutableAccumulator.add(input);
-      return mutableAccumulator;
-    }
-
-    @Override
-    public List<ResultT> mergeAccumulators(Iterable<List<ResultT>> accumulators) {
-      Iterator<List<ResultT>> iter = accumulators.iterator();
-      if (!iter.hasNext()) {
-        return new ArrayList<>();
-      }
-      List<ResultT> merged = iter.next();
-      while (iter.hasNext()) {
-        merged.addAll(iter.next());
-      }
-      return merged;
-    }
-
-    @Override
-    public List<ResultT> extractOutput(List<ResultT> accumulator) {
-      return accumulator;
     }
   }
 

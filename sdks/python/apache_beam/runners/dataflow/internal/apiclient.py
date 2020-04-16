@@ -205,7 +205,7 @@ class Environment(object):
           ) and 'dev' in beam_version.__version__:
         self.debug_options.add_experiment(
             'runner_harness_container_image='
-            'gcr.io/cloud-dataflow/v1beta3/unified-harness:20200402-rc00')
+            'gcr.io/cloud-dataflow/v1beta3/unified-harness:20200409-rc00')
 
       if self.debug_options.lookup_experiment(
           'runner_harness_container_image') or _use_unified_worker(options):
