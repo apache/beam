@@ -29,6 +29,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import itertools
+import logging
 
 from apache_beam import ParDo
 from apache_beam import coders
@@ -56,6 +57,8 @@ except ImportError:
   print(
       'Exception: grpc was not able to be imported. '
       'Skip importing all grpc related moduels.')
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class _WatermarkController(PTransform):
@@ -270,9 +273,20 @@ class _TestStream(PTransform):
     event_request = beam_runner_api_pb2.EventsRequest(
         output_ids=[str(tag) for tag in output_tags])
 
-    event_stream = stub.Events(event_request)
-    for e in event_stream:
-      yield _TestStream.test_stream_payload_to_events(e, coder)
+    event_stream = stub.Events(event_request, timeout=30)
+    try:
+      while True:
+        yield _TestStream.test_stream_payload_to_events(
+            next(event_stream), coder)
+    except StopIteration:
+      return
+    except grpc.RpcError as e:
+      if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+        _LOGGER.warning(
+            'TestStream timed out waiting for new events from service.'
+            ' Stopping pipeline.')
+        return
+      raise e
 
   @staticmethod
   def test_stream_payload_to_events(payload, coder):
