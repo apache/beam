@@ -17,10 +17,13 @@
     under the License.
 -->
 
-# Beam Katas
-Beam Katas are interactive Beam coding exercises (i.e. [code katas](http://codekata.com/))
-that can help you to learn Apache Beam concepts and programming model hands-on.
-Built based on [JetBrains Educational Products](https://www.jetbrains.com/education/), Beam Katas 
-objective is to provide a series of structured hands-on learning experiences for learners 
-to understand about Apache Beam and its SDKs by solving exercises with gradually increasing 
-complexity. Beam Katas are available for Java, Python, and Go SDKs.
+### How to Setup
+Please follow the below steps in order to setup the project properly:
+* Using GoLand with the EduTools plugin, select "+ New Project"
+* Click "Yes" to create project from existing sources when prompted
+* Wait for indexing to finish
+* Open the "Project" tool window, and select the "Course" view
+* Your project is ready
+
+For further instructions on how the GoLand Education works, you can refer 
+[here](https://www.jetbrains.com/help/education/educator-start-guide.html?section=Go).
