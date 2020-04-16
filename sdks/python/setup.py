@@ -216,8 +216,21 @@ GCP_REQUIREMENTS = [
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
     'ipython>=5.8.0,<8',
+    'ipykernel>=5.2.0,<6',
     'timeloop>=1.0.2,<2',
 ]
+
+INTERACTIVE_BEAM_TEST = [
+    # notebok utils
+    'nbformat>=5.0.5,<6',
+    'nbconvert>=5.6.1,<6',
+    'jupyter-client>=6.1.2,<7',
+    # headless chrome based integration tests
+    'selenium>=3.141.0,<4',
+    'needle>=0.5.0,<1',
+    'chromedriver-binary>=80,<81',
+]
+
 AWS_REQUIREMENTS = [
     'boto3 >=1.9'
 ]
@@ -282,6 +295,7 @@ setuptools.setup(
         'test': REQUIRED_TEST_PACKAGES,
         'gcp': GCP_REQUIREMENTS,
         'interactive': INTERACTIVE_BEAM,
+        'interactive_test': INTERACTIVE_BEAM_TEST,
         'aws': AWS_REQUIREMENTS
     },
     zip_safe=False,

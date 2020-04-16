@@ -282,7 +282,7 @@ __all__ = [
     'BigQuerySource',
     'BigQuerySink',
     'WriteToBigQuery',
-    '_ReadFromBigQuery',
+    'ReadFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
 
@@ -1527,13 +1527,11 @@ class _PassThroughThenCleanup(PTransform):
 
 
 @experimental()
-class _ReadFromBigQuery(PTransform):
+class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
     on GCS, and then reads from each produced JSON file.
-
-    Do note that currently this source does not work with DirectRunner.
 
   Args:
     table (str, callable, ValueProvider): The ID of the table, or a callable

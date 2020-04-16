@@ -389,6 +389,7 @@ class RunnerAPIPTransformHolder(PTransform):
     # For ParDos with side-inputs, this will be populated after this object is
     # created.
     self.side_inputs = []
+    self.is_pardo_with_stateful_dofn = bool(self._get_pardo_state_specs())
 
   def proto(self):
     """Runner API payload for a `PTransform`"""
@@ -446,6 +447,12 @@ class RunnerAPIPTransformHolder(PTransform):
             par_do_payload.restriction_coder_id)
 
         return ExternalCoder(restriction_coder_proto)
+
+  def _get_pardo_state_specs(self):
+    if common_urns.primitives.PAR_DO.urn == self._proto.urn:
+      par_do_payload = proto_utils.parse_Bytes(
+          self._proto.payload, beam_runner_api_pb2.ParDoPayload)
+      return par_do_payload.state_specs
 
 
 class WatermarkEstimatorProvider(object):
@@ -802,8 +809,9 @@ class CallableWrapperDoFn(DoFn):
     try:
       type_hints = type_hints.strip_iterable()
     except ValueError as e:
-      # TODO(BEAM-8466): Raise exception here if using stricter type checking.
-      _LOGGER.warning('%s: %s', self.display_data()['fn'].value, e)
+      raise TypeCheckError(
+          'Return value not iterable: %s: %s' %
+          (self.display_data()['fn'].value, e))
     return type_hints
 
   def infer_output_type(self, input_type):

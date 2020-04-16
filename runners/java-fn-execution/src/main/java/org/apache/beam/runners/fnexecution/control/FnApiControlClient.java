@@ -86,13 +86,6 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
   public CompletionStage<BeamFnApi.InstructionResponse> handle(
       BeamFnApi.InstructionRequest request) {
     LOG.debug("Sending InstructionRequest {}", request);
-    // TODO: Populate this map directly rather than via inspection of control instructions.
-    if (request.getRequestCase() == BeamFnApi.InstructionRequest.RequestCase.REGISTER) {
-      for (BeamFnApi.ProcessBundleDescriptor processBundleDescriptor :
-          request.getRegister().getProcessBundleDescriptorList()) {
-        processBundleDescriptors.put(processBundleDescriptor.getId(), processBundleDescriptor);
-      }
-    }
     CompletableFuture<BeamFnApi.InstructionResponse> resultFuture = new CompletableFuture<>();
     outstandingRequests.put(request.getInstructionId(), resultFuture);
     requestReceiver.onNext(request);
@@ -105,6 +98,12 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
 
   public BeamFnApi.ProcessBundleDescriptor getProcessBundleDescriptor(String id) {
     return processBundleDescriptors.get(id);
+  }
+
+  @Override
+  public void registerProcessBundleDescriptor(
+      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor) {
+    processBundleDescriptors.put(processBundleDescriptor.getId(), processBundleDescriptor);
   }
 
   @Override

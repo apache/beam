@@ -37,6 +37,7 @@ import com.google.api.services.healthcare.v1beta1.model.IngestMessageRequest;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
+
 import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
@@ -322,14 +323,13 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     gcsSrc.setUri(gcsSourcePath);
     ImportResourcesRequest importRequest = new ImportResourcesRequest();
     importRequest.setGcsSource(gcsSrc).setContentStructure(contentStructure);
-    return client
+      return client
         .projects()
         .locations()
         .datasets()
         .fhirStores()
         .healthcareImport(fhirStore, importRequest)
-        .execute();
-  }
+        .execute()
 
   @Override
   public Operation pollOperation(Operation operation, Long sleepMs)
@@ -410,6 +410,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
+
     GoogleCredentials credentials;
 
     public AuthenticatedRetryInitializer(GoogleCredentials credentials) {
@@ -442,6 +443,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   private void initClient() throws IOException {
+
     credentials = GoogleCredentials.getApplicationDefault();
     // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
     HttpRequestInitializer requestInitializer =
