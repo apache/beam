@@ -693,7 +693,7 @@ public class FhirIO {
               ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempGcsPath, deadLetterGcsPath))
                   .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
-      int numShards = 5;
+      int numShards = 100;
       PCollection<HealthcareIOError<String>> importResults =
           writeResults
               .get(Write.TEMP_FILES)
