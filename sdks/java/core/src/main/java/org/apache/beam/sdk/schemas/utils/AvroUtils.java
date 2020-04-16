@@ -63,6 +63,7 @@ import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.SchemaUserTypeCreator;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertType;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForGetter;
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.ConvertValueForSetter;
@@ -678,9 +679,10 @@ public class AvroUtils {
       } else if (logicalType instanceof LogicalTypes.TimestampMillis) {
         // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
         // this is done, this logical type needs to be changed.
-        fieldType = FieldType.DATETIME;
+        fieldType = FieldType.logicalType(MillisInstant.of());
       } else if (logicalType instanceof LogicalTypes.Date) {
-        fieldType = FieldType.DATETIME;
+        // TODO: Map to a DATE logical type
+        fieldType = FieldType.logicalType(MillisInstant.of());
       }
     }
 
@@ -785,13 +787,6 @@ public class AvroUtils {
         baseType = org.apache.avro.Schema.create(Type.STRING);
         break;
 
-      case DATETIME:
-        // TODO: There is a desire to move Beam schema DATETIME to a micros representation. When
-        // this is done, this logical type needs to be changed.
-        baseType =
-            LogicalTypes.timestampMillis().addToSchema(org.apache.avro.Schema.create(Type.LONG));
-        break;
-
       case BOOLEAN:
         baseType = org.apache.avro.Schema.create(Type.BOOLEAN);
         break;
@@ -811,6 +806,11 @@ public class AvroUtils {
             EnumerationType enumerationType = fieldType.getLogicalType(EnumerationType.class);
             baseType =
                 org.apache.avro.Schema.createEnum(fieldName, "", "", enumerationType.getValues());
+            break;
+          case MillisInstant.IDENTIFIER:
+            baseType =
+                LogicalTypes.timestampMillis()
+                    .addToSchema(org.apache.avro.Schema.create(Type.LONG));
             break;
           default:
             throw new RuntimeException(
@@ -882,16 +882,8 @@ public class AvroUtils {
         return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
 
       case DATETIME:
-        if (typeWithNullability.type.getType() == Type.INT) {
-          ReadableInstant instant = (ReadableInstant) value;
-          return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
-        } else if (typeWithNullability.type.getType() == Type.LONG) {
-          ReadableInstant instant = (ReadableInstant) value;
-          return (long) instant.getMillis();
-        } else {
-          throw new IllegalArgumentException(
-              "Can't represent " + fieldType + " as " + typeWithNullability.type.getType());
-        }
+        throw new IllegalArgumentException(
+            "DATETIME is not supported, use MillisInstant logical type instead.");
 
       case BYTES:
         return ByteBuffer.wrap((byte[]) value);
@@ -912,6 +904,19 @@ public class AvroUtils {
                 .createEnum(
                     enumerationType.toString((EnumerationType.Value) value),
                     typeWithNullability.type);
+          case MillisInstant.IDENTIFIER:
+            if (typeWithNullability.type.getType() == Type.INT) {
+              // TODO: DATE as a LogicalType
+              ReadableInstant instant = (ReadableInstant) value;
+              return (int) Days.daysBetween(Instant.EPOCH, instant).getDays();
+            } else if (typeWithNullability.type.getType() == Type.LONG) {
+              // Convert ReadableInstant to a Long
+              ReadableInstant instant = (ReadableInstant) value;
+              return instant.getMillis();
+            } else {
+              throw new IllegalArgumentException(
+                  "Can't represent " + fieldType + " as " + typeWithNullability.type.getType());
+            }
           default:
             throw new RuntimeException(
                 "Unhandled logical type " + fieldType.getLogicalType().getIdentifier());
@@ -1088,12 +1093,14 @@ public class AvroUtils {
   }
 
   private static Object convertDateStrict(Integer epochDays, Schema.FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "date");
+    checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "date");
+    checkArgument(fieldType.getLogicalType().getIdentifier().equals(MillisInstant.IDENTIFIER));
     return Instant.EPOCH.plus(Duration.standardDays(epochDays));
   }
 
   private static Object convertDateTimeStrict(Long value, Schema.FieldType fieldType) {
-    checkTypeName(fieldType.getTypeName(), TypeName.DATETIME, "dateTime");
+    checkTypeName(fieldType.getTypeName(), TypeName.LOGICAL_TYPE, "date-time");
+    checkArgument(fieldType.getLogicalType().getIdentifier().equals(MillisInstant.IDENTIFIER));
     return new Instant(value);
   }
 

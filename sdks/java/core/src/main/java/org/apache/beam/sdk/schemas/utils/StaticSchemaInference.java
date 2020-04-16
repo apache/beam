@@ -34,6 +34,7 @@ import org.apache.beam.sdk.schemas.FieldValueTypeInformation;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.ReadableInstant;
@@ -138,7 +139,8 @@ public class StaticSchemaInference {
     } else if (type.isSubtypeOf(TypeDescriptor.of(CharSequence.class))) {
       return FieldType.STRING;
     } else if (type.isSubtypeOf(TypeDescriptor.of(ReadableInstant.class))) {
-      return FieldType.DATETIME;
+      // TODO: What about java8 time instant?
+      return FieldType.logicalType(MillisInstant.of());
     } else if (type.isSubtypeOf(TypeDescriptor.of(ByteBuffer.class))) {
       return FieldType.BYTES;
     } else if (type.isSubtypeOf(TypeDescriptor.of(Iterable.class))) {

@@ -107,6 +107,7 @@ public class ByteBuddyUtils {
       new ForLoadedType(ReadableInstant.class);
   private static final ForLoadedType READABLE_PARTIAL_TYPE =
       new ForLoadedType(ReadablePartial.class);
+  private static final ForLoadedType LONG_TYPE = new ForLoadedType(Long.class);
   private static final ForLoadedType INTEGER_TYPE = new ForLoadedType(Integer.class);
   private static final ForLoadedType ENUM_TYPE = new ForLoadedType(Enum.class);
   private static final ForLoadedType BYTE_BUDDY_UTILS_TYPE =
@@ -359,7 +360,7 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertDateTime(TypeDescriptor<?> type) {
-      return Instant.class;
+      return Long.class;
     }
 
     @Override
@@ -787,24 +788,15 @@ public class ByteBuddyUtils {
 
     @Override
     protected StackManipulation convertDateTime(TypeDescriptor<?> type) {
-      // If the class type is an Instant, then return it.
-      if (Instant.class.isAssignableFrom(type.getRawType())) {
-        return readValue;
-      }
-
-      // Otherwise, generate the following code:
+      // Generate the following code:
       //
       // for ReadableInstant:
-      //   return new Instant(value.getMillis());
+      //   return value.getMillis();
       //
       // for ReadablePartial:
-      //   return new Instant((value.toDateTime(Instant.EPOCH)).getMillis());
+      //   return value.toDateTime(Instant.EPOCH)).getMillis();
 
       List<StackManipulation> stackManipulations = new ArrayList<>();
-
-      // Create a new instance of the target type.
-      stackManipulations.add(TypeCreation.of(INSTANT_TYPE));
-      stackManipulations.add(Duplication.SINGLE);
 
       // if value is ReadablePartial, convert it to ReadableInstant first
       if (ReadablePartial.class.isAssignableFrom(type.getRawType())) {
@@ -847,15 +839,10 @@ public class ByteBuddyUtils {
                   .filter(ElementMatchers.named("getMillis"))
                   .getOnly()));
 
-      // Construct a Instant object containing the millis.
+      // Box the long returned by getMillis
       stackManipulations.add(
-          MethodInvocation.invoke(
-              INSTANT_TYPE
-                  .getDeclaredMethods()
-                  .filter(
-                      ElementMatchers.isConstructor()
-                          .and(ElementMatchers.takesArguments(ForLoadedType.of(long.class))))
-                  .getOnly()));
+          Assigner.DEFAULT.assign(
+              LONG_TYPE.asUnboxed().asGenericType(), LONG_TYPE.asGenericType(), Typing.STATIC));
 
       StackManipulation stackManipulation = new StackManipulation.Compound(stackManipulations);
       return new ShortCircuitReturnNull(readValue, stackManipulation);
@@ -1154,9 +1141,9 @@ public class ByteBuddyUtils {
       // that the POJO can accept.
 
       // Generate the following code:
-      //   return new T(value.getMillis());
+      //   return new T(value)
       // Unless T is a sub-class of BaseLocal. Then generate:
-      //   return new T(value.getMillis(), DateTimeZone.UTC);
+      //   return new T(value, DateTimeZone.UTC);
 
       ForLoadedType loadedType = new ForLoadedType(type.getRawType());
       List<StackManipulation> stackManipulations = new ArrayList<>();
@@ -1164,16 +1151,13 @@ public class ByteBuddyUtils {
       // Create a new instance of the target type.
       stackManipulations.add(TypeCreation.of(loadedType));
       stackManipulations.add(Duplication.SINGLE);
-      // Load the parameter and cast it to a ReadableInstant.
+      // Load the Long parameter and unbox it
       stackManipulations.add(readValue);
-      stackManipulations.add(TypeCasting.to(READABLE_INSTANT_TYPE));
-      // Call ReadableInstant.getMillis to extract the millis since the epoch.
       stackManipulations.add(
-          MethodInvocation.invoke(
-              READABLE_INSTANT_TYPE
-                  .getDeclaredMethods()
-                  .filter(ElementMatchers.named("getMillis"))
-                  .getOnly()));
+          Assigner.DEFAULT.assign(
+              LONG_TYPE.asBoxed().asGenericType(),
+              LONG_TYPE.asUnboxed().asGenericType(),
+              Typing.STATIC));
 
       if (type.isSubtypeOf(TypeDescriptor.of(BaseLocal.class))
           || type.equals(TypeDescriptor.of(DateTime.class))) {
