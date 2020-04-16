@@ -25,15 +25,18 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -56,6 +60,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.codehaus.jackson.JsonProcessingException;
 import org.slf4j.Logger;
@@ -378,6 +383,11 @@ public class FhirIO {
     /** The tag for the failed writes to FHIR store`. */
     public static final TupleTag<HealthcareIOError<HttpBody>> FAILED_BODY =
         new TupleTag<HealthcareIOError<HttpBody>>() {};
+    /** The tag for the files that failed to FHIR store`. */
+    public static final TupleTag<HealthcareIOError<String>> FAILED_FILES =
+        new TupleTag<HealthcareIOError<String>>() {};
+    /** The tag for temp files for import to FHIR store`. */
+    public static final TupleTag<ResourceId> TEMP_FILES = new TupleTag<ResourceId>() {};
 
     /** The enum Write method. */
     public enum WriteMethod {
@@ -626,7 +636,7 @@ public class FhirIO {
     private final String tempGcsPath;
     private final String deadLetterGcsPath;
     private final ContentStructure contentStructure;
-    private final long targetResourcesPerFile = 1000;
+    private final int batchSize = 10000;
 
     /**
      * Instantiates a new Import.
@@ -676,11 +686,103 @@ public class FhirIO {
 
     @Override
     public PCollection<HealthcareIOError<HttpBody>> expand(PCollection<HttpBody> input) {
-      return input
-          .apply(WithKeys.of("dummyKey"))
-          .apply(GroupIntoBatches.ofSize(targetResourcesPerFile))
-          .apply(
-              ParDo.of(new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)));
+      // write bundles of HttpBody to GCS
+      PCollectionTuple writeResults =
+          input.apply(
+              "Write nd json to GCS",
+              ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempGcsPath, deadLetterGcsPath))
+                  .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
+
+      int numShards = 5;
+      PCollection<HealthcareIOError<String>> importResults =
+          writeResults
+              .get(Write.TEMP_FILES)
+              .apply(
+                  "Shard files", // to paralelize group into batches
+                  WithKeys.of(ThreadLocalRandom.current().nextInt(0, numShards)))
+              .apply("File Batches", GroupIntoBatches.ofSize(batchSize))
+              .apply(
+                  ParDo.of(
+                      new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)))
+              .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+
+      return writeResults
+          .get(Write.FAILED_BODY)
+          .setCoder(new HealthcareIOErrorCoder<>(HttpBodyCoder.of()));
+    }
+
+    static class ImportFn
+        extends DoFn<KV<Integer, Iterable<ResourceId>>, HealthcareIOError<String>> {
+
+      private static final Logger LOG = LoggerFactory.getLogger(ImportFn.class);
+      private final String tempGcsPath;
+      private final String deadLetterGcsPath;
+      private ResourceId tempDir;
+      private final ContentStructure contentStructure;
+      private HealthcareApiClient client;
+      private final String fhirStore;
+
+      ImportFn(
+          String fhirStore,
+          String tempGcsPath,
+          String deadLetterGcsPath,
+          @Nullable ContentStructure contentStructure) {
+        this.fhirStore = fhirStore;
+        this.tempGcsPath = tempGcsPath;
+        this.deadLetterGcsPath = deadLetterGcsPath;
+        if (contentStructure == null) {
+          this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
+        } else {
+          this.contentStructure = contentStructure;
+        }
+      }
+
+      @Setup
+      public void init() throws IOException {
+        tempDir =
+            FileSystems.matchNewResource(tempGcsPath, true)
+                .resolve(
+                    String.format("tmp-%s", UUID.randomUUID().toString()),
+                    StandardResolveOptions.RESOLVE_DIRECTORY);
+        client = new HttpHealthcareApiClient();
+      }
+
+      /**
+       * Move files to a temporary subdir (to provide common prefix) to execute import with single
+       * GCS URI.
+       */
+      @ProcessElement
+      public void importBatch(ProcessContext context) throws IOException {
+        Iterable<ResourceId> batch = context.element().getValue();
+        List<ResourceId> tempDestinations = new ArrayList<>();
+        List<ResourceId> deadLetterDestinations = new ArrayList<>();
+        assert batch != null;
+        for (ResourceId file : batch) {
+          tempDestinations.add(
+              tempDir.resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
+          deadLetterDestinations.add(
+              FileSystems.matchNewResource(deadLetterGcsPath, true)
+                  .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
+        }
+        FileSystems.rename(ImmutableList.copyOf(batch), tempDestinations);
+        ResourceId importUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_FILE);
+        try {
+          // Blocking fhirStores.import request.
+          assert contentStructure != null;
+          Operation operation =
+              client.importFhirResource(fhirStore, importUri.toString(), contentStructure.name());
+          client.pollOperation(operation, 500L);
+          // Clean up temp file on GCS.
+          FileSystems.delete(tempDestinations);
+        } catch (IOException | InterruptedException e) {
+          ResourceId deadLetterResourceId = FileSystems.matchNewResource(deadLetterGcsPath, true);
+          LOG.warn(
+              String.format(
+                  "Failed to import %s with error: %s. Moving to deadletter path %s",
+                  importUri.toString(), e.getMessage(), deadLetterResourceId.toString()));
+          FileSystems.rename(tempDestinations, deadLetterDestinations);
+        }
+      }
     }
 
     /** The enum Content structure. */
@@ -705,19 +807,18 @@ public class FhirIO {
     }
 
     /** The type Import fn. */
-    static class ImportFn
-        extends DoFn<KV<String, Iterable<HttpBody>>, HealthcareIOError<HttpBody>> {
+    static class WriteBundlesToFilesFn extends DoFn<HttpBody, ResourceId> {
+
       private final String fhirStore;
       private final String tempGcsPath;
       private final String deadLetterGcsPath;
-      private final ContentStructure contentStructure;
       private ObjectMapper mapper;
       private ResourceId resourceId;
-      private ResourceId deadLetterResourceId;
       private WritableByteChannel ndJsonChannel;
+      private BoundedWindow window;
 
       private transient HealthcareApiClient client;
-      private static final Logger LOG = LoggerFactory.getLogger(ImportFn.class);
+      private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFilesFn.class);
 
       /**
        * Instantiates a new Import fn.
@@ -725,21 +826,11 @@ public class FhirIO {
        * @param fhirStore the fhir store
        * @param tempGcsPath the temp gcs path
        * @param deadLetterGcsPath the dead letter gcs path
-       * @param contentStructure the content structure
        */
-      ImportFn(
-          String fhirStore,
-          String tempGcsPath,
-          String deadLetterGcsPath,
-          @Nullable ContentStructure contentStructure) {
+      WriteBundlesToFilesFn(String fhirStore, String tempGcsPath, String deadLetterGcsPath) {
         this.fhirStore = fhirStore;
         this.tempGcsPath = tempGcsPath;
         this.deadLetterGcsPath = deadLetterGcsPath;
-        if (contentStructure == null) {
-          this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
-        } else {
-          this.contentStructure = contentStructure;
-        }
       }
 
       /**
@@ -758,12 +849,10 @@ public class FhirIO {
        * @throws IOException the io exception
        */
       @StartBundle
-      public void initBatch() throws IOException {
+      public void initFile() throws IOException {
         // Write each bundle to newline delimited JSON file.
-        String filename = String.format("fhirImportBatch-%s.ndjson", UUID.randomUUID().toString());
+        String filename = String.format("/fhirImportBatch-%s.ndjson", UUID.randomUUID().toString());
         this.resourceId = FileSystems.matchNewResource(this.tempGcsPath + filename, false);
-        this.deadLetterResourceId =
-            FileSystems.matchNewResource(this.deadLetterGcsPath + filename, false);
         this.ndJsonChannel = FileSystems.create(resourceId, "application/ld+json");
         if (mapper == null) {
           this.mapper = new ObjectMapper();
@@ -777,62 +866,37 @@ public class FhirIO {
        * @throws IOException the io exception
        */
       @ProcessElement
-      public void addToBatch(ProcessContext context) throws IOException {
-        Iterable<HttpBody> httpBodies =
-            context.element().getValue(); // we don't care about dummy key.
-        if (httpBodies == null) {
-          throw new RuntimeException("expected Iterable<HttpBody> but got null");
-        }
-        for (HttpBody httpBody : httpBodies) {
-          try {
-            // This will error if not valid JSON an convert Pretty JSON to raw JSON.
-            Object data = this.mapper.readValue(httpBody.getData(), Object.class);
-            String ndJson = this.mapper.writeValueAsString(data) + "\n";
-            this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
-          } catch (JsonProcessingException e) {
-            String resource =
-                String.format(
-                    "Failed to parse payload: %s as json at: %s : %s."
-                        + "Dropping message from batch import.",
-                    httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
-            LOG.warn(resource);
-            context.output(
-                Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
-          }
+      public void addToFile(ProcessContext context, BoundedWindow window) throws IOException {
+        this.window = window;
+        HttpBody httpBody = context.element();
+        try {
+          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
+          Object data = this.mapper.readValue(httpBody.getData(), Object.class);
+          String ndJson = this.mapper.writeValueAsString(data) + "\n";
+          this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
+        } catch (JsonProcessingException e) {
+          String resource =
+              String.format(
+                  "Failed to parse payload: %s as json at: %s : %s."
+                      + "Dropping message from batch import.",
+                  httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
+          LOG.warn(resource);
+          context.output(
+              Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
         }
       }
 
       /**
-       * Import batch.
+       * Close file.
        *
        * @param context the context
        * @throws IOException the io exception
-       * @throws InterruptedException the interrupted exception
        */
       @FinishBundle
-      public void importBatch(FinishBundleContext context)
-          throws IOException, InterruptedException {
+      public void closeFile(FinishBundleContext context) throws IOException {
         // Write the file with all elements in this bundle to GCS.
-        this.ndJsonChannel.close();
-        try {
-          // Blocking fhirStores.import request.
-          assert contentStructure != null;
-          Operation operation =
-              client.importFhirResource(fhirStore, resourceId.toString(), contentStructure.name());
-          client.pollOperation(operation, 500L);
-          // Clean up temp file on GCS.
-          FileSystems.delete(Collections.singleton(resourceId));
-        } catch (IOException | InterruptedException e) {
-          LOG.warn(
-              String.format(
-                  "Failed to import %s with error: %s. Moving to deadletter path %s",
-                  resourceId.toString(), e.getMessage(), deadLetterResourceId.toString()));
-          FileSystems.copy(
-              Collections.singletonList(resourceId),
-              Collections.singletonList(deadLetterResourceId));
-          FileSystems.delete(Collections.singleton(resourceId));
-          throw e;
-        }
+        ndJsonChannel.close();
+        context.output(resourceId, window.maxTimestamp(), window);
       }
     }
   }
