@@ -86,6 +86,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Primitives;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
+import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
@@ -1174,7 +1175,8 @@ public class ByteBuddyUtils {
                   .filter(ElementMatchers.named("getMillis"))
                   .getOnly()));
 
-      if (type.isSubtypeOf(TypeDescriptor.of(BaseLocal.class))) {
+      if (type.isSubtypeOf(TypeDescriptor.of(BaseLocal.class))
+          || type.equals(TypeDescriptor.of(DateTime.class))) {
         // Access DateTimeZone.UTC
         stackManipulations.add(
             FieldAccess.forField(
@@ -1183,7 +1185,7 @@ public class ByteBuddyUtils {
                         .filter(ElementMatchers.named("UTC"))
                         .getOnly())
                 .read());
-        // All subclasses of BaseLocal contain a ()(long, DateTimeZone) constructor
+        // All subclasses of BaseLocal (and DateTime) contain a ()(long, DateTimeZone) constructor
         // that takes in a millis and time zone argument. Call that constructor of the field to
         // initialize it.
         stackManipulations.add(
