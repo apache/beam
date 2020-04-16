@@ -212,29 +212,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
         // the work that was done in the current ProcessElement call, and returns a residual
         // restriction that describes exactly the work that wasn't done in the current call. The
         // residual is null when the entire restriction has been processed.
-        if (processContext.numClaimedBlocks > 0) {
-          residual = processContext.takeCheckpointNow();
-          processContext.tracker.checkDone();
-        } else {
-          // The call returned resume() without trying to claim any blocks, i.e. it is unaware
-          // of any work to be done at the moment, but more might emerge later. This is a valid
-          // use case: e.g. a DoFn reading from a streaming source might see that there are
-          // currently no new elements (hence not claim anything) and return resume() with a delay
-          // to check again later.
-          // In this case, we must simply reschedule the original restriction - checkpointing a
-          // tracker that hasn't claimed any work is not allowed.
-          //
-          // Note that the situation "a DoFn repeatedly says that it doesn't have any work to claim
-          // and asks to try again later with the same restriction" is different from the situation
-          // "a runner repeatedly checkpoints the DoFn before it has a chance to even attempt
-          // claiming work": the former is valid, and the latter would be a bug, and is addressed
-          // by not checkpointing the tracker until it attempts to claim some work.
-          residual =
-              KV.of(
-                  tracker.currentRestriction(),
-                  KV.of(watermarkEstimator.currentWatermark(), watermarkEstimator.getState()));
-          // Don't call tracker.checkDone() - it's not done.
-        }
+        residual = processContext.takeCheckpointNow();
+        processContext.tracker.checkDone();
       } else {
         // A checkpoint was taken by the runner, and then the ProcessElement call returned resume()
         // without making more tryClaim() calls (since no tryClaim() calls can succeed after

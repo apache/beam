@@ -51,6 +51,7 @@ public class OffsetRangeTrackerTest {
     SplitResult res = tracker.trySplit(0);
     assertEquals(new OffsetRange(100, 100), res.getPrimary());
     assertEquals(new OffsetRange(100, 200), res.getResidual());
+    tracker.checkDone();
   }
 
   @Test
@@ -60,6 +61,7 @@ public class OffsetRangeTrackerTest {
     OffsetRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(new OffsetRange(100, 101), tracker.currentRestriction());
     assertEquals(new OffsetRange(101, 200), checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -70,6 +72,7 @@ public class OffsetRangeTrackerTest {
     OffsetRange checkpoint = tracker.trySplit(0).getResidual();
     assertEquals(new OffsetRange(100, 111), tracker.currentRestriction());
     assertEquals(new OffsetRange(111, 200), checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -81,6 +84,7 @@ public class OffsetRangeTrackerTest {
     SplitResult checkpoint = tracker.trySplit(0);
     assertEquals(new OffsetRange(100, 200), tracker.currentRestriction());
     assertNull(checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -91,6 +95,7 @@ public class OffsetRangeTrackerTest {
     assertTrue(tracker.tryClaim(160L));
     assertFalse(tracker.tryClaim(240L));
     assertNull(tracker.trySplit(0));
+    tracker.checkDone();
   }
 
   @Test
@@ -108,6 +113,17 @@ public class OffsetRangeTrackerTest {
     SplitResult splitRes = tracker.trySplit(0.509);
     assertEquals(new OffsetRange(100, 150), splitRes.getPrimary());
     assertEquals(new OffsetRange(150, 200), splitRes.getResidual());
+
+    splitRes = tracker.trySplit(1);
+    assertNull(splitRes);
+  }
+
+  @Test
+  public void testTrySplitAtEmptyRange() throws Exception {
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 100));
+    assertNull(tracker.trySplit(0));
+    assertNull(tracker.trySplit(0.1));
+    assertNull(tracker.trySplit(1));
   }
 
   @Test

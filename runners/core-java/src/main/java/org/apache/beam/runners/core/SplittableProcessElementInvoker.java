@@ -57,9 +57,7 @@ public abstract class SplittableProcessElementInvoker<
     }
 
     /**
-     * Can be {@code null} only if {@link #getContinuation} specifies the call should not resume.
-     * However, the converse is not true: this can be non-null even if {@link #getContinuation} is
-     * {@link DoFn.ProcessContinuation#stop()}.
+     * Can be {@code null} only if {@link #getContinuation} when there is no more work to resume.
      */
     @Nullable
     public RestrictionT getResidualRestriction() {
