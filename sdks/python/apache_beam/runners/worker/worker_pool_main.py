@@ -158,7 +158,7 @@ class BeamFnExternalWorkerPoolServicer(
         worker_thread.start()
 
       return beam_fn_api_pb2.StartWorkerResponse()
-    except Exception as exn:
+    except Exception:
       return beam_fn_api_pb2.StartWorkerResponse(error=traceback.format_exc())
 
   def StopWorker(self,
