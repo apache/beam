@@ -511,6 +511,14 @@ limitations under the License.
 
 <p>The samples on this page show you common Beam side input patterns. A side input is an additional input that your <code class="highlighter-rouge">DoFn</code> can access each time it processes an element in the input <code class="highlighter-rouge">PCollection</code>. For more information, see the <a href="/documentation/programming-guide/#side-inputs">programming guide section on side inputs</a>.</p>
 
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    <li data-type="language-java" class="active">Java SDK</li>
+    <li data-type="language-py">Python SDK</li>
+  </ul>
+</nav>
+
 <h2 id="slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</h2>
 
 <p>You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a <code class="highlighter-rouge">FixedWindow</code>.</p>
@@ -605,31 +613,36 @@ limitations under the License.
 
 
 </code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">No</span> <span class="n">sample</span> <span class="n">present</span><span class="o">.</span>
+</code></pre></div></div>
 
 <h2 id="slowly-updating-side-input-using-windowing">Slowly updating side input using windowing</h2>
 
-<p>You can read side input pcollection periodically into distinct windows.
-Later, when you apply side input to your main input, windows will be matched automatically 1:1.
-This way, you can guarantee side input consistency on the duration of the single window.</p>
+<p>You can read side input data periodically into distinct PCollection windows.
+When you apply the side input to your main input, each main input
+window is automatically matched to a single side input window.
+This guarantees consistency on the duration of the single window,
+meaning that each window on the main input will be matched to a single
+version of side input data.</p>
 
-<p>To do this, you can utilize PeriodicSequence PTransform that will generate infinite sequence
-of elements with some real-time period:</p>
+<p>To read side input data periodically into distinct PColleciton windows:</p>
 
 <ol>
-  <li>
-    <p>Use the PeriodicImpulse transform to generate windowed periodic sequence.</p>
-
-    <p>a. MAX_TIMESTAMP can be replaced with some closer boundary if you want to stop generating elements at some point.</p>
+  <li>Use the PeriodicImpulse or PeriodicSequence PTransform to:
+    <ul>
+      <li>Generate an infinite sequence of elements at required processing time
+ intervals</li>
+      <li>Assign them to separate windows.</li>
+    </ul>
   </li>
-  <li>
-    <p>Read data using Read operation triggered by arrival of PCollection element.</p>
-  </li>
-  <li>
-    <p>Apply side input.</p>
-  </li>
+  <li>Fetch data using SDF Read or ReadAll PTransform triggered by arrival of
+PCollection element.</li>
+  <li>Apply the side input.</li>
 </ol>
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.transforms.periodicsequence</span> <span class="kn">import</span> <span class="n">PeriodicImpulse</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">No</span> <span class="n">sample</span> <span class="n">present</span><span class="o">.</span>
+</code></pre></div></div>
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.transforms.periodicsequence</span> <span class="kn">import</span> <span class="n">PeriodicImpulse</span>
 <span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="kn">import</span> <span class="n">TimestampedValue</span>
 <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="kn">import</span> <span class="n">window</span>
 
@@ -666,7 +679,6 @@ of elements with some real-time period:</p>
         <span class="n">cross_join</span><span class="p">,</span> <span class="n">rights</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">side_input</span><span class="p">)))</span>
 
 </code></pre></div></div>
-
 
       </div>
     </div>
