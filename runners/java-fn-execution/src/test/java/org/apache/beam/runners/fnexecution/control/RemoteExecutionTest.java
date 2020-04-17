@@ -1424,7 +1424,10 @@ public class RemoteExecutionTest implements Serializable {
       // Keep sending splits until the bundle terminates, we specifically use 0.5 so that we will
       // choose a split point before the end of WAIT_TILL_SPLIT regardless of where we are during
       // processing.
-      future = (ScheduledFuture) executor.scheduleWithFixedDelay(() -> bundle.split(0.5), 0L, 100L, TimeUnit.MILLISECONDS);
+      future =
+          (ScheduledFuture)
+              executor.scheduleWithFixedDelay(
+                  () -> bundle.split(0.5), 0L, 100L, TimeUnit.MILLISECONDS);
     }
     future.cancel(false);
     executor.shutdown();

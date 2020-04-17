@@ -395,7 +395,8 @@ public class SdkHarnessClient implements AutoCloseable {
         response.thenAccept(
             instructionResponse -> {
               // Don't forward empty responses representing the failure to split.
-              if (ProcessBundleSplitResponse.getDefaultInstance().equals(instructionResponse.getProcessBundleSplit())) {
+              if (ProcessBundleSplitResponse.getDefaultInstance()
+                  .equals(instructionResponse.getProcessBundleSplit())) {
                 return;
               }
               splitHandler.split(instructionResponse.getProcessBundleSplit());
