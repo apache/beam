@@ -25,11 +25,11 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import java.io.IOException;
 import java.security.SecureRandom;
-import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.Sleeper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -77,8 +77,7 @@ public class HL7v2IOWriteIT {
   }
 
   @Test
-  public void testHL7v2IOWrite() throws IOException {
-    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(true);
+  public void testHL7v2IOWrite() throws Exception {
     HL7v2IO.Write.Result result =
         pipeline
             .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
@@ -91,6 +90,8 @@ public class HL7v2IOWriteIT {
         client
             .getHL7v2MessageStream(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)
             .count();
+    // [BEAM-9779] HL7v2 indexing is asyncronous. Add sleep to stabilize this IT.
+    Sleeper.DEFAULT.sleep(5000);
     assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }
