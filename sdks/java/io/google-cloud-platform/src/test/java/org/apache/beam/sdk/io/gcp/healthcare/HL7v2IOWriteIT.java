@@ -80,8 +80,7 @@ public class HL7v2IOWriteIT {
   public void testHL7v2IOWrite() throws Exception {
     HL7v2IO.Write.Result result =
         pipeline
-            .apply(Create.of(MESSAGES))
-            .setCoder(new HL7v2MessageCoder())
+            .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
             .apply(HL7v2IO.ingestMessages(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
 
     PAssert.that(result.getFailedInsertsWithErr()).empty();
