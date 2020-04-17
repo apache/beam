@@ -16,20 +16,33 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: 1
-
-deleteDatasources:
-
-datasources:
-  - name: BeamPSQL
-    type: postgres
-    orgId: 1
-    url: ${PSQL_DB_HOST}:${PSQL_DB_PORT}
-    secureJsonData:
-      password: ${PSQL_DB_DBPWD}
-    user: ${PSQL_DB_DBUSERNAME}
-    database: ${PSQL_DB_DBNAME}
-    jsonData:
-      sslmode: disable
-    editable: false
-
+# A Cron Job that makes a full InfluxDB backup every week.
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: influxdb-autobackup
+spec:
+  schedule: "@weekly"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - image: influxdb:1.8.0
+              name: influxdb-autobackup
+              args:
+                - influxd
+                - backup
+                - -portable
+                - -host
+                - influxdb-rpc:8088
+                - /backups
+              volumeMounts:
+                - mountPath: /backups
+                  name: influxdb-backups
+          restartPolicy: Never
+          volumes:
+            - name: influxdb-backups
+              persistentVolumeClaim:
+                claimName: influxdb-backups
