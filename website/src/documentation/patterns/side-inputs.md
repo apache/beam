@@ -62,7 +62,7 @@ No sample present.
 ## Slowly updating side input using windowing
 
 You can read side input data periodically into distinct PCollection windows.
-Later, when you apply the side input to your main input, each main input
+When you apply the side input to your main input, each main input
 window is automatically matched to a single side input window.
 This guarantees consistency on the duration of the single window,
 meaning that each window on the main input will be matched to a single
