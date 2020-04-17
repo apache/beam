@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
@@ -379,14 +380,11 @@ public class BeamComplexTypeTest {
 
     Schema inputRowSchema =
         Schema.builder()
-            .addField("timeTypeField", FieldType.logicalType(new DummySqlTimeType()))
-            .addField("dateTypeField", FieldType.logicalType(new DummySqlDateType()))
+            .addField("timeTypeField", CalciteUtils.TIME)
+            .addField("dateTypeField", CalciteUtils.DATE)
             .build();
 
-    Row row =
-        Row.withSchema(inputRowSchema)
-            .addValues(dateTime.getMillis(), dateTime.getMillis())
-            .build();
+    Row row = Row.withSchema(inputRowSchema).addValues(dateTime, dateTime).build();
 
     Schema outputRowSchema =
         Schema.builder()
@@ -407,70 +405,6 @@ public class BeamComplexTypeTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 
-  private static class DummySqlTimeType implements Schema.LogicalType<Long, Instant> {
-    @Override
-    public String getIdentifier() {
-      return "SqlTimeType";
-    }
-
-    @Override
-    public FieldType getArgumentType() {
-      return FieldType.STRING;
-    }
-
-    @Override
-    public String getArgument() {
-      return "";
-    }
-
-    @Override
-    public Schema.FieldType getBaseType() {
-      return Schema.FieldType.DATETIME;
-    }
-
-    @Override
-    public Instant toBaseType(Long input) {
-      return new Instant((long) input);
-    }
-
-    @Override
-    public Long toInputType(Instant base) {
-      return base.getMillis();
-    }
-  }
-
-  private static class DummySqlDateType implements Schema.LogicalType<Long, Instant> {
-    @Override
-    public String getIdentifier() {
-      return "SqlDateType";
-    }
-
-    @Override
-    public FieldType getArgumentType() {
-      return FieldType.STRING;
-    }
-
-    @Override
-    public String getArgument() {
-      return "";
-    }
-
-    @Override
-    public Schema.FieldType getBaseType() {
-      return Schema.FieldType.DATETIME;
-    }
-
-    @Override
-    public Instant toBaseType(Long input) {
-      return new Instant((long) input);
-    }
-
-    @Override
-    public Long toInputType(Instant base) {
-      return base.getMillis();
-    }
-  }
-
   @Test
   public void testNullDatetimeFields() {
     Instant current = new Instant(1561671380000L); // Long value corresponds to 27/06/2019
@@ -480,17 +414,15 @@ public class BeamComplexTypeTest {
         Schema.builder()
             .addField("dateTimeField", FieldType.DATETIME)
             .addNullableField("nullableDateTimeField", FieldType.DATETIME)
-            .addField("timeTypeField", FieldType.logicalType(new DummySqlTimeType()))
-            .addNullableField(
-                "nullableTimeTypeField", FieldType.logicalType(new DummySqlTimeType()))
-            .addField("dateTypeField", FieldType.logicalType(new DummySqlDateType()))
-            .addNullableField(
-                "nullableDateTypeField", FieldType.logicalType(new DummySqlDateType()))
+            .addField("timeTypeField", CalciteUtils.TIME)
+            .addNullableField("nullableTimeTypeField", CalciteUtils.TIME)
+            .addField("dateTypeField", CalciteUtils.DATE)
+            .addNullableField("nullableDateTypeField", CalciteUtils.DATE)
             .build();
 
     Row dateTimeRow =
         Row.withSchema(dateTimeFieldSchema)
-            .addValues(current, null, date.getMillis(), null, current.getMillis(), null)
+            .addValues(current, null, date, null, current, null)
             .build();
 
     PCollection<Row> outputRow =
