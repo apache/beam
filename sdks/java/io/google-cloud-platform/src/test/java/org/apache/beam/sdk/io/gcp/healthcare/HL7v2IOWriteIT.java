@@ -24,9 +24,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.security.SecureRandom;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -34,6 +32,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,6 +44,8 @@ public class HL7v2IOWriteIT {
   private static String healthcareDataset;
   private static final String HL7V2_STORE_NAME =
       "hl7v2_store_write_it_" + System.currentTimeMillis() + "_" + (new SecureRandom().nextInt(32));
+
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void createHL7v2tore() throws IOException {
@@ -65,7 +66,6 @@ public class HL7v2IOWriteIT {
     if (client == null) {
       client = new HttpHealthcareApiClient();
     }
-    PipelineOptions options = TestPipeline.testingPipelineOptions().as(GcpOptions.class);
   }
 
   @After
@@ -75,7 +75,6 @@ public class HL7v2IOWriteIT {
 
   @Test
   public void testHL7v2IOWrite() throws IOException {
-    Pipeline pipeline = Pipeline.create();
     HL7v2IO.Write.Result result =
         pipeline
             .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
