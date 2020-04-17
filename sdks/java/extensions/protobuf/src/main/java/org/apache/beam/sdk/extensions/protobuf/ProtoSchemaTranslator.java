@@ -350,9 +350,8 @@ class ProtoSchemaTranslator {
               schema.createConverter(field).convertFromProtoValue(entry.getValue()));
           break;
         case MAP:
-        case DATETIME:
         default:
-          throw new IllegalStateException("These datatypes are not possible in extentions.");
+          throw new IllegalStateException("These datatypes are not possible in extensions.");
       }
     }
     return optionsBuilder;
