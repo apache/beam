@@ -146,7 +146,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
   @Override
   public String toString() {
-    return stream.toString();
+    return stream.getName();
   }
 
   /** A {@link org.apache.beam.sdk.io.Source.Reader} which reads records from a stream. */
@@ -367,10 +367,7 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
 
       Metrics.counter(BigQueryStorageStreamReader.class, "split-at-fraction-calls-successful")
           .inc();
-      LOG.info(
-          "Successfully split BigQuery Storage API stream at {}. Split response: {}",
-          fraction,
-          splitResponse);
+      LOG.info("Successfully split BigQuery Storage API stream at {}", fraction);
       return source.fromExisting(splitResponse.getRemainderStream());
     }
 
