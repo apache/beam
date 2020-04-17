@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -37,6 +38,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.FakeBeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -48,9 +57,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
@@ -61,6 +72,7 @@ import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -1019,30 +1031,85 @@ public class FnApiDoFnRunnerTest implements Serializable {
     fail("Expected registrar not found.");
   }
 
+  /**
+   * The trySplit testing of this splittable DoFn is done when processing the {@link
+   * TestSplittableDoFn#SPLIT_ELEMENT}.
+   *
+   * <p>The expected thread flow is:
+   *
+   * <ul>
+   *   <li>splitting thread: {@link TestSplittableDoFn#waitForSplitElementToBeProcessed()}
+   *   <li>process element thread: {@link TestSplittableDoFn#enableAndWaitForTrySplitToHappen()}
+   *   <li>splitting thread: perform try split
+   *   <li>splitting thread: {@link TestSplittableDoFn#releaseWaitingProcessElementThread()}
+   * </ul>
+   */
   static class TestSplittableDoFn extends DoFn<String, String> {
+    private static final ConcurrentMap<String, KV<CountDownLatch, CountDownLatch>>
+        DOFN_INSTANCE_TO_LOCK = new ConcurrentHashMap<>();
+    private static final long SPLIT_ELEMENT = 3;
+
+    private KV<CountDownLatch, CountDownLatch> getLatches() {
+      return DOFN_INSTANCE_TO_LOCK.computeIfAbsent(
+          this.uuid, (uuid) -> KV.of(new CountDownLatch(1), new CountDownLatch(1)));
+    }
+
+    private void enableAndWaitForTrySplitToHappen() throws Exception {
+      KV<CountDownLatch, CountDownLatch> latches = getLatches();
+      latches.getKey().countDown();
+      if (!latches.getValue().await(30, TimeUnit.SECONDS)) {
+        fail("Failed to wait for trySplit to occur.");
+      }
+    }
+
+    private void waitForSplitElementToBeProcessed() throws Exception {
+      KV<CountDownLatch, CountDownLatch> latches = getLatches();
+      if (!latches.getKey().await(30, TimeUnit.SECONDS)) {
+        fail("Failed to wait for split element to be processed.");
+      }
+    }
+
+    private void releaseWaitingProcessElementThread() {
+      KV<CountDownLatch, CountDownLatch> latches = getLatches();
+      latches.getValue().countDown();
+    }
+
     private final PCollectionView<String> singletonSideInput;
+    private final String uuid;
 
     private TestSplittableDoFn(PCollectionView<String> singletonSideInput) {
       this.singletonSideInput = singletonSideInput;
+      this.uuid = UUID.randomUUID().toString();
     }
 
     @ProcessElement
     public ProcessContinuation processElement(
         ProcessContext context,
         RestrictionTracker<OffsetRange, Long> tracker,
-        ManualWatermarkEstimator<Instant> watermarkEstimator) {
-      int upperBound = Integer.parseInt(context.sideInput(singletonSideInput));
-      for (int i = 0; i < upperBound; ++i) {
-        if (tracker.tryClaim((long) i)) {
-          context.outputWithTimestamp(
-              context.element() + ":" + i, GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
-          watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
+        ManualWatermarkEstimator<Instant> watermarkEstimator)
+        throws Exception {
+      long checkpointUpperBound = Long.parseLong(context.sideInput(singletonSideInput));
+      long position = tracker.currentRestriction().getFrom();
+      boolean claimStatus;
+      while (true) {
+        claimStatus = (tracker.tryClaim(position));
+        if (!claimStatus) {
+          break;
+        } else if (position == SPLIT_ELEMENT) {
+          enableAndWaitForTrySplitToHappen();
+        }
+        context.outputWithTimestamp(
+            context.element() + ":" + position, GlobalWindow.TIMESTAMP_MIN_VALUE.plus(position));
+        watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(position));
+        position += 1L;
+        if (position == checkpointUpperBound) {
+          break;
         }
       }
-      if (tracker.currentRestriction().getTo() > upperBound) {
-        return ProcessContinuation.resume().withResumeDelay(Duration.millis(42L));
-      } else {
+      if (!claimStatus) {
         return ProcessContinuation.stop();
+      } else {
+        return ProcessContinuation.resume().withResumeDelay(Duration.millis(54321L));
       }
     }
 
@@ -1079,10 +1146,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
     Pipeline p = Pipeline.create();
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
     PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
+    TestSplittableDoFn doFn = new TestSplittableDoFn(singletonSideInputView);
     valuePCollection.apply(
-        TEST_TRANSFORM_ID,
-        ParDo.of(new TestSplittableDoFn(singletonSideInputView))
-            .withSideInputs(singletonSideInputView));
+        TEST_TRANSFORM_ID, ParDo.of(doFn).withSideInputs(singletonSideInputView));
 
     RunnerApi.Pipeline pProto =
         ProtoOverrides.updateTransform(
@@ -1106,12 +1172,32 @@ public class FnApiDoFnRunnerTest implements Serializable {
         pProto.getComponents().getTransformsOrThrow(expandedTransformId);
     String inputPCollectionId =
         pTransform.getInputsOrThrow(ParDoTranslation.getMainInputName(pTransform));
+    RunnerApi.PCollection inputPCollection =
+        pProto.getComponents().getPcollectionsOrThrow(inputPCollectionId);
+    RehydratedComponents rehydratedComponents =
+        RehydratedComponents.forComponents(pProto.getComponents());
+    Coder<WindowedValue> inputCoder =
+        WindowedValue.getFullCoder(
+            CoderTranslation.fromProto(
+                pProto.getComponents().getCodersOrThrow(inputPCollection.getCoderId()),
+                rehydratedComponents),
+            (Coder)
+                CoderTranslation.fromProto(
+                    pProto
+                        .getComponents()
+                        .getCodersOrThrow(
+                            pProto
+                                .getComponents()
+                                .getWindowingStrategiesOrThrow(
+                                    inputPCollection.getWindowingStrategyId())
+                                .getWindowCoderId()),
+                    rehydratedComponents));
     String outputPCollectionId = pTransform.getOutputsOrThrow("output");
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
             multimapSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
-            encode("3"));
+            encode("8"));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
 
@@ -1131,8 +1217,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
     List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
-    List<BundleApplication> primarySplits = new ArrayList<>();
-    List<DelayedBundleApplication> residualSplits = new ArrayList<>();
+    BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
 
     new FnApiDoFnRunner.Factory<>()
         .createRunnerForPTransform(
@@ -1150,15 +1235,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            new BundleSplitListener() {
-              @Override
-              public void split(
-                  List<BundleApplication> primaryRoots,
-                  List<DelayedBundleApplication> residualRoots) {
-                primarySplits.addAll(primaryRoots);
-                residualSplits.addAll(residualRoots);
-              }
-            },
+            splitListener,
             null /* bundleFinalizer */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
@@ -1168,46 +1245,146 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     FnDataReceiver<WindowedValue<?>> mainInput =
         consumers.getMultiplexingConsumer(inputPCollectionId);
-    mainInput.accept(
-        valueInGlobalWindow(
-            KV.of(
-                KV.of("5", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)), 5.0)));
-    BundleApplication primaryRoot = Iterables.getOnlyElement(primarySplits);
-    DelayedBundleApplication residualRoot = Iterables.getOnlyElement(residualSplits);
-    assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
-    assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
-    assertEquals(
-        ParDoTranslation.getMainInputName(pTransform), residualRoot.getApplication().getInputId());
-    assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
-    Instant expectedOutputWatermark =
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(
-            2); // side input upperBound is 3 hence we only process the first two elements
-    assertEquals(
-        ImmutableMap.of(
-            "output",
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
-                .setSeconds(expectedOutputWatermark.getMillis() / 1000)
-                .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
-                .build()),
-        residualRoot.getApplication().getOutputWatermarksMap());
-    primarySplits.clear();
-    residualSplits.clear();
+    assertThat(mainInput, instanceOf(HandlesSplits.class));
 
-    mainInput.accept(
-        valueInGlobalWindow(
-            KV.of(
-                KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)), 2.0)));
-    assertThat(
-        mainOutputValues,
-        contains(
-            timestampedValueInGlobalWindow("5:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0)),
-            timestampedValueInGlobalWindow("5:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1)),
-            timestampedValueInGlobalWindow("5:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2)),
-            timestampedValueInGlobalWindow("2:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0)),
-            timestampedValueInGlobalWindow("2:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1))));
-    assertTrue(primarySplits.isEmpty());
-    assertTrue(residualSplits.isEmpty());
-    mainOutputValues.clear();
+    {
+      mainInput.accept(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of("5", KV.of(new OffsetRange(5, 10), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                  5.0)));
+      // Since the side input upperBound is 8 we will process 5, 6, and 7 then checkpoint.
+      // We expect that the watermark advances to MIN + 7 and that the primary represents [5, 8)
+      // with
+      // the original watermark while the residual represents [8, 10) with the new MIN + 7
+      // watermark.
+      BundleApplication primaryRoot = Iterables.getOnlyElement(splitListener.getPrimaryRoots());
+      DelayedBundleApplication residualRoot =
+          Iterables.getOnlyElement(splitListener.getResidualRoots());
+      assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
+      assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
+      assertEquals(
+          ParDoTranslation.getMainInputName(pTransform),
+          residualRoot.getApplication().getInputId());
+      assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+      assertEquals(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of("5", KV.of(new OffsetRange(5, 8), GlobalWindow.TIMESTAMP_MIN_VALUE)), 3.0)),
+          inputCoder.decode(primaryRoot.getElement().newInput()));
+      assertEquals(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of(
+                      "5", KV.of(new OffsetRange(8, 10), GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7))),
+                  2.0)),
+          inputCoder.decode(residualRoot.getApplication().getElement().newInput()));
+      Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7);
+      assertEquals(
+          ImmutableMap.of(
+              "output",
+              org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                  .setSeconds(expectedOutputWatermark.getMillis() / 1000)
+                  .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
+                  .build()),
+          residualRoot.getApplication().getOutputWatermarksMap());
+      assertEquals(
+          org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.newBuilder()
+              .setSeconds(54)
+              .setNanos(321000000)
+              .build(),
+          residualRoot.getRequestedTimeDelay());
+      splitListener.clear();
+
+      mainInput.accept(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                  2.0)));
+      assertThat(
+          mainOutputValues,
+          contains(
+              timestampedValueInGlobalWindow("5:5", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(5)),
+              timestampedValueInGlobalWindow("5:6", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(6)),
+              timestampedValueInGlobalWindow("5:7", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7)),
+              timestampedValueInGlobalWindow("2:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0)),
+              timestampedValueInGlobalWindow("2:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1))));
+      assertTrue(splitListener.getPrimaryRoots().isEmpty());
+      assertTrue(splitListener.getResidualRoots().isEmpty());
+      mainOutputValues.clear();
+    }
+
+    {
+      // Setup and launch the trySplit thread.
+      ExecutorService executorService = Executors.newSingleThreadExecutor();
+      Future<HandlesSplits.SplitResult> trySplitFuture =
+          executorService.submit(
+              () -> {
+                try {
+                  doFn.waitForSplitElementToBeProcessed();
+                  return ((HandlesSplits) mainInput).trySplit(0);
+                } finally {
+                  doFn.releaseWaitingProcessElementThread();
+                }
+              });
+
+      mainInput.accept(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of("7", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
+                  2.0)));
+      // Since the SPLIT_ELEMENT is 3 we will process 0, 1, 2, 3 then be split.
+      // We expect that the watermark advances to MIN + 2 since the manual watermark estimator
+      // has yet to be invoked for the split element and that the primary represents [0, 4) with
+      // the original watermark while the residual represents [4, 5) with the new MIN + 2 watermark.
+      assertThat(
+          mainOutputValues,
+          contains(
+              timestampedValueInGlobalWindow("7:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0)),
+              timestampedValueInGlobalWindow("7:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1)),
+              timestampedValueInGlobalWindow("7:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2)),
+              timestampedValueInGlobalWindow("7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3))));
+
+      HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
+      BundleApplication primaryRoot = trySplitResult.getPrimaryRoot();
+      DelayedBundleApplication residualRoot = trySplitResult.getResidualRoot();
+      assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
+      assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
+      assertEquals(
+          ParDoTranslation.getMainInputName(pTransform),
+          residualRoot.getApplication().getInputId());
+      assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+      assertEquals(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of("7", KV.of(new OffsetRange(0, 4), GlobalWindow.TIMESTAMP_MIN_VALUE)), 4.0)),
+          inputCoder.decode(primaryRoot.getElement().newInput()));
+      assertEquals(
+          valueInGlobalWindow(
+              KV.of(
+                  KV.of(
+                      "7", KV.of(new OffsetRange(4, 5), GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2))),
+                  1.0)),
+          inputCoder.decode(residualRoot.getApplication().getElement().newInput()));
+      Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2);
+      assertEquals(
+          ImmutableMap.of(
+              "output",
+              org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                  .setSeconds(expectedOutputWatermark.getMillis() / 1000)
+                  .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
+                  .build()),
+          residualRoot.getApplication().getOutputWatermarksMap());
+      // We expect 0 resume delay.
+      assertEquals(
+          residualRoot.getRequestedTimeDelay().getDefaultInstanceForType(),
+          residualRoot.getRequestedTimeDelay());
+      // We don't expect the outputs to goto the SDK initiated checkpointing listener.
+      assertTrue(splitListener.getPrimaryRoots().isEmpty());
+      assertTrue(splitListener.getResidualRoots().isEmpty());
+      mainOutputValues.clear();
+      executorService.shutdown();
+    }
 
     Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
     assertThat(mainOutputValues, empty());
