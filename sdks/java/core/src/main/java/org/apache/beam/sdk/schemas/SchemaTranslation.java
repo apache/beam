@@ -131,15 +131,8 @@ public class SchemaTranslation {
         }
         builder.setLogicalType(logicalTypeBuilder.build());
         break;
-        // Special-case for DATETIME and DECIMAL which are logical types in portable representation,
+        // Special-case for DECIMAL which is a logical type in portable representation,
         // but not yet in Java. (BEAM-7554)
-      case DATETIME:
-        builder.setLogicalType(
-            SchemaApi.LogicalType.newBuilder()
-                .setUrn(URN_BEAM_LOGICAL_DATETIME)
-                .setRepresentation(fieldTypeToProto(FieldType.INT64, serializeLogicalType))
-                .build());
-        break;
       case DECIMAL:
         builder.setLogicalType(
             SchemaApi.LogicalType.newBuilder()

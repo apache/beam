@@ -32,7 +32,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.DoubleCoder;
 import org.apache.beam.sdk.coders.FloatCoder;
-import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -61,7 +60,6 @@ class SchemaCoderHelpers {
           .put(TypeName.FLOAT, FloatCoder.of())
           .put(TypeName.DOUBLE, DoubleCoder.of())
           .put(TypeName.STRING, StringUtf8Coder.of())
-          .put(TypeName.DATETIME, InstantCoder.of())
           .put(TypeName.BOOLEAN, BooleanCoder.of())
           .build();
 

@@ -202,8 +202,8 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#DATETIME} value by field name, {@link IllegalStateException} is thrown if
-   * schema doesn't match.
+   * Get a {@link org.apache.beam.sdk.schemas.logicaltypes.MillisInstant} value by field name,
+   * {@link IllegalStateException} is thrown if schema doesn't match.
    */
   @Nullable
   public ReadableDateTime getDateTime(String fieldName) {
@@ -353,8 +353,8 @@ public abstract class Row implements Serializable {
   }
 
   /**
-   * Get a {@link TypeName#DATETIME} value by field index, {@link IllegalStateException} is thrown
-   * if schema doesn't match.
+   * Get a {@link org.apache.beam.sdk.schemas.logicaltypes.MillisInstant} value by field index,
+   * {@link IllegalStateException} is thrown if schema doesn't match.
    */
   @Nullable
   public ReadableDateTime getDateTime(int idx) {

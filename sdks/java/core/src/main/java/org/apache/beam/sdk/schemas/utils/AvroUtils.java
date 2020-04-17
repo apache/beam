@@ -881,10 +881,6 @@ public class AvroUtils {
         LogicalType logicalType = typeWithNullability.type.getLogicalType();
         return new Conversions.DecimalConversion().toBytes(decimal, null, logicalType);
 
-      case DATETIME:
-        throw new IllegalArgumentException(
-            "DATETIME is not supported, use MillisInstant logical type instead.");
-
       case BYTES:
         return ByteBuffer.wrap((byte[]) value);
 

@@ -420,7 +420,6 @@ public class Schema implements Serializable {
     FLOAT,
     DOUBLE,
     STRING, // String.
-    DATETIME, // Date and time.
     BOOLEAN, // Boolean.
     BYTES, // Byte array.
     ARRAY,
@@ -432,7 +431,6 @@ public class Schema implements Serializable {
     public static final Set<TypeName> NUMERIC_TYPES =
         ImmutableSet.of(BYTE, INT16, INT32, INT64, DECIMAL, FLOAT, DOUBLE);
     public static final Set<TypeName> STRING_TYPES = ImmutableSet.of(STRING);
-    public static final Set<TypeName> DATE_TYPES = ImmutableSet.of(DATETIME);
     public static final Set<TypeName> COLLECTION_TYPES = ImmutableSet.of(ARRAY, ITERABLE);
     public static final Set<TypeName> MAP_TYPES = ImmutableSet.of(MAP);
     public static final Set<TypeName> COMPOSITE_TYPES = ImmutableSet.of(ROW);
@@ -447,10 +445,6 @@ public class Schema implements Serializable {
 
     public boolean isStringType() {
       return STRING_TYPES.contains(this);
-    }
-
-    public boolean isDateType() {
-      return DATE_TYPES.contains(this);
     }
 
     public boolean isCollectionType() {

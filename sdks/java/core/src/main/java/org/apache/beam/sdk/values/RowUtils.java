@@ -162,9 +162,6 @@ class RowUtils {
           LogicalType logicalType = fieldType.getLogicalType();
           processedValue = cases.processLogicalType(rowPosition, logicalType, value, this);
           break;
-        case DATETIME:
-          processedValue = cases.processDateTime(rowPosition, (AbstractInstant) value, this);
-          break;
         case BYTE:
           processedValue = cases.processByte(rowPosition, (Byte) value, this);
           break;
