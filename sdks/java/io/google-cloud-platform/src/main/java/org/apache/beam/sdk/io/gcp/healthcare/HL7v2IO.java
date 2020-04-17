@@ -657,6 +657,8 @@ public class HL7v2IO {
       @ProcessElement
       public void writeMessages(ProcessContext context) {
         HL7v2Message msg = context.element();
+        // schematized data should be output only.
+        msg.setSchematizedData(null);
         long startTime = System.currentTimeMillis();
         Sleeper sleeper = Sleeper.DEFAULT;
         switch (writeMethod) {

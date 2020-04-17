@@ -840,8 +840,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                   str, '%s:%s' % (self.project, output_table_2)),
               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
               additional_bq_parameters=lambda _: additional_bq_parameters,
-              method='FILE_LOADS',
-              temp_file_format=bigquery_tools.FileFormat.JSON))
+              method='FILE_LOADS'))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
@@ -1035,7 +1034,6 @@ class PubSubBigQueryIT(unittest.TestCase):
       _ = mesages | WriteToBigQuery(
           self.output_table,
           schema=self.SCHEMA,
-          temp_file_format=bigquery_tools.FileFormat.JSON,
           method=method,
           triggering_frequency=triggering_frequency)
 

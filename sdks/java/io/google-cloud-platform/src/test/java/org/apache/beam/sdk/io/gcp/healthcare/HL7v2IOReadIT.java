@@ -39,6 +39,7 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -53,6 +54,7 @@ public class HL7v2IOReadIT {
           + "_"
           + (new SecureRandom().nextInt(32))
           + "_read_it";
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void createHL7v2tore() throws IOException {
@@ -88,7 +90,6 @@ public class HL7v2IOReadIT {
   @Test
   public void testHL7v2IORead() throws Exception {
     // Should read all messages.
-    Pipeline pipeline = Pipeline.create();
     HL7v2IO.Read.Result result =
         pipeline
             .apply(
