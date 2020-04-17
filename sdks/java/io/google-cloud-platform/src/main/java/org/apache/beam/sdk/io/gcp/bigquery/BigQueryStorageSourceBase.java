@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.bigquery.storage.v1beta1.ReadOptions.TableReadOptions;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionRequest;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
@@ -29,6 +30,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.Stream;
 import java.io.IOException;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.avro.Schema;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
@@ -149,11 +151,14 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
       return ImmutableList.of();
     }
 
+    Schema sessionSchema = new Schema.Parser().parse(readSession.getAvroSchema().getSchema());
+    TableSchema trimmedSchema =
+        BigQueryAvroUtils.trimBigQueryTableSchema(targetTable.getSchema(), sessionSchema);
     List<BigQueryStorageStreamSource<T>> sources = Lists.newArrayList();
     for (Stream stream : readSession.getStreamsList()) {
       sources.add(
           BigQueryStorageStreamSource.create(
-              readSession, stream, targetTable.getSchema(), parseFn, outputCoder, bqServices));
+              readSession, stream, trimmedSchema, parseFn, outputCoder, bqServices));
     }
 
     return ImmutableList.copyOf(sources);
