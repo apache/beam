@@ -16,6 +16,7 @@
 package graphx_test
 
 import (
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"reflect"
 	"testing"
 
@@ -170,7 +171,7 @@ func TestMarshal(t *testing.T) {
 			if got, want := len(p.GetRootTransformIds()), test.roots; got != want {
 				t.Errorf("got %d roots, want %d : %v", got, want, proto.MarshalTextString(p))
 			}
-			if got, want := p.GetRequirements(), test.requirements; !cmp.Equal(got, want) {
+			if got, want := p.GetRequirements(), test.requirements; !cmp.Equal(got, want, cmpopts.SortSlices(func(a, b string) bool { return a < b })) {
 				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, proto.MarshalTextString(p))
 			}
 		})
