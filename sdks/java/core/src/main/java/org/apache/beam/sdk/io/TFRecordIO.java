@@ -736,11 +736,9 @@ public class TFRecordIO {
     }
 
     private static int read(ReadableByteChannel in, ByteBuffer bb) throws IOException {
-      int n, read = 0;
-      while (bb.hasRemaining() && (n = in.read(bb)) >= 0) {
-        read += n;
-      }
-      return read;
+      int expected = bb.remaining();
+      while (bb.hasRemaining() && in.read(bb) >= 0) {}
+      return expected - bb.remaining();
     }
 
     @VisibleForTesting

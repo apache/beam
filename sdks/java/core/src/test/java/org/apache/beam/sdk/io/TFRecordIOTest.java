@@ -526,11 +526,14 @@ public class TFRecordIOTest {
     assertArrayEquals(data, buffer.array());
   }
 
-  @Test(expected = IOException.class)
+  @Test
   public void testReadFullyFail() throws IOException {
     byte[] trunc = "Hello Wo".getBytes(StandardCharsets.UTF_8);
     ReadableByteChannel chan = new PickyReadChannel(new ByteArrayInputStream(trunc));
     ByteBuffer buffer = ByteBuffer.allocate(trunc.length + 1);
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("expected 9, but got 8");
     TFRecordCodec.readFully(chan, buffer);
   }
 
