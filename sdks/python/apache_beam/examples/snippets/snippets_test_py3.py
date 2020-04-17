@@ -44,7 +44,7 @@ class TypeHintsTest(unittest.TestCase):
     # pylint: disable=expression-not-assigned
     # pylint: disable=unused-variable
     class FilterEvensDoFn(beam.DoFn):
-      def process(self, element, *unused_args, **unused_kwargs):
+      def process(self, element):
         if element % 2 == 0:
           yield element
 
@@ -65,8 +65,7 @@ class TypeHintsTest(unittest.TestCase):
       from typing import Iterable
 
       class FilterEvensDoFn(beam.DoFn):
-        def process(self, element: int, *unused_args,
-                    **unused_kwargs) -> Iterable[int]:
+        def process(self, element: int) -> Iterable[int]:
           if element % 2 == 0:
             yield element
 
@@ -80,8 +79,7 @@ class TypeHintsTest(unittest.TestCase):
       from typing import List, Optional
 
       class FilterEvensDoubleDoFn(beam.DoFn):
-        def process(self, element: int, *unused_args,
-                    **unused_kwargs) -> Optional[List[int]]:
+        def process(self, element: int) -> Optional[List[int]]:
           if element % 2 == 0:
             return [element, element]
           return None
