@@ -92,7 +92,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -196,8 +195,8 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    Multimap<String, BeamFnApi.DelayedBundleApplication> getAllResiduals() {
-      return wrappedBundleProcessor.getAllResiduals();
+    BundleSplitListener.InMemory getSplitListener() {
+      return wrappedBundleProcessor.getSplitListener();
     }
 
     @Override
@@ -535,7 +534,7 @@ public class ProcessBundleHandlerTest {
   public void testBundleProcessorReset() {
     PTransformFunctionRegistry startFunctionRegistry = mock(PTransformFunctionRegistry.class);
     PTransformFunctionRegistry finishFunctionRegistry = mock(PTransformFunctionRegistry.class);
-    Multimap<String, BeamFnApi.DelayedBundleApplication> allResiduals = mock(Multimap.class);
+    BundleSplitListener.InMemory splitListener = mock(BundleSplitListener.InMemory.class);
     Collection<CallbackRegistration> bundleFinalizationCallbacks = mock(Collection.class);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         mock(PCollectionConsumerRegistry.class);
@@ -549,7 +548,7 @@ public class ProcessBundleHandlerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             new ArrayList<>(),
-            allResiduals,
+            splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
             stateTracker,
@@ -560,7 +559,7 @@ public class ProcessBundleHandlerTest {
     bundleProcessor.reset();
     verify(startFunctionRegistry, times(1)).reset();
     verify(finishFunctionRegistry, times(1)).reset();
-    verify(allResiduals, times(1)).clear();
+    verify(splitListener, times(1)).clear();
     verify(pCollectionConsumerRegistry, times(1)).reset();
     verify(metricsContainerRegistry, times(1)).reset();
     verify(stateTracker, times(1)).reset();

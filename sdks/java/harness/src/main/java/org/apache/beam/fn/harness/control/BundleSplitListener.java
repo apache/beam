@@ -17,7 +17,10 @@
  */
 package org.apache.beam.fn.harness.control;
 
+import com.google.auto.value.AutoValue;
+import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 
@@ -37,4 +40,30 @@ public interface BundleSplitListener {
    * it for someone else to execute.
    */
   void split(List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots);
+
+  /** A {@link BundleSplitListener} which gathers all splits produced and stores them in memory. */
+  @AutoValue
+  @NotThreadSafe
+  abstract class InMemory implements BundleSplitListener {
+    public static InMemory create() {
+      return new AutoValue_BundleSplitListener_InMemory(
+          new ArrayList<BundleApplication>(), new ArrayList<DelayedBundleApplication>());
+    }
+
+    @Override
+    public void split(
+        List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots) {
+      getPrimaryRoots().addAll(primaryRoots);
+      getResidualRoots().addAll(residualRoots);
+    }
+
+    public void clear() {
+      getPrimaryRoots().clear();
+      getResidualRoots().clear();
+    }
+
+    public abstract List<BundleApplication> getPrimaryRoots();
+
+    public abstract List<DelayedBundleApplication> getResidualRoots();
+  }
 }

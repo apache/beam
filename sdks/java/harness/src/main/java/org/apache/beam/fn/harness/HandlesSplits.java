@@ -19,10 +19,18 @@ package org.apache.beam.fn.harness;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
+/**
+ * An interface that may be used to extend a {@link FnDataReceiver} signalling that the downstream
+ * runner is capable of performing splitting and providing progress reporting.
+ */
 public interface HandlesSplits {
+
+  /** Returns null if the split was unsuccessful. */
   SplitResult trySplit(double fractionOfRemainder);
 
+  /** Returns the current progress of the active element. */
   double getProgress();
 
   @AutoValue
