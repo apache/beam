@@ -35,6 +35,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -55,6 +56,9 @@ public class FhirIOWriteIT {
   private long testTime = System.currentTimeMillis();
 
   public String version;
+
+  @Rule
+  public transient TestPipeline pipeline = TestPipeline.create();
 
   public FhirIOWriteIT(String version) {
     this.version = version;
@@ -94,7 +98,6 @@ public class FhirIOWriteIT {
 
   @Test
   public void testFhirIO_ExecuteBundle() throws IOException {
-    Pipeline pipeline = Pipeline.create(options);
     FhirIO.Write.Result writeResult =
         pipeline
             .apply(Create.of(BUNDLES.get(version)).withCoder(new HttpBodyCoder()))
