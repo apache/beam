@@ -93,7 +93,7 @@ The following code declares an `int` input and a `str` output type hint on the `
 
 The following code declares `int` input and output type hints on `filter_evens`, using annotations on `FilterEvensDoFn.process`.
 Since `process` returns a generator, the output type for a DoFn producing a `PCollection[int]` is annotated as `Iterable[int]` (`Generator[int, None, None]` would also work here).
-Beam will remove the outer iterable of the return type on the `DoFn.process` method and functions passed `FlatMap` to deduce the element type of resulting PCollection .
+Beam will remove the outer iterable of the return type on the `DoFn.process` method and functions passed to `FlatMap` to deduce the element type of resulting PCollection .
 It is an error to have a non-iterable return type annotation for these functions.
 Other supported iterable types include: `Iterator`, `Generator`, `Tuple`, `List`.
 
