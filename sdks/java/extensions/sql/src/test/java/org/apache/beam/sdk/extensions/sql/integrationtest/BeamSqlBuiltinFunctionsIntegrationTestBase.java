@@ -61,19 +61,19 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
   private static final double PRECISION_DOUBLE = 1e-7;
   private static final float PRECISION_FLOAT = 1e-7f;
 
-  private static final Map<Class, TypeName> JAVA_CLASS_TO_TYPENAME =
-      ImmutableMap.<Class, TypeName>builder()
-          .put(Byte.class, TypeName.BYTE)
-          .put(Short.class, TypeName.INT16)
-          .put(Integer.class, TypeName.INT32)
-          .put(Long.class, TypeName.INT64)
-          .put(Float.class, TypeName.FLOAT)
-          .put(Double.class, TypeName.DOUBLE)
-          .put(BigDecimal.class, TypeName.DECIMAL)
-          .put(String.class, TypeName.STRING)
-          .put(DateTime.class, TypeName.DATETIME)
-          .put(Boolean.class, TypeName.BOOLEAN)
-          .put(byte[].class, TypeName.BYTES)
+  private static final Map<Class, FieldType> JAVA_CLASS_TO_FIELDTYPE =
+      ImmutableMap.<Class, FieldType>builder()
+          .put(Byte.class, FieldType.BYTE)
+          .put(Short.class, FieldType.INT16)
+          .put(Integer.class, FieldType.INT32)
+          .put(Long.class, FieldType.INT64)
+          .put(Float.class, FieldType.FLOAT)
+          .put(Double.class, FieldType.DOUBLE)
+          .put(BigDecimal.class, FieldType.DECIMAL)
+          .put(String.class, FieldType.STRING)
+          .put(DateTime.class, FieldType.DATETIME)
+          .put(Boolean.class, FieldType.BOOLEAN)
+          .put(byte[].class, FieldType.BYTES)
           .build();
 
   private static final Schema ROW_TYPE =
@@ -228,15 +228,15 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
     private transient List<ExpressionTestCase> exps = new ArrayList<>();
 
     public ExpressionChecker addExpr(String expression, Object expectedValue) {
-      TypeName resultTypeName = JAVA_CLASS_TO_TYPENAME.get(expectedValue.getClass());
+      FieldType resultType = JAVA_CLASS_TO_FIELDTYPE.get(expectedValue.getClass());
       checkArgument(
-          resultTypeName != null,
+          resultType != null,
           String.format(
               "The type of the expected value '%s' is unknown in 'addExpr(String expression, "
                   + "Object expectedValue)'. Please use 'addExpr(String expr, Object expected, "
                   + "FieldType type)' instead and provide the type of the expected object",
               expectedValue));
-      addExpr(expression, expectedValue, FieldType.of(resultTypeName));
+      addExpr(expression, expectedValue, resultType);
       return this;
     }
 

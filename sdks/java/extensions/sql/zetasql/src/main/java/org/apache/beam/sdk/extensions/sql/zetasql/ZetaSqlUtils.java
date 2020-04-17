@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
@@ -84,10 +85,6 @@ public final class ZetaSqlUtils {
         return TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE);
       case STRING:
         return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
-      case DATETIME:
-        // TODO[BEAM-8630]: Mapping Timestamp to DATETIME results in some timezone/precision issues.
-        //  Can we convert Timestamp to a LogicalType? Will it solve the problem?
-        return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case BOOLEAN:
         return TypeFactory.createSimpleType(TypeKind.TYPE_BOOL);
       case BYTES:
@@ -98,6 +95,9 @@ public final class ZetaSqlUtils {
         return createZetaSqlStructTypeFromBeamSchema(fieldType.getRowSchema());
       case LOGICAL_TYPE:
         switch (fieldType.getLogicalType().getIdentifier()) {
+          case MillisInstant.IDENTIFIER:
+            return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
+            // TODO: Should these be dropped? They aren't supported in other case statements
           case DateType.IDENTIFIER:
             return TypeFactory.createSimpleType(TypeKind.TYPE_DATE);
           case TimeType.IDENTIFIER:
@@ -142,8 +142,14 @@ public final class ZetaSqlUtils {
         return Value.createDoubleValue((Double) object);
       case STRING:
         return Value.createStringValue((String) object);
-      case DATETIME:
-        return jodaInstantToZetaSqlTimestampValue((Instant) object);
+      case LOGICAL_TYPE:
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case MillisInstant.IDENTIFIER:
+            return jodaInstantToZetaSqlTimestampValue((Instant) object);
+          default:
+            throw new IllegalArgumentException(
+                "Unsupported Beam logical type: " + fieldType.getLogicalType().getIdentifier());
+        }
       case BOOLEAN:
         return Value.createBoolValue((Boolean) object);
       case BYTES:
@@ -207,8 +213,14 @@ public final class ZetaSqlUtils {
         return value.getDoubleValue();
       case STRING:
         return value.getStringValue();
-      case DATETIME:
-        return zetaSqlTimestampValueToJodaInstant(value);
+      case LOGICAL_TYPE:
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case MillisInstant.IDENTIFIER:
+            return zetaSqlTimestampValueToJodaInstant(value);
+          default:
+            throw new IllegalArgumentException(
+                "Unsupported Beam logical type: " + fieldType.getLogicalType().getIdentifier());
+        }
       case BOOLEAN:
         return value.getBoolValue();
       case BYTES:

@@ -44,6 +44,7 @@ import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeWithLocalTzType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimestampWithLocalTzType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -363,7 +364,6 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
             .put(TypeName.FLOAT, Float.class)
             .put(TypeName.DOUBLE, Double.class)
             .put(TypeName.STRING, String.class)
-            .put(TypeName.DATETIME, ReadableInstant.class)
             .put(TypeName.BOOLEAN, Boolean.class)
             .put(TypeName.MAP, Map.class)
             .put(TypeName.ARRAY, Collection.class)
@@ -373,6 +373,7 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
 
     private static final Map<String, Class> LOGICAL_TYPE_CONVERSION_MAP =
         ImmutableMap.<String, Class>builder()
+            .put(MillisInstant.IDENTIFIER, ReadableInstant.class)
             .put(DateType.IDENTIFIER, ReadableInstant.class)
             .put(TimeType.IDENTIFIER, ReadableInstant.class)
             .put(TimeWithLocalTzType.IDENTIFIER, ReadableInstant.class)
@@ -424,23 +425,25 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
       if (type.getTypeName().isLogicalType()) {
         Expression millisField = Expressions.call(value, "getMillis");
         String logicalId = type.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimeType.IDENTIFIER)) {
-          return nullOr(value, Expressions.convert_(millisField, int.class));
-        } else if (logicalId.equals(DateType.IDENTIFIER)) {
-          value =
-              nullOr(
-                  value,
-                  Expressions.convert_(
-                      Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
-                      int.class));
-        } else if (!logicalId.equals(CharType.IDENTIFIER)) {
-          throw new UnsupportedOperationException(
-              "Unknown LogicalType " + type.getLogicalType().getIdentifier());
+        switch (logicalId) {
+          case TimeType.IDENTIFIER:
+            return nullOr(value, Expressions.convert_(millisField, int.class));
+          case DateType.IDENTIFIER:
+            return nullOr(
+                value,
+                Expressions.convert_(
+                    Expressions.divide(millisField, Expressions.constant(MILLIS_PER_DAY)),
+                    int.class));
+          case MillisInstant.IDENTIFIER:
+            return nullOr(value, Expressions.call(value, "getMillis"));
+          case CharType.IDENTIFIER:
+            return value;
+          default:
+            throw new UnsupportedOperationException(
+                "Unknown LogicalType " + type.getLogicalType().getIdentifier());
         }
       } else if (type.getTypeName().isMapType()) {
         return nullOr(value, map(value, type.getMapValueType()));
-      } else if (CalciteUtils.isDateTimeType(type)) {
-        return nullOr(value, Expressions.call(value, "getMillis"));
       } else if (type.getTypeName().isCompositeType()) {
         return nullOr(value, row(value, type.getRowSchema()));
       } else if (type.getTypeName().isCollectionType()) {

@@ -85,7 +85,6 @@ public class BeamBuiltinAggregations {
       case INT16:
       case BYTE:
       case FLOAT:
-      case DATETIME:
       case DECIMAL:
       case STRING:
         return new CustMax<>();
@@ -111,7 +110,6 @@ public class BeamBuiltinAggregations {
       case BYTE:
       case INT16:
       case FLOAT:
-      case DATETIME:
       case DECIMAL:
       case STRING:
         return new CustMin();

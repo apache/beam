@@ -49,6 +49,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -300,18 +301,19 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
-        String logicalId = type.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimeType.IDENTIFIER)) {
-          return (int) ((ReadableInstant) beamValue).getMillis();
-        } else if (logicalId.equals(DateType.IDENTIFIER)) {
-          return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
-        } else if (logicalId.equals(CharType.IDENTIFIER)) {
-          return beamValue;
-        } else {
-          throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
+        switch (type.getLogicalType().getIdentifier()) {
+          case MillisInstant.IDENTIFIER:
+            return ((ReadableInstant) beamValue).getMillis();
+          case TimeType.IDENTIFIER:
+            return (int) ((ReadableInstant) beamValue).getMillis();
+          case DateType.IDENTIFIER:
+            return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
+          case CharType.IDENTIFIER:
+            return beamValue;
+          default:
+            throw new UnsupportedOperationException(
+                "Unknown logical type " + type.getLogicalType().getIdentifier());
         }
-      case DATETIME:
-        return ((ReadableInstant) beamValue).getMillis();
       case BYTE:
       case INT16:
       case INT32:

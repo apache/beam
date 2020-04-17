@@ -24,6 +24,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
@@ -90,13 +91,10 @@ public class CalciteUtils {
 
   /** Returns true if the type is any of the various date time types. */
   public static boolean isDateTimeType(FieldType fieldType) {
-    if (fieldType.getTypeName() == TypeName.DATETIME) {
-      return true;
-    }
-
     if (fieldType.getTypeName().isLogicalType()) {
       String logicalId = fieldType.getLogicalType().getIdentifier();
       return logicalId.equals(DateType.IDENTIFIER)
+          || logicalId.equals(MillisInstant.IDENTIFIER)
           || logicalId.equals(TimeType.IDENTIFIER)
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
           || logicalId.equals(TimestampWithLocalTzType.IDENTIFIER);
