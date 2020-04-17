@@ -39,6 +39,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.BiMap;
@@ -679,7 +680,7 @@ public class Schema implements Serializable {
     public static final FieldType BOOLEAN = FieldType.of(TypeName.BOOLEAN);
 
     /** The type of datetime fields. */
-    public static final FieldType DATETIME = FieldType.of(TypeName.DATETIME);
+    public static final FieldType DATETIME = FieldType.logicalType(MillisInstant.of());
 
     /** Create an array type for the given field type. */
     public static FieldType array(FieldType elementType) {
