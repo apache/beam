@@ -175,7 +175,7 @@
   <span class="section-nav-list-title">Java</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.19.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/javadoc/2.20.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -190,7 +190,7 @@
   <span class="section-nav-list-title">Python</span>
   <ul class="section-nav-list">
     <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.19.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
+    <li><a href="https://beam.apache.org/releases/pydoc/2.20.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
                                                                                                                                    width="14" height="14"
                                                                                                                                    alt="External link."></a>
     </li>
@@ -290,6 +290,7 @@
   <li><a href="#benefits-of-type-hints">Benefits of Type Hints</a></li>
   <li><a href="#declaring-type-hints">Declaring Type Hints</a>
     <ul>
+      <li><a href="#declaring-type-hints-using-type-annotations">Declaring Type Hints Using Type Annotations</a></li>
       <li><a href="#declaring-type-hints-inline">Declaring Type Hints Inline</a></li>
       <li><a href="#declaring-type-hints-using-decorators">Declaring Type Hints Using Decorators</a></li>
       <li><a href="#defining-generic-types">Defining Generic Types</a></li>
@@ -333,39 +334,127 @@ limitations under the License.
 
 <p>The Apache Beam SDK for Python uses <strong>type hints</strong> during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. Additionally, using type hints lays some groundwork that allows the backend service to perform efficient type deduction and registration of <code class="highlighter-rouge">Coder</code> objects.</p>
 
-<p>Python version 3.5 introduces a module called <strong>typing</strong> to provide hints for type validators in the language. The Beam SDK for Python, based on Python version 2.7, implements a subset of <a href="https://www.python.org/dev/peps/pep-0484/">PEP 484</a> and aims to follow it as closely as possible in its own typehints module.</p>
+<p>Python version 3.5 introduces a module called <strong>typing</strong> to provide hints for type validators in the language.
+The Beam SDK for Python implements a subset of <a href="https://www.python.org/dev/peps/pep-0484/">PEP 484</a> and aims to follow it as closely as possible in its own typehints module.</p>
+
+<p>These flags control Beam type safety:</p>
+<ul>
+  <li>
+    <p><code class="highlighter-rouge">--no_pipeline_type_check</code></p>
+
+    <p>Disables type checking during pipeline construction.
+Default is to perform these checks.</p>
+  </li>
+  <li>
+    <p><code class="highlighter-rouge">--runtime_type_check</code></p>
+
+    <p>Enables runtime type checking of every element.
+This may affect pipeline performance, so the default is to skip these checks.</p>
+  </li>
+</ul>
 
 <h2 id="benefits-of-type-hints">Benefits of Type Hints</h2>
 
-<p>The Beam SDK for Python includes some automatic type checking: for example, some <code class="highlighter-rouge">PTransform</code>s, such as <code class="highlighter-rouge">Create</code> and simple <code class="highlighter-rouge">ParDo</code> transforms, attempt to deduce their output type given their input. However, the Beam cannot infer types in all cases. Therefore, the recommendation is that you declare type hints to aid you in performing your own type checks if necessary.</p>
-
-<p>When you use type hints, the runner raises exceptions during pipeline construction time, rather than runtime. For example, the runner generates an exception if it detects that your pipeline applies mismatched <code class="highlighter-rouge">PTransforms</code> (where the expected outputs of one transform do not match the expected inputs of the following transform). These exceptions are raised at pipeline construction time, regardless of where your pipeline will execute. Introducing type hints for the <code class="highlighter-rouge">PTransform</code>s you define allows you to catch potential bugs up front in the local runner, rather than after minutes of execution into a deep, complex pipeline.</p>
+<p>When you use type hints, Beam raises exceptions during pipeline construction time, rather than runtime.
+For example, Beam generates an exception if it detects that your pipeline applies mismatched <code class="highlighter-rouge">PTransforms</code> (where the expected outputs of one transform do not match the expected inputs of the following transform).
+These exceptions are raised at pipeline construction time, regardless of where your pipeline will execute.
+Introducing type hints for the <code class="highlighter-rouge">PTransforms</code> you define allows you to catch potential bugs up front in the local runner, rather than after minutes of execution into a deep, complex pipeline.</p>
 
 <p>Consider the following example, in which <code class="highlighter-rouge">numbers</code> is a <code class="highlighter-rouge">PCollection</code> of <code class="highlighter-rouge">str</code> values:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p = TestPipeline(options=PipelineOptions(pipeline_type_check=True))
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
 
-numbers = p | beam.Create(['1', '2', '3'])
+<span class="n">numbers</span> <span class="o">=</span> <span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'1'</span><span class="p">,</span> <span class="s">'2'</span><span class="p">,</span> <span class="s">'3'</span><span class="p">])</span>
+
 </code></pre></div></div>
 
 <p>The code then applies a <code class="highlighter-rouge">Filter</code> transform to the <code class="highlighter-rouge">numbers</code> collection with a callable that retrieves the even numbers.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0)
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
 </code></pre></div></div>
 
 <p>When you call <code class="highlighter-rouge">p.run()</code>, this code generates an error because <code class="highlighter-rouge">Filter</code> expects a <code class="highlighter-rouge">PCollection</code> of integers, but is given a <code class="highlighter-rouge">PCollection</code> of strings instead.</p>
 
+<p>The Beam SDK for Python includes some automatic type hinting: for example, some <code class="highlighter-rouge">PTransforms</code>, such as <code class="highlighter-rouge">Create</code> and simple <code class="highlighter-rouge">ParDo</code> transforms, attempt to deduce their output type given their input.
+However, Beam cannot deduce types in all cases.
+Therefore, the recommendation is that you declare type hints to aid you in performing your own type checks.</p>
+
 <h2 id="declaring-type-hints">Declaring Type Hints</h2>
 
-<p>You can declare type hints on callables, <code class="highlighter-rouge">DoFn</code>s, or entire <code class="highlighter-rouge">PTransforms</code>. There are two ways to declare type hints: inline during pipeline construction, or as properties of the <code class="highlighter-rouge">DoFn</code> or <code class="highlighter-rouge">PTransform</code>, using decorators.</p>
+<p>You can declare type hints on callables, <code class="highlighter-rouge">DoFns</code>, or entire <code class="highlighter-rouge">PTransforms</code>. There are three ways to declare type hints: inline during pipeline construction, as properties of the <code class="highlighter-rouge">DoFn</code> or <code class="highlighter-rouge">PTransform</code> using decorators, or as Python 3 type annotations on certain functions.</p>
 
-<p>You can always declare type hints inline, but if you need them for code that is going to be reused, declare them as decorators. For example, if your <code class="highlighter-rouge">DoFn</code> requires an <code class="highlighter-rouge">int</code> input, it makes more sense to declare the type hint for the input as a property of the <code class="highlighter-rouge">DoFn</code> rather than inline.</p>
+<p>You can always declare type hints inline, but if you need them for code that is going to be reused, declare them as annotations or decorators.
+For example, if your <code class="highlighter-rouge">DoFn</code> requires an <code class="highlighter-rouge">int</code> input, it makes more sense to declare the type hint for the input as an annotation of the arguments to <code class="highlighter-rouge">process</code> (or a property of the <code class="highlighter-rouge">DoFn</code>) rather than inline.</p>
+
+<p>Using Annotations has the added benefit of allowing use of a static type checker (such as mypy) to additionally type check your code.
+If you already use a type checker, using annotations instead of decorators reduces code duplication.
+However, annotations do not cover all the use cases that decorators and inline declarations do.
+Two such are the <code class="highlighter-rouge">expand</code> of a composite transform and lambda functions.</p>
+
+<h3 id="declaring-type-hints-using-type-annotations">Declaring Type Hints Using Type Annotations</h3>
+
+<p><em>New in version 2.21.0.</em></p>
+
+<p>To specify type hints as annotations on certain functions, use them as usual and omit any decorator hints or inline hints.</p>
+
+<p>Annotations are currently supported on:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">process()</code> methods on <code class="highlighter-rouge">DoFn</code> subclasses.</li>
+  <li>Functions passed to: <code class="highlighter-rouge">ParDo</code>, <code class="highlighter-rouge">Map</code>, <code class="highlighter-rouge">FlatMap</code>, <code class="highlighter-rouge">Filter</code>.</li>
+</ul>
+
+<p>The following code declares an <code class="highlighter-rouge">int</code> input and a <code class="highlighter-rouge">str</code> output type hint on the <code class="highlighter-rouge">to_id</code> transform, using annotations on <code class="highlighter-rouge">my_fn</code>.</p>
+
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">my_fn</span><span class="p">(</span><span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+  <span class="k">return</span> <span class="s">'id_'</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+<span class="n">ids</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="s">'to_id'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">my_fn</span><span class="p">)</span>
+
+</code></pre></div></div>
+
+<p>The following code declares <code class="highlighter-rouge">int</code> input and output type hints on <code class="highlighter-rouge">filter_evens</code>, using annotations on <code class="highlighter-rouge">FilterEvensDoFn.process</code>.
+Since <code class="highlighter-rouge">process</code> returns a generator, the output type is annotated as <code class="highlighter-rouge">Iterable[int]</code> (<code class="highlighter-rouge">Generator[int, None, None]</code> would also work here).
+Beam will remove the outer iterable of the return type on the <code class="highlighter-rouge">DoFn.process</code> method and functions passed to <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">FlatMap</code>.
+It is an error to have a non-iterable return type annotation for these functions.
+Other supported iterable types include: <code class="highlighter-rouge">Iterator</code>, <code class="highlighter-rouge">Generator</code>, <code class="highlighter-rouge">Tuple</code>, <code class="highlighter-rouge">List</code>.</p>
+
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span>
+
+<span class="k">class</span> <span class="nc">FilterEvensDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">,</span>
+              <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">element</span>
+
+<span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="s">'filter_evens'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterEvensDoFn</span><span class="p">())</span>
+
+</code></pre></div></div>
+
+<p>The following code declares <code class="highlighter-rouge">int</code> input and output type hints on <code class="highlighter-rouge">double_evens</code>, using annotations on <code class="highlighter-rouge">FilterEvensDoubleDoFn.process</code>.
+Since <code class="highlighter-rouge">process</code> returns a <code class="highlighter-rouge">list</code> or <code class="highlighter-rouge">None</code>, the output type is annotated as <code class="highlighter-rouge">Optional[List[int]]</code>.
+Beam will remove the outer <code class="highlighter-rouge">Optional</code> and (as above) the outer iterable of the return type, only on the <code class="highlighter-rouge">DoFn.process</code> method and functions passed to <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">FlatMap</code>.</p>
+
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="k">class</span> <span class="nc">FilterEvensDoubleDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">,</span>
+              <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">[</span><span class="n">element</span><span class="p">,</span> <span class="n">element</span><span class="p">]</span>
+    <span class="k">return</span> <span class="bp">None</span>
+
+<span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="s">'double_evens'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterEvensDoubleDoFn</span><span class="p">())</span>
+
+</code></pre></div></div>
 
 <h3 id="declaring-type-hints-inline">Declaring Type Hints Inline</h3>
 
 <p>To specify type hints inline, use the methods <code class="highlighter-rouge">with_input_types</code> and <code class="highlighter-rouge">with_output_types</code>. The following example code declares an input type hint inline:</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>evens = numbers | beam.Filter(lambda x: x % 2 == 0).with_input_types(int)
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
 </code></pre></div></div>
 
 <p>When you apply the Filter transform to the numbers collection in the example above, you’ll be able to catch the error during pipeline construction.</p>
@@ -376,35 +465,59 @@ numbers = p | beam.Create(['1', '2', '3'])
 
 <p>The following code declares an <code class="highlighter-rouge">int</code> type hint on <code class="highlighter-rouge">FilterEvensDoFn</code>, using the decorator <code class="highlighter-rouge">@with_input_types()</code>.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@beam.typehints.with_input_types(int)
-class FilterEvensDoFn(beam.DoFn):
-  def process(self, element):
-    if element % 2 == 0:
-      yield element
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@beam.typehints.with_input_types</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+<span class="k">class</span> <span class="nc">FilterEvensDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">yield</span> <span class="n">element</span>
 
-evens = numbers | beam.ParDo(FilterEvensDoFn())
+<span class="n">evens</span> <span class="o">=</span> <span class="n">numbers</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">FilterEvensDoFn</span><span class="p">())</span>
+
 </code></pre></div></div>
 
 <p>Decorators receive an arbitrary number of positional and/or keyword arguments, typically interpreted in the context of the function they’re wrapping. Generally the first argument is a type hint for the main input, and additional arguments are type hints for side inputs.</p>
 
+<h4 id="disabling-annotations-use">Disabling Annotations Use</h4>
+
+<p>Since this style of type hint declaration is enabled by default, here are some ways to disable it.</p>
+
+<ol>
+  <li>Using the <code class="highlighter-rouge">@beam.typehints.no_annotations</code> decorator on the specific function you want Beam to ignore annotations for.</li>
+  <li>Declaring type hints using the decorator or inline methods above.
+These will take precedence over annotations.</li>
+  <li>Calling <code class="highlighter-rouge">beam.typehints.disable_type_annotations()</code> before pipeline creation.
+This will prevent Beam from looking at annotations on all functions.</li>
+</ol>
+
 <h3 id="defining-generic-types">Defining Generic Types</h3>
 
-<p>You can use type hint annotations to define generic types. The following code specifies an input type hint that asserts the generic type <code class="highlighter-rouge">T</code>, and an output type hint that asserts the type <code class="highlighter-rouge">Tuple[int, T]</code>.</p>
+<p>You can use type hint annotations to define generic types.
+The following code specifies an input type hint that asserts the generic type <code class="highlighter-rouge">T</code>, and an output type hint that asserts the type <code class="highlighter-rouge">Tuple[int, T]</code>.
+If the input to <code class="highlighter-rouge">MyTransform</code> is of type <code class="highlighter-rouge">str</code>, Beam will infer the output type to be <code class="highlighter-rouge">Tuple[int, str]</code>.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>T = typing.TypeVar('T')
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">TypeVar</span>
 
-@beam.typehints.with_input_types(T)
-@beam.typehints.with_output_types(typing.Tuple[int, T])
-class MyTransform(beam.PTransform):
-  def expand(self, pcoll):
-    return pcoll | beam.Map(lambda x: (len(x), x))
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s">'T'</span><span class="p">)</span>
 
-words_with_lens = words | MyTransform()
+<span class="nd">@beam.typehints.with_input_types</span><span class="p">(</span><span class="n">T</span><span class="p">)</span>
+<span class="nd">@beam.typehints.with_output_types</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">T</span><span class="p">])</span>
+<span class="k">class</span> <span class="nc">MyTransform</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">PTransform</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">expand</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pcoll</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">pcoll</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">x</span><span class="p">))</span>
+
+<span class="n">words_with_lens</span> <span class="o">=</span> <span class="n">words</span> <span class="o">|</span> <span class="n">MyTransform</span><span class="p">()</span>
+
 </code></pre></div></div>
 
 <h2 id="kinds-of-type-hints">Kinds of Type Hints</h2>
 
 <p>You can use type hints with any class, including Python primitive types, container classes, and user-defined classes. All classes, such as <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, and user-defined classes, can be used to define type hints, called <strong>simple type hints</strong>. Container types such as lists, tuples, and iterables, can also be used to define type hints and are called <strong>parameterized type hints</strong>. Finally, there are some special types that don’t correspond to any concrete Python classes, such as <code class="highlighter-rouge">Any</code>, <code class="highlighter-rouge">Optional</code>, and <code class="highlighter-rouge">Union</code>, that are also permitted as type hints.</p>
+
+<p>Beam defines its own internal type hint types, which are still available for use for backward compatibility.
+It also supports Python’s typing module types, which are internally converted to Beam internal types.</p>
+<blockquote>
+  <p>For new code, it is recommended to use <a href="https://docs.python.org/3/library/typing.html"><strong>typing</strong></a> module types.</p>
+</blockquote>
 
 <h3 id="simple-type-hints">Simple Type Hints</h3>
 
@@ -450,13 +563,17 @@ words_with_lens = words | MyTransform()
 
 <p>For example, the following pipeline emits elements of the wrong type. Depending on the runner implementation, its execution may or may not fail at runtime.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">()</span>
+<span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'a'</span><span class="p">])</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
 </code></pre></div></div>
 
 <p>However, if you enable runtime type checking, the code is guaranteed to fail at runtime. To enable runtime type checking, set the pipeline option <code class="highlighter-rouge">runtime_type_check</code> to <code class="highlighter-rouge">True</code>.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>p | beam.Create(['a']) | beam.Map(lambda x: 3).with_output_types(str)
-p.run()
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span> <span class="o">=</span> <span class="n">TestPipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">PipelineOptions</span><span class="p">(</span><span class="n">runtime_type_check</span><span class="o">=</span><span class="bp">True</span><span class="p">))</span>
+<span class="n">p</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'a'</span><span class="p">])</span> <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">with_output_types</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
 </code></pre></div></div>
 
 <p>Note that because runtime type checks are done for each <code class="highlighter-rouge">PCollection</code> element, enabling this feature may incur a significant performance penalty. It is therefore recommended that runtime type checks are disabled for production pipelines.</p>
@@ -469,7 +586,7 @@ p.run()
 
 <p>To avoid these drawbacks, you can define <code class="highlighter-rouge">Coder</code> classes for encoding and decoding types in a more efficient way. You can specify a <code class="highlighter-rouge">Coder</code> to describe how the elements of a given <code class="highlighter-rouge">PCollection</code> should be encoded and decoded.</p>
 
-<p>In order to be correct and efficient, a <code class="highlighter-rouge">Coder</code> needs type information and for <code class="highlighter-rouge">PCollection</code>s to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, <code class="highlighter-rouge">str</code>, <code class="highlighter-rouge">bytes</code>, and <code class="highlighter-rouge">unicode</code>.</p>
+<p>In order to be correct and efficient, a <code class="highlighter-rouge">Coder</code> needs type information and for <code class="highlighter-rouge">PCollections</code> to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, <code class="highlighter-rouge">str</code>, <code class="highlighter-rouge">bytes</code>, and <code class="highlighter-rouge">unicode</code>.</p>
 
 <h3 id="deterministic-coders">Deterministic Coders</h3>
 
@@ -477,33 +594,36 @@ p.run()
 
 <p>For example, suppose you have a <code class="highlighter-rouge">PCollection</code> of key-value pairs whose keys are <code class="highlighter-rouge">Player</code> objects. If you apply a <code class="highlighter-rouge">GroupByKey</code> transform to such a collection, its key objects might be serialized differently on different machines when a nondeterministic coder, such as the default pickle coder, is used. Since <code class="highlighter-rouge">GroupByKey</code> uses this serialized representation to compare keys, this may result in incorrect behavior. To ensure that the elements are always encoded and decoded in the same way, you need to define a deterministic <code class="highlighter-rouge">Coder</code> for the <code class="highlighter-rouge">Player</code> class.</p>
 
-<p>The following code shows the example <code class="highlighter-rouge">Player</code> class and how to define a <code class="highlighter-rouge">Coder</code> for it. When you use type hints, Beam infers which <code class="highlighter-rouge">Coder</code>s to use, using <code class="highlighter-rouge">beam.coders.registry</code>. The following code registers <code class="highlighter-rouge">PlayerCoder</code> as a coder for the <code class="highlighter-rouge">Player</code> class. In the example, the input type declared for <code class="highlighter-rouge">CombinePerKey</code> is <code class="highlighter-rouge">Tuple[Player, int]</code>. In this case, Beam infers that the <code class="highlighter-rouge">Coder</code> objects to use are <code class="highlighter-rouge">TupleCoder</code>, <code class="highlighter-rouge">PlayerCoder</code>, and <code class="highlighter-rouge">IntCoder</code>.</p>
+<p>The following code shows the example <code class="highlighter-rouge">Player</code> class and how to define a <code class="highlighter-rouge">Coder</code> for it. When you use type hints, Beam infers which <code class="highlighter-rouge">Coders</code> to use, using <code class="highlighter-rouge">beam.coders.registry</code>. The following code registers <code class="highlighter-rouge">PlayerCoder</code> as a coder for the <code class="highlighter-rouge">Player</code> class. In the example, the input type declared for <code class="highlighter-rouge">CombinePerKey</code> is <code class="highlighter-rouge">Tuple[Player, int]</code>. In this case, Beam infers that the <code class="highlighter-rouge">Coder</code> objects to use are <code class="highlighter-rouge">TupleCoder</code>, <code class="highlighter-rouge">PlayerCoder</code>, and <code class="highlighter-rouge">IntCoder</code>.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>class Player(object):
-  def __init__(self, team, name):
-    self.team = team
-    self.name = name
+<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span>
 
-class PlayerCoder(beam.coders.Coder):
-  def encode(self, player):
-    return ('%s:%s' % (player.team, player.name)).encode('utf-8')
+<span class="k">class</span> <span class="nc">Player</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">team</span> <span class="o">=</span> <span class="n">team</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="n">name</span>
 
-  def decode(self, s):
-    return Player(*s.decode('utf-8').split(':'))
+<span class="k">class</span> <span class="nc">PlayerCoder</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">Coder</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">player</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="s">'</span><span class="si">%</span><span class="s">s:</span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">player</span><span class="o">.</span><span class="n">team</span><span class="p">,</span> <span class="n">player</span><span class="o">.</span><span class="n">name</span><span class="p">))</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">)</span>
 
-  def is_deterministic(self):
-    return True
+  <span class="k">def</span> <span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">s</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">Player</span><span class="p">(</span><span class="o">*</span><span class="n">s</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s">'utf-8'</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">':'</span><span class="p">))</span>
 
-beam.coders.registry.register_coder(Player, PlayerCoder)
+  <span class="k">def</span> <span class="nf">is_deterministic</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">True</span>
 
-def parse_player_and_score(csv):
-  name, team, score = csv.split(',')
-  return Player(team, name), int(score)
+<span class="n">beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_coder</span><span class="p">(</span><span class="n">Player</span><span class="p">,</span> <span class="n">PlayerCoder</span><span class="p">)</span>
 
-totals = (
-    lines
-    | beam.Map(parse_player_and_score)
-    | beam.CombinePerKey(sum).with_input_types(typing.Tuple[Player, int]))
+<span class="k">def</span> <span class="nf">parse_player_and_score</span><span class="p">(</span><span class="n">csv</span><span class="p">):</span>
+  <span class="n">name</span><span class="p">,</span> <span class="n">team</span><span class="p">,</span> <span class="n">score</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">','</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">Player</span><span class="p">(</span><span class="n">team</span><span class="p">,</span> <span class="n">name</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+
+<span class="n">totals</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">lines</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">parse_player_and_score</span><span class="p">)</span>
+    <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">CombinePerKey</span><span class="p">(</span><span class="nb">sum</span><span class="p">)</span><span class="o">.</span><span class="n">with_input_types</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[</span><span class="n">Player</span><span class="p">,</span> <span class="nb">int</span><span class="p">]))</span>
+
 </code></pre></div></div>
 
       </div>

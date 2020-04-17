@@ -239,6 +239,18 @@
       </ul>
     </li>
     <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Schemas</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#what-is-a-schema">What is a schema</a></li>
+        <li><a href="/documentation/programming-guide/#schemas-for-pl-types">Schemas for programming language types</a></li>
+        <li><a href="/documentation/programming-guide/#schema-definition">Schema definition</a></li>
+        <li><a href="/documentation/programming-guide/#logical-types">Logical types</a></li>
+        <li><a href="/documentation/programming-guide/#creating-schemas">Creating schemas</a></li>
+        <li><a href="/documentation/programming-guide/#using-schemas">Using schemas</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
       <span class="section-nav-list-title">Data encoding and type safety</span>
 
       <ul class="section-nav-list">
@@ -503,36 +515,46 @@
       <li><a href="#provided-io-transforms">5.4. Beam-provided I/O transforms</a></li>
     </ul>
   </li>
-  <li><a href="#data-encoding-and-type-safety">6. Data encoding and type safety</a>
+  <li><a href="#schemas">6. Schemas</a>
     <ul>
-      <li><a href="#specifying-coders">6.1. Specifying coders</a></li>
-      <li><a href="#default-coders-and-the-coderregistry">6.2. Default coders and the CoderRegistry</a></li>
+      <li><a href="#what-is-a-schema">6.1. What is a schema</a></li>
+      <li><a href="#schemas-for-pl-types">6.2. Schemas for programming language types</a></li>
+      <li><a href="#schema-definition">6.3. Schema definition</a></li>
+      <li><a href="#logical-types">6.4. Logical types</a></li>
+      <li><a href="#creating-schemas">6.5. Creating Schemas</a></li>
+      <li><a href="#using-schemas">6.6. Using Schema Transforms</a></li>
     </ul>
   </li>
-  <li><a href="#windowing">7. Windowing</a>
+  <li><a href="#data-encoding-and-type-safety">7. Data encoding and type safety</a>
     <ul>
-      <li><a href="#windowing-basics">7.1. Windowing basics</a></li>
-      <li><a href="#provided-windowing-functions">7.2. Provided windowing functions</a></li>
-      <li><a href="#setting-your-pcollections-windowing-function">7.3. Setting your PCollection’s windowing function</a></li>
-      <li><a href="#watermarks-and-late-data">7.4. Watermarks and late data</a></li>
-      <li><a href="#adding-timestamps-to-a-pcollections-elements">7.5. Adding timestamps to a PCollection’s elements</a></li>
+      <li><a href="#specifying-coders">7.1. Specifying coders</a></li>
+      <li><a href="#default-coders-and-the-coderregistry">7.2. Default coders and the CoderRegistry</a></li>
     </ul>
   </li>
-  <li><a href="#triggers">8. Triggers</a>
+  <li><a href="#windowing">8. Windowing</a>
     <ul>
-      <li><a href="#event-time-triggers">8.1. Event time triggers</a></li>
-      <li><a href="#processing-time-triggers">8.2. Processing time triggers</a></li>
-      <li><a href="#data-driven-triggers">8.3. Data-driven triggers</a></li>
-      <li><a href="#setting-a-trigger">8.4. Setting a trigger</a></li>
-      <li><a href="#composite-triggers">8.5. Composite triggers</a></li>
+      <li><a href="#windowing-basics">8.1. Windowing basics</a></li>
+      <li><a href="#provided-windowing-functions">8.2. Provided windowing functions</a></li>
+      <li><a href="#setting-your-pcollections-windowing-function">8.3. Setting your PCollection’s windowing function</a></li>
+      <li><a href="#watermarks-and-late-data">8.4. Watermarks and late data</a></li>
+      <li><a href="#adding-timestamps-to-a-pcollections-elements">8.5. Adding timestamps to a PCollection’s elements</a></li>
     </ul>
   </li>
-  <li><a href="#metrics">9. Metrics</a>
+  <li><a href="#triggers">9. Triggers</a>
     <ul>
-      <li><a href="#91-the-main-concepts-of-beam-metrics">9.1 The main concepts of Beam metrics</a></li>
-      <li><a href="#types-of-metrics">9.2 Types of metrics</a></li>
-      <li><a href="#querying-metrics">9.3 Querying metrics</a></li>
-      <li><a href="#using-metrics">9.4 Using metrics in pipeline</a></li>
+      <li><a href="#event-time-triggers">9.1. Event time triggers</a></li>
+      <li><a href="#processing-time-triggers">9.2. Processing time triggers</a></li>
+      <li><a href="#data-driven-triggers">9.3. Data-driven triggers</a></li>
+      <li><a href="#setting-a-trigger">9.4. Setting a trigger</a></li>
+      <li><a href="#composite-triggers">9.5. Composite triggers</a></li>
+    </ul>
+  </li>
+  <li><a href="#metrics">10. Metrics</a>
+    <ul>
+      <li><a href="#101-the-main-concepts-of-beam-metrics">10.1 The main concepts of Beam metrics</a></li>
+      <li><a href="#types-of-metrics">10.2 Types of metrics</a></li>
+      <li><a href="#querying-metrics">10.3 Querying metrics</a></li>
+      <li><a href="#using-metrics">10.4 Using metrics in pipeline</a></li>
       <li><a href="#export-metrics">9.5 Export metrics</a></li>
     </ul>
   </li>
@@ -661,7 +683,7 @@ asynchronous “job” (or equivalent) on that back-end.</p>
 
 <p>The <code class="highlighter-rouge">Pipeline</code> abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span>
+<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline</a></span>
 object, and then using that object as the basis for creating the pipeline’s data
 sets as <code class="highlighter-rouge">PCollection</code>s and its operations as <code class="highlighter-rouge">PTransform</code>s.</p>
@@ -830,7 +852,7 @@ with <code class="highlighter-rouge">PipelineOptionsFactory</code>:</p>
 
 <h2 id="pcollections">3. PCollections</h2>
 
-<p>The <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span>
+<p>The <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span>
 <span class="language-py"><code class="highlighter-rouge">PCollection</code></span> abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 <code class="highlighter-rouge">PCollection</code> as “pipeline” data; Beam transforms use <code class="highlighter-rouge">PCollection</code> objects as
@@ -957,19 +979,25 @@ around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
 specifying custom encodings as needed.</p>
 
-<h4 id="immutability">3.2.2. Immutability</h4>
+<h4 id="element-schema">3.2.2. Element schema</h4>
+
+<p>In many cases, the element type in a <code class="highlighter-rouge">PCollection</code> has a structure that can introspected. 
+Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to 
+express types as a set of named fields, allowing for more-expressive aggregations.</p>
+
+<h4 id="immutability">3.2.3. Immutability</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is immutable. Once created, you cannot add, remove, or change
 individual elements. A Beam Transform might process each element of a
 <code class="highlighter-rouge">PCollection</code> and generate new pipeline data (as a new <code class="highlighter-rouge">PCollection</code>), <em>but it
 does not consume or modify the original input collection</em>.</p>
 
-<h4 id="random-access">3.2.3. Random access</h4>
+<h4 id="random-access">3.2.4. Random access</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> does not support random access to individual elements. Instead,
 Beam Transforms consider every element in a <code class="highlighter-rouge">PCollection</code> individually.</p>
 
-<h4 id="size-and-boundedness">3.2.4. Size and boundedness</h4>
+<h4 id="size-and-boundedness">3.2.5. Size and boundedness</h4>
 
 <p>A <code class="highlighter-rouge">PCollection</code> is a large, immutable “bag” of elements. There is no upper limit
 on how many elements a <code class="highlighter-rouge">PCollection</code> can contain; any given <code class="highlighter-rouge">PCollection</code> might
@@ -999,7 +1027,7 @@ determined by some characteristic associated with a data element, such as a
 on a per-window basis — as the data set is generated, they process each
 <code class="highlighter-rouge">PCollection</code> as a succession of these finite windows.</p>
 
-<h4 id="element-timestamps">3.2.5. Element timestamps</h4>
+<h4 id="element-timestamps">3.2.6. Element timestamps</h4>
 
 <p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated intrinsic <strong>timestamp</strong>. The
 timestamp for each element is initially assigned by the <a href="#pipeline-io">Source</a>
@@ -1652,7 +1680,7 @@ and format data from each collection.</p>
 
 <h4 id="combine">4.2.4. Combine</h4>
 
-<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/transforms/Combine.html"><code class="highlighter-rouge">Combine</code></a></span>
+<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Combine.html"><code class="highlighter-rouge">Combine</code></a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Combine</code></a></span>
 is a Beam transform for combining collections of elements or values in your
 data. <code class="highlighter-rouge">Combine</code> has variants that work on entire <code class="highlighter-rouge">PCollection</code>s, and some that
@@ -1896,7 +1924,7 @@ PerKey must be an associative reduction function or a subclass of <code class="h
 
 <h4 id="flatten">4.2.5. Flatten</h4>
 
-<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code class="highlighter-rouge">Flatten</code></a></span>
+<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code class="highlighter-rouge">Flatten</code></a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Flatten</code></a></span>
 is a Beam transform for <code class="highlighter-rouge">PCollection</code> objects that store the same data type.
 <code class="highlighter-rouge">Flatten</code> merges multiple <code class="highlighter-rouge">PCollection</code> objects into a single logical
@@ -1945,7 +1973,7 @@ pipeline is constructed.</p>
 
 <h4 id="partition">4.2.6. Partition</h4>
 
-<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/transforms/Partition.html"><code class="highlighter-rouge">Partition</code></a></span>
+<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Partition.html"><code class="highlighter-rouge">Partition</code></a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code class="highlighter-rouge">Partition</code></a></span>
 is a Beam transform for <code class="highlighter-rouge">PCollection</code> objects that store the same data
 type. <code class="highlighter-rouge">Partition</code> splits a single <code class="highlighter-rouge">PCollection</code> into a fixed number of smaller
@@ -2490,8 +2518,8 @@ transform can make your code more modular and easier to understand.</p>
 <p>The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:</p>
 <ul>
-  <li><a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
-  <li><a href="https://beam.apache.org/releases/pydoc/2.19.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
+  <li><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
+  <li><a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
 </ul>
 
 <h4 id="composite-transform-example">4.6.1. An example composite transform</h4>
@@ -2708,7 +2736,1066 @@ location. Each file has the prefix “numbers”, a numeric tag, and the suffix
 <p>See the <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a>
 page for a list of the currently available I/O transforms.</p>
 
-<h2 id="data-encoding-and-type-safety">6. Data encoding and type safety</h2>
+<h2 id="schemas">6. Schemas</h2>
+<p>Often, the types of the records being processed have an obvious structure. Common Beam sources produce
+JSON, Avro, Protocol Buffer, or database row objects; all of these types have well defined structures, 
+structures that can often be determined by examining the type. Even within a SDK pipeline, Simple Java POJOs 
+(or  equivalent structures in other languages) are often used as intermediate types, and these also have a
+ clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s 
+ records, we can provide much more concise APIs for data processing.</p>
+
+<h3 id="what-is-a-schema">6.1. What is a schema</h3>
+<p>Most structured records share some common characteristics:</p>
+<ul>
+  <li>They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
+ tuples - have numerical indices instead.</li>
+  <li>There is a confined list of primitive types that a field can have. These often match primitive types in most programming 
+ languages: int, long, string, etc.</li>
+  <li>Often a field type can be marked as optional (sometimes referred to as nullable) or required.</li>
+</ul>
+
+<p>Oten records have a nested structure. A nested structure occurs when a field itself has subfields so the 
+type of the field itself has a schema. Fields that are  array or map types is also a common feature of these structured 
+records.</p>
+
+<p>For example, consider the following schema, representing actions in a fictitious e-commerce company:</p>
+
+<p><strong>Purchase</strong></p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>itemId</td>
+      <td>INT64</td>      
+    </tr>
+    <tr>
+      <td>shippingAddress</td>
+      <td>ROW(ShippingAddress)</td>      
+    </tr>
+    <tr>
+      <td>cost</td>
+      <td>INT64</td>      
+    </tr>
+    <tr>
+      <td>transactions</td>
+      <td>ARRAY[ROW(Transaction)]</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p><strong>ShippingAddress</strong></p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>streetAddress</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>city</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>state</td>
+      <td>nullable STRING</td>      
+    </tr>
+    <tr>
+      <td>country</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>postCode</td>
+      <td>STRING</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p><strong>Transaction</strong></p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>bank</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>purchaseAmount</td>
+      <td>DOUBLE</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>Purchase event records are represented by the above purchase schema. Each purchase event contains a shipping address, which
+is a nested row containing its own schema. Each purchase also contains an array of credit-card transactions 
+(a list, because a purchase might be split across multiple credit cards); each item in the transaction list is a row 
+with its own schema.</p>
+
+<p>This provides an abstract description of the types involved, one that is abstracted away from any specific programming 
+language.</p>
+
+<p>Schemas provide us a type-system for Beam records that is independent of any specific programming-language type. There
+might be multiple Java classes that all have the same schema (for example a Protocol-Buffer class or a POJO class),
+and Beam will allow us to seamlessly convert between these types. Schemas also provide a simple way to reason about 
+types across different programming-language APIs.</p>
+
+<p>A <code class="highlighter-rouge">PCollection</code> with a schema does not need to have a <code class="highlighter-rouge">Coder</code> specified, as Beam knows how to encode and decode 
+Schema rows; Beam uses a special coder to encode schema types.</p>
+
+<h3 id="schemas-for-pl-types">6.2. Schemas for programming language types</h3>
+<p>While schemas themselves are language independent, they are designed to embed naturally into the programming languages
+of the Beam SDK being used. This allows Beam users to continue using native types while reaping the advantage of 
+having Beam understand their element schemas.</p>
+
+<p class="language-java">In Java you could use the following set of classes to represent the purchase schema.  Beam will automatically<br />
+ infer the correct schema based on the members of the class.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaBeanSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">Purchase</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getUserId</span><span class="o">();</span>  <span class="c1">// Returns the id of the user who made the purchase.</span>
+  <span class="kd">public</span> <span class="kt">long</span> <span class="nf">getItemId</span><span class="o">();</span>  <span class="c1">// Returns the identifier of the item that was purchased.</span>
+  <span class="kd">public</span> <span class="n">ShippingAddress</span> <span class="nf">getShippingAddress</span><span class="o">();</span>  <span class="c1">// Returns the shipping address, a nested type.</span>
+  <span class="kd">public</span> <span class="kt">long</span> <span class="nf">getCostCents</span><span class="o">();</span>  <span class="c1">// Returns the cost of the item.</span>
+  <span class="kd">public</span> <span class="n">List</span><span class="o">&lt;</span><span class="n">Transaction</span><span class="o">&gt;</span> <span class="nf">getTransactions</span><span class="o">();</span>  <span class="c1">// Returns the transactions that paid for this purchase (returns a list, since the purchase might be spread out over multiple credit cards).</span>
+  
+  <span class="nd">@SchemaCreate</span>
+  <span class="kd">public</span> <span class="nf">Purchase</span><span class="o">(</span><span class="n">String</span> <span class="n">userId</span><span class="o">,</span> <span class="kt">long</span> <span class="n">itemId</span><span class="o">,</span> <span class="n">ShippingAddress</span> <span class="n">shippingAddress</span><span class="o">,</span> <span class="kt">long</span> <span class="n">costCents</span><span class="o">,</span> 
+                  <span class="n">List</span><span class="o">&lt;</span><span class="n">Transaction</span><span class="o">&gt;</span> <span class="n">transactions</span><span class="o">)</span> <span class="o">{</span>
+      <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaBeanSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">ShippingAddress</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getStreetAddress</span><span class="o">();</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getCity</span><span class="o">();</span>
+  <span class="nd">@Nullable</span> <span class="kd">public</span> <span class="n">String</span> <span class="nf">getState</span><span class="o">();</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getCountry</span><span class="o">();</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getPostCode</span><span class="o">();</span>
+  
+  <span class="nd">@SchemaCreate</span>
+  <span class="kd">public</span> <span class="nf">ShippingAddress</span><span class="o">(</span><span class="n">String</span> <span class="n">streetAddress</span><span class="o">,</span> <span class="n">String</span> <span class="n">city</span><span class="o">,</span> <span class="nd">@Nullable</span> <span class="n">String</span> <span class="n">state</span><span class="o">,</span> <span class="n">String</span> <span class="n">country</span><span class="o">,</span>
+                         <span class="n">String</span> <span class="n">postCode</span><span class="o">)</span> <span class="o">{</span>
+     <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+
+<span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaBeanSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">Transaction</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getBank</span><span class="o">();</span>
+  <span class="kd">public</span> <span class="kt">double</span> <span class="nf">getPurchaseAmount</span><span class="o">();</span>
+ 
+  <span class="nd">@SchemaCreate</span>
+  <span class="kd">public</span> <span class="nf">Transaction</span><span class="o">(</span><span class="n">String</span> <span class="n">bank</span><span class="o">,</span> <span class="kt">double</span> <span class="n">purchaseAmount</span><span class="o">)</span> <span class="o">{</span>
+     <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
+the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
+conversions betweens types that have matching schemas. For example, the above
+<code class="highlighter-rouge">Transaction</code> class has the same schema as the following class:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaFieldSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">TransactionPojo</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="n">bank</span><span class="o">;</span>
+  <span class="kd">public</span> <span class="kt">double</span> <span class="n">purchaseAmount</span><span class="o">;</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>So if we had two <code class="highlighter-rouge">PCollection</code>s as follows</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Transaction</span><span class="o">&gt;</span> <span class="n">transactionBeans</span> <span class="o">=</span> <span class="n">readTransactionsAsJavaBean</span><span class="o">();</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">TransactionPojos</span><span class="o">&gt;</span> <span class="n">transactionPojos</span> <span class="o">=</span> <span class="n">readTransactionsAsPojo</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>Then these two <code class="highlighter-rouge">PCollection</code>s would have the same schema, even though their Java types would be different. This means
+for example the following two code snippets are valid:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">transactionBeans</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;...&gt;()</span> <span class="o">{</span>
+   <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">TransactionPojo</span> <span class="n">pojo</span><span class="o">)</span> <span class="o">{</span>
+      <span class="o">...</span>
+   <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>and</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">transactionPojos</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;...&gt;()</span> <span class="o">{</span>
+   <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">Transaction</span> <span class="n">row</span><span class="o">)</span> <span class="o">{</span>
+    <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>Even though the in both cases the <code class="highlighter-rouge">@Element</code> parameter differs from the the <code class="highlighter-rouge">PCollection</code>’s Java type, since the
+schemas are the same Beam will automatically make the conversion. The built-in <code class="highlighter-rouge">Convert</code> transform can also be used
+to translate between Java types of equivalent schemas, as detailed below.</p>
+
+<h3 id="schema-definition">6.3. Schema definition</h3>
+<p>The schema for a <code class="highlighter-rouge">PCollection</code> defines elements of that <code class="highlighter-rouge">PCollection</code> as an ordered list of named fields. Each field
+has a name, a type, and possibly a set of user options. The type of a field can be primitive or composite. The following
+are the primitive types currently supported by Beam:</p>
+
+<table>
+  <thead>
+    <tr class="header">
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BYTE</td>
+      <td>An 8-bit signed value</td>
+    </tr>
+     <tr>
+       <td>INT16</td>
+       <td>A 16-bit signed value</td>
+     </tr>
+     <tr>
+       <td>INT32</td>
+       <td>A 32-bit signed value</td>
+     </tr>
+    <tr>
+      <td>INT64</td>
+       <td>A 64-bit signed value</td>
+     </tr>
+     <tr>
+       <td>DECIMAL</td>
+       <td>An arbitrary-precision decimal type</td>
+     </tr>
+     <tr>
+       <td>FLOAT</td>
+       <td>A 32-bit IEEE 754 floating point number</td>
+     </tr>
+     <tr>
+       <td>DOUBLE</td>
+       <td>A 64-bit IEEE 754 floating point number</td>
+     </tr>
+     <tr>
+       <td>STRING</td>
+       <td>A string</td>
+     </tr>
+     <tr>
+       <td>DATETIME</td>
+       <td>A timestamp represented as milliseconds since the epoch</td>
+     </tr>  
+     <tr>
+       <td>BOOLEAN</td>
+       <td>A boolean value</td>
+     </tr>
+     <tr>
+       <td>BYTES</td>
+       <td>A raw byte array</td>
+     </tr>             
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>A field can also reference a nested schema. In this case, the field will have type ROW, and the nested schema will 
+be an attribute of this field type.</p>
+
+<p>Three collection types are supported as field types: ARRAY, ITERABLE and MAP:</p>
+<ul>
+  <li><strong>ARRAY</strong> This represents a repeated value type, where the repeated elements can have any supported type. Arrays of 
+nested rows are supported, as are arrays of arrays.</li>
+  <li><strong>ITERABLE</strong> This is very similar to the array type, it represents a repeated value, but one in which the full list of 
+items is not known until iterated over. This is intended for the case where an iterable might be larger than the 
+available memory, and backed by external storage (for example, this can happen with the iterable returned by a 
+<code class="highlighter-rouge">GroupByKey</code>). The repeated elements can have any supported type.</li>
+  <li><strong>MAP</strong> This represents an associative map from keys to values. All schema types are supported for both keys and values.
+ Values that contain map types cannot be used as keys in any grouping operation.</li>
+</ul>
+
+<h3 id="logical-types">6.4. Logical types</h3>
+<p>Users can extend the schema type system to add custom logical types that can be used as a field. A logical type is 
+identified by a unique identifier and an argument. A logical type also specifies an underlying schema type to be used 
+for storage, along with conversions to and from that type. As an example, a logical union can always be represented as 
+a row with nullable fields, where the user ensures that only one of those fields is ever set at a time. However this can
+be tedious and complex to manage. The OneOf logical type provides a value class that makes it easier to manage the type
+as a union, while still using a row with nullable fields as its underlying storage. Each logical type also has a 
+unique identifier, so they can be interpreted by other languages as well. More examples of logical types are listed 
+below.</p>
+
+<h4 id="defining-a-logical-type">6.4.1. Defining a logical type</h4>
+<p>To define a logical type you must specify a Schema type to be used to represent the underlying type as well as a unique
+identifier for that type. A logical type imposes additional semantics on top a schema type. For example, a logical 
+type to represent nanosecond timestamps is represented as a schema containing an INT64 and an INT32 field. This schema
+alone does not say anything about how to interpret this type, however the logical type tells you that this represents
+a nanosecond timestamp, with the INT64 field representing seconds and the INT32 field representing nanoseconds.</p>
+
+<p>Logical types are also specified by an argument, which allows creating a class of related types. For example, a 
+limited-precision decimal type would have an integer argument indicating how many digits of precision are represented.
+The argument is represented by a schema type, so can itself be a complex type.</p>
+
+<p class="language-java">In Java, a logical type is specified as a subclass of the <code class="highlighter-rouge">LogicalType</code> class. A custom Java class can be specified to 
+represent the logical type and conversion functions must be supplied to convert back and forth between this Java class
+and the underlying Schema type representation. For example, the logical type representing nanosecond timestamp might
+be implemented as follows</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// A Logical type using java.time.Instant to represent the logical type.</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">TimestampNanos</span> <span class="kd">implements</span> <span class="n">LogicalType</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">,</span> <span class="n">Row</span><span class="o">&gt;</span> <span class="o">{</span>
+  <span class="c1">// The underlying schema used to represent rows.</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">Schema</span> <span class="n">SCHEMA</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="na">builder</span><span class="o">().</span><span class="na">addInt64Field</span><span class="o">(</span><span class="s">"seconds"</span><span class="o">).</span><span class="na">addInt32Field</span><span class="o">(</span><span class="s">"nanos"</span><span class="o">).</span><span class="na">build</span><span class="o">();</span>
+  <span class="nd">@Override</span> <span class="kd">public</span> <span class="n">String</span> <span class="nf">getIdentifier</span><span class="o">()</span> <span class="o">{</span> <span class="k">return</span> <span class="s">"timestampNanos"</span><span class="o">;</span> <span class="o">}</span>
+  <span class="nd">@Override</span> <span class="kd">public</span> <span class="n">FieldType</span> <span class="nf">getBaseType</span><span class="o">()</span> <span class="o">{</span> <span class="k">return</span> <span class="n">schema</span><span class="o">;</span> <span class="o">}</span>
+  
+  <span class="c1">// Convert the representation type to the underlying Row type. Called by Beam when necessary.</span>
+  <span class="nd">@Override</span> <span class="kd">public</span> <span class="n">Row</span> <span class="nf">toBaseType</span><span class="o">(</span><span class="n">Instant</span> <span class="n">instant</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">Row</span><span class="o">.</span><span class="na">withSchema</span><span class="o">(</span><span class="n">schema</span><span class="o">).</span><span class="na">addValues</span><span class="o">(</span><span class="n">instant</span><span class="o">.</span><span class="na">getEpochSecond</span><span class="o">(),</span> <span class="n">instant</span><span class="o">.</span><span class="na">getNano</span><span class="o">()).</span><span class="na">build</span><span class="o">();</span>
+  <span class="o">}</span>
+  
+  <span class="c1">// Convert the underlying Row type to and Instant. Called by Beam when necessary.</span>
+  <span class="nd">@Override</span> <span class="kd">public</span> <span class="n">Instant</span> <span class="nf">toInputType</span><span class="o">(</span><span class="n">Row</span> <span class="n">base</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">return</span> <span class="n">Instant</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">row</span><span class="o">.</span><span class="na">getInt64</span><span class="o">(</span><span class="s">"seconds"</span><span class="o">),</span> <span class="n">row</span><span class="o">.</span><span class="na">getInt32</span><span class="o">(</span><span class="s">"nanos"</span><span class="o">));</span>
+  <span class="o">}</span>
+
+     <span class="o">...</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h4 id="built-in-logical-types">6.4.2. Useful logical types</h4>
+<h5 id="enumerationtype"><strong>EnumerationType</strong></h5>
+<p>This logical type allows creating an enumeration type consisting of a set of named constants.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Schema</span> <span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+               <span class="err">…</span>
+     <span class="o">.</span><span class="na">addLogicalTypeField</span><span class="o">(</span><span class="err">“</span><span class="n">color</span><span class="err">”</span><span class="o">,</span> <span class="n">EnumerationType</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="err">“</span><span class="n">RED</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">GREEN</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">BLUE</span><span class="err">”</span><span class="o">))</span>
+     <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The value of this field is stored in the row as an INT32 type, however the logical type defines a value type that lets 
+you access the enumeration either as a string or a value. For example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span> <span class="n">enumValue</span> <span class="o">=</span> <span class="n">enumType</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="err">“</span><span class="n">RED</span><span class="err">”</span><span class="o">);</span>
+<span class="n">enumValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>  <span class="c1">// Returns 0, the integer value of the constant.</span>
+<span class="n">enumValue</span><span class="o">.</span><span class="na">toString</span><span class="o">();</span>  <span class="c1">// Returns “RED”, the string value of the constant</span>
+</code></pre></div></div>
+
+<p>Given a row object with an enumeration field, you can also extract the field as the enumeration value.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span> <span class="n">enumValue</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="na">getLogicalTypeValue</span><span class="o">(</span><span class="err">“</span><span class="n">color</span><span class="err">”</span><span class="o">,</span> <span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
+</code></pre></div></div>
+
+<p>Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical 
+types.</p>
+
+<h5 id="oneoftype"><strong>OneOfType</strong></h5>
+<p>OneOfType allows creating a disjoint union type over a set of schema fields. For example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Schema</span> <span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
+               <span class="err">…</span>
+     <span class="o">.</span><span class="na">addLogicalTypeField</span><span class="o">(</span><span class="err">“</span><span class="n">oneOfField</span><span class="err">”</span><span class="o">,</span> 
+        <span class="n">OneOfType</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="err">“</span><span class="n">intField</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT32</span><span class="o">),</span>
+                         <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="err">“</span><span class="n">stringField</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">),</span>
+                         <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="err">“</span><span class="n">bytesField</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">BYTES</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">build</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The 
+logical type however defines a Value object that contains an enumeration value indicating which field was set and allows
+ getting just that field:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Returns an enumeration indicating all possible case values for the enum.</span>
+<span class="c1">// For the above example, this will be </span>
+<span class="c1">// EnumerationType.create(“intField”, “stringField”, “bytesField”);</span>
+<span class="n">EnumerationType</span> <span class="n">oneOfEnum</span> <span class="o">=</span> <span class="n">onOfType</span><span class="o">.</span><span class="na">getCaseEnumType</span><span class="o">();</span>
+
+<span class="c1">// Creates an instance of the union with the string field set.</span>
+<span class="n">OneOfType</span><span class="o">.</span><span class="na">Value</span> <span class="n">oneOfValue</span> <span class="o">=</span> <span class="n">oneOfType</span><span class="o">.</span><span class="na">createValue</span><span class="o">(</span><span class="err">“</span><span class="n">stringField</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">foobar</span><span class="err">”</span><span class="o">);</span>
+
+<span class="c1">// Handle the oneof</span>
+<span class="k">switch</span> <span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getCaseEnumType</span><span class="o">().</span><span class="na">toString</span><span class="o">())</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="err">“</span><span class="n">intField</span><span class="err">”</span><span class="o">:</span>  
+    <span class="k">return</span> <span class="nf">processInt</span><span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">(</span><span class="n">Integer</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
+  <span class="k">case</span> <span class="err">“</span><span class="n">stringField</span><span class="err">”</span><span class="o">:</span>
+    <span class="k">return</span> <span class="nf">processString</span><span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
+  <span class="k">case</span> <span class="err">“</span><span class="n">bytesField</span><span class="err">”</span><span class="o">:</span>
+    <span class="k">return</span> <span class="nf">processBytes</span><span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">(</span><span class="n">bytes</span><span class="o">[].</span><span class="na">class</span><span class="o">));</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>In the above example we used the field names in the switch statement for clarity, however the enum integer values could
+ also be used.</p>
+
+<h3 id="creating-schemas">6.5. Creating Schemas</h3>
+
+<p>In order to take advantage of schemas, your <code class="highlighter-rouge">PCollection</code>s must have a schema attached to it. Often, the source 
+itself will attach a schema to the PCollection. For example, when using <code class="highlighter-rouge">AvroIO</code> to read Avro files, the source can
+automatically infer a Beam schema from the Avro schema and attach that to the Beam <code class="highlighter-rouge">PCollection</code>. However not all sources 
+produce schemas. In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from
+the expressiveness of schemas.</p>
+
+<h4 id="inferring-schemas" class="language-java">6.5.1. Inferring schemas</h4>
+<p>Beam is able to infer schemas from a variety of common Java types. The <code class="highlighter-rouge">@DefaultSchema</code> annotation can be used to tell
+Beam to infer schemas from a specific type. The annotation takes a <code class="highlighter-rouge">SchemaProvider</code> as an argument, and <code class="highlighter-rouge">SchemaProvider</code> 
+classes are already built in for common Java types. The <code class="highlighter-rouge">SchemaRegistry</code> can also be invoked programmatically for cases 
+where it is not practical to annotate the Java type itself.</p>
+
+<h5 id="java-pojos"><strong>Java POJOs</strong></h5>
+<p>A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language 
+Specification. A POJO can contain member variables that are primitives, that are other POJOs, or are collections maps or
+arrays thereof. POJOs do not have to extend prespecified classes or extend any specific interfaces.</p>
+
+<p>If a POJO class is annotated with <code class="highlighter-rouge">@DefaultSchema(JavaFieldSchema.class)</code>, Beam will automatically infer a schema for 
+this class. Nested classes are supported as are classes with <code class="highlighter-rouge">List</code>, array, and <code class="highlighter-rouge">Map</code> fields.</p>
+
+<p>For example, annotating the following class tells Beam to infer a schema from this POJO class and apply it to any 
+<code class="highlighter-rouge">PCollection&lt;TransactionPojo&gt;</code>.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaFieldSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">TransactionPojo</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">bank</span><span class="o">;</span>
+  <span class="kd">public</span> <span class="kd">final</span> <span class="kt">double</span> <span class="n">purchaseAmount</span><span class="o">;</span>
+  <span class="nd">@SchemaCreate</span>
+  <span class="kd">public</span> <span class="nf">TransactionPojo</span><span class="o">(</span><span class="n">String</span> <span class="n">bank</span><span class="o">,</span> <span class="kt">double</span> <span class="n">purchaseAmount</span><span class="o">)</span> <span class="o">{</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">bank</span> <span class="o">=</span> <span class="n">bank</span><span class="o">.</span>
+    <span class="k">this</span><span class="o">.</span><span class="na">purchaseAmount</span> <span class="o">=</span> <span class="n">purchaseAmount</span><span class="o">;</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+<span class="c1">// Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">TransactionPojo</span><span class="o">&gt;</span> <span class="n">pojos</span> <span class="o">=</span> <span class="n">readPojos</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">@SchemaCreate</code> annotation tells Beam that this constructor can be used to create instances of TransactionPojo, 
+assuming that constructor parameters have the same names as the field names. <code class="highlighter-rouge">@SchemaCreate</code> can also be used to annotate
+static factory methods on the class, allowing the constructor to remain private. If there is no <code class="highlighter-rouge">@SchemaCreate</code>
+ annotation then all the fields must be non-final and the class must have a zero-argument constructor.</p>
+
+<p>There are a couple of other useful annotations that affect how Beam infers schemas. By default the schema field names 
+inferred will match that of the class field names. However <code class="highlighter-rouge">@SchemaFieldName</code> can be used to specify a different name to
+be used for the schema field. <code class="highlighter-rouge">@SchemaIgnore</code> can be used to mark specific class fields as excluded from the inferred
+schema. For example, it’s common to have ephemeral fields in a class that should not be included in a schema 
+(e.g. caching the hash value to prevent expensive recomputation of the hash), and <code class="highlighter-rouge">@SchemaIgnore</code> can be used to
+exclude these fields. Note that ignored fields will not be included in the encoding of these records.</p>
+
+<p>In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
+not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in 
+pipeline’s main function as follows:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="n">pipeline</span><span class="o">.</span><span class="na">getSchemaRegistry</span><span class="o">().</span><span class="na">registerPOJO</span><span class="o">(</span><span class="n">TransactionPOJO</span><span class="o">.</span><span class="na">class</span><span class="o">);</span> 
+</code></pre></div></div>
+
+<h5 id="java-beans"><strong>Java Beans</strong></h5>
+<p>Java Beans are a de-facto standard for creating reusable property classes in Java. While the full 
+standard has many characteristics, the key ones are that all properties are accessed via getter and setter classes, and 
+the name format for these getters and setters is standardized. A Java Bean class can be annotated with 
+<code class="highlighter-rouge">@DefaultSchema(JavaBeanSchema.class)</code> and Beam will automatically infer a schema for this class. For example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaBeanSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">TransactionBean</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="nf">TransactionBean</span><span class="o">()</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span> 
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getBank</span><span class="o">()</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setBank</span><span class="o">(</span><span class="n">String</span> <span class="n">bank</span><span class="o">)</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+  <span class="kd">public</span> <span class="kt">double</span> <span class="nf">getPurchaseAmount</span><span class="o">()</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">setPurchaseAmount</span><span class="o">(</span><span class="kt">double</span> <span class="n">purchaseAmount</span><span class="o">)</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+<span class="o">}</span>
+<span class="c1">// Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">TransactionBean</span><span class="o">&gt;</span> <span class="n">beans</span> <span class="o">=</span> <span class="n">readBeans</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">@SchemaCreate</code> annotation can be used to specify a constructor or a static factory method, in which case the 
+setters and zero-argument constructor can be omitted.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">JavaBeanSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">TransactionBean</span> <span class="o">{</span>
+  <span class="nd">@SchemaCreate</span>
+  <span class="n">Public</span> <span class="nf">TransactionBean</span><span class="o">(</span><span class="n">String</span> <span class="n">bank</span><span class="o">,</span> <span class="kt">double</span> <span class="n">purchaseAmount</span><span class="o">)</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+  <span class="kd">public</span> <span class="n">String</span> <span class="nf">getBank</span><span class="o">()</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+  <span class="kd">public</span> <span class="kt">double</span> <span class="nf">getPurchaseAmount</span><span class="o">()</span> <span class="o">{</span> <span class="err">…</span> <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">@SchemaFieldName</code> and <code class="highlighter-rouge">@SchemaIgnore</code> can be used to alter the schema inferred, just like with POJO classes.</p>
+
+<h5 id="autovalue"><strong>AutoValue</strong></h5>
+<p>Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in 
+order to properly implement a value class. AutoValue is a popular library for easily generating such classes by i
+mplementing a simple abstract base class.</p>
+
+<p>Beam can infer a schema from an AutoValue class. For example:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@DefaultSchema</span><span class="o">(</span><span class="n">AutoValueSchema</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+<span class="nd">@AutoValue</span>
+<span class="kd">public</span> <span class="kd">abstract</span> <span class="kd">class</span> <span class="nc">TransactionValue</span> <span class="o">{</span>
+  <span class="kd">public</span> <span class="kd">abstract</span> <span class="n">String</span> <span class="nf">getBank</span><span class="o">();</span> 
+  <span class="kd">public</span> <span class="kd">abstract</span> <span class="kt">double</span> <span class="nf">getPurchaseAmount</span><span class="o">();</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>This is all that’s needed to generate a simple AutoValue class, and the above <code class="highlighter-rouge">@DefaultSchema</code> annotation tells Beam to
+infer a schema from it. This also allows AutoValue elements to be used inside of <code class="highlighter-rouge">PCollection</code>s.</p>
+
+<p><code class="highlighter-rouge">@SchemaFieldName</code> and <code class="highlighter-rouge">@SchemaIgnore</code> can be used to alter the schema inferred.</p>
+
+<h3 id="using-schemas">6.6. Using Schema Transforms</h3>
+<p>A schema on a <code class="highlighter-rouge">PCollection</code> enables a rich variety of relational transforms. The fact that each record is composed of
+named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
+a SQL expression.</p>
+
+<h4 id="661-field-selection-syntax">6.6.1. Field selection syntax</h4>
+<p>The advantage of schemas is that they allow referencing of element fields by name. Beam provides a selection syntax for
+referencing fields, including nested and repeated fields. This syntax is used by all of the schema transforms when 
+referencing the fields they operate on. The syntax can also be used inside of a DoFn to specify which schema fields to
+process.</p>
+
+<p>Addressing fields by name still retains type safety as Beam will check that schemas match at the time the pipeline graph
+is constructed. If a field is specified that does not exist in the schema, the pipeline will fail to launch. In addition,
+if a field is specified with a type that does not match the type of that field in the schema, the pipeline will fail to
+launch.</p>
+
+<p>The following characters are not allowed in field names: . *  [ ] { }</p>
+
+<h5 id="top-level-fields"><strong>Top-level fields</strong></h5>
+<p>In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just
+the user ids from a <code class="highlighter-rouge">PCollection</code> of purchases one would write (using the <code class="highlighter-rouge">Select</code> transform)</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<h5 id="nested-fields"><strong>Nested fields</strong></h5>
+<p>Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
+ shipping address one would write</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">postCode</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<h5 id="wildcards"><strong>Wildcards</strong></h5>
+<p>The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
+shipping-address fields one would write</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.*</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<h5 id="arrays"><strong>Arrays</strong></h5>
+<p>An array field, where the array element type is a row, can also have subfields of the element type addressed. When 
+selected, the result is an array of the selected subfield type. For example</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">transactions</span><span class="o">[].</span><span class="na">bank</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Will result in a row containing an array field with element-type string, containing the list of banks for each 
+transaction.</p>
+
+<p>While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected, 
+they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the 
+array.</p>
+
+<h5 id="maps"><strong>Maps</strong></h5>
+<p>A map field, where the value type is a row, can also have subfields of the value type addressed. When selected, the 
+result is a map where the keys are the same as in the original map but the value is the specified type. Similar to 
+arrays, the use of {} curly brackets in the selector is recommended, to make it clear that map value elements are being 
+selected, they can be omitted for brevity. In the future, map key selectors will be supported, allowing selection of 
+specific keys from the map. For example, given the following schema:</p>
+
+<p><strong>PurchasesByType</strong></p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>purchases</td>
+      <td>MAP{STRING, ROW{PURCHASE}</td>      
+    </tr>                 
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>The following</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchasesByType</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">purchases</span><span class="o">{}.</span><span class="na">userId</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
+all of the keys from the original map, and the values will be the userId contained in the purchasee reecord.</p>
+
+<p>While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected, 
+they can be omitted for brevity. In the future, map slicing will be supported, allowing selection of specific keys from
+the map.</p>
+
+<h4 id="662-schema-transforms">6.6.2. Schema transforms</h4>
+<p>Beam provides a collection of transforms that operate natively on schemas. These transforms are very expressive,
+allowing selections and aggregations in terms of named schema fields. Following are some examples of useful
+schema transforms.</p>
+
+<h5 id="selecting-input"><strong>Selecting input</strong></h5>
+<p>Often a computation is only interested in a subset of the fields in an input <code class="highlighter-rouge">PCollection</code>. The <code class="highlighter-rouge">Select</code> transform allows
+one to easily project out only the fields of interest. The resulting <code class="highlighter-rouge">PCollection</code> has  a schema containing each selected
+field as a top-level field. Both top-level and nested fields can be selected. For example, in the Purchase schema, one 
+could select only the userId and streetAddress fields as follows</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>The resulting <code class="highlighter-rouge">PCollection</code> will have the following schema</p>
+
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>streetAddress</td>
+      <td>STRING</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>The same is true for wildcard selections. The following</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.*</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Will result in the following schema</p>
+
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>streetAddress</td>
+      <td>STRING</td>      
+    </tr>  
+    <tr>
+      <td>city</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>state</td>
+      <td>nullable STRING</td>      
+    </tr> 
+    <tr>
+      <td>country</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>postCode</td>
+      <td>STRING</td>      
+    </tr>                                 
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>When selecting fields nested inside of an array, the same rule applies that each selected field appears separately as a 
+top-level field in the resulting row. This means that if multiple fields are selected from the same nested row, each 
+selected field will appear as its own array field. For example</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span> <span class="err">“</span><span class="n">transactions</span><span class="o">.</span><span class="na">bank</span><span class="err">”</span><span class="o">,</span> <span class="n">transactions</span><span class="o">.</span><span class="na">purchaseAmount</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Will result in the following schema</p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>bank</td>
+      <td>ARRAY[STRING]</td>      
+    </tr>
+    <tr>
+      <td>purchaseAmount</td>
+      <td>ARRAY[DOUBLE]</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>Wildcard selections are equivalent to separately selecting each field.</p>
+
+<p>Selecting fields nested inside of maps have the same semantics as arrays. If you select multiple fields from a map 
+, then each selected field will be expanded to its own map at the top level. This means that the set of map keys will
+ be copied, once for each selected field.</p>
+
+<p>Sometimes different nested rows will have fields with the same name. Selecting multiple of these fields would result in 
+a name conflict, as all selected fields are put in the same row schema. When this situation arises, the 
+<code class="highlighter-rouge">Select.withFieldNameAs</code> builder method can be used to provide an alternate name for the selected field.</p>
+
+<p>Another use of the Select transform is to flatten a nested schema into a single flat schema. For example</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">flattenedSchema</span><span class="o">());</span>
+</code></pre></div></div>
+
+<p>Will result in the following schema</p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>itemId</td>
+      <td>STRING</td>      
+    </tr>  
+    <tr>
+      <td>shippingAddress_streetAddress</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>shippingAddress_city</td>
+      <td>nullable STRING</td>      
+    </tr> 
+    <tr>
+      <td>shippingAddress_state</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>shippingAddress_country</td>
+      <td>STRING</td>      
+    </tr>         
+    <tr>
+      <td>shippingAddress_postCode</td>
+      <td>STRING</td>      
+    </tr>    
+     <tr>
+       <td>costCents</td>
+       <td>INT64</td>      
+     </tr>    
+     <tr>
+       <td>transactions_bank</td>
+       <td>ARRAY[STRING]</td>      
+     </tr>    
+    <tr>
+      <td>transactions_purchaseAmount</td>
+      <td>ARRAY[DOUBLE]</td>      
+    </tr>                                            
+  </tbody>
+</table>
+<p><br /></p>
+
+<h5 id="grouping-aggregations"><strong>Grouping aggregations</strong></h5>
+<p>The <code class="highlighter-rouge">Group</code> transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the <code class="highlighter-rouge">Group</code> transform
+has a schema with one field corresponding to each aggregation performed.</p>
+
+<p>The simplest usage of <code class="highlighter-rouge">Group</code> specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an <code class="highlighter-rouge">ITERABLE</code> field. For example</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>The output schema of this is:</p>
+
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>key</td>
+      <td>ROW{userId:STRING, streetAddress:STRING}</td>      
+    </tr>
+    <tr>
+      <td>values</td>
+      <td>ITERABLE[ROW[Purchase]]</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>The key field contains the grouping key and the values field contains a list of all the values that matched that key.</p>
+
+<p>The names of the key and values fields in the output schema can be controlled using this withKeyField and withValueField 
+builders, as follows:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">withKeyField</span><span class="o">(</span><span class="err">“</span><span class="n">userAndStreet</span><span class="err">”</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">withValueField</span><span class="o">(</span><span class="err">“</span><span class="n">matchingPurchases</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>It is quite common to apply one or more aggregations to the grouped result. Each aggregation can  specify one or more fields 
+to aggregate, an aggregation function, and the name of the resulting field in the output schema. For example, the 
+following application computes three aggregations grouped by userId, with all aggregations represented in a single 
+output schema:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="err">“</span><span class="n">itemId</span><span class="err">”</span><span class="o">,</span> <span class="n">Count</span><span class="o">.</span><span class="na">combineFn</span><span class="o">(),</span> <span class="err">“</span><span class="n">numPurchases</span><span class="err">”</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="err">“</span><span class="n">costCents</span><span class="err">”</span><span class="o">,</span> <span class="n">Sum</span><span class="o">.</span><span class="na">ofLongs</span><span class="o">(),</span> <span class="err">“</span><span class="n">totalSpendCents</span><span class="err">”</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="err">“</span><span class="n">costCents</span><span class="err">”</span><span class="o">,</span> <span class="n">Top</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">largestLongsFn</span><span class="o">(</span><span class="mi">10</span><span class="o">),</span> <span class="err">“</span><span class="n">topPurchases</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>The result of this aggregation will have the following schema:</p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>key</td>
+      <td>ROW{userId:STRING}</td>      
+    </tr>
+    <tr>
+      <td>value</td>
+      <td>ROW{numPurchases: INT64, totalSpendCents: INT64, topPurchases: ARRAY[INT64]}</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>Often <code class="highlighter-rouge">Selected.flattenedSchema</code> will be use to flatten the result into a non-nested, flat schema.</p>
+
+<h5 id="joins"><strong>Joins</strong></h5>
+<p>Beam supports equijoins on schema <code class="highlighter-rouge">PCollections</code> - namely joins where the join condition depends on the equality of a 
+subset of fields. For example, the following examples uses the Purchases schema to join transactions with the reviews
+that are likely associated with that transaction (both the user and product match that in the transaction). This is a
+“natural join” - one in which the same field names are used on both the left-hand and right-hand sides of the join - 
+and is specified with the <code class="highlighter-rouge">using</code> keyword:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Transaction</span><span class="o">&gt;</span> <span class="n">transactions</span> <span class="o">=</span> <span class="n">readTransactions</span><span class="o">();</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Review</span><span class="o">&gt;</span> <span class="n">reviews</span> <span class="o">=</span> <span class="n">readReviews</span><span class="o">();</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">joined</span> <span class="o">=</span> <span class="n">transactions</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">Join</span><span class="o">.</span><span class="na">innerJoin</span><span class="o">(</span><span class="n">reviews</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">productId</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>The resulting schema is the following:</p>
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>lhs</td>
+      <td>ROW{Transaction}</td>      
+    </tr>
+    <tr>
+      <td>rhs</td>
+      <td>ROW{Review}</td>      
+    </tr>                  
+  </tbody>
+</table>
+<p><br /></p>
+
+<p>Each resulting row contains one Review and one Review that matched the join condition.</p>
+
+<p>If the fields to match in the two schemas have different names, then the on function can be used. For example, if the 
+Review schema named those fields differently than the Transaction schema, then we could write the following:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">joined</span> <span class="o">=</span> <span class="n">transactions</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="n">Join</span><span class="o">.</span><span class="na">innerJoin</span><span class="o">(</span><span class="n">reviews</span><span class="o">).</span><span class="na">on</span><span class="o">(</span>
+      <span class="n">FieldsEqual</span>
+         <span class="o">.</span><span class="na">left</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">productId</span><span class="err">”</span><span class="o">)</span>
+         <span class="o">.</span><span class="na">right</span><span class="o">(</span><span class="err">“</span><span class="n">reviewUserId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">reviewProductId</span><span class="err">”</span><span class="o">)));</span>
+</code></pre></div></div>
+
+<p>In addition to inner joins, the Join transform supports full outer joins, left outer joins, and right outer joins.</p>
+
+<h5 id="complex-joins"><strong>Complex joins</strong></h5>
+<p>While most joins tend to be binary joins - joining two inputs together - sometimes you have more than two input
+streams that all need to be joined on a common key. The <code class="highlighter-rouge">CoGroup</code> transform allows joining multiple <code class="highlighter-rouge">PCollections</code>
+together based on equality of schema fields. Each <code class="highlighter-rouge">PCollection</code> can be marked as required or optional in the final 
+join record, providing a generalization of outer joins to joins with greater than two input <code class="highlighter-rouge">PCollection</code>s. The output
+can optionally be expanded - providing individual joined records, as in the <code class="highlighter-rouge">Join</code> transform. The output can also be
+processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
+that key.</p>
+
+<h5 id="filtering-events"><strong>Filtering events</strong></h5>
+<p>The <code class="highlighter-rouge">Filter</code> transform can be configured with a set of predicates, each one based one specified fields. Only records for 
+which all predicates return true will pass the filter. For example the following</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Filter</span>
+    <span class="o">.</span><span class="na">whereFieldName</span><span class="o">(</span><span class="err">“</span><span class="n">costCents</span><span class="err">”</span><span class="o">,</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="mi">100</span> <span class="o">*</span> <span class="mi">20</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">whereFieldName</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">country</span><span class="err">”</span><span class="o">,</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="err">“</span><span class="n">de</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Will produce all purchases made from Germany with a purchase price of greater than twenty cents.</p>
+
+<h5 id="adding-fields-to-a-schema"><strong>Adding fields to a schema</strong></h5>
+<p>The AddFields transform can be used to extend a schema with new fields. Input rows will be extended to the new schema by
+inserting null values for the new fields, though alternate default values can be specified; if the default null value 
+is used then the new field type will be marked as nullable. Nested subfields can be added using the field selection 
+syntax, including nested fields inside arrays or map values.</p>
+
+<p>For example, the following application</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">AddFields</span><span class="o">.&lt;</span><span class="n">PurchasePojo</span><span class="o">&gt;</span><span class="n">create</span><span class="o">()</span>
+    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">“</span><span class="n">timeOfDaySeconds</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT32</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">deliveryNotes</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">“</span><span class="n">transactions</span><span class="o">.</span><span class="na">isFlagged</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">BOOLEAN</span><span class="o">,</span> <span class="kc">false</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Results in a <code class="highlighter-rouge">PCollection</code> with an expanded schema. All of the rows and fields of the input, but also with the specified 
+fields added to the schema. All resulting rows will have null values filled in for the <strong>timeOfDaySeconds</strong> and the
+<strong>shippingAddress.deliveryNotes</strong> fields, and a false value filled in for the <strong>transactions.isFlagged</strong> field.</p>
+
+<h5 id="removing-fields-from-a-schema"><strong>Removing fields from a schema</strong></h5>
+<p><code class="highlighter-rouge">DropFields</code> allows specific fields to be dropped from a schema. Input rows will have their schemas truncated, and any 
+values for dropped fields will be removed from the output. Nested fields can also be dropped using the field selection 
+syntax.</p>
+
+<p>For example, the following snippet</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">DropFields</span><span class="o">.</span><span class="na">fields</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Results in a copy of the input with those two fields and their corresponding values removed.</p>
+
+<h5 id="renaming-schema-fields"><strong>Renaming schema fields</strong></h5>
+<p><code class="highlighter-rouge">RenameFields</code> allows specific fields in a schema to be renamed. The field values in input rows are left unchanged, only 
+the schema is modified. This transform is often used to prepare records for output to a schema-aware sink, such as an 
+RDBMS, to make sure that the <code class="highlighter-rouge">PCollection</code> schema field names match that of the output. It can also be used to rename
+fields generated by other transforms to make them more usable (similar to SELECT AS in SQL). Nested fields can also be
+renamed using the field-selection syntax.</p>
+
+<p>For example, the following snippet</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">RenameFields</span><span class="o">.&lt;</span><span class="n">PurchasePojo</span><span class="o">&gt;</span><span class="n">create</span><span class="o">()</span>
+  <span class="o">.</span><span class="na">rename</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">userIdentifier</span><span class="err">”</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">rename</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">street</span><span class="err">”</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename 
+<strong>userId</strong> to <strong>userIdentifier</strong> and <strong>shippingAddress.streetAddress</strong> to <strong>shippingAddress.street</strong>.</p>
+
+<h5 id="converting-between-types"><strong>Converting between types</strong></h5>
+<p>As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent
+schemas. One way to do this is by using the <code class="highlighter-rouge">Convert</code> transform, as follows.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">PurchaseBean</span><span class="o">&gt;</span> <span class="n">purchaseBeans</span> <span class="o">=</span> <span class="n">readPurchasesAsBeans</span><span class="o">();</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">&gt;</span> <span class="n">pojoPurchases</span> <span class="o">=</span> 
+    <span class="n">purchaseBeans</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Convert</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">PurchasePojo</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
+</code></pre></div></div>
+
+<p>Beam will validate that the inferred schema for <code class="highlighter-rouge">PurchasePojo</code> matches that of the input <code class="highlighter-rouge">PCollection</code>, and will
+then cast to a <code class="highlighter-rouge">PCollection&lt;PurchasePojo&gt;</code>.</p>
+
+<p>Since the <code class="highlighter-rouge">Row</code> class can support any schema, any <code class="highlighter-rouge">PCollection</code> with schema can be cast to a <code class="highlighter-rouge">PCollection</code> of rows, as
+follows.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">purchaseRows</span> <span class="o">=</span> <span class="n">purchaseBeans</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Convert</span><span class="o">.</span><span class="na">toRows</span><span class="o">());</span>
+</code></pre></div></div>
+
+<p>If the source type is a single-field schema, Convert will also convert to the type of the field if asked, effectively
+unboxing the row. For example, give a schema with a single INT64 field, the following will convert it to a
+<code class="highlighter-rouge">PCollection&lt;Long&gt;</code></p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">longs</span> <span class="o">=</span> <span class="n">rows</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Convert</span><span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">longs</span><span class="o">()));</span>
+</code></pre></div></div>
+
+<p>In all cases, type checking is done at pipeline graph construction, and if the types do not match the schema then the
+pipeline will fail to launch.</p>
+
+<h4 id="663-schemas-in-pardo">6.6.3. Schemas in ParDo</h4>
+<p>A <code class="highlighter-rouge">PCollection</code> with a schema can apply a <code class="highlighter-rouge">ParDo</code>, just like any other <code class="highlighter-rouge">PCollection</code>. However the Beam runner is aware
+ of schemas when applying a <code class="highlighter-rouge">ParDo</code>, which enables additional functionality.</p>
+
+<h5 id="input-conversion"><strong>Input conversion</strong></h5>
+<p>Since Beam knows the schema of the source <code class="highlighter-rouge">PCollection</code>, it can automatically convert the elements to any Java type for 
+which a matching schema is known. For example, using the above-mentioned Transaction schema, say we have the following
+<code class="highlighter-rouge">PCollection</code>:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">&gt;</span> <span class="n">purchases</span> <span class="o">=</span> <span class="n">readPurchases</span><span class="o">();</span>
+</code></pre></div></div>
+
+<p>If there were no schema, then the applied <code class="highlighter-rouge">DoFn</code> would have to accept an element of type <code class="highlighter-rouge">TransactionPojo</code>. However
+since there is a schema, you could apply the following DoFn:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">appy</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">,</span> <span class="n">PurchasePojo</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">PurchaseBean</span> <span class="n">purchase</span><span class="o">)</span> <span class="o">{</span>
+      <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>Even though the <code class="highlighter-rouge">@Element</code> parameter does not match the Java type of the <code class="highlighter-rouge">PCollection</code>, since it has a matching schema
+Beam will automatically convert elements. If the schema does not match, Beam will detect this at graph-construction time
+and will fail the job with a type error.</p>
+
+<p>Since every schema can be represented by a Row type, Row can also be used here:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">appy</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">,</span> <span class="n">PurchasePojo</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">Row</span> <span class="n">purchase</span><span class="o">)</span> <span class="o">{</span>
+      <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<h5 id="input-selection"><strong>Input selection</strong></h5>
+<p>Since the input has a schema, you can also automatically select specific fields to process in the DoFn.</p>
+
+<p>Given the above purchases <code class="highlighter-rouge">PCollection</code>, say you want to process just the userId and the itemId fields. You can do these 
+using the above-described selection expressions, as follows:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">appy</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">,</span> <span class="n">PurchasePojo</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+     <span class="nd">@FieldAccess</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">)</span> <span class="n">String</span> <span class="n">userId</span><span class="o">,</span> <span class="nd">@FieldAccess</span><span class="o">(</span><span class="err">“</span><span class="n">itemId</span><span class="err">”</span><span class="o">)</span> <span class="kt">long</span> <span class="n">itemId</span><span class="o">)</span> <span class="o">{</span>
+      <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>You can also select nested fields, as follows.</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">purchases</span><span class="o">.</span><span class="na">appy</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">,</span> <span class="n">PurchasePojo</span><span class="o">&gt;()</span> <span class="o">{</span>
+  <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
+    <span class="nd">@FieldAccess</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">street</span><span class="err">”</span><span class="o">)</span> <span class="n">String</span> <span class="n">street</span><span class="o">)</span> <span class="o">{</span>
+      <span class="o">...</span>
+  <span class="o">}</span>
+<span class="o">}));</span>
+</code></pre></div></div>
+
+<p>For more information, see the section on field-selection expressions. When selecting subschemas, Beam will 
+automatically convert to any matching schema type, just like when reading the entire row.</p>
+
+<h2 id="data-encoding-and-type-safety">7. Data encoding and type safety</h2>
 
 <p>When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your <code class="highlighter-rouge">PCollection</code>s, which requires converting elements to
@@ -2744,7 +3831,7 @@ input data that uses BigEndianIntegerCoder, and Integer-typed output data that
 uses VarIntCoder.</p>
 </blockquote>
 
-<h3 id="specifying-coders">6.1. Specifying coders</h3>
+<h3 id="specifying-coders">7.1. Specifying coders</h3>
 
 <p>The Beam SDKs require a coder for every <code class="highlighter-rouge">PCollection</code> in your pipeline. In most
 cases, the Beam SDK is able to automatically infer a <code class="highlighter-rouge">Coder</code> for a <code class="highlighter-rouge">PCollection</code>
@@ -2800,7 +3887,7 @@ exact run-time class doesn’t have a default coder registered.</p>
 <p class="language-java">When using <code class="highlighter-rouge">Create</code>, the simplest way to ensure that you have the correct coder
 is by invoking <code class="highlighter-rouge">withCoder</code> when you apply the <code class="highlighter-rouge">Create</code> transform.</p>
 
-<h3 id="default-coders-and-the-coderregistry">6.2. Default coders and the CoderRegistry</h3>
+<h3 id="default-coders-and-the-coderregistry">7.2. Default coders and the CoderRegistry</h3>
 
 <p>Each Pipeline object has a <code class="highlighter-rouge">CoderRegistry</code> object, which maps language types to
 the default coder the pipeline should use for those types. You can use the
@@ -2907,7 +3994,7 @@ The following table shows the standard mapping:</p>
   </tbody>
 </table>
 
-<h4 id="default-coder-lookup">6.2.1. Looking up a default coder</h4>
+<h4 id="default-coder-lookup">7.2.1. Looking up a default coder</h4>
 
 <p class="language-java">You can use the method <code class="highlighter-rouge">CoderRegistry.getCoder</code> to determine the default
 Coder for a Java type. You can access the <code class="highlighter-rouge">CoderRegistry</code> for a given pipeline
@@ -2920,7 +4007,7 @@ this pipeline, verify that Integer values are encoded using
 for a Python type. You can use <code class="highlighter-rouge">coders.registry</code> to access the <code class="highlighter-rouge">CoderRegistry</code>.
 This allows you to determine (or set) the default Coder for a Python type.</p>
 
-<h4 id="setting-default-coder">6.2.2. Setting the default coder for a type</h4>
+<h4 id="setting-default-coder">7.2.2. Setting the default coder for a type</h4>
 
 <p>To set the default Coder for a
 <span class="language-java">Java</span><span class="language-py">Python</span>
@@ -2948,7 +4035,7 @@ values for a pipeline.</p>
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">apache_beam</span><span class="o">.</span><span class="n">coders</span><span class="o">.</span><span class="n">registry</span><span class="o">.</span><span class="n">register_coder</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">BigEndianIntegerCoder</span><span class="p">)</span>
 </code></pre></div></div>
 
-<h4 id="annotating-custom-type-default-coder">6.2.3. Annotating a custom data type with a default coder</h4>
+<h4 id="annotating-custom-type-default-coder">7.2.3. Annotating a custom data type with a default coder</h4>
 
 <p class="language-java">If your pipeline program defines a custom data type, you can use the
 <code class="highlighter-rouge">@DefaultCoder</code> annotation to specify the coder to use with that type. For
@@ -2980,7 +4067,7 @@ the <code class="highlighter-rouge">@DefaultCoder</code> annotation, your coder 
 coder. If you would like to set a default coder, use the method described in the
 previous section, <em>Setting the default coder for a type</em>.</p>
 
-<h2 id="windowing">7. Windowing</h2>
+<h2 id="windowing">8. Windowing</h2>
 
 <p>Windowing subdivides a <code class="highlighter-rouge">PCollection</code> according to the timestamps of its
 individual elements. Transforms that aggregate multiple elements, such as
@@ -2994,7 +4081,7 @@ windowing strategy for your <code class="highlighter-rouge">PCollection</code>. 
 late-arriving data or to provide early results. See the <a href="#triggers">triggers</a>
 section for more information.</p>
 
-<h3 id="windowing-basics">7.1. Windowing basics</h3>
+<h3 id="windowing-basics">8.1. Windowing basics</h3>
 
 <p>Some Beam transforms, such as <code class="highlighter-rouge">GroupByKey</code> and <code class="highlighter-rouge">Combine</code>, group multiple
 elements by a common key. Ordinarily, that grouping operation groups all of the
@@ -3029,7 +4116,7 @@ your unbounded <code class="highlighter-rouge">PCollection</code> and subsequent
 <code class="highlighter-rouge">GroupByKey</code> or <code class="highlighter-rouge">Combine</code>, your pipeline will generate an error upon
 construction and your job will fail.</p>
 
-<h4 id="windowing-constraints">7.1.1. Windowing constraints</h4>
+<h4 id="windowing-constraints">8.1.1. Windowing constraints</h4>
 
 <p>After you set the windowing function for a <code class="highlighter-rouge">PCollection</code>, the elements’ windows
 are used the next time you apply a grouping transform to that <code class="highlighter-rouge">PCollection</code>.
@@ -3052,7 +4139,7 @@ windows are not actually used until they’re needed for the <code class="highli
 Subsequent transforms, however, are applied to the result of the <code class="highlighter-rouge">GroupByKey</code> –
 data is grouped by both key and window.</p>
 
-<h4 id="windowing-bounded-collections">7.1.2. Windowing with bounded PCollections</h4>
+<h4 id="windowing-bounded-collections">8.1.2. Windowing with bounded PCollections</h4>
 
 <p>You can use windowing with fixed-size data sets in <strong>bounded</strong> <code class="highlighter-rouge">PCollection</code>s.
 However, note that windowing considers only the implicit timestamps attached to
@@ -3063,7 +4150,7 @@ all the elements are by default part of a single, global window.</p>
 <p>To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a <code class="highlighter-rouge">ParDo</code> transform with a
 <code class="highlighter-rouge">DoFn</code> that outputs each element with a new timestamp (for example, the
-<a href="https://beam.apache.org/releases/javadoc/2.19.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps</a>
+<a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps</a>
 transform in the Beam SDK for Java).</p>
 
 <p>To illustrate how windowing with a bounded <code class="highlighter-rouge">PCollection</code> can affect how your
@@ -3095,7 +4182,7 @@ for that <code class="highlighter-rouge">PCollection</code>.  The <code class="h
 subsequent <code class="highlighter-rouge">ParDo</code> transform gets applied multiple times per key, once for each
 window.</p>
 
-<h3 id="provided-windowing-functions">7.2. Provided windowing functions</h3>
+<h3 id="provided-windowing-functions">8.2. Provided windowing functions</h3>
 
 <p>You can define different kinds of windows to divide the elements of your
 <code class="highlighter-rouge">PCollection</code>. Beam provides several windowing functions, including:</p>
@@ -3115,7 +4202,7 @@ on the windowing function you use. Sliding time windowing, for example, creates
 overlapping windows wherein a single element can be assigned to multiple
 windows.</p>
 
-<h4 id="fixed-time-windows">7.2.1. Fixed time windows</h4>
+<h4 id="fixed-time-windows">8.2.1. Fixed time windows</h4>
 
 <p>The simplest form of windowing is using <strong>fixed time windows</strong>: given a
 timestamped <code class="highlighter-rouge">PCollection</code> which might be continuously updating, each window
@@ -3133,7 +4220,7 @@ the second window, and so on.</p>
 
 <p><strong>Figure 6:</strong> Fixed time windows, 30s in duration.</p>
 
-<h4 id="sliding-time-windows">7.2.2. Sliding time windows</h4>
+<h4 id="sliding-time-windows">8.2.2. Sliding time windows</h4>
 
 <p>A <strong>sliding time window</strong> also represents time intervals in the data stream;
 however, sliding time windows can overlap. For example, each window might
@@ -3153,7 +4240,7 @@ example.</p>
 <p><strong>Figure 7:</strong> Sliding time windows, with 1 minute window duration and 30s window
 period.</p>
 
-<h4 id="session-windows">7.2.3. Session windows</h4>
+<h4 id="session-windows">8.2.3. Session windows</h4>
 
 <p>A <strong>session window</strong> function defines windows that contain elements that are
 within a certain gap duration of another element. Session windowing applies on a
@@ -3168,7 +4255,7 @@ the start of a new window.</p>
 <p><strong>Figure 8:</strong> Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.</p>
 
-<h4 id="single-global-window">7.2.4. The single global window</h4>
+<h4 id="single-global-window">8.2.4. The single global window</h4>
 
 <p>By default, all data in a <code class="highlighter-rouge">PCollection</code> is assigned to the single global window,
 and late data is discarded. If your data set is of a fixed size, you can use the
@@ -3182,7 +4269,7 @@ processing, which is not possible with continuously updating data. To perform
 aggregations on an unbounded <code class="highlighter-rouge">PCollection</code> that uses global windowing, you
 should specify a non-default trigger for that <code class="highlighter-rouge">PCollection</code>.</p>
 
-<h3 id="setting-your-pcollections-windowing-function">7.3. Setting your PCollection’s windowing function</h3>
+<h3 id="setting-your-pcollections-windowing-function">8.3. Setting your PCollection’s windowing function</h3>
 
 <p>You can set the windowing function for a <code class="highlighter-rouge">PCollection</code> by applying the <code class="highlighter-rouge">Window</code>
 transform. When you apply the <code class="highlighter-rouge">Window</code> transform, you must provide a <code class="highlighter-rouge">WindowFn</code>.
@@ -3195,7 +4282,7 @@ and emitted, and helps refine how the windowing function performs with respect
 to late data and computing early results. See the <a href="#triggers">triggers</a> section
 for more information.</p>
 
-<h4 id="using-fixed-time-windows">7.3.1. Fixed-time windows</h4>
+<h4 id="using-fixed-time-windows">8.3.1. Fixed-time windows</h4>
 
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into fixed windows, each 60 seconds in length:</p>
@@ -3210,7 +4297,7 @@ into fixed windows, each 60 seconds in length:</p>
 
 </code></pre></div></div>
 
-<h4 id="using-sliding-time-windows">7.3.2. Sliding time windows</h4>
+<h4 id="using-sliding-time-windows">8.3.2. Sliding time windows</h4>
 
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into sliding time windows. Each window is 30 seconds in length, and a new window
@@ -3226,7 +4313,7 @@ begins every five seconds:</p>
 
 </code></pre></div></div>
 
-<h4 id="using-session-windows">7.3.3. Session windows</h4>
+<h4 id="using-session-windows">8.3.3. Session windows</h4>
 
 <p>The following example code shows how to apply <code class="highlighter-rouge">Window</code> to divide a <code class="highlighter-rouge">PCollection</code>
 into session windows, where each session must be separated by a time gap of at
@@ -3245,7 +4332,7 @@ least 10 minutes (600 seconds):</p>
 <p>Note that the sessions are per-key — each key in the collection will have its
 own session groupings depending on the data distribution.</p>
 
-<h4 id="using-single-global-window">7.3.4. Single global window</h4>
+<h4 id="using-single-global-window">8.3.4. Single global window</h4>
 
 <p>If your <code class="highlighter-rouge">PCollection</code> is bounded (the size is fixed), you can assign all the
 elements to a single global window. The following example code shows how to set
@@ -3261,7 +4348,7 @@ a single global window for a <code class="highlighter-rouge">PCollection</code>:
 
 </code></pre></div></div>
 
-<h3 id="watermarks-and-late-data">7.4. Watermarks and late data</h3>
+<h3 id="watermarks-and-late-data">8.4. Watermarks and late data</h3>
 
 <p>In any data processing system, there is a certain amount of lag between the time
 a data event occurs (the “event time”, determined by the timestamp on the data
@@ -3302,7 +4389,7 @@ a <code class="highlighter-rouge">PCollection</code>. You can use triggers to de
 aggregates and reports its results, including how the window emits late
 elements.</p>
 
-<h4 id="managing-late-data">7.4.1. Managing late data</h4>
+<h4 id="managing-late-data">8.4.1. Managing late data</h4>
 
 <p>You can allow late data by invoking the <code class="highlighter-rouge">.withAllowedLateness</code> operation when
 you set your <code class="highlighter-rouge">PCollection</code>’s windowing strategy. The following code example
@@ -3329,7 +4416,7 @@ propagates forward to any subsequent <code class="highlighter-rouge">PCollection
 lateness later in your pipeline, you must do so explictly by applying
 <code class="highlighter-rouge">Window.configure().withAllowedLateness()</code>.</p>
 
-<h3 id="adding-timestamps-to-a-pcollections-elements">7.5. Adding timestamps to a PCollection’s elements</h3>
+<h3 id="adding-timestamps-to-a-pcollections-elements">8.5. Adding timestamps to a PCollection’s elements</h3>
 
 <p>An unbounded source provides a timestamp for each element. Depending on your
 unbounded source, you may need to configure how the timestamp is extracted from
@@ -3374,7 +4461,7 @@ with a <code class="highlighter-rouge">DoFn</code> to attach the timestamps to e
 
 </code></pre></div></div>
 
-<h2 id="triggers">8. Triggers</h2>
+<h2 id="triggers">9. Triggers</h2>
 
 <p>When collecting and grouping data into windows, Beam uses <strong>triggers</strong> to
 determine when to emit the aggregated results of each window (referred to as a
@@ -3436,7 +4523,7 @@ you want your pipeline to provide periodic updates on an unbounded data set —
 for example, a running average of all data provided to the present time, updated
 every N seconds or every N elements.</p>
 
-<h3 id="event-time-triggers">8.1. Event time triggers</h3>
+<h3 id="event-time-triggers">9.1. Event time triggers</h3>
 
 <p>The <code class="highlighter-rouge">AfterWatermark</code> trigger operates on <em>event time</em>. The <code class="highlighter-rouge">AfterWatermark</code>
 trigger emits the contents of a window after the
@@ -3467,7 +4554,7 @@ firings:</p>
     <span class="n">early</span><span class="o">=</span><span class="n">AfterProcessingTime</span><span class="p">(</span><span class="n">delay</span><span class="o">=</span><span class="mi">1</span> <span class="o">*</span> <span class="mi">60</span><span class="p">),</span> <span class="n">late</span><span class="o">=</span><span class="n">AfterCount</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 </code></pre></div></div>
 
-<h4 id="default-trigger">8.1.1. Default trigger</h4>
+<h4 id="default-trigger">9.1.1. Default trigger</h4>
 
 <p>The default trigger for a <code class="highlighter-rouge">PCollection</code> is based on event time, and emits the
 results of the window when the Beam’s watermark passes the end of the window,
@@ -3479,7 +4566,7 @@ discarded. This is because the default windowing configuration has an allowed
 lateness value of 0. See the Handling Late Data section for information about
 modifying this behavior.</p>
 
-<h3 id="processing-time-triggers">8.2. Processing time triggers</h3>
+<h3 id="processing-time-triggers">9.2. Processing time triggers</h3>
 
 <p>The <code class="highlighter-rouge">AfterProcessingTime</code> trigger operates on <em>processing time</em>. For example,
 the <span class="language-java"><code class="highlighter-rouge">AfterProcessingTime.pastFirstElementInPane()</code></span>
@@ -3492,7 +4579,7 @@ element’s timestamp.</p>
 window, particularly a window with a large time frame such as a single global
 window.</p>
 
-<h3 id="data-driven-triggers">8.3. Data-driven triggers</h3>
+<h3 id="data-driven-triggers">9.3. Data-driven triggers</h3>
 
 <p>Beam provides one data-driven trigger,
 <span class="language-java"><code class="highlighter-rouge">AfterPane.elementCountAtLeast()</code></span>
@@ -3509,7 +4596,7 @@ consider using <a href="#composite-triggers">composite triggers</a> to combine m
 conditions. This allows you to specify multiple firing conditions such as “fire
 either when I receive 50 elements, or every 1 second”.</p>
 
-<h3 id="setting-a-trigger">8.4. Setting a trigger</h3>
+<h3 id="setting-a-trigger">9.4. Setting a trigger</h3>
 
 <p>When you set a windowing function for a <code class="highlighter-rouge">PCollection</code> by using the
 <span class="language-java"><code class="highlighter-rouge">Window</code></span><span class="language-py"><code class="highlighter-rouge">WindowInto</code></span>
@@ -3540,7 +4627,7 @@ sets the window’s <strong>accumulation mode</strong>.</p>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre></div></div>
 
-<h4 id="window-accumulation-modes">8.4.1. Window accumulation modes</h4>
+<h4 id="window-accumulation-modes">9.4.1. Window accumulation modes</h4>
 
 <p>When you specify a trigger, you must also set the the window’s <strong>accumulation
 mode</strong>. When a trigger fires, it emits the current contents of the window as a
@@ -3575,7 +4662,7 @@ we’ll assume that the events all arrive in the pipeline in order.</p>
 
 <p><img src="/images/trigger-accumulation.png" alt="Diagram of data events for acculumating mode example" title="Data events for accumulating mode example" /></p>
 
-<h5 id="accumulating-mode">8.4.1.1. Accumulating mode</h5>
+<h5 id="accumulating-mode">9.4.1.1. Accumulating mode</h5>
 
 <p>If our trigger is set to accumulating mode, the trigger emits the following
 values each time it fires. Keep in mind that the trigger fires every time three
@@ -3586,7 +4673,7 @@ elements arrive:</p>
   Third trigger firing:  [5, 8, 3, 15, 19, 23, 9, 13, 10]
 </code></pre></div></div>
 
-<h5 id="discarding-mode">8.4.1.2. Discarding mode</h5>
+<h5 id="discarding-mode">9.4.1.2. Discarding mode</h5>
 
 <p>If our trigger is set to discarding mode, the trigger emits the following values
 on each firing:</p>
@@ -3596,7 +4683,7 @@ on each firing:</p>
   Third trigger firing:                         [9, 13, 10]
 </code></pre></div></div>
 
-<h4 id="handling-late-data">8.4.2. Handling late data</h4>
+<h4 id="handling-late-data">9.4.2. Handling late data</h4>
 
 <p>If you want your pipeline to process data that arrives after the watermark
 passes the end of the window, you can apply an <em>allowed lateness</em> when you set
@@ -3627,13 +4714,13 @@ applying transforms to the original <code class="highlighter-rouge">PCollection<
 allowed lateness later in your pipeline, you can apply
 <code class="highlighter-rouge">Window.configure().withAllowedLateness()</code> again, explicitly.</p>
 
-<h3 id="composite-triggers">8.5. Composite triggers</h3>
+<h3 id="composite-triggers">9.5. Composite triggers</h3>
 
 <p>You can combine multiple triggers to form <strong>composite triggers</strong>, and can
 specify a trigger to emit results repeatedly, at most once, or under other
 custom conditions.</p>
 
-<h4 id="composite-trigger-types">8.5.1. Composite trigger types</h4>
+<h4 id="composite-trigger-types">9.5.1. Composite trigger types</h4>
 
 <p>Beam includes the following composite triggers:</p>
 
@@ -3659,7 +4746,7 @@ multiple triggers.</li>
 final time and never fire again.</li>
 </ul>
 
-<h4 id="composite-afterwatermark">8.5.2. Composition with AfterWatermark</h4>
+<h4 id="composite-afterwatermark">9.5.2. Composition with AfterWatermark</h4>
 
 <p>Some of the most useful composite triggers fire a single time when Beam
 estimates that all the data has arrived (i.e. when the watermark passes the end
@@ -3710,7 +4797,7 @@ trigger stops executing</li>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre></div></div>
 
-<h4 id="other-composite-triggers">8.5.3. Other composite triggers</h4>
+<h4 id="other-composite-triggers">9.5.3. Other composite triggers</h4>
 
 <p>You can also build other sorts of composite triggers. The following example code
 shows a simple composite trigger that fires whenever the pane has at least 100
@@ -3727,7 +4814,7 @@ elements, or after a minute.</p>
     <span class="n">accumulation_mode</span><span class="o">=</span><span class="n">AccumulationMode</span><span class="o">.</span><span class="n">DISCARDING</span><span class="p">)</span>
 </code></pre></div></div>
 
-<h2 id="metrics">9. Metrics</h2>
+<h2 id="metrics">10. Metrics</h2>
 <p>In the Beam model, metrics provide some insight into the current state of a user pipeline, 
 potentially while the pipeline is running. There could be different reasons for that, for instance:</p>
 <ul>
@@ -3737,7 +4824,7 @@ potentially while the pipeline is running. There could be different reasons for 
   <li>…and so on.</li>
 </ul>
 
-<h3 id="91-the-main-concepts-of-beam-metrics">9.1 The main concepts of Beam metrics</h3>
+<h3 id="101-the-main-concepts-of-beam-metrics">10.1 The main concepts of Beam metrics</h3>
 <ul>
   <li><strong>Named</strong>. Each metric has a name which consists of a namespace and an actual name. The 
 namespace can be used to differentiate between multiple metrics with the same name and also 
@@ -3761,7 +4848,7 @@ transform reported, as well as aggregating the metric across the entire pipeline
 after jobs have completed.</p>
 </blockquote>
 
-<h3 id="types-of-metrics">9.2 Types of metrics</h3>
+<h3 id="types-of-metrics">10.2 Types of metrics</h3>
 <p>There are three types of metrics that are supported for the moment: <code class="highlighter-rouge">Counter</code>, <code class="highlighter-rouge">Distribution</code> and 
 <code class="highlighter-rouge">Gauge</code>.</p>
 
@@ -3804,7 +4891,7 @@ collected from many workers the value may not be the absolute last, but one of t
 <span class="o">}</span>
 </code></pre></div></div>
 
-<h3 id="querying-metrics">9.3 Querying metrics</h3>
+<h3 id="querying-metrics">10.3 Querying metrics</h3>
 <p><code class="highlighter-rouge">PipelineResult</code> has a method <code class="highlighter-rouge">metrics()</code> which returns a <code class="highlighter-rouge">MetricResults</code> object that allows 
 accessing metrics. The main method available in <code class="highlighter-rouge">MetricResults</code> allows querying for all metrics 
 matching a given filter.</p>
@@ -3831,7 +4918,7 @@ matching a given filter.</p>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<h3 id="using-metrics">9.4 Using metrics in pipeline</h3>
+<h3 id="using-metrics">10.4 Using metrics in pipeline</h3>
 <p>Below, there is a simple example of how to use a <code class="highlighter-rouge">Counter</code> metric in a user pipeline.</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// creating a pipeline with custom metrics DoFn</span>
@@ -4398,7 +5485,6 @@ we want to batch ten seconds worth of events together in order to reduce the num
   <span class="o">}</span>
 <span class="o">}));</span>
 </code></pre></div></div>
-
 
       </div>
     </div>

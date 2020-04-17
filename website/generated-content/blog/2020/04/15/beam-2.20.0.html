@@ -28,9 +28,8 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Java SDK</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
+  <title>Apache Beam 2.20.0</title>
+  <meta name="description" content="We are happy to present the new 2.20.0 release of Beam. This release includes both improvements and new functionality.See the download page for this release.">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
   <link rel="stylesheet" href="/css/site.css">
   <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
@@ -42,7 +41,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/blog/2020/04/15/beam-2.20.0.html" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
@@ -56,7 +55,7 @@
   </script>
 </head>
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  <body class="body ">
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -144,7 +143,7 @@
             GitHub links will not resolve until the markdown source is available on the master branch.
             New pages would fail validation during development / PR test automation.
           -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/sdks/java.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/src/_posts/2020-04-15-beam-2.20.0.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,127 +151,8 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<li><span class="section-nav-list-main-title">Languages</span></li>
-
-<li>
-  <span class="section-nav-list-title">Java</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.20.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/java-dependencies/">Java SDK dependencies</a></li>
-    <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
-    <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
-    <li><a href="/documentation/sdks/java/testing/nexmark/">Nexmark benchmark suite</a></li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">Python</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.20.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/python-dependencies/">Python SDK dependencies</a></li>
-    <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
-    <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
-    <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">Go</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/go/">Go SDK overview</a></li>
-    <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">SQL</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/dsls/sql/overview/">Overview</a></li>
-    <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
-    <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Apache Calcite dialect</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/calcite/overview/">Calcite support overview</a></li>  
-        <li><a href="/documentation/dsls/sql/calcite/query-syntax/">Query syntax</a></li>
-        <li><a href="/documentation/dsls/sql/calcite/lexical/">Lexical structure</a></li>        
-        <li><a href="/documentation/dsls/sql/calcite/data-types/">Data types</a></li>
-        <li><a href="/documentation/dsls/sql/calcite/scalar-functions/">Scalar functions</a></li>
-        <li><a href="/documentation/dsls/sql/calcite/aggregate-functions/">Aggregate functions</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">ZetaSQL dialect</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/zetasql/overview/">ZetaSQL support overview</a></li>          
-        <li><a href="/documentation/dsls/sql/zetasql/syntax/">Function call rules</a></li>
-        <li><a href="/documentation/dsls/sql/zetasql/conversion-rules/">Conversion rules</a></li>
-        <li><a href="/documentation/dsls/sql/zetasql/query-syntax/">Query syntax</a></li>
-        <li><a href="/documentation/dsls/sql/zetasql/lexical/">Lexical structure</a></li>        
-        <li><a href="/documentation/dsls/sql/zetasql/data-types/">Data types</a></li>             
-        <li><a href="/documentation/dsls/sql/zetasql/operators/">Operators</a></li>
-
-        <li class="section-nav-item--collapsible">
-          <span class="section-nav-list-title">Scalar functions</span>
-          <ul class="section-nav-list">
-            <li><a href="/documentation/dsls/sql/zetasql/string-functions/">String functions</a></li>
-            <li><a href="/documentation/dsls/sql/zetasql/math-functions/">Mathematical functions</a></li>
-            <li><a href="/documentation/dsls/sql/zetasql/conditional-expressions/">Conditional expressions</a></li>
-          </ul>
-        </li>
-        <li><a href="/documentation/dsls/sql/zetasql/aggregate-functions/">Aggregate functions</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Beam SQL extensions</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/extensions/create-external-table/">CREATE EXTERNAL TABLE</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/windowing-and-triggering/">Windowing & triggering</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/joins/">Joins</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/user-defined-functions/">User-defined functions</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/set/">SET pipeline options</a></li>
-      </ul>
-    </li>
-  </ul>
-</li>
-
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
+    <div class="body__contained">
+      <!--
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -286,61 +166,96 @@
 
 
 
-<ul class="nav">
-  <li><a href="#get-started-with-the-java-sdk">Get Started with the Java SDK</a></li>
-  <li><a href="#supported-features">Supported Features</a></li>
-  <li><a href="#pipeline-io">Pipeline I/O</a></li>
-  <li><a href="#extensions">Extensions</a></li>
-</ul>
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Apache Beam 2.20.0</h1>
+    <p class="post-meta"><time datetime="2020-04-15T01:00:01-07:00" itemprop="datePublished">Apr 15, 2020</time> •
+       Rui Wang 
+      
+    </p>
+  </header>
 
-      </nav>
-
-      <div class="body__contained body__section-nav">
-        <!--
+  <div class="post-content" itemprop="articleBody">
+    <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="apache-beam-java-sdk">Apache Beam Java SDK</h1>
 
-<p>The Java SDK for Apache Beam provides a simple, powerful API for building both batch and streaming parallel data processing pipelines in Java.</p>
+<p>We are happy to present the new 2.20.0 release of Beam. This release includes both improvements and new functionality.
+See the <a href="/get-started/downloads/#2190-2020-02-04">download page</a> for this release.<!--more-->
+For more information on changes in 2.20.0, check out the
+<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12346780">detailed release notes</a>.</p>
 
-<h2 id="get-started-with-the-java-sdk">Get Started with the Java SDK</h2>
-
-<p>Get started with the <a href="/documentation/programming-guide/">Beam Programming Model</a> to learn the basic concepts that apply to all SDKs in Beam.</p>
-
-<p>See the <a href="https://beam.apache.org/releases/javadoc/">Java API Reference</a> for more information on individual APIs.</p>
-
-<h2 id="supported-features">Supported Features</h2>
-
-<p>The Java SDK supports all features currently supported by the Beam model.</p>
-
-<h2 id="pipeline-io">Pipeline I/O</h2>
-<p>See the <a href="/documentation/io/built-in/">Beam-provided I/O Transforms</a> page for a list of the currently available I/O transforms.</p>
-
-<h2 id="extensions">Extensions</h2>
-
-<p>The Java SDK has the following extensions:</p>
-
+<h3 id="ios">I/Os</h3>
+<p>Python SDK: . (#10223).</p>
 <ul>
-  <li><a href="/documentation/sdks/java-extensions/#join-library">join-library</a> provides inner join, outer left join, and outer right join functions.</li>
-  <li><a href="/documentation/sdks/java-extensions/#sorter">sorter</a> is an efficient and scalable sorter for large iterables.</li>
-  <li><a href="/documentation/sdks/java/testing/nexmark">Nexmark</a> is a benchmark suite that runs in batch and streaming modes.</li>
-  <li><a href="/documentation/sdks/java/euphoria">euphoria</a> is easy to use Java 8 DSL for BEAM.</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-8561">BEAM-8561</a> Adds support for Thrift encoded data via ThriftIO</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-7310">BEAM-7310</a> KafkaIO supports schema resolution using Confluent Schema Registry</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-7246">BEAM-7246</a> Support for Google Cloud Spanner. This is an experimental module for reading and writing data from Google Cloud Spanner</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-8399">BEAM-8399</a> Adds support for standard HDFS URLs (with server name)</li>
 </ul>
 
-<p>In addition several <a href="/documentation/sdks/java-thirdparty/">3rd party Java libraries</a> exist.</p>
+<h3 id="new-features--improvements">New Features / Improvements</h3>
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9146">BEAM-9146</a> New AnnotateVideo &amp; AnnotateVideoWithContext PTransform’s that integrates GCP Video Intelligence functionality</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9247">BEAM-9247</a> New AnnotateImage &amp; AnnotateImageWithContext PTransform’s for element-wise &amp; batch image annotation using Google Cloud Vision API</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9258">BEAM-9258</a> Added a PTransform for inspection and deidentification of text using Google Cloud DLP</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9248">BEAM-9248</a> New AnnotateText PTransform that integrates Google Cloud Natural Language functionality</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9305">BEAM-9305</a> ReadFromBigQuery now supports value providers for the query string</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-8841">BEAM-8841</a> Added ability to write to BigQuery via Avro file loads</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9228">BEAM-9228</a> Direct runner for FnApi supports further parallelism</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-8550">BEAM-8550</a> Support for @RequiresTimeSortedInput in Flink and Spark</li>
+</ul>
 
-      </div>
+<h3 id="breaking-changes">Breaking Changes</h3>
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-3453">BEAM-3453</a> Backwards incompatible change in ReadFromPubSub(topic=) in Python</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9310">BEAM-9310</a> SpannerAccessor in Java is now package-private to reduce API surface</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-8616">BEAM-8616</a> ParquetIO hadoop dependency should be now provided by the users</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9063">BEAM-9063</a> Docker images will be deployed to apache/beam repositories from 2.20</li>
+</ul>
+
+<h3 id="bugfixes">Bugfixes</h3>
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9579">BEAM-9579</a> Fixed numpy operators in ApproximateQuantiles</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9277">BEAM-9277</a> Fixed exception when running in IPython notebook</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-1833">BEAM-1833</a> Restructure Python pipeline construction to better follow the Runner API</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9225">BEAM-9225</a> Fixed Flink uberjar job termination bug</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9503">BEAM-9503</a> Fixed SyntaxError in process worker startup</li>
+  <li>Various bug fixes and performance improvements.</li>
+</ul>
+
+<h3 id="known-issues">Known Issues</h3>
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9322">BEAM-9322</a> Python SDK ignores manually set PCollection tags</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9445">BEAM-9445</a> Python SDK pre_optimize=all experiment may cause error</li>
+  <li><a href="https://issues.apache.org/jira/browse/BEAM-9725">BEAM-9725</a> Python SDK performance regression for reshuffle transform</li>
+</ul>
+
+<h2 id="list-of-contributors">List of Contributors</h2>
+
+<p>According to git shortlog, the following people contributed to the 2.20.0 release. Thank you to all contributors!</p>
+
+<p>Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath
+, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee
+, Ismaël Mejía, J Ross Thomson, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, Juan Rael, Juta, Kasia Kucharczyk
+, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
+, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders
+, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, Tyler Akidau
+, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy</p>
+
+  </div>
+
+</article>
+
     </div>
     <!--
  Licensed under the Apache License, Version 2.0 (the "License");

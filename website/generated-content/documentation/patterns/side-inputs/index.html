@@ -239,6 +239,18 @@
       </ul>
     </li>
     <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Schemas</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#what-is-a-schema">What is a schema</a></li>
+        <li><a href="/documentation/programming-guide/#schemas-for-pl-types">Schemas for programming language types</a></li>
+        <li><a href="/documentation/programming-guide/#schema-definition">Schema definition</a></li>
+        <li><a href="/documentation/programming-guide/#logical-types">Logical types</a></li>
+        <li><a href="/documentation/programming-guide/#creating-schemas">Creating schemas</a></li>
+        <li><a href="/documentation/programming-guide/#using-schemas">Using schemas</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
       <span class="section-nav-list-title">Data encoding and type safety</span>
 
       <ul class="section-nav-list">
@@ -474,6 +486,7 @@
 
 <ul class="nav">
   <li><a href="#slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</a></li>
+  <li><a href="#slowly-updating-side-input-using-windowing">Slowly updating side input using windowing</a></li>
 </ul>
 
 
@@ -592,6 +605,68 @@ limitations under the License.
 
 
 </code></pre></div></div>
+
+<h2 id="slowly-updating-side-input-using-windowing">Slowly updating side input using windowing</h2>
+
+<p>You can read side input pcollection periodically into distinct windows.
+Later, when you apply side input to your main input, windows will be matched automatically 1:1.
+This way, you can guarantee side input consistency on the duration of the single window.</p>
+
+<p>To do this, you can utilize PeriodicSequence PTransform that will generate infinite sequence
+of elements with some real-time period:</p>
+
+<ol>
+  <li>
+    <p>Use the PeriodicImpulse transform to generate windowed periodic sequence.</p>
+
+    <p>a. MAX_TIMESTAMP can be replaced with some closer boundary if you want to stop generating elements at some point.</p>
+  </li>
+  <li>
+    <p>Read data using Read operation triggered by arrival of PCollection element.</p>
+  </li>
+  <li>
+    <p>Apply side input.</p>
+  </li>
+</ol>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.transforms.periodicsequence</span> <span class="kn">import</span> <span class="n">PeriodicImpulse</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="kn">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="kn">import</span> <span class="n">window</span>
+
+<span class="c"># from apache_beam.utils.timestamp import MAX_TIMESTAMP</span>
+<span class="c"># last_timestamp = MAX_TIMESTAMP to go on indefninitely</span>
+
+<span class="c"># Any user-defined function.</span>
+<span class="c"># cross join is used as an example.</span>
+<span class="k">def</span> <span class="nf">cross_join</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">rights</span><span class="p">):</span>
+  <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rights</span><span class="p">:</span>
+    <span class="k">yield</span> <span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+
+<span class="c"># Create pipeline.</span>
+<span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
+<span class="n">side_input</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">p</span>
+    <span class="o">|</span> <span class="s">'PeriodicImpulse'</span> <span class="o">&gt;&gt;</span> <span class="n">PeriodicImpulse</span><span class="p">(</span>
+        <span class="n">first_timestamp</span><span class="p">,</span> <span class="n">last_timestamp</span><span class="p">,</span> <span class="n">interval</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
+    <span class="o">|</span> <span class="s">'MapToFileName'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">src_file_pattern</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+    <span class="o">|</span> <span class="s">'ReadFromFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadAllFromText</span><span class="p">())</span>
+
+<span class="n">main_input</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">p</span>
+    <span class="o">|</span> <span class="s">'MpImpulse'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">sample_main_input_elements</span><span class="p">)</span>
+    <span class="o">|</span>
+    <span class="s">'MapMpToTimestamped'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">src</span><span class="p">:</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">src</span><span class="p">))</span>
+    <span class="o">|</span> <span class="s">'WindowMpInto'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+        <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">main_input_windowing_interval</span><span class="p">)))</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="n">main_input</span>
+    <span class="o">|</span> <span class="s">'ApplyCrossJoin'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="n">cross_join</span><span class="p">,</span> <span class="n">rights</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">side_input</span><span class="p">)))</span>
+
+</code></pre></div></div>
+
 
       </div>
     </div>

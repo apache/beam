@@ -239,6 +239,18 @@
       </ul>
     </li>
     <li class="section-nav-item--collapsible">
+      <span class="section-nav-list-title">Schemas</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#what-is-a-schema">What is a schema</a></li>
+        <li><a href="/documentation/programming-guide/#schemas-for-pl-types">Schemas for programming language types</a></li>
+        <li><a href="/documentation/programming-guide/#schema-definition">Schema definition</a></li>
+        <li><a href="/documentation/programming-guide/#logical-types">Logical types</a></li>
+        <li><a href="/documentation/programming-guide/#creating-schemas">Creating schemas</a></li>
+        <li><a href="/documentation/programming-guide/#using-schemas">Using schemas</a></li>
+      </ul>
+    </li>
+    <li class="section-nav-item--collapsible">
       <span class="section-nav-list-title">Data encoding and type safety</span>
 
       <ul class="section-nav-list">
@@ -513,7 +525,7 @@ start, read the <a href="/documentation/io/developing-io-overview/">new I/O conn
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.</p>
 
-<p>This guide covers using the <a href="https://beam.apache.org/releases/pydoc/2.19.0/apache_beam.io.iobase.html">Source and FileBasedSink interfaces</a>
+<p>This guide covers using the <a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.iobase.html">Source and FileBasedSink interfaces</a>
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See <a href="/documentation/io/developing-io-java/">Developing I/O connectors for Java</a>
 for information specific to the Java SDK.</p>
@@ -575,7 +587,7 @@ a wrapper.</li>
 </ul>
 
 <p>You can find these classes in the
-<a href="https://beam.apache.org/releases/pydoc/2.19.0/apache_beam.io.iobase.html">apache_beam.io.iobase module</a>.</p>
+<a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.iobase.html">apache_beam.io.iobase module</a>.</p>
 
 <h3 id="implementing-the-boundedsource-subclass">Implementing the BoundedSource subclass</h3>
 
@@ -761,7 +773,7 @@ exposing your sources, and walks through how to create a wrapper.</p>
 
 <h2 id="using-the-filebasedsink-abstraction">Using the FileBasedSink abstraction</h2>
 
-<p>If your data source uses files, you can implement the <a href="https://beam.apache.org/releases/pydoc/2.19.0/apache_beam.io.filebasedsink.html">FileBasedSink</a>
+<p>If your data source uses files, you can implement the <a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.filebasedsink.html">FileBasedSink</a>
 abstraction to create a file-based sink. For other sinks, use <code class="highlighter-rouge">ParDo</code>,
 <code class="highlighter-rouge">GroupByKey</code>, and other transforms offered by the Beam SDK for Python. See the
 <a href="/documentation/io/developing-io-overview/">developing I/O connectors overview</a>

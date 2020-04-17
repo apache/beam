@@ -20,6 +20,92 @@
     <generator>Jekyll v3.6.3</generator>
     
       <item>
+        <title>Apache Beam 2.20.0</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;We are happy to present the new 2.20.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&quot;/get-started/downloads/#2190-2020-02-04&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
+For more information on changes in 2.20.0, check out the
+&lt;a href=&quot;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12346780&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
+&lt;p&gt;Python SDK: . (#10223).&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8561&quot;&gt;BEAM-8561&lt;/a&gt; Adds support for Thrift encoded data via ThriftIO&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7310&quot;&gt;BEAM-7310&lt;/a&gt; KafkaIO supports schema resolution using Confluent Schema Registry&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-7246&quot;&gt;BEAM-7246&lt;/a&gt; Support for Google Cloud Spanner. This is an experimental module for reading and writing data from Google Cloud Spanner&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8399&quot;&gt;BEAM-8399&lt;/a&gt; Adds support for standard HDFS URLs (with server name)&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9146&quot;&gt;BEAM-9146&lt;/a&gt; New AnnotateVideo &amp;amp; AnnotateVideoWithContext PTransform’s that integrates GCP Video Intelligence functionality&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9247&quot;&gt;BEAM-9247&lt;/a&gt; New AnnotateImage &amp;amp; AnnotateImageWithContext PTransform’s for element-wise &amp;amp; batch image annotation using Google Cloud Vision API&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9258&quot;&gt;BEAM-9258&lt;/a&gt; Added a PTransform for inspection and deidentification of text using Google Cloud DLP&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9248&quot;&gt;BEAM-9248&lt;/a&gt; New AnnotateText PTransform that integrates Google Cloud Natural Language functionality&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9305&quot;&gt;BEAM-9305&lt;/a&gt; ReadFromBigQuery now supports value providers for the query string&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8841&quot;&gt;BEAM-8841&lt;/a&gt; Added ability to write to BigQuery via Avro file loads&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9228&quot;&gt;BEAM-9228&lt;/a&gt; Direct runner for FnApi supports further parallelism&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8550&quot;&gt;BEAM-8550&lt;/a&gt; Support for @RequiresTimeSortedInput in Flink and Spark&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-3453&quot;&gt;BEAM-3453&lt;/a&gt; Backwards incompatible change in ReadFromPubSub(topic=) in Python&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9310&quot;&gt;BEAM-9310&lt;/a&gt; SpannerAccessor in Java is now package-private to reduce API surface&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8616&quot;&gt;BEAM-8616&lt;/a&gt; ParquetIO hadoop dependency should be now provided by the users&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9063&quot;&gt;BEAM-9063&lt;/a&gt; Docker images will be deployed to apache/beam repositories from 2.20&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9579&quot;&gt;BEAM-9579&lt;/a&gt; Fixed numpy operators in ApproximateQuantiles&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9277&quot;&gt;BEAM-9277&lt;/a&gt; Fixed exception when running in IPython notebook&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-1833&quot;&gt;BEAM-1833&lt;/a&gt; Restructure Python pipeline construction to better follow the Runner API&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9225&quot;&gt;BEAM-9225&lt;/a&gt; Fixed Flink uberjar job termination bug&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9503&quot;&gt;BEAM-9503&lt;/a&gt; Fixed SyntaxError in process worker startup&lt;/li&gt;
+  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;known-issues&quot;&gt;Known Issues&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9322&quot;&gt;BEAM-9322&lt;/a&gt; Python SDK ignores manually set PCollection tags&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9445&quot;&gt;BEAM-9445&lt;/a&gt; Python SDK pre_optimize=all experiment may cause error&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9725&quot;&gt;BEAM-9725&lt;/a&gt; Python SDK performance regression for reshuffle transform&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
+
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.20.0 release. Thank you to all contributors!&lt;/p&gt;
+
+&lt;p&gt;Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton Kedin, Boyuan Zhang, Brian Hulette, Brian Martin, Chamikara Jayalath
+, Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee
+, Ismaël Mejía, J Ross Thomson, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, Juan Rael, Juta, Kasia Kucharczyk
+, Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
+, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders
+, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, Tyler Akidau
+, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p&gt;
+</description>
+        <pubDate>Wed, 15 Apr 2020 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2020/04/15/beam-2.20.0.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2020/04/15/beam-2.20.0.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.19.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1209,201 +1295,6 @@ yoshiki.obata, Yueyang Qiu&lt;/p&gt;
         <pubDate>Fri, 07 Jun 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/05/22/beam-2.13.0.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/22/beam-2.13.0.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Adding new Data Sources to Beam SQL CLI</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;A new, exciting feature that came to Apache Beam is the ability to use
-SQL in your pipelines. This is done using Beam’s
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;SqlTransform&lt;/code&gt;&lt;/a&gt;
-in Java pipelines.&lt;/p&gt;
-
-&lt;p&gt;Beam also has a fancy new SQL command line that you can use to query your
-data interactively, be it Batch or Streaming. If you haven’t tried it, check out
-&lt;a href=&quot;https://bit.ly/ExploreBeamSQL&quot;&gt;https://bit.ly/ExploreBeamSQL&lt;/a&gt;.&lt;/p&gt;
-
-&lt;p&gt;A nice feature of the SQL CLI is that you can use &lt;code class=&quot;highlighter-rouge&quot;&gt;CREATE EXTERNAL TABLE&lt;/code&gt;
-commands to &lt;em&gt;add&lt;/em&gt; data sources to be accessed in the CLI. Currently, the CLI
-supports creating tables from BigQuery, PubSub, Kafka, and text files. In this
-post, we explore how to add new data sources, so that you will be able to
-consume data from other Beam sources.&lt;/p&gt;
-
-&lt;!--more--&gt;
-
-&lt;p&gt;The table provider we will be implementing in this post will be generating a
-continuous unbounded stream of integers. It will be based on the
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GenerateSequence&lt;/code&gt; PTransform&lt;/a&gt;
-from the Beam SDK. In the end will be able to define and use the sequence generator
-in SQL like this:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;CREATE EXTERNAL TABLE                      -- all tables in Beam are external, they are not persisted
-  sequenceTable                              -- table alias that will be used in queries
-  (
-         sequence BIGINT,                  -- sequence number
-         event_timestamp TIMESTAMP         -- timestamp of the generated event
-  )
-TYPE sequence                              -- type identifies the table provider
-TBLPROPERTIES '{ elementsPerSecond : 12 }' -- optional rate at which events are generated
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;And we’ll be able to use it in queries like so:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;SELECT sequence FROM sequenceTable;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Let’s dive in!&lt;/p&gt;
-
-&lt;h3 id=&quot;implementing-a-tableprovider&quot;&gt;Implementing a &lt;code class=&quot;highlighter-rouge&quot;&gt;TableProvider&lt;/code&gt;&lt;/h3&gt;
-
-&lt;p&gt;Beam’s &lt;code class=&quot;highlighter-rouge&quot;&gt;SqlTransform&lt;/code&gt; works by relying on &lt;code class=&quot;highlighter-rouge&quot;&gt;TableProvider&lt;/code&gt;s, which it uses when
-one uses a &lt;code class=&quot;highlighter-rouge&quot;&gt;CREATE EXTERNAL TABLE&lt;/code&gt; statement. If you are looking to add a new
-data source to the Beam SQL CLI, then you will want to add a &lt;code class=&quot;highlighter-rouge&quot;&gt;TableProvider&lt;/code&gt; to
-do it. In this post, I will show what steps are necessary to create a new table
-provider for the
-&lt;a href=&quot;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;GenerateSequence&lt;/code&gt; transform&lt;/a&gt; available in the Java SDK.&lt;/p&gt;
-
-&lt;p&gt;The &lt;code class=&quot;highlighter-rouge&quot;&gt;TableProvider&lt;/code&gt; classes are under
-&lt;a href=&quot;https://github.com/apache/beam/tree/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/meta/provider/&lt;/code&gt;&lt;/a&gt;. If you look in there, you can find providers, and their implementations, for all available data sources. So, you just need to add the one you want, along with an implementation of &lt;code class=&quot;highlighter-rouge&quot;&gt;BaseBeamTable&lt;/code&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;the-generatesequencetableprovider&quot;&gt;The GenerateSequenceTableProvider&lt;/h3&gt;
-
-&lt;p&gt;Our table provider looks like this:&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;nd&quot;&gt;@AutoService&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TableProvider&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt;
-&lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;GenerateSequenceTableProvider&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;InMemoryMetaTableProvider&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;String&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;getTableType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;sequence&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BeamSqlTable&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;buildBeamSqlTable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Table&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;GenerateSequenceTable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;All it does is give a type to the table - and it implements the
-&lt;code class=&quot;highlighter-rouge&quot;&gt;buildBeamSqlTable&lt;/code&gt; method, which simply returns a &lt;code class=&quot;highlighter-rouge&quot;&gt;BeamSqlTable&lt;/code&gt; defined by
-our &lt;code class=&quot;highlighter-rouge&quot;&gt;GenerateSequenceTable&lt;/code&gt; implementation.&lt;/p&gt;
-
-&lt;h3 id=&quot;the-generatesequencetable&quot;&gt;The GenerateSequenceTable&lt;/h3&gt;
-
-&lt;p&gt;We want a table implementation that supports streaming properly, so we will
-allow users to define the number of elements to be emitted per second. We will
-define a simple table that emits sequential integers in a streaming fashion.
-This looks like so:&lt;/p&gt;
-
-&lt;div class=&quot;language-java highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kd&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;GenerateSequenceTable&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;extends&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;BaseBeamTable&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;implements&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Serializable&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;static&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;final&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Schema&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;TABLE_SCHEMA&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;Schema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Field&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;sequence&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FieldType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;INT64&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;),&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Field&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;event_time&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;FieldType&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;DATETIME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;));&lt;/span&gt;
-
-  &lt;span class=&quot;n&quot;&gt;Integer&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;elementsPerSecond&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-
-  &lt;span class=&quot;n&quot;&gt;GenerateSequenceTable&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Table&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;kd&quot;&gt;super&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TABLE_SCHEMA&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getProperties&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;containsKey&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;elementsPerSecond&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-      &lt;span class=&quot;n&quot;&gt;elementsPerSecond&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;table&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getProperties&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;().&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;getInteger&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;elementsPerSecond&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-    &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PCollection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;IsBounded&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;isBounded&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;IsBounded&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;UNBOUNDED&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;;&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PCollection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;buildIOReader&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PBegin&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;return&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;begin&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;GenerateSequence&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;from&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;withRate&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;elementsPerSecond&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Duration&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;standardSeconds&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)))&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;
-            &lt;span class=&quot;n&quot;&gt;MapElements&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;into&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TypeDescriptor&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;of&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;class&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;))&lt;/span&gt;
-                &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;via&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;elm&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;withSchema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;TABLE_SCHEMA&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;addValues&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;elm&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Instant&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;now&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()).&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;build&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;()))&lt;/span&gt;
-        &lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;na&quot;&gt;setRowSchema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;getSchema&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;());&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-
-  &lt;span class=&quot;nd&quot;&gt;@Override&lt;/span&gt;
-  &lt;span class=&quot;kd&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;POutput&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;buildIOWriter&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;PCollection&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Row&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;input&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;{&lt;/span&gt;
-    &lt;span class=&quot;k&quot;&gt;throw&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;UnsupportedOperationException&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;buildIOWriter unsupported!&quot;&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;);&lt;/span&gt;
-  &lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;span class=&quot;o&quot;&gt;}&lt;/span&gt;
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;h2 id=&quot;the-real-fun&quot;&gt;The real fun&lt;/h2&gt;
-
-&lt;p&gt;Now that we have implemented the two basic classes (a &lt;code class=&quot;highlighter-rouge&quot;&gt;BaseBeamTable&lt;/code&gt;, and a
-&lt;code class=&quot;highlighter-rouge&quot;&gt;TableProvider&lt;/code&gt;), we can start playing with them. After building the
-&lt;a href=&quot;https://beam.apache.org/documentation/dsls/sql/shell/&quot;&gt;SQL CLI&lt;/a&gt;, we
-can now perform selections on the table:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: BeamSQL&amp;gt; CREATE EXTERNAL TABLE input_seq (
-. . . . . &amp;gt;   sequence BIGINT COMMENT 'this is the primary key',
-. . . . . &amp;gt;   event_time TIMESTAMP COMMENT 'this is the element timestamp'
-. . . . . &amp;gt; )
-. . . . . &amp;gt; TYPE 'sequence';
-No rows affected (0.005 seconds)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;And let’s select a few rows:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: BeamSQL&amp;gt; SELECT * FROM input_seq LIMIT 5;
-+---------------------+------------+
-|      sequence       | event_time |
-+---------------------+------------+
-| 0                   | 2019-05-21 00:36:33 |
-| 1                   | 2019-05-21 00:36:33 |
-| 2                   | 2019-05-21 00:36:33 |
-| 3                   | 2019-05-21 00:36:33 |
-| 4                   | 2019-05-21 00:36:33 |
-+---------------------+------------+
-5 rows selected (1.138 seconds)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;Now let’s try something more interesting. Such as grouping. This will also let
-us make sure that we’re providing the timestamp for each row properly:&lt;/p&gt;
-
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;0: BeamSQL&amp;gt; SELECT
-. . . . . &amp;gt;   COUNT(sequence) as elements,
-. . . . . &amp;gt;   TUMBLE_START(event_time, INTERVAL '2' SECOND) as window_start
-. . . . . &amp;gt; FROM input_seq
-. . . . . &amp;gt; GROUP BY TUMBLE(event_time, INTERVAL '2' SECOND) LIMIT 5;
-+---------------------+--------------+
-|      elements       | window_start |
-+---------------------+--------------+
-| 6                   | 2019-06-05 00:39:24 |
-| 10                  | 2019-06-05 00:39:26 |
-| 10                  | 2019-06-05 00:39:28 |
-| 10                  | 2019-06-05 00:39:30 |
-| 10                  | 2019-06-05 00:39:32 |
-+---------------------+--------------+
-5 rows selected (10.142 seconds)
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-
-&lt;p&gt;And voilà! We can start playing with some interesting streaming queries to our
-sequence generator.&lt;/p&gt;
-</description>
-        <pubDate>Tue, 04 Jun 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/06/04/adding-data-sources-to-sql.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/06/04/adding-data-sources-to-sql.html</guid>
         
         
         <category>blog</category>
