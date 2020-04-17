@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.util.Base64;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
 import java.util.Arrays;
@@ -91,10 +92,13 @@ class HL7v2IOTestUtil {
   }
 
   /** Populate the test messages into the HL7v2 store. */
-  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store) throws IOException {
+  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
+      throws IOException, InterruptedException {
     for (HL7v2Message msg : MESSAGES) {
       client.createHL7v2Message(hl7v2Store, msg.toModel());
     }
+    // [BEAM-9779] HL7v2 indexing is asyncronous. Add sleep to stabilize this IT.
+    Sleeper.DEFAULT.sleep(3000);
   }
 
   /**
