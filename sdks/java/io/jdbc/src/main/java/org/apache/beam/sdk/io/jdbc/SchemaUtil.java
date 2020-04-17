@@ -53,6 +53,7 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
@@ -79,7 +80,6 @@ class SchemaUtil {
                   .put(Schema.TypeName.BOOLEAN, ResultSet::getBoolean)
                   .put(Schema.TypeName.BYTE, ResultSet::getByte)
                   .put(Schema.TypeName.BYTES, ResultSet::getBytes)
-                  .put(Schema.TypeName.DATETIME, ResultSet::getTimestamp)
                   .put(Schema.TypeName.DECIMAL, ResultSet::getBigDecimal)
                   .put(Schema.TypeName.DOUBLE, ResultSet::getDouble)
                   .put(Schema.TypeName.FLOAT, ResultSet::getFloat)
@@ -228,8 +228,6 @@ class SchemaUtil {
         Schema.FieldType elementType = fieldType.getCollectionElementType();
         ResultSetFieldExtractor elementExtractor = createFieldExtractor(elementType);
         return createArrayExtractor(elementExtractor);
-      case DATETIME:
-        return TIMESTAMP_EXTRACTOR;
       case LOGICAL_TYPE:
         return createLogicalTypeExtractor(fieldType.getLogicalType());
       default:
@@ -263,6 +261,9 @@ class SchemaUtil {
   private static <InputT, BaseT> ResultSetFieldExtractor createLogicalTypeExtractor(
       final Schema.LogicalType<InputT, BaseT> fieldType) {
     String logicalTypeName = fieldType.getIdentifier();
+    if (logicalTypeName.equals(MillisInstant.IDENTIFIER)) {
+      return TIMESTAMP_EXTRACTOR;
+    }
     JDBCType underlyingType = JDBCType.valueOf(logicalTypeName);
     switch (underlyingType) {
       case DATE:

@@ -29,6 +29,7 @@ import java.util.TimeZone;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.DateTime;
 
@@ -79,13 +80,6 @@ class JdbcUtil {
                   (element, ps, i, fieldWithIndex) ->
                       ps.setDouble(i + 1, element.getDouble(fieldWithIndex.getIndex())))
               .put(
-                  Schema.TypeName.DATETIME,
-                  (element, ps, i, fieldWithIndex) ->
-                      ps.setTimestamp(
-                          i + 1,
-                          new Timestamp(
-                              element.getDateTime(fieldWithIndex.getIndex()).getMillis())))
-              .put(
                   Schema.TypeName.BOOLEAN,
                   (element, ps, i, fieldWithIndex) ->
                       ps.setBoolean(i + 1, element.getBoolean(fieldWithIndex.getIndex())))
@@ -113,6 +107,12 @@ class JdbcUtil {
       case LOGICAL_TYPE:
         {
           String logicalTypeName = fieldType.getLogicalType().getIdentifier();
+          if (logicalTypeName.equals(MillisInstant.IDENTIFIER)) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setTimestamp(
+                    i + 1,
+                    new Timestamp(element.getDateTime(fieldWithIndex.getIndex()).getMillis()));
+          }
           JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
           switch (jdbcType) {
             case DATE:

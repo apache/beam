@@ -42,6 +42,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -55,6 +56,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
+import org.joda.time.base.AbstractInstant;
 import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
@@ -152,7 +154,6 @@ public class BigQueryUtils {
           .put(TypeName.ARRAY, StandardSQLTypeName.ARRAY)
           .put(TypeName.ITERABLE, StandardSQLTypeName.ARRAY)
           .put(TypeName.ROW, StandardSQLTypeName.STRUCT)
-          .put(TypeName.DATETIME, StandardSQLTypeName.TIMESTAMP)
           .put(TypeName.STRING, StandardSQLTypeName.STRING)
           .put(TypeName.BYTES, StandardSQLTypeName.BYTES)
           .build();
@@ -168,26 +169,14 @@ public class BigQueryUtils {
           .put(TypeName.DECIMAL, BigDecimal::new)
           .put(TypeName.BOOLEAN, Boolean::valueOf)
           .put(TypeName.STRING, str -> str)
-          .put(
-              TypeName.DATETIME,
-              str -> {
-                if (str == null || str.length() == 0) {
-                  return null;
-                }
-                if (str.endsWith("UTC")) {
-                  return BIGQUERY_TIMESTAMP_PARSER.parseDateTime(str).toDateTime(DateTimeZone.UTC);
-                } else {
-                  return new DateTime(
-                      (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC());
-                }
-              })
-          .put(TypeName.BYTES, str -> BaseEncoding.base64().decode(str))
+          .put(TypeName.BYTES, BaseEncoding.base64()::decode)
           .build();
 
   // TODO: BigQuery code should not be relying on Calcite metadata fields. If so, this belongs
   // in the SQL package.
   private static final Map<String, StandardSQLTypeName> BEAM_TO_BIGQUERY_LOGICAL_MAPPING =
       ImmutableMap.<String, StandardSQLTypeName>builder()
+          .put(MillisInstant.IDENTIFIER, StandardSQLTypeName.TIMESTAMP)
           .put("SqlDateType", StandardSQLTypeName.DATE)
           .put("SqlTimeType", StandardSQLTypeName.TIME)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
@@ -237,16 +226,19 @@ public class BigQueryUtils {
       case "BOOLEAN":
         return FieldType.BOOLEAN;
       case "TIMESTAMP":
-        return FieldType.DATETIME;
+        return FieldType.logicalType(MillisInstant.of());
       case "TIME":
+        // TODO: Logical type for use here and in Beam SQL
         return FieldType.logicalType(
             new PassThroughLogicalType<Instant>(
                 "SqlTimeType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "DATE":
+        // TODO: Logical type for use here and in Beam SQL
         return FieldType.logicalType(
             new PassThroughLogicalType<Instant>(
                 "SqlDateType", FieldType.STRING, "", FieldType.DATETIME) {});
       case "DATETIME":
+        // TODO: Logical type for use here and in Beam SQL
         return FieldType.logicalType(
             new PassThroughLogicalType<Instant>(
                 "SqlTimestampWithLocalTzType", FieldType.STRING, "", FieldType.DATETIME) {});
@@ -435,11 +427,15 @@ public class BigQueryUtils {
       case ROW:
         return toTableRow((Row) fieldValue);
 
-      case DATETIME:
-        return ((Instant) fieldValue)
-            .toDateTime(DateTimeZone.UTC)
-            .toString(BIGQUERY_TIMESTAMP_PRINTER);
-
+      case LOGICAL_TYPE:
+        switch (fieldType.getLogicalType().getIdentifier()) {
+          case MillisInstant.IDENTIFIER:
+            return ((AbstractInstant) fieldValue)
+                .toDateTime(DateTimeZone.UTC)
+                .toString(BIGQUERY_TIMESTAMP_PRINTER);
+          default:
+            return fieldValue;
+        }
       case INT16:
       case INT32:
       case INT64:
@@ -518,19 +514,28 @@ public class BigQueryUtils {
   }
 
   private static Object toBeamValue(FieldType fieldType, Object jsonBQValue) {
-    if (jsonBQValue instanceof String && JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
-      return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply((String) jsonBQValue);
-    }
-
-    if (jsonBQValue instanceof List) {
+    if (jsonBQValue instanceof String) {
+      if (JSON_VALUE_PARSERS.containsKey(fieldType.getTypeName())) {
+        return JSON_VALUE_PARSERS.get(fieldType.getTypeName()).apply((String) jsonBQValue);
+      } else if (fieldType.isLogicalType(MillisInstant.IDENTIFIER)) {
+        String str = (String) jsonBQValue;
+        if (str == null || str.length() == 0) {
+          return null;
+        }
+        if (str.endsWith("UTC")) {
+          return BIGQUERY_TIMESTAMP_PARSER.parseDateTime(str).toDateTime(DateTimeZone.UTC);
+        } else {
+          return new DateTime(
+              (long) (Double.parseDouble(str) * 1000), ISOChronology.getInstanceUTC());
+        }
+      }
+    } else if (jsonBQValue instanceof List) {
       return ((List<Object>) jsonBQValue)
           .stream()
               .map(v -> ((Map<String, Object>) v).get("v"))
               .map(v -> toBeamValue(fieldType.getCollectionElementType(), v))
               .collect(toList());
-    }
-
-    if (jsonBQValue instanceof Map) {
+    } else if (jsonBQValue instanceof Map) {
       TableRow tr = new TableRow();
       tr.putAll((Map<String, Object>) jsonBQValue);
       return toBeamRow(fieldType.getRowSchema(), tr);
@@ -547,7 +552,11 @@ public class BigQueryUtils {
   // TODO: BigQuery shouldn't know about SQL internal logical types.
   private static final Set<String> SQL_DATE_TIME_TYPES =
       ImmutableSet.of(
-          "SqlDateType", "SqlTimeType", "SqlTimeWithLocalTzType", "SqlTimestampWithLocalTzType");
+          MillisInstant.IDENTIFIER,
+          "SqlDateType",
+          "SqlTimeType",
+          "SqlTimeWithLocalTzType",
+          "SqlTimestampWithLocalTzType");
   private static final Set<String> SQL_STRING_TYPES = ImmutableSet.of("SqlCharType");
 
   /**
@@ -573,18 +582,6 @@ public class BigQueryUtils {
       case BYTE:
       case BOOLEAN:
         return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
-      case DATETIME:
-        // Expecting value in microseconds.
-        switch (options.getTruncateTimestamps()) {
-          case TRUNCATE:
-            return truncateToMillis(avroValue);
-          case REJECT:
-            return safeToMillis(avroValue);
-          default:
-            throw new IllegalArgumentException(
-                String.format(
-                    "Unknown timestamp truncation option: %s", options.getTruncateTimestamps()));
-        }
       case STRING:
         return convertAvroPrimitiveTypes(beamFieldTypeName, avroValue);
       case ARRAY:
@@ -592,6 +589,7 @@ public class BigQueryUtils {
       case LOGICAL_TYPE:
         String identifier = beamFieldType.getLogicalType().getIdentifier();
         if (SQL_DATE_TIME_TYPES.contains(identifier)) {
+          // Expecting value in microseconds.
           switch (options.getTruncateTimestamps()) {
             case TRUNCATE:
               return truncateToMillis(avroValue);
