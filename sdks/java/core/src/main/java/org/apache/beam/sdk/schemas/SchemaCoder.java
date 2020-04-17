@@ -160,7 +160,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
   // Sets the schema id, and then recursively ensures that all schemas have ids set.
   private static void setSchemaIds(Schema schema) {
     if (schema.getUUID() == null) {
-      schema.setUUID(UUID.randomUUID());
+      schema.setUUID(UUID.nameUUIDFromBytes(schema.getFields().toString().getBytes()));
     }
     for (Field field : schema.getFields()) {
       setSchemaIds(field.getType());
