@@ -65,31 +65,61 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
 
   @Override
   public SplitResult<ByteKeyRange> trySplit(double fractionOfRemainder) {
-    // TODO(BEAM-8871): Add support for splitting off a fixed amount of work for this restriction
-    // instead of only supporting checkpointing.
-
-    // If we haven't done any work, we should return the original range we were processing
-    // as the checkpoint.
-    if (lastAttemptedKey == null) {
-      ByteKeyRange rval = range;
-      // We update our current range to an interval that contains no elements.
-      range = NO_KEYS;
-      return SplitResult.of(range, rval);
+    // No split on an empty range.
+    if (NO_KEYS.equals(range)
+        || (!range.getEndKey().isEmpty() && range.getStartKey().equals(range.getEndKey()))) {
+      return null;
+    }
+    // There is no more remaining work after the entire range has been claimed.
+    if (lastAttemptedKey != null && lastAttemptedKey.isEmpty()) {
+      return null;
     }
 
-    // Return an empty range if the current range is done.
-    if (lastAttemptedKey.isEmpty()
-        || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
-      return SplitResult.of(range, NO_KEYS);
+    ByteKey unprocessedRangeStartKey =
+        (lastAttemptedKey == null) ? range.getStartKey() : next(lastAttemptedKey);
+    ByteKey endKey = range.getEndKey();
+    // There is no more space for split.
+    if (!endKey.isEmpty() && unprocessedRangeStartKey.compareTo(endKey) >= 0) {
+      return null;
     }
 
-    // Otherwise we compute the "remainder" of the range from the last key.
-    assert lastAttemptedKey.equals(lastClaimedKey)
-        : "Expect both keys to be equal since the last key attempted was a valid key in the range.";
-    ByteKey nextKey = next(lastAttemptedKey);
-    ByteKeyRange res = ByteKeyRange.of(nextKey, range.getEndKey());
-    this.range = ByteKeyRange.of(range.getStartKey(), nextKey);
-    return SplitResult.of(range, res);
+    // Treat checkpoint specially because {@link ByteKeyRange#interpolateKey} computes a key with
+    // trailing zeros when fraction is 0.
+    if (fractionOfRemainder == 0.0) {
+      // If we haven't done any work, we should return the original range we were processing
+      // as the checkpoint.
+      if (lastAttemptedKey == null) {
+        // We update our current range to an interval that contains no elements.
+        ByteKeyRange rval = range;
+        range =
+            range.getStartKey().isEmpty()
+                ? NO_KEYS
+                : ByteKeyRange.of(range.getStartKey(), range.getStartKey());
+        return SplitResult.of(range, rval);
+      } else {
+        range = ByteKeyRange.of(range.getStartKey(), unprocessedRangeStartKey);
+        return SplitResult.of(range, ByteKeyRange.of(unprocessedRangeStartKey, endKey));
+      }
+    }
+
+    ByteKeyRange unprocessedRange = ByteKeyRange.of(unprocessedRangeStartKey, range.getEndKey());
+    ByteKey splitPos;
+    try {
+      // The interpolateKey shouldn't return empty key. Please refer to {@link
+      // ByteKeyRange#interpolateKey}.
+      splitPos = unprocessedRange.interpolateKey(fractionOfRemainder);
+      checkState(!splitPos.isEmpty());
+    } catch (Exception e) {
+      // There is no way to interpolate a key based on provided fraction.
+      return null;
+    }
+    // Computed splitPos is out of current tracking restriction.
+    if (!range.getEndKey().isEmpty() && splitPos.compareTo(range.getEndKey()) >= 0) {
+      return null;
+    }
+
+    range = ByteKeyRange.of(range.getStartKey(), splitPos);
+    return SplitResult.of(range, ByteKeyRange.of(splitPos, endKey));
   }
 
   /**
@@ -142,7 +172,8 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
     // Handle checking the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
-    if (NO_KEYS.equals(range)) {
+    if (NO_KEYS.equals(range)
+        || (!range.getEndKey().isEmpty() && range.getStartKey().equals(range.getEndKey()))) {
       return;
     }
 
@@ -154,6 +185,11 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
     // Return if the last attempted key was the empty key representing the end of range for
     // all ranges.
     if (lastAttemptedKey.isEmpty()) {
+      return;
+    }
+
+    // The lastAttemptedKey is the last key of current restriction.
+    if (!range.getEndKey().isEmpty() && next(lastAttemptedKey).compareTo(range.getEndKey()) >= 0) {
       return;
     }
 
