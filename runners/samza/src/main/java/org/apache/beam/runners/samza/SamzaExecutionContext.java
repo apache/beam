@@ -219,7 +219,6 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
   /** The factory to return this {@link SamzaExecutionContext}. */
   public class Factory implements ApplicationContainerContextFactory<SamzaExecutionContext> {
-    private static final String GLOBAL_CONTAINER_STEP_NAME = "GLOBAL_METRICS";
 
     @Override
     public SamzaExecutionContext create(
@@ -229,7 +228,7 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
           (MetricsRegistryMap) containerContext.getContainerMetricsRegistry();
       SamzaMetricsContainer samzaMetricsContainer = new SamzaMetricsContainer(metricsRegistry);
       MetricsEnvironment.setGlobalContainer(
-          samzaMetricsContainer.getContainer(GLOBAL_CONTAINER_STEP_NAME));
+          samzaMetricsContainer.getContainer(SamzaMetricsContainer.GLOBAL_CONTAINER_STEP_NAME));
       SamzaExecutionContext.this.setMetricsContainer(samzaMetricsContainer);
       return SamzaExecutionContext.this;
     }
