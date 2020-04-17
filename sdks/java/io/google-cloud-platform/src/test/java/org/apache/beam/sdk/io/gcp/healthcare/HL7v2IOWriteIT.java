@@ -29,7 +29,6 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.util.Sleeper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -90,8 +89,6 @@ public class HL7v2IOWriteIT {
         client
             .getHL7v2MessageStream(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)
             .count();
-    // [BEAM-9779] HL7v2 indexing is asyncronous. Add sleep to stabilize this IT.
-    Sleeper.DEFAULT.sleep(5000);
     assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }

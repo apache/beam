@@ -98,7 +98,7 @@ class HL7v2IOTestUtil {
       client.createHL7v2Message(hl7v2Store, msg.toModel());
     }
     // [BEAM-9779] HL7v2 indexing is asyncronous. Add sleep to stabilize this IT.
-    Sleeper.DEFAULT.sleep(3000);
+    Sleeper.DEFAULT.sleep(5000);
   }
 
   /**
