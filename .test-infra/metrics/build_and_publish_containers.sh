@@ -28,6 +28,12 @@ if [ "$#" = 0 ]; then
   exit 0;
 fi
 
+if [ -z "${PROJECT_ID}" ]; then
+  echo "PROJECT_ID not set, trying to automatically get it from gcloud config."
+  PROJECT_ID=$(gcloud config list --format 'value(core.project)' 2>/dev/null)
+  echo "Using ${PROJECT_ID}."
+fi
+
 echo
 echo ===========Start==========
 CONTAINER_VERSION_NAME=$1
