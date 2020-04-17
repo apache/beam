@@ -28,6 +28,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 )
 
 func init() {
@@ -112,9 +113,10 @@ func TestMarshal(t *testing.T) {
 			makeGraph: func(t *testing.T, g *graph.Graph) {
 				addDoFn(t, g, &splitPickFn{}, g.Root(), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()}, intCoder())
 			},
-			edges:      1,
-			transforms: 1,
-			roots:      1,
+			edges:        1,
+			transforms:   1,
+			roots:        1,
+			requirements: []string{graphx.URNRequiresSplittableDoFn},
 		}, {
 			name: "SideInput",
 			makeGraph: func(t *testing.T, g *graph.Graph) {
@@ -168,10 +170,11 @@ func TestMarshal(t *testing.T) {
 			if got, want := len(p.GetRootTransformIds()), test.roots; got != want {
 				t.Errorf("got %d roots, want %d : %v", got, want, proto.MarshalTextString(p))
 			}
+			if got, want := p.GetRequirements(), test.requirements; !cmp.Equal(got, want) {
+				t.Errorf("incorrect requirements: got %v, want %v : %v", got, want, proto.MarshalTextString(p))
+			}
 		})
 	}
-
-	// TODO(BEAM-3301): Add SDF test once we can make SDFs.
 }
 
 // testRT's methods can all be no-ops, we just need it to implement sdf.RTracker.
