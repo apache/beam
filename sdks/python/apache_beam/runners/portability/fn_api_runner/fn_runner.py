@@ -40,7 +40,6 @@ from typing import List
 from typing import Mapping
 from typing import MutableMapping
 from typing import Optional
-from typing import Sequence
 from typing import Tuple
 from typing import TypeVar
 
@@ -87,12 +86,6 @@ BundleProcessResult = Tuple[beam_fn_api_pb2.InstructionResponse,
                             List[beam_fn_api_pb2.ProcessBundleSplitResponse]]
 
 # This module is experimental. No backwards-compatibility guarantees.
-
-ENCODED_IMPULSE_VALUE = beam.coders.WindowedValueCoder(
-    beam.coders.BytesCoder(),
-    beam.coders.coders.GlobalWindowCoder()).get_impl().encode_nested(
-        beam.transforms.window.GlobalWindows.windowed_value(b''))
-
 
 class FnApiRunner(runner.PipelineRunner):
 
@@ -289,10 +282,10 @@ class FnApiRunner(runner.PipelineRunner):
     return translations.create_and_optimize_stages(
         copy.deepcopy(pipeline_proto),
         phases=[
-            translations.annotate_downstream_side_inputs,
             translations.fix_side_input_pcoll_coders,
             translations.lift_combiners,
             translations.expand_sdf,
+            translations.annotate_downstream_side_inputs,
             translations.expand_gbk,
             translations.sink_flattens,
             translations.greedily_fuse,
@@ -325,6 +318,7 @@ class FnApiRunner(runner.PipelineRunner):
     monitoring_infos_by_stage = {}
 
     runner_execution_context = execution.FnApiRunnerExecutionContext(
+        stages,
         worker_handler_manager,
         stage_context.components,
         stage_context.safe_coders,
@@ -335,6 +329,7 @@ class FnApiRunner(runner.PipelineRunner):
         for stage in stages:
           bundle_context_manager = execution.BundleContextManager(
               runner_execution_context, stage, self._num_workers)
+
           stage_results = self._run_stage(
               runner_execution_context,
               bundle_context_manager,
@@ -505,18 +500,13 @@ class FnApiRunner(runner.PipelineRunner):
         object containing execution information for the pipeline.
       stage (translations.Stage): A description of the stage to execute.
     """
+    data_input, data_output, expected_timer_output = (
+        bundle_context_manager.extract_bundle_inputs())
 
     worker_handler_manager = runner_execution_context.worker_handler_manager
     _LOGGER.info('Running %s', bundle_context_manager.stage.name)
-    (data_input, data_side_input, data_output,
-     expected_timer_output) = self._extract_endpoints(
-         bundle_context_manager, runner_execution_context)
     worker_handler_manager.register_process_bundle_descriptor(
         bundle_context_manager.process_bundle_descriptor)
-
-    # Store the required side inputs into state so it is accessible for the
-    # worker when it runs this bundle.
-    self._store_side_inputs_in_state(runner_execution_context, data_side_input)
 
     # Change cache token across bundle repeats
     cache_token_generator = FnApiRunner.get_cache_token_generator(static=False)
@@ -543,18 +533,13 @@ class FnApiRunner(runner.PipelineRunner):
     last_result = result
     last_sent = data_input
 
-    # We cannot split deferred_input until we include residual_roots to
-    # merged results. Without residual_roots, pipeline stops earlier and we
-    # may miss some data.
-    # We also don't partition fired timer inputs for the same reason.
-    bundle_manager._num_workers = 1
     while True:
       deferred_inputs = {}  # type: Dict[str, PartitionableBuffer]
       fired_timers = {}
 
       self._collect_written_timers_and_add_to_fired_timers(
           bundle_context_manager, fired_timers)
-      # Queue any process-initiated delayed bundle applications.
+      # Queue any SDK-initiated delayed bundle applications.
       for delayed_application in last_result.process_bundle.residual_roots:
         name = bundle_context_manager.input_for(
             delayed_application.application.transform_id,
@@ -588,75 +573,11 @@ class FnApiRunner(runner.PipelineRunner):
       else:
         break
 
-    return result
-
-  @staticmethod
-  def _extract_endpoints(bundle_context_manager,  # type: execution.BundleContextManager
-                         runner_execution_context,  # type: execution.FnApiRunnerExecutionContext
-                         ):
-    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataSideInput, DataOutput]
-
-    """Returns maps of transform names to PCollection identifiers.
-
-    Also mutates IO stages to point to the data ApiServiceDescriptor.
-
-    Args:
-      stage (translations.Stage): The stage to extract endpoints
-        for.
-      data_api_service_descriptor: A GRPC endpoint descriptor for data plane.
-    Returns:
-      A tuple of (data_input, data_side_input, data_output) dictionaries.
-        `data_input` is a dictionary mapping (transform_name, output_name) to a
-        PCollection buffer; `data_output` is a dictionary mapping
-        (transform_name, output_name) to a PCollection ID.
-    """
-    data_input = {}  # type: Dict[str, PartitionableBuffer]
-    data_side_input = {}  # type: DataSideInput
-    data_output = {}  # type: DataOutput
-    # A mapping of {(transform_id, timer_family_id) : buffer_id}
-    expected_timer_output = {}  # type: Dict[Tuple(str, str), str]
-    for transform in bundle_context_manager.stage.transforms:
-      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
-                                bundle_processor.DATA_OUTPUT_URN):
-        pcoll_id = transform.spec.payload
-        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
-          coder_id = runner_execution_context.data_channel_coders[only_element(
-              transform.outputs.values())]
-          coder = runner_execution_context.pipeline_context.coders[
-              runner_execution_context.safe_coders.get(coder_id, coder_id)]
-          if pcoll_id == translations.IMPULSE_BUFFER:
-            data_input[transform.unique_name] = ListBuffer(
-                coder_impl=coder.get_impl())
-            data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
-          else:
-            if pcoll_id not in runner_execution_context.pcoll_buffers:
-              runner_execution_context.pcoll_buffers[pcoll_id] = ListBuffer(
-                  coder_impl=coder.get_impl())
-            data_input[transform.unique_name] = (
-                runner_execution_context.pcoll_buffers[pcoll_id])
-        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
-          data_output[transform.unique_name] = pcoll_id
-          coder_id = runner_execution_context.data_channel_coders[only_element(
-              transform.inputs.values())]
-        else:
-          raise NotImplementedError
-        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
-        data_api_service_descriptor = (
-            bundle_context_manager.data_api_service_descriptor())
-        if data_api_service_descriptor:
-          data_spec.api_service_descriptor.url = (
-              data_api_service_descriptor.url)
-        transform.spec.payload = data_spec.SerializeToString()
-      elif transform.spec.urn in translations.PAR_DO_URNS:
-        payload = proto_utils.parse_Bytes(
-            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for tag, si in payload.side_inputs.items():
-          data_side_input[transform.unique_name, tag] = (
-              create_buffer_id(transform.inputs[tag]), si.access_pattern)
-        for timer_family_id in payload.timer_family_specs.keys():
-          expected_timer_output[(transform.unique_name, timer_family_id)] = (
-              create_buffer_id(timer_family_id, 'timers'))
-    return data_input, data_side_input, data_output, expected_timer_output
+    # Store the required downstream side inputs into state so it is accessible
+    # for the worker when it runs bundles that consume this stage's output.
+    data_side_input = runner_execution_context.side_input_descriptors_by_stage[
+      bundle_context_manager.stage]
+    runner_execution_context.commit_side_inputs_to_state(data_side_input)
 
   @staticmethod
   def get_cache_token_generator(static=True):
@@ -796,9 +717,8 @@ class BundleManager(object):
   def _select_split_manager(self):
     """TODO(pabloem) WHAT DOES THIS DO"""
     unique_names = set(
-        t.unique_name for t in
-        self.bundle_context_manager.process_bundle_descriptor
-            .transforms.values())
+        t.unique_name for t in self.bundle_context_manager.
+        process_bundle_descriptor.transforms.values())
     for stage_name, candidate in reversed(_split_managers):
       if (stage_name in unique_names or
           (stage_name + '/Process') in unique_names):
@@ -819,8 +739,8 @@ class BundleManager(object):
     byte_stream = b''.join(buffer_data)
     num_elements = len(
         list(
-            self.bundle_context_manager.get_input_coder_impl(read_transform_id)
-                .decode_all(byte_stream)))
+            self.bundle_context_manager.get_input_coder_impl(
+                read_transform_id).decode_all(byte_stream)))
 
     # Start the split manager in case it wants to set any breakpoints.
     split_manager_generator = split_manager(num_elements)
@@ -885,8 +805,8 @@ class BundleManager(object):
       BundleManager._uid_counter += 1
       process_bundle_id = 'bundle_%s' % BundleManager._uid_counter
       self._worker_handler = self.bundle_context_manager.worker_handlers[
-          BundleManager._uid_counter % len(
-              self.bundle_context_manager.worker_handlers)]
+          BundleManager._uid_counter %
+          len(self.bundle_context_manager.worker_handlers)]
 
     split_manager = self._select_split_manager()
     if not split_manager:
@@ -906,8 +826,8 @@ class BundleManager(object):
     process_bundle_req = beam_fn_api_pb2.InstructionRequest(
         instruction_id=process_bundle_id,
         process_bundle=beam_fn_api_pb2.ProcessBundleRequest(
-            process_bundle_descriptor_id=
-                self.bundle_context_manager.process_bundle_descriptor.id,
+            process_bundle_descriptor_id=self.bundle_context_manager.
+            process_bundle_descriptor.id,
             cache_tokens=[next(self._cache_token_generator)]))
     result_future = self._worker_handler.control_conn.push(process_bundle_req)
 
