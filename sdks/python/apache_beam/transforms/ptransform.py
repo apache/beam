@@ -987,10 +987,10 @@ def ptransform_fn(fn):
   def callable_ptransform_factory(*args, **kwargs):
     res = _PTransformFnPTransform(fn, *args, **kwargs)
     # Apply type hints applied before or after the ptransform_fn decorator,
-    # or uses PTransform defaults.
+    # falling back on PTransform defaults.
     # If the @with_{input,output}_types decorator comes before ptransform_fn,
-    # the type hint gets applied to this function. If it comes after it gets
-    # applied to fn, and @wraps copies the _type_hints attribute to this
+    # the type hints get applied to this function. If it comes after they will
+    # get applied to fn, and @wraps will copy the _type_hints attribute to this
     # function.
     type_hints = get_type_hints(callable_ptransform_factory)
     res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
