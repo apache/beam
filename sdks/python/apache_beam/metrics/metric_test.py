@@ -172,10 +172,13 @@ class MetricsTest(unittest.TestCase):
     # Verify user distribution counter.
     metric_results = res.metrics().query()
     matcher = MetricResultMatcher(
-        namespace='apache_beam.metrics.metric_test.SomeDoFn',
+        step='ApplyPardo',
+        namespace=hc.contains_string('SomeDoFn'),
         name='element_dist',
         committed=DistributionMatcher(
-            sum_value=10, count_value=4, min_value=1, max_value=4))
+            sum_value=10, count_value=4,
+            min_value=hc.greater_than_or_equal_to(0),
+            max_value=4))
     hc.assert_that(
         metric_results['distributions'], hc.contains_inanyorder(matcher))
 
