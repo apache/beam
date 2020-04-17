@@ -374,7 +374,8 @@ Introducing type hints for the <code class="highlighter-rouge">PTransforms</code
 
 </code></pre></div></div>
 
-<p>When you call <code class="highlighter-rouge">p.run()</code>, this code generates an error because <code class="highlighter-rouge">Filter</code> expects a <code class="highlighter-rouge">PCollection</code> of integers, but is given a <code class="highlighter-rouge">PCollection</code> of strings instead.</p>
+<p>When you call <code class="highlighter-rouge">p.run()</code>, this code generates an error when trying to execute this transform because <code class="highlighter-rouge">Filter</code> expects a <code class="highlighter-rouge">PCollection</code> of integers, but is given a <code class="highlighter-rouge">PCollection</code> of strings instead.
+With type hints, this error could have been caught at pipeline construction time, before the pipeline even started running.</p>
 
 <p>The Beam SDK for Python includes some automatic type hinting: for example, some <code class="highlighter-rouge">PTransforms</code>, such as <code class="highlighter-rouge">Create</code> and simple <code class="highlighter-rouge">ParDo</code> transforms, attempt to deduce their output type given their input.
 However, Beam cannot deduce types in all cases.
@@ -415,16 +416,15 @@ Two such are the <code class="highlighter-rouge">expand</code> of a composite tr
 </code></pre></div></div>
 
 <p>The following code declares <code class="highlighter-rouge">int</code> input and output type hints on <code class="highlighter-rouge">filter_evens</code>, using annotations on <code class="highlighter-rouge">FilterEvensDoFn.process</code>.
-Since <code class="highlighter-rouge">process</code> returns a generator, the output type is annotated as <code class="highlighter-rouge">Iterable[int]</code> (<code class="highlighter-rouge">Generator[int, None, None]</code> would also work here).
-Beam will remove the outer iterable of the return type on the <code class="highlighter-rouge">DoFn.process</code> method and functions passed to <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">FlatMap</code>.
+Since <code class="highlighter-rouge">process</code> returns a generator, the output type for a DoFn producing a <code class="highlighter-rouge">PCollection[int]</code> is annotated as <code class="highlighter-rouge">Iterable[int]</code> (<code class="highlighter-rouge">Generator[int, None, None]</code> would also work here).
+Beam will remove the outer iterable of the return type on the <code class="highlighter-rouge">DoFn.process</code> method and functions passed to <code class="highlighter-rouge">FlatMap</code> to deduce the element type of resulting PCollection .
 It is an error to have a non-iterable return type annotation for these functions.
 Other supported iterable types include: <code class="highlighter-rouge">Iterator</code>, <code class="highlighter-rouge">Generator</code>, <code class="highlighter-rouge">Tuple</code>, <code class="highlighter-rouge">List</code>.</p>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Iterable</span>
 
 <span class="k">class</span> <span class="nc">FilterEvensDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">,</span>
-              <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
     <span class="k">if</span> <span class="n">element</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
       <span class="k">yield</span> <span class="n">element</span>
 
@@ -434,13 +434,12 @@ Other supported iterable types include: <code class="highlighter-rouge">Iterator
 
 <p>The following code declares <code class="highlighter-rouge">int</code> input and output type hints on <code class="highlighter-rouge">double_evens</code>, using annotations on <code class="highlighter-rouge">FilterEvensDoubleDoFn.process</code>.
 Since <code class="highlighter-rouge">process</code> returns a <code class="highlighter-rouge">list</code> or <code class="highlighter-rouge">None</code>, the output type is annotated as <code class="highlighter-rouge">Optional[List[int]]</code>.
-Beam will remove the outer <code class="highlighter-rouge">Optional</code> and (as above) the outer iterable of the return type, only on the <code class="highlighter-rouge">DoFn.process</code> method and functions passed to <code class="highlighter-rouge">ParDo</code> and <code class="highlighter-rouge">FlatMap</code>.</p>
+Beam will also remove the outer <code class="highlighter-rouge">Optional</code> and (as above) the outer iterable of the return type, only on the <code class="highlighter-rouge">DoFn.process</code> method and functions passed to <code class="highlighter-rouge">FlatMap</code>.</p>
 
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 
 <span class="k">class</span> <span class="nc">FilterEvensDoubleDoFn</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">*</span><span class="n">unused_args</span><span class="p">,</span>
-              <span class="o">**</span><span class="n">unused_kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
     <span class="k">if</span> <span class="n">element</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
       <span class="k">return</span> <span class="p">[</span><span class="n">element</span><span class="p">,</span> <span class="n">element</span><span class="p">]</span>
     <span class="k">return</span> <span class="bp">None</span>
@@ -582,15 +581,15 @@ It also supports Python’s typing module types, which are internally converted 
 
 <p>When your pipeline reads, writes, or otherwise materializes its data, the elements in your <code class="highlighter-rouge">PCollection</code> need to be encoded and decoded to and from byte strings. Byte strings are used for intermediate storage, for comparing keys in <code class="highlighter-rouge">GroupByKey</code> operations, and for reading from sources and writing to sinks.</p>
 
-<p>The Beam SDK for Python uses Python’s native support for serializing objects, a process called <strong>pickling</strong>, to serialize user functions. However, using the <code class="highlighter-rouge">PickleCoder</code> comes with several drawbacks: it is less efficient in time and space, and the encoding used is not deterministic, which hinders distributed partitioning, grouping, and state lookup.</p>
+<p>The Beam SDK for Python uses Python’s native support for serializing objects of unknown type, a process called <strong>pickling</strong>. However, using the <code class="highlighter-rouge">PickleCoder</code> comes with several drawbacks: it is less efficient in time and space, and the encoding used is not deterministic, which hinders distributed partitioning, grouping, and state lookup.</p>
 
 <p>To avoid these drawbacks, you can define <code class="highlighter-rouge">Coder</code> classes for encoding and decoding types in a more efficient way. You can specify a <code class="highlighter-rouge">Coder</code> to describe how the elements of a given <code class="highlighter-rouge">PCollection</code> should be encoded and decoded.</p>
 
-<p>In order to be correct and efficient, a <code class="highlighter-rouge">Coder</code> needs type information and for <code class="highlighter-rouge">PCollections</code> to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, <code class="highlighter-rouge">str</code>, <code class="highlighter-rouge">bytes</code>, and <code class="highlighter-rouge">unicode</code>.</p>
+<p>In order to be correct and efficient, a <code class="highlighter-rouge">Coder</code> needs type information and for <code class="highlighter-rouge">PCollections</code> to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types such as <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">float</code>, <code class="highlighter-rouge">str</code>, <code class="highlighter-rouge">bytes</code>, and <code class="highlighter-rouge">unicode</code>.</p>
 
 <h3 id="deterministic-coders">Deterministic Coders</h3>
 
-<p>If you don’t define a <code class="highlighter-rouge">Coder</code>, the default is <code class="highlighter-rouge">PickleCoder</code>, which is nondeterministic. In some cases, you must specify a deterministic <code class="highlighter-rouge">Coder</code> or else you will get a runtime error.</p>
+<p>If you don’t define a <code class="highlighter-rouge">Coder</code>, the default is a coder that falls back to pickling for unknown types. In some cases, you must specify a deterministic <code class="highlighter-rouge">Coder</code> or else you will get a runtime error.</p>
 
 <p>For example, suppose you have a <code class="highlighter-rouge">PCollection</code> of key-value pairs whose keys are <code class="highlighter-rouge">Player</code> objects. If you apply a <code class="highlighter-rouge">GroupByKey</code> transform to such a collection, its key objects might be serialized differently on different machines when a nondeterministic coder, such as the default pickle coder, is used. Since <code class="highlighter-rouge">GroupByKey</code> uses this serialized representation to compare keys, this may result in incorrect behavior. To ensure that the elements are always encoded and decoded in the same way, you need to define a deterministic <code class="highlighter-rouge">Coder</code> for the <code class="highlighter-rouge">Player</code> class.</p>
 
