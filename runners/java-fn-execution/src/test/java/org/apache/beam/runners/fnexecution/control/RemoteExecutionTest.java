@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -40,17 +43,26 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse.ChannelSplit;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
+import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
+import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
+import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
@@ -102,6 +114,8 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -285,16 +299,16 @@ public class RemoteExecutionTest implements Serializable {
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow(new byte[0]));
+          .accept(valueInGlobalWindow(new byte[0]));
     }
 
     for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(byteValueOf("foo", 4)),
-              WindowedValue.valueInGlobalWindow(byteValueOf("foo", 3)),
-              WindowedValue.valueInGlobalWindow(byteValueOf("foo", 3))));
+              valueInGlobalWindow(byteValueOf("foo", 4)),
+              valueInGlobalWindow(byteValueOf("foo", 3)),
+              valueInGlobalWindow(byteValueOf("foo", 3))));
     }
   }
 
@@ -349,18 +363,14 @@ public class RemoteExecutionTest implements Serializable {
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+          .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
 
     try {
       try (RemoteBundle bundle =
           processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
         Iterables.getOnlyElement(bundle.getInputReceivers().values())
-            .accept(
-                WindowedValue.valueInGlobalWindow(
-                    CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+            .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
       }
       // Fail the test if we reach this point and never threw the exception.
       fail();
@@ -371,17 +381,14 @@ public class RemoteExecutionTest implements Serializable {
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Z")));
+          .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Z")));
     }
 
     for (Collection<? super WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(KV.of("Y", "Y")),
-              WindowedValue.valueInGlobalWindow(KV.of("Z", "Z"))));
+              valueInGlobalWindow(KV.of("Y", "Y")), valueInGlobalWindow(KV.of("Z", "Z"))));
     }
   }
 
@@ -503,20 +510,20 @@ public class RemoteExecutionTest implements Serializable {
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow("X"));
+          .accept(valueInGlobalWindow("X"));
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow("Y"));
+          .accept(valueInGlobalWindow("Y"));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(KV.of("X", "A")),
-              WindowedValue.valueInGlobalWindow(KV.of("X", "B")),
-              WindowedValue.valueInGlobalWindow(KV.of("X", "C")),
-              WindowedValue.valueInGlobalWindow(KV.of("Y", "A")),
-              WindowedValue.valueInGlobalWindow(KV.of("Y", "B")),
-              WindowedValue.valueInGlobalWindow(KV.of("Y", "C"))));
+              valueInGlobalWindow(KV.of("X", "A")),
+              valueInGlobalWindow(KV.of("X", "B")),
+              valueInGlobalWindow(KV.of("X", "C")),
+              valueInGlobalWindow(KV.of("Y", "A")),
+              valueInGlobalWindow(KV.of("Y", "B")),
+              valueInGlobalWindow(KV.of("Y", "C"))));
     }
   }
 
@@ -817,13 +824,9 @@ public class RemoteExecutionTest implements Serializable {
     try (RemoteBundle bundle =
         processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+          .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(
-              WindowedValue.valueInGlobalWindow(
-                  CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+          .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
     }
   }
 
@@ -959,15 +962,15 @@ public class RemoteExecutionTest implements Serializable {
         processor.newBundle(
             outputReceivers, stateRequestHandler, BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow(KV.of("X", "Y")));
+          .accept(valueInGlobalWindow(KV.of("X", "Y")));
     }
     for (Collection<WindowedValue<?>> windowedValues : outputValues.values()) {
       assertThat(
           windowedValues,
           containsInAnyOrder(
-              WindowedValue.valueInGlobalWindow(KV.of("X", "A")),
-              WindowedValue.valueInGlobalWindow(KV.of("X", "B")),
-              WindowedValue.valueInGlobalWindow(KV.of("X", "C"))));
+              valueInGlobalWindow(KV.of("X", "A")),
+              valueInGlobalWindow(KV.of("X", "B")),
+              valueInGlobalWindow(KV.of("X", "C"))));
     }
     assertThat(
         userStateData.get(stateId),
@@ -1127,7 +1130,7 @@ public class RemoteExecutionTest implements Serializable {
             StateRequestHandler.unsupported(),
             BundleProgressHandler.ignored())) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(WindowedValue.valueInGlobalWindow(KV.of("X", "X")));
+          .accept(valueInGlobalWindow(KV.of("X", "X")));
       bundle
           .getTimerReceivers()
           .get(KV.of(eventTimerSpec.transformId(), eventTimerSpec.timerId()))
@@ -1142,7 +1145,7 @@ public class RemoteExecutionTest implements Serializable {
     assertThat(
         outputValues.get(mainOutputTransform),
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(KV.of("mainX", "")),
+            valueInGlobalWindow(KV.of("mainX", "")),
             WindowedValue.timestampedValueInGlobalWindow(
                 KV.of("event", ""), BoundedWindow.TIMESTAMP_MIN_VALUE.plus(100L)),
             WindowedValue.timestampedValueInGlobalWindow(
@@ -1246,16 +1249,227 @@ public class RemoteExecutionTest implements Serializable {
               StateRequestHandler.unsupported(),
               BundleProgressHandler.ignored())) {
         Iterables.getOnlyElement(bundle.getInputReceivers().values())
-            .accept(
-                WindowedValue.valueInGlobalWindow(
-                    CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
+            .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
       }
     }
     assertThat(
         outputValues,
         containsInAnyOrder(
-            WindowedValue.valueInGlobalWindow(KV.of("stream1X", "")),
-            WindowedValue.valueInGlobalWindow(KV.of("stream2X", ""))));
+            valueInGlobalWindow(KV.of("stream1X", "")),
+            valueInGlobalWindow(KV.of("stream2X", ""))));
+  }
+
+  /**
+   * A restriction tracker that will block making progress on {@link #WAIT_TILL_SPLIT} until a try
+   * split is invoked.
+   */
+  private static class WaitingTillSplitRestrictionTracker extends RestrictionTracker<String, Void> {
+    private static final String WAIT_TILL_SPLIT = "WaitTillSplit";
+    private static final String PRIMARY = "Primary";
+    private static final String RESIDUAL = "Residual";
+
+    private String currentRestriction;
+
+    private WaitingTillSplitRestrictionTracker(String restriction) {
+      this.currentRestriction = restriction;
+    }
+
+    @Override
+    public boolean tryClaim(Void position) {
+      return needsSplitting();
+    }
+
+    @Override
+    public String currentRestriction() {
+      return currentRestriction;
+    }
+
+    @Override
+    public SplitResult<String> trySplit(double fractionOfRemainder) {
+      if (!needsSplitting()) {
+        return null;
+      }
+      this.currentRestriction = PRIMARY;
+      return SplitResult.of(currentRestriction, RESIDUAL);
+    }
+
+    private boolean needsSplitting() {
+      return WAIT_TILL_SPLIT.equals(currentRestriction);
+    }
+
+    @Override
+    public void checkDone() throws IllegalStateException {
+      checkState(!needsSplitting(), "Expected for this restriction to have been split.");
+    }
+  }
+
+  @Test(timeout = 60000L)
+  public void testSplit() throws Exception {
+    Pipeline p = Pipeline.create();
+    p.apply("impulse", Impulse.create())
+        .apply(
+            "create",
+            ParDo.of(
+                new DoFn<byte[], String>() {
+                  @ProcessElement
+                  public void process(ProcessContext ctxt) {
+                    ctxt.output("zero");
+                    ctxt.output(WaitingTillSplitRestrictionTracker.WAIT_TILL_SPLIT);
+                    ctxt.output("two");
+                  }
+                }))
+        .apply(
+            "forceSplit",
+            ParDo.of(
+                new DoFn<String, String>() {
+                  @GetInitialRestriction
+                  public String getInitialRestriction(@Element String element) {
+                    return element;
+                  }
+
+                  @NewTracker
+                  public WaitingTillSplitRestrictionTracker newTracker(
+                      @Restriction String restriction) {
+                    return new WaitingTillSplitRestrictionTracker(restriction);
+                  }
+
+                  @ProcessElement
+                  public void process(
+                      RestrictionTracker<String, Void> tracker, ProcessContext context) {
+                    while (tracker.tryClaim(null)) {}
+                    context.output(tracker.currentRestriction());
+                  }
+                }))
+        .apply("addKeys", WithKeys.of("foo"))
+        // Use some unknown coders
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        // Force the output to be materialized
+        .apply("gbk", GroupByKey.create());
+
+    RunnerApi.Pipeline pipeline = PipelineTranslation.toProto(p);
+    // Expand any splittable DoFns within the graph to enable sizing and splitting of bundles.
+    RunnerApi.Pipeline pipelineWithSdfExpanded =
+        ProtoOverrides.updateTransform(
+            PTransformTranslation.PAR_DO_TRANSFORM_URN,
+            pipeline,
+            SplittableParDoExpander.createSizedReplacement());
+    FusedPipeline fused = GreedyPipelineFuser.fuse(pipelineWithSdfExpanded);
+
+    // Find the fused stage with the SDF ProcessSizedElementAndRestriction transform
+    Optional<ExecutableStage> optionalStage =
+        Iterables.tryFind(
+            fused.getFusedStages(),
+            (ExecutableStage stage) ->
+                Iterables.filter(
+                        stage.getTransforms(),
+                        (PTransformNode node) ->
+                            PTransformTranslation
+                                .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN
+                                .equals(node.getTransform().getSpec().getUrn()))
+                    .iterator()
+                    .hasNext());
+    checkState(
+        optionalStage.isPresent(), "Expected a stage with SDF ProcessSizedElementAndRestriction.");
+    ExecutableStage stage = optionalStage.get();
+
+    ExecutableProcessBundleDescriptor descriptor =
+        ProcessBundleDescriptors.fromExecutableStage(
+            "my_stage", stage, dataServer.getApiServiceDescriptor());
+
+    BundleProcessor processor =
+        controlClient.getProcessor(
+            descriptor.getProcessBundleDescriptor(), descriptor.getRemoteInputDestinations());
+    Map<String, ? super Coder<WindowedValue<?>>> remoteOutputCoders =
+        descriptor.getRemoteOutputCoders();
+    Map<String, Collection<? super WindowedValue<?>>> outputValues = new HashMap<>();
+    Map<String, RemoteOutputReceiver<?>> outputReceivers = new HashMap<>();
+    for (Entry<String, ? super Coder<WindowedValue<?>>> remoteOutputCoder :
+        remoteOutputCoders.entrySet()) {
+      List<? super WindowedValue<?>> outputContents =
+          Collections.synchronizedList(new ArrayList<>());
+      outputValues.put(remoteOutputCoder.getKey(), outputContents);
+      outputReceivers.put(
+          remoteOutputCoder.getKey(),
+          RemoteOutputReceiver.of(
+              (Coder) remoteOutputCoder.getValue(),
+              (FnDataReceiver<? super WindowedValue<?>>) outputContents::add));
+    }
+
+    List<ProcessBundleSplitResponse> splitResponses = new ArrayList<>();
+    List<ProcessBundleResponse> checkpointResponses = new ArrayList<>();
+    List<String> requestsFinalization = new ArrayList<>();
+
+    ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+    ScheduledFuture<Object> future;
+
+    // Execute the remote bundle.
+    try (RemoteBundle bundle =
+        processor.newBundle(
+            outputReceivers,
+            Collections.emptyMap(),
+            StateRequestHandler.unsupported(),
+            BundleProgressHandler.ignored(),
+            splitResponses::add,
+            checkpointResponses::add,
+            requestsFinalization::add)) {
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(valueInGlobalWindow(sdfSizedElementAndRestrictionForTest("zero")));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(
+              valueInGlobalWindow(
+                  sdfSizedElementAndRestrictionForTest(
+                      WaitingTillSplitRestrictionTracker.WAIT_TILL_SPLIT)));
+      Iterables.getOnlyElement(bundle.getInputReceivers().values())
+          .accept(valueInGlobalWindow(sdfSizedElementAndRestrictionForTest("two")));
+      // Keep sending splits until the bundle terminates, we specifically use 0.5 so that we will
+      // choose a split point before the end of WAIT_TILL_SPLIT regardless of where we are during
+      // processing.
+      future = (ScheduledFuture) executor.scheduleWithFixedDelay(() -> bundle.split(0.5), 0L, 100L, TimeUnit.MILLISECONDS);
+    }
+    future.cancel(false);
+    executor.shutdown();
+
+    assertTrue(requestsFinalization.isEmpty());
+    assertTrue(checkpointResponses.isEmpty());
+
+    List<WindowedValue<KV<String, String>>> expectedOutputs = new ArrayList<>();
+
+    // We only validate the last split response since it is the only one that could possibly
+    // contain the SDF split, all others will be a reduction in the ChannelSplit
+    assertFalse(splitResponses.isEmpty());
+    ProcessBundleSplitResponse splitResponse = splitResponses.get(splitResponses.size() - 1);
+    ChannelSplit channelSplit = Iterables.getOnlyElement(splitResponse.getChannelSplitsList());
+
+    // There are only a few outcomes that could happen with splitting due to timing:
+    //  * we split between element boundaries so the SDF wasn't involved in splitting, this must
+    // have happened before WAIT_TILL_SPLIT
+    //  * the SDF is blocking the bundle from completing and hence needed to be split
+    assertTrue(channelSplit.getLastPrimaryElement() <= 0L);
+    if (channelSplit.getLastPrimaryElement() + 1 != channelSplit.getFirstResidualElement()) {
+      // If the SDF was involved in splitting then we expect the new primary in the output
+      expectedOutputs.add(
+          valueInGlobalWindow(KV.of("foo", WaitingTillSplitRestrictionTracker.PRIMARY)));
+      assertEquals(1, splitResponse.getPrimaryRootsCount());
+      assertEquals(1, splitResponse.getResidualRootsCount());
+    }
+    if (channelSplit.getLastPrimaryElement() == 0) {
+      // Check that the "zero" elemenet is part of the output.
+      expectedOutputs.add(valueInGlobalWindow(KV.of("foo", "zero")));
+    }
+    assertThat(
+        Iterables.getOnlyElement(outputValues.values()),
+        containsInAnyOrder(expectedOutputs.toArray()));
+  }
+
+  /**
+   * The SDF ProcessSizedElementAndRestriction expansion expects {@code KV<KV<Element, Restriction>,
+   * Size>} where {@code Restriction} in Java SDFs is represented as {@code KV<Restriction,
+   * WatermarkEstimatorState>} and the default {@code WatermarkEstimatorState} is {@code Void} which
+   * always encodes to an empty byte array.
+   */
+  private KV<KV<String, KV<String, byte[]>>, Double> sdfSizedElementAndRestrictionForTest(
+      String element) {
+    return KV.of(KV.of(element, KV.of(element, new byte[0])), 0.0);
   }
 
   private KV<String, byte[]> byteValueOf(String key, long value) throws CoderException {
