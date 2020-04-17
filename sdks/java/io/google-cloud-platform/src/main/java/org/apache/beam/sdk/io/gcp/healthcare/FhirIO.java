@@ -38,8 +38,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -107,7 +105,7 @@ import org.slf4j.LoggerFactory;
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
  *     A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
- *     FhirIO.Write#fhirStoresImport(String, String, String, ContentStructure)} This will return a
+ *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This will return a
  *     {@link FhirIO.Write.Result} on which you can call {@link
  *     FhirIO.Write.Result#getFailedInsertsWithErr()} to retrieve a {@link PCollection} of {@link
  *     HealthcareIOError} containing the {@link HttpBody} that failed to be ingested and the
@@ -174,7 +172,7 @@ public class FhirIO {
       String fhirStore,
       String tempDir,
       String deadLetterDir,
-      @Nullable ContentStructure contentStructure) {
+      @Nullable FhirIO.Import.ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -192,7 +190,7 @@ public class FhirIO {
       ValueProvider<String> fhirStore,
       ValueProvider<String> tempDir,
       ValueProvider<String> deadLetterDir,
-      @Nullable ContentStructure contentStructure) {
+      @Nullable FhirIO.Import.ContentStructure contentStructure) {
     return new Import(fhirStore, tempDir, deadLetterDir, contentStructure);
   }
 
@@ -470,7 +468,7 @@ public class FhirIO {
      *
      * @return the content structure
      */
-    abstract Optional<ContentStructure> getContentStructure();
+    abstract Optional<FhirIO.Import.ContentStructure> getContentStructure();
 
     /**
      * Gets import gcs temp path.
@@ -512,7 +510,7 @@ public class FhirIO {
        * @param contentStructure the content structure
        * @return the content structure
        */
-      abstract Builder setContentStructure(ContentStructure contentStructure);
+      abstract Builder setContentStructure(FhirIO.Import.ContentStructure contentStructure);
 
       /**
        * Sets import gcs temp path.
@@ -556,7 +554,7 @@ public class FhirIO {
         String fhirStore,
         String gcsTempPath,
         String gcsDeadLetterPath,
-        @Nullable ContentStructure contentStructure) {
+        @Nullable FhirIO.Import.ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
           .setFhirStore(fhirStore)
           .setWriteMethod(Write.WriteMethod.IMPORT)
@@ -606,7 +604,7 @@ public class FhirIO {
                   + " https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions");
           String tempPath = getImportGcsTempPath().orElseThrow(IllegalArgumentException::new);
           String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
-          ContentStructure contentStructure =
+          FhirIO.Import.ContentStructure contentStructure =
               getContentStructure().orElseThrow(IllegalArgumentException::new);
 
           failedBundles =
@@ -924,7 +922,7 @@ public class FhirIO {
     }
 
     @Override
-    public Result expand(PCollection<HttpBody> input) {
+    public FhirIO.Write.Result expand(PCollection<HttpBody> input) {
       return Write.Result.in(
           input.getPipeline(), input.apply(ParDo.of(new ExecuteBundlesFn(fhirStore))));
     }
