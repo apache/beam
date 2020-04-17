@@ -366,11 +366,11 @@ class PortableRunner(runner.PipelineRunner):
         proto_pipeline = translations.optimize_pipeline(
             proto_pipeline,
             phases=[
-                translations.annotate_downstream_side_inputs,
                 translations.annotate_stateful_dofns_as_roots,
                 translations.fix_side_input_pcoll_coders,
                 translations.lift_combiners,
                 translations.expand_sdf,
+                translations.annotate_downstream_side_inputs,
                 translations.fix_flatten_coders,
                 # fn_api_runner_transforms.sink_flattens,
                 translations.greedily_fuse,
