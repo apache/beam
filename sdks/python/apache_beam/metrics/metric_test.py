@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import unittest
 from builtins import object
 
+import hamcrest as hc
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -35,6 +36,8 @@ from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.worker import statesampler
+from apache_beam.testing.metric_result_matchers import DistributionMatcher
+from apache_beam.testing.metric_result_matchers import MetricResultMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -144,6 +147,8 @@ class MetricsTest(unittest.TestCase):
 
       def process(self, element):
         self.user_counter_elements.inc()
+        distro = Metrics.distribution(self.__class__, 'element_dist')
+        distro.update(element)
         yield element
 
     pipeline = TestPipeline()
@@ -153,6 +158,8 @@ class MetricsTest(unittest.TestCase):
 
     res = pipeline.run()
     res.wait_until_finish()
+
+    # Verify user counter.
     metric_results = (
         res.metrics().query(
             MetricsFilter().with_name('metrics_user_counter_element')))
@@ -161,6 +168,16 @@ class MetricsTest(unittest.TestCase):
     self.assertEqual(
         outputs_counter.key.metric.name, 'metrics_user_counter_element')
     self.assertEqual(outputs_counter.committed, 4)
+
+    # Verify user distribution counter.
+    metric_results = res.metrics().query()
+    matcher = MetricResultMatcher(
+        namespace='apache_beam.metrics.metric_test.SomeDoFn',
+        name='element_dist',
+        committed=DistributionMatcher(
+            sum_value=10, count_value=4, min_value=1, max_value=4))
+    hc.assert_that(
+        metric_results['distributions'], hc.contains_inanyorder(matcher))
 
   def test_create_counter_distribution(self):
     sampler = statesampler.StateSampler('', counters.CounterFactory())
