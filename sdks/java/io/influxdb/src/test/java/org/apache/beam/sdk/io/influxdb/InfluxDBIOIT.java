@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.influxdb;
 
 import java.util.Arrays;
@@ -8,12 +25,17 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.*;
+import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -281,7 +303,7 @@ public class InfluxDBIOIT {
                 .withRetentionPolicy("test_rp")
                 .withSslEnabled(false));
     writePipeline.run().waitUntilFinish();
-    PCollection<String> valuesFortest_m =
+    PCollection<String> valuesForTestm =
         readPipeline.apply(
             "Read all points in InfluxDB For test_m metric",
             InfluxDBIO.read()
@@ -295,7 +317,7 @@ public class InfluxDBIOIT {
                 .withRetentionPolicy("test_rp")
                 .withSslInvalidHostNameAllowed(false)
                 .withSslEnabled(false));
-    PCollection<String> valuesFortest_m1 =
+    PCollection<String> valuesForTestm1 =
         readPipeline.apply(
             "Read all points in InfluxDB For test_m1 metric",
             InfluxDBIO.read()
@@ -309,9 +331,9 @@ public class InfluxDBIOIT {
                 .withRetentionPolicy("test_rp")
                 .withSslInvalidHostNameAllowed(false)
                 .withSslEnabled(false));
-    PAssert.thatSingleton(valuesFortest_m1.apply("Count All For test_m1 metric", Count.globally()))
+    PAssert.thatSingleton(valuesForTestm1.apply("Count All For test_m1 metric", Count.globally()))
         .isEqualTo((long) noOfElementsToReadAndWrite);
-    PAssert.thatSingleton(valuesFortest_m.apply("Count All For test_m metric", Count.globally()))
+    PAssert.thatSingleton(valuesForTestm.apply("Count All For test_m metric", Count.globally()))
         .isEqualTo((long) noOfElementsToReadAndWrite);
     readPipeline.run().waitUntilFinish();
   }

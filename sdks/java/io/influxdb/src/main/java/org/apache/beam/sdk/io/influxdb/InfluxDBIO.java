@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.influxdb;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
@@ -290,20 +307,23 @@ public class InfluxDBIO {
               spec.sslInvalidHostNameAllowed(),
               spec.sslEnabled())) {
         String query = spec.query();
-        if (query == null)
+        if (query == null) {
           query =
               String.format(
                   "SELECT * FROM %s.%s", spec.retentionPolicy(), String.join(",", spec.metrics()));
+        }
         QueryResult result = connection.query(new Query(query, spec.database()));
         List<Result> results = result.getResults();
         for (Result res : results) {
           for (Series series : res.getSeries()) {
             for (List<Object> data : series.getValues()) {
               String s = data.get(0).toString();
-              if (s.startsWith(noOfBlocks))
+              if (s.startsWith(noOfBlocks)) {
                 noOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
-              if (s.startsWith(sizeOfBlocks))
+              }
+              if (s.startsWith(sizeOfBlocks)) {
                 sizeOfBlocksValue.add(Long.parseLong(s.split(":", -1)[1].trim()));
+              }
             }
           }
         }
@@ -402,8 +422,12 @@ public class InfluxDBIO {
               spec.dataSourceConfiguration(),
               spec.sslInvalidHostNameAllowed(),
               spec.sslEnabled())) {
-        if (spec.database() != null) influxDB.setDatabase(spec.database());
-        if (spec.retentionPolicy() != null) influxDB.setRetentionPolicy(spec.retentionPolicy());
+        if (spec.database() != null) {
+          influxDB.setDatabase(spec.database());
+        }
+        if (spec.retentionPolicy() != null) {
+          influxDB.setRetentionPolicy(spec.retentionPolicy());
+        }
         String query = getQueryToRun(spec);
         QueryResult queryResult = influxDB.query(new Query(query, spec.database()));
         resultIterator = queryResult.getResults().iterator();
@@ -789,16 +813,17 @@ public class InfluxDBIO {
       DataSourceConfiguration configuration,
       boolean sslInvalidHostNameAllowed,
       boolean sslEnabled) {
-    if (sslInvalidHostNameAllowed && sslEnabled)
+    if (sslInvalidHostNameAllowed && sslEnabled) {
       return InfluxDBFactory.connect(
           configuration.url().get(),
           configuration.userName().get(),
           configuration.password().get(),
           getUnsafeOkHttpClient());
-    else
+    } else {
       return InfluxDBFactory.connect(
           configuration.url().get(),
           configuration.userName().get(),
           configuration.password().get());
+    }
   }
 }
