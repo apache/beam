@@ -16,6 +16,7 @@
 package graphx_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
@@ -31,6 +32,7 @@ import (
 
 func init() {
 	runtime.RegisterFunction(pickFn)
+	runtime.RegisterType(reflect.TypeOf((*splitPickFn)(nil)).Elem())
 }
 
 func pickFn(a int, small, big func(int)) {
@@ -49,13 +51,13 @@ func pickSideFn(a, side int, small, big func(int)) {
 	}
 }
 
-func addDoFn(t *testing.T, g *graph.Graph, fn interface{}, scope *graph.Scope, inputs []*graph.Node, outputCoders []*coder.Coder) {
+func addDoFn(t *testing.T, g *graph.Graph, fn interface{}, scope *graph.Scope, inputs []*graph.Node, outputCoders []*coder.Coder, rc *coder.Coder) {
 	t.Helper()
 	dofn, err := graph.NewDoFn(fn)
 	if err != nil {
 		t.Fatal(err)
 	}
-	e, err := graph.NewParDo(g, scope, dofn, inputs, nil, nil)
+	e, err := graph.NewParDo(g, scope, dofn, inputs, rc, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,11 +89,12 @@ func TestMarshal(t *testing.T) {
 		name                     string
 		makeGraph                func(t *testing.T, g *graph.Graph)
 		edges, transforms, roots int
+		requirements             []string
 	}{
 		{
 			name: "ParDo",
 			makeGraph: func(t *testing.T, g *graph.Graph) {
-				addDoFn(t, g, pickFn, g.Root(), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()})
+				addDoFn(t, g, pickFn, g.Root(), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()}, nil)
 			},
 			edges:      1,
 			transforms: 1,
@@ -99,17 +102,25 @@ func TestMarshal(t *testing.T) {
 		}, {
 			name: "ScopedParDo",
 			makeGraph: func(t *testing.T, g *graph.Graph) {
-				addDoFn(t, g, pickFn, g.NewScope(g.Root(), "sub"), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()})
+				addDoFn(t, g, pickFn, g.NewScope(g.Root(), "sub"), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()}, nil)
 			},
 			edges:      1,
 			transforms: 2,
+			roots:      1,
+		}, {
+			name: "SplittableParDo",
+			makeGraph: func(t *testing.T, g *graph.Graph) {
+				addDoFn(t, g, &splitPickFn{}, g.Root(), []*graph.Node{newIntInput(g)}, []*coder.Coder{intCoder(), intCoder()}, intCoder())
+			},
+			edges:      1,
+			transforms: 1,
 			roots:      1,
 		}, {
 			name: "SideInput",
 			makeGraph: func(t *testing.T, g *graph.Graph) {
 				in := newIntInput(g)
 				side := newIntInput(g)
-				addDoFn(t, g, pickSideFn, g.Root(), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()})
+				addDoFn(t, g, pickSideFn, g.Root(), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()}, nil)
 			},
 			edges:      1,
 			transforms: 2,
@@ -119,7 +130,7 @@ func TestMarshal(t *testing.T) {
 			makeGraph: func(t *testing.T, g *graph.Graph) {
 				in := newIntInput(g)
 				side := newIntInput(g)
-				addDoFn(t, g, pickSideFn, g.NewScope(g.Root(), "sub"), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()})
+				addDoFn(t, g, pickSideFn, g.NewScope(g.Root(), "sub"), []*graph.Node{in, side}, []*coder.Coder{intCoder(), intCoder()}, nil)
 			},
 			edges:      1,
 			transforms: 3,
@@ -161,4 +172,29 @@ func TestMarshal(t *testing.T) {
 	}
 
 	// TODO(BEAM-3301): Add SDF test once we can make SDFs.
+}
+
+// testRT's methods can all be no-ops, we just need it to implement sdf.RTracker.
+type testRT struct {
+}
+
+func (rt *testRT) TryClaim(interface{}) bool                      { return false }
+func (rt *testRT) GetError() error                                { return nil }
+func (rt *testRT) TrySplit(fraction float64) (interface{}, error) { return nil, nil }
+func (rt *testRT) GetProgress() float64                           { return 0 }
+func (rt *testRT) IsDone() bool                                   { return false }
+
+// splitPickFn is used for the SDF test, and just needs to fulfill SDF method
+// signatures.
+type splitPickFn struct {
+}
+
+func (fn *splitPickFn) CreateInitialRestriction(i int) int      { return 0 }
+func (fn *splitPickFn) SplitRestriction(i int, rest int) []int  { return []int{0} }
+func (fn *splitPickFn) RestrictionSize(i int, rest int) float64 { return 0.0 }
+func (fn *splitPickFn) CreateTracker(rest int) *testRT          { return &testRT{} }
+
+// ProcessElement calls pickFn.
+func (fn *splitPickFn) ProcessElement(rt *testRT, a int, small, big func(int)) {
+	pickFn(a, small, big)
 }
