@@ -257,10 +257,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
           // Combining over a single field, so extract just that field.
           combined =
               (combined == null)
-                  ? byFields.aggregateFieldBaseValue(
-                      inputs.get(0), combineFn, fieldAggregation.outputField)
-                  : combined.aggregateFieldBaseValue(
-                      inputs.get(0), combineFn, fieldAggregation.outputField);
+                  ? byFields.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField)
+                  : combined.aggregateField(inputs.get(0), combineFn, fieldAggregation.outputField);
         }
       }
 
@@ -283,6 +281,7 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
 
       boolean verifyRowValues =
           pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
+
       return windowedStream
           .apply(combiner)
           .apply(
@@ -342,9 +341,9 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
                   + (!ignoreValues ? kvRow.getRow(1).getFieldCount() : 0);
           List<Object> fieldValues = Lists.newArrayListWithCapacity(capacity);
 
-          fieldValues.addAll(kvRow.getRow(0).getBaseValues());
+          fieldValues.addAll(kvRow.getRow(0).getValues());
           if (!ignoreValues) {
-            fieldValues.addAll(kvRow.getRow(1).getBaseValues());
+            fieldValues.addAll(kvRow.getRow(1).getValues());
           }
 
           if (windowStartFieldIndex != -1) {
