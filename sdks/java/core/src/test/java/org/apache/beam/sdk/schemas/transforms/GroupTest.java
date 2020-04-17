@@ -38,6 +38,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.MillisInstant;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils.RowFieldMatcherIterableFieldAnyOrder;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -59,6 +61,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.TypeSafeMatcher;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -378,6 +381,32 @@ public class GroupTest implements Serializable {
             .addArrayField("field1_top", FieldType.INT64)
             .build();
     Row expectedRow = Row.withSchema(aggregateSchema).addValues(10L, 14).addArray(4L).build();
+
+    PAssert.that(aggregate).containsInAnyOrder(expectedRow);
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testSchemaAggregateFnByBaseValue() {
+    Schema inputSchema = Schema.of(Field.of("f_nanos", FieldType.logicalType(MillisInstant.of())));
+    Collection<Row> elements =
+        ImmutableList.of(
+            Row.withSchema(inputSchema).addValue(Instant.ofEpochMilli(2L)).build(),
+            Row.withSchema(inputSchema).addValue(Instant.ofEpochMilli(1L)).build(),
+            Row.withSchema(inputSchema).addValue(Instant.ofEpochMilli(3L)).build());
+
+    PCollection<Row> aggregate =
+        pipeline
+            .apply(Create.of(elements))
+            .setRowSchema(inputSchema)
+            .apply(
+                Group.<Row>globally()
+                    .aggregateFieldBaseValue("f_millis", Min.ofLongs(), "f_millis"));
+
+    Schema aggregateSchema = Schema.builder().addInt64Field("f_millis").build();
+    Row expectedRow = Row.withSchema(aggregateSchema).addValues(1L).build();
 
     PAssert.that(aggregate).containsInAnyOrder(expectedRow);
 
