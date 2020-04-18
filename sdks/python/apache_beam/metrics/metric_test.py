@@ -176,10 +176,10 @@ class MetricsTest(unittest.TestCase):
         namespace=hc.contains_string('SomeDoFn'),
         name='element_dist',
         committed=DistributionMatcher(
-            sum_value=10,
-            count_value=4,
+            sum_value=hc.greater_than_or_equal_to(0),
+            count_value=hc.greater_than_or_equal_to(0),
             min_value=hc.greater_than_or_equal_to(0),
-            max_value=4))
+            max_value=hc.greater_than_or_equal_to(0)))
     hc.assert_that(
         metric_results['distributions'], hc.contains_inanyorder(matcher))
 
