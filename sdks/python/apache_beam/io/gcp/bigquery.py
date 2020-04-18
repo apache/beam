@@ -45,8 +45,8 @@ call *one* row of the main table and *all* rows of the side table. The runner
 may use some caching techniques to share the side inputs between calls in order
 to avoid excessive reading:::
 
-  main_table = pipeline | 'VeryBig' >> beam.io.Read(beam.io.BigQuerySource()
-  side_table = pipeline | 'NotBig' >> beam.io.Read(beam.io.BigQuerySource()
+  main_table = pipeline | 'VeryBig' >> beam.io.ReadFroBigQuery(...)
+  side_table = pipeline | 'NotBig' >> beam.io.ReadFromBigQuery(...)
   results = (
       main_table
       | 'ProcessData' >> beam.Map(
@@ -58,14 +58,8 @@ as a parameter to the Map transform. AsList signals to the execution framework
 that its input should be made available whole.
 
 The main and side inputs are implemented differently. Reading a BigQuery table
-as main input entails exporting the table to a set of GCS files (currently in
-JSON format) and then processing those files. Reading the same table as a side
-input entails querying the table for all its rows. The coder argument on
-BigQuerySource controls the reading of the lines in the export files (i.e.,
-transform a JSON object into a PCollection element). The coder is not involved
-when the same table is read as a side input since there is no intermediate
-format involved. We get the table rows directly from the BigQuery service with
-a query.
+as main input entails exporting the table to a set of GCS files (in AVRO or in
+JSON format) and then processing those files.
 
 Users may provide a query to read from rather than reading all of a BigQuery
 table. If specified, the result obtained by executing the specified query will
@@ -77,6 +71,12 @@ be used as the data of the input transform.::
 When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
+
+When reading from BigQuery using `BigQuerySource`, bytes are returned as
+base64-encoded bytes. When reading via `ReadFromBigQuery`, bytes are returned
+as bytes without base64 encoding. This is due to the fact that ReadFromBigQuery
+uses Avro expors by default. To get base64-encoded bytes, you can use the flag
+`use_json_exports` to export data as JSON, and receive base64-encoded bytes.
 
 Writing Data to BigQuery
 ========================
@@ -225,8 +225,7 @@ The GEOGRAPHY data type works with Well-Known Text (See
 https://en.wikipedia.org/wiki/Well-known_text) format for reading and writing
 to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
-encoding when writing to BigQuery. When bytes are read from BigQuery they are
-returned as base64-encoded bytes.
+encoding when writing to BigQuery.
 """
 
 # pytype: skip-file
@@ -640,6 +639,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.split_result = None
     self.options = pipeline_options
     self.bigquery_job_labels = bigquery_job_labels or {}
+    self.use_json_exports = use_json_exports
 
   def display_data(self):
     export_format = 'JSON' if self.use_json_exports else 'AVRO'
@@ -697,10 +697,14 @@ class _CustomBigQuerySource(BoundedSource):
 
   def _create_source(self, path, schema):
     if not self.use_json_exports:
-      return create_avro_source(path, 0, True, use_fastavro=True)
+      return create_avro_source(path, use_fastavro=True)
     else:
       return TextSource(
-          path, 0, CompressionTypes.UNCOMPRESSED, True, self.coder(schema))
+          path,
+          min_bundle_size=0,
+          compression_type=CompressionTypes.UNCOMPRESSED,
+          strip_trailing_newlines=True,
+          coder=self.coder(schema))
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -1689,10 +1693,19 @@ class ReadFromBigQuery(PTransform):
       to BigQuery export and query jobs created by this transform. See:
       https://cloud.google.com/bigquery/docs/reference/rest/v2/\
               Job#JobConfiguration
-    use_json_exports (bool): By default, this transform reads
-      data in native Python types that come from Avro-exports of BigQuery. By
-      setting this flag to True, the transform will return the types from
-      exports to JSON files, much like the older BigQuerySource.
+    use_json_exports (bool): By default, this transform works by exporting
+      BigQuery data into Avro files, and reading those files. With this
+      parameter, the transform will instead export to JSON files. JSON files
+      are slower to read due to their larger size.
+      When using JSON exports, the BigQuery types for DATE, DATETIME, TIME, and
+      TIMESTAMP will be exported as strings. This behavior is consistent with
+      BigQuerySource.
+      When using Avro exports, these fields will be exported as native Python
+      types (datetime.date, datetime.datetime, datetime.datetime,
+      and datetime.datetime respectively). Avro exports are recommended.
+      To learn more about BigQuery types, and Time-related type
+      representations, see: https://cloud.google.com/bigquery/docs/reference/\
+              standard-sql/data-types
       To learn more about type conversions between BigQuery and Avro, see:
       https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro\
               #avro_conversions

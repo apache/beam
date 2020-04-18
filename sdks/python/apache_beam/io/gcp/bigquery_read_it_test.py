@@ -73,9 +73,7 @@ def skip(runners):
 
 def datetime_to_utc(element):
   for k, v in element.items():
-    if isinstance(v, datetime.time):
-      element[k] = str(v)
-    if isinstance(v, datetime.date):
+    if isinstance(v, (datetime.time, datetime.date)):
       element[k] = str(v)
     if isinstance(v, datetime.datetime) and v.tzinfo:
       # For datetime objects, we'll
@@ -290,11 +288,12 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
   def test_iobase_source(self):
     with beam.Pipeline(argv=self.args) as p:
       result = (
-          p | 'read' >> beam.io.ReadFromBigQuery(
+          p
+          | 'read' >> beam.io.ReadFromBigQuery(
               query=self.query,
               use_standard_sql=True,
               project=self.project,
-              bigquery_job_labels={'launcher': 'apache_beam_tests'}))
+              bigquery_job_labels={'launcher': 'apache_beam_tests'})
           | beam.Map(datetime_to_utc))
       assert_that(result, equal_to(self.get_expected_data(native=False)))
 
