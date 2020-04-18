@@ -1413,17 +1413,11 @@ public class RemoteExecutionTest implements Serializable {
             checkpointResponses::add,
             requestsFinalization::add)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(valueInGlobalWindow(sdfSizedElementAndRestrictionForTest("zero")));
-      Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(
               valueInGlobalWindow(
                   sdfSizedElementAndRestrictionForTest(
                       WaitingTillSplitRestrictionTracker.WAIT_TILL_SPLIT)));
-      Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(valueInGlobalWindow(sdfSizedElementAndRestrictionForTest("two")));
-      // Keep sending splits until the bundle terminates, we specifically use 0.5 so that we will
-      // choose a split point before the end of WAIT_TILL_SPLIT regardless of where we are during
-      // processing.
+      // Keep sending splits until the bundle terminates.
       future =
           (ScheduledFuture)
               executor.scheduleWithFixedDelay(
@@ -1435,33 +1429,22 @@ public class RemoteExecutionTest implements Serializable {
     assertTrue(requestsFinalization.isEmpty());
     assertTrue(checkpointResponses.isEmpty());
 
-    List<WindowedValue<KV<String, String>>> expectedOutputs = new ArrayList<>();
-
     // We only validate the last split response since it is the only one that could possibly
-    // contain the SDF split, all others will be a reduction in the ChannelSplit
+    // contain the SDF split, all others will be a reduction in the ChannelSplit range.
     assertFalse(splitResponses.isEmpty());
     ProcessBundleSplitResponse splitResponse = splitResponses.get(splitResponses.size() - 1);
     ChannelSplit channelSplit = Iterables.getOnlyElement(splitResponse.getChannelSplitsList());
 
-    // There are only a few outcomes that could happen with splitting due to timing:
-    //  * we split between element boundaries so the SDF wasn't involved in splitting, this must
-    // have happened before WAIT_TILL_SPLIT
-    //  * the SDF is blocking the bundle from completing and hence needed to be split
-    assertTrue(channelSplit.getLastPrimaryElement() <= 0L);
-    if (channelSplit.getLastPrimaryElement() + 1 != channelSplit.getFirstResidualElement()) {
-      // If the SDF was involved in splitting then we expect the new primary in the output
-      expectedOutputs.add(
-          valueInGlobalWindow(KV.of("foo", WaitingTillSplitRestrictionTracker.PRIMARY)));
-      assertEquals(1, splitResponse.getPrimaryRootsCount());
-      assertEquals(1, splitResponse.getResidualRootsCount());
-    }
-    if (channelSplit.getLastPrimaryElement() == 0) {
-      // Check that the "zero" elemenet is part of the output.
-      expectedOutputs.add(valueInGlobalWindow(KV.of("foo", "zero")));
-    }
+    // There is only one outcome for the final split that can happen since the SDF is blocking the
+    // bundle from completing and hence needed to be split.
+    assertEquals(-1L, channelSplit.getLastPrimaryElement());
+    assertEquals(1L, channelSplit.getFirstResidualElement());
+    assertEquals(1, splitResponse.getPrimaryRootsCount());
+    assertEquals(1, splitResponse.getResidualRootsCount());
     assertThat(
         Iterables.getOnlyElement(outputValues.values()),
-        containsInAnyOrder(expectedOutputs.toArray()));
+        containsInAnyOrder(
+            valueInGlobalWindow(KV.of("foo", WaitingTillSplitRestrictionTracker.PRIMARY))));
   }
 
   /**
