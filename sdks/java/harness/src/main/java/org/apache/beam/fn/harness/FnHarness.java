@@ -238,7 +238,7 @@ public class FnHarness {
           processBundleHandler::processBundle);
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
-          processBundleHandler::split);
+          processBundleHandler::trySplit);
       BeamFnControlClient control =
           new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 
