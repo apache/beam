@@ -16,10 +16,26 @@
 package main
 
 import (
-	"fmt"
-	task "pardo"
+	"context"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"pardo/pkg/task"
 )
 
 func main() {
-	fmt.Println(task.Sum(2, 3))
+	ctx := context.Background()
+
+	p, s := beam.NewPipelineWithRoot()
+
+	col := task.ApplyTransform(s, beam.Create(s, 1, 2, 3, 4, 5))
+
+	debug.Print(s, col)
+
+	err := beamx.Run(ctx, p)
+
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }

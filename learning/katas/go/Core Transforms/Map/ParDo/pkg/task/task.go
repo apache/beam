@@ -13,37 +13,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package task
 
-import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"pardo/pkg/task"
-	"testing"
-)
+import "github.com/apache/beam/sdks/go/pkg/beam"
 
-func TestApplyTransform(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	tests := []struct {
-		input beam.PCollection
-		want []interface{}
-	}{
-		{
-			input: beam.Create(s, -1, -2, -3, -4, -5),
-			want: []interface{}{-10, -20, -30, -40, -50},
-		},
-		{
-			input: beam.Create(s, 1, 2, 3, 4, 5),
-			want: []interface{}{10, 20, 30, 40, 50},
-		},
+func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	processFn := func(element int) int {
+		return element * 10
 	}
-	for _, tt := range tests {
-		got := task.ApplyTransform(s, tt.input)
-		passert.Equals(s, got, tt.want...)
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("ApplyTransform(\"%v\") = %v", tt.input, err)
-		}
-	}
+	return beam.ParDo(s, processFn, input)
 }
-

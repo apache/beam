@@ -21,9 +21,17 @@ type: edu
 files:
 - name: test/task_test.go
   visible: false
-- name: task.go
-  visible: true
-- name: main/main.go
+- name: cmd/main.go
   visible: true
 - name: go.mod
   visible: false
+- name: go.sum
+  visible: false
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 937
+    length: 101
+    placeholder_text: TODO
+- name: pkg/task/task_test.go
+  visible: true
