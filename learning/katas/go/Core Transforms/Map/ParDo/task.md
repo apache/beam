@@ -17,23 +17,23 @@
     under the License.
 -->
 
-This is a task description file. Its content will be displayed to a learner in the **Task Description** window.
+# ParDo
 
-It supports both Markdown and HTML.
-To toggle the format, you can rename **task.md** to **task.html**, or vice versa.
-The default task description format can be changed in **Preferences | Tools | Education**, but this will not affect any existing task description files.
+ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is similar to the “Map” 
+phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each element in the input PCollection,
+performs some processing function (your user code) on that element, and emits zero, one, or multiple elements to an 
+output PCollection.
 
-The following features are available in **task.md/task.html** which are specific to the EduTools plugin:
+**Kata:** Please write a simple ParDo that maps the input element by multiplying it by 10.
 
-- Hints can be added anywhere in the task text. Type "hint" and press Tab. <div class="hint">Text of your hint</div>
-
-- You can insert shortcuts in the task description.
-While **task.html/task.md** is open, right-click anywhere on the **Editor** tab and choose the **Insert shortcut** option from the context menu.
-For example: &shortcut:FileStructurePopup;.
-
-- Insert the &percnt;`IDE_NAME`&percnt; macro, which will be replaced by the actual IDE name.
-For example, **%IDE_NAME%**.
-
-- Insert PSI elements, by using links like `<a href="psi_element://link.to.element">element description</a>`.
-To get such a link, right-click the class or method and select **Copy Reference**. Then press &shortcut:EditorPaste; to insert the link where appropriate.
-For example, a <a href="psi_element://java.lang.String#contains">link to the "contains" method</a>.
+<div class="hint">
+  Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">
+  ParDo</a>
+  with <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
+  DoFn</a>.
+</div>
+<div class="hint">
+  Refer to the Beam Programming Guide
+  <a href="https://beam.apache.org/documentation/programming-guide/#pardo">"ParDo"</a> section for
+  more information.
+</div>
