@@ -187,9 +187,7 @@ public final class ZetaSqlUtils {
     List<Value> values = new ArrayList<>(row.getFieldCount());
 
     for (int i = 0; i < row.getFieldCount(); i++) {
-      values.add(
-          javaObjectToZetaSqlValue(
-              row.getBaseValue(i, Object.class), schema.getField(i).getType()));
+      values.add(javaObjectToZetaSqlValue(row.getValue(i), schema.getField(i).getType()));
     }
     return Value.createStructValue(createZetaSqlStructTypeFromBeamSchema(schema), values);
   }

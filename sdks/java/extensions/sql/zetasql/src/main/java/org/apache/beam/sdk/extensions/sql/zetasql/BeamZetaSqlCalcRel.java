@@ -182,7 +182,7 @@ public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
         columns.put(
             columnName(i),
             ZetaSqlUtils.javaObjectToZetaSqlValue(
-                row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
+                row.getValue(i), inputSchema.getField(i).getType()));
       }
 
       // TODO[BEAM-8630]: support parameters in expression evaluation
