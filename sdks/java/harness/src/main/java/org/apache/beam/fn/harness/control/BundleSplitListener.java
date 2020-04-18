@@ -25,21 +25,20 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 
 /**
- * Listens to splits happening to a single bundle. See <a
+ * Listens to splits happening to a single bundle application. See <a
  * href="https://s.apache.org/beam-breaking-fusion">Breaking the Fusion Barrier</a> for a discussion
  * of the design.
  */
 public interface BundleSplitListener {
   /**
-   * Signals that the current bundle should be split into the given set of primary and residual
-   * roots.
+   * Signals that the current application should be split into the given primary and residual roots.
    *
    * <p>Primary roots are the new decomposition of the bundle's work into transform applications
    * that have happened or will happen as part of this bundle (modulo future splits). Residual roots
    * are a decomposition of work that has been given away by the bundle, so the runner must delegate
    * it for someone else to execute.
    */
-  void split(List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots);
+  void split(BundleApplication primaryRoot, DelayedBundleApplication residualRoots);
 
   /** A {@link BundleSplitListener} which gathers all splits produced and stores them in memory. */
   @AutoValue
@@ -51,10 +50,9 @@ public interface BundleSplitListener {
     }
 
     @Override
-    public void split(
-        List<BundleApplication> primaryRoots, List<DelayedBundleApplication> residualRoots) {
-      getPrimaryRoots().addAll(primaryRoots);
-      getResidualRoots().addAll(residualRoots);
+    public void split(BundleApplication primaryRoot, DelayedBundleApplication residualRoot) {
+      getPrimaryRoots().add(primaryRoot);
+      getResidualRoots().add(residualRoot);
     }
 
     public void clear() {

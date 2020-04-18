@@ -177,7 +177,7 @@ public class BeamFnDataReadRunner<OutputT> {
     consumer.accept(element);
   }
 
-  public void split(
+  public void trySplit(
       ProcessBundleSplitRequest request, ProcessBundleSplitResponse.Builder response) {
     DesiredSplit desiredSplit = request.getDesiredSplitsMap().get(pTransformId);
     if (desiredSplit == null) {
