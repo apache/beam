@@ -51,20 +51,13 @@ public abstract class SplittableProcessElementInvoker<
         @Nullable WatermarkEstimatorStateT futureWatermarkEstimatorState) {
       checkArgument(continuation != null, "continuation must not be null");
       this.continuation = continuation;
-      if (continuation.shouldResume()) {
-        checkArgument(
-            residualRestriction != null,
-            "residual restriction must not be null if continuation indicate it should resume");
-      }
       this.residualRestriction = residualRestriction;
       this.futureOutputWatermark = futureOutputWatermark;
       this.futureWatermarkEstimatorState = futureWatermarkEstimatorState;
     }
 
     /**
-     * Can be {@code null} only if {@link #getContinuation} specifies the call should not resume.
-     * However, the converse is not true: this can be non-null even if {@link #getContinuation} is
-     * {@link DoFn.ProcessContinuation#stop()}.
+     * Can be {@code null} only if {@link #getContinuation} when there is no more work to resume.
      */
     @Nullable
     public RestrictionT getResidualRestriction() {
