@@ -107,27 +107,25 @@ public interface AwsOptions extends PipelineOptions {
    * The client configuration instance that should be used to configure AWS service clients. Please
    * note that the configuration deserialization allows aws http client configuration settings.
    *
-   * <p>For example, to set different timeout for aws client service :
-   * Note that all the below fields are optional, so only add those configurations that need to be set.
-   * <code>
+   * <p>For example, to set different timeout for aws client service : Note that all the below
+   * fields are optional, so only add those configurations that need to be set. <code>
    * --clientConfiguration={
-   *   "clientExecutionTimeout":"1000",
-   *   "connectionMaxIdleTime":"3000",
-   *   "connectionTimeout":"10000",
-   *   "requestTimeout":"30",
-   *   "socketTimeout":"600",
-   *   "maxConnections":"10",
-   *   "socketTimeout":"5000"
+   *   "clientExecutionTimeout":1000,
+   *   "connectionMaxIdleTime":3000,
+   *   "connectionTimeout":10000,
+   *   "requestTimeout":30,
+   *   "socketTimeout":600,
+   *   "maxConnections":10,
+   *   "socketTimeout":5000
    * }
    * </code>
    *
    * @return
    */
   @Description(
-          "The client configuration instance that should be used to configure AWS http client configuration parameters."
-                  + "Mentioned parameters are the available parameters that can be set. All above parameters are "
-                  + "optional set only those that need custom changes."
-  )
+      "The client configuration instance that should be used to configure AWS http client configuration parameters."
+          + "Mentioned parameters are the available parameters that can be set. All above parameters are "
+          + "optional set only those that need custom changes.")
   @Default.InstanceFactory(ClientConfigurationFactory.class)
   ClientConfiguration getAwsHttpClientConfiguration();
 

@@ -30,9 +30,6 @@ import com.amazonaws.auth.SystemPropertiesCredentialsProvider;
 import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
 import com.amazonaws.services.s3.model.SSECustomerKey;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
@@ -75,13 +72,16 @@ public class AwsModule extends SimpleModule {
   public static final String MAX_CONNECTIONS = "maxConnections";
   public static final String REQUEST_TIMEOUT = "requestTimeout";
   public static final String SOCKET_TIMEOUT = "socketTimeout";
+  public static final String PROXY_HOST = "proxyHost";
+  public static final String PROXY_PORT = "proxyPort";
+  public static final String PROXY_USERNAME = "proxyUsername";
+  public static final String PROXY_PASSWORD = "proxyPassword";
 
   public AwsModule() {
     super("AwsModule");
     setMixInAnnotation(AWSCredentialsProvider.class, AWSCredentialsProviderMixin.class);
     setMixInAnnotation(SSECustomerKey.class, SSECustomerKeyMixin.class);
     setMixInAnnotation(SSEAwsKeyManagementParams.class, SSEAwsKeyManagementParamsMixin.class);
-    setMixInAnnotation(ClientConfiguration.class, ClientConfigurationMixin.class);
     setMixInAnnotation(ClientConfiguration.class, AwsHttpClientConfigurationMixin.class);
   }
 
@@ -251,85 +251,91 @@ public class AwsModule extends SimpleModule {
     }
   }
 
-  @JsonAutoDetect(
-      fieldVisibility = Visibility.NONE,
-      getterVisibility = Visibility.NONE,
-      setterVisibility = Visibility.NONE)
-  interface ClientConfigurationMixin {
-    @JsonProperty
-    String getProxyHost();
-
-    @JsonProperty
-    Integer getProxyPort();
-
-    @JsonProperty
-    String getProxyUsername();
-
-    @JsonProperty
-    String getProxyPassword();
-  }
-
   /** A mixin to add Jackson annotations to {@link ClientConfiguration}. */
   @JsonSerialize(using = AwsHttpClientConfigurationSerializer.class)
   @JsonDeserialize(using = AwsHttpClientConfigurationDeserializer.class)
-  private static class AwsHttpClientConfigurationMixin{}
+  private static class AwsHttpClientConfigurationMixin {}
 
-  private static class AwsHttpClientConfigurationDeserializer extends JsonDeserializer<ClientConfiguration> {
+  private static class AwsHttpClientConfigurationDeserializer
+      extends JsonDeserializer<ClientConfiguration> {
     @Override
     public ClientConfiguration deserialize(JsonParser jsonParser, DeserializationContext context)
-            throws IOException {
-      Map<String,String> map = jsonParser.readValueAs(new TypeReference<Map<String,String>>(){});
+        throws IOException {
+      Map<String, Object> map = jsonParser.readValueAs(new TypeReference<Map<String, Object>>() {});
 
       ClientConfiguration clientConfiguration = new ClientConfiguration();
+
+      if (map.containsKey(PROXY_HOST)) {
+        clientConfiguration.setProxyHost((String) map.get(PROXY_HOST));
+      }
+      if (map.containsKey(PROXY_PORT)) {
+        clientConfiguration.setProxyPort((Integer) map.get(PROXY_PORT));
+      }
+      if (map.containsKey(PROXY_USERNAME)) {
+        clientConfiguration.setProxyUsername((String) map.get(PROXY_USERNAME));
+      }
+      if (map.containsKey(PROXY_PASSWORD)) {
+        clientConfiguration.setProxyPassword((String) map.get(PROXY_PASSWORD));
+      }
       if (map.containsKey(CLIENT_EXECUTION_TIMEOUT)) {
-        clientConfiguration.setClientExecutionTimeout(Integer.parseInt(map.get(CLIENT_EXECUTION_TIMEOUT)));
+        clientConfiguration.setClientExecutionTimeout((Integer) map.get(CLIENT_EXECUTION_TIMEOUT));
       }
       if (map.containsKey(CONNECTION_MAX_IDLE_TIME)) {
-        clientConfiguration.setConnectionMaxIdleMillis(Long.parseLong(map.get(CONNECTION_MAX_IDLE_TIME)));
+        clientConfiguration.setConnectionMaxIdleMillis(
+            ((Number) map.get(CONNECTION_MAX_IDLE_TIME)).longValue());
       }
       if (map.containsKey(CONNECTION_TIMEOUT)) {
-        clientConfiguration.setConnectionTimeout(Integer.parseInt(map.get(CONNECTION_TIMEOUT)));
+        clientConfiguration.setConnectionTimeout((Integer) map.get(CONNECTION_TIMEOUT));
       }
       if (map.containsKey(CONNECTION_TIME_TO_LIVE)) {
-        clientConfiguration.setConnectionTTL(Long.parseLong(map.get(CONNECTION_TIME_TO_LIVE)));
+        clientConfiguration.setConnectionTTL(
+            ((Number) map.get(CONNECTION_TIME_TO_LIVE)).longValue());
       }
       if (map.containsKey(MAX_CONNECTIONS)) {
-        clientConfiguration.setMaxConnections(Integer.parseInt(map.get(MAX_CONNECTIONS)));
+        clientConfiguration.setMaxConnections((Integer) map.get(MAX_CONNECTIONS));
       }
       if (map.containsKey(REQUEST_TIMEOUT)) {
-        clientConfiguration.setRequestTimeout(Integer.parseInt(map.get(REQUEST_TIMEOUT)));
+        clientConfiguration.setRequestTimeout((Integer) map.get(REQUEST_TIMEOUT));
       }
       if (map.containsKey(SOCKET_TIMEOUT)) {
-        clientConfiguration.setSocketTimeout(Integer.parseInt(map.get(SOCKET_TIMEOUT)));
+        clientConfiguration.setSocketTimeout((Integer) map.get(SOCKET_TIMEOUT));
       }
       return clientConfiguration;
     }
   }
 
-  private static class AwsHttpClientConfigurationSerializer extends JsonSerializer<ClientConfiguration> {
+  private static class AwsHttpClientConfigurationSerializer
+      extends JsonSerializer<ClientConfiguration> {
 
     @Override
-    public void serialize(ClientConfiguration clientConfiguration,
-                          JsonGenerator jsonGenerator,
-                          SerializerProvider serializer) throws IOException {
+    public void serialize(
+        ClientConfiguration clientConfiguration,
+        JsonGenerator jsonGenerator,
+        SerializerProvider serializer)
+        throws IOException {
 
       jsonGenerator.writeStartObject();
-      jsonGenerator.writeStringField(CLIENT_EXECUTION_TIMEOUT,
-              String.valueOf(clientConfiguration.getClientExecutionTimeout()));
-      jsonGenerator.writeStringField(CONNECTION_MAX_IDLE_TIME,
-              String.valueOf(clientConfiguration.getConnectionMaxIdleMillis()));
-      jsonGenerator.writeStringField(CONNECTION_TIMEOUT,
-              String.valueOf(clientConfiguration.getConnectionTimeout()));
-      jsonGenerator.writeStringField(CONNECTION_TIME_TO_LIVE,
-              String.valueOf(clientConfiguration.getConnectionTTL()));
-      jsonGenerator.writeStringField(MAX_CONNECTIONS,
-              String.valueOf(clientConfiguration.getMaxConnections()));
-      jsonGenerator.writeStringField(REQUEST_TIMEOUT,
-              String.valueOf(clientConfiguration.getRequestTimeout()));
-      jsonGenerator.writeStringField(SOCKET_TIMEOUT,
-              String.valueOf(clientConfiguration.getSocketTimeout()));
+      jsonGenerator.writeObjectField(PROXY_HOST /*string*/, clientConfiguration.getProxyHost());
+      jsonGenerator.writeObjectField(PROXY_PORT /*int*/, clientConfiguration.getProxyPort());
+      jsonGenerator.writeObjectField(
+          PROXY_USERNAME /*string*/, clientConfiguration.getProxyUsername());
+      jsonGenerator.writeObjectField(
+          PROXY_PASSWORD /*string*/, clientConfiguration.getProxyPassword());
+      jsonGenerator.writeObjectField(
+          CLIENT_EXECUTION_TIMEOUT /*int*/, clientConfiguration.getClientExecutionTimeout());
+      jsonGenerator.writeObjectField(
+          CONNECTION_MAX_IDLE_TIME /*long*/, clientConfiguration.getConnectionMaxIdleMillis());
+      jsonGenerator.writeObjectField(
+          CONNECTION_TIMEOUT /*int*/, clientConfiguration.getConnectionTimeout());
+      jsonGenerator.writeObjectField(
+          CONNECTION_TIME_TO_LIVE /*long*/, clientConfiguration.getConnectionTTL());
+      jsonGenerator.writeObjectField(
+          MAX_CONNECTIONS /*int*/, clientConfiguration.getMaxConnections());
+      jsonGenerator.writeObjectField(
+          REQUEST_TIMEOUT /*int*/, clientConfiguration.getRequestTimeout());
+      jsonGenerator.writeObjectField(
+          SOCKET_TIMEOUT /*int*/, clientConfiguration.getSocketTimeout());
       jsonGenerator.writeEndObject();
-
     }
   }
 }

@@ -123,21 +123,23 @@ public class AwsModuleTest {
   @Test
   public void testHttpClientConfigurationSerializationDeserialization() throws Exception {
 
-    AttributeMap attributeMap = AttributeMap.builder()
+    AttributeMap attributeMap =
+        AttributeMap.builder()
             .put(SdkHttpConfigurationOption.CONNECTION_TIMEOUT, Duration.parse("PT100S"))
             .put(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE, Duration.parse("PT30S"))
             .put(SdkHttpConfigurationOption.MAX_CONNECTIONS, 15)
             .build();
 
     String valueAsJson = objectMapper.writeValueAsString(attributeMap);
-    AttributeMap deserializedAttributeMap =
-            objectMapper.readValue(valueAsJson, AttributeMap.class);
+    AttributeMap deserializedAttributeMap = objectMapper.readValue(valueAsJson, AttributeMap.class);
 
-    assertEquals(Duration.parse("PT100S"),
-            deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIMEOUT));
-    assertEquals(Duration.parse("PT30S"),
-            deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE));
-    assertEquals((Integer) 15, deserializedAttributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
+    assertEquals(
+        Duration.parse("PT100S"),
+        deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIMEOUT));
+    assertEquals(
+        Duration.parse("PT30S"),
+        deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE));
+    assertEquals(
+        (Integer) 15, deserializedAttributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
   }
-
 }

@@ -96,19 +96,17 @@ public interface AwsOptions extends PipelineOptions {
       "The proxy configuration instance that should be used to configure AWS service "
           + "clients. Please note that the configuration deserialization only allows one to specify "
           + "proxy settings. For example, to specify the proxy endpoint, username and password, "
-          + "specify the following: A--proxyConfiguration={\"endpoint\":\"http://hostname:port\", \"username\":\"username\", \"password\":\"password\"}")
+          + "specify the following: --proxyConfiguration={\"endpoint\":\"http://hostname:port\", \"username\":\"username\", \"password\":\"password\"}")
   ProxyConfiguration getProxyConfiguration();
 
   void setProxyConfiguration(ProxyConfiguration value);
-
 
   /**
    * The client configuration instance that should be used to configure AWS service clients. Please
    * note that the configuration deserialization allows aws http client configuration settings.
    *
-   * <p>For example, to set different timeout for aws client service :
-   * Note that all the below fields are optional, so only add those configurations that need to be set.
-   * <code>
+   * <p>For example, to set different timeout for aws client service : Note that all the below
+   * fields are optional, so only add those configurations that need to be set. <code>
    * --attributeMap={
    *   "connectionAcquisitionTimeout":"PT1000S",
    *   "connectionMaxIdleTime":"PT3000S",
@@ -122,12 +120,10 @@ public interface AwsOptions extends PipelineOptions {
    * @return
    */
   @Description(
-          "The attribute map instance that should be used to configure AWS http client configuration parameters."
-                  + "Mentioned parameters are the available parameters that can be set. All above parameters are "
-                  + "optional set only those that need custom changes."
-  )
+      "The attribute map instance that should be used to configure AWS http client configuration parameters."
+          + "Mentioned parameters are the available parameters that can be set. All above parameters are "
+          + "optional set only those that need custom changes.")
   AttributeMap getAttributeMap();
 
   void setAttributeMap(AttributeMap attributeMap);
-
 }
