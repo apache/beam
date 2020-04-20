@@ -837,6 +837,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
   protected void fireTimerInternal(Object key, TimerData timerData) {
+    // TODO: Change method signature to (ByteBuffer key, TimerData timerdata) once DoFnOperatorTests
+    // stop using decoded key.
     if (key instanceof java.nio.ByteBuffer) {
       key = FlinkKeyUtils.decodeKey((ByteBuffer) key, keyCoder);
     }
