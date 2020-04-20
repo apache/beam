@@ -30,7 +30,7 @@ public interface HandlesSplits {
   /** Returns null if the split was unsuccessful. */
   SplitResult trySplit(double fractionOfRemainder);
 
-  /** Returns the current progress of the active element. */
+  /** Returns the current progress of the active element as a fraction between 0.0 and 1.0. */
   double getProgress();
 
   @AutoValue

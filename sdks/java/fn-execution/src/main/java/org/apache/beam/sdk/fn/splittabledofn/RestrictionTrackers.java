@@ -79,7 +79,7 @@ public class RestrictionTrackers {
   }
 
   /**
-   * A {@link RestrictionTracker} which forwards all calls to the delegate backlog reporting {@link
+   * A {@link RestrictionTracker} which forwards all calls to the delegate size reporting {@link
    * RestrictionTracker}.
    */
   @ThreadSafe
@@ -99,13 +99,35 @@ public class RestrictionTrackers {
   }
 
   /**
+   * A {@link RestrictionTracker} which forwards all calls to the delegate progress reporting {@link
+   * RestrictionTracker}.
+   */
+  @ThreadSafe
+  private static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
+      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements Sizes.HasProgress {
+
+    protected RestrictionTrackerObserverWithProgress(
+        RestrictionTracker<RestrictionT, PositionT> delegate,
+        ClaimObserver<PositionT> claimObserver) {
+      super(delegate, claimObserver);
+    }
+
+    @Override
+    public synchronized Sizes.Progress getProgress() {
+      return ((Sizes.HasProgress) delegate).getProgress();
+    }
+  }
+
+  /**
    * Returns a thread safe {@link RestrictionTracker} which reports all claim attempts to the
    * specified {@link ClaimObserver}.
    */
   public static <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> observe(
       RestrictionTracker<RestrictionT, PositionT> restrictionTracker,
       ClaimObserver<PositionT> claimObserver) {
-    if (restrictionTracker instanceof Sizes.HasSize) {
+    if (restrictionTracker instanceof Sizes.HasProgress) {
+      return new RestrictionTrackerObserverWithProgress<>(restrictionTracker, claimObserver);
+    } else if (restrictionTracker instanceof Sizes.HasSize) {
       return new RestrictionTrackerObserverWithSize<>(restrictionTracker, claimObserver);
     } else {
       return new RestrictionTrackerObserver<>(restrictionTracker, claimObserver);

@@ -1322,6 +1322,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
               () -> {
                 try {
                   doFn.waitForSplitElementToBeProcessed();
+                  // Currently processing "3" out of range [0, 5) elements.
+                  assertEquals(0.6, ((HandlesSplits) mainInput).getProgress(), 0.01);
                   return ((HandlesSplits) mainInput).trySplit(0);
                 } finally {
                   doFn.releaseWaitingProcessElementThread();
@@ -1333,6 +1335,8 @@ public class FnApiDoFnRunnerTest implements Serializable {
               KV.of(
                   KV.of("7", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                   2.0)));
+      HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
+
       // Since the SPLIT_ELEMENT is 3 we will process 0, 1, 2, 3 then be split.
       // We expect that the watermark advances to MIN + 2 since the manual watermark estimator
       // has yet to be invoked for the split element and that the primary represents [0, 4) with
@@ -1345,7 +1349,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
               timestampedValueInGlobalWindow("7:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2)),
               timestampedValueInGlobalWindow("7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3))));
 
-      HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
       BundleApplication primaryRoot = trySplitResult.getPrimaryRoot();
       DelayedBundleApplication residualRoot = trySplitResult.getResidualRoot();
       assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());

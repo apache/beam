@@ -94,9 +94,14 @@ public interface DoFnInvoker<InputT, OutputT> {
   void invokeSplitRestriction(ArgumentProvider<InputT, OutputT> arguments);
 
   /**
-   * Invoke the {@link DoFn.GetSize} method on the bound {@link DoFn}. Falls back to get the size
-   * from the {@link RestrictionTracker} if it supports {@link Sizes.HasSize}, otherwise returns
-   * 1.0.
+   * Invoke the {@link DoFn.GetSize} method on the bound {@link DoFn}. Falls back to:
+   *
+   * <ol>
+   *   <li>get the work remaining from the {@link RestrictionTracker} if it supports {@link
+   *       Sizes.HasProgress}.
+   *   <li>get the size if the {@link RestrictionTracker} supports {@link Sizes.HasSize}.
+   *   <li>returning the constant {@link 1.0}.
+   * </ol>
    */
   double invokeGetSize(ArgumentProvider<InputT, OutputT> arguments);
 

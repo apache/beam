@@ -90,7 +90,41 @@ public class RestrictionTrackersTest {
 
     @Override
     public double getSize() {
-      return 1;
+      return 3.0;
+    }
+
+    @Override
+    public boolean tryClaim(Object position) {
+      return false;
+    }
+
+    @Override
+    public Object currentRestriction() {
+      return null;
+    }
+
+    @Override
+    public SplitResult<Object> trySplit(double fractionOfRemainder) {
+      return null;
+    }
+
+    @Override
+    public void checkDone() throws IllegalStateException {}
+  }
+
+  @Test
+  public void testClaimObserversMaintainSizeInterfaces() {
+    RestrictionTracker hasSize =
+        RestrictionTrackers.observe(new RestrictionTrackerWithSize(), null);
+    assertThat(hasSize, instanceOf(Sizes.HasSize.class));
+  }
+
+  private static class RestrictionTrackerWithProgress extends RestrictionTracker<Object, Object>
+      implements Sizes.HasProgress {
+
+    @Override
+    public Sizes.Progress getProgress() {
+      return Sizes.Progress.from(2.0, 3.0);
     }
 
     @Override
@@ -115,7 +149,7 @@ public class RestrictionTrackersTest {
   @Test
   public void testClaimObserversMaintainBacklogInterfaces() {
     RestrictionTracker hasSize =
-        RestrictionTrackers.observe(new RestrictionTrackerWithSize(), null);
-    assertThat(hasSize, instanceOf(Sizes.HasSize.class));
+        RestrictionTrackers.observe(new RestrictionTrackerWithProgress(), null);
+    assertThat(hasSize, instanceOf(Sizes.HasProgress.class));
   }
 }
