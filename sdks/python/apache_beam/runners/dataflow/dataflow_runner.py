@@ -90,7 +90,6 @@ __all__ = ['DataflowRunner']
 
 _LOGGER = logging.getLogger(__name__)
 
-
 BQ_SOURCE_UW_ERROR = (
     'The Read(BigQuerySource(...)) transform is not supported with newer stack '
     'features (Fn API, Dataflow Runner V2, etc). Please use the transform '
@@ -1189,8 +1188,9 @@ class DataflowRunner(PipelineRunner):
             'BigQuery source is not currently available for use '
             'in streaming pipelines.')
       debug_options = options.view_as(DebugOptions)
-      use_fn_api = (debug_options.experiments and
-                    'beam_fn_api' in debug_options.experiments)
+      use_fn_api = (
+          debug_options.experiments and
+          'beam_fn_api' in debug_options.experiments)
       if use_fn_api:
         raise ValueError(BQ_SOURCE_UW_ERROR)
       step.add_property(PropertyNames.BIGQUERY_EXPORT_FORMAT, 'FORMAT_AVRO')
