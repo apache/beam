@@ -43,7 +43,7 @@ except ImportError:
 # pylint: enable=unused-import
 
 _LOGGER = logging.getLogger(__name__)
-_TEST_INSTANCE_ID = 'testingdb-shoaib-vd'  # 'beam-test'
+_TEST_INSTANCE_ID = 'beam-test'
 
 
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
