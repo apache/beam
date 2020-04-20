@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * <p>Service account with proper permissions is required to use these transforms.
  */
+@Experimental
 public class VideoIntelligence {
 
   /**
@@ -88,6 +90,7 @@ public class VideoIntelligence {
    * Implementation of AnnotateVideo accepting Strings as contents of input PCollection. Annotates
    * videos found on GCS based on URIs from input PCollection.
    */
+  @Experimental
   public static class AnnotateVideoFromURI extends AnnotateVideo<String> {
 
     public AnnotateVideoFromURI(
@@ -114,6 +117,7 @@ public class VideoIntelligence {
    * Implementation of AnnotateVideo accepting ByteStrings as contents of input PCollection. Videos
    * decoded from the ByteStrings are annotated.
    */
+  @Experimental
   public static class AnnotateVideoFromBytes extends AnnotateVideo<ByteString> {
 
     public AnnotateVideoFromBytes(
@@ -141,6 +145,7 @@ public class VideoIntelligence {
    * Implementation of AnnotateVideo accepting KVs as contents of input PCollection. Keys are the
    * GCS URIs, values - VideoContext objects.
    */
+  @Experimental
   public static class AnnotateVideoURIWithContext extends AnnotateVideo<KV<String, VideoContext>> {
 
     public AnnotateVideoURIWithContext(List<Feature> featureList) {
@@ -163,6 +168,7 @@ public class VideoIntelligence {
    * Implementation of AnnotateVideo accepting KVs as contents of input PCollection. Keys are the
    * ByteString encoded video contents, values - VideoContext objects.
    */
+  @Experimental
   public static class AnnotateVideoBytesWithContext
       extends AnnotateVideo<KV<ByteString, VideoContext>> {
 
