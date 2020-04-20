@@ -162,7 +162,7 @@ public class BigQueryUtilsTest {
               ISODateTimeFormat.dateHourMinuteSecondFraction()
                   .withZoneUTC()
                   .parseDateTime("2019-08-18T15:52:07.123"),
-              new DateTime(123456),
+              new DateTime(123456, ISOChronology.getInstanceUTC()),
               false,
               Base64.getDecoder().decode("ABCD1234"))
           .build();
@@ -174,7 +174,7 @@ public class BigQueryUtilsTest {
           .set("name", "test")
           .set("timestamp_variant1", "2019-08-16 13:52:07 UTC")
           .set("timestamp_variant2", "2019-08-17 14:52:07.123 UTC")
-          // we'll loose precession, but it's something BigQuery can output!
+          // we'll lose precession, but it's something BigQuery can output!
           .set("timestamp_variant3", "2019-08-18 15:52:07.123456 UTC")
           .set(
               "timestamp_variant4",
