@@ -34,19 +34,26 @@ def run(argv):
     argv = argv[1:]
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '-p', '--port', type=int, help='port on which to serve the job api')
+      '-p',
+      '--port',
+      '--job_port',
+      type=int,
+      help='port on which to serve the job api')
   parser.add_argument('--staging_dir')
   options = parser.parse_args(argv)
   job_servicer = local_job_service.LocalJobServicer(options.staging_dir)
   port = job_servicer.start_grpc_server(options.port)
+  delay = 60
   try:
     while True:
-      _LOGGER.info("Listening for jobs at %d", port)
-      time.sleep(300)
+      _LOGGER.info("Listening for jobs on port %d.", port)
+      time.sleep(delay)
+      delay *= 1.25
   finally:
     job_servicer.stop()
 
 
 if __name__ == '__main__':
   logging.basicConfig()
+  logging.getLogger().setLevel(logging.INFO)
   run(sys.argv)

@@ -434,7 +434,7 @@ class PortableRunner(runner.PipelineRunner):
         cleanup_callbacks)
     if cleanup_callbacks:
       # We wait here to ensure that we run the cleanup callbacks.
-      logging.info(
+      _LOGGER.info(
           'Waiting until the pipeline has finished because the '
           'environment "%s" has started a component necessary for the '
           'execution.',

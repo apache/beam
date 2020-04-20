@@ -204,7 +204,7 @@ class WriteRecordsToFile(beam.DoFn):
     self.schema = schema
     self.max_files_per_bundle = max_files_per_bundle
     self.max_file_size = max_file_size
-    self.file_format = file_format or bigquery_tools.FileFormat.AVRO
+    self.file_format = file_format or bigquery_tools.FileFormat.JSON
 
   def display_data(self):
     return {
@@ -276,7 +276,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
       self, schema, max_file_size=_DEFAULT_MAX_FILE_SIZE, file_format=None):
     self.schema = schema
     self.max_file_size = max_file_size
-    self.file_format = file_format or bigquery_tools.FileFormat.AVRO
+    self.file_format = file_format or bigquery_tools.FileFormat.JSON
 
   def process(self, element, file_prefix, *schema_side_inputs):
     destination = element[0]
@@ -645,7 +645,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     self.test_client = test_client
     self.schema = schema
-    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.AVRO
+    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     # If we have multiple destinations, then we will have multiple load jobs,
     # thus we will need temporary tables for atomicity.

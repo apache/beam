@@ -35,6 +35,7 @@ import java.util.concurrent.Phaser;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
@@ -47,8 +48,6 @@ import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
@@ -75,13 +74,11 @@ import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.SetMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.joda.time.Instant;
@@ -187,7 +184,8 @@ public class ProcessBundleHandler {
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addTearDownFunction,
       BundleSplitListener splitListener,
-      BundleFinalizer bundleFinalizer)
+      BundleFinalizer bundleFinalizer,
+      Collection<BeamFnDataReadRunner> channelRoots)
       throws IOException {
 
     // Recursively ensure that all consumers of the output PCollection have been created.
@@ -211,7 +209,8 @@ public class ProcessBundleHandler {
             finishFunctionRegistry,
             addTearDownFunction,
             splitListener,
-            bundleFinalizer);
+            bundleFinalizer,
+            channelRoots);
       }
     }
 
@@ -229,25 +228,29 @@ public class ProcessBundleHandler {
 
     // Skip reprocessing processed pTransforms.
     if (!processedPTransformIds.contains(pTransformId)) {
-      urnToPTransformRunnerFactoryMap
-          .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
-          .createRunnerForPTransform(
-              options,
-              queueingClient,
-              beamFnStateClient,
-              beamFnTimerClient,
-              pTransformId,
-              pTransform,
-              processBundleInstructionId,
-              processBundleDescriptor.getPcollectionsMap(),
-              processBundleDescriptor.getCodersMap(),
-              processBundleDescriptor.getWindowingStrategiesMap(),
-              pCollectionConsumerRegistry,
-              startFunctionRegistry,
-              finishFunctionRegistry,
-              addTearDownFunction,
-              splitListener,
-              bundleFinalizer);
+      Object runner =
+          urnToPTransformRunnerFactoryMap
+              .getOrDefault(pTransform.getSpec().getUrn(), defaultPTransformRunnerFactory)
+              .createRunnerForPTransform(
+                  options,
+                  queueingClient,
+                  beamFnStateClient,
+                  beamFnTimerClient,
+                  pTransformId,
+                  pTransform,
+                  processBundleInstructionId,
+                  processBundleDescriptor.getPcollectionsMap(),
+                  processBundleDescriptor.getCodersMap(),
+                  processBundleDescriptor.getWindowingStrategiesMap(),
+                  pCollectionConsumerRegistry,
+                  startFunctionRegistry,
+                  finishFunctionRegistry,
+                  addTearDownFunction,
+                  splitListener,
+                  bundleFinalizer);
+      if (runner instanceof BeamFnDataReadRunner) {
+        channelRoots.add((BeamFnDataReadRunner) runner);
+      }
       processedPTransformIds.add(pTransformId);
     }
   }
@@ -275,7 +278,6 @@ public class ProcessBundleHandler {
             });
     PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
-    Multimap<String, DelayedBundleApplication> allResiduals = bundleProcessor.getAllResiduals();
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         bundleProcessor.getpCollectionConsumerRegistry();
     MetricsContainerStepMap metricsContainerRegistry =
@@ -299,10 +301,11 @@ public class ProcessBundleHandler {
           LOG.debug("Finishing function {}", finishFunction);
           finishFunction.run();
         }
-        if (!allResiduals.isEmpty()) {
-          response.addAllResidualRoots(allResiduals.values());
-        }
       }
+
+      // Add all checkpointed residuals to the response.
+      response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
+
       // Get start bundle Execution Time Metrics.
       for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
         response.addMonitoringInfos(mi);
@@ -335,7 +338,7 @@ public class ProcessBundleHandler {
   }
 
   /** Splits an active bundle. */
-  public BeamFnApi.InstructionResponse.Builder split(BeamFnApi.InstructionRequest request) {
+  public BeamFnApi.InstructionResponse.Builder trySplit(BeamFnApi.InstructionRequest request) {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.find(request.getProcessBundleSplit().getInstructionId());
     if (bundleProcessor == null) {
@@ -344,7 +347,12 @@ public class ProcessBundleHandler {
               "Unable to find active bundle for instruction id %s.",
               request.getProcessBundleSplit().getInstructionId()));
     }
-    throw new UnsupportedOperationException("TODO: BEAM-3836, support splitting within SDK.");
+    BeamFnApi.ProcessBundleSplitResponse.Builder response =
+        BeamFnApi.ProcessBundleSplitResponse.newBuilder();
+    for (BeamFnDataReadRunner channelRoot : bundleProcessor.getChannelRoots()) {
+      channelRoot.trySplit(request.getProcessBundleSplit(), response);
+    }
+    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleSplit(response);
   }
 
   /** Shutdown the bundles, running the tearDown() functions. */
@@ -403,22 +411,7 @@ public class ProcessBundleHandler {
                 queueingClient, bundleDescriptor.getTimerApiServiceDescriptor())
             : new FailAllTimerRegistrations(processBundleRequest);
 
-    Multimap<String, DelayedBundleApplication> allResiduals = ArrayListMultimap.create();
-    Multimap<String, BundleApplication> allPrimaries = ArrayListMultimap.create();
-    BundleSplitListener splitListener =
-        (List<BundleApplication> primaries, List<DelayedBundleApplication> residuals) -> {
-          // Reset primaries and accumulate residuals.
-          Multimap<String, BundleApplication> newPrimaries = ArrayListMultimap.create();
-          for (BundleApplication primary : primaries) {
-            newPrimaries.put(primary.getTransformId(), primary);
-          }
-          allPrimaries.clear();
-          allPrimaries.putAll(newPrimaries);
-
-          for (DelayedBundleApplication residual : residuals) {
-            allResiduals.put(residual.getApplication().getTransformId(), residual);
-          }
-        };
+    BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
 
     Collection<CallbackRegistration> bundleFinalizationCallbackRegistrations = new ArrayList<>();
     BundleFinalizer bundleFinalizer =
@@ -435,7 +428,7 @@ public class ProcessBundleHandler {
             startFunctionRegistry,
             finishFunctionRegistry,
             tearDownFunctions,
-            allResiduals,
+            splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
             stateTracker,
@@ -471,7 +464,8 @@ public class ProcessBundleHandler {
           finishFunctionRegistry,
           tearDownFunctions::add,
           splitListener,
-          bundleFinalizer);
+          bundleFinalizer,
+          bundleProcessor.getChannelRoots());
     }
     return bundleProcessor;
   }
@@ -563,7 +557,7 @@ public class ProcessBundleHandler {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         List<ThrowingRunnable> tearDownFunctions,
-        Multimap<String, DelayedBundleApplication> allResiduals,
+        BundleSplitListener.InMemory splitListener,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         MetricsContainerStepMap metricsContainerRegistry,
         ExecutionStateTracker stateTracker,
@@ -574,13 +568,14 @@ public class ProcessBundleHandler {
           startFunctionRegistry,
           finishFunctionRegistry,
           tearDownFunctions,
-          allResiduals,
+          splitListener,
           pCollectionConsumerRegistry,
           metricsContainerRegistry,
           stateTracker,
           beamFnStateClient,
           queueingClient,
-          bundleFinalizationCallbackRegistrations);
+          bundleFinalizationCallbackRegistrations,
+          new ArrayList<>());
     }
 
     private String instructionId;
@@ -591,7 +586,7 @@ public class ProcessBundleHandler {
 
     abstract List<ThrowingRunnable> getTearDownFunctions();
 
-    abstract Multimap<String, DelayedBundleApplication> getAllResiduals();
+    abstract BundleSplitListener.InMemory getSplitListener();
 
     abstract PCollectionConsumerRegistry getpCollectionConsumerRegistry();
 
@@ -605,6 +600,8 @@ public class ProcessBundleHandler {
 
     abstract Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations();
 
+    abstract Collection<BeamFnDataReadRunner> getChannelRoots();
+
     String getInstructionId() {
       return this.instructionId;
     }
@@ -616,7 +613,7 @@ public class ProcessBundleHandler {
     void reset() {
       getStartFunctionRegistry().reset();
       getFinishFunctionRegistry().reset();
-      getAllResiduals().clear();
+      getSplitListener().clear();
       getpCollectionConsumerRegistry().reset();
       getMetricsContainerRegistry().reset();
       getStateTracker().reset();

@@ -34,6 +34,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors.TimerSpec;
@@ -392,7 +393,14 @@ public class SdkHarnessClient implements AutoCloseable {
                 .build();
         CompletionStage<InstructionResponse> response = fnApiControlClient.handle(request);
         response.thenAccept(
-            instructionResponse -> splitHandler.split(instructionResponse.getProcessBundleSplit()));
+            instructionResponse -> {
+              // Don't forward empty responses representing the failure to split.
+              if (ProcessBundleSplitResponse.getDefaultInstance()
+                  .equals(instructionResponse.getProcessBundleSplit())) {
+                return;
+              }
+              splitHandler.split(instructionResponse.getProcessBundleSplit());
+            });
       }
 
       /**
