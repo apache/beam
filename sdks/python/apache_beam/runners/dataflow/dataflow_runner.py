@@ -117,13 +117,15 @@ class DataflowRunner(PipelineRunner):
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CombineValuesPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import NativeReadPTransformOverride
 
-  # Thesse overrides should be applied before the proto representation of the
+  # These overrides should be applied before the proto representation of the
   # graph is created.
   _PTRANSFORM_OVERRIDES = [
-      CombineValuesPTransformOverride()
+      CombineValuesPTransformOverride(),
+      NativeReadPTransformOverride(),
   ]  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [
@@ -1137,13 +1139,6 @@ class DataflowRunner(PipelineRunner):
         PropertyNames.OUTPUT_NAME: PropertyNames.OUT
     })
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
-
-  def apply_Read(self, transform, pbegin, options):
-    if hasattr(transform.source, 'format'):
-      # Consider native Read to be a primitive for dataflow.
-      return beam.pvalue.PCollection.from_(pbegin)
-    else:
-      return self.apply_PTransform(transform, pbegin, options)
 
   def run_Read(self, transform_node, options):
     transform = transform_node.transform

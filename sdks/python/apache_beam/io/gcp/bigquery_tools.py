@@ -56,6 +56,7 @@ from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
+from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -1178,6 +1179,9 @@ class RowAsDictJsonCoder(coders.Coder):
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))
+
+  def to_type_hint(self):
+    return Any
 
 
 class JsonRowWriter(io.IOBase):
