@@ -185,7 +185,6 @@ from apache_beam.pvalue import PBegin
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import ptransform_fn
-from apache_beam.transforms import window
 from apache_beam.transforms.combiners import ToList
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import with_input_types
@@ -1010,7 +1009,8 @@ class _BatchFn(DoFn):
   def process(self, element):
     for elem in element:
       mg_info = elem.info
-      if mg_info['byte_size'] + self._size_in_bytes > self._max_batch_size_bytes \
+      if mg_info['byte_size'] + self._size_in_bytes > \
+          self._max_batch_size_bytes \
           or mg_info['cells'] + self._cells > self._max_number_cells \
           or mg_info['rows'] + self._rows > self._max_number_rows:
         # Batch is full, output the batch and resetting the count.

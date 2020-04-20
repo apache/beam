@@ -51,7 +51,7 @@ _TEST_INSTANCE_ID = 'beam-test'
 class SpannerReadTest(unittest.TestCase):
   TEST_DATABASE = None
   _database_prefix = "pybeam-read-{}"
-  _data = []
+  _data = None
   _SPANNER_CLIENT = None
   _SPANNER_INSTANCE = None
 
@@ -134,5 +134,5 @@ class SpannerReadTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(_LOGGER.INFO)
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()

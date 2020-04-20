@@ -187,5 +187,5 @@ class SpannerWriteTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(_LOGGER.INFO)
+  logging.getLogger().setLevel(logging.INFO)
   unittest.main()
