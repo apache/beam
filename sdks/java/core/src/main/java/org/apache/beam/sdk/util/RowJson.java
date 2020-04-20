@@ -67,7 +67,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 /**
  * Jackson serializer and deserializer for {@link Row Rows}.
  *
- * <p>Supports converting between JSON primitive types and:
+ * <p>Supports converting between JSON primitive types and the following schema primitive types:
  *
  * <ul>
  *   <li>{@link Schema.TypeName#BYTE}
@@ -78,11 +78,16 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *   <li>{@link Schema.TypeName#DOUBLE}
  *   <li>{@link Schema.TypeName#BOOLEAN}
  *   <li>{@link Schema.TypeName#STRING}
+ *   <li>{@link Schema.TypeName#DECIMAL}
  * </ul>
+ *
+ * <p>The composite types {@link Schema.TypeName#ROW}, {@link Schema.TypeName#ARRAY}, and
+ * {@link Schema.TypeName#ITERABLE} are also supported, as well as logical types, which are
+ * represented in JSON using the representation for their base type.
  */
 @Experimental(Kind.SCHEMAS)
 public class RowJson {
-  private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
+  private static final ImmutableSet<TypeName> SUPPORTED_PRIMITIVE_TYPES =
       ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL);
 
   /**
@@ -97,7 +102,7 @@ public class RowJson {
               "Field type%s %s not supported when converting between JSON and Rows. Supported types are: %s",
               unsupportedFields.size() > 1 ? "s" : "",
               unsupportedFields.toString(),
-              SUPPORTED_TYPES.toString()));
+              SUPPORTED_PRIMITIVE_TYPES.toString()));
     }
   }
 
@@ -147,7 +152,7 @@ public class RowJson {
       return findUnsupportedFields(fieldType.getLogicalType().getBaseType(), fieldName);
     }
 
-    if (!SUPPORTED_TYPES.contains(fieldTypeName)) {
+    if (!SUPPORTED_PRIMITIVE_TYPES.contains(fieldTypeName)) {
       return ImmutableList.of(new UnsupportedField(fieldName, fieldTypeName));
     }
 
