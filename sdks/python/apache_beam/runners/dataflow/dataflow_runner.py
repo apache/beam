@@ -110,22 +110,27 @@ class DataflowRunner(PipelineRunner):
 
   # Imported here to avoid circular dependencies.
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import CombineValuesPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
 
-  _PTRANSFORM_OVERRIDES = []  # type: List[PTransformOverride]
+  # Thesse overrides should be applied before the proto representation of the
+  # graph is created.
+  _PTRANSFORM_OVERRIDES = [
+      CombineValuesPTransformOverride()
+  ]  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [
       JrhReadPTransformOverride(),
-  ]
+  ]  # type: List[PTransformOverride]
 
   # These overrides should be applied after the proto representation of the
   # graph is created.
   _NON_PORTABLE_PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
       ReadPTransformOverride(),
-  ]
+  ]  # type: List[PTransformOverride]
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -1075,11 +1080,8 @@ class DataflowRunner(PipelineRunner):
         si_tags_and_types,
         transform_node.inputs[0].windowing)
 
-  def apply_CombineValues(self, transform, pcoll, options):
-    return pvalue.PCollection.from_(pcoll)
-
-  def run_CombineValues(self, transform_node, options):
-    transform = transform_node.transform
+  def run_CombineValuesReplacement(self, transform_node, options):
+    transform = transform_node.transform.transform
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
     step = self._add_step(
@@ -1115,7 +1117,7 @@ class DataflowRunner(PipelineRunner):
     # Note that the accumulator must not have a WindowedValue encoding, while
     # the output of this step does in fact have a WindowedValue encoding.
     accumulator_encoding = self._get_cloud_encoding(
-        transform_node.transform.fn.get_accumulator_coder())
+        transform.fn.get_accumulator_coder())
     output_encoding = self._get_encoded_output_coder(transform_node)
 
     step.encoding = output_encoding
