@@ -29,14 +29,14 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -53,16 +53,21 @@ public class ArtifactRetrievalServiceTest {
   private ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
   private Path stagingDir;
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
 
   @Before
   public void setUp() throws Exception {
     retrievalService = new ArtifactRetrievalService(TEST_BUFFER_SIZE);
-    retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(retrievalService, InProcessServerFactory.create());
-    ManagedChannel retrievalChannel =
-        InProcessChannelBuilder.forName(retrievalServer.getApiServiceDescriptor().getUrl()).build();
-    retrievalStub = ArtifactRetrievalServiceGrpc.newStub(retrievalChannel);
-    retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(retrievalChannel);
+    grpcCleanup.register(
+        InProcessServerBuilder.forName("server")
+            .directExecutor()
+            .addService(retrievalService)
+            .build()
+            .start());
+    ManagedChannel channel =
+        grpcCleanup.register(InProcessChannelBuilder.forName("server").build());
+    retrievalStub = ArtifactRetrievalServiceGrpc.newStub(channel);
+    retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
 
     stagingDir = tempFolder.newFolder("staging").toPath();
   }
@@ -122,16 +127,6 @@ public class ArtifactRetrievalServiceTest {
       assertEquals(
           artifact.getValue(),
           getArtifact(fileArtifact(Paths.get(stagingDir.toString(), artifact.getKey()))));
-    }
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    if (retrievalServer != null) {
-      retrievalServer.close();
-    }
-    if (retrievalService != null) {
-      retrievalService.close();
     }
   }
 }

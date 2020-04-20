@@ -19,27 +19,26 @@ package org.apache.beam.runners.fnexecution.artifact;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.testing.GrpcCleanupRule;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -50,14 +49,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ArtifactStagingServiceTest {
   private static final int TEST_BUFFER_SIZE = 1 << 10;
-  private GrpcFnServer<ArtifactStagingService> stagingServer;
   private ArtifactStagingService stagingService;
-  private GrpcFnServer<ArtifactRetrievalService> retrievalServer;
   private ArtifactRetrievalService retrievalService;
   private ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingStub;
   private ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
   private Path stagingDir;
   @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+  @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
 
   @Before
   public void setUp() throws Exception {
@@ -66,18 +64,20 @@ public class ArtifactStagingServiceTest {
         new ArtifactStagingService(
             ArtifactStagingService.beamFilesystemArtifactDestinationProvider(
                 stagingDir.toString()));
-    stagingServer =
-        GrpcFnServer.allocatePortAndCreateFor(stagingService, InProcessServerFactory.create());
-    ManagedChannel stagingChannel =
-        InProcessChannelBuilder.forName(stagingServer.getApiServiceDescriptor().getUrl()).build();
-    stagingStub = ArtifactStagingServiceGrpc.newStub(stagingChannel);
-
     retrievalService = new ArtifactRetrievalService(TEST_BUFFER_SIZE);
-    retrievalServer =
-        GrpcFnServer.allocatePortAndCreateFor(retrievalService, InProcessServerFactory.create());
-    ManagedChannel retrievalChannel =
-        InProcessChannelBuilder.forName(retrievalServer.getApiServiceDescriptor().getUrl()).build();
-    retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(retrievalChannel);
+
+    grpcCleanup.register(
+        InProcessServerBuilder.forName("server")
+            .directExecutor()
+            .addService(stagingService)
+            .addService(retrievalService)
+            .build()
+            .start());
+    ManagedChannel channel =
+        grpcCleanup.register(InProcessChannelBuilder.forName("server").build());
+
+    stagingStub = ArtifactStagingServiceGrpc.newStub(channel);
+    retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
   }
 
   private static class FakeArtifactRetrievalService extends ArtifactRetrievalService {
@@ -146,7 +146,7 @@ public class ArtifactStagingServiceTest {
   }
 
   @Test
-  public void testStageArtifacts() throws IOException, InterruptedException {
+  public void testStageArtifacts() throws InterruptedException, ExecutionException {
     List<String> contentsList =
         ImmutableList.of("a", "bb", Strings.repeat("xyz", TEST_BUFFER_SIZE * 3 / 4));
     stagingService.registerJob(
@@ -165,25 +165,9 @@ public class ArtifactStagingServiceTest {
   }
 
   private void checkArtifacts(
-      Collection<String> expetedContents, List<RunnerApi.ArtifactInformation> staged) {
+      Collection<String> expectedContents, List<RunnerApi.ArtifactInformation> staged) {
     assertEquals(
-        expetedContents, Lists.transform(staged, RunnerApi.ArtifactInformation::getRoleUrn));
-    assertEquals(expetedContents, Lists.transform(staged, this::getArtifact));
-  }
-
-  @After
-  public void tearDown() throws Exception {
-    if (stagingServer != null) {
-      stagingServer.close();
-    }
-    if (stagingService != null) {
-      stagingService.close();
-    }
-    if (retrievalServer != null) {
-      retrievalServer.close();
-    }
-    if (retrievalService != null) {
-      retrievalService.close();
-    }
+        expectedContents, Lists.transform(staged, RunnerApi.ArtifactInformation::getRoleUrn));
+    assertEquals(expectedContents, Lists.transform(staged, this::getArtifact));
   }
 }
