@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
@@ -58,6 +57,7 @@ public class HL7v2Message {
     }
   }
 
+  @Override
   public String toString() {
     ObjectMapper mapper = new ObjectMapper();
     try {

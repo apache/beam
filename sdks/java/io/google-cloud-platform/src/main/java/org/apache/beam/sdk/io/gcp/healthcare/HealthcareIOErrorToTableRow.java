@@ -60,7 +60,7 @@ import org.joda.time.format.ISODateTimeFormat;
 public class HealthcareIOErrorToTableRow<T>
     implements SerializableFunction<HealthcareIOError<T>, TableRow> {
 
-  public HealthcareIOErrorToTableRow(){}
+  public HealthcareIOErrorToTableRow() {}
 
   private static final DateTimeFormatter DATETIME_FORMATTER = ISODateTimeFormat.dateTime();
   public static final String TIMESTAMP_FIELD_NAME = "observed_time";
