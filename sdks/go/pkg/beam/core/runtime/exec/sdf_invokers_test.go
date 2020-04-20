@@ -38,7 +38,7 @@ func TestInvokes(t *testing.T) {
 	kvsdf := (*graph.SplittableDoFn)(dfn)
 
 	// Tests.
-	t.Run("createInitialRestrictionCallFn", func(t *testing.T) {
+	t.Run("CreateInitialRestriction Invoker (cirInvoker)", func(t *testing.T) {
 		tests := []struct {
 			name string
 			sdf  *graph.SplittableDoFn
@@ -71,7 +71,7 @@ func TestInvokes(t *testing.T) {
 		}
 	})
 
-	t.Run("invokeSplitRestriction", func(t *testing.T) {
+	t.Run("SplitRestriction Invoker (srInvoker)", func(t *testing.T) {
 		tests := []struct {
 			name string
 			sdf  *graph.SplittableDoFn
@@ -116,7 +116,7 @@ func TestInvokes(t *testing.T) {
 		}
 	})
 
-	t.Run("invokeRestrictionSize", func(t *testing.T) {
+	t.Run("RestrictionSize Invoker (rsInvoker)", func(t *testing.T) {
 		tests := []struct {
 			name string
 			sdf  *graph.SplittableDoFn
@@ -151,11 +151,17 @@ func TestInvokes(t *testing.T) {
 					t.Errorf("Invoke(%v, %v) has incorrect output: got: %v, want: %v",
 						test.elms, test.rest, got, test.want)
 				}
+				invoker.Reset()
+				for i, arg := range invoker.args {
+					if arg != nil {
+						t.Errorf("Reset() failed to empty all args. args[%v] = %v", i, arg)
+					}
+				}
 			})
 		}
 	})
 
-	t.Run("invokeCreateTracker", func(t *testing.T) {
+	t.Run("CreateTracker Invoker (ctInvoker)", func(t *testing.T) {
 		tests := []struct {
 			name string
 			sdf  *graph.SplittableDoFn
@@ -192,6 +198,12 @@ func TestInvokes(t *testing.T) {
 				if !cmp.Equal(got, test.want) {
 					t.Errorf("Invoke(%v) has incorrect output: got: %v, want: %v",
 						test.rest, got, test.want)
+				}
+				invoker.Reset()
+				for i, arg := range invoker.args {
+					if arg != nil {
+						t.Errorf("Reset() failed to empty all args. args[%v] = %v", i, arg)
+					}
 				}
 			})
 		}
@@ -242,9 +254,10 @@ func (fn *Sdf) CreateTracker(rest Restriction) *RTracker {
 	return &RTracker{rest, 1}
 }
 
-// ProcessElement is a no-op, it's only included to pass validation.
-func (fn *Sdf) ProcessElement(*RTracker, int) int {
-	return 0
+// ProcessElement emits a pair of ints. The first is the input +
+// RTracker.Rest.Val. The second is the input + RTracker.Val.
+func (fn *Sdf) ProcessElement(rt *RTracker, i int, emit func(int, int)) {
+	emit(i+rt.Rest.Val, i+rt.Val)
 }
 
 type KvSdf struct {
@@ -273,7 +286,8 @@ func (fn *KvSdf) CreateTracker(rest Restriction) *RTracker {
 	return &RTracker{rest, 2}
 }
 
-// ProcessElement is a no-op, it's only included to pass validation.
-func (fn *KvSdf) ProcessElement(*RTracker, int, int) int {
-	return 0
+// ProcessElement emits two ints. The first is the first input (key) +
+// RTracker.Rest.Val. The second is the second input (value) + RTracker.Val.
+func (fn *KvSdf) ProcessElement(rt *RTracker, i1 int, i2 int, emit func(int, int)) {
+	emit(i1+rt.Rest.Val, i2+rt.Val)
 }

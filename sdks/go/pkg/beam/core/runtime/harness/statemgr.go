@@ -193,9 +193,15 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 
 	n := copy(buf, r.buf)
 
-	if len(r.buf) == n {
+	switch {
+	case n == 0 && len(buf) != 0 && r.eof:
+		// If no data was copied, and this is the last segment anyway, return EOF now.
+		// This prevent spurious zero elements.
 		r.buf = nil
-	} else {
+		return 0, io.EOF
+	case len(r.buf) == n:
+		r.buf = nil
+	default:
 		r.buf = r.buf[n:]
 	}
 	return n, nil
@@ -283,11 +289,13 @@ func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error)
 	ctx, cancelFn := context.WithCancel(ctx)
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
 	}
 	client, err := fnpb.NewBeamFnStateClient(cc).State(ctx)
 	if err != nil {
 		cc.Close()
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
 	return makeStateChannel(ctx, cancelFn, port.URL, client), nil

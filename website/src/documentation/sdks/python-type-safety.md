@@ -55,7 +55,8 @@ The code then applies a `Filter` transform to the `numbers` collection with a ca
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_missing_apply %}
 ```
 
-When you call `p.run()`, this code generates an error because `Filter` expects a `PCollection` of integers, but is given a `PCollection` of strings instead.
+When you call `p.run()`, this code generates an error when trying to execute this transform because `Filter` expects a `PCollection` of integers, but is given a `PCollection` of strings instead.
+With type hints, this error could have been caught at pipeline construction time, before the pipeline even started running.
 
 The Beam SDK for Python includes some automatic type hinting: for example, some `PTransforms`, such as `Create` and simple `ParDo` transforms, attempt to deduce their output type given their input.
 However, Beam cannot deduce types in all cases.
@@ -91,8 +92,8 @@ The following code declares an `int` input and a `str` output type hint on the `
 ```
 
 The following code declares `int` input and output type hints on `filter_evens`, using annotations on `FilterEvensDoFn.process`.
-Since `process` returns a generator, the output type is annotated as `Iterable[int]` (`Generator[int, None, None]` would also work here).
-Beam will remove the outer iterable of the return type on the `DoFn.process` method and functions passed to `ParDo` and `FlatMap`.
+Since `process` returns a generator, the output type for a DoFn producing a `PCollection[int]` is annotated as `Iterable[int]` (`Generator[int, None, None]` would also work here).
+Beam will remove the outer iterable of the return type on the `DoFn.process` method and functions passed to `FlatMap` to deduce the element type of resulting PCollection .
 It is an error to have a non-iterable return type annotation for these functions.
 Other supported iterable types include: `Iterator`, `Generator`, `Tuple`, `List`.
 
@@ -102,7 +103,7 @@ Other supported iterable types include: `Iterator`, `Generator`, `Tuple`, `List`
 
 The following code declares `int` input and output type hints on `double_evens`, using annotations on `FilterEvensDoubleDoFn.process`.
 Since `process` returns a `list` or `None`, the output type is annotated as `Optional[List[int]]`.
-Beam will remove the outer `Optional` and (as above) the outer iterable of the return type, only on the `DoFn.process` method and functions passed to `ParDo` and `FlatMap`.
+Beam will also remove the outer `Optional` and (as above) the outer iterable of the return type, only on the `DoFn.process` method and functions passed to `FlatMap`.
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test_py3.py tag:type_hints_do_fn_annotations_optional %}
@@ -148,7 +149,7 @@ If the input to `MyTransform` is of type `str`, Beam will infer the output type 
 
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_transform %}
-``` 
+```
 
 ## Kinds of Type Hints
 
@@ -215,15 +216,15 @@ Note that because runtime type checks are done for each `PCollection` element, e
 
 When your pipeline reads, writes, or otherwise materializes its data, the elements in your `PCollection` need to be encoded and decoded to and from byte strings. Byte strings are used for intermediate storage, for comparing keys in `GroupByKey` operations, and for reading from sources and writing to sinks.
 
-The Beam SDK for Python uses Python's native support for serializing objects, a process called **pickling**, to serialize user functions. However, using the `PickleCoder` comes with several drawbacks: it is less efficient in time and space, and the encoding used is not deterministic, which hinders distributed partitioning, grouping, and state lookup.
+The Beam SDK for Python uses Python's native support for serializing objects of unknown type, a process called **pickling**. However, using the `PickleCoder` comes with several drawbacks: it is less efficient in time and space, and the encoding used is not deterministic, which hinders distributed partitioning, grouping, and state lookup.
 
 To avoid these drawbacks, you can define `Coder` classes for encoding and decoding types in a more efficient way. You can specify a `Coder` to describe how the elements of a given `PCollection` should be encoded and decoded.
 
-In order to be correct and efficient, a `Coder` needs type information and for `PCollections` to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types `int`, `float`, `str`, `bytes`, and `unicode`.
+In order to be correct and efficient, a `Coder` needs type information and for `PCollections` to be associated with a specific type. Type hints are what make this type information available. The Beam SDK for Python provides built-in coders for the standard Python types such as `int`, `float`, `str`, `bytes`, and `unicode`.
 
 ### Deterministic Coders
 
-If you don't define a `Coder`, the default is `PickleCoder`, which is nondeterministic. In some cases, you must specify a deterministic `Coder` or else you will get a runtime error.
+If you don't define a `Coder`, the default is a coder that falls back to pickling for unknown types. In some cases, you must specify a deterministic `Coder` or else you will get a runtime error.
 
 For example, suppose you have a `PCollection` of key-value pairs whose keys are `Player` objects. If you apply a `GroupByKey` transform to such a collection, its key objects might be serialized differently on different machines when a nondeterministic coder, such as the default pickle coder, is used. Since `GroupByKey` uses this serialized representation to compare keys, this may result in incorrect behavior. To ensure that the elements are always encoded and decoded in the same way, you need to define a deterministic `Coder` for the `Player` class.
 

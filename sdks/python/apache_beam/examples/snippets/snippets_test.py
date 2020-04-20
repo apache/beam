@@ -25,9 +25,11 @@ from __future__ import division
 import glob
 import gzip
 import logging
+import math
 import os
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 from builtins import map
@@ -38,6 +40,7 @@ from builtins import zip
 import mock
 
 import apache_beam as beam
+import apache_beam.transforms.combiners as combiners
 from apache_beam import WindowInto
 from apache_beam import coders
 from apache_beam import pvalue
@@ -1300,6 +1303,55 @@ class PTransformTest(unittest.TestCase):
     with TestPipeline() as p:
       lengths = p | beam.Create(["a", "ab", "abc"]) | ComputeWordLengths()
       assert_that(lengths, equal_to([1, 2, 3]))
+
+
+class SlowlyChangingSideInputsTest(unittest.TestCase):
+  """Tests for PTransform."""
+  def test_side_input_slow_update(self):
+    temp_file = tempfile.NamedTemporaryFile(delete=True)
+    src_file_pattern = temp_file.name
+    temp_file.close()
+
+    first_ts = math.floor(time.time()) - 30
+    interval = 5
+    main_input_windowing_interval = 7
+
+    # aligning timestamp to get persistent results
+    first_ts = first_ts - (
+        first_ts % (interval * main_input_windowing_interval))
+    last_ts = first_ts + 45
+
+    for i in range(-1, 10, 1):
+      count = i + 2
+      idstr = str(first_ts + interval * i)
+      with open(src_file_pattern + idstr, "w") as f:
+        for j in range(count):
+          f.write('f' + idstr + 'a' + str(j) + '\n')
+
+    sample_main_input_elements = ([first_ts - 2, # no output due to no SI
+                                   first_ts + 1,  # First window
+                                   first_ts + 8,  # Second window
+                                   first_ts + 15,  # Third window
+                                   first_ts + 22,  # Fourth window
+                                   ])
+
+    pipeline, pipeline_result = snippets.side_input_slow_update(
+      src_file_pattern, first_ts, last_ts, interval,
+      sample_main_input_elements, main_input_windowing_interval)
+
+    try:
+      with pipeline:
+        pipeline_result = (
+            pipeline_result
+            | 'AddKey' >> beam.Map(lambda v: ('key', v))
+            | combiners.Count.PerKey())
+
+        assert_that(
+            pipeline_result,
+            equal_to([('key', 3), ('key', 4), ('key', 6), ('key', 7)]))
+    finally:
+      for i in range(-1, 10, 1):
+        os.unlink(src_file_pattern + str(first_ts + interval * i))
 
 
 if __name__ == '__main__':

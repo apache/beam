@@ -55,7 +55,8 @@ vendorJava(
             [ (it): "${prefix}.${it}" ] + [ "jdbc:calcite:": "jdbc:beam-vendor-calcite:"]
         },
         exclusions: [
-                "org/slf4j/**"
+                "org/slf4j/**",
+                "**/module-info.class"
         ],
         groupId: group,
         artifactId: "beam-vendor-calcite-1_20_0",

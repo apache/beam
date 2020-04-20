@@ -74,6 +74,9 @@ rat {
     "**/apache_beam/portability/api/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
 
+    // Ignore go.sum files, which don't permit headers
+    "**/go.sum",
+
     // Ignore Go test data files
     "**/go/data/**",
 
@@ -142,6 +145,7 @@ task javaPreCommit() {
   dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
   dependsOn ":sdks:java:javadoc:allJavadoc"
   dependsOn ":runners:direct-java:needsRunnerTests"
+  dependsOn ":sdks:java:container:docker"
 }
 
 task sqlPreCommit() {

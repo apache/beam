@@ -64,7 +64,7 @@ class DeferredDataFrame(frame_base.DeferredFrame):
     if name in self._expr.proxy().columns:
       return self[name]
     else:
-      return super(DeferredDataFrame, self).__getattr__(name)
+      return object.__getattribute__(self, name)
 
   def __getitem__(self, key):
     if key in self._expr.proxy().columns:
@@ -99,6 +99,10 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   @property
   def loc(self):
     return _DeferredLoc(self)
+
+
+for meth in ('filter', ):
+  setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))
 
 
 class DeferredGroupBy(frame_base.DeferredFrame):

@@ -42,7 +42,7 @@ type fakeDataClient struct {
 
 func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
 	f.calls++
-	data := []byte{1, 2, 3, 4}
+	data := []byte{1, 2, 3, 4, 1, 2, 3, 4}
 	elemData := fnpb.Elements_Data{
 		InstructionId: "inst_ref",
 		Data:          data,

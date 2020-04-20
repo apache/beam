@@ -328,7 +328,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
     with self.assertRaises(ValueError):
       p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project', dataset='dataset', table='table')
 
   @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
@@ -337,7 +337,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
     try:
       p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project', dataset='dataset', table='table')
     except ValueError:
       self.fail('ValueError was raised unexpectedly')
@@ -345,7 +345,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_gcs_location_validation_works_properly(self):
     with self.assertRaises(ValueError) as context:
       p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project',
           dataset='dataset',
           table='table',
@@ -840,8 +840,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                   str, '%s:%s' % (self.project, output_table_2)),
               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
               additional_bq_parameters=lambda _: additional_bq_parameters,
-              method='FILE_LOADS',
-              temp_file_format=bigquery_tools.FileFormat.JSON))
+              method='FILE_LOADS'))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
@@ -1035,7 +1034,6 @@ class PubSubBigQueryIT(unittest.TestCase):
       _ = mesages | WriteToBigQuery(
           self.output_table,
           schema=self.SCHEMA,
-          temp_file_format=bigquery_tools.FileFormat.JSON,
           method=method,
           triggering_frequency=triggering_frequency)
 
