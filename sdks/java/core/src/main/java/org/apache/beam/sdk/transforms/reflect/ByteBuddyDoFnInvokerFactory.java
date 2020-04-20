@@ -62,6 +62,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -397,11 +398,15 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   public static class DefaultGetSize {
-    /** Uses {@link Sizes.HasSize} to produce the size. */
+    /** Uses {@link Sizes.HasProgress} or {@link Sizes.HasSize} to produce the size. */
     @SuppressWarnings("unused")
     public static <InputT, OutputT> double invokeGetSize(
         DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
-      if (argumentProvider.restrictionTracker() instanceof HasSize) {
+      if (argumentProvider.restrictionTracker() instanceof HasProgress) {
+        return ((HasProgress) argumentProvider.restrictionTracker())
+            .getProgress()
+            .getWorkRemaining();
+      } else if (argumentProvider.restrictionTracker() instanceof HasSize) {
         return ((HasSize) argumentProvider.restrictionTracker()).getSize();
       } else {
         return 1.0;
@@ -563,8 +568,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   private static Implementation getSizeDelegation(
       TypeDescription doFnType, @Nullable DoFnSignature.GetSizeMethod signature) {
     if (signature == null) {
-      // We must have already verified that in this case the restriction type
-      // is a subtype of HasDefaultTracker.
       return MethodDelegation.to(DefaultGetSize.class);
     } else {
       return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);

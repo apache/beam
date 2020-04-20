@@ -88,6 +88,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
@@ -833,13 +834,45 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public double getProgress() {
-      // TODO(BEAM-2939): Implement plumbing progress through for splitting.
+      synchronized (splitLock) {
+        if (currentTracker instanceof Sizes.HasProgress) {
+          Sizes.Progress progress = ((Sizes.HasProgress) currentTracker).getProgress();
+          double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
+          if (totalWork > 0) {
+            return Math.max(0.0, Math.min(1.0, progress.getWorkCompleted() / totalWork));
+          }
+        } else if (currentTracker instanceof Sizes.HasSize) {
+          double initialSize =
+              doFnInvoker.invokeGetSize(
+                  new DelegatingArgumentProvider<InputT, OutputT>(
+                      processContext, pTransform.getSpec().getUrn() + "/GetInitialSize") {
+                    @Override
+                    public Object restriction() {
+                      return currentRestriction;
+                    }
+
+                    @Override
+                    public RestrictionTracker<?, ?> restrictionTracker() {
+                      return doFnInvoker.invokeNewTracker(this);
+                    }
+                  });
+          double currentSize =
+              doFnInvoker.invokeGetSize(
+                  new DelegatingArgumentProvider<>(
+                      processContext, pTransform.getSpec().getUrn() + "/GetCurrentSize"));
+          if (initialSize > 0) {
+            return Math.max(0.0, Math.min(1.0, (initialSize - currentSize) / initialSize));
+          }
+        }
+      }
       return 0;
     }
   }
 
   private HandlesSplits.SplitResult trySplitForElementAndRestriction(
       double fractionOfRemainder, Duration resumeDelay) {
+    KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
+    WindowedSplitResult windowedSplitResult;
     synchronized (splitLock) {
       // There is nothing to split if we are between element and restriction processing calls.
       if (currentTracker == null) {
@@ -848,53 +881,53 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       // Make sure to get the output watermark before we split to ensure that the lower bound
       // applies to the residual.
-      KV<Instant, WatermarkEstimatorStateT> watermarkAndState =
-          currentWatermarkEstimator.getWatermarkAndState();
+      watermarkAndState = currentWatermarkEstimator.getWatermarkAndState();
       SplitResult<RestrictionT> result = currentTracker.trySplit(fractionOfRemainder);
       if (result == null) {
         return null;
       }
 
       // We have a successful self split, either runner initiated or via a self checkpoint.
-      WindowedSplitResult windowedSplitResult =
+      windowedSplitResult =
           convertSplitResultToWindowedSplitResult.apply(result, watermarkAndState.getValue());
-      ByteString.Output primaryBytes = ByteString.newOutput();
-      ByteString.Output residualBytes = ByteString.newOutput();
-      try {
-        Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
-        fullInputCoder.encode(windowedSplitResult.getPrimaryRoot(), primaryBytes);
-        fullInputCoder.encode(windowedSplitResult.getResidualRoot(), residualBytes);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      BundleApplication.Builder primaryApplication =
-          BundleApplication.newBuilder()
-              .setTransformId(pTransformId)
-              .setInputId(mainInputId)
-              .setElement(primaryBytes.toByteString());
-      BundleApplication.Builder residualApplication =
-          BundleApplication.newBuilder()
-              .setTransformId(pTransformId)
-              .setInputId(mainInputId)
-              .setElement(residualBytes.toByteString());
-
-      if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        for (String outputId : pTransform.getOutputsMap().keySet()) {
-          residualApplication.putOutputWatermarks(
-              outputId,
-              org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
-                  .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
-                  .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
-                  .build());
-        }
-      }
-      return HandlesSplits.SplitResult.of(
-          primaryApplication.build(),
-          DelayedBundleApplication.newBuilder()
-              .setApplication(residualApplication.build())
-              .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
-              .build());
     }
+
+    ByteString.Output primaryBytes = ByteString.newOutput();
+    ByteString.Output residualBytes = ByteString.newOutput();
+    try {
+      Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
+      fullInputCoder.encode(windowedSplitResult.getPrimaryRoot(), primaryBytes);
+      fullInputCoder.encode(windowedSplitResult.getResidualRoot(), residualBytes);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    BundleApplication.Builder primaryApplication =
+        BundleApplication.newBuilder()
+            .setTransformId(pTransformId)
+            .setInputId(mainInputId)
+            .setElement(primaryBytes.toByteString());
+    BundleApplication.Builder residualApplication =
+        BundleApplication.newBuilder()
+            .setTransformId(pTransformId)
+            .setInputId(mainInputId)
+            .setElement(residualBytes.toByteString());
+
+    if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+      for (String outputId : pTransform.getOutputsMap().keySet()) {
+        residualApplication.putOutputWatermarks(
+            outputId,
+            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
+                .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
+                .build());
+      }
+    }
+    return HandlesSplits.SplitResult.of(
+        primaryApplication.build(),
+        DelayedBundleApplication.newBuilder()
+            .setApplication(residualApplication.build())
+            .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
+            .build());
   }
 
   private <K> void processTimer(String timerId, TimeDomain timeDomain, Timer<K> timer) {
