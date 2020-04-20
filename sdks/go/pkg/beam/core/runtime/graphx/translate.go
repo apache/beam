@@ -66,6 +66,9 @@ const (
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
 
 	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
+
+	URNArtifactGoWorker  = "beam:artifact:type:go_worker_binary:v1"
+	URNArtifactStagingTo = "beam:artifact:role:staging_to:v1"
 )
 
 func goCapabilities() []string {
@@ -93,12 +96,30 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 			panic(fmt.Sprintf(
 				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
 		}
+
 		return &pipepb.Environment{
 			Urn:          urn,
 			Payload:      serializedPayload,
 			Capabilities: goCapabilities(),
+			Dependencies: []*pipepb.ArtifactInformation{
+				&pipepb.ArtifactInformation{
+					TypeUrn: URNArtifactGoWorker,
+					RoleUrn: URNArtifactStagingTo,
+					RolePayload: MarshalOrPanic(&pipepb.ArtifactStagingToRolePayload{
+						StagedName: "worker",
+					}),
+				},
+			},
 		}
 	}
+}
+
+func MarshalOrPanic(msg proto.Message) []byte {
+	res, err := proto.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
