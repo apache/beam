@@ -114,8 +114,6 @@ public class DebugCapture {
         return;
       }
 
-      JsonFactory datOtherFactory = new JacksonFactory();
-
       project = options.getProject();
       job = options.getJobId();
       host = options.getWorkerId();
