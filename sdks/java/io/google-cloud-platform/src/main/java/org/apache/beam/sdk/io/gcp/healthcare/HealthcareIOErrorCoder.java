@@ -33,7 +33,7 @@ public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>>
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
   private static final NullableCoder<Instant> INSTANT_CODER = NullableCoder.of(InstantCoder.of());
 
-  HealthcareIOErrorCoder(Coder<T> originalCoder) {
+  public HealthcareIOErrorCoder(Coder<T> originalCoder) {
     this.originalCoder = NullableCoder.of(originalCoder);
   }
 
