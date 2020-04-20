@@ -22,39 +22,33 @@ import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
 import com.google.cloud.videointelligence.v1.VideoContext;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Base class for VideoIntelligence PTransform.
- *
- * @param <T> Type of input PCollection contents.
+ * Implementation of AnnotateVideoFn accepting Strings as contents of input PCollection. Annotates
+ * videos found on GCS based on URIs from input PCollection.
  */
 @Experimental
-public abstract class AnnotateVideo<T>
-    extends PTransform<PCollection<T>, PCollection<List<VideoAnnotationResults>>> {
-  protected final PCollectionView<Map<T, VideoContext>> contextSideInput;
-  protected final List<Feature> featureList;
+class AnnotateVideoFromURIFn extends AnnotateVideoFn<String> {
 
-  protected AnnotateVideo(
-      PCollectionView<Map<T, VideoContext>> contextSideInput, List<Feature> featureList) {
-    this.contextSideInput = contextSideInput;
-    this.featureList = featureList;
+  public AnnotateVideoFromURIFn(
+      PCollectionView<Map<String, VideoContext>> contextSideInput, List<Feature> featureList) {
+    super(contextSideInput, featureList);
   }
 
-  protected AnnotateVideo(List<Feature> featureList) {
-    this.contextSideInput = null;
-    this.featureList = featureList;
-  }
-
-  /**
-   * To be implemented based on input PCollection's content type.
-   *
-   * @param input
-   * @return
-   */
+  /** ProcessElement implementation. */
   @Override
-  public abstract PCollection<List<VideoAnnotationResults>> expand(PCollection<T> input);
+  public void processElement(ProcessContext context)
+      throws ExecutionException, InterruptedException {
+    String elementURI = context.element();
+    VideoContext videoContext = null;
+    if (contextSideInput != null) {
+      videoContext = context.sideInput(contextSideInput).get(elementURI);
+    }
+    List<VideoAnnotationResults> annotationResultsList =
+        getVideoAnnotationResults(elementURI, null, videoContext);
+    context.output(annotationResultsList);
+  }
 }

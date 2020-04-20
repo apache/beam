@@ -23,9 +23,10 @@ import com.google.cloud.videointelligence.v1.VideoContext;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
@@ -46,11 +47,11 @@ public class VideoIntelligence {
    *
    * @param featureList List of features to be annotated
    * @param contextSideInput Optional side input with map of contexts to URIs
-   * @return DoFn performing the necessary operations
+   * @return PTransform performing the necessary operations
    */
-  public static AnnotateVideoFromURI annotateFromURI(
+  public static AnnotateVideoFromUri annotateFromURI(
       List<Feature> featureList, PCollectionView<Map<String, VideoContext>> contextSideInput) {
-    return new AnnotateVideoFromURI(contextSideInput, featureList);
+    return new AnnotateVideoFromUri(contextSideInput, featureList);
   }
 
   /**
@@ -58,7 +59,7 @@ public class VideoIntelligence {
    *
    * @param featureList List of features to be annotated
    * @param contextSideInput Optional side input with map of contexts to ByteStrings
-   * @return DoFn performing the necessary operations
+   * @return PTransform performing the necessary operations
    */
   public static AnnotateVideoFromBytes annotateFromBytes(
       PCollectionView<Map<ByteString, VideoContext>> contextSideInput, List<Feature> featureList) {
@@ -69,122 +70,96 @@ public class VideoIntelligence {
    * Annotates videos from key-value pairs of GCS URI and VideoContext.
    *
    * @param featureList List of features to be annotated
-   * @return DoFn performing the necessary operations
+   * @return PTransform performing the necessary operations
    */
-  public static AnnotateVideoURIWithContext annotateFromUriWithContext(List<Feature> featureList) {
-    return new AnnotateVideoURIWithContext(featureList);
+  public static AnnotateVideoFromURIWithContext annotateFromUriWithContext(
+      List<Feature> featureList) {
+    return new AnnotateVideoFromURIWithContext(featureList);
   }
 
   /**
    * Annotates videos from key-value pairs of ByteStrings and VideoContext.
    *
    * @param featureList List of features to be annotated
-   * @return DoFn performing the necessary operations
+   * @return PTransform performing the necessary operations
    */
-  public static AnnotateVideoBytesWithContext annotateFromBytesWithContext(
+  public static AnnotateVideoFromBytesWithContext annotateFromBytesWithContext(
       List<Feature> featureList) {
-    return new AnnotateVideoBytesWithContext(featureList);
+    return new AnnotateVideoFromBytesWithContext(featureList);
   }
 
   /**
-   * Implementation of AnnotateVideo accepting Strings as contents of input PCollection. Annotates
-   * videos found on GCS based on URIs from input PCollection.
+   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link String} and an optional
+   * side input with a context map.
    */
   @Experimental
-  public static class AnnotateVideoFromURI extends AnnotateVideo<String> {
+  public static class AnnotateVideoFromUri extends AnnotateVideo<String> {
 
-    public AnnotateVideoFromURI(
+    protected AnnotateVideoFromUri(
         PCollectionView<Map<String, VideoContext>> contextSideInput, List<Feature> featureList) {
       super(contextSideInput, featureList);
     }
 
-    /** ProcessElement implementation. */
     @Override
-    public void processElement(ProcessContext context)
-        throws ExecutionException, InterruptedException {
-      String elementURI = context.element();
-      VideoContext videoContext = null;
-      if (contextSideInput != null) {
-        videoContext = context.sideInput(contextSideInput).get(elementURI);
-      }
-      List<VideoAnnotationResults> annotationResultsList =
-          getVideoAnnotationResults(elementURI, null, videoContext);
-      context.output(annotationResultsList);
+    public PCollection<List<VideoAnnotationResults>> expand(PCollection<String> input) {
+      return input.apply(ParDo.of(new AnnotateVideoFromURIFn(contextSideInput, featureList)));
     }
   }
 
   /**
-   * Implementation of AnnotateVideo accepting ByteStrings as contents of input PCollection. Videos
-   * decoded from the ByteStrings are annotated.
+   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link ByteString} and an
+   * optional side input with a context map.
    */
   @Experimental
   public static class AnnotateVideoFromBytes extends AnnotateVideo<ByteString> {
 
-    public AnnotateVideoFromBytes(
+    protected AnnotateVideoFromBytes(
         PCollectionView<Map<ByteString, VideoContext>> contextSideInput,
         List<Feature> featureList) {
       super(contextSideInput, featureList);
     }
 
-    /** Implementation of ProcessElement. */
     @Override
-    public void processElement(ProcessContext context)
-        throws ExecutionException, InterruptedException {
-      ByteString element = context.element();
-      VideoContext videoContext = null;
-      if (contextSideInput != null) {
-        videoContext = context.sideInput(contextSideInput).get(element);
-      }
-      List<VideoAnnotationResults> videoAnnotationResults =
-          getVideoAnnotationResults(null, element, videoContext);
-      context.output(videoAnnotationResults);
+    public PCollection<List<VideoAnnotationResults>> expand(PCollection<ByteString> input) {
+      return input.apply(ParDo.of(new AnnotateVideoFromBytesFn(contextSideInput, featureList)));
     }
   }
 
   /**
-   * Implementation of AnnotateVideo accepting KVs as contents of input PCollection. Keys are the
-   * GCS URIs, values - VideoContext objects.
+   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link KV} of {@link String}
+   * and {@link VideoContext}.
    */
   @Experimental
-  public static class AnnotateVideoURIWithContext extends AnnotateVideo<KV<String, VideoContext>> {
+  public static class AnnotateVideoFromURIWithContext
+      extends AnnotateVideo<KV<String, VideoContext>> {
 
-    public AnnotateVideoURIWithContext(List<Feature> featureList) {
+    protected AnnotateVideoFromURIWithContext(List<Feature> featureList) {
       super(featureList);
     }
 
-    /** ProcessElement implementation. */
     @Override
-    public void processElement(ProcessContext context)
-        throws ExecutionException, InterruptedException {
-      String elementURI = context.element().getKey();
-      VideoContext videoContext = context.element().getValue();
-      List<VideoAnnotationResults> videoAnnotationResults =
-          getVideoAnnotationResults(elementURI, null, videoContext);
-      context.output(videoAnnotationResults);
+    public PCollection<List<VideoAnnotationResults>> expand(
+        PCollection<KV<String, VideoContext>> input) {
+      return input.apply(ParDo.of(new AnnotateVideoURIWithContextFn(featureList)));
     }
   }
 
   /**
-   * Implementation of AnnotateVideo accepting KVs as contents of input PCollection. Keys are the
-   * ByteString encoded video contents, values - VideoContext objects.
+   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link KV} of {@link
+   * ByteString} and {@link VideoContext}.
    */
   @Experimental
-  public static class AnnotateVideoBytesWithContext
+  public static class AnnotateVideoFromBytesWithContext
       extends AnnotateVideo<KV<ByteString, VideoContext>> {
 
-    public AnnotateVideoBytesWithContext(List<Feature> featureList) {
+    protected AnnotateVideoFromBytesWithContext(List<Feature> featureList) {
       super(featureList);
     }
 
-    /** ProcessElement implementation. */
     @Override
-    public void processElement(ProcessContext context)
-        throws ExecutionException, InterruptedException {
-      ByteString element = context.element().getKey();
-      VideoContext videoContext = context.element().getValue();
-      List<VideoAnnotationResults> videoAnnotationResults =
-          getVideoAnnotationResults(null, element, videoContext);
-      context.output(videoAnnotationResults);
+    public PCollection<List<VideoAnnotationResults>> expand(
+        PCollection<KV<ByteString, VideoContext>> input) {
+      return input.apply(ParDo.of(new AnnotateVideoBytesWithContextFn(featureList)));
     }
   }
 }

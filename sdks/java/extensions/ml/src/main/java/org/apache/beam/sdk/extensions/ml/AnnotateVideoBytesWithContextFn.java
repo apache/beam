@@ -20,41 +20,31 @@ package org.apache.beam.sdk.extensions.ml;
 import com.google.cloud.videointelligence.v1.Feature;
 import com.google.cloud.videointelligence.v1.VideoAnnotationResults;
 import com.google.cloud.videointelligence.v1.VideoContext;
+import com.google.protobuf.ByteString;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.KV;
 
 /**
- * Base class for VideoIntelligence PTransform.
- *
- * @param <T> Type of input PCollection contents.
+ * Implementation of AnnotateVideoFn accepting KVs as contents of input PCollection. Keys are the
+ * ByteString encoded video contents, values - VideoContext objects.
  */
 @Experimental
-public abstract class AnnotateVideo<T>
-    extends PTransform<PCollection<T>, PCollection<List<VideoAnnotationResults>>> {
-  protected final PCollectionView<Map<T, VideoContext>> contextSideInput;
-  protected final List<Feature> featureList;
+class AnnotateVideoBytesWithContextFn extends AnnotateVideoFn<KV<ByteString, VideoContext>> {
 
-  protected AnnotateVideo(
-      PCollectionView<Map<T, VideoContext>> contextSideInput, List<Feature> featureList) {
-    this.contextSideInput = contextSideInput;
-    this.featureList = featureList;
+  public AnnotateVideoBytesWithContextFn(List<Feature> featureList) {
+    super(featureList);
   }
 
-  protected AnnotateVideo(List<Feature> featureList) {
-    this.contextSideInput = null;
-    this.featureList = featureList;
-  }
-
-  /**
-   * To be implemented based on input PCollection's content type.
-   *
-   * @param input
-   * @return
-   */
+  /** ProcessElement implementation. */
   @Override
-  public abstract PCollection<List<VideoAnnotationResults>> expand(PCollection<T> input);
+  public void processElement(ProcessContext context)
+      throws ExecutionException, InterruptedException {
+    ByteString element = context.element().getKey();
+    VideoContext videoContext = context.element().getValue();
+    List<VideoAnnotationResults> videoAnnotationResults =
+        getVideoAnnotationResults(null, element, videoContext);
+    context.output(videoAnnotationResults);
+  }
 }
