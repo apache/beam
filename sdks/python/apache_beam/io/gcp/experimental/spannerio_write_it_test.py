@@ -43,7 +43,7 @@ except ImportError:
 # pylint: enable=unused-import
 
 _LOGGER = logging.getLogger(__name__)
-_TEST_INSTANCE_ID = 'beam-test'
+_TEST_INSTANCE_ID = 'testingdb-shoaib-vd'  # 'beam-test'
 
 
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
@@ -143,9 +143,6 @@ class SpannerWriteTest(unittest.TestCase):
         WriteMutation.update(
             'Users', ('UserId', 'Key'),
             [(_prefex + '2', _prefex + 'update-2')]),
-        WriteMutation.update(
-            'Users', ('UserId', 'Key'),
-            [(_prefex + '3', _prefex + 'update-3')]),
         WriteMutation.delete('Users', spanner.KeySet(keys=[[_prefex + '3']]))
     ]
 
@@ -173,16 +170,14 @@ class SpannerWriteTest(unittest.TestCase):
             'Users', ('UserId', 'Key'), [('INVALD_ID', 'Error-error')]),
     ]
 
-    with self.assertRaises(NotFound):
+    with self.assertRaises(Exception):
       p = beam.Pipeline(argv=self.args)
       _ = (
           p | beam.Create(mutations_update) | WriteToSpanner(
               project_id=self.project,
               instance_id=self.instance,
               database_id=self.TEST_DATABASE))
-
-      res = p.run()
-      res.wait_until_finish()
+      p.run()
 
   @classmethod
   def tearDownClass(cls):
