@@ -67,4 +67,9 @@ public class Order implements Serializable {
   public int hashCode() {
     return Objects.hash(id, customerId);
   }
+
+  @Override
+  public String toString() {
+    return "Order{" + "id=" + id + ", customerId=" + customerId + '}';
+  }
 }
