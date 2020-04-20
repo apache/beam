@@ -30,6 +30,24 @@ services:
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=<PGPasswordHere>
       - POSTGRES_DB=beam_metrics
+  influxdb:
+    image: influxdb:1.8.0
+    ports:
+      - "8086:8086"
+      - "8088:8088"
+    expose:
+      - 8086
+    container_name: influxdb
+    volumes:
+      - beam-influxdb-storage:/var/lib/influxdb
+    environment:
+      - INFLUXDB_DB=beam_test_metrics
+      - INFLUXDB_HTTP_AUTH_ENABLED=true
+      - INFLUXDB_BIND_ADDRESS=:8088
+      - INFLUXDB_USER=worker
+      - INFLUXDB_USER_PASSWORD=<UserPasswordHere>
+      - INFLUXDB_ADMIN_USER=admin
+      - INFLUXDB_ADMIN_PASSWORD=<AdminPasswordHere>
   grafana:
     image: beamgrafana
     build: ./grafana
@@ -44,11 +62,16 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=<GrafanaPasswordHere>
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Beam
-      - DB_HOST=beampostgresql
-      - DB_PORT=5432
-      - DB_DBNAME=beam_metrics
-      - DB_DBUSERNAME=admin
-      - DB_DBPWD=<PGPasswordHere>
+      - PSQL_DB_HOST=beampostgresql
+      - PSQL_DB_PORT=5432
+      - PSQL_DB_DBNAME=beam_metrics
+      - PSQL_DB_DBUSERNAME=admin
+      - PSQL_DB_DBPWD=<PGPasswordHere>
+      - INFLUX_DB_HOST=influxdb
+      - INFLUX_DB_PORT=8086
+      - INFLUX_DB_DBNAME=beam_test_metrics
+      - INFLUX_DB_USER=worker
+      - INFLUX_DB_PASSWORD=<UserPasswordHere>
   syncgithub:
     image: syncgithub
     container_name: beamsyncgithub
@@ -91,4 +114,4 @@ volumes:
   beam-grafana-libdata:
   beam-grafana-etcdata:
   beam-grafana-logdata:
-
+  beam-influxdb-storage:
