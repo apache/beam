@@ -24,6 +24,7 @@ import csv
 import json
 import os
 import shutil
+import threading
 import traceback
 import yaml
 
@@ -35,8 +36,6 @@ from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_exponential
-from threading import Thread
-
 
 LICENSE_DIR = 'java_third_party_licenses'
 LICENSE_SCRIPT_DIR = 'sdks/java/container/license_scripts/'
@@ -45,9 +44,9 @@ RETRY_NUM = 3
 THREADS = 16
 
 
-class Worker(Thread):
+class Worker(threading.Thread):
     def __init__(self, queue):
-        Thread.__init__(self)
+        threading.Thread.__init__(self)
         self.queue = queue
 
     def run(self):
@@ -81,37 +80,40 @@ def pull_from_url(file_name, url, dep, no_list):
     except URLError as e:
         traceback.print_exc()
         if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
-            print('Invalid url for {dep}: {url}. Retrying...'.format(url=url, dep=dep))
+            print('Invalid url for {dep}: {url}. Retrying...'.format(url=url,
+                                                                     dep=dep))
             raise
         else:
-            print('Invalid url for {dep}: {url} after {n} retries.'.format(url=url, dep=dep, n=RETRY_NUM))
-            no_list.append(dep)
+            print('Invalid url for {dep}: {url} after {n} retries.'.format(
+                url=url, dep=dep, n=RETRY_NUM))
+            with thread_lock:
+                no_list.append(dep)
             return
     except HTTPError as e:
         traceback.print_exc()
         if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
-            print('Received {code} from {url} for {dep}. Retrying...'.format(code=e.code,
-                                                                url=url,
-                                                                dep=dep))
+            print('Received {code} from {url} for {dep}. Retrying...'.format(
+                code=e.code, url=url, dep=dep))
             raise
         else:
-            print('Received {code} from {url} for {dep} after {n} retries.'.format(code=e.code,
-                                                                url=url,
-                                                                dep=dep,
-                                                                n=RETRY_NUM                   ))
-            no_list.append(dep)
+            print('Received {code} from {url} for {dep} after {n} retries.'.
+                  format(code=e.code, url=url, dep=dep, n=RETRY_NUM))
+            with thread_lock:
+                no_list.append(dep)
             return
     except Exception as e:
-
         traceback.print_exc()
         if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
-            print('Error occurred when pull {file_name} from {url} for {dep}. Retrying...'.
-                  format(url=url, file_name=file_name, dep=dep))
+            print(
+                'Error occurred when pull {file_name} from {url} for {dep}. Retrying...'
+                .format(url=url, file_name=file_name, dep=dep))
             raise
         else:
-            print('Error occurred when pull {file_name} from {url} for {dep} after {n} retries.'.
-                  format(url=url, file_name=file_name, dep=dep, n=RETRY_NUM))
-            no_list.append(dep)
+            print(
+                'Error occurred when pull {file_name} from {url} for {dep} after {n} retries.'
+                .format(url=url, file_name=file_name, dep=dep, n=RETRY_NUM))
+            with thread_lock:
+                no_list.append(dep)
             return
 
 
@@ -176,7 +178,8 @@ def execute(dep):
                 license_url = dep['moduleLicenseUrl']
             except:
                 # url cannot be found, add to no_licenses and skip to pull.
-                no_licenses.append(name_version)
+                with thread_lock:
+                    no_licenses.append(name_version)
                 license_url = 'skip'
         pull_from_url(dir_name + '/LICENSE', license_url, name_version,
                       no_licenses)
@@ -202,7 +205,8 @@ def execute(dep):
             license_type = dep_config[name][version]['type']
         except:
             license_type = 'no_license_type'
-            no_license_type.append(name_version)
+            with thread_lock:
+                no_license_type.append(name_version)
 
     # pull source code if license_type is one of SOURCE_CODE_REQUIRED_LICENSES.
     if any(x in license_type.lower() for x in SOURCE_CODE_REQUIRED_LICENSES):
@@ -223,7 +227,8 @@ def execute(dep):
         'license_type': license_type,
         'source_included': source_included
     }
-    csv_list.append(csv_dict)
+    with thread_lock:
+        csv_list.append(csv_dict)
 
 
 if __name__ == "__main__":
@@ -249,6 +254,7 @@ if __name__ == "__main__":
     no_license_type = []
     incorrect_source_url = []
 
+    thread_lock = threading.Lock()
     queue = Queue()
     for x in range(THREADS):
         worker = Worker(queue)

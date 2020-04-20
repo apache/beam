@@ -26,11 +26,14 @@ pip install tenacity==5.0.4
 
 # pull licenses, notices and source code
 if [ "$1" = 'true' ]; then
+  echo "Executing python sdks/java/container/license_scripts/pull_licenses_java.py --pull_licenses"
   python sdks/java/container/license_scripts/pull_licenses_java.py --pull_licenses
 else
+  echo "Executing python sdks/java/container/license_scripts/pull_licenses_java.py"
   python sdks/java/container/license_scripts/pull_licenses_java.py
 fi
 
+echo "Uninstall python packages used by pull_licenses_java.py."
 pip uninstall -y beautifulsoup4
 pip uninstall -y future
 pip uninstall -y PyYAML
@@ -38,10 +41,13 @@ pip uninstall -y tenacity
 
 mkdir sdks/java/container/third_party_licenses
 if [ "$1" = 'true' ]; then
+  echo "Copy licenses to sdks/java/container/third_party_licenses/."
   cp -r java_third_party_licenses/*.jar sdks/java/container/third_party_licenses/
   cp -r java_third_party_licenses/*.csv sdks/java/container/third_party_licenses/
 else
-  # create an empty file to aviod no file/dir existing error
+  # create an empty file to avoid no file/dir existing error
+  echo "Create empty file."
   touch sdks/java/container/third_party_licenses/empty
 fi
 rm -rf java_third_party_licenses
+echo "Finished license_scripts.sh"
