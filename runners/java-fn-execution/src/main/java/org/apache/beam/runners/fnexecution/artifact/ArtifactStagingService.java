@@ -32,17 +32,19 @@ import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.sdk.fn.IdGenerator;
+import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -52,6 +54,7 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -144,10 +147,10 @@ public class ArtifactStagingService
    * @param root the directory in which to place all artifacts
    */
   public static ArtifactDestinationProvider beamFilesystemArtifactDestinationProvider(String root) {
-    return (statingToken, name) -> {
+    return (stagingToken, name) -> {
       ResourceId path =
           FileSystems.matchNewResource(root, true)
-              .resolve(statingToken, ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+              .resolve(stagingToken, ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
               .resolve(name, ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
       return ArtifactDestination.fromFile(path.toString());
     };
@@ -228,7 +231,7 @@ public class ArtifactStagingService
         ByteString chunk = bytesQueue.take();
         while (chunk.size() > 0) {
           totalPendingBytes.release(chunk.size());
-          dest.getOutputStream().write(chunk.toByteArray());
+          chunk.writeTo(dest.getOutputStream());
           chunk = bytesQueue.take();
         }
         dest.getOutputStream().close();
@@ -263,6 +266,8 @@ public class ArtifactStagingService
       /** The maximum number of bytes to buffer across all writes before throttling. */
       public static final int MAX_PENDING_BYTES = 100 << 20; // 100 MB
 
+      IdGenerator idGenerator = IdGenerators.incrementingLongs();
+
       String stagingToken;
       Map<String, List<RunnerApi.ArtifactInformation>> toResolve;
       Map<String, List<Future<RunnerApi.ArtifactInformation>>> stagedFutures;
@@ -272,12 +277,13 @@ public class ArtifactStagingService
       State state = State.START;
       Queue<String> pendingResolves;
       String currentEnvironment;
-      int nameIndex;
       Queue<RunnerApi.ArtifactInformation> pendingGets;
       BlockingQueue<ByteString> currentOutput;
 
       @Override
       @SuppressFBWarnings(value = "SF_SWITCH_FALLTHROUGH", justification = "fallthrough intended")
+      // May be called by different threads for the same request; synchronized for memory
+      // synchronization.
       public synchronized void onNext(ArtifactApi.ArtifactResponseWrapper responseWrapper) {
         switch (state) {
           case START:
@@ -303,7 +309,7 @@ public class ArtifactStagingService
                 if (fetched.isPresent()) {
                   stagedFutures
                       .get(currentEnvironment)
-                      .add(new FutureTask<RunnerApi.ArtifactInformation>(() -> fetched.get()));
+                      .add(CompletableFuture.completedFuture(fetched.get()));
                 } else {
                   pendingGets.add(artifact);
                   responseObserver.onNext(
@@ -328,7 +334,7 @@ public class ArtifactStagingService
 
           case GET:
             RunnerApi.ArtifactInformation currentArtifact = pendingGets.remove();
-            String name = createFilename(nameIndex++, currentEnvironment, currentArtifact);
+            String name = createFilename(currentEnvironment, currentArtifact);
             try {
               LOG.debug("Storing artifacts for {} as {}", stagingToken, name);
               currentOutput = new ArrayBlockingQueue<ByteString>(100);
@@ -352,7 +358,7 @@ public class ArtifactStagingService
           case GETCHUNK:
             try {
               ByteString chunk = responseWrapper.getGetArtifactResponse().getData();
-              if (chunk.size() > 0) {
+              if (chunk.size() > 0) { // Make sure we don't accidentally send the EOF value.
                 totalPendingBytes.aquire(chunk.size());
                 currentOutput.put(chunk);
               }
@@ -436,8 +442,7 @@ public class ArtifactStagingService
        * @param environment the environment id
        * @param artifact the artifact itself
        */
-      private String createFilename(
-          int index, String environment, RunnerApi.ArtifactInformation artifact) {
+      private String createFilename(String environment, RunnerApi.ArtifactInformation artifact) {
         String path;
         try {
           if (artifact.getRoleUrn().equals(ArtifactRetrievalService.STAGING_TO_ARTIFACT_URN)) {
@@ -458,7 +463,8 @@ public class ArtifactStagingService
         // all path separators.
         List<String> components = Splitter.onPattern("[^A-Za-z-_.]]").splitToList(path);
         String base = components.get(components.size() - 1);
-        return clip(String.format("%d-%s-%s", index, clip(environment, 25), base), 100);
+        return clip(
+            String.format("%s-%s-%s", idGenerator.getId(), clip(environment, 25), base), 100);
       }
 
       private String clip(String s, int maxLength) {
@@ -474,7 +480,7 @@ public class ArtifactStagingService
 
       @Override
       public void onCompleted() {
-        assert state == State.DONE;
+        Preconditions.checkArgument(state == State.DONE);
       }
     };
   }
@@ -497,39 +503,44 @@ public class ArtifactStagingService
       ArtifactRetrievalService retrievalService,
       ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingService,
       String stagingToken)
-      throws InterruptedException, IOException {
-    StagingRequestObserver requestObserver = new StagingRequestObserver(retrievalService);
-    requestObserver.responseObserver =
-        stagingService.reverseArtifactRetrievalService(requestObserver);
-    requestObserver.responseObserver.onNext(
-        ArtifactApi.ArtifactResponseWrapper.newBuilder().setStagingToken(stagingToken).build());
-    requestObserver.waitUntilDone();
-    if (requestObserver.error != null) {
-      if (requestObserver.error instanceof IOException) {
-        throw (IOException) requestObserver.error;
-      } else {
-        throw new IOException(requestObserver.error);
-      }
-    }
+      throws ExecutionException, InterruptedException {
+    new StagingDriver(retrievalService, stagingService, stagingToken).getCompletionFuture().get();
   }
 
   /** Actually implements the reverse retrieval protocol. */
-  private static class StagingRequestObserver
-      implements StreamObserver<ArtifactApi.ArtifactRequestWrapper> {
+  private static class StagingDriver implements StreamObserver<ArtifactApi.ArtifactRequestWrapper> {
 
-    private ArtifactRetrievalService retrievalService;
+    private final ArtifactRetrievalService retrievalService;
+    private final StreamObserver<ArtifactApi.ArtifactResponseWrapper> responseObserver;
+    private final CompletableFuture<Void> completionFuture;
 
-    public StagingRequestObserver(ArtifactRetrievalService retrievalService) {
+    public StagingDriver(
+        ArtifactRetrievalService retrievalService,
+        ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingService,
+        String stagingToken) {
       this.retrievalService = retrievalService;
+      completionFuture = new CompletableFuture<Void>();
+      responseObserver = stagingService.reverseArtifactRetrievalService(this);
+      responseObserver.onNext(
+          ArtifactApi.ArtifactResponseWrapper.newBuilder().setStagingToken(stagingToken).build());
     }
 
-    CountDownLatch latch = new CountDownLatch(1);
-    StreamObserver<ArtifactApi.ArtifactResponseWrapper> responseObserver;
-    Throwable error;
+    public CompletableFuture<?> getCompletionFuture() {
+      return completionFuture;
+    }
 
     @Override
     public void onNext(ArtifactApi.ArtifactRequestWrapper requestWrapper) {
-      assert responseObserver != null;
+
+      if (completionFuture.isCompletedExceptionally()) {
+        try {
+          completionFuture.get();
+        } catch (Throwable th) {
+          responseObserver.onError(th);
+          return;
+        }
+      }
+
       if (requestWrapper.hasResolveArtifact()) {
         retrievalService.resolveArtifacts(
             requestWrapper.getResolveArtifact(),
@@ -545,6 +556,7 @@ public class ArtifactStagingService
 
               @Override
               public void onError(Throwable throwable) {
+                completionFuture.completeExceptionally(throwable);
                 responseObserver.onError(throwable);
               }
 
@@ -566,6 +578,7 @@ public class ArtifactStagingService
 
               @Override
               public void onError(Throwable throwable) {
+                completionFuture.completeExceptionally(throwable);
                 responseObserver.onError(throwable);
               }
 
@@ -580,27 +593,24 @@ public class ArtifactStagingService
               }
             });
       } else {
-        responseObserver.onError(
+        Throwable exn =
             new StatusException(
                 Status.INVALID_ARGUMENT.withDescription(
-                    "Expected either a resolve or get request.")));
+                    "Expected either a resolve or get request."));
+        completionFuture.completeExceptionally(exn);
+        responseObserver.onError(exn);
       }
     }
 
     @Override
     public void onError(Throwable throwable) {
-      error = throwable;
-      latch.countDown();
+      completionFuture.completeExceptionally(throwable);
     }
 
     @Override
     public void onCompleted() {
       responseObserver.onCompleted();
-      latch.countDown();
-    }
-
-    public void waitUntilDone() throws InterruptedException {
-      latch.await();
+      completionFuture.complete(null);
     }
   }
 }
