@@ -74,7 +74,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.21.0] - Unreleased
+# [2.21.0] - Unreleased (In Progress)
 
 ## Highlights
 
@@ -135,7 +135,7 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 ## Known Issues
 
 
-# [2.20.0] - Unreleased
+# [2.20.0] - 2020-04-15
 
 ## Highlights
 
