@@ -259,7 +259,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
-  def test_biqquery_read_uw_fail(self):
+  def test_biqquery_read_fn_api_fail(self):
     remote_runner = DataflowRunner()
     for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
       self.default_properties.append("--experiments=%s" % flag)

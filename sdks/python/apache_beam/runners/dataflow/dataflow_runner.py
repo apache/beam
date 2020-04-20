@@ -93,7 +93,7 @@ _LOGGER = logging.getLogger(__name__)
 
 BQ_SOURCE_UW_ERROR = (
     'The Read(BigQuerySource(...)) transform is not supported with newer stack '
-    'features (Fn API, Unified Worker, etc). Please use the transform '
+    'features (Fn API, Dataflow Runner V2, etc). Please use the transform '
     'apache_beam.io.gcp.bigquery.ReadFromBigQuery instead.')
 
 
