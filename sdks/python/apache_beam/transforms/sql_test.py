@@ -117,7 +117,11 @@ class SqlTransformTest(unittest.TestCase):
           ])
           | SqlTransform(
               """
-              SELECT `str`, COUNT(*) AS `count`, SUM(`int`) AS `sum`, AVG(`flt`) AS `avg`
+              SELECT
+                `str`,
+                COUNT(*) AS `count`,
+                SUM(`int`) AS `sum`,
+                AVG(`flt`) AS `avg`
               FROM PCOLLECTION GROUP BY `str`"""))
       assert_that(out, equal_to([("foo", 3, 3, 2), ("bar", 4, 8, 1.414)]))
 
