@@ -1097,8 +1097,9 @@ public class DoFnOperatorTest {
           }
         };
 
+    VarIntCoder keyCoder = VarIntCoder.of();
     WindowedValue.FullWindowedValueCoder<Integer> inputCoder =
-        WindowedValue.getFullCoder(VarIntCoder.of(), windowingStrategy.getWindowFn().windowCoder());
+        WindowedValue.getFullCoder(keyCoder, windowingStrategy.getWindowFn().windowCoder());
 
     WindowedValue.FullWindowedValueCoder<String> outputCoder =
         WindowedValue.getFullCoder(
@@ -1108,8 +1109,10 @@ public class DoFnOperatorTest {
 
     final CoderTypeSerializer<WindowedValue<String>> outputSerializer =
         new CoderTypeSerializer<>(outputCoder);
-    CoderTypeInformation<Integer> keyCoderInfo = new CoderTypeInformation<>(VarIntCoder.of());
-    KeySelector<WindowedValue<Integer>, Integer> keySelector = WindowedValue::getValue;
+    CoderTypeInformation<ByteBuffer> keyCoderInfo =
+        new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of());
+    KeySelector<WindowedValue<Integer>, ByteBuffer> keySelector =
+        e -> FlinkKeyUtils.encodeKey(e.getValue(), keyCoder);
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         createTestHarness(
@@ -1117,7 +1120,7 @@ public class DoFnOperatorTest {
             fn,
             inputCoder,
             outputCoder,
-            VarIntCoder.of(),
+            keyCoder,
             outputTag,
             keyCoderInfo,
             keySelector);
