@@ -47,6 +47,14 @@ public interface RemoteBundle extends AutoCloseable {
   Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers();
 
   /**
+   * Ask the remote bundle for progress.
+   *
+   * <p>This method will return after the request has been issue. Any progress reports will be
+   * forwarded to the {@link BundleProgressHandler}.
+   */
+  void requestProgress();
+
+  /**
    * Ask the remote bundle to split its current processing based upon its knowledge of remaining
    * work. A fraction of 0, is equivalent to asking the SDK to checkpoint.
    *
