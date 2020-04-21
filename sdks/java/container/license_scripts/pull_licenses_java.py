@@ -19,62 +19,125 @@ A script to pull licenses/notices/source code for Java dependencies.
 It generates a CSV file with [dependency_name, url_to_license, license_type, source_included]
 """
 
+import argparse
 import csv
 import json
 import os
 import shutil
+import threading
 import traceback
 import yaml
 
 from bs4 import BeautifulSoup
-from future.moves.urllib.request import urlopen
-from future.moves.urllib.request import URLError, HTTPError
+from datetime import datetime
+
+from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_exponential
 
+try:
+    # py2
+    from future.moves.urllib.request import urlopen
+    from future.moves.urllib.request import URLError, HTTPError
+except:
+    # py3
+    from future import standard_library
+    from urllib.request import urlopen, URLError, HTTPError
+
 LICENSE_DIR = 'java_third_party_licenses'
 LICENSE_SCRIPT_DIR = 'sdks/java/container/license_scripts/'
 SOURCE_CODE_REQUIRED_LICENSES = ['lgpl', 'glp', 'cddl', 'mpl']
+RETRY_NUM = 3
+THREADS = 16
+
+
+class Worker(threading.Thread):
+    def __init__(self, queue):
+        threading.Thread.__init__(self)
+        self.queue = queue
+
+    def run(self):
+        while True:
+            dep = self.queue.get()
+            try:
+                execute(dep)
+            finally:
+                self.queue.task_done()
 
 
 @retry(reraise=True,
        wait=wait_exponential(multiplier=2),
-       stop=stop_after_attempt(5))
+       stop=stop_after_attempt(RETRY_NUM))
 def pull_from_url(file_name, url, dep, no_list):
     if url == 'skip':
         return
     try:
-        url_read = urlopen(url)
-        with open(file_name, 'wb') as temp_write:
-            shutil.copyfileobj(url_read, temp_write)
-        print('Successfully pulled {file_name} from {url}'.format(
-            url=url, file_name=file_name))
+        if pull_licenses:
+            url_read = urlopen(url)
+            with open(file_name, 'wb') as temp_write:
+                shutil.copyfileobj(url_read, temp_write)
+            print(
+                'Successfully pulled {file_name} from {url} for {dep}'.format(
+                    url=url, file_name=file_name, dep=dep))
+        else:
+            code = urlopen(url).getcode()
+            assert code == 200
+            print('Confirmed that {url} for {dep} is accessable.'.format(
+                url=url, dep=dep))
     except URLError as e:
-        no_list.add(dep)
-        print('Invalid url: {url}'.format(url=url))
-    except HTTPError as e:
-        no_list.add(dep)
-        print('Received {code} from {url}'.format(code=e.code, url=url))
-    except Exception as e:
-        print('Error occurred when pull {file_name} from {url}.'.format(
-            url=url, file_name=file_name))
         traceback.print_exc()
-        raise
+        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+            print('Invalid url for {dep}: {url}. Retrying...'.format(url=url,
+                                                                     dep=dep))
+            raise
+        else:
+            print('Invalid url for {dep}: {url} after {n} retries.'.format(
+                url=url, dep=dep, n=RETRY_NUM))
+            with thread_lock:
+                no_list.append(dep)
+            return
+    except HTTPError as e:
+        traceback.print_exc()
+        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+            print('Received {code} from {url} for {dep}. Retrying...'.format(
+                code=e.code, url=url, dep=dep))
+            raise
+        else:
+            print('Received {code} from {url} for {dep} after {n} retries.'.
+                  format(code=e.code, url=url, dep=dep, n=RETRY_NUM))
+            with thread_lock:
+                no_list.append(dep)
+            return
+    except Exception as e:
+        traceback.print_exc()
+        if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
+            print(
+                'Error occurred when pull {file_name} from {url} for {dep}. Retrying...'
+                .format(url=url, file_name=file_name, dep=dep))
+            raise
+        else:
+            print(
+                'Error occurred when pull {file_name} from {url} for {dep} after {n} retries.'
+                .format(url=url, file_name=file_name, dep=dep, n=RETRY_NUM))
+            with thread_lock:
+                no_list.append(dep)
+            return
 
 
-def pull_source_code(base_url, dir_name, dep, incorrect_source_url):
+def pull_source_code(base_url, dir_name, dep):
     # base_url example: https://repo1.maven.org/maven2/org/mortbay/jetty/jsp-2.1/6.1.14/
     soup = BeautifulSoup(urlopen(base_url).read(), "html.parser")
     for href in (a["href"] for a in soup.select("a[href]")):
-        if href.endswith('.jar') and not 'javadoc' in href: # download jar file only
+        if href.endswith(
+                '.jar') and not 'javadoc' in href:  # download jar file only
             file_name = dir_name + '/' + href
             url = base_url + '/' + href
             pull_from_url(file_name, url, dep, incorrect_source_url)
 
 
 @retry(reraise=True, stop=stop_after_attempt(3))
-def write_to_csv(csv_dict):
+def write_to_csv(csv_list):
     csv_columns = [
         'dependency_name', 'url_to_license', 'license_type', 'source_included'
     ]
@@ -84,19 +147,105 @@ def write_to_csv(csv_dict):
         with open(csv_file, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
-            for dep, data in csv_dict.items():
-                data['dependency_name'] = dep
+            for data in csv_list:
                 writer.writerow(data)
     except:
         traceback.print_exc()
         raise
 
 
+def execute(dep):
+    '''
+    An example of dep.
+    {
+        "moduleName": "antlr:antlr",
+        "moduleUrl": "http://www.antlr.org/",
+        "moduleVersion": "2.7.7",
+        "moduleLicense": "BSD License",
+        "moduleLicenseUrl": "http://www.antlr.org/license.html"
+    }
+    '''
+
+    name = dep['moduleName'].split(':')[1].lower()
+    version = dep['moduleVersion']
+    name_version = name + '-' + version
+    dir_name = '{license_dir}/{name_version}.jar'.format(
+        license_dir=LICENSE_DIR, name_version=name_version)
+
+    # if auto pulled, directory is existing at {license_dir}
+    if not os.path.isdir(dir_name):
+        # skip self dependencies
+        if dep['moduleName'].startswith('beam'):
+            print('Skippig', name_version)
+        os.mkdir(dir_name)
+        # pull license
+        try:
+            license_url = dep_config[name][version]['license']
+        except:
+            try:
+                license_url = dep['moduleLicenseUrl']
+            except:
+                # url cannot be found, add to no_licenses and skip to pull.
+                with thread_lock:
+                    no_licenses.append(name_version)
+                license_url = 'skip'
+        pull_from_url(dir_name + '/LICENSE', license_url, name_version,
+                      no_licenses)
+        # pull notice
+        try:
+            notice_url = dep_config[name][version]['notice']
+            pull_from_url(dir_name + '/NOTICE', notice_url, name_version)
+        except:
+            pass
+    else:
+        try:
+            license_url = dep['moduleLicenseUrl']
+        except:
+            license_url = ''
+        print('License/notice for {name_version} were pulled automatically.'.
+              format(name_version=name_version))
+
+    # get license_type to decide if pull source code.
+    try:
+        license_type = dep['moduleLicense']
+    except:
+        try:
+            license_type = dep_config[name][version]['type']
+        except:
+            license_type = 'no_license_type'
+            with thread_lock:
+                no_license_type.append(name_version)
+
+    # pull source code if license_type is one of SOURCE_CODE_REQUIRED_LICENSES.
+    if any(x in license_type.lower() for x in SOURCE_CODE_REQUIRED_LICENSES):
+        try:
+            base_url = dep_config[name][version]['source']
+        except:
+            module = dep['moduleName'].split(':')[0].replace('.', '/')
+            base_url = maven_url_temp.format(module=module + '/' + name,
+                                             version=version)
+        pull_source_code(base_url, dir_name, name_version)
+        source_included = True
+    else:
+        source_included = False
+
+    csv_dict = {
+        'dependency_name': name_version,
+        'url_to_license': license_url,
+        'license_type': license_type,
+        'source_included': source_included
+    }
+    with thread_lock:
+        csv_list.append(csv_dict)
+
+
 if __name__ == "__main__":
-    no_licenses = set()
-    no_license_type = set()
-    incorrect_source_url = set()
-    csv_dict = dict()
+    start = datetime.now()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--pull_licenses', default=False, action='store_true')
+
+    args = parser.parse_args()
+    pull_licenses = args.pull_licenses
 
     # index.json is generated by Gradle plugin.
     with open('{license_dir}/index.json'.format(license_dir=LICENSE_DIR)) as f:
@@ -108,89 +257,28 @@ if __name__ == "__main__":
 
     maven_url_temp = 'https://repo1.maven.org/maven2/{module}/{version}'
 
+    csv_list = []
+    no_licenses = []
+    no_license_type = []
+    incorrect_source_url = []
+
+    thread_lock = threading.Lock()
+    queue = Queue()
+    for x in range(THREADS):
+        worker = Worker(queue)
+        worker.daemon = True
+        worker.start()
     for dep in dependencies['dependencies']:
-        '''
-        An example of a Json blob.
-        {
-            "moduleName": "antlr:antlr",
-            "moduleUrl": "http://www.antlr.org/",
-            "moduleVersion": "2.7.7",
-            "moduleLicense": "BSD License",
-            "moduleLicenseUrl": "http://www.antlr.org/license.html"
-        }
-        '''
-        name = dep['moduleName'].split(':')[1].lower()
-        version = dep['moduleVersion']
-        name_version = name + '-' + version
-        dir_name = '{license_dir}/{name_version}.jar'.format(
-            license_dir=LICENSE_DIR, name_version=name_version)
-        # if auto pulled, directory is existing at {license_dir}
-        if not os.path.isdir(dir_name):
-            # skip self dependencies
-            if dep['moduleName'].startswith('beam'):
-                print('Skippig', name + '-' + version)
-                continue
-            os.mkdir(dir_name)
-            # pull license
-            try:
-                license_url = dep_config[name][version]['license']
-            except:
-                license_url = dep['moduleLicenseUrl']
-            pull_from_url(dir_name + '/LICENSE', license_url, name_version,
-                          no_licenses)
-            # pull notice
-            try:
-                notice_url = dep_config[name][version]['notice']
-                pull_from_url(dir_name + '/NOTICE', notice_url, name_version,
-                              no_licenses)
-            except:
-                notice_url = None
-        else:
-            try:
-                license_url = dep['moduleLicenseUrl']
-            except:
-                license_url = ''
-            print(
-                'License/notice for {name_version} were pulled automatically.'.
-                format(name_version=name_version))
+        queue.put(dep)
+    queue.join()
 
-        # get license_type to decide if pull source code.
-        try:
-            license_type = dep['moduleLicense']
-        except:
-            try:
-                license_type = dep_config[name][version]['type']
-            except:
-                no_license_type.add(name_version)
-                license_type = ''
-                continue
-
-        # pull source code if license_type is one of SOURCE_CODE_REQUIRED_LICENSES.
-        if any(x in license_type.lower()
-               for x in SOURCE_CODE_REQUIRED_LICENSES):
-            try:
-                base_url = dep_config[name][version]['source']
-            except:
-                module = dep['moduleName'].split(':')[0].replace('.', '/')
-                base_url = maven_url_temp.format(module=module + '/' + name,
-                                                 version=version)
-            pull_source_code(base_url, dir_name, name_version,
-                             incorrect_source_url)
-            source_included = True
-        else:
-            source_included = False
-
-        csv_dict[name_version] = {
-            'url_to_license': license_url,
-            'license_type': license_type,
-            'source_included': source_included
-        }
-
-    # write csv file
-    write_to_csv(csv_dict)
+    if pull_licenses:
+        write_to_csv(csv_list)
 
     error_msg = []
+    run_status = 'succeed'
     if no_licenses:
+        print(no_licenses)
         how_to = '**************************************** ' \
                  'Licenses were not able to be pulled ' \
                  'automatically for some dependencies. Please search source ' \
@@ -199,6 +287,7 @@ if __name__ == "__main__":
                  'missing license. Dependency List: [{dep_list}]'.format(
             dep_list=','.join(sorted(no_licenses)), yaml_file=yaml_file)
         error_msg.append(how_to)
+        run_status = 'failed'
 
     if no_license_type:
         how_to = '**************************************** ' \
@@ -209,6 +298,7 @@ if __name__ == "__main__":
                  'Dependency List: [{dep_list}]'.format(
             dep_list=','.join(sorted(no_license_type)), yaml_file=yaml_file)
         error_msg.append(how_to)
+        run_status = 'failed'
 
     if incorrect_source_url:
         how_to = '**************************************** ' \
@@ -219,6 +309,14 @@ if __name__ == "__main__":
             dep_list=','.join(sorted(incorrect_source_url)),
             yaml_file=yaml_file)
         error_msg.append(how_to)
+        run_status = 'failed'
+
+    end = datetime.now()
+    print(
+        'pull_licenses_java.py {status}. It used {sec} seconds with {threads} threads.'
+        .format(status=run_status,
+                sec=(end - start).total_seconds(),
+                threads=THREADS))
 
     if error_msg:
         raise RuntimeError('{n} error(s) occurred.'.format(n=len(error_msg)),

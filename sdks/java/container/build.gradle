@@ -78,9 +78,10 @@ golang {
 task generateThirdPartyLicenses(type: Exec) {
   workingDir project.rootProject.projectDir
   commandLine './sdks/java/container/license_scripts/license_script.sh'
+  args = [project.rootProject.hasProperty(["docker-pull-licenses"])]
 }
 
-//command: ./gradlew generateLicenseReport
+// command: ./gradlew generateLicenseReport
 import com.github.jk1.license.render.*
 licenseReport {
   outputDir = 'java_third_party_licenses'
