@@ -995,7 +995,8 @@ public class ByteBuddyUtils {
                   COLLECTION_TYPE
                       .getDeclaredMethods()
                       .filter(
-                          ElementMatchers.named("toArray").and(ElementMatchers.takesArguments(1)))
+                          ElementMatchers.named("toArray")
+                              .and(ElementMatchers.takesArguments(arrayType)))
                       .getOnly()),
               // Cast the result to T[].
               TypeCasting.to(arrayType));
