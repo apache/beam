@@ -60,6 +60,7 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.api.client.json"),
             classesInPackage("com.google.api.client.util"),
             classesInPackage("com.google.api.services.bigquery.model"),
+            classesInPackage("com.google.api.services.healthcare"),
             classesInPackage("com.google.auth"),
             classesInPackage("com.google.bigtable.v2"),
             classesInPackage("com.google.cloud.bigquery.storage.v1beta1"),

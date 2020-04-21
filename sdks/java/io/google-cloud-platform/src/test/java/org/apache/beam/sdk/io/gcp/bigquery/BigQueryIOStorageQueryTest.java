@@ -56,6 +56,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData.Record;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
@@ -394,7 +395,24 @@ public class BigQueryIOStorageQueryTest {
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    Schema sessionSchema =
+        SchemaBuilder.record("__root__")
+            .fields()
+            .name("name")
+            .type()
+            .nullable()
+            .stringType()
+            .noDefault()
+            .name("number")
+            .type()
+            .nullable()
+            .longType()
+            .noDefault()
+            .endRecord();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
     for (int i = 0; i < expectedStreamCount; i++) {
       builder.addStreams(Stream.newBuilder().setName("stream-" + i));
     }
@@ -468,7 +486,24 @@ public class BigQueryIOStorageQueryTest {
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    Schema sessionSchema =
+        SchemaBuilder.record("__root__")
+            .fields()
+            .name("name")
+            .type()
+            .nullable()
+            .stringType()
+            .noDefault()
+            .name("number")
+            .type()
+            .nullable()
+            .longType()
+            .noDefault()
+            .endRecord();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(sessionSchema.toString()));
     for (int i = 0; i < 1024; i++) {
       builder.addStreams(Stream.newBuilder().setName("stream-" + i));
     }
@@ -502,8 +537,8 @@ public class BigQueryIOStorageQueryTest {
           + " \"type\": \"record\",\n"
           + " \"name\": \"RowRecord\",\n"
           + " \"fields\": [\n"
-          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-          + "     {\"name\": \"number\", \"type\": \"long\"}\n"
+          + "     {\"name\": \"name\", \"type\": [\"null\", \"string\"]},\n"
+          + "     {\"name\": \"number\", \"type\": [\"null\", \"long\"]}\n"
           + " ]\n"
           + "}";
 
@@ -513,8 +548,8 @@ public class BigQueryIOStorageQueryTest {
       new TableSchema()
           .setFields(
               ImmutableList.of(
-                  new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED")));
+                  new TableFieldSchema().setName("name").setType("STRING"),
+                  new TableFieldSchema().setName("number").setType("INTEGER")));
 
   private static GenericRecord createRecord(String name, long number, Schema schema) {
     GenericRecord genericRecord = new Record(schema);
@@ -570,15 +605,7 @@ public class BigQueryIOStorageQueryTest {
     fakeDatasetService.createTable(
         new Table().setTableReference(sourceTableRef).setLocation("asia-northeast1"));
 
-    Table queryResultTable =
-        new Table()
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))))
-            .setNumBytes(0L);
+    Table queryResultTable = new Table().setSchema(TABLE_SCHEMA).setNumBytes(0L);
 
     String encodedQuery = FakeBigQueryServices.encodeQueryResult(queryResultTable);
 
@@ -677,15 +704,7 @@ public class BigQueryIOStorageQueryTest {
     fakeDatasetService.createTable(
         new Table().setTableReference(sourceTableRef).setLocation("asia-northeast1"));
 
-    Table queryResultTable =
-        new Table()
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))))
-            .setNumBytes(0L);
+    Table queryResultTable = new Table().setSchema(TABLE_SCHEMA).setNumBytes(0L);
 
     String encodedQuery = FakeBigQueryServices.encodeQueryResult(queryResultTable);
 

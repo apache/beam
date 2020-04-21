@@ -22,7 +22,8 @@ import (
 
 func shallowClonePipeline(p *pb.Pipeline) *pb.Pipeline {
 	ret := &pb.Pipeline{
-		Components: shallowCloneComponents(p.GetComponents()),
+		Components:   shallowCloneComponents(p.GetComponents()),
+		Requirements: reflectx.ShallowClone(p.GetRequirements()).([]string),
 	}
 	ret.RootTransformIds, _ = reflectx.ShallowClone(p.GetRootTransformIds()).([]string)
 	return ret

@@ -111,3 +111,38 @@ class JrhReadPTransformOverride(PTransformOverride):
 
     return JrhRead().with_output_types(
         ptransform.get_type_hints().simple_output_type('Read'))
+
+
+class CombineValuesPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``CombineValues``.
+
+  The DataflowRunner expects that the CombineValues PTransform acts as a
+  primitive. So this override replaces the CombineValues with a primitive.
+  """
+  def matches(self, applied_ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import CombineValues
+
+    if isinstance(applied_ptransform.transform, CombineValues):
+      self.transform = applied_ptransform.transform
+      return True
+    return False
+
+  def get_replacement_transform(self, ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import PTransform
+    from apache_beam.pvalue import PCollection
+
+    # The DataflowRunner still needs access to the CombineValues members to
+    # generate a V1B3 proto representation, so we remember the transform from
+    # the matches method and forward it here.
+    class CombineValuesReplacement(PTransform):
+      def __init__(self, transform):
+        self.transform = transform
+
+      def expand(self, pcoll):
+        return PCollection.from_(pcoll)
+
+    return CombineValuesReplacement(self.transform)

@@ -62,10 +62,11 @@ type RawOptions struct {
 // harness. The extra layer is currently needed due to Dataflow
 // expectations about this representation. Subject to change.
 type RawOptionsWrapper struct {
-	Options     RawOptions `json:"beam:option:go_options:v1"`
-	Runner      string     `json:"beam:option:runner:v1"`
-	AppName     string     `json:"beam:option:app_name:v1"`
-	Experiments []string   `json:"beam:option:experiments:v1"`
+	Options      RawOptions `json:"beam:option:go_options:v1"`
+	Runner       string     `json:"beam:option:runner:v1"`
+	AppName      string     `json:"beam:option:app_name:v1"`
+	Experiments  []string   `json:"beam:option:experiments:v1"`
+	RetainDocker bool       `json:"beam:option:retain_docker_containers:v1"`
 }
 
 // Import imports the options from previously exported data and makes the

@@ -155,7 +155,7 @@ class WriteToKafka(ExternalTransform):
     """
     Initializes a write operation to Kafka.
 
-    :param consumer_config: A dictionary containing the producer configuration.
+    :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
                              Serializer for the topic's key, e.g.

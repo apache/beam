@@ -315,7 +315,7 @@ public class BeamFnDataReadRunnerTest {
                     .build())
             .build();
     ProcessBundleSplitResponse.Builder responseBuilder = ProcessBundleSplitResponse.newBuilder();
-    readRunner.split(request, responseBuilder);
+    readRunner.trySplit(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =
         ProcessBundleSplitResponse.newBuilder()
@@ -364,7 +364,7 @@ public class BeamFnDataReadRunnerTest {
     // Process 2 elements then split
     readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
-    readRunner.split(request, responseBuilder);
+    readRunner.trySplit(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =
         ProcessBundleSplitResponse.newBuilder()
@@ -421,7 +421,7 @@ public class BeamFnDataReadRunnerTest {
     readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
-    readRunner.split(request, responseBuilder);
+    readRunner.trySplit(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =
         ProcessBundleSplitResponse.newBuilder()

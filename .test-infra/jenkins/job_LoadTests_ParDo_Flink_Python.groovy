@@ -122,18 +122,18 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
 
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-  String pythonHarnessImageTag = publisher.getFullImageName('beam_python2.7_sdk')
+  String pythonHarnessImageTag = publisher.getFullImageName('beam_python3.7_sdk')
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
   List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
 
-  publisher.publish(':sdks:python:container:py2:docker', 'beam_python2.7_sdk')
+  publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
   publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
   Flink flink = new Flink(scope, 'beam_LoadTests_Python_ParDo_Flink_Batch')
   flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
 
-  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON, testScenarios, 'ParDo', 'batch')
+  loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.PYTHON_37, testScenarios, 'ParDo', 'batch')
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(

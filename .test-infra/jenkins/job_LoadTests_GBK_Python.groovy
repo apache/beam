@@ -136,11 +136,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         this
 ) {
         def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.PR)
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations(datasetName), "GBK", "batch")
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
         def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.POST_COMMIT)
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations(datasetName), "GBK", "batch")
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 

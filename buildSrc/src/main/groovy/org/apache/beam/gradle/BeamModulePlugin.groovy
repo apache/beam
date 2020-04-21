@@ -453,8 +453,9 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_common                           : "com.google.api:api-common:1.8.1",
         google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20191211-$google_clients_version",
         google_api_services_clouddebugger           : "com.google.apis:google-api-services-clouddebugger:v2-rev20200313-$google_clients_version",
-        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200210-$google_clients_version",
+        google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20200311-$google_clients_version",
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20200305-$google_clients_version",
+        google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1beta1-rev20200307-$google_clients_version",
         google_api_services_pubsub                  : "com.google.apis:google-api-services-pubsub:v1-rev20200312-$google_clients_version",
         google_api_services_storage                 : "com.google.apis:google-api-services-storage:v1-rev20200226-$google_clients_version",
         google_auth_library_credentials             : "com.google.auth:google-auth-library-credentials:$google_auth_version",
@@ -579,7 +580,9 @@ class BeamModulePlugin implements Plugin<Project> {
         url(project.properties['distMgmtSnapshotsUrl'] ?: isRelease(project)
                 ? 'https://repository.apache.org/service/local/staging/deploy/maven2'
                 : 'https://repository.apache.org/content/repositories/snapshots')
-        // We attempt to find and load credentials from ~/.m2/settings.xml file that a user
+        name(project.properties['distMgmtServerId'] ?: isRelease(project)
+                ? 'apache.releases.https' : 'apache.snapshots.https')
+        // The maven settings plugin will load credentials from ~/.m2/settings.xml file that a user
         // has configured with the Apache release and snapshot staging credentials.
         // <settings>
         //   <servers>
@@ -595,18 +598,6 @@ class BeamModulePlugin implements Plugin<Project> {
         //     </server>
         //   </servers>
         // </settings>
-        def settingsXml = new File(System.getProperty('user.home'), '.m2/settings.xml')
-        if (settingsXml.exists()) {
-          def serverId = (project.properties['distMgmtServerId'] ?: isRelease(project)
-                  ? 'apache.releases.https' : 'apache.snapshots.https')
-          def m2SettingCreds = new XmlSlurper().parse(settingsXml).servers.server.find { server -> serverId.equals(server.id.text()) }
-          if (m2SettingCreds) {
-            credentials {
-              username m2SettingCreds.username.text()
-              password m2SettingCreds.password.text()
-            }
-          }
-        }
       }
     }
 

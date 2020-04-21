@@ -52,7 +52,9 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
       bigquery.TableFieldSchema(
         name="birthdayMoney", type="NUMERIC", mode="NULLABLE"),
       bigquery.TableFieldSchema(
-        name="flighted", type="BOOLEAN", mode="NULLABLE"),
+        name="flighted", type="BOOL", mode="NULLABLE"),
+      bigquery.TableFieldSchema(
+        name="flighted2", type="BOOLEAN", mode="NULLABLE"),
       bigquery.TableFieldSchema(
         name="sound", type="BYTES", mode="NULLABLE"),
       bigquery.TableFieldSchema(
@@ -114,6 +116,9 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
             ])))
     self.assertEqual(
         field_map["flighted"].type,
+        avro.schema.parse(json.dumps(["null", "boolean"])))
+    self.assertEqual(
+        field_map["flighted2"].type,
         avro.schema.parse(json.dumps(["null", "boolean"])))
     self.assertEqual(
         field_map["sound"].type,

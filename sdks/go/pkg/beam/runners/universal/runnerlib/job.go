@@ -43,6 +43,9 @@ type JobOptions struct {
 
 	// Worker is the worker binary override.
 	Worker string
+
+	// RetainDocker is an option to pass to the runner.
+	RetainDocker bool
 }
 
 // Prepare prepares a job to the given job service. It returns the preparation id
@@ -50,9 +53,10 @@ type JobOptions struct {
 func Prepare(ctx context.Context, client jobpb.JobServiceClient, p *pipepb.Pipeline, opt *JobOptions) (id, endpoint, stagingToken string, err error) {
 	hooks.SerializeHooksToOptions()
 	raw := runtime.RawOptionsWrapper{
-		Options:     beam.PipelineOptions.Export(),
-		AppName:     opt.Name,
-		Experiments: append(opt.Experiments, "beam_fn_api"),
+		Options:      beam.PipelineOptions.Export(),
+		AppName:      opt.Name,
+		Experiments:  append(opt.Experiments, "beam_fn_api"),
+		RetainDocker: opt.RetainDocker,
 	}
 
 	options, err := provision.OptionsToProto(raw)
