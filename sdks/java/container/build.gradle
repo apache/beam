@@ -73,14 +73,6 @@ golang {
   }
 }
 
-// this is a workaround to call generateLicenseReport task from project root directory.
-// generateLicenseReport does not return correct dependency list when not called from the root.
-task generateThirdPartyLicenses(type: Exec) {
-  workingDir project.rootProject.projectDir
-  commandLine './sdks/java/container/license_scripts/license_script.sh'
-  args = [project.rootProject.hasProperty(["docker-pull-licenses"])]
-}
-
 // command: ./gradlew generateLicenseReport
 import com.github.jk1.license.render.*
 licenseReport {
@@ -94,8 +86,12 @@ licenseReport {
 task copyThirdPartyLicenses(type: Copy) {
   from ("third_party_licenses")
   into "build/target/third_party_licenses"
+  doLast {
+    file('third_party_licenses').deleteDir()
+  }
 }
 
+def Boolean pull_licenses
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "java_sdk",
@@ -106,6 +102,15 @@ docker {
                   project.rootProject["docker-tag"] : project.sdk_version)
   dockerfile project.file("./${dockerfileName}")
   files "./build/"
+  pull_licenses = project.rootProject.hasProperty(["docker-pull-licenses"])
+}
+
+// this is a workaround to call generateLicenseReport task from project root directory.
+// generateLicenseReport does not return correct dependency list when not called from the root.
+task generateThirdPartyLicenses(type: Exec) {
+  workingDir project.rootProject.projectDir
+  commandLine './sdks/java/container/license_scripts/license_script.sh'
+  args = [pull_licenses]
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects

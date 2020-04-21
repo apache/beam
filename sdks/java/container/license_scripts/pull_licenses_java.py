@@ -313,7 +313,7 @@ if __name__ == "__main__":
 
     end = datetime.now()
     print(
-        'pull_licenses_java.py {status}. It used {sec} seconds with {threads} threads.'
+        'pull_licenses_java.py {status}. It took {sec} seconds with {threads} threads.'
         .format(status=run_status,
                 sec=(end - start).total_seconds(),
                 threads=THREADS))
