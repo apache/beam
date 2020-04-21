@@ -17,33 +17,29 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import avro.shaded.com.google.common.collect.Lists;
 import java.util.List;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * <p>A {@link PTransform} which produces a sequence of elements at fixed
- * runtime intervals.
+ * A {@link PTransform} which produces a sequence of elements at fixed runtime intervals.
  *
- * If applyWindowing() is specified, each element will be assigned to its own
- * fixed window.
+ * <p>If applyWindowing() is specified, each element will be assigned to its own fixed window.
  *
- * See {@link PeriodicSequence}.
+ * <p>See {@link PeriodicSequence}.
  */
 public class PeriodicImpulse extends PTransform<PBegin, PCollection<Instant>> {
 
-  Instant start_timestamp = Instant.now();
-  Instant stop_timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
-  long fire_interval_millisec = 1000;
-  boolean apply_windowing = false;
+  Instant startTimestamp = Instant.now();
+  Instant stopTimestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+  Duration fireInterval = Duration.standardMinutes(1);
+  boolean applyWindowing = false;
 
   private PeriodicImpulse() {}
 
@@ -51,23 +47,23 @@ public class PeriodicImpulse extends PTransform<PBegin, PCollection<Instant>> {
     return new PeriodicImpulse();
   }
 
-  public PeriodicImpulse startAt(Instant start_time) {
-    this.start_timestamp = start_time;
+  public PeriodicImpulse startAt(Instant startTime) {
+    this.startTimestamp = startTime;
     return this;
   }
 
-  public PeriodicImpulse stopAt(Instant stop_time) {
-    this.stop_timestamp = stop_time;
+  public PeriodicImpulse stopAt(Instant stopTime) {
+    this.stopTimestamp = stopTime;
     return this;
   }
 
   public PeriodicImpulse withInterval(Duration interval) {
-    this.fire_interval_millisec = interval.getMillis();
+    this.fireInterval = interval;
     return this;
   }
 
   public PeriodicImpulse applyWindowing() {
-    this.apply_windowing = true;
+    this.applyWindowing = true;
     return this;
   }
 
@@ -75,16 +71,16 @@ public class PeriodicImpulse extends PTransform<PBegin, PCollection<Instant>> {
   public PCollection<Instant> expand(PBegin input) {
     Long[] seqInitArgsArr =
         new Long[] {
-          start_timestamp.getMillis(), stop_timestamp.getMillis(), fire_interval_millisec
+          startTimestamp.getMillis(), stopTimestamp.getMillis(), fireInterval.getMillis()
         };
     List<Long> seqInitArgs = Lists.newArrayList(seqInitArgsArr);
     PCollection<Instant> result =
         input.apply(Create.<List<Long>>of(seqInitArgs)).apply(PeriodicSequence.create());
 
-    if (this.apply_windowing) {
+    if (this.applyWindowing) {
       result =
           result.apply(
-              Window.<Instant>into(FixedWindows.of(Duration.millis(fire_interval_millisec))));
+              Window.<Instant>into(FixedWindows.of(Duration.millis(fireInterval.getMillis()))));
     }
 
     return result;

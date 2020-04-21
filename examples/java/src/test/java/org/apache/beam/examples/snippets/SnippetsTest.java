@@ -17,7 +17,10 @@
  */
 package org.apache.beam.examples.snippets;
 
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,7 +28,10 @@ import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.*;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.values.KV;
@@ -148,14 +154,8 @@ public class SnippetsTest implements Serializable {
     p.run();
   }
 
-
   @Test
-  @Category({
-      NeedsRunner.class,
-      UsesImpulse.class,
-      UsesStatefulParDo.class,
-      UsesTestStreamWithProcessingTime.class
-  })
+  @Category({NeedsRunner.class, UsesStatefulParDo.class})
   public void testSlowlyUpdatingSideInputsWindowed() {
     Instant startAt = Instant.now().minus(Duration.standardMinutes(3));
     Duration duration = Duration.standardSeconds(10);
@@ -166,7 +166,7 @@ public class SnippetsTest implements Serializable {
     File f = null;
     try {
       f = File.createTempFile("testSlowlyUpdatingSIWindowed", "txt");
-      try(BufferedWriter fw = Files.newWriter(f, Charset.forName("UTF-8"))) {
+      try (BufferedWriter fw = Files.newWriter(f, Charset.forName("UTF-8"))) {
         fw.append("testdata");
       }
     } catch (IOException e) {
@@ -174,13 +174,13 @@ public class SnippetsTest implements Serializable {
       throw new RuntimeException("Should never reach here");
     }
 
-    PCollection<Long> result = Snippets.PeriodicallyUpdatingSideInputs
-        .main(p, startAt, stopAt, interval1, interval2, f.getPath());
+    PCollection<Long> result =
+        Snippets.PeriodicallyUpdatingSideInputs.main(
+            p, startAt, stopAt, interval1, interval2, f.getPath());
 
     ArrayList<Long> expectedResults = new ArrayList<Long>();
     expectedResults.add(0L);
-    for (Long i = startAt.getMillis(); i < stopAt.getMillis();
-         i = i + interval2.getMillis()) {
+    for (Long i = startAt.getMillis(); i < stopAt.getMillis(); i = i + interval2.getMillis()) {
       expectedResults.add(1L);
     }
 
@@ -189,5 +189,4 @@ public class SnippetsTest implements Serializable {
     p.run().waitUntilFinish();
     f.deleteOnExit();
   }
-
 }

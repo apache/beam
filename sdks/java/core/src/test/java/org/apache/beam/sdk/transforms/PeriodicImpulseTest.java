@@ -18,8 +18,11 @@
 package org.apache.beam.sdk.transforms;
 
 import java.util.ArrayList;
-
-import org.apache.beam.sdk.testing.*;
+import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesImpulse;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -30,19 +33,14 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for PeriodicImpulse.
- */
+/** Tests for PeriodicImpulse. */
 @RunWith(JUnit4.class)
 public class PeriodicImpulseTest {
-  @Rule
-  public transient TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
-  public static class ExtractTsDoFn<InputT>
-      extends DoFn<InputT, KV<InputT, Instant>> {
+  public static class ExtractTsDoFn<InputT> extends DoFn<InputT, KV<InputT, Instant>> {
     @ProcessElement
-    public void processElement(
-        DoFn<InputT, KV<InputT, Instant>>.ProcessContext c)
+    public void processElement(DoFn<InputT, KV<InputT, Instant>>.ProcessContext c)
         throws Exception {
       c.output(KV.of(c.element(), c.timestamp()));
     }
@@ -50,31 +48,27 @@ public class PeriodicImpulseTest {
 
   @Test
   @Category({
-      NeedsRunner.class,
-      UsesImpulse.class,
-      UsesStatefulParDo.class,
-      UsesTestStreamWithProcessingTime.class
+    NeedsRunner.class,
+    UsesImpulse.class,
+    UsesStatefulParDo.class,
   })
   public void testOutputsProperElements() {
     Instant instant = Instant.now();
 
-    Instant start_time = instant.minus(Duration.standardHours(100));
+    Instant startTime = instant.minus(Duration.standardHours(100));
     long duration = 500;
     Duration interval = Duration.millis(250);
-    long interval_millis = interval.getMillis();
-    Instant stop_time = start_time.plus(duration);
+    long intervalMillis = interval.getMillis();
+    Instant stopTime = startTime.plus(duration);
 
     PCollection<KV<Instant, Instant>> result =
-        p
-            .apply(
-                PeriodicImpulse.create().startAt(start_time).stopAt(stop_time)
-                    .withInterval(interval))
+        p.apply(PeriodicImpulse.create().startAt(startTime).stopAt(stopTime).withInterval(interval))
             .apply(ParDo.of(new ExtractTsDoFn<>()));
 
     ArrayList<KV<Instant, Instant>> expectedResults =
-        new ArrayList<>((int) (duration / interval_millis + 1));
-    for (long i = 0; i <= duration; i += interval_millis) {
-      Instant el = start_time.plus(i);
+        new ArrayList<>((int) (duration / intervalMillis + 1));
+    for (long i = 0; i <= duration; i += intervalMillis) {
+      Instant el = startTime.plus(i);
       expectedResults.add(KV.of(el, el));
     }
 

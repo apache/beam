@@ -17,55 +17,50 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.*;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.List;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.range.OffsetRange;
-import org.apache.beam.sdk.transforms.splittabledofn.*;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A {@link PTransform} which generates a sequence of timestamped elements at
- * given interval in runtime.
+ * A {@link PTransform} which generates a sequence of timestamped elements at given interval in
+ * runtime.
  *
- * <p>Receives a PCollection<List<Long>> where each element triggers the
- * generation of sequence and has following elements:
- * 0: first element timestamp
- * 1: last element timestamp
- * 2: interval
+ * <p>Receives a PCollection<List<Long>> where each element triggers the generation of sequence and
+ * has following elements: 0: first element timestamp 1: last element timestamp 2: interval
  *
- * <p>All elements that have timestamp in the past will be output right away.
- * Elements that have timestamp in the future will be delayed.
+ * <p>All elements that have timestamp in the past will be output right away. Elements that have
+ * timestamp in the future will be delayed.
  *
- * <p>Transform will not output elements prior to target timestamp.
- * Transform can output elements at any time after target timestamp.
+ * <p>Transform will not output elements prior to target timestamp. Transform can output elements at
+ * any time after target timestamp.
  */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
-public class PeriodicSequence
-    extends PTransform<PCollection<List<Long>>, PCollection<Instant>> {
+public class PeriodicSequence extends PTransform<PCollection<List<Long>>, PCollection<Instant>> {
 
-  private PeriodicSequence() {
-  }
+  private PeriodicSequence() {}
 
   public static PeriodicSequence create() {
     return new PeriodicSequence();
   }
 
   @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
-  public static class OutputRangeTracker
-      extends RestrictionTracker<OffsetRange, Long>
+  public static class OutputRangeTracker extends RestrictionTracker<OffsetRange, Long>
       implements Sizes.HasSize {
     private OffsetRange range;
-    @Nullable
-    private Long lastClaimedOffset = null;
-    @Nullable
-    private Long lastAttemptedOffset = null;
+    @Nullable private Long lastClaimedOffset = null;
+    @Nullable private Long lastAttemptedOffset = null;
 
     public OutputRangeTracker(OffsetRange range) {
       this.range = checkNotNull(range);
@@ -96,8 +91,7 @@ public class PeriodicSequence
           i,
           lastAttemptedOffset);
       checkArgument(
-          i >= range.getFrom(),
-          "Trying to claim offset %s before start of the range %s", i, range);
+          i >= range.getFrom(), "Trying to claim offset %s before start of the range %s", i, range);
       lastAttemptedOffset = i;
       if (i > range.getTo()) {
         return false;
@@ -145,8 +139,7 @@ public class PeriodicSequence
     }
 
     @NewTracker
-    public RestrictionTracker<OffsetRange, Long> newTracker(
-        @Restriction OffsetRange restriction) {
+    public RestrictionTracker<OffsetRange, Long> newTracker(@Restriction OffsetRange restriction) {
       return new OutputRangeTracker(restriction);
     }
 
@@ -173,8 +166,7 @@ public class PeriodicSequence
 
       ProcessContinuation continuation = ProcessContinuation.stop();
       if (claimSuccess) {
-        Duration offset =
-            new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput));
+        Duration offset = new Duration(Instant.now(), Instant.ofEpochMilli(nextOutput));
         continuation = ProcessContinuation.resume().withResumeDelay(offset);
       }
       return continuation;
