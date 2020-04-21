@@ -1297,6 +1297,32 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLSelectNullLimitParam() {
+    String sql = "SELECT Key, Value FROM KeyValue LIMIT @lmt;";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "lmt", Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64)));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Limit requires non-null count and offset");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
+  public void testZetaSQLSelectNullOffsetParam() {
+    String sql = "SELECT Key, Value FROM KeyValue LIMIT 1 OFFSET @lmt;";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "lmt", Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64)));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Limit requires non-null count and offset");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableLimitOffset() {
     String sql =
         "SELECT COUNT(a) FROM (\n"
