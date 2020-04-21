@@ -15,7 +15,11 @@
 
 package task
 
-// todo: replace this with an actual task
-func Sum(a, b int) int {
-	return a + b
+import "github.com/apache/beam/sdks/go/pkg/beam"
+
+func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	processFn := func(v int) int {
+		return v * 5
+	}
+	return beam.ParDo(s, processFn, input)
 }

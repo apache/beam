@@ -13,9 +13,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package task
+package cmd
 
-// todo: replace this with an actual task
-func Sum(a, b int) int {
-	return a + b
+import (
+	"context"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
+	"pardo_onetomany/pkg/task"
+)
+
+func main() {
+	p, s := beam.NewPipelineWithRoot()
+
+	col := task.ApplyTransform(s, beam.Create(s, "Hello Beam", "It is awesome"))
+
+	debug.Print(s, col)
+
+	err := beamx.Run(context.Background(), p)
+
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
 }

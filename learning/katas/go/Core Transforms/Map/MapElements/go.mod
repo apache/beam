@@ -16,3 +16,9 @@
 module mapelements
 
 go 1.13
+
+require (
+	github.com/apache/beam v2.20.0+incompatible
+	github.com/golang/protobuf v1.4.0 // indirect
+	google.golang.org/grpc v1.28.1 // indirect
+)

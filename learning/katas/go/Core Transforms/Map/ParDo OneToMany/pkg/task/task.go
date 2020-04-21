@@ -13,13 +13,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package task
 
 import (
-	"fmt"
-	task "pardo_onetomany"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"strings"
 )
 
-func main() {
-	fmt.Println(task.Sum(2, 3))
+func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, processFn, input)
 }
+
+func processFn(input string, emit func(out string)) {
+	tokens := strings.Split(input, " ")
+	for _, k := range tokens {
+		emit(k)
+	}
+}
+

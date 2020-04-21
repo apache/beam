@@ -23,7 +23,7 @@ files:
   visible: false
 - name: task.go
   visible: true
-- name: main/main.go
+- name: cmd/main.go
   visible: true
 - name: go.mod
   visible: false
