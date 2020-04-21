@@ -58,8 +58,8 @@ abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> 
     this.featureList = featureList;
   }
 
-  @StartBundle
-  public void startBundle() throws IOException {
+  @Setup
+  public void setup() throws IOException {
     videoIntelligenceServiceClient = VideoIntelligenceServiceClient.create();
   }
 

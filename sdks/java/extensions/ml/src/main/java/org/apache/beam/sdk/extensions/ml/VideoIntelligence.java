@@ -24,15 +24,16 @@ import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Factory class for AnnotateVideo subclasses. allows integration with Google Cloud AI -
- * VideoIntelligence service. Converts GCS URIs of videos or ByteStrings with video contents into
- * Lists of VideoAnnotationResults.
+ * Factory class for PTransforms integrating with Google Cloud AI - VideoIntelligence service.
+ * Converts GCS URIs of videos or ByteStrings with video contents into Lists of
+ * VideoAnnotationResults.
  *
  * <p>Adding a side input of Maps of elements to VideoContext objects is allowed, so is using KVs of
  * element and VideoContext as input.
@@ -89,15 +90,21 @@ public class VideoIntelligence {
   }
 
   /**
-   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link String} and an optional
-   * side input with a context map.
+   * A PTransform taking a PCollection of {@link String} and an optional side input with a context
+   * map and emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud AI
+   * VideoIntelligence.
    */
   @Experimental
-  public static class AnnotateVideoFromUri extends AnnotateVideo<String> {
+  public static class AnnotateVideoFromUri
+      extends PTransform<PCollection<String>, PCollection<List<VideoAnnotationResults>>> {
+
+    private final PCollectionView<Map<String, VideoContext>> contextSideInput;
+    private final List<Feature> featureList;
 
     protected AnnotateVideoFromUri(
         PCollectionView<Map<String, VideoContext>> contextSideInput, List<Feature> featureList) {
-      super(contextSideInput, featureList);
+      this.contextSideInput = contextSideInput;
+      this.featureList = featureList;
     }
 
     @Override
@@ -107,16 +114,22 @@ public class VideoIntelligence {
   }
 
   /**
-   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link ByteString} and an
-   * optional side input with a context map.
+   * A PTransform taking a PCollection of {@link ByteString} and an optional side input with a
+   * context map and emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud
+   * AI VideoIntelligence.
    */
   @Experimental
-  public static class AnnotateVideoFromBytes extends AnnotateVideo<ByteString> {
+  public static class AnnotateVideoFromBytes
+      extends PTransform<PCollection<ByteString>, PCollection<List<VideoAnnotationResults>>> {
+
+    private final PCollectionView<Map<ByteString, VideoContext>> contextSideInput;
+    private final List<Feature> featureList;
 
     protected AnnotateVideoFromBytes(
         PCollectionView<Map<ByteString, VideoContext>> contextSideInput,
         List<Feature> featureList) {
-      super(contextSideInput, featureList);
+      this.contextSideInput = contextSideInput;
+      this.featureList = featureList;
     }
 
     @Override
@@ -126,15 +139,19 @@ public class VideoIntelligence {
   }
 
   /**
-   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link KV} of {@link String}
-   * and {@link VideoContext}.
+   * A PTransform taking a PCollection of {@link KV} of {@link String} and {@link VideoContext} and
+   * emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud AI
+   * VideoIntelligence.
    */
   @Experimental
   public static class AnnotateVideoFromURIWithContext
-      extends AnnotateVideo<KV<String, VideoContext>> {
+      extends PTransform<
+          PCollection<KV<String, VideoContext>>, PCollection<List<VideoAnnotationResults>>> {
+
+    private final List<Feature> featureList;
 
     protected AnnotateVideoFromURIWithContext(List<Feature> featureList) {
-      super(featureList);
+      this.featureList = featureList;
     }
 
     @Override
@@ -145,15 +162,19 @@ public class VideoIntelligence {
   }
 
   /**
-   * Implementation of {@link AnnotateVideo} taking a PCollection of {@link KV} of {@link
-   * ByteString} and {@link VideoContext}.
+   * A PTransform taking a PCollection of {@link KV} of {@link ByteString} and {@link VideoContext}
+   * and emitting lists of {@link VideoAnnotationResults} for each element. Calls Cloud AI
+   * VideoIntelligence.
    */
   @Experimental
   public static class AnnotateVideoFromBytesWithContext
-      extends AnnotateVideo<KV<ByteString, VideoContext>> {
+      extends PTransform<
+          PCollection<KV<ByteString, VideoContext>>, PCollection<List<VideoAnnotationResults>>> {
+
+    private final List<Feature> featureList;
 
     protected AnnotateVideoFromBytesWithContext(List<Feature> featureList) {
-      super(featureList);
+      this.featureList = featureList;
     }
 
     @Override
