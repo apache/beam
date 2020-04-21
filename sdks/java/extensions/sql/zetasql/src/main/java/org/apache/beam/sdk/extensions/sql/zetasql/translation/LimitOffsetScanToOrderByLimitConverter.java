@@ -34,6 +34,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelFieldCol
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
 /** Converts ORDER BY LIMIT. */
@@ -70,6 +71,10 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
         getExpressionConverter()
             .convertRexNodeFromResolvedExpr(
                 zetaNode.getLimit(), zetaNode.getColumnList(), input.getRowType().getFieldList());
+
+    if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
+      throw new UnsupportedOperationException("Limit requires non-null count and offset");
+    }
 
     return LogicalSort.create(input, relCollation, offset, fetch);
   }
