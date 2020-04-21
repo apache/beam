@@ -160,6 +160,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             PTransformFunctionRegistry startFunctionRegistry,
             PTransformFunctionRegistry finishFunctionRegistry,
             Consumer<ThrowingRunnable> tearDownFunctions,
+            Consumer<ProgressRequestCallback> addProgressRequestCallback,
             BundleSplitListener splitListener,
             BundleFinalizer bundleFinalizer) {
 
