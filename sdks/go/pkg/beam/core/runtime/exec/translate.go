@@ -38,12 +38,15 @@ import (
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "beam:runner:source:v1"
-	urnDataSink             = "beam:runner:sink:v1"
-	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
-	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
-	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
-	urnPerKeyCombineConvert = "beam:transform:combine_per_key_convert_to_accumulators:v1"
+	urnDataSource                          = "beam:runner:source:v1"
+	urnDataSink                            = "beam:runner:sink:v1"
+	urnPerKeyCombinePre                    = "beam:transform:combine_per_key_precombine:v1"
+	urnPerKeyCombineMerge                  = "beam:transform:combine_per_key_merge_accumulators:v1"
+	urnPerKeyCombineExtract                = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert                = "beam:transform:combine_per_key_convert_to_accumulators:v1"
+	urnPairWithRestriction                 = "beam:transform:sdf_pair_with_restriction:v1"
+	urnSplitAndSizeRestrictions            = "beam:transform:sdf_split_and_size_restrictions:v1"
+	urnProcessSizedElementsAndRestrictions = "beam:transform:sdf_process_sized_element_and_restrictions:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -333,10 +336,21 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
+	case graphx.URNParDo,
+		graphx.URNJavaDoFn,
+		urnPerKeyCombinePre,
+		urnPerKeyCombineMerge,
+		urnPerKeyCombineExtract,
+		urnPerKeyCombineConvert,
+		urnPairWithRestriction,
+		urnSplitAndSizeRestrictions,
+		urnProcessSizedElementsAndRestrictions:
 		var data string
 		switch urn {
-		case graphx.URNParDo:
+		case graphx.URNParDo,
+			urnPairWithRestriction,
+			urnSplitAndSizeRestrictions,
+			urnProcessSizedElementsAndRestrictions:
 			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
@@ -372,32 +386,43 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn, graph.MainUnknown)
+				dofn, err := graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
-				n.PID = transform.GetUniqueName()
+				switch urn {
+				case urnPairWithRestriction:
+					u = &PairWithRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				case urnSplitAndSizeRestrictions:
+					u = &SplitAndSizeRestrictions{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				default:
+					n := &ParDo{UID: b.idgen.New(), Fn: dofn, Inbound: in, Out: out}
+					n.PID = transform.GetUniqueName()
 
-				input := unmarshalKeyedValues(transform.GetInputs())
-				for i := 1; i < len(input); i++ {
-					// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
-					// For now, assume we don't need any information in the pardo payload.
+					input := unmarshalKeyedValues(transform.GetInputs())
+					for i := 1; i < len(input); i++ {
+						// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
+						// For now, assume we don't need any information in the pardo payload.
 
-					ec, wc, err := b.makeCoderForPCollection(input[i])
-					if err != nil {
-						return nil, err
+						ec, wc, err := b.makeCoderForPCollection(input[i])
+						if err != nil {
+							return nil, err
+						}
+
+						sid := StreamID{
+							Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+							PtransformID: id.to,
+						}
+						sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
+						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
+						n.Side = append(n.Side, side)
 					}
-
-					sid := StreamID{
-						Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
-						PtransformID: id.to,
+					if urn == urnProcessSizedElementsAndRestrictions {
+						u = &ProcessSizedElementsAndRestrictions{PDo: n}
+					} else {
+						u = n
 					}
-					sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
-					side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
-					n.Side = append(n.Side, side)
 				}
-				u = n
 
 			case graph.Combine:
 				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
