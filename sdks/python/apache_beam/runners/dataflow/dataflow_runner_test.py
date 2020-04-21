@@ -258,6 +258,18 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
+  def test_biqquery_read_fn_api_fail(self):
+    remote_runner = DataflowRunner()
+    for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
+      self.default_properties.append("--experiments=%s" % flag)
+      with self.assertRaisesRegex(
+          ValueError,
+          'The Read.BigQuerySource.*is not supported.*'
+          'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
+        with Pipeline(remote_runner,
+                      PipelineOptions(self.default_properties)) as p:
+          _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
+
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(
