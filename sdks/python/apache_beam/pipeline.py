@@ -54,6 +54,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 from builtins import object
 from builtins import zip
