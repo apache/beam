@@ -122,10 +122,6 @@ func TestControl_getOrCreatePlan(t *testing.T) {
 			name:      "badLookup",
 			lookupErr: fmt.Errorf("lookupError"),
 		}, {
-			name:       "nilLookup",
-			lookupDesc: nil,
-			lookupErr:  fmt.Errorf("invalid bundle desc"),
-		}, {
 			name:       "badDescriptorPlan",
 			lookupDesc: invalidDescriptor(t),
 			planErr:    fmt.Errorf("invalid bundle desc"),
