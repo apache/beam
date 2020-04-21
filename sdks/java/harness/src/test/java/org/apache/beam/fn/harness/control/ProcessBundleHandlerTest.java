@@ -47,6 +47,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
@@ -292,6 +293,7 @@ public class ProcessBundleHandlerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             addTearDownFunction,
+            addProgressRequestCallback,
             splitListener,
             bundleFinalizer) -> {
           transformsProcessed.add(pTransform);
@@ -659,6 +661,7 @@ public class ProcessBundleHandlerTest {
                         startFunctionRegistry,
                         finishFunctionRegistry,
                         addTearDownFunction,
+                        addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
                       startFunctionRegistry.register(
@@ -726,6 +729,7 @@ public class ProcessBundleHandlerTest {
                         startFunctionRegistry,
                         finishFunctionRegistry,
                         addTearDownFunction,
+                        addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
                       thrown.expect(IllegalStateException.class);
@@ -783,6 +787,7 @@ public class ProcessBundleHandlerTest {
                         startFunctionRegistry,
                         finishFunctionRegistry,
                         addTearDownFunction,
+                        addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
                       thrown.expect(IllegalStateException.class);
@@ -878,6 +883,7 @@ public class ProcessBundleHandlerTest {
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
                       Consumer<ThrowingRunnable> addTearDownFunction,
+                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
                       BundleFinalizer bundleFinalizer)
                       throws IOException {
@@ -942,6 +948,7 @@ public class ProcessBundleHandlerTest {
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
                       Consumer<ThrowingRunnable> addTearDownFunction,
+                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
                       BundleFinalizer bundleFinalizer)
                       throws IOException {
@@ -1004,6 +1011,7 @@ public class ProcessBundleHandlerTest {
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
                       Consumer<ThrowingRunnable> addTearDownFunction,
+                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
                       BundleFinalizer bundleFinalizer)
                       throws IOException {

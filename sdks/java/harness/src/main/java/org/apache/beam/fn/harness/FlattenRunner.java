@@ -71,6 +71,7 @@ public class FlattenRunner<InputT> {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
         BundleSplitListener splitListener,
         BundleFinalizer bundleFinalizer)
         throws IOException {

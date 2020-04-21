@@ -37,6 +37,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
@@ -182,6 +183,7 @@ public class ProcessBundleHandler {
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addTearDownFunction,
+      Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer,
       Collection<BeamFnDataReadRunner> channelRoots)
@@ -245,6 +247,7 @@ public class ProcessBundleHandler {
                   startFunctionRegistry,
                   finishFunctionRegistry,
                   addTearDownFunction,
+                  addProgressRequestCallback,
                   splitListener,
                   bundleFinalizer);
       if (runner instanceof BeamFnDataReadRunner) {
@@ -407,6 +410,7 @@ public class ProcessBundleHandler {
         new PTransformFunctionRegistry(
             metricsContainerRegistry, stateTracker, ExecutionStateTracker.FINISH_STATE_NAME);
     List<ThrowingRunnable> tearDownFunctions = new ArrayList<>();
+    List<ProgressRequestCallback> progressRequestCallbacks = new ArrayList<>();
 
     // Build a multimap of PCollection ids to PTransform ids which consume said PCollections
     for (Map.Entry<String, RunnerApi.PTransform> entry :
@@ -450,6 +454,7 @@ public class ProcessBundleHandler {
             startFunctionRegistry,
             finishFunctionRegistry,
             tearDownFunctions,
+            progressRequestCallbacks,
             splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
@@ -485,6 +490,7 @@ public class ProcessBundleHandler {
           startFunctionRegistry,
           finishFunctionRegistry,
           tearDownFunctions::add,
+          progressRequestCallbacks::add,
           splitListener,
           bundleFinalizer,
           bundleProcessor.getChannelRoots());
@@ -579,6 +585,7 @@ public class ProcessBundleHandler {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         List<ThrowingRunnable> tearDownFunctions,
+        List<ProgressRequestCallback> progressRequestCallbacks,
         BundleSplitListener.InMemory splitListener,
         PCollectionConsumerRegistry pCollectionConsumerRegistry,
         MetricsContainerStepMap metricsContainerRegistry,
@@ -590,6 +597,7 @@ public class ProcessBundleHandler {
           startFunctionRegistry,
           finishFunctionRegistry,
           tearDownFunctions,
+          progressRequestCallbacks,
           splitListener,
           pCollectionConsumerRegistry,
           metricsContainerRegistry,
@@ -607,6 +615,8 @@ public class ProcessBundleHandler {
     abstract PTransformFunctionRegistry getFinishFunctionRegistry();
 
     abstract List<ThrowingRunnable> getTearDownFunctions();
+
+    abstract List<ProgressRequestCallback> getProgressRequestCallbacks();
 
     abstract BundleSplitListener.InMemory getSplitListener();
 
@@ -759,6 +769,7 @@ public class ProcessBundleHandler {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
         BundleSplitListener splitListener,
         BundleFinalizer bundleFinalizer) {
       String message =
