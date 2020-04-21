@@ -30,12 +30,20 @@ import yaml
 
 from bs4 import BeautifulSoup
 from datetime import datetime
-from future.moves.urllib.request import urlopen
-from future.moves.urllib.request import URLError, HTTPError
+
 from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
 from tenacity import wait_exponential
+
+try:
+    # py2
+    from future.moves.urllib.request import urlopen
+    from future.moves.urllib.request import URLError, HTTPError
+except:
+    # py3
+    from future import standard_library
+    from urllib.request import urlopen, URLError, HTTPError
 
 LICENSE_DIR = 'java_third_party_licenses'
 LICENSE_SCRIPT_DIR = 'sdks/java/container/license_scripts/'

@@ -19,10 +19,10 @@ set -e
 ./gradlew generateLicenseReport --rerun-tasks
 
 # install packages needed for pull_licenses_java.py
-pip install beautifulsoup4==4.9.0
-pip install future==0.17.1
-pip install PyYAML==5.3
-pip install tenacity==5.0.4
+pip install "beautifulsoup4>=4.9.0,<5.0"
+pip install "future>=0.16.0,<1.0.0"
+pip install "pyyaml>=3.12,<6.0.0"
+pip install "tenacity>=5.0.2,<6.0"
 
 # pull licenses, notices and source code
 if [ "$1" = 'true' ]; then
