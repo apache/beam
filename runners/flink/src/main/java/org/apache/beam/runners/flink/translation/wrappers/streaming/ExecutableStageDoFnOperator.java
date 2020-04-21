@@ -468,7 +468,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     // requests
     try (Locker locker = Locker.locked(stateBackendLock)) {
       getKeyedStateBackend().setCurrentKey(key);
-      fireTimer(key, timer);
+      fireTimer(timer);
     }
   }
 
