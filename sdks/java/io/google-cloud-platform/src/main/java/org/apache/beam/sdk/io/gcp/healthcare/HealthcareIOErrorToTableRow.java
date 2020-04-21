@@ -43,12 +43,12 @@ import org.joda.time.format.ISODateTimeFormat;
  * TableSchema deadLetterSchema = new TableSchema();
  * deadLetterSchema.setFields(HealthcareIOErrorToTableRow.TABLE_FIELD_SCHEMAS);
  * TimePartitioning deadLetterPartitioning = new TimeParitioning();
- * deaLetterPartitioning.setField(HealthcareIOErrorToTableRow.TIMESTAMP_FIELD_NAME);
+ * deadLetterPartitioning.setField(HealthcareIOErrorToTableRow.TIMESTAMP_FIELD_NAME);
  *
  * errors.apply(
  *    BigQueryIO.write()
  *      .to(options.getDeadLetterTable())
- *      .withFormatFunction(new HealthcareIOErrorToTableRow<String>())
+ *      .withFormatFunction(new HealthcareIOErrorToTableRow())
  *      .withSchema(deadLetterSchema)
  *      .withTimePartitioning(deadLetterPartitioning)
  * );
