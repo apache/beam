@@ -32,7 +32,9 @@ import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineFns;
 import org.apache.beam.sdk.transforms.CombineFns.CoCombineResult;
@@ -158,12 +160,12 @@ class SchemaAggregateFn {
         SimpleFunction<Row, ?> extractFunction;
         Coder extractOutputCoder;
         if (fieldAggregation.fieldsToAggregate.referencesSingleField()) {
-          extractFunction = new ExtractSingleFieldFunction(fieldAggregation);
+          extractFunction = new ExtractSingleFieldFunction(inputSchema, fieldAggregation);
           extractOutputCoder =
               SchemaCoder.coderForFieldType(
                   fieldAggregation.flattenedInputSubSchema.getField(0).getType());
         } else {
-          extractFunction = new ExtractFieldsFunction(fieldAggregation);
+          extractFunction = new ExtractFieldsFunction(inputSchema, fieldAggregation);
           extractOutputCoder = SchemaCoder.of(fieldAggregation.inputSubSchema);
         }
         if (i == 0) {
@@ -229,27 +231,28 @@ class SchemaAggregateFn {
 
     /** Extract a single field from an input {@link Row}. */
     private static class ExtractSingleFieldFunction<OutputT> extends SimpleFunction<Row, OutputT> {
+      private final RowSelector rowSelector;
+      @Nullable private final RowSelector flatteningSelector;
       private final FieldAggregation fieldAggregation;
 
-      private ExtractSingleFieldFunction(FieldAggregation fieldAggregation) {
+      private ExtractSingleFieldFunction(Schema inputSchema, FieldAggregation fieldAggregation) {
+        rowSelector =
+            new RowSelectorContainer(inputSchema, fieldAggregation.fieldsToAggregate, true);
+        flatteningSelector =
+            fieldAggregation.needsFlattening
+                ? new RowSelectorContainer(
+                    fieldAggregation.inputSubSchema,
+                    fieldAggregation.flattenedFieldAccessDescriptor,
+                    true)
+                : null;
         this.fieldAggregation = fieldAggregation;
       }
 
       @Override
       public OutputT apply(Row row) {
-        Row selected =
-            SelectHelpers.selectRow(
-                row,
-                fieldAggregation.fieldsToAggregate,
-                row.getSchema(),
-                fieldAggregation.inputSubSchema);
+        Row selected = rowSelector.select(row);
         if (fieldAggregation.needsFlattening) {
-          selected =
-              SelectHelpers.selectRow(
-                  selected,
-                  fieldAggregation.flattenedFieldAccessDescriptor,
-                  row.getSchema(),
-                  fieldAggregation.flattenedInputSubSchema);
+          selected = flatteningSelector.select(selected);
         }
         return selected.getValue(0);
       }
@@ -257,19 +260,18 @@ class SchemaAggregateFn {
 
     /** Extract multiple fields from an input {@link Row}. */
     private static class ExtractFieldsFunction extends SimpleFunction<Row, Row> {
-      private FieldAggregation fieldAggregation;
+      private final RowSelector rowSelector;
+      private final FieldAggregation fieldAggregation;
 
-      private ExtractFieldsFunction(FieldAggregation fieldAggregation) {
+      private ExtractFieldsFunction(Schema inputSchema, FieldAggregation fieldAggregation) {
+        rowSelector =
+            new RowSelectorContainer(inputSchema, fieldAggregation.fieldsToAggregate, true);
         this.fieldAggregation = fieldAggregation;
       }
 
       @Override
       public Row apply(Row row) {
-        return SelectHelpers.selectRow(
-            row,
-            fieldAggregation.fieldsToAggregate,
-            row.getSchema(),
-            fieldAggregation.inputSubSchema);
+        return rowSelector.select(row);
       }
     }
 

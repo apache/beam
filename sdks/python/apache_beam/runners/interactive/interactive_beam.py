@@ -33,15 +33,19 @@ this module in your notebook or application code.
 
 from __future__ import absolute_import
 
-import re
+import warnings
 
 import apache_beam as beam
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner as ir
 from apache_beam.runners.interactive import pipeline_fragment as pf
+from apache_beam.runners.interactive import pipeline_instrument as pi
+from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
 from apache_beam.runners.interactive.options import interactive_options
+from apache_beam.runners.interactive.utils import elements_to_df
+from apache_beam.runners.interactive.utils import to_element_list
 
 
 class Options(interactive_options.InteractiveOptions):
@@ -85,10 +89,77 @@ class Options(interactive_options.InteractiveOptions):
       interactive_beam.evict_captured_data()
       # The next PCollection evaluation will capture fresh data from sources,
       # and the data captured will be replayed until another eviction.
+      interactive_beam.collect(some_pcoll)
     """
+    assert value.total_seconds() > 0, 'Duration must be a positive value.'
     self.capture_control._capture_duration = value
 
-  # TODO(BEAM-8335): add capture_size options when they are supported.
+  @property
+  def capture_size_limit(self):
+    """The data capture of sources ends as soon as the size (in bytes) of data
+    captured from capturable sources reaches the limit."""
+    return self.capture_control._capture_size_limit
+
+  @capture_size_limit.setter
+  def capture_size_limit(self, value):
+    """Sets the capture size in bytes.
+
+    Example::
+
+      # Sets the capture size limit to 1GB.
+      interactive_beam.options.capture_size_limit = 1e9
+    """
+    self.capture_control._capture_size_limit = value
+
+  @property
+  def display_timestamp_format(self):
+    """The format in which timestamps are displayed.
+
+    Default is '%Y-%m-%d %H:%M:%S.%f%z', e.g. 2020-02-01 15:05:06.000015-08:00.
+    """
+    return self._display_timestamp_format
+
+  @display_timestamp_format.setter
+  def display_timestamp_format(self, value):
+    """Sets the format in which timestamps are displayed.
+
+    Default is '%Y-%m-%d %H:%M:%S.%f%z', e.g. 2020-02-01 15:05:06.000015-08:00.
+
+    Example::
+
+      # Sets the format to not display the timezone or microseconds.
+      interactive_beam.options.display_timestamp_format = %Y-%m-%d %H:%M:%S'
+    """
+    self._display_timestamp_format = value
+
+  @property
+  def display_timezone(self):
+    """The timezone in which timestamps are displayed.
+
+    Defaults to local timezone.
+    """
+    return self._display_timezone
+
+  @display_timezone.setter
+  def display_timezone(self, value):
+    """Sets the timezone (datetime.tzinfo) in which timestamps are displayed.
+
+    Defaults to local timezone.
+
+    Example::
+
+      # Imports the timezone library.
+      from pytz import timezone
+
+      # Will display all timestamps in the US/Eastern time zone.
+      tz = timezone('US/Eastern')
+
+      # You can also use dateutil.tz to get a timezone.
+      tz = dateutil.tz.gettz('US/Eastern')
+
+      interactive_beam.options.capture_size = tz
+    """
+    self._display_timezone = value
 
 
 # Users can set options to guide how Interactive Beam works.
@@ -98,6 +169,7 @@ class Options(interactive_options.InteractiveOptions):
 # ib.options.enable_capture_replay = False/True
 # ib.options.capture_duration = timedelta(seconds=60)
 # ib.options.capturable_sources.add(SourceClass)
+# Check the docstrings for detailed usages.
 options = Options()
 
 
@@ -140,17 +212,41 @@ def watch(watchable):
 
     Then you can use::
 
-      visualize(init_pcoll)
+      show(init_pcoll)
 
     To visualize data from init_pcoll once the pipeline is executed.
   """
   ie.current_env().watch(watchable)
 
 
-def show(*pcolls):
-  """Visualizes given PCollections in an interactive exploratory way if used
-  within a notebook, or prints a heading sampled data if used within an ipython
-  shell. Noop if used in a non-interactive environment.
+# TODO(BEAM-8288): Change the signature of this function to
+# `show(*pcolls, include_window_info=False, visualize_data=False)` once Python 2
+# is completely deprecated from Beam.
+def show(*pcolls, **configs):
+  # type: (*Union[Dict[Any, PCollection], Iterable[PCollection], PCollection], **bool) -> None
+
+  """Shows given PCollections in an interactive exploratory way if used within
+  a notebook, or prints a heading sampled data if used within an ipython shell.
+  Noop if used in a non-interactive environment.
+
+  The given pcolls can be dictionary of PCollections (as values), or iterable
+  of PCollections or plain PCollection values.
+
+  There are 2 boolean configurations:
+
+    #. include_window_info=<True/False>. If True, windowing information of the
+       data will be visualized too. Default is false.
+    #. visualize_data=<True/False>. By default, the visualization contains data
+       tables rendering data from given pcolls separately as if they are
+       converted into dataframes. If visualize_data is True, there will be a
+       more dive-in widget and statistically overview widget of the data.
+       Otherwise, those 2 data visualization widgets will not be displayed.
+
+  By default, the visualization contains data tables rendering data from given
+  pcolls separately as if they are converted into dataframes. If visualize_data
+  is True, there will be a more dive-in widget and statistically overview widget
+  of the data. Otherwise, those 2 data visualization widgets will not be
+  displayed.
 
   Ad hoc builds a pipeline fragment including only transforms that are
   necessary to produce data for given PCollections pcolls, runs the pipeline
@@ -185,6 +281,20 @@ def show(*pcolls):
       # PCollection `square` and PCollection `cube`, then visualizes them.
       show(square, cube)
   """
+  flatten_pcolls = []
+  for pcoll_container in pcolls:
+    if isinstance(pcoll_container, dict):
+      flatten_pcolls.extend(pcoll_container.values())
+    elif isinstance(pcoll_container, beam.pvalue.PCollection):
+      flatten_pcolls.append(pcoll_container)
+    else:
+      try:
+        flatten_pcolls.extend(iter(pcoll_container))
+      except TypeError:
+        raise ValueError(
+            'The given pcoll %s is not a dict, an iterable or a PCollection.' %
+            pcoll_container)
+  pcolls = flatten_pcolls
   assert len(pcolls) > 0, (
       'Need at least 1 PCollection to show data visualization.')
   for pcoll in pcolls:
@@ -196,9 +306,21 @@ def show(*pcolls):
         '{} belongs to a different user-defined pipeline ({}) than that of'
         ' other PCollections ({}).'.format(
             pcoll, pcoll.pipeline, user_pipeline))
+  # TODO(BEAM-8288): Remove below pops and assertion once Python 2 is
+  # deprecated from Beam.
+  include_window_info = configs.pop('include_window_info', False)
+  visualize_data = configs.pop('visualize_data', False)
+  # This assertion is to protect the backward compatibility for function
+  # signature change after Python 2 deprecation.
+  assert not configs, (
+      'The only configs supported are include_window_info and '
+      'visualize_data.')
   runner = user_pipeline.runner
   if isinstance(runner, ir.InteractiveRunner):
     runner = runner._underlying_runner
+
+  # Make sure that sources without a user reference are still cached.
+  pi.watch_sources(user_pipeline)
 
   # Make sure that all PCollections to be shown are watched. If a PCollection
   # has not been watched, make up a variable name for that PCollection and watch
@@ -211,20 +333,51 @@ def show(*pcolls):
         watched_pcollections.add(val)
   for pcoll in pcolls:
     if pcoll not in watched_pcollections:
-      watch({re.sub(r'[\[\]\(\)]', '_', str(pcoll)): pcoll})
+      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
 
+  if ie.current_env().is_in_ipython:
+    warnings.filterwarnings(
+        'ignore',
+        'options is deprecated since First stable release. References to '
+        '<pipeline>.options will not be supported',
+        category=DeprecationWarning)
   # Attempt to run background caching job since we have the reference to the
   # user-defined pipeline.
-  bcj.attempt_to_run_background_caching_job(runner, user_pipeline)
+  bcj.attempt_to_run_background_caching_job(
+      runner, user_pipeline, user_pipeline.options)
+
+  pcolls = set(pcolls)
+  computed_pcolls = set()
+  for pcoll in pcolls:
+    if pcoll in ie.current_env().computed_pcollections:
+      computed_pcolls.add(pcoll)
+  pcolls = pcolls.difference(computed_pcolls)
+  # If in notebook, static plotting computed pcolls as computation is done.
+  if ie.current_env().is_in_notebook:
+    for pcoll in computed_pcolls:
+      visualize(
+          pcoll,
+          include_window_info=include_window_info,
+          display_facets=visualize_data)
+  elif ie.current_env().is_in_ipython:
+    for pcoll in computed_pcolls:
+      visualize(pcoll, include_window_info=include_window_info)
+
+  if not pcolls:
+    return
 
   # Build a pipeline fragment for the PCollections and run it.
-  result = pf.PipelineFragment(list(pcolls)).run()
+  result = pf.PipelineFragment(list(pcolls), user_pipeline.options).run()
   ie.current_env().set_pipeline_result(user_pipeline, result)
 
   # If in notebook, dynamic plotting as computation goes.
   if ie.current_env().is_in_notebook:
     for pcoll in pcolls:
-      visualize(pcoll, dynamic_plotting_interval=1)
+      visualize(
+          pcoll,
+          dynamic_plotting_interval=1,
+          include_window_info=include_window_info,
+          display_facets=visualize_data)
 
   # Invoke wait_until_finish to ensure the blocking nature of this API without
   # relying on the run to be blocking.
@@ -233,13 +386,113 @@ def show(*pcolls):
   # If just in ipython shell, plotting once when the computation is completed.
   if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
     for pcoll in pcolls:
-      visualize(pcoll)
+      visualize(pcoll, include_window_info=include_window_info)
 
   # If the pipeline execution is successful at this stage, mark the computation
   # completeness for the given PCollections so that when further `show`
   # invocation occurs, Interactive Beam wouldn't need to re-compute them.
   if result.state is beam.runners.runner.PipelineState.DONE:
     ie.current_env().mark_pcollection_computed(pcolls)
+
+
+def collect(pcoll, include_window_info=False):
+  """Materializes all of the elements from a PCollection into a Dataframe.
+
+  For example::
+
+    p = beam.Pipeline(InteractiveRunner())
+    init = p | 'Init' >> beam.Create(range(10))
+    square = init | 'Square' >> beam.Map(lambda x: x * x)
+
+    # Run the pipeline and bring the PCollection into memory as a Dataframe.
+    in_memory_square = collect(square)
+  """
+  return head(pcoll, n=-1, include_window_info=include_window_info)
+
+
+def head(pcoll, n=5, include_window_info=False):
+  """Materializes the first n elements from a PCollection into a Dataframe.
+
+  This reads each element from file and reads only the amount that it needs
+  into memory.
+  For example::
+
+    p = beam.Pipeline(InteractiveRunner())
+    init = p | 'Init' >> beam.Create(range(10))
+    square = init | 'Square' >> beam.Map(lambda x: x * x)
+
+    # Run the pipeline and bring the PCollection into memory as a Dataframe.
+    in_memory_square = head(square, n=5)
+  """
+  assert isinstance(pcoll, beam.pvalue.PCollection), (
+      '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
+
+  user_pipeline = pcoll.pipeline
+  runner = user_pipeline.runner
+  if isinstance(runner, ir.InteractiveRunner):
+    runner = runner._underlying_runner
+
+  # Make sure that sources without a user reference are still cached.
+  pi.watch_sources(user_pipeline)
+
+  # Make sure that all PCollections to be shown are watched. If a PCollection
+  # has not been watched, make up a variable name for that PCollection and watch
+  # it. No validation is needed here because the watch logic can handle
+  # arbitrary variables.
+  watched_pcollections = set()
+  for watching in ie.current_env().watching():
+    for _, val in watching:
+      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
+        watched_pcollections.add(val)
+  if pcoll not in watched_pcollections:
+    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
+
+  warnings.filterwarnings('ignore', category=DeprecationWarning)
+  # Attempt to run background caching job since we have the reference to the
+  # user-defined pipeline.
+  bcj.attempt_to_run_background_caching_job(
+      runner, user_pipeline, user_pipeline.options)
+
+  if pcoll in ie.current_env().computed_pcollections:
+    # Read from pcoll cache, then convert to DF
+    pipeline_instrument = pi.PipelineInstrument(pcoll.pipeline)
+    key = pipeline_instrument.cache_key(pcoll)
+    cache_manager = ie.current_env().cache_manager()
+
+    coder = cache_manager.load_pcoder('full', key)
+    reader, _ = cache_manager.read('full', key)
+    elements = to_element_list(reader, coder, include_window_info=True)
+  else:
+
+    # Build a pipeline fragment for the PCollections and run it.
+    result = pf.PipelineFragment([pcoll], user_pipeline.options).run()
+    ie.current_env().set_pipeline_result(user_pipeline, result)
+
+    # Invoke wait_until_finish to ensure the blocking nature of this API without
+    # relying on the run to be blocking.
+    result.wait_until_finish()
+
+    # If the pipeline execution is successful at this stage, mark the
+    # computation completeness for the given PCollections so that when further
+    # `show` invocation occurs, Interactive Beam wouldn't need to re-compute.
+    if result.state is beam.runners.runner.PipelineState.DONE:
+      ie.current_env().mark_pcollection_computed([pcoll])
+
+    elements = result.read(pcoll, include_window_info=True)
+
+  results = []
+  for e in elements:
+    results.append(e)
+    if len(results) >= n and n > 0:
+      break
+
+  return elements_to_df(results, include_window_info=include_window_info)
+
+
+def show_graph(pipeline):
+  """Shows the current pipeline shape of a given Beam pipeline as a DAG.
+  """
+  pipeline_graph.PipelineGraph(pipeline).display_graph()
 
 
 def evict_captured_data():

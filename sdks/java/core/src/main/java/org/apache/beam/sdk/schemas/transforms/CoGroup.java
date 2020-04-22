@@ -35,7 +35,9 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
+import org.apache.beam.sdk.schemas.utils.SelectHelpers.RowSelectorContainer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -399,10 +401,12 @@ public class CoGroup {
               "extractKey" + tag,
               ParDo.of(
                   new DoFn<T, KV<Row, Row>>() {
+                    private RowSelector rowSelector =
+                        new RowSelectorContainer(schema, keyFields, true);
+
                     @ProcessElement
                     public void process(@Element Row row, OutputReceiver<KV<Row, Row>> o) {
-                      o.output(
-                          KV.of(SelectHelpers.selectRow(row, keyFields, schema, keySchema), row));
+                      o.output(KV.of(rowSelector.select(row), row));
                     }
                   }))
           .setCoder(KvCoder.of(SchemaCoder.of(keySchema), SchemaCoder.of(schema)));

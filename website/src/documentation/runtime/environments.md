@@ -73,7 +73,7 @@ python -m apache_beam.examples.wordcount \
 
 ```
 # Start a Flink job server on localhost:8099
-./gradlew :runners:flink:1.7:job-server:runShadow
+./gradlew :runners:flink:1.8:job-server:runShadow
 
 # Run a pipeline on the Flink job server
 python -m apache_beam.examples.wordcount \

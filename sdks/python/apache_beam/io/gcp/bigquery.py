@@ -720,7 +720,7 @@ class _CustomBigQuerySource(BoundedSource):
     job_ref = bq.perform_extract_job([self.gcs_location],
                                      job_id,
                                      self.table_reference,
-                                     bigquery_tools.ExportFileFormat.JSON,
+                                     bigquery_tools.FileFormat.JSON,
                                      include_header=False)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
@@ -1114,12 +1114,19 @@ class BigQueryWriteFn(DoFn):
           insert_ids=insert_ids,
           skip_invalid_rows=True)
 
-      if not passed:
-        _LOGGER.info("There were errors inserting to BigQuery: %s", errors)
       failed_rows = [rows[entry.index] for entry in errors]
       should_retry = any(
           bigquery_tools.RetryStrategy.should_retry(
               self._retry_strategy, entry.errors[0].reason) for entry in errors)
+      if not passed:
+        message = (
+            'There were errors inserting to BigQuery. Will{} retry. '
+            'Errors were {}'.format(("" if should_retry else " not"), errors))
+        if should_retry:
+          _LOGGER.warning(message)
+        else:
+          _LOGGER.error(message)
+
       rows = failed_rows
 
       if not should_retry:
@@ -1239,7 +1246,8 @@ class WriteToBigQuery(PTransform):
       table_side_inputs=None,
       schema_side_inputs=None,
       triggering_frequency=None,
-      validate=True):
+      validate=True,
+      temp_file_format=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -1272,8 +1280,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         (mode will always be set to ``'NULLABLE'``).
         If a callable, then it should receive a destination (in the form of
         a TableReference or a string, and return a str, dict or TableSchema.
-        One may also pass ``SCHEMA_AUTODETECT`` here, and BigQuery will try to
-        infer the schema for the files that are being loaded.
+        One may also pass ``SCHEMA_AUTODETECT`` here when using JSON-based
+        file loads, and BigQuery will try to infer the schema for the files
+        that are being loaded.
       create_disposition (BigQueryDisposition): A string describing what
         happens if the table does not exist. Possible values are:
 
@@ -1338,6 +1347,12 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         about BigQuery quotas.
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
+      temp_file_format: The format to use for file loads into BigQuery. The
+        options are NEWLINE_DELIMITED_JSON or AVRO, with AVRO being used
+        by default. For advantages and limitations of the two formats, see
+        https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
+        and
+        https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
     """
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
@@ -1348,7 +1363,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     if schema == SCHEMA_AUTODETECT:
       self.schema = schema
     else:
-      self.schema = WriteToBigQuery.get_dict_table_schema(schema)
+      self.schema = bigquery_tools.get_dict_table_schema(schema)
     self.batch_size = batch_size
     self.kms_key = kms_key
     self.test_client = test_client
@@ -1361,87 +1376,18 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.triggering_frequency = triggering_frequency
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
+    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.AVRO
 
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
     self.schema_side_inputs = schema_side_inputs or ()
 
-  @staticmethod
-  def get_table_schema_from_string(schema):
-    """Transform the string table schema into a
-    :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema` instance.
-
-    Args:
-      schema (str): The sting schema to be used if the BigQuery table to write
-        has to be created.
-
-    Returns:
-      ~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema:
-      The schema to be used if the BigQuery table to write has to be created
-      but in the :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema` format.
-    """
-    table_schema = bigquery.TableSchema()
-    schema_list = [s.strip() for s in schema.split(',')]
-    for field_and_type in schema_list:
-      field_name, field_type = field_and_type.split(':')
-      field_schema = bigquery.TableFieldSchema()
-      field_schema.name = field_name
-      field_schema.type = field_type
-      field_schema.mode = 'NULLABLE'
-      table_schema.fields.append(field_schema)
-    return table_schema
-
-  @staticmethod
-  def table_schema_to_dict(table_schema):
-    """Create a dictionary representation of table schema for serialization
-    """
-    def get_table_field(field):
-      """Create a dictionary representation of a table field
-      """
-      result = {}
-      result['name'] = field.name
-      result['type'] = field.type
-      result['mode'] = getattr(field, 'mode', 'NULLABLE')
-      if hasattr(field, 'description') and field.description is not None:
-        result['description'] = field.description
-      if hasattr(field, 'fields') and field.fields:
-        result['fields'] = [get_table_field(f) for f in field.fields]
-      return result
-
-    if not isinstance(table_schema, bigquery.TableSchema):
-      raise ValueError("Table schema must be of the type bigquery.TableSchema")
-    schema = {'fields': []}
-    for field in table_schema.fields:
-      schema['fields'].append(get_table_field(field))
-    return schema
-
-  @staticmethod
-  def get_dict_table_schema(schema):
-    """Transform the table schema into a dictionary instance.
-
-    Args:
-      schema (~apache_beam.io.gcp.internal.clients.bigquery.\
-bigquery_v2_messages.TableSchema):
-        The schema to be used if the BigQuery table to write has to be created.
-        This can either be a dict or string or in the TableSchema format.
-
-    Returns:
-      Dict[str, Any]: The schema to be used if the BigQuery table to write has
-      to be created but in the dictionary format.
-    """
-    if (isinstance(schema, (dict, vp.ValueProvider)) or callable(schema) or
-        schema is None):
-      return schema
-    elif isinstance(schema, (str, unicode)):
-      table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
-      return WriteToBigQuery.table_schema_to_dict(table_schema)
-    elif isinstance(schema, bigquery.TableSchema):
-      return WriteToBigQuery.table_schema_to_dict(schema)
-    else:
-      raise TypeError('Unexpected schema argument: %s.' % schema)
+  # Dict/schema methods were moved to bigquery_tools, but keep references
+  # here for backward compatibility.
+  get_table_schema_from_string = \
+      staticmethod(bigquery_tools.get_table_schema_from_string)
+  table_schema_to_dict = staticmethod(bigquery_tools.table_schema_to_dict)
+  get_dict_table_schema = staticmethod(bigquery_tools.get_dict_table_schema)
 
   def _compute_method(self, experiments, is_streaming_pipeline):
     # If the new BQ sink is not activated for experiment flags, then we use
@@ -1469,13 +1415,12 @@ bigquery_v2_messages.TableSchema):
 
     method_to_use = self._compute_method(experiments, is_streaming_pipeline)
 
-    if (method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS and
-        self.schema == SCHEMA_AUTODETECT):
-      raise ValueError(
-          'Schema auto-detection is not supported for streaming '
-          'inserts into BigQuery. Only for File Loads.')
-
     if method_to_use == WriteToBigQuery.Method.STREAMING_INSERTS:
+      if self.schema == SCHEMA_AUTODETECT:
+        raise ValueError(
+            'Schema auto-detection is not supported for streaming '
+            'inserts into BigQuery. Only for File Loads.')
+
       if self.triggering_frequency:
         raise ValueError(
             'triggering_frequency can only be used with '
@@ -1496,13 +1441,26 @@ bigquery_v2_messages.TableSchema):
 
       return {BigQueryWriteFn.FAILED_ROWS: outputs[BigQueryWriteFn.FAILED_ROWS]}
     else:
+      if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
+        if self.schema == SCHEMA_AUTODETECT:
+          raise ValueError(
+              'Schema auto-detection is not supported when using Avro based '
+              'file loads into BigQuery. Please specify a schema or set '
+              'temp_file_format="NEWLINE_DELIMITED_JSON"')
+        if self.schema is None:
+          raise ValueError(
+              'A schema must be provided when writing to BigQuery using '
+              'Avro based file loads')
+
       from apache_beam.io.gcp import bigquery_file_loads
+
       return pcoll | bigquery_file_loads.BigQueryBatchFileLoads(
           destination=self.table_reference,
           schema=self.schema,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           triggering_frequency=self.triggering_frequency,
+          temp_file_format=self._temp_file_format,
           max_file_size=self.max_file_size,
           max_files_per_bundle=self.max_files_per_bundle,
           custom_gcs_temp_location=self.custom_gcs_temp_location,

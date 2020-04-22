@@ -163,7 +163,7 @@ class CoderTranslators {
             components.isEmpty(), "Expected empty component list, but received: " + components);
         Schema schema;
         try {
-          schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(payload));
+          schema = SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(payload));
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Unable to parse schema for RowCoder: ", e);
         }

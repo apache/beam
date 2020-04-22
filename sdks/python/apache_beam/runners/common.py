@@ -67,6 +67,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 if TYPE_CHECKING:
   from apache_beam.transforms import sideinputs
   from apache_beam.transforms.core import TimerSpec
+  from apache_beam.io.iobase import RestrictionProgress
   from apache_beam.iobase import RestrictionTracker
   from apache_beam.iobase import WatermarkEstimator
 
@@ -302,12 +303,15 @@ class DoFnSignature(object):
     return self.process_method.watermark_estimator_provider
 
   def _validate(self):
+    # type: () -> None
     self._validate_process()
     self._validate_bundle_method(self.start_bundle_method)
     self._validate_bundle_method(self.finish_bundle_method)
     self._validate_stateful_dofn()
 
   def _validate_process(self):
+    # type: () -> None
+
     """Validate that none of the DoFnParameters are repeated in the function
     """
     param_ids = [
@@ -329,6 +333,7 @@ class DoFnSignature(object):
             (param, method_wrapper))
 
   def _validate_stateful_dofn(self):
+    # type: () -> None
     userstate.validate_stateful_dofn(self.do_fn)
 
   def is_splittable_dofn(self):
@@ -344,6 +349,8 @@ class DoFnSignature(object):
           (self.get_restriction_provider().restriction_coder()),
           (self.get_watermark_estimator_provider().estimator_state_coder())
       ])
+    else:
+      return None
 
   def is_stateful_dofn(self):
     # type: () -> bool
@@ -395,7 +402,7 @@ class DoFnInvoker(object):
   @staticmethod
   def create_invoker(
       signature,  # type: DoFnSignature
-      output_processor,  # type: OutputProcessor
+      output_processor,  # type: _OutputProcessor
       context=None,  # type: Optional[DoFnContext]
       side_inputs=None,   # type: Optional[List[sideinputs.SideInputMap]]
       input_args=None, input_kwargs=None,
@@ -464,7 +471,6 @@ class DoFnInvoker(object):
       windowed_value: a WindowedValue object that gives the element for which
                       process() method should be invoked along with the window
                       the element belongs to.
-      output_processor: if provided given OutputProcessor will be used.
       additional_args: additional arguments to be passed to the current
                       `DoFn.process()` invocation, usually as side inputs.
       additional_kwargs: additional keyword arguments to be passed to the
@@ -484,8 +490,7 @@ class DoFnInvoker(object):
 
     """Invokes the DoFn.start_bundle() method.
     """
-    # self.output_processor is Optional, but in practice it won't be None here
-    self.output_processor.start_bundle_outputs(  # type: ignore[union-attr]
+    self.output_processor.start_bundle_outputs(
         self.signature.start_bundle_method.method_value())
 
   def invoke_finish_bundle(self):
@@ -493,8 +498,7 @@ class DoFnInvoker(object):
 
     """Invokes the DoFn.finish_bundle() method.
     """
-    # self.output_processor is Optional, but in practice it won't be None here
-    self.output_processor.finish_bundle_outputs(  # type: ignore[union-attr]
+    self.output_processor.finish_bundle_outputs(
         self.signature.finish_bundle_method.method_value())
 
   def invoke_teardown(self):
@@ -506,8 +510,8 @@ class DoFnInvoker(object):
 
   def invoke_user_timer(self, timer_spec, key, window, timestamp):
     # self.output_processor is Optional, but in practice it won't be None here
-    self.output_processor.process_outputs(  # type: ignore[union-attr]
-        WindowedValue(None, timestamp, (window,)),
+    self.output_processor.process_outputs(
+        WindowedValue(None, timestamp, (window, )),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
             self.user_state_context, key, window, timestamp))
 
@@ -552,7 +556,7 @@ class PerWindowInvoker(DoFnInvoker):
   """An invoker that processes elements considering windowing information."""
 
   def __init__(self,
-               output_processor,  # type: OutputProcessor
+               output_processor,  # type: _OutputProcessor
                signature,  # type: DoFnSignature
                context,  # type: DoFnContext
                side_inputs,  # type: Iterable[sideinputs.SideInputMap]
@@ -994,18 +998,23 @@ class DoFnRunner:
       self._reraise_augmented(exn)
 
   def setup(self):
+    # type: () -> None
     self._invoke_lifecycle_method(self.do_fn_invoker.invoke_setup)
 
   def start(self):
+    # type: () -> None
     self._invoke_bundle_method(self.do_fn_invoker.invoke_start_bundle)
 
   def finish(self):
+    # type: () -> None
     self._invoke_bundle_method(self.do_fn_invoker.invoke_finish_bundle)
 
   def teardown(self):
+    # type: () -> None
     self._invoke_lifecycle_method(self.do_fn_invoker.invoke_teardown)
 
   def finalize(self):
+    # type: () -> None
     self.bundle_finalizer_param.finalize_bundle()
 
   def _reraise_augmented(self, exn):
@@ -1031,7 +1040,7 @@ class DoFnRunner:
 class OutputProcessor(object):
   def process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
-    # type: (WindowedValue, Iterable[Any]) -> None
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
     raise NotImplementedError
 
 
@@ -1059,7 +1068,7 @@ class _OutputProcessor(OutputProcessor):
 
   def process_outputs(
       self, windowed_input_element, results, watermark_estimator=None):
-    # type: (WindowedValue, Iterable[Any]) -> None
+    # type: (WindowedValue, Iterable[Any], Optional[WatermarkEstimator]) -> None
 
     """Dispatch the result of process computation to the appropriate receivers.
 

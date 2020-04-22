@@ -41,8 +41,7 @@ if TYPE_CHECKING:
   from apache_beam.runners.interactive.display.pipeline_graph import PipelineGraph
 
 
-class PipelineGraphRenderer(with_metaclass(abc.ABCMeta,
-                                           BeamPlugin)):  # type: ignore[misc]
+class PipelineGraphRenderer(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
   """Abstract class for renderers, who decide how pipeline graphs are rendered.
   """
   @classmethod

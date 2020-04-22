@@ -27,7 +27,7 @@ You can freely mix SQL `PTransforms` and other `PTransforms` in your pipeline.
 
 Beam SQL includes the following dialects:
 
-- [Beam Calcite SQL](http://calcite.apache.org)
+- [Beam Calcite SQL](https://calcite.apache.org)
 - [Beam ZetaSQL](https://github.com/google/zetasql)
 
 Beam Calcite SQL is a variant of Apache Calcite, a dialect widespread in

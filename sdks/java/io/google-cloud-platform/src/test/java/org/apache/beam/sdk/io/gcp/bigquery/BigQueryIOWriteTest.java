@@ -1614,6 +1614,7 @@ public class BigQueryIOWriteTest implements Serializable {
             false,
             null,
             "NEWLINE_DELIMITED_JSON",
+            false,
             Collections.emptySet());
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =

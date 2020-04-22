@@ -69,6 +69,7 @@ public class KinesisReaderTest {
         generator,
         kinesisSource,
         WatermarkPolicyFactory.withArrivalTimePolicy(),
+        RateLimitPolicyFactory.withoutLimiter(),
         Duration.ZERO,
         backlogBytesCheckThreshold,
         ShardReadersPool.DEFAULT_CAPACITY_PER_SHARD) {

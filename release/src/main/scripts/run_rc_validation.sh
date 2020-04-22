@@ -209,7 +209,7 @@ if [[ "$java_quickstart_flink_local" = true ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Flink local runner"
   echo "*************************************************************"
-  ./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER}
 else

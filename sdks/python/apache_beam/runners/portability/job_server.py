@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import atexit
-import os
 import shutil
 import signal
 import subprocess
@@ -125,10 +124,6 @@ class SubprocessJobServer(JobServer):
 
 
 class JavaJarJobServer(SubprocessJobServer):
-
-  MAVEN_REPOSITORY = 'https://repo.maven.apache.org/maven2/org/apache/beam'
-  JAR_CACHE = os.path.expanduser("~/.apache_beam/cache")
-
   def __init__(self, options):
     super(JavaJarJobServer, self).__init__()
     options = options.view_as(pipeline_options.JobServerOptions)

@@ -658,8 +658,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Throws IndexOutOfBoundsException")
-  public void testConstructEmptyArrayLiteral() {
+  public void testEmptyArrayParameter() {
     String sql = "SELECT @p0 AS ColA";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
@@ -673,6 +672,20 @@ public class ZetaSQLDialectSpecTest {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addArrayField("field1", FieldType.INT64).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValue(ImmutableList.of()).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testEmptyArrayLiteral() {
+    String sql = "SELECT ARRAY<STRING>[];";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addArrayField("field1", FieldType.STRING).build();
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValue(ImmutableList.of()).build());
@@ -2718,6 +2731,44 @@ public class ZetaSQLDialectSpecTest {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("foo").build(),
             Row.withSchema(schema).addValues("bar").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUNNESTParameters() {
+    String sql = "SELECT * FROM UNNEST(@p0);";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "p0",
+            Value.createArrayValue(
+                TypeFactory.createArrayType(TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+                ImmutableList.of(Value.createStringValue("foo"), Value.createStringValue("bar"))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addStringField("str_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("foo").build(),
+            Row.withSchema(schema).addValues("bar").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore("BEAM-9515")
+  public void testUNNESTExpression() {
+    String sql = "SELECT * FROM UNNEST(ARRAY(SELECT Value FROM KeyValue));";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addStringField("str_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("KeyValue234").build(),
+            Row.withSchema(schema).addValues("KeyValue235").build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 

@@ -39,4 +39,10 @@ dockerCompose.isRequiredBy(testMetricsStack)
 
 task preCommit { dependsOn testMetricsStack }
 
-task checkProber { dependsOn test }
+task checkProber(type:Test) {
+  include "**/ProberTests.class"
+}
+
+project.test {
+  exclude "**/ProberTests.class"
+}

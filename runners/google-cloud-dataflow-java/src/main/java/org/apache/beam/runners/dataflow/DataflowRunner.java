@@ -103,6 +103,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesAndMessageId
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSink;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubUnboundedSource;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -433,21 +434,25 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(Create.Values.class),
                 new StreamingFnApiCreateOverrideFactory()));
       }
-      overridesBuilder
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.writeWithRunnerDeterminedSharding(),
-                  new StreamingShardedWriteFactory(options)))
-          .add(
-              // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read, and
-              // must precede it
-              PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(Read.Bounded.class),
-                  new StreamingBoundedReadOverrideFactory()))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(Read.Unbounded.class),
-                  new StreamingUnboundedReadOverrideFactory()));
+      overridesBuilder.add(
+          PTransformOverride.of(
+              PTransformMatchers.writeWithRunnerDeterminedSharding(),
+              new StreamingShardedWriteFactory(options)));
+      if (!fnApiEnabled
+          || ExperimentalOptions.hasExperiment(options, "beam_fn_api_use_deprecated_read")) {
+        overridesBuilder
+            .add(
+                // Streaming Bounded Read is implemented in terms of Streaming Unbounded Read, and
+                // must precede it
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(Read.Bounded.class),
+                    new StreamingBoundedReadOverrideFactory()))
+            .add(
+                PTransformOverride.of(
+                    PTransformMatchers.classEqualTo(Read.Unbounded.class),
+                    new StreamingUnboundedReadOverrideFactory()));
+      }
+
       if (!fnApiEnabled) {
         overridesBuilder.add(
             PTransformOverride.of(

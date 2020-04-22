@@ -30,6 +30,7 @@ from typing import Any
 from typing import NamedTuple
 from typing import Optional
 from typing import Tuple
+from typing import Union
 
 from apache_beam.transforms.core import WatermarkEstimatorProvider
 from apache_beam.utils.timestamp import Duration
@@ -49,7 +50,7 @@ SplitResultPrimary = NamedTuple(
 SplitResultResidual = NamedTuple(
     'SplitResultResidual',
     [('residual_value', WindowedValue), ('current_watermark', Timestamp),
-     ('deferred_timestamp', Duration)])
+     ('deferred_timestamp', Optional[Duration])])
 
 
 class ThreadsafeRestrictionTracker(object):
@@ -70,7 +71,7 @@ class ThreadsafeRestrictionTracker(object):
     self._timestamp = None
     self._lock = threading.RLock()
     self._deferred_residual = None
-    self._deferred_timestamp = None
+    self._deferred_timestamp = None  # type: Optional[Union[Timestamp, Duration]]
 
   def current_restriction(self):
     with self._lock:
@@ -100,8 +101,7 @@ class ThreadsafeRestrictionTracker(object):
     # Record current time for calculating deferred_time later.
     with self._lock:
       self._timestamp = Timestamp.now()
-      if (deferred_time and not isinstance(deferred_time, Duration) and
-          not isinstance(deferred_time, Timestamp)):
+      if deferred_time and not isinstance(deferred_time, (Duration, Timestamp)):
         raise ValueError(
             'The timestamp of deter_remainder() should be a '
             'Duration or a Timestamp, or None.')
@@ -124,7 +124,7 @@ class ThreadsafeRestrictionTracker(object):
       return self._restriction_tracker.try_split(fraction_of_remainder)
 
   def deferred_status(self):
-    # type: () -> Optional[Tuple[Any, Timestamp]]
+    # type: () -> Optional[Tuple[Any, Duration]]
 
     """Returns deferred work which is produced by ``defer_remainder()``.
 

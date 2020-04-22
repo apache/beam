@@ -40,6 +40,7 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import fn_api_runner_transforms
@@ -54,7 +55,6 @@ if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.pipeline import Pipeline
-  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = ['PortableRunner']
 
@@ -101,6 +101,7 @@ class JobServiceHandle(object):
     """
     prepare_response = self.prepare(proto_pipeline)
     retrieval_token = self.stage(
+        proto_pipeline,
         prepare_response.artifact_staging_endpoint.url,
         prepare_response.staging_session_token)
     return self.run(prepare_response.preparation_id, retrieval_token)
@@ -177,7 +178,7 @@ class JobServiceHandle(object):
             pipeline_options=self.get_pipeline_options()),
         timeout=self.timeout)
 
-  def stage(self, artifact_staging_endpoint, staging_session_token):
+  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token):
     # type: (...) -> Optional[Any]
 
     """Stage artifacts"""
@@ -185,9 +186,21 @@ class JobServiceHandle(object):
       stager = portable_stager.PortableStager(
           grpc.insecure_channel(artifact_staging_endpoint),
           staging_session_token)
-      retrieval_token, _ = stager.stage_job_resources(
-          self.options,
-          staging_location='')
+      resources = []
+      for _, env in pipeline.components.environments.items():
+        for dep in env.dependencies:
+          if dep.type_urn != common_urns.artifact_types.FILE.urn:
+            raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
+          if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
+            raise RuntimeError('unsupported role type %s' % dep.role_urn)
+          type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+              dep.type_payload)
+          role_payload = \
+              beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                  dep.role_payload)
+          resources.append((type_payload.path, role_payload.staged_name))
+      stager.stage_job_resources(resources, staging_location='')
+      retrieval_token = stager.commit_manifest()
     else:
       retrieval_token = None
 
@@ -275,8 +288,12 @@ class PortableRunner(runner.PipelineRunner):
           job_server.DockerizedJobServer())
     return self._dockerized_job_server
 
-  def create_job_service_plan(self, options):
+  def create_job_service(self, options):
     # type: (PipelineOptions) -> JobServiceHandle
+
+    """
+    Start the job service and return a `JobServiceHandle`
+    """
     job_endpoint = options.view_as(PortableOptions).job_endpoint
     if job_endpoint:
       if job_endpoint == 'embed':
@@ -379,12 +396,12 @@ class PortableRunner(runner.PipelineRunner):
       cleanup_callbacks = []
 
     proto_pipeline = self.get_proto_pipeline(pipeline, options)
-    job_service_plan = self.create_job_service_plan(options)
+    job_service_handle = self.create_job_service(options)
     job_id, message_stream, state_stream = \
-      job_service_plan.submit(proto_pipeline)
+      job_service_handle.submit(proto_pipeline)
 
     result = PipelineResult(
-        job_service_plan.job_service,
+        job_service_handle.job_service,
         job_id,
         message_stream,
         state_stream,

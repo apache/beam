@@ -92,7 +92,7 @@ __all__ = ['ReadFromMongoDB', 'WriteToMongoDB']
 
 @experimental()
 class ReadFromMongoDB(PTransform):
-  """A ``PTransfrom`` to read MongoDB documents into a ``PCollection``.
+  """A ``PTransform`` to read MongoDB documents into a ``PCollection``.
   """
   def __init__(
       self,

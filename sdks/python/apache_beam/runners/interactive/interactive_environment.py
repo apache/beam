@@ -33,6 +33,7 @@ import sys
 
 import apache_beam as beam
 from apache_beam.runners import runner
+from apache_beam.runners.interactive.utils import register_ipython_log_handler
 from apache_beam.utils.interactive_utils import is_in_ipython
 from apache_beam.utils.interactive_utils import is_in_notebook
 
@@ -42,6 +43,59 @@ from apache_beam.utils.interactive_utils import is_in_notebook
 _interactive_beam_env = None
 
 _LOGGER = logging.getLogger(__name__)
+
+# By `format(customized_script=xxx)`, the given `customized_script` is
+# guaranteed to be executed within access to a jquery with datatable plugin
+# configured which is useful so that any `customized_script` is resilient to
+# browser refresh. Inside `customized_script`, use `$` as jQuery.
+_JQUERY_WITH_DATATABLE_TEMPLATE = """
+        if (typeof window.interactive_beam_jquery == 'undefined') {{
+          var jqueryScript = document.createElement('script');
+          jqueryScript.src = 'https://code.jquery.com/jquery-3.4.1.slim.min.js';
+          jqueryScript.type = 'text/javascript';
+          jqueryScript.onload = function() {{
+            var datatableScript = document.createElement('script');
+            datatableScript.src = 'https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js';
+            datatableScript.type = 'text/javascript';
+            datatableScript.onload = function() {{
+              window.interactive_beam_jquery = jQuery.noConflict(true);
+              window.interactive_beam_jquery(document).ready(function($){{
+                {customized_script}
+              }});
+            }}
+            document.head.appendChild(datatableScript);
+          }};
+          document.head.appendChild(jqueryScript);
+        }} else {{
+          window.interactive_beam_jquery(document).ready(function($){{
+            {customized_script}
+          }});
+        }}"""
+
+# By `format(hrefs=xxx)`, the given `hrefs` will be imported as HTML imports.
+# Since HTML import might not be supported by the browser, we check if HTML
+# import is supported by the browser, if so, import HTMLs else setup
+# webcomponents and chain the HTML import to the end of onload.
+_HTML_IMPORT_TEMPLATE = """
+        var import_html = () => {{
+          {hrefs}.forEach(href => {{
+            var link = document.createElement('link');
+            link.rel = 'import'
+            link.href = href;
+            document.head.appendChild(link);
+          }});
+        }}
+        if ('import' in document.createElement('link')) {{
+          import_html();
+        }} else {{
+          var webcomponentScript = document.createElement('script');
+          webcomponentScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/1.3.3/webcomponents-lite.js';
+          webcomponentScript.type = 'text/javascript';
+          webcomponentScript.onload = function(){{
+            import_html();
+          }};
+          document.head.appendChild(webcomponentScript);
+        }}"""
 
 
 def current_env(cache_manager=None):
@@ -115,7 +169,6 @@ class InteractiveEnvironment(object):
     # Check if [interactive] dependencies are installed.
     try:
       import IPython  # pylint: disable=unused-import
-      import jsons  # pylint: disable=unused-import
       import timeloop  # pylint: disable=unused-import
       from facets_overview.generic_feature_statistics_generator import GenericFeatureStatisticsGenerator  # pylint: disable=unused-import
       self._is_interactive_ready = True
@@ -138,6 +191,13 @@ class InteractiveEnvironment(object):
       _LOGGER.warning(
           'You have limited Interactive Beam features since your '
           'ipython kernel is not connected any notebook frontend.')
+    if self._is_in_notebook:
+      self.load_jquery_with_datatable()
+      self.import_html_to_head([
+          'https://raw.githubusercontent.com/PAIR-code/facets/1.0.0/facets-dist'
+          '/facets-jupyter.html'
+      ])
+      register_ipython_log_handler()
 
   @property
   def options(self):
@@ -354,3 +414,46 @@ class InteractiveEnvironment(object):
   @property
   def computed_pcollections(self):
     return self._computed_pcolls
+
+  def load_jquery_with_datatable(self):
+    """Loads common resources to enable jquery with datatable configured for
+    notebook frontends if necessary. If the resources have been loaded, NOOP.
+
+    A window.interactive_beam_jquery with datatable plugin configured can be
+    used in following notebook cells once this is invoked.
+
+    #. There should only be one jQuery imported.
+    #. Datatable needs to be imported after jQuery is loaded.
+    #. Imported jQuery is attached to window named as jquery[version].
+    #. The window attachment needs to happen at the end of import chain until
+       all jQuery plugins are set.
+    """
+    try:
+      from IPython.core.display import Javascript
+      from IPython.core.display import display_javascript
+      display_javascript(
+          Javascript(
+              _JQUERY_WITH_DATATABLE_TEMPLATE.format(customized_script='')))
+    except ImportError:
+      pass  # NOOP if dependencies are not available.
+
+  def import_html_to_head(self, html_hrefs):
+    """Imports given external HTMLs (supported through webcomponents) into
+    the head of the document.
+
+    On load of webcomponentsjs, import given HTMLs. If HTML import is already
+    supported, skip loading webcomponentsjs.
+
+    No matter how many times an HTML import occurs in the document, only the
+    first occurrence really embeds the external HTML. In a notebook environment,
+    the body of the document is always changing due to cell [re-]execution,
+    deletion and re-ordering. Thus, HTML imports shouldn't be put in the body
+    especially the output areas of notebook cells.
+    """
+    try:
+      from IPython.core.display import Javascript
+      from IPython.core.display import display_javascript
+      display_javascript(
+          Javascript(_HTML_IMPORT_TEMPLATE.format(hrefs=html_hrefs)))
+    except ImportError:
+      pass  # NOOP if dependencies are not available.

@@ -69,4 +69,4 @@ Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.
 for assistance in finding a place to help out.
 
  - JIRA: [sdk-go](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) / [BEAM-2083](https://issues.apache.org/jira/browse/BEAM-2083)
- - Contact: Robert Burke (@lostluck) [Email](mailto:rebo@google.com,dev@beam.apache.org?subject=%5BGo%20SDK%5D)
+ - Contact: Robert Burke (@lostluck) [Email](mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D) - Please also cc the dev@beam.apache.org list. I strongly prefer public discussion of Go SDK matters. 

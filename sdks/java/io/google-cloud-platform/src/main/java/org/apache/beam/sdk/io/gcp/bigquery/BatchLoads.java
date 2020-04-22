@@ -120,6 +120,7 @@ class BatchLoads<DestinationT, ElementT>
   private final CreateDisposition createDisposition;
   private Set<SchemaUpdateOption> schemaUpdateOptions;
   private final boolean ignoreUnknownValues;
+  private final boolean useAvroLogicalTypes;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
   private final boolean singletonTable;
@@ -153,7 +154,8 @@ class BatchLoads<DestinationT, ElementT>
       Coder<ElementT> elementCoder,
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
       @Nullable String kmsKey,
-      boolean clusteringEnabled) {
+      boolean clusteringEnabled,
+      boolean useAvroLogicalTypes) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -169,6 +171,7 @@ class BatchLoads<DestinationT, ElementT>
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
@@ -604,6 +607,7 @@ class BatchLoads<DestinationT, ElementT>
                 ignoreUnknownValues,
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
+                useAvroLogicalTypes,
                 schemaUpdateOptions));
   }
 
@@ -639,6 +643,7 @@ class BatchLoads<DestinationT, ElementT>
                 ignoreUnknownValues,
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
+                useAvroLogicalTypes,
                 schemaUpdateOptions));
   }
 

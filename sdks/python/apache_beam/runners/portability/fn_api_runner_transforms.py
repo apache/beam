@@ -118,11 +118,9 @@ class Stage(object):
 
   @staticmethod
   def _extract_environment(transform):
-
     # type: (beam_runner_api_pb2.PTransform) -> Optional[str]
     environment = transform.environment_id
-    if environment:
-      return environment
+    return environment if environment else None
 
   @staticmethod
   def _merge_environments(env1, env2):
@@ -909,7 +907,7 @@ def expand_sdf(stages, context):
                     context.add_or_get_coder_id(
                         # context can be None here only because FloatCoder does
                         # not have components
-                        coders.FloatCoder().to_runner_api(None), # type: ignore
+                        coders.FloatCoder().to_runner_api(None),  # type: ignore
                         'doubles_coder')
                 ]))
 

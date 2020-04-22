@@ -376,24 +376,24 @@ class BundleBasedDirectRunner(PipelineRunner):
     from apache_beam.runners.direct.executor import Executor
     from apache_beam.runners.direct.transform_evaluator import \
       TransformEvaluatorRegistry
-    from apache_beam.runners.direct.test_stream_impl import _TestStream
-
-    # Performing configured PTransform overrides.
-    pipeline.replace_all(_get_transform_overrides(options))
+    from apache_beam.testing.test_stream import TestStream
 
     # If the TestStream I/O is used, use a mock test clock.
-    class _TestStreamUsageVisitor(PipelineVisitor):
+    class TestStreamUsageVisitor(PipelineVisitor):
       """Visitor determining whether a Pipeline uses a TestStream."""
       def __init__(self):
         self.uses_test_stream = False
 
       def visit_transform(self, applied_ptransform):
-        if isinstance(applied_ptransform.transform, _TestStream):
+        if isinstance(applied_ptransform.transform, TestStream):
           self.uses_test_stream = True
 
-    visitor = _TestStreamUsageVisitor()
+    visitor = TestStreamUsageVisitor()
     pipeline.visit(visitor)
     clock = TestClock() if visitor.uses_test_stream else RealClock()
+
+    # Performing configured PTransform overrides.
+    pipeline.replace_all(_get_transform_overrides(options))
 
     _LOGGER.info('Running pipeline with DirectRunner.')
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()

@@ -240,7 +240,7 @@ class ApproximateUniqueCombineFn(CombineFn):
 
 class ApproximateQuantiles(object):
   """
-  PTransfrom for getting the idea of data distribution using approximate N-tile
+  PTransform for getting the idea of data distribution using approximate N-tile
   (e.g. quartiles, percentiles etc.) either globally or per-key.
   """
   @staticmethod

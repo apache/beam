@@ -52,7 +52,6 @@ python -m apache_beam.io.gcp.bigquery_read_perf_test \
 
 from __future__ import absolute_import
 
-import base64
 import logging
 
 from apache_beam import Map
@@ -107,13 +106,14 @@ class BigQueryReadPerfTest(LoadTest):
     def format_record(record):
       # Since Synthetic Source returns data as a dictionary, we should skip one
       # of the part
+      import base64
       return {'data': base64.b64encode(record[1])}
 
     with TestPipeline() as p:
       (  # pylint: disable=expression-not-assigned
           p
           | 'Produce rows' >> Read(
-              SyntheticSource(self.parseTestPipelineOptions()))
+              SyntheticSource(self.parse_synthetic_source_options()))
           | 'Format' >> Map(format_record)
           | 'Write to BigQuery' >> WriteToBigQuery(
               dataset=self.input_dataset,

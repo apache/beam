@@ -369,8 +369,8 @@ class Coder(object):
           context)
     except Exception:
       if context.allow_proto_holders:
-        return RunnerAPICoderHolder(
-            coder_proto)  # type: ignore  # too ambiguous
+        # ignore this typing scenario for now, since it can't be easily tracked
+        return RunnerAPICoderHolder(coder_proto)  # type: ignore
       raise
 
   def to_runner_api_parameter(self, context):

@@ -99,7 +99,12 @@ def file_prefix_generator(
   return _generate_file_prefix
 
 
-def _make_new_file_writer(file_prefix, destination):
+def _make_new_file_writer(
+    file_prefix,
+    destination,
+    file_format,
+    schema=None,
+    schema_side_inputs=tuple()):
   destination = bigquery_tools.get_hashable_destination(destination)
 
   # Windows does not allow : on filenames. Replacing with underscore.
@@ -115,7 +120,23 @@ def _make_new_file_writer(file_prefix, destination):
   file_name = str(uuid.uuid4())
   file_path = fs.FileSystems.join(file_prefix, destination, file_name)
 
-  return file_path, fs.FileSystems.create(file_path, 'application/text')
+  if file_format == bigquery_tools.FileFormat.AVRO:
+    if callable(schema):
+      schema = schema(destination, *schema_side_inputs)
+    elif isinstance(schema, vp.ValueProvider):
+      schema = schema.get()
+
+    writer = bigquery_tools.AvroRowWriter(
+        fs.FileSystems.create(file_path, "application/avro"), schema)
+  elif file_format == bigquery_tools.FileFormat.JSON:
+    writer = bigquery_tools.JsonRowWriter(
+        fs.FileSystems.create(file_path, "application/text"))
+  else:
+    raise ValueError((
+        'Only AVRO and JSON are supported as intermediate formats for '
+        'BigQuery WriteRecordsToFile, got: {}.').format(file_format))
+
+  return file_path, writer
 
 
 def _bq_uuid(seed=None):
@@ -166,9 +187,10 @@ class WriteRecordsToFile(beam.DoFn):
 
   def __init__(
       self,
+      schema,
       max_files_per_bundle=_DEFAULT_MAX_WRITERS_PER_BUNDLE,
       max_file_size=_DEFAULT_MAX_FILE_SIZE,
-      coder=None):
+      file_format=None):
     """Initialize a :class:`WriteRecordsToFile`.
 
     Args:
@@ -179,21 +201,22 @@ class WriteRecordsToFile(beam.DoFn):
         an export job.
 
     """
+    self.schema = schema
     self.max_files_per_bundle = max_files_per_bundle
     self.max_file_size = max_file_size
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+    self.file_format = file_format or bigquery_tools.FileFormat.AVRO
 
   def display_data(self):
     return {
         'max_files_per_bundle': self.max_files_per_bundle,
         'max_file_size': str(self.max_file_size),
-        'coder': self.coder.__class__.__name__
+        'file_format': self.file_format,
     }
 
   def start_bundle(self):
     self._destination_to_file_writer = {}
 
-  def process(self, element, file_prefix):
+  def process(self, element, file_prefix, *schema_side_inputs):
     """Take a tuple with (destination, row) and write to file or spill out.
 
     Destination may be a ``TableReference`` or a string, and row is a
@@ -204,7 +227,11 @@ class WriteRecordsToFile(beam.DoFn):
     if destination not in self._destination_to_file_writer:
       if len(self._destination_to_file_writer) < self.max_files_per_bundle:
         self._destination_to_file_writer[destination] = _make_new_file_writer(
-            file_prefix, destination)
+            file_prefix,
+            destination,
+            self.file_format,
+            self.schema,
+            schema_side_inputs)
       else:
         yield pvalue.TaggedOutput(
             WriteRecordsToFile.UNWRITTEN_RECORD_TAG, element)
@@ -213,8 +240,7 @@ class WriteRecordsToFile(beam.DoFn):
     (file_path, writer) = self._destination_to_file_writer[destination]
 
     # TODO(pabloem): Is it possible for this to throw exception?
-    writer.write(self.coder.encode(row))
-    writer.write(b'\n')
+    writer.write(row)
 
     file_size = writer.tell()
     if file_size > self.max_file_size:
@@ -246,11 +272,13 @@ class WriteGroupedRecordsToFile(beam.DoFn):
 
   Experimental; no backwards compatibility guarantees.
   """
-  def __init__(self, max_file_size=_DEFAULT_MAX_FILE_SIZE, coder=None):
+  def __init__(
+      self, schema, max_file_size=_DEFAULT_MAX_FILE_SIZE, file_format=None):
+    self.schema = schema
     self.max_file_size = max_file_size
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+    self.file_format = file_format or bigquery_tools.FileFormat.AVRO
 
-  def process(self, element, file_prefix):
+  def process(self, element, file_prefix, *schema_side_inputs):
     destination = element[0]
     rows = element[1]
 
@@ -258,10 +286,14 @@ class WriteGroupedRecordsToFile(beam.DoFn):
 
     for row in rows:
       if writer is None:
-        (file_path, writer) = _make_new_file_writer(file_prefix, destination)
+        (file_path, writer) = _make_new_file_writer(
+            file_prefix,
+            destination,
+            self.file_format,
+            self.schema,
+            schema_side_inputs)
 
-      writer.write(self.coder.encode(row))
-      writer.write(b'\n')
+      writer.write(row)
 
       file_size = writer.tell()
       if file_size > self.max_file_size:
@@ -375,11 +407,13 @@ class TriggerLoadJobs(beam.DoFn):
       write_disposition=None,
       test_client=None,
       temporary_tables=False,
-      additional_bq_parameters=None):
+      additional_bq_parameters=None,
+      source_format=None):
     self.schema = schema
     self.test_client = test_client
     self.temporary_tables = temporary_tables
     self.additional_bq_parameters = additional_bq_parameters or {}
+    self.source_format = source_format
     if self.temporary_tables:
       # If we are loading into temporary tables, we rely on the default create
       # and write dispositions, which mean that a new table will be created.
@@ -464,7 +498,8 @@ class TriggerLoadJobs(beam.DoFn):
         schema=schema,
         write_disposition=self.write_disposition,
         create_disposition=create_disposition,
-        additional_load_parameters=additional_parameters)
+        additional_load_parameters=additional_parameters,
+        source_format=self.source_format)
     yield (destination, job_reference)
 
 
@@ -578,7 +613,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
       create_disposition=None,
       write_disposition=None,
       triggering_frequency=None,
-      coder=None,
+      temp_file_format=None,
       max_file_size=None,
       max_files_per_bundle=None,
       max_partition_size=None,
@@ -610,7 +645,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     self.test_client = test_client
     self.schema = schema
-    self.coder = coder or bigquery_tools.RowAsDictJsonCoder()
+    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.AVRO
 
     # If we have multiple destinations, then we will have multiple load jobs,
     # thus we will need temporary tables for atomicity.
@@ -674,10 +709,12 @@ class BigQueryBatchFileLoads(beam.PTransform):
         destination_data_kv_pc
         | beam.ParDo(
             WriteRecordsToFile(
+                schema=self.schema,
                 max_files_per_bundle=self.max_files_per_bundle,
                 max_file_size=self.max_file_size,
-                coder=self.coder),
-            file_prefix=file_prefix_pcv).with_outputs(
+                file_format=self._temp_file_format),
+            file_prefix_pcv,
+            *self.schema_side_inputs).with_outputs(
                 WriteRecordsToFile.UNWRITTEN_RECORD_TAG,
                 WriteRecordsToFile.WRITTEN_FILE_TAG))
 
@@ -697,12 +734,18 @@ class BigQueryBatchFileLoads(beam.PTransform):
         | "GroupShardedRows" >> beam.GroupByKey()
         | "DropShardNumber" >> beam.Map(lambda x: (x[0][0], x[1]))
         | "WriteGroupedRecordsToFile" >> beam.ParDo(
-            WriteGroupedRecordsToFile(coder=self.coder),
-            file_prefix=file_prefix_pcv))
+            WriteGroupedRecordsToFile(
+                schema=self.schema, file_format=self._temp_file_format),
+            file_prefix_pcv,
+            *self.schema_side_inputs))
 
+    # TODO(BEAM-9494): Remove the identity transform. We flatten both
+    # PCollection paths and use an identity function to work around a
+    # flatten optimization issue where the wrong coder is being used.
     all_destination_file_pairs_pc = (
         (destination_files_kv_pc, more_destination_files_kv_pc)
-        | "DestinationFilesUnion" >> beam.Flatten())
+        | "DestinationFilesUnion" >> beam.Flatten()
+        | "IdentityWorkaround" >> beam.Map(lambda x: x))
 
     if self.is_streaming_pipeline:
       # Apply the user's trigger back before we start triggering load jobs
@@ -748,7 +791,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 create_disposition=self.create_disposition,
                 test_client=self.test_client,
                 temporary_tables=True,
-                additional_bq_parameters=self.additional_bq_parameters),
+                additional_bq_parameters=self.additional_bq_parameters,
+                source_format=self._temp_file_format),
             load_job_name_pcv,
             *self.schema_side_inputs).with_outputs(
                 TriggerLoadJobs.TEMP_TABLES, main='main'))
@@ -796,7 +840,8 @@ class BigQueryBatchFileLoads(beam.PTransform):
                 create_disposition=self.create_disposition,
                 test_client=self.test_client,
                 temporary_tables=False,
-                additional_bq_parameters=self.additional_bq_parameters),
+                additional_bq_parameters=self.additional_bq_parameters,
+                source_format=self._temp_file_format),
             load_job_name_pcv,
             *self.schema_side_inputs))
 

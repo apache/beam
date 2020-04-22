@@ -122,7 +122,8 @@ class MutltiTransform(ptransform.PTransform):
     return TEST_MULTI_URN, None
 
   @staticmethod
-  def from_runner_api_parameter(unused_parameter, unused_context):
+  def from_runner_api_parameter(
+      unused_ptransform, unused_parameter, unused_context):
     return MutltiTransform()
 
 
@@ -298,7 +299,8 @@ def main(unused_argv):
   server = grpc.server(UnboundedThreadPoolExecutor())
   beam_expansion_api_pb2_grpc.add_ExpansionServiceServicer_to_server(
       expansion_service.ExpansionServiceServicer(
-          PipelineOptions(["--experiments", "beam_fn_api"])),
+          PipelineOptions(
+              ["--experiments", "beam_fn_api", "--sdk_location", "container"])),
       server)
   server.add_insecure_port('localhost:{}'.format(options.port))
   server.start()

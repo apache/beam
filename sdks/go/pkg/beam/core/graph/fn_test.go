@@ -26,27 +26,32 @@ import (
 func TestNewDoFn(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		tests := []struct {
-			dfn interface{}
+			dfn  interface{}
+			main mainInputs
 		}{
-			{dfn: func() int { return 0 }},
-			{dfn: func(string, int) int { return 0 }},
+			{dfn: func(string) int { return 0 }, main: MainSingle},
+			{dfn: func(string, int) int { return 0 }, main: MainKv},
 			{dfn: func(context.Context, typex.Window, typex.EventTime, reflect.Type, string, int, func(*int) bool, func() func(*int) bool, func(int)) (typex.EventTime, int, error) {
 				return 0, 0, nil
-			}},
-			{dfn: &GoodDoFn{}},
-			{dfn: &GoodDoFnOmittedMethods{}},
-			{dfn: &GoodDoFnEmits{}},
-			{dfn: &GoodDoFnSideInputs{}},
-			{dfn: &GoodDoFnKvSideInputs{}},
-			{dfn: &GoodDoFnKvNoSideInputs{}},
-			{dfn: &GoodDoFnAllExtras{}},
-			{dfn: &GoodDoFnUnexportedExtraMethod{}},
+			}, main: MainKv},
+			{dfn: &GoodDoFn{}, main: MainSingle},
+			{dfn: &GoodDoFnOmittedMethods{}, main: MainSingle},
+			{dfn: &GoodDoFnEmits{}, main: MainSingle},
+			{dfn: &GoodDoFnSideInputs{}, main: MainSingle},
+			{dfn: &GoodDoFnKvSideInputs{}, main: MainKv},
+			{dfn: &GoodDoFnKvNoSideInputs{}, main: MainKv},
+			{dfn: &GoodDoFnAllExtras{}, main: MainKv},
+			{dfn: &GoodDoFnUnexportedExtraMethod{}, main: MainSingle},
 		}
 
 		for _, test := range tests {
 			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				// Valid DoFns should pass validation with and without KV info.
 				if _, err := NewDoFn(test.dfn); err != nil {
 					t.Fatalf("NewDoFn failed: %v", err)
+				}
+				if _, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Fatalf("NewDoFn(NumMainInputs(%v)) failed: %v", test.main, err)
 				}
 			})
 		}
@@ -55,6 +60,11 @@ func TestNewDoFn(t *testing.T) {
 		tests := []struct {
 			dfn interface{}
 		}{
+			// Validate main inputs.
+			{dfn: func() int { return 0 }}, // No inputs.
+			{dfn: func(func(*int) bool, int) int { // Side input before main input.
+				return 0
+			}},
 			// Validate emit parameters.
 			{dfn: &BadDoFnNoEmitsStartBundle{}},
 			{dfn: &BadDoFnMissingEmitsStartBundle{}},
@@ -80,6 +90,49 @@ func TestNewDoFn(t *testing.T) {
 					t.Logf("NewDoFn failed as expected:\n%v", err)
 				} else {
 					t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
+				}
+				// If validation fails with unknown main inputs, then it should
+				// always fail for any known number of main inputs, so test them
+				// all. Error messages won't necessarily match.
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+					t.Logf("NewDoFn failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+				}
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+					t.Logf("NewDoFn failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
+				}
+			})
+		}
+	})
+	// Tests ambiguous situations that pass DoFn validation when number of main
+	// inputs is unknown, but fails when it's specified.
+	t.Run("invalidWithKnownKvs", func(t *testing.T) {
+		tests := []struct {
+			dfn  interface{}
+			main mainInputs
+		}{
+			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
+			{dfn: func(int, func(*int) bool, int) int { // Side input before all main inputs.
+				return 0
+			}, main: MainKv},
+			{dfn: &BadDoFnAmbiguousMainInput{}, main: MainKv},
+			{dfn: &BadDoFnAmbiguousSideInput{}, main: MainSingle},
+		}
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				// These tests should be ambiguous enough to pass NewDoFn. If
+				// validation improves and they start failing, move the test
+				// cases to "invalid".
+				if _, err := NewDoFn(test.dfn); err != nil {
+					t.Fatalf("NewDoFn failed: %v", err)
+				}
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Logf("NewDoFn failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(%v)) = %v, want failure", cfn.Name(), test.main, cfn)
 				}
 			})
 		}
@@ -385,6 +438,36 @@ type BadDoFnReturnValuesInTeardown struct {
 
 func (*BadDoFnReturnValuesInTeardown) Teardown() int {
 	return 0
+}
+
+type BadDoFnAmbiguousMainInput struct {
+	*GoodDoFn
+}
+
+// Ambiguous param #2 (string) is a main input but used as side input.
+func (fn *BadDoFnAmbiguousMainInput) ProcessElement(int, string, bool) int {
+	return 0
+}
+
+func (fn *BadDoFnAmbiguousMainInput) StartBundle(string, bool) {
+}
+
+func (fn *BadDoFnAmbiguousMainInput) FinishBundle(string, bool) {
+}
+
+type BadDoFnAmbiguousSideInput struct {
+	*GoodDoFn
+}
+
+// Ambiguous param #2 (string) is a side input but used as main input.
+func (fn *BadDoFnAmbiguousSideInput) ProcessElement(int, string, bool) int {
+	return 0
+}
+
+func (fn *BadDoFnAmbiguousSideInput) StartBundle(bool) {
+}
+
+func (fn *BadDoFnAmbiguousSideInput) FinishBundle(bool) {
 }
 
 // Examples of correct CombineFn signatures

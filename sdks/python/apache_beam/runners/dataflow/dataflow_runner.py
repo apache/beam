@@ -35,6 +35,8 @@ import traceback
 import urllib
 from builtins import hex
 from collections import defaultdict
+from typing import TYPE_CHECKING
+from typing import List
 
 from future.utils import iteritems
 
@@ -68,6 +70,9 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
 from apache_beam.utils.interactive_utils import is_in_notebook
 from apache_beam.utils.plugin import BeamPlugin
+
+if TYPE_CHECKING:
+  from apache_beam.pipeline import PTransformOverride
 
 if sys.version_info[0] > 2:
   unquote_to_bytes = urllib.parse.unquote_to_bytes
@@ -104,7 +109,7 @@ class DataflowRunner(PipelineRunner):
   from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
 
-  _PTRANSFORM_OVERRIDES = []
+  _PTRANSFORM_OVERRIDES = []  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [
       JrhReadPTransformOverride(),
@@ -849,7 +854,8 @@ class DataflowRunner(PipelineRunner):
     if common_urns.primitives.PAR_DO.urn == urn:
       self.run_ParDo(transform_node, options)
     else:
-      NotImplementedError(urn)
+      raise NotImplementedError(
+          '%s uses unsupported URN: %s' % (transform_node.full_label, urn))
 
   def run_ParDo(self, transform_node, options):
     transform = transform_node.transform
@@ -1355,7 +1361,7 @@ class DataflowRunner(PipelineRunner):
 
   # We must mark this method as not a test or else its name is a matcher for
   # nosetest tests.
-  run_TestStream.__test__ = False
+  run_TestStream.__test__ = False  # type: ignore[attr-defined]
 
   @classmethod
   def serialize_windowing_strategy(cls, windowing):
@@ -1532,7 +1538,7 @@ class DataflowPipelineResult(PipelineResult):
       # use thread.join() to wait for the polling thread.
       thread.daemon = True
       thread.start()
-      while thread.isAlive():
+      while thread.is_alive():
         time.sleep(5.0)
 
       # TODO: Merge the termination code in poll_for_job_completion and

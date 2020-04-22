@@ -1048,7 +1048,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
       int upperBound = Integer.parseInt(context.sideInput(singletonSideInput));
       for (int i = 0; i < upperBound; ++i) {
         if (tracker.tryClaim((long) i)) {
-          context.output(context.element() + ":" + i);
+          context.outputWithTimestamp(
+              context.element() + ":" + i, GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
+          context.updateWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(i));
         }
       }
       if (tracker.currentRestriction().getTo() > upperBound) {
@@ -1176,6 +1178,17 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertEquals(
         ParDoTranslation.getMainInputName(pTransform), residualRoot.getApplication().getInputId());
     assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+    Instant expectedOutputWatermark =
+        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(
+            2); // side input upperBound is 3 hence we only process the first two elements
+    assertEquals(
+        ImmutableMap.of(
+            "output",
+            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                .setSeconds(expectedOutputWatermark.getMillis() / 1000)
+                .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
+                .build()),
+        residualRoot.getApplication().getOutputWatermarksMap());
     primarySplits.clear();
     residualSplits.clear();
 
@@ -1183,11 +1196,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertThat(
         mainOutputValues,
         contains(
-            valueInGlobalWindow("5:0"),
-            valueInGlobalWindow("5:1"),
-            valueInGlobalWindow("5:2"),
-            valueInGlobalWindow("2:0"),
-            valueInGlobalWindow("2:1")));
+            timestampedValueInGlobalWindow("5:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0)),
+            timestampedValueInGlobalWindow("5:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1)),
+            timestampedValueInGlobalWindow("5:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2)),
+            timestampedValueInGlobalWindow("2:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0)),
+            timestampedValueInGlobalWindow("2:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1))));
     assertTrue(primarySplits.isEmpty());
     assertTrue(residualSplits.isEmpty());
     mainOutputValues.clear();

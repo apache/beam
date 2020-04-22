@@ -25,11 +25,15 @@ import sys
 import unittest
 
 import apache_beam as beam
+from apache_beam import coders
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.runners.interactive.options import capture_control
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 
@@ -39,7 +43,7 @@ try:
   from unittest.mock import patch
   from unittest.mock import MagicMock
 except ImportError:
-  from mock import patch
+  from mock import patch  # type: ignore[misc]
   from mock import MagicMock
 
 
@@ -116,19 +120,53 @@ class CaptureControlTest(unittest.TestCase):
     self.assertTrue(ie.current_env().computed_pcollections == set())
     self.assertTrue(ie.current_env().get_cached_source_signature(p) == set())
 
-  def test_capture_size_not_reached_when_no_cache(self):
+  def test_capture_size_limit_not_reached_when_no_cache(self):
     self.assertIsNone(ie.current_env().cache_manager())
     self.assertFalse(
-        ie.current_env().options.capture_control.is_capture_size_reached())
+        ie.current_env().options.capture_control.is_capture_size_limit_reached(
+        ))
 
-  def test_capture_size_not_reached_when_no_file(self):
-    _ = _build_an_empty_streaming_pipeline()
-    self.assertIsNotNone(ie.current_env().cache_manager())
+  def test_capture_size_limit_not_reached_when_no_file(self):
+    cache = StreamingCache(cache_dir=None)
+    self.assertFalse(cache.exists('my_label'))
+    ie.current_env().set_cache_manager(cache)
     self.assertFalse(
-        ie.current_env().options.capture_control.is_capture_size_reached())
+        ie.current_env().options.capture_control.is_capture_size_limit_reached(
+        ))
 
-  # TODO(BEAM-8335): add more capture_size tests when the property is
-  # implemented in streaming_cache.
+  def test_capture_size_limit_not_reached_when_file_size_under_limit(self):
+    ib.options.capture_size_limit = 100
+    cache = StreamingCache(cache_dir=None)
+    # Build a sink object to track the label as a capture in the test.
+    cache.sink(['my_label'], is_capture=True)
+    cache.write([TestStreamFileRecord()], 'my_label')
+    self.assertTrue(cache.exists('my_label'))
+    ie.current_env().set_cache_manager(cache)
+    self.assertFalse(
+        ie.current_env().options.capture_control.is_capture_size_limit_reached(
+        ))
+
+  def test_capture_size_limit_reached_when_file_size_above_limit(self):
+    ib.options.capture_size_limit = 1
+    cache = StreamingCache(cache_dir=None)
+    cache.sink(['my_label'], is_capture=True)
+    cache.write([
+        TestStreamFileRecord(
+            recorded_event=TestStreamPayload.Event(
+                element_event=TestStreamPayload.Event.AddElements(
+                    elements=[
+                        TestStreamPayload.TimestampedElement(
+                            encoded_element=coders.FastPrimitivesCoder().encode(
+                                'a'),
+                            timestamp=0)
+                    ])))
+    ],
+                'my_label')
+    self.assertTrue(cache.exists('my_label'))
+    ie.current_env().set_cache_manager(cache)
+    self.assertTrue(
+        ie.current_env().options.capture_control.is_capture_size_limit_reached(
+        ))
 
   def test_timer_terminates_capture_size_checker(self):
     p = _build_an_empty_streaming_pipeline()

@@ -370,14 +370,23 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
+				input := unmarshalKeyedValues(transform.GetInputs())
+				ec, _, err := b.makeCoderForPCollection(input[0])
+				if err != nil {
+					return nil, err
+				}
+				mainIn := graph.MainSingle
+				if coder.IsKV(ec) {
+					mainIn = graph.MainKv
+				}
+
 				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn)
+				n.Fn, err = graph.AsDoFn(fn, mainIn)
 				if err != nil {
 					return nil, err
 				}
 				n.PID = transform.GetUniqueName()
 
-				input := unmarshalKeyedValues(transform.GetInputs())
 				for i := 1; i < len(input); i++ {
 					// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
 					// For now, assume we don't need any information in the pardo payload.

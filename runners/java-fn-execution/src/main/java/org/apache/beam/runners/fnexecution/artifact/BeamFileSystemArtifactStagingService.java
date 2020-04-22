@@ -27,6 +27,7 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -88,24 +89,27 @@ public class BeamFileSystemArtifactStagingService extends AbstractArtifactStagin
 
     LOG.debug("Removing dir {}", dir);
 
-    ProxyManifest proxyManifest =
-        BeamFileSystemArtifactRetrievalService.loadManifest(manifestResourceId);
-    for (Location location : proxyManifest.getLocationList()) {
-      String uri = location.getUri();
-      LOG.debug("Removing artifact: {}", uri);
-      FileSystems.delete(
-          Collections.singletonList(FileSystems.matchNewResource(uri, false /* is directory */)));
+    // when no artifacts are staged, the manifest file does not exist
+    if (FileSystems.match(manifestResourceId.toString()).status() == MatchResult.Status.OK) {
+      ProxyManifest proxyManifest =
+          BeamFileSystemArtifactRetrievalService.loadManifest(manifestResourceId);
+      for (Location location : proxyManifest.getLocationList()) {
+        String uri = location.getUri();
+        LOG.debug("Removing artifact: {}", uri);
+        FileSystems.delete(
+            Collections.singletonList(FileSystems.matchNewResource(uri, false /* is directory */)));
+      }
+      ResourceId artifactsResourceId =
+          dir.resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
+      if (!proxyManifest.getLocationList().isEmpty()) {
+        // directory only exists when there is at least one artifact
+        LOG.debug("Removing artifacts dir: {}", artifactsResourceId);
+        FileSystems.delete(Collections.singletonList(artifactsResourceId));
+      }
+      LOG.debug("Removing manifest: {}", manifestResourceId);
+      FileSystems.delete(Collections.singletonList(manifestResourceId));
     }
 
-    ResourceId artifactsResourceId =
-        dir.resolve(ARTIFACTS, StandardResolveOptions.RESOLVE_DIRECTORY);
-    if (!proxyManifest.getLocationList().isEmpty()) {
-      // directory only exists when there is at least one artifact
-      LOG.debug("Removing artifacts dir: {}", artifactsResourceId);
-      FileSystems.delete(Collections.singletonList(artifactsResourceId));
-    }
-    LOG.debug("Removing manifest: {}", manifestResourceId);
-    FileSystems.delete(Collections.singletonList(manifestResourceId));
     LOG.debug("Removing empty dir: {}", dir);
     FileSystems.delete(Collections.singletonList(dir));
     LOG.info("Removed dir {}", dir);

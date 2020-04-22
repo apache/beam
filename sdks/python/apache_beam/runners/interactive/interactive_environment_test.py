@@ -34,7 +34,7 @@ from apache_beam.runners.interactive import interactive_environment as ie
 try:
   from unittest.mock import call, patch
 except ImportError:
-  from mock import call, patch
+  from mock import call, patch  # type: ignore[misc]
 
 # The module name is also a variable in module.
 _module_name = 'apache_beam.runners.interactive.interactive_environment_test'

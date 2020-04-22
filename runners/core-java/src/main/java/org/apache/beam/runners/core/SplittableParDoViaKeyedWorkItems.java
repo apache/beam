@@ -432,6 +432,11 @@ public class SplittableParDoViaKeyedWorkItems {
         }
 
         @Override
+        public PipelineOptions pipelineOptions() {
+          return baseContext.getPipelineOptions();
+        }
+
+        @Override
         public String getErrorContext() {
           return "SplittableParDoViaKeyedWorkItems/StartBundle";
         }
@@ -464,10 +469,15 @@ public class SplittableParDoViaKeyedWorkItems {
             private void throwUnsupportedOutput() {
               throw new UnsupportedOperationException(
                   String.format(
-                      "Splittable DoFn can only output from @%s",
+                      "KWI Splittable DoFn can only output from @%s",
                       ProcessElement.class.getSimpleName()));
             }
           };
+        }
+
+        @Override
+        public PipelineOptions pipelineOptions() {
+          return baseContext.getPipelineOptions();
         }
 
         @Override

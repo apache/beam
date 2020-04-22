@@ -40,7 +40,8 @@ from apache_beam.typehints import decorators
 decorators._enable_from_callable = True
 T = TypeVariable('T')
 # Name is 'T' so it converts to a beam type with the same name.
-T_typing = typing.TypeVar('T')
+# mypy requires that the name of the variable match, so we must ignore this.
+T_typing = typing.TypeVar('T')  # type: ignore
 
 
 class IOTypeHintsTest(unittest.TestCase):
@@ -97,7 +98,7 @@ class IOTypeHintsTest(unittest.TestCase):
   def test_from_callable_convert_to_beam_types(self):
     def fn(
         a: typing.List[int],
-        b: str = None,
+        b: str = '',
         *args: typing.Tuple[T_typing],
         foo: typing.List[int],
         **kwargs: typing.Dict[str, str]) -> typing.Tuple[typing.Any, ...]:

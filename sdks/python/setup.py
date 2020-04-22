@@ -168,8 +168,8 @@ REQUIRED_PACKAGES = [
     # [BEAM-5628] Beam VCF IO is not supported in Python 3.
     'pyvcf>=0.6.8,<0.7.0; python_version < "3.0"',
     # fixes and additions have been made since typing 3.5
-    'typing>=3.7.0,<3.8.0; python_version < "3.8.0"',
-    'typing-extensions>=3.7.0,<3.8.0; python_version < "3.8.0"',
+    'typing>=3.7.0,<3.8.0; python_version < "3.5.3"',
+    'typing-extensions>=3.7.0,<3.8.0',
     ]
 
 # [BEAM-8181] pyarrow cannot be installed on 32-bit Windows platforms.
@@ -219,9 +219,7 @@ GCP_REQUIREMENTS = [
 
 INTERACTIVE_BEAM = [
     'facets-overview>=1.0.0,<2',
-    'ipython>=5.8.0,<6',
-    # jsons is supported by Python 3.5.3+.
-    'jsons>=1.0.0,<2; python_version >= "3.5.3"',
+    'ipython>=5.8.0,<8',
     'timeloop>=1.0.2,<2',
 ]
 AWS_REQUIREMENTS = [

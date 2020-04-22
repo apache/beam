@@ -69,6 +69,8 @@ from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
 if TYPE_CHECKING:
+  from apache_beam.runners.sdf_utils import SplitResultPrimary
+  from apache_beam.runners.sdf_utils import SplitResultResidual
   from apache_beam.runners.worker.bundle_processor import ExecutionContext
   from apache_beam.runners.worker.statesampler import StateSampler
 
@@ -88,6 +90,9 @@ _globally_windowed_value = GlobalWindows.windowed_value(None)
 _global_window_type = type(_globally_windowed_value.windows[0])
 
 _LOGGER = logging.getLogger(__name__)
+
+SdfSplitResultsPrimary = Tuple['DoOperation', 'SplitResultPrimary']
+SdfSplitResultsResidual = Tuple['DoOperation', 'SplitResultResidual']
 
 
 class ConsumerSet(Receiver):
@@ -484,9 +489,9 @@ class ReadOperation(Operation):
 class ImpulseReadOperation(Operation):
   def __init__(
       self,
-      name_context,
+      name_context,  # type: Union[str, common.NameContext]
       counter_factory,
-      state_sampler,
+      state_sampler,  # type: StateSampler
       consumers,
       source,
       output_coder):
@@ -534,6 +539,16 @@ class _TaggedReceivers(dict):
     self[tag] = receiver = ConsumerSet(
         self._counter_factory, self._step_name, tag, [], None)
     return receiver
+
+  def total_output_bytes(self):
+    # type: () -> int
+    total = 0
+    for receiver in self.values():
+      elements = receiver.opcounter.element_counter.value()
+      if elements > 0:
+        mean = (receiver.opcounter.mean_byte_counter.value())[0]
+        total += elements * mean
+    return total
 
 
 class DoOperation(Operation):
@@ -761,7 +776,7 @@ class SdfProcessSizedElements(DoOperation):
   def __init__(self, *args, **kwargs):
     super(SdfProcessSizedElements, self).__init__(*args, **kwargs)
     self.lock = threading.RLock()
-    self.element_start_output_bytes = None
+    self.element_start_output_bytes = None  # type: Optional[int]
 
   def process(self, o):
     # type: (WindowedValue) -> None
@@ -769,7 +784,8 @@ class SdfProcessSizedElements(DoOperation):
     with self.scoped_process_state:
       try:
         with self.lock:
-          self.element_start_output_bytes = self._total_output_bytes()
+          self.element_start_output_bytes = \
+            self.tagged_receivers.total_output_bytes()
           for receiver in self.tagged_receivers.values():
             receiver.opcounter.restart_sampling()
         # Actually processing the element can be expensive; do it without
@@ -784,7 +800,7 @@ class SdfProcessSizedElements(DoOperation):
           self.element_start_output_bytes = None
 
   def try_split(self, fraction_of_remainder):
-    # type: (...) -> Optional[Tuple[Tuple[DoOperation, common.SplitResultType], Tuple[DoOperation, common.SplitResultType]]]
+    # type: (...) -> Optional[Tuple[SdfSplitResultsPrimary, SdfSplitResultsResidual]]
     split = self.dofn_runner.try_split(fraction_of_remainder)
     if split:
       primary, residual = split
@@ -792,12 +808,16 @@ class SdfProcessSizedElements(DoOperation):
     return None
 
   def current_element_progress(self):
+    # type: () -> Optional[iobase.RestrictionProgress]
     with self.lock:
       if self.element_start_output_bytes is not None:
         progress = self.dofn_runner.current_element_progress()
         if progress is not None:
+          assert self.tagged_receivers is not None
           return progress.with_completed(
-              self._total_output_bytes() - self.element_start_output_bytes)
+              self.tagged_receivers.total_output_bytes() -
+              self.element_start_output_bytes)
+      return None
 
   def progress_metrics(self):
     # type: () -> beam_fn_api_pb2.Metrics.PTransform
@@ -819,37 +839,29 @@ class SdfProcessSizedElements(DoOperation):
                     self).monitoring_infos(transform_id)
       current_element_progress = self.current_element_progress()
       if current_element_progress:
-        if current_element_progress.completed_work():
-          completed = current_element_progress.completed_work()
-          remaining = current_element_progress.remaining_work()
+        if current_element_progress.completed_work:
+          completed = current_element_progress.completed_work
+          remaining = current_element_progress.remaining_work
         else:
-          completed = current_element_progress.fraction_completed()
-          remaining = current_element_progress.fraction_remaining()
-
+          completed = current_element_progress.fraction_completed
+          remaining = current_element_progress.fraction_remaining
+        assert completed is not None
+        assert remaining is not None
         completed_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_COMPLETED_URN,
-            type=monitoring_infos.LATEST_DOUBLES_URN,
+            type=monitoring_infos.LATEST_DOUBLES_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
             payload=coders.FloatCoder().get_impl().encode_nested(completed),
             timestamp=monitoring_infos.to_timestamp_proto(time.time()))
         remaining_mi = metrics_pb2.MonitoringInfo(
             urn=monitoring_infos.WORK_REMAINING_URN,
-            type=monitoring_infos.LATEST_DOUBLES_URN,
+            type=monitoring_infos.LATEST_DOUBLES_TYPE,
             labels=monitoring_infos.create_labels(ptransform=transform_id),
             payload=coders.FloatCoder().get_impl().encode_nested(remaining),
             timestamp=monitoring_infos.to_timestamp_proto(time.time()))
         infos[monitoring_infos.to_key(completed_mi)] = completed_mi
         infos[monitoring_infos.to_key(remaining_mi)] = remaining_mi
     return infos
-
-  def _total_output_bytes(self):
-    total = 0
-    for receiver in self.tagged_receivers.values():
-      elements = receiver.opcounter.element_counter.value()
-      if elements > 0:
-        mean = (receiver.opcounter.mean_byte_counter.value())[0]
-        total += elements * mean
-    return total
 
 
 class CombineOperation(Operation):
@@ -873,6 +885,7 @@ class CombineOperation(Operation):
       self.output(o.with_value((key, self.phased_combine_fn.apply(values))))
 
   def finish(self):
+    # type: () -> None
     _LOGGER.debug('Finishing %s', self)
 
 
@@ -910,9 +923,11 @@ class PGBKOperation(Operation):
         self.flush(9 * self.max_size // 10)
 
   def finish(self):
+    # type: () -> None
     self.flush(0)
 
   def flush(self, target):
+    # type: (int) -> None
     limit = self.size - target
     for ix, (kw, vs) in enumerate(list(self.table.items())):
       if ix >= limit:
@@ -1003,6 +1018,7 @@ class PGBKCVOperation(Operation):
         entry[1] = self.timestamp_combiner.combine(entry[1], wkv.timestamp)
 
   def finish(self):
+    # type: () -> None
     for wkey, value in self.table.items():
       self.output_key(wkey, value[0], value[1])
     self.table = {}
@@ -1160,6 +1176,8 @@ class SimpleMapTaskExecutor(object):
     return self._ops[:]
 
   def execute(self):
+    # type: () -> None
+
     """Executes all the operation_specs.Worker* instructions in a map task.
 
     We update the map_task with the execution status, expressed as counters.

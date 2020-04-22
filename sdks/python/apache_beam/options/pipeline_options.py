@@ -1048,7 +1048,7 @@ class JobServerOptions(PipelineOptions):
 
 class FlinkRunnerOptions(PipelineOptions):
 
-  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9']
+  PUBLISHED_FLINK_VERSIONS = ['1.7', '1.8', '1.9', '1.10']
 
   @classmethod
   def _add_argparse_args(cls, parser):

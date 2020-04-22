@@ -95,7 +95,8 @@ __all__ = [
 
 T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
-ConstructorFn = Callable[[Optional[Any], 'PipelineContext'], Any]
+ConstructorFn = Callable[
+    ['beam_runner_api_pb2.PTransform', Optional[Any], 'PipelineContext'], Any]
 
 
 class _PValueishTransform(object):
@@ -604,7 +605,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       urn,  # type: str
       parameter_type,  # type: Type[T]
   ):
-    # type: (...) -> Callable[[Union[type, Callable[[T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]
+    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]]], Callable[[T, PipelineContext], Any]]
     pass
 
   @classmethod
@@ -614,7 +615,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       urn,  # type: str
       parameter_type,  # type: None
   ):
-    # type: (...) -> Callable[[Union[type, Callable[[bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
+    # type: (...) -> Callable[[Union[type, Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]]], Callable[[bytes, PipelineContext], Any]]
     pass
 
   @classmethod
@@ -622,7 +623,7 @@ class PTransform(WithTypeHints, HasDisplayData):
   def register_urn(cls,
                    urn,  # type: str
                    parameter_type,  # type: Type[T]
-                   constructor  # type: Callable[[T, PipelineContext], Any]
+                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, T, PipelineContext], Any]
                   ):
     # type: (...) -> None
     pass
@@ -632,7 +633,7 @@ class PTransform(WithTypeHints, HasDisplayData):
   def register_urn(cls,
                    urn,  # type: str
                    parameter_type,  # type: None
-                   constructor  # type: Callable[[bytes, PipelineContext], Any]
+                   constructor  # type: Callable[[beam_runner_api_pb2.PTransform, bytes, PipelineContext], Any]
                   ):
     # type: (...) -> None
     pass

@@ -227,7 +227,7 @@ public interface MyOptions extends PipelineOptions {
     void setInput(String input);
 
     @Description("Output for the pipeline")
-    @Default.String("gs://my-bucket/input")
+    @Default.String("gs://my-bucket/output")
     String getOutput();
     void setOutput(String output);
 }
@@ -3121,6 +3121,15 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
   }
 }
 ```  
+### 9.5 Export metrics {#export-metrics}
+Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period. 
+The configuration is held in the [MetricsOptions](https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html) class.
+It contains push period configuration and also sink specific options such as type and URL. As for now only the REST HTTP and the Graphite sinks are supported and only
+Flink and Spark runners support metrics export.
+
+Also Beam metrics are exported to inner Spark and Flink dashboards to be consulted in their respective UI.
+
+
 
 ## 10. State and Timers {#state-and-timers}
 Beam's windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input

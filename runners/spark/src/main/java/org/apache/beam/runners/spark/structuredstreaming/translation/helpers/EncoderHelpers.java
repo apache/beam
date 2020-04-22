@@ -100,7 +100,7 @@ public class EncoderHelpers {
       List<Object> args = new ArrayList<>();
       /*
         CODE GENERATED
-        final ${javaType} ${ev.value} = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(${input.value}, ${coder});
+        final ${javaType} ${ev.value} = org.apache.beam.runners.spark.structuredstreaming.translation.helpers.EncoderHelpers.EncodeUsingBeamCoder.encode(${input.isNull()}, ${input.value}, ${coder});
       */
       parts.add("final ");
       args.add(javaType);

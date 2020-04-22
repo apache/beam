@@ -81,7 +81,9 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -269,6 +271,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
   /** Only valid during {@link #processElementForSplitRestriction}, null otherwise. */
   private RestrictionT currentRestriction;
+
+  /**
+   * Only valid during {@link #processElementForElementAndRestriction} and {@link
+   * #processElementForSizedElementAndRestriction}, null otherwise.
+   */
+  private Instant currentOutputWatermark;
 
   /**
    * Only valid during {@code processElement...} and {@link #processTimer} methods, null otherwise.
@@ -666,6 +674,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
+        // TODO(BEAM-2939): Ensure that the watermark we use as the lower bound comes from
+        // the previously reported watermark and doesn't reset to -infinity on each element.
+        currentOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE;
         currentRestriction = elem.getValue().getValue();
         currentWindow = windowIterator.next();
         currentTracker = doFnInvoker.invokeNewTracker(processContext);
@@ -698,23 +709,31 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
-        BundleApplication primaryApplication =
+        BundleApplication.Builder primaryApplication =
             BundleApplication.newBuilder()
                 .setTransformId(pTransformId)
                 .setInputId(mainInputId)
-                .setElement(primaryBytes.toByteString())
-                .build();
-        BundleApplication residualApplication =
+                .setElement(primaryBytes.toByteString());
+        BundleApplication.Builder residualApplication =
             BundleApplication.newBuilder()
                 .setTransformId(pTransformId)
                 .setInputId(mainInputId)
-                .setElement(residualBytes.toByteString())
-                .build();
+                .setElement(residualBytes.toByteString());
+        if (!currentOutputWatermark.equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+          for (String outputId : pTransform.getOutputsMap().keySet()) {
+            residualApplication.putOutputWatermarks(
+                outputId,
+                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                    .setSeconds(currentOutputWatermark.getMillis() / 1000)
+                    .setNanos((int) (currentOutputWatermark.getMillis() % 1000) * 1000000)
+                    .build());
+          }
+        }
         splitListener.split(
-            ImmutableList.of(primaryApplication),
+            ImmutableList.of(primaryApplication.build()),
             ImmutableList.of(
                 DelayedBundleApplication.newBuilder()
-                    .setApplication(residualApplication)
+                    .setApplication(residualApplication.build())
                     .setRequestedTimeDelay(
                         Durations.fromMillis(continuation.resumeDelay().getMillis()))
                     .build()));
@@ -724,6 +743,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
       currentRestriction = null;
       currentWindow = null;
       currentTracker = null;
+      currentOutputWatermark = null;
     }
   }
 
@@ -945,6 +965,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     }
 
     @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
+    }
+
+    @Override
     public BundleFinalizer bundleFinalizer() {
       return bundleFinalizer;
     }
@@ -989,6 +1014,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
         DoFn<InputT, OutputT> doFn) {
       return context;
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return pipelineOptions;
     }
 
     @Override
@@ -1203,7 +1233,26 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, OutputT> {
 
     @Override
     public void updateWatermark(Instant watermark) {
-      throw new UnsupportedOperationException("TODO: Add support for SplittableDoFn");
+      checkState(
+          currentOutputWatermark != null,
+          "Updating the watermark is only allowed for Splittable DoFns.");
+      checkArgument(
+          !watermark.isBefore(currentOutputWatermark),
+          "Watermark must be monotonically increasing. Provided watermark %s is less then current watermark %s.",
+          watermark,
+          currentOutputWatermark);
+      currentOutputWatermark = watermark;
+    }
+
+    @Override
+    public Object watermarkEstimatorState() {
+      throw new UnsupportedOperationException(
+          "@WatermarkEstimatorState parameters are not supported.");
+    }
+
+    @Override
+    public WatermarkEstimator<?> watermarkEstimator() {
+      throw new UnsupportedOperationException("WatermarkEstimator parameters are not supported.");
     }
   }
 
