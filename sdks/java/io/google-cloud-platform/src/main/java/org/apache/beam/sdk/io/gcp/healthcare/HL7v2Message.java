@@ -44,17 +44,16 @@ public class HL7v2Message {
         && schematizedData.endsWith("}}")) {
       jsonData =
           schematizedData.substring(schematizedDataPrefix.length(), schematizedData.length() - 1);
-      try {
-        mapper.readTree(jsonData);
-      } catch (JsonProcessingException e) {
-        throw new IllegalArgumentException(
-            String.format("Could not validate inner schematizedData JSON: %s", e.getMessage()));
-      }
-      return jsonData;
     } else {
-      throw new IllegalArgumentException(
-          "expected schematized data string to be of the format '{data=<actual_valid_json>}'");
+      jsonData = schematizedData;
     }
+    try {
+      mapper.readTree(jsonData);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException(
+          String.format("Could not validate inner schematizedData JSON: %s", e.getMessage()));
+    }
+    return jsonData;
   }
 
   /**
