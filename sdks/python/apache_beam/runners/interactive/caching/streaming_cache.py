@@ -167,14 +167,11 @@ class StreamingCacheSource:
   def _wait_until_file_exists(self, timeout_secs=30):
     """Blocks until the file exists for a maximum of timeout_secs.
     """
-    now_secs = time.time()
-    timeout_timestamp_secs = now_secs + timeout_secs
-
     # Wait for up to `timeout_secs` for the file to be available.
     start = time.time()
     while not os.path.exists(self._path):
       time.sleep(1)
-      if time.time() - start > timeout_timestamp_secs:
+      if time.time() - start > timeout_secs:
         from apache_beam.runners.interactive.pipeline_instrument import CacheKey
         pcollection_var = CacheKey.from_str(self._labels[-1]).var
         raise RuntimeError(

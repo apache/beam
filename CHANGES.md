@@ -74,7 +74,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.21.0] - Unreleased
+# [2.21.0] - Unreleased (In Progress)
 
 ## Highlights
 
@@ -127,6 +127,7 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 * Dataflow runner now requires the `--region` option to be set, unless a default value is set in the environment ([BEAM-9199](https://issues.apache.org/jira/browse/BEAM-9199)). See [here](https://cloud.google.com/dataflow/docs/concepts/regional-endpoints) for more details.
 * HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects ([BEAM-9279](https://issues.apache.org/jira/browse/BEAM-9279)).
 * ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator ([BEAM-9430](https://issues.apache.org/jira/browse/BEAM-9430)).
+* Coder inference for PCollection of Row objects has been disabled ([BEAM-9569](https://issues.apache.org/jira/browse/BEAM-9569)).
 
 ## Deprecations
 * Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
@@ -135,7 +136,7 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 ## Known Issues
 
 
-# [2.20.0] - Unreleased
+# [2.20.0] - 2020-04-15
 
 ## Highlights
 

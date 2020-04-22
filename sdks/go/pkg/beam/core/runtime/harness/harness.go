@@ -57,7 +57,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	client := fnpb.NewBeamFnControlClient(conn)
 
 	lookupDesc := func(id bundleDescriptorID) (*fnpb.ProcessBundleDescriptor, error) {
-		return client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
+		pbd, err := client.GetProcessBundleDescriptor(ctx, &fnpb.GetProcessBundleDescriptorRequest{ProcessBundleDescriptorId: string(id)})
+		log.Debugf(ctx, "GPBD RESP [%v]: %v, err %v", id, pbd, err)
+		return pbd, err
 	}
 
 	stub, err := client.Control(ctx)
@@ -170,18 +172,19 @@ func (c *control) getOrCreatePlan(bdID bundleDescriptorID) (*exec.Plan, error) {
 	} else {
 		desc, ok := c.descriptors[bdID]
 		if !ok {
-			c.mu.Unlock()
+			c.mu.Unlock() // Unlock to make the lookup.
 			newDesc, err := c.lookupDesc(bdID)
-			c.mu.Lock()
 			if err != nil {
-				return nil, fmt.Errorf("execution plan for %v not found: %v", bdID, err)
+				return nil, errors.Wrapf(err, "execution plan for %v not found", bdID)
 			}
+			c.mu.Lock()
 			c.descriptors[bdID] = newDesc
 			desc = newDesc
 		}
 		newPlan, err := exec.UnmarshalPlan(desc)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid bundle desc: %v", err)
+			c.mu.Unlock()
+			return nil, errors.Wrapf(err, "invalid bundle desc %v: %v", bdID, desc)
 		}
 		plan = newPlan
 	}

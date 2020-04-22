@@ -75,6 +75,17 @@ PAR_DO_URNS = frozenset([
 
 IMPULSE_BUFFER = b'impulse'
 
+# SideInputId is identified by a consumer ParDo + tag.
+SideInputId = Tuple[str, str]
+SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
+
+DataOutput = Dict[str, bytes]
+
+# DataSideInput maps SideInputIds to a tuple of the encoded bytes of the side
+# input content, and a payload specification regarding the type of side input
+# (MultiMap / Iterable).
+DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
+
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""

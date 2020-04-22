@@ -806,9 +806,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           continue;
         }
         // Forward the split to the bundle level split listener.
-        splitListener.split(
-            Collections.singletonList(splitResult.getPrimaryRoot()),
-            Collections.singletonList(splitResult.getResidualRoot()));
+        splitListener.split(splitResult.getPrimaryRoot(), splitResult.getResidualRoot());
       }
     } finally {
       synchronized (splitLock) {

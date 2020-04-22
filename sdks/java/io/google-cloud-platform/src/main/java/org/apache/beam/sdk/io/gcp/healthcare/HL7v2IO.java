@@ -27,8 +27,11 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.Read.FetchHL7v2Message;
+import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.WriteHL7v2.WriteHL7v2Fn;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -48,6 +51,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -445,7 +449,8 @@ public class HL7v2IO {
 
     private final String filter;
     private transient HealthcareApiClient client;
-
+    private Distribution messageListingLatency =
+        Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-latency");
     /**
      * Instantiates a new List HL7v2 fn.
      *
@@ -475,7 +480,9 @@ public class HL7v2IO {
     public void listMessages(ProcessContext context) throws IOException {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
+      long reqestTime = Instant.now().getMillis();
       this.client.getHL7v2MessageStream(hl7v2Store, this.filter).forEach(context::output);
+      messageListingLatency.update(Instant.now().getMillis() - reqestTime);
     }
   }
 
@@ -618,6 +625,8 @@ public class HL7v2IO {
       // TODO when the healthcare API releases a bulk import method this should use that to improve
       // throughput.
 
+      private Distribution messageIngestLatency =
+          Metrics.distribution(WriteHL7v2Fn.class, "message-ingest-latency");
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
       private final String hl7v2Store;
@@ -669,7 +678,9 @@ public class HL7v2IO {
           case INGEST:
           default:
             try {
+              long requestTimestamp = Instant.now().getMillis();
               client.ingestHL7v2Message(hl7v2Store, msg.toModel());
+              messageIngestLatency.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();
               LOG.warn(

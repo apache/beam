@@ -491,7 +491,8 @@ public class SplittableParDoProcessFnTest {
     assertThat(tester.takeOutputElements(), contains("43"));
     assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     assertThat(tester.takeOutputElements(), contains("44"));
-    assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
+    // Should not resume the null residual.
+    assertFalse(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
     // After outputting all 3 items, should not output anything more.
     assertEquals(0, tester.takeOutputElements().size());
     // Should also not ask to resume.

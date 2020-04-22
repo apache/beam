@@ -1824,11 +1824,14 @@ class BeamModulePlugin implements Plugin<Project> {
               project.fileTree(
               dir: "${project.rootDir}",
               include: ['model/**', 'sdks/python/**'],
-              // Exclude temporary directories used in build and test.
+              // Exclude temporary directories and files that are generated
+              // during build and test.
               exclude: [
                 '**/build/**',
                 '**/dist/**',
                 '**/target/**',
+                '**/*.pyc',
+                'sdks/python/*.egg*/**',
                 'sdks/python/test-suites/**',
               ])
               )

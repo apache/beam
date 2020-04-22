@@ -21,7 +21,6 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertThat;
 
-import java.util.Arrays;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
 import org.junit.Test;
@@ -47,8 +46,8 @@ public class BundleSplitListenerTest {
   @Test
   public void testInMemory() {
     BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
-    splitListener.split(Arrays.asList(TEST_PRIMARY_1), Arrays.asList(TEST_RESIDUAL_1));
-    splitListener.split(Arrays.asList(TEST_PRIMARY_2), Arrays.asList(TEST_RESIDUAL_2));
+    splitListener.split(TEST_PRIMARY_1, TEST_RESIDUAL_1);
+    splitListener.split(TEST_PRIMARY_2, TEST_RESIDUAL_2);
     assertThat(splitListener.getPrimaryRoots(), contains(TEST_PRIMARY_1, TEST_PRIMARY_2));
     assertThat(splitListener.getResidualRoots(), contains(TEST_RESIDUAL_1, TEST_RESIDUAL_2));
     splitListener.clear();

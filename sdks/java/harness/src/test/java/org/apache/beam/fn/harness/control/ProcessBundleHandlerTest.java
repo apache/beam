@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
@@ -227,6 +228,11 @@ public class ProcessBundleHandlerTest {
     @Override
     Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations() {
       return wrappedBundleProcessor.getBundleFinalizationCallbackRegistrations();
+    }
+
+    @Override
+    Collection<BeamFnDataReadRunner> getChannelRoots() {
+      return wrappedBundleProcessor.getChannelRoots();
     }
 
     @Override
