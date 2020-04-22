@@ -530,6 +530,11 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
         }
 
         @Override
+        public void requestProgress() {
+          throw new UnsupportedOperationException();
+        }
+
+        @Override
         public void split(double fractionOfRemainder) {
           bundle.split(fractionOfRemainder);
         }
