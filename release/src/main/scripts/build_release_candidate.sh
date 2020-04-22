@@ -228,7 +228,7 @@ if [[ $confirmation = "y" ]]; then
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
-  ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
   echo '-------------Generating and Pushing Flink job server images-------------'
   echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
