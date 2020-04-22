@@ -685,7 +685,8 @@ class DoOperation(Operation):
         timer_spec,
         timer_data.user_key,
         timer_data.windows[0],
-        timer_data.fire_timestamp)
+        timer_data.fire_timestamp,
+        timer_data.paneinfo)
 
   def finish(self):
     # type: () -> None
