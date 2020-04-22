@@ -176,6 +176,7 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -479,6 +480,7 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
   }

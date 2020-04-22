@@ -209,6 +209,7 @@ public class ProcessBundleHandler {
             startFunctionRegistry,
             finishFunctionRegistry,
             addTearDownFunction,
+            addProgressRequestCallback,
             splitListener,
             bundleFinalizer,
             channelRoots);
@@ -314,9 +315,14 @@ public class ProcessBundleHandler {
       // Get finish bundle Execution Time Metrics.
       response.addAllMonitoringInfos(
           bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
-      // Extract all other MonitoringInfos other than the execution time monitoring infos.
+      // Extract MonitoringInfos that come from the metrics container registry.
       response.addAllMonitoringInfos(
           bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
+      // Add any additional monitoring infos that the "runners" report explicitly.
+      for (ProgressRequestCallback progressRequestCallback :
+          bundleProcessor.getProgressRequestCallbacks()) {
+        response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
+      }
 
       if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
         finalizeBundleHandler.registerCallbacks(
@@ -331,7 +337,8 @@ public class ProcessBundleHandler {
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
   }
 
-  public BeamFnApi.InstructionResponse.Builder progress(BeamFnApi.InstructionRequest request) {
+  public BeamFnApi.InstructionResponse.Builder progress(BeamFnApi.InstructionRequest request)
+      throws Exception {
     BundleProcessor bundleProcessor =
         bundleProcessorCache.find(request.getProcessBundleProgress().getInstructionId());
     if (bundleProcessor == null) {
@@ -358,6 +365,11 @@ public class ProcessBundleHandler {
     // Extract all other MonitoringInfos other than the execution time monitoring infos.
     response.addAllMonitoringInfos(
         bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
+    // Add any additional monitoring infos that the "runners" report explicitly.
+    for (ProgressRequestCallback progressRequestCallback :
+        bundleProcessor.getProgressRequestCallbacks()) {
+      response.addAllMonitoringInfos(progressRequestCallback.getMonitoringInfos());
+    }
 
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleProgress(response);
   }

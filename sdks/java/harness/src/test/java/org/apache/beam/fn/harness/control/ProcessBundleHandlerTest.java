@@ -197,6 +197,11 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
+    List<ProgressRequestCallback> getProgressRequestCallbacks() {
+      return wrappedBundleProcessor.getProgressRequestCallbacks();
+    }
+
+    @Override
     BundleSplitListener.InMemory getSplitListener() {
       return wrappedBundleProcessor.getSplitListener();
     }
@@ -425,6 +430,7 @@ public class ProcessBundleHandlerTest {
             pCollectionConsumerRegistry,
             startFunctionRegistry,
             finishFunctionRegistry,
+            addProgressRequestCallback,
             addTearDownFunction,
             splitListener,
             bundleFinalizer) -> null);
@@ -497,6 +503,7 @@ public class ProcessBundleHandlerTest {
                     pCollectionConsumerRegistry,
                     startFunctionRegistry,
                     finishFunctionRegistry,
+                    addProgressRequestCallback,
                     addTearDownFunction,
                     splitListener,
                     bundleFinalizer) -> null),
@@ -556,6 +563,7 @@ public class ProcessBundleHandlerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             new ArrayList<>(),
+            new ArrayList<>(),
             splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
@@ -609,6 +617,7 @@ public class ProcessBundleHandlerTest {
                     startFunctionRegistry,
                     finishFunctionRegistry,
                     addTearDownFunction,
+                    addProgressRequestCallback,
                     splitListener,
                     bundleFinalizer) -> {
                   thrown.expect(IllegalStateException.class);
