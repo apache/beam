@@ -128,6 +128,10 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		return errors.Wrapf(err, "failed to stat %v", filename)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
+		return err
+	}
+
 	stream, err := a.client.GetArtifact(ctx, &jobpb.GetArtifactRequest{Artifact: a.dep})
 	if err != nil {
 		return err
