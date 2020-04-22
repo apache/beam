@@ -667,7 +667,7 @@ public class DoFnOperatorTest {
             sideInputMapping, /* side-input mapping */
             ImmutableList.of(view1, view2), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            keyCoder,
+            keyed ? keyCoder : null,
             keyed ? keySelector : null,
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
