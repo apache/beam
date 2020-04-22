@@ -86,9 +86,8 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
   }
 
   @VisibleForTesting
-  static <T, X extends Collection<T>> Stream<T> flattenIteratorCollectionsToStream(
-      Iterator<X> iterator) {
-    Spliterator<Collection<T>> spliterator = Spliterators.spliteratorUnknownSize(iterator, 0);
+  static <T, X extends Collection<T>> Stream<T> flattenSpliteratorCollectionsToStream(
+      Spliterator<X> spliterator) {
     return StreamSupport.stream(spliterator, false).flatMap(Collection::stream);
   }
 
@@ -127,6 +126,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
             .messages()
             .list(hl7v2Store)
             .set("view", "full")
+            .setPageSize(1000)
             .setPageToken(pageToken);
 
     if (Strings.isNullOrEmpty(filter)) {
@@ -160,9 +160,9 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
   @Override
   public Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, @Nullable String filter)
       throws IOException {
-    Iterator<List<HL7v2Message>> iterator =
-        new HL7v2MessagePages(this, hl7v2Store, filter).iterator();
-    return flattenIteratorCollectionsToStream(iterator);
+    Spliterator<List<HL7v2Message>> iterator =
+        new HL7v2MessagePages(this, hl7v2Store, filter).spliterator();
+    return flattenSpliteratorCollectionsToStream(iterator);
   }
 
   /**
