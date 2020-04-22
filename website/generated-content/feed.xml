@@ -57,6 +57,7 @@ For more information on changes in 2.20.0, check out the
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8841&quot;&gt;BEAM-8841&lt;/a&gt; Added ability to write to BigQuery via Avro file loads&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-9228&quot;&gt;BEAM-9228&lt;/a&gt; Direct runner for FnApi supports further parallelism&lt;/li&gt;
   &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-8550&quot;&gt;BEAM-8550&lt;/a&gt; Support for @RequiresTimeSortedInput in Flink and Spark&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://issues.apache.org/jira/browse/BEAM-6857&quot;&gt;BEAM-6857&lt;/a&gt; Added support for dynamic timers&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
@@ -92,8 +93,8 @@ For more information on changes in 2.20.0, check out the
 , Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee
 , Ismaël Mejía, J Ross Thomson, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, Juan Rael, Juta, Kasia Kucharczyk
 , Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
-, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders
-, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, Tyler Akidau
+, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Rehman Murad Ali, Reuven Lax, Rob, Robbe Sneyders
+, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Shoaib Zafar, Thomas Weise, Tianyang Hu, Tyler Akidau
 , Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy&lt;/p&gt;
 </description>
         <pubDate>Wed, 15 Apr 2020 01:00:01 -0700</pubDate>
