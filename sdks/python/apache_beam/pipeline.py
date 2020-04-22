@@ -1312,7 +1312,7 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     raise NotImplementedError
 
 
-if sys.version >= (3, ):
+if sys.version_info >= (3, ):
   try_unicode = str
 
 else:
