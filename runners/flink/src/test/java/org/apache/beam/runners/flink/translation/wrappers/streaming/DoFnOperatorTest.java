@@ -80,7 +80,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIt
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
@@ -648,9 +647,11 @@ public class DoFnOperatorTest {
     ImmutableMap<Integer, PCollectionView<?>> sideInputMapping =
         ImmutableMap.<Integer, PCollectionView<?>>builder().put(1, view1).put(2, view2).build();
 
-    Coder<String> keyCoder = null;
+    Coder<String> keyCoder = StringUtf8Coder.of();
+    ;
+    KeySelector<WindowedValue<String>, ByteBuffer> keySelector = null;
     if (keyed) {
-      keyCoder = StringUtf8Coder.of();
+      keySelector = value -> FlinkKeyUtils.encodeKey(value.getValue(), keyCoder);
     }
 
     DoFnOperator<String, String> doFnOperator =
@@ -667,7 +668,7 @@ public class DoFnOperatorTest {
             ImmutableList.of(view1, view2), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             keyCoder,
-            keyed ? WindowedValue::getValue : null,
+            keyed ? keySelector : null,
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
@@ -678,7 +679,10 @@ public class DoFnOperatorTest {
       // we use a dummy key for the second input since it is considered to be broadcast
       testHarness =
           new KeyedTwoInputStreamOperatorTestHarness<>(
-              doFnOperator, WindowedValue::getValue, null, BasicTypeInfo.STRING_TYPE_INFO);
+              doFnOperator,
+              keySelector,
+              null,
+              new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
     }
 
     testHarness.open();
