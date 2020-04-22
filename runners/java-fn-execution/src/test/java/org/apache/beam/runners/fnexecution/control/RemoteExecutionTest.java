@@ -535,14 +535,11 @@ public class RemoteExecutionTest implements Serializable {
    * A {@link DoFn} that uses static maps of {@link CountDownLatch}es to block execution allowing
    * for synchronization during test execution. The expected flow is:
    *
-   * <ul>
-   *   <ol>
-   *     Runner -> wait for AFTER_PROCESS
-   *     <ol>
-   *       SDK -> unlock AFTER_PROCESS and wait for ALLOW_COMPLETION
-   *       <ol>
-   *         Runner -> issue progress request and on response unlock ALLOW_COMPLETION
-   *       </ul>
+   * <ol>
+   *   <li>Runner -> wait for AFTER_PROCESS
+   *   <li>SDK -> unlock AFTER_PROCESS and wait for ALLOW_COMPLETION
+   *   <li>Runner -> issue progress request and on response unlock ALLOW_COMPLETION
+   * </ol>
    */
   private static class MetricsDoFn extends DoFn<byte[], String> {
     private static final String PROCESS_USER_COUNTER_NAME = "processUserCounter";

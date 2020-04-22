@@ -277,10 +277,6 @@ public class ProcessBundleHandler {
             });
     PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        bundleProcessor.getpCollectionConsumerRegistry();
-    MetricsContainerStepMap metricsContainerRegistry =
-        bundleProcessor.getMetricsContainerRegistry();
     ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
     QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
 
