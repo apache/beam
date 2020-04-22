@@ -132,6 +132,12 @@ class ListBuffer(object):
     self._inputs = []
     self._grouped_output = None
 
+  def reset(self):
+    """Resets a cleared buffer for reuse."""
+    if not self.cleared:
+      raise RuntimeError('Trying to reset a non-cleared ListBuffer.')
+    self.cleared = False
+
 
 class GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
