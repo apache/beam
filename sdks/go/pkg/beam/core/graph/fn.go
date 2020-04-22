@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/sdf"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -152,6 +153,11 @@ const (
 	finishBundleName   = "FinishBundle"
 	teardownName       = "Teardown"
 
+	createInitialRestrictionName = "CreateInitialRestriction"
+	splitRestrictionName         = "SplitRestriction"
+	restrictionSizeName          = "RestrictionSize"
+	createTrackerName            = "CreateTracker"
+
 	createAccumulatorName = "CreateAccumulator"
 	addInputName          = "AddInput"
 	mergeAccumulatorsName = "MergeAccumulators"
@@ -160,6 +166,25 @@ const (
 
 	// TODO: ViewFn, etc.
 )
+
+var doFnNames = []string{
+	setupName,
+	startBundleName,
+	processElementName,
+	finishBundleName,
+	teardownName,
+	createInitialRestrictionName,
+	splitRestrictionName,
+	restrictionSizeName,
+	createTrackerName,
+}
+
+var sdfNames = []string{
+	createInitialRestrictionName,
+	splitRestrictionName,
+	restrictionSizeName,
+	createTrackerName,
+}
 
 // DoFn represents a DoFn.
 type DoFn Fn
@@ -196,13 +221,43 @@ func (f *DoFn) Name() string {
 
 // IsSplittable returns whether the DoFn is a valid Splittable DoFn.
 func (f *DoFn) IsSplittable() bool {
-	return false // TODO(BEAM-3301): Implement this when we add SDFs.
+	// Validation already passed, so if one SDF method is present they should
+	// all be present.
+	_, ok := f.methods[createInitialRestrictionName]
+	return ok
 }
 
-// RestrictionT returns the restriction type from the DoFn if it's splittable.
-// Otherwise, returns nil.
-func (f *DoFn) RestrictionT() *reflect.Type {
-	return nil // TODO(BEAM-3301): Implement this when we add SDFs.
+// SplittableDoFn represents a DoFn implementing SDF methods.
+type SplittableDoFn DoFn
+
+// CreateInitialRestrictionFn returns the "CreateInitialRestriction" function, if present.
+func (f *SplittableDoFn) CreateInitialRestrictionFn() *funcx.Fn {
+	return f.methods[createInitialRestrictionName]
+}
+
+// SplitRestrictionFn returns the "SplitRestriction" function, if present.
+func (f *SplittableDoFn) SplitRestrictionFn() *funcx.Fn {
+	return f.methods[splitRestrictionName]
+}
+
+// RestrictionSizeFn returns the "RestrictionSize" function, if present.
+func (f *SplittableDoFn) RestrictionSizeFn() *funcx.Fn {
+	return f.methods[restrictionSizeName]
+}
+
+// CreateTrackerFn returns the "CreateTracker" function, if present.
+func (f *SplittableDoFn) CreateTrackerFn() *funcx.Fn {
+	return f.methods[createTrackerName]
+}
+
+// Name returns the name of the function or struct.
+func (f *SplittableDoFn) Name() string {
+	return (*Fn)(f).Name()
+}
+
+// RestrictionT returns the restriction type from the SDF.
+func (f *SplittableDoFn) RestrictionT() reflect.Type {
+	return f.CreateInitialRestrictionFn().Ret[0].T
 }
 
 // TODO(herohde) 5/19/2017: we can sometimes detect whether the main input must be
@@ -270,7 +325,7 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 	if fn.Fn != nil {
 		fn.methods[processElementName] = fn.Fn
 	}
-	if err := verifyValidNames("graph.AsDoFn", fn, setupName, startBundleName, processElementName, finishBundleName, teardownName); err != nil {
+	if err := verifyValidNames("graph.AsDoFn", fn, doFnNames...); err != nil {
 		return nil, err
 	}
 
@@ -286,11 +341,9 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		return nil, addContext(err, fn)
 	}
 
-	// If numMainIn is unknown, we can try inferring it from the second input in ProcessElement.
-	// If there is none, or it's not a FnValue type, then we can safely infer that there's only
-	// one main input.
+	// If numMainIn is unknown, we can try inferring it from the number of inputs in ProcessElement.
 	pos, num, _ := processFn.Inputs()
-	if numMainIn == MainUnknown && (num == 1 || processFn.Param[pos+1].Kind != funcx.FnValue) {
+	if numMainIn == MainUnknown && num == 1 {
 		numMainIn = MainSingle
 	}
 
@@ -363,6 +416,20 @@ func AsDoFn(fn *Fn, numMainIn mainInputs) (*DoFn, error) {
 		}
 	}
 
+	// Check whether to perform SDF validation.
+	isSdf, err := validateIsSdf(fn)
+	if err != nil {
+		return nil, addContext(err, fn)
+	}
+
+	// Perform validation on the SDF method signatures to ensure they're valid.
+	if isSdf {
+		err := validateSdfSignatures(fn, numMainIn)
+		if err != nil {
+			return nil, addContext(err, fn)
+		}
+	}
+
 	return (*DoFn)(fn), nil
 }
 
@@ -391,23 +458,16 @@ func validateMainInputs(fn *Fn, method *funcx.Fn, methodName string, numMainIn m
 		return err
 	}
 
-	// Check that the first numMainIn inputs are not side inputs (Iters or
-	// ReIters). We aren't able to catch singleton side inputs here since
-	// they're indistinguishable from main inputs.
-	mainInputs := method.Param[pos : pos+int(numMainIn)]
-	for i, p := range mainInputs {
-		if p.Kind != funcx.FnValue {
-			err := errors.Errorf("expected main input parameter but found "+
-				"side input parameter in position %v",
-				pos+i)
-			err = errors.SetTopLevelMsgf(err,
-				"Method %v in DoFn %v should have all main inputs before side inputs, "+
-					"but a side input (as Iter or ReIter) appears as parameter %v when a "+
-					"main input was expected.",
-				methodName, fn.Name(), pos+i)
-			err = errors.WithContextf(err, "method %v", methodName)
-			return err
-		}
+	// Check that the first input is not an Iter or ReIter (those aren't valid
+	// as the first main input).
+	first := method.Param[pos].Kind
+	if first != funcx.FnValue {
+		err := errors.New("first main input parameter must be a value type")
+		err = errors.SetTopLevelMsgf(err,
+			"Method %v of DoFns should always have the first input be a value type, "+
+				"but it has an Iter or ReIter first in DoFn %v.",
+			processElementName, fn.Name())
+		return errors.WithContextf(err, "method %v", processElementName)
 	}
 	return nil
 }
@@ -566,6 +626,235 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 		}
 	}
 
+	return nil
+}
+
+// validateIsSdf checks whether a Fn either is or is not an SDF, and returns
+// true if it is, false if it isn't, or an error if it doesn't fulfill the
+// requirements for either case.
+//
+// For a Fn to be an SDF it must:
+//   * Implement all the SDF methods.
+//   * Include an RTracker parameter in ProcessElement.
+// For a Fn to not be an SDF, it must:
+//   * Implement none of the SDF methods.
+//   * Not include an RTracker parameter in ProcessElement.
+func validateIsSdf(fn *Fn) (bool, error) {
+	// Store missing method names so we can output them to the user if validation fails.
+	var missing []string
+	for _, name := range sdfNames {
+		_, ok := fn.methods[name]
+		if !ok {
+			missing = append(missing, name)
+		}
+	}
+
+	var isSdf bool
+	switch len(missing) {
+	case 0: // All SDF methods present.
+		isSdf = true
+	case len(sdfNames): // No SDF methods.
+		isSdf = false
+	default: // Anything else means an invalid # of SDF methods.
+		err := errors.Errorf("not all SplittableDoFn methods are present. Missing methods: %v", missing)
+		return false, err
+	}
+
+	processFn := fn.methods[processElementName]
+	if pos, ok := processFn.RTracker(); ok != isSdf {
+		if ok {
+			err := errors.Errorf("method %v has sdf.RTracker as param %v, expected none",
+				processElementName, pos)
+			return false, errors.SetTopLevelMsgf(err, "Method %v has an sdf.RTracker parameter at index %v, "+
+				"but is not part of a splittable DoFn. sdf.RTracker is invalid in %v in non-splittable DoFns.",
+				processElementName, pos, processElementName)
+		}
+		pos, _, _ = processFn.Inputs()
+		err := errors.Errorf("method %v missing sdf.RTracker, expected one at index %v",
+			processElementName, pos)
+		return false, errors.SetTopLevelMsgf(err, "Method %v is missing an sdf.RTracker "+
+			"parameter despite being part of a splittable DoFn. %v in splittable DoFns requires an "+
+			"sdf.RTracker parameter before main inputs (in this case, at index %v).",
+			processElementName, processElementName, pos)
+	}
+	return isSdf, nil
+}
+
+// validateSdfSignatures validates that types in the SDF methods of a Fn are
+// consistent with each other (for example, element and restriction types should
+// match with each other). Returns an error if one is found, or nil if the
+// types are all valid.
+// TODO(BEAM-3301): Once SDF documentation is added to ParDo, add a comment
+// here to refer to that for specific details about what needs to be consistent.
+func validateSdfSignatures(fn *Fn, numMainIn mainInputs) error {
+	num := int(numMainIn)
+
+	// If number of main inputs is ambiguous, we check for consistency against
+	// CreateInitialRestriction.
+	if numMainIn == MainUnknown {
+		initialRestFn := fn.methods[createInitialRestrictionName]
+		paramNum := len(initialRestFn.Param)
+		switch paramNum {
+		case int(MainSingle), int(MainKv):
+			num = paramNum
+		default: // Can't infer because method has invalid # of main inputs.
+			err := errors.Errorf("invalid number of params in method %v. got: %v, want: %v or %v",
+				createInitialRestrictionName, paramNum, int(MainSingle), int(MainKv))
+			return errors.SetTopLevelMsgf(err, "Invalid number of parameters in method %v. "+
+				"Got: %v, Want: %v or %v. Check that the signature conforms to the expected signature for %v, "+
+				"and that elements in SDF method parameters match elements in %v.",
+				createInitialRestrictionName, paramNum, int(MainSingle), int(MainKv), createInitialRestrictionName, processElementName)
+		}
+	}
+
+	if err := validateSdfSigNumbers(fn, num); err != nil {
+		return err
+	}
+	if err := validateSdfSigTypes(fn, num); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateSdfSigNumbers validates the number of parameters and return values
+// in each SDF method in the given Fn, and returns an error if a method has an
+// invalid/unexpected number.
+func validateSdfSigNumbers(fn *Fn, num int) error {
+	paramNums := map[string]int{
+		createInitialRestrictionName: num,
+		splitRestrictionName:         num + 1,
+		restrictionSizeName:          num + 1,
+		createTrackerName:            1,
+	}
+	returnNum := 1 // TODO(BEAM-3301): Enable optional error params in SDF methods.
+
+	for _, name := range sdfNames {
+		method := fn.methods[name]
+		if len(method.Param) != paramNums[name] {
+			err := errors.Errorf("unexpected number of params in method %v. got: %v, want: %v",
+				name, len(method.Param), paramNums[name])
+			return errors.SetTopLevelMsgf(err, "Unexpected number of parameters in method %v. "+
+				"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v, "+
+				"and that elements in SDF method parameters match elements in %v.",
+				name, len(method.Param), paramNums[name], name, processElementName)
+		}
+		if len(method.Ret) != returnNum {
+			err := errors.Errorf("unexpected number of returns in method %v. got: %v, want: %v",
+				name, len(method.Ret), returnNum)
+			return errors.SetTopLevelMsgf(err, "Unexpected number of return values in method %v. "+
+				"Got: %v, Want: %v. Check that the signature conforms to the expected signature for %v.",
+				name, len(method.Ret), returnNum, name)
+		}
+	}
+	return nil
+}
+
+// validateSdfSigTypes validates the types of the parameters and return values
+// in each SDF method in the given Fn, and returns an error if a method has an
+// invalid/mismatched type. Assumes that the number of parameters and return
+// values has already been validated.
+func validateSdfSigTypes(fn *Fn, num int) error {
+	restrictionT := fn.methods[createInitialRestrictionName].Ret[0].T
+	rTrackerT := reflect.TypeOf((*sdf.RTracker)(nil)).Elem()
+
+	for _, name := range sdfNames {
+		method := fn.methods[name]
+		switch name {
+		case createInitialRestrictionName:
+			if err := validateSdfElementT(fn, createInitialRestrictionName, method, num); err != nil {
+				return err
+			}
+		case splitRestrictionName:
+			if err := validateSdfElementT(fn, splitRestrictionName, method, num); err != nil {
+				return err
+			}
+			if method.Param[num].T != restrictionT {
+				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
+					splitRestrictionName, num, method.Param[num].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					splitRestrictionName, num, method.Param[num].T, restrictionT, createInitialRestrictionName)
+			}
+			if method.Ret[0].T.Kind() != reflect.Slice ||
+				method.Ret[0].T.Elem() != restrictionT {
+				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
+					splitRestrictionName, 0, method.Ret[0].T, reflect.SliceOf(restrictionT))
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type, and that %v returns a slice.",
+					splitRestrictionName, 0, method.Ret[0].T, reflect.SliceOf(restrictionT), createInitialRestrictionName, splitRestrictionName)
+			}
+		case restrictionSizeName:
+			if err := validateSdfElementT(fn, restrictionSizeName, method, num); err != nil {
+				return err
+			}
+			if method.Param[num].T != restrictionT {
+				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
+					restrictionSizeName, num, method.Param[num].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					restrictionSizeName, num, method.Param[num].T, restrictionT, createInitialRestrictionName)
+			}
+			if method.Ret[0].T != reflectx.Float64 {
+				err := errors.Errorf("invalid output type in method %v, return %v. got: %v, want: %v",
+					restrictionSizeName, 0, method.Ret[0].T, reflectx.Float64)
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v. Sizing information in SDF methods must be in float64.",
+					restrictionSizeName, 0, method.Ret[0].T, reflectx.Float64)
+			}
+		case createTrackerName:
+			if method.Param[0].T != restrictionT {
+				err := errors.Errorf("mismatched restriction type in method %v, param %v. got: %v, want: %v",
+					createTrackerName, 0, method.Param[0].T, restrictionT)
+				return errors.SetTopLevelMsgf(err, "Mismatched restriction type in method %v, "+
+					"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+					"Ensure that all restrictions in an SDF are the same type.",
+					createTrackerName, 0, method.Param[0].T, restrictionT, createInitialRestrictionName)
+			}
+			if method.Ret[0].T.Implements(rTrackerT) == false {
+				err := errors.Errorf("invalid output type in method %v, return %v: %v does not implement sdf.RTracker",
+					createTrackerName, 0, method.Ret[0].T)
+				return errors.SetTopLevelMsgf(err, "Invalid output type in method %v, "+
+					"return value at index %v (type: %v). Output of method %v must implement sdf.RTracker.",
+					createTrackerName, 0, method.Ret[0].T, createTrackerName)
+			}
+			processFn := fn.methods[processElementName]
+			pos, _ := processFn.RTracker()
+			if method.Ret[0].T != processFn.Param[pos].T {
+				err := errors.Errorf("mismatched output type in method %v, return %v: got: %v, want: %v",
+					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T)
+				return errors.SetTopLevelMsgf(err, "Mismatched output type in method %v, "+
+					"return value at index %v. Got: %v, Want: %v (from method %v).",
+					createTrackerName, 0, method.Ret[0].T, processFn.Param[pos].T, processElementName)
+			}
+		}
+	}
+
+	return nil
+}
+
+// validateSdfElementT validates that element types in an SDF method are
+// consistent with the ProcessElement method. This method assumes that the
+// first 'num' parameters to the SDF method are the elements.
+func validateSdfElementT(fn *Fn, name string, method *funcx.Fn, num int) error {
+	// ProcessElement is the most canonical source of the element type. We can
+	// processFn is valid by this point and skip unnecessary validation.
+	processFn := fn.methods[processElementName]
+	pos, _, _ := processFn.Inputs()
+
+	for i := 0; i < num; i++ {
+		if method.Param[i].T != processFn.Param[pos+i].T {
+			err := errors.Errorf("mismatched element type in method %v, param %v. got: %v, want: %v",
+				name, i, method.Param[i].T, processFn.Param[pos+i].T)
+			return errors.SetTopLevelMsgf(err, "Mismatched element type in method %v, "+
+				"parameter at index %v. Got: %v, Want: %v (from method %v). "+
+				"Ensure that element parameters in SDF methods have consistent types with element parameters in %v.",
+				name, i, method.Param[i].T, processFn.Param[pos+i].T, processElementName, processElementName)
+		}
+	}
 	return nil
 }
 

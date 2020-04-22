@@ -39,6 +39,48 @@ READ_CACHE = "_ReadCache_"
 WRITE_CACHE = "_WriteCache_"
 
 
+# TODO: turn this into a dataclass object when we finally get off of Python2.
+class Cacheable:
+  def __init__(self, pcoll_id, var, version, pcoll, producer_version):
+    self.pcoll_id = pcoll_id
+    self.var = var
+    self.version = version
+    self.pcoll = pcoll
+    self.producer_version = producer_version
+
+  def __eq__(self, other):
+    return (
+        self.pcoll_id == other.pcoll_id and self.var == other.var and
+        self.version == other.version and self.pcoll == other.pcoll and
+        self.producer_version == other.producer_version)
+
+  def __hash__(self):
+    return hash((
+        self.pcoll_id,
+        self.var,
+        self.version,
+        self.pcoll,
+        self.producer_version))
+
+
+# TODO: turn this into a dataclass object when we finally get off of Python2.
+class CacheKey:
+  def __init__(self, var, version, producer_version, pipeline_id):
+    self.var = var
+    self.version = version
+    self.producer_version = producer_version
+    self.pipeline_id = pipeline_id
+
+  @staticmethod
+  def from_str(r):
+    split = r.split('-')
+    return CacheKey(split[0], split[1], split[2], split[3])
+
+  def __repr__(self):
+    return '-'.join(
+        [self.var, self.version, self.producer_version, self.pipeline_id])
+
+
 class PipelineInstrument(object):
   """A pipeline instrument for pipeline to be executed by interactive runner.
 
@@ -445,7 +487,7 @@ class PipelineInstrument(object):
     # Write cache for all cacheables.
     for _, cacheable in self.cacheables.items():
       self._write_cache(
-          self._pipeline, cacheable['pcoll'], ignore_unbounded_reads=True)
+          self._pipeline, cacheable.pcoll, ignore_unbounded_reads=True)
 
     # Instrument the background caching pipeline if we can.
     if self.has_unbounded_sources:
@@ -509,7 +551,7 @@ class PipelineInstrument(object):
         pcoll_id = self._pin.pcolls_to_pcoll_id.get(str(pcoll), '')
         if pcoll_id in self._pin._pcoll_version_map:
           cacheable_key = self._pin._cacheable_key(pcoll)
-          user_pcoll = self._pin.cacheables[cacheable_key]['pcoll']
+          user_pcoll = self._pin.cacheables[cacheable_key].pcoll
           if (cacheable_key in self._pin.cacheables and user_pcoll != pcoll):
             if not self._pin._user_pipeline:
               # Retrieve a reference to the user defined pipeline instance.
@@ -523,7 +565,7 @@ class PipelineInstrument(object):
                   self._pin._user_pipeline):
                 self._pin._cache_manager = ie.current_env().cache_manager()
             self._pin._runner_pcoll_to_user_pcoll[pcoll] = user_pcoll
-            self._pin.cacheables[cacheable_key]['pcoll'] = pcoll
+            self._pin.cacheables[cacheable_key].pcoll = pcoll
 
     v = PreprocessVisitor(self)
     self._pipeline.visit(v)
@@ -757,9 +799,17 @@ class PipelineInstrument(object):
     """
     cacheable = self.cacheables.get(self._cacheable_key(pcoll), None)
     if cacheable:
-      return '_'.join((
-          cacheable['var'], cacheable['version'],
-          cacheable['producer_version']))
+      if cacheable.pcoll in self.runner_pcoll_to_user_pcoll:
+        user_pcoll = self.runner_pcoll_to_user_pcoll[cacheable.pcoll]
+      else:
+        user_pcoll = cacheable.pcoll
+
+      return repr(
+          CacheKey(
+              cacheable.var,
+              cacheable.version,
+              cacheable.producer_version,
+              str(id(user_pcoll.pipeline))))
     return ''
 
   def cacheable_var_by_pcoll_id(self, pcoll_id):
@@ -829,18 +879,22 @@ def cacheables(pcolls_to_pcoll_id):
       # TODO(BEAM-8288): cleanup the attribute check when py2 is not supported.
       if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
         cacheable = {}
-        cacheable['pcoll_id'] = pcolls_to_pcoll_id.get(str(val), None)
+
+        pcoll_id = pcolls_to_pcoll_id.get(str(val), None)
         # It's highly possible that PCollection str is not unique across
         # multiple pipelines, further check during instrument is needed.
-        if not cacheable['pcoll_id']:
+        if not pcoll_id:
           continue
-        cacheable['var'] = key
-        cacheable['version'] = str(id(val))
-        cacheable['pcoll'] = val
-        cacheable['producer_version'] = str(id(val.producer))
-        pcoll_version_map[cacheable['pcoll_id']] = cacheable['version']
+
+        cacheable = Cacheable(
+            pcoll_id=pcoll_id,
+            var=key,
+            version=str(id(val)),
+            pcoll=val,
+            producer_version=str(id(val.producer)))
+        pcoll_version_map[cacheable.pcoll_id] = cacheable.version
         cacheables[cacheable_key(val, pcolls_to_pcoll_id)] = cacheable
-        cacheable_var_by_pcoll_id[cacheable['pcoll_id']] = key
+        cacheable_var_by_pcoll_id[cacheable.pcoll_id] = key
 
   return pcoll_version_map, cacheables, cacheable_var_by_pcoll_id
 

@@ -250,40 +250,57 @@ public class DoFnOperatorTest {
   public void testWatermarkContract() throws Exception {
 
     final Instant timerTimestamp = new Instant(1000);
-    final String eventTimeMessage = "Event timer fired";
+    final String eventTimeMessage = "Event timer fired: ";
     final String processingTimeMessage = "Processing timer fired";
 
     WindowingStrategy<Object, IntervalWindow> windowingStrategy =
         WindowingStrategy.of(FixedWindows.of(new Duration(10_000)));
 
+    final String eventTimerId = "eventTimer";
+    final String eventTimerId2 = "eventTimer2";
+    final String processingTimerId = "processingTimer";
     DoFn<Integer, String> fn =
         new DoFn<Integer, String>() {
-          private static final String EVENT_TIMER_ID = "eventTimer";
-          private static final String PROCESSING_TIMER_ID = "processingTimer";
 
-          @TimerId(EVENT_TIMER_ID)
+          @TimerId(eventTimerId)
           private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
-          @TimerId(PROCESSING_TIMER_ID)
+          @TimerId(eventTimerId2)
+          private final TimerSpec eventTimer2 = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @TimerId(processingTimerId)
           private final TimerSpec processingTimer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
           @ProcessElement
           public void processElement(
               ProcessContext context,
-              @TimerId(EVENT_TIMER_ID) Timer eventTimer,
-              @TimerId(PROCESSING_TIMER_ID) Timer processingTimer) {
+              @TimerId(eventTimerId) Timer eventTimer,
+              @TimerId(eventTimerId2) Timer eventTimerWithOutputTimestamp,
+              @TimerId(processingTimerId) Timer processingTimer) {
             eventTimer.set(timerTimestamp);
+            eventTimerWithOutputTimestamp
+                .withOutputTimestamp(timerTimestamp.minus(1))
+                .set(timerTimestamp);
             processingTimer.offset(Duration.millis(timerTimestamp.getMillis())).setRelative();
           }
 
-          @OnTimer(EVENT_TIMER_ID)
+          @OnTimer(eventTimerId)
           public void onEventTime(OnTimerContext context) {
             assertEquals(
                 "Timer timestamp must match set timestamp.", timerTimestamp, context.timestamp());
-            context.outputWithTimestamp(eventTimeMessage, context.timestamp());
+            context.outputWithTimestamp(eventTimeMessage + eventTimerId, context.timestamp());
           }
 
-          @OnTimer(PROCESSING_TIMER_ID)
+          @OnTimer(eventTimerId2)
+          public void onEventTime2(OnTimerContext context) {
+            assertEquals(
+                "Timer timestamp must match set timestamp.",
+                timerTimestamp,
+                context.fireTimestamp());
+            context.output(eventTimeMessage + eventTimerId2);
+          }
+
+          @OnTimer(processingTimerId)
           public void onProcessingTime(OnTimerContext context) {
             assertEquals(
                 // Timestamps in processing timer context are defined to be the input watermark
@@ -346,13 +363,23 @@ public class DoFnOperatorTest {
     testHarness.setProcessingTime(timerTimestamp.getMillis());
 
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
+    assertThat(
+        doFnOperator.timerInternals.getMinOutputTimestampMs(),
+        is(timerTimestamp.minus(1).getMillis()));
 
-    // this must fire the event timer
+    // this must fire the event timers
     testHarness.processWatermark(timerTimestamp.getMillis() + 1);
 
     assertThat(
         stripStreamRecordFromWindowedValue(testHarness.getOutput()),
-        contains(WindowedValue.of(eventTimeMessage, timerTimestamp, window1, PaneInfo.NO_FIRING)));
+        containsInAnyOrder(
+            WindowedValue.of(
+                eventTimeMessage + eventTimerId, timerTimestamp, window1, PaneInfo.NO_FIRING),
+            WindowedValue.of(
+                eventTimeMessage + eventTimerId2,
+                timerTimestamp.minus(1),
+                window1,
+                PaneInfo.NO_FIRING)));
 
     testHarness.getOutput().clear();
 
@@ -1871,8 +1898,11 @@ public class DoFnOperatorTest {
                 Whitebox.getInternalState(doFnOperator, metricContainerFieldName));
     Whitebox.setInternalState(doFnOperator, metricContainerFieldName, monitoredContainer);
 
+    // Closes and disposes the operator
     testHarness.close();
-    Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
+    // Ensure that dispose has the metrics code
+    doFnOperator.dispose();
+    Mockito.verify(monitoredContainer, Mockito.times(2)).registerMetricsForPipelineResult();
   }
 
   /**

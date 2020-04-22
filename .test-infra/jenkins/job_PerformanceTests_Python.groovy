@@ -53,6 +53,7 @@ class PerformanceTestConfigurations {
 // Common pipeline args for Dataflow job.
 def dataflowPipelineArgs = [
     project         : 'apache-beam-testing',
+    region          : 'us-central1',
     staging_location: 'gs://temp-storage-for-end-to-end-tests/staging-it',
     temp_location   : 'gs://temp-storage-for-end-to-end-tests/temp-it',
 ]

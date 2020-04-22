@@ -182,7 +182,8 @@ class DockerizedJobServer(SubprocessJobServer):
 
   def subprocess_cmd_and_endpoint(self):
     # TODO This is hardcoded to Flink at the moment but should be changed
-    job_server_image_name = "apache/beam_flink1.9_job_server:latest"
+    job_server_image_name = "apache/beam_flink%s_job_server:latest" % (
+        pipeline_options.FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1])
     docker_path = subprocess.check_output(['which',
                                            'docker']).strip().decode('utf-8')
     cmd = [

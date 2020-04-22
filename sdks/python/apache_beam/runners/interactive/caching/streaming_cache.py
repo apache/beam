@@ -27,6 +27,8 @@ import time
 import traceback
 from collections import OrderedDict
 
+from google.protobuf.message import DecodeError
+
 import apache_beam as beam
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileHeader
 from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
@@ -37,6 +39,9 @@ from apache_beam.testing.test_stream import OutputFormat
 from apache_beam.testing.test_stream import ReverseTestStream
 from apache_beam.utils import timestamp
 
+# We don't have an explicit pathlib dependency because this code only works with
+# the interactive target installed which has an indirect dependency on pathlib
+# and pathlib2 through ipython>=5.9.0.
 try:
   from pathlib import Path
 except ImportError:
@@ -152,24 +157,27 @@ class StreamingCacheSource:
     self._cache_dir = cache_dir
     self._coder = coder
     self._labels = labels
+    self._path = os.path.join(self._cache_dir, *self._labels)
     self._is_cache_complete = (
-        is_cache_complete if is_cache_complete else lambda: True)
+        is_cache_complete if is_cache_complete else lambda _: True)
+
+    from apache_beam.runners.interactive.pipeline_instrument import CacheKey
+    self._pipeline_id = CacheKey.from_str(labels[-1]).pipeline_id
 
   def _wait_until_file_exists(self, timeout_secs=30):
     """Blocks until the file exists for a maximum of timeout_secs.
     """
-    now_secs = time.time()
-    timeout_timestamp_secs = now_secs + timeout_secs
-
     # Wait for up to `timeout_secs` for the file to be available.
     start = time.time()
-    path = os.path.join(self._cache_dir, *self._labels)
-    while not os.path.exists(path):
+    while not os.path.exists(self._path):
       time.sleep(1)
-      if time.time() - start > timeout_timestamp_secs:
+      if time.time() - start > timeout_secs:
+        from apache_beam.runners.interactive.pipeline_instrument import CacheKey
+        pcollection_var = CacheKey.from_str(self._labels[-1]).var
         raise RuntimeError(
-            "Timed out waiting for file '{}' to be available".format(path))
-    return open(path, mode='rb')
+            'Timed out waiting for cache file for PCollection `{}` to be '
+            'available with path {}.'.format(pcollection_var, self._path))
+    return open(self._path, mode='rb')
 
   def _emit_from_file(self, fh, tail):
     """Emits the TestStreamFile(Header|Record)s from file.
@@ -185,11 +193,11 @@ class StreamingCacheSource:
 
       # Check if we are at EOF or if we have an incomplete line.
       if not line or (line and line[-1] != b'\n'[0]):
-        # Complete reading only when the cache is complete.
-        if self._is_cache_complete():
+        if not tail:
           break
 
-        if not tail:
+        # Complete reading only when the cache is complete.
+        if self._is_cache_complete(self._pipeline_id):
           break
 
         # Otherwise wait for new data in the file to be written.
@@ -199,14 +207,27 @@ class StreamingCacheSource:
         # The first line at pos = 0 is always the header. Read the line without
         # the new line.
         to_decode = line[:-1]
-        if pos == 0:
-          header = TestStreamFileHeader()
-          header.ParseFromString(self._coder.decode(to_decode))
-          yield header
+        proto_cls = TestStreamFileHeader if pos == 0 else TestStreamFileRecord
+        msg = self._try_parse_as(proto_cls, to_decode)
+        if msg:
+          yield msg
         else:
-          record = TestStreamFileRecord()
-          record.ParseFromString(self._coder.decode(to_decode))
-          yield record
+          break
+
+  def _try_parse_as(self, proto_cls, to_decode):
+    try:
+      msg = proto_cls()
+      msg.ParseFromString(self._coder.decode(to_decode))
+    except DecodeError:
+      _LOGGER.error(
+          'Could not parse as %s. This can indicate that the cache is '
+          'corruputed. Please restart the kernel. '
+          '\nfile: %s \nmessage: %s',
+          proto_cls,
+          self._path,
+          to_decode)
+      msg = None
+    return msg
 
   def read(self, tail):
     """Reads all TestStreamFile(Header|TestStreamFileRecord)s from file.
@@ -273,8 +294,7 @@ class StreamingCache(CacheManager):
       return iter([]), -1
 
     reader = StreamingCacheSource(
-        self._cache_dir, labels,
-        is_cache_complete=self._is_cache_complete).read(tail=False)
+        self._cache_dir, labels, self._is_cache_complete).read(tail=False)
     header = next(reader)
     return StreamingCache.Reader([header], [reader]).read(), 1
 
@@ -286,9 +306,8 @@ class StreamingCache(CacheManager):
     pipeline runtime which needs to block.
     """
     readers = [
-        StreamingCacheSource(
-            self._cache_dir, l,
-            is_cache_complete=self._is_cache_complete).read(tail=True)
+        StreamingCacheSource(self._cache_dir, l,
+                             self._is_cache_complete).read(tail=True)
         for l in labels
     ]
     headers = [next(r) for r in readers]

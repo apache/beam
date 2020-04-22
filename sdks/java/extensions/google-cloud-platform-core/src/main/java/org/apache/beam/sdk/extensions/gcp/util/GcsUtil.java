@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -100,7 +101,7 @@ public class GcsUtil {
           storageBuilder.build(),
           storageBuilder.getHttpRequestInitializer(),
           gcsOptions.getExecutorService(),
-          gcsOptions.getUseGrpcForGcs(),
+          hasExperiment(options, "use_grpc_for_gcs"),
           gcsOptions.getGcsUploadBufferSizeBytes());
     }
 
@@ -111,12 +112,11 @@ public class GcsUtil {
         HttpRequestInitializer httpRequestInitializer,
         ExecutorService executorService,
         @Nullable Integer uploadBufferSizeBytes) {
-      GcsOptions gcsOptions = options.as(GcsOptions.class);
       return new GcsUtil(
           storageClient,
           httpRequestInitializer,
           executorService,
-          gcsOptions.getUseGrpcForGcs(),
+          hasExperiment(options, "use_grpc_for_gcs"),
           uploadBufferSizeBytes);
     }
   }
@@ -236,10 +236,11 @@ public class GcsUtil {
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
     this.shouldUseGrpc = shouldUseGrpc;
-    // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
-    // add this to the GoogleCloudStorageOptions.Builder object created here:
-    //    setGrpcEnabled(shouldUseGrpc)
-    googleCloudStorageOptions = GoogleCloudStorageOptions.newBuilder().setAppName("Beam").build();
+    googleCloudStorageOptions =
+        GoogleCloudStorageOptions.newBuilder()
+            .setAppName("Beam")
+            .setGrpcEnabled(shouldUseGrpc)
+            .build();
     googleCloudStorage = new GoogleCloudStorageImpl(googleCloudStorageOptions, storageClient);
   }
 
@@ -463,11 +464,12 @@ public class GcsUtil {
             .setUploadChunkSize(uploadChunkSize)
             .setDirectUploadEnabled(wcOptions.isDirectUploadEnabled())
             .build();
-    // After grpc support is enabled in GoogleCloudDataproc/bigdata-interop repo,
-    // add this to the following:
-    //      .setGrpcEnabled(this.shouldUseGrpc)
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
-        googleCloudStorageOptions.toBuilder().setWriteChannelOptions(newOptions).build();
+        googleCloudStorageOptions
+            .toBuilder()
+            .setWriteChannelOptions(newOptions)
+            .setGrpcEnabled(this.shouldUseGrpc)
+            .build();
     GoogleCloudStorage gcpStorage =
         new GoogleCloudStorageImpl(newGoogleCloudStorageOptions, this.storageClient);
     return gcpStorage.create(

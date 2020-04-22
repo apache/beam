@@ -23,6 +23,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -58,6 +60,7 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
@@ -121,7 +124,8 @@ public class DoFnInvokersTest {
   }
 
   private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
-    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, "", mockArgumentProvider);
+    DoFnInvokers.invokerFor(fn)
+        .invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
   }
 
   @Test
@@ -267,7 +271,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithTimer() throws Exception {
     Timer mockTimer = mock(Timer.class);
     final String timerId = "my-timer-id-here";
-    when(mockArgumentProvider.timer(timerId)).thenReturn(mockTimer);
+    when(mockArgumentProvider.timer(TimerDeclaration.PREFIX + timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
       @TimerId(timerId)
@@ -662,7 +666,7 @@ public class DoFnInvokersTest {
   }
 
   @Test
-  public void testSplittableDoFnDefaultMethods() throws Exception {
+  public void testSplittableDoFnWithHasDefaultMethods() throws Exception {
     class MockFn extends DoFn<String, String> {
       @ProcessElement
       public void processElement(
@@ -751,6 +755,30 @@ public class DoFnInvokersTest {
               }
             }),
         instanceOf(DefaultWatermarkEstimator.class));
+  }
+
+  @Test
+  public void testDefaultWatermarkEstimatorStateAndCoder() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(
+          ProcessContext c, RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker) {}
+
+      @GetInitialRestriction
+      public RestrictionWithDefaultTracker getInitialRestriction(@Element String element) {
+        return null;
+      }
+    }
+
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+
+    CoderRegistry coderRegistry = CoderRegistry.createDefault();
+    coderRegistry.registerCoderProvider(
+        CoderProviders.fromStaticMethods(
+            RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class));
+    assertEquals(VoidCoder.of(), invoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry));
+    assertNull(invoker.invokeGetInitialWatermarkEstimatorState(new FakeArgumentProvider<>()));
   }
 
   // ---------------------------------------------------------------------------------------
@@ -1012,7 +1040,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, "", mockArgumentProvider);
+    invoker.invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
     assertThat(fn.status, equalTo("OK now"));
   }
 
@@ -1041,7 +1069,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, "", mockArgumentProvider);
+    invoker.invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
     assertThat(fn.window, equalTo(testWindow));
   }
 

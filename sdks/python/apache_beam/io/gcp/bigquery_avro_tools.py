@@ -29,6 +29,7 @@ from __future__ import division
 BIG_QUERY_TO_AVRO_TYPES = {
     "RECORD": "record",
     "STRING": "string",
+    "BOOL": "boolean",
     "BOOLEAN": "boolean",
     "BYTES": "bytes",
     "FLOAT": "double",

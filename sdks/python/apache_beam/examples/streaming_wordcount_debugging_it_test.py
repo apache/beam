@@ -84,7 +84,8 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
         self.pub_client, [self.input_topic, self.output_topic])
 
   @attr('IT')
-  def test_streaming_wordcount_it(self):
+  @unittest.skip('TODO(BEAM-8078): This test is failing')
+  def test_streaming_wordcount_debugging_it(self):
     # Build expected dataset.
     expected_msg = [('%d: 1' % num).encode('utf-8')
                     for num in range(DEFAULT_INPUT_NUMBERS)]

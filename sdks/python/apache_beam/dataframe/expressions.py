@@ -74,6 +74,13 @@ class Expression(object):
   def __ne__(self, other):
     return not self == other
 
+  def __repr__(self):
+    return '%s[%s]' % (self.__class__.__name__, self._id)
+
+  def placeholders(self):
+    """Returns all the placeholders that self depends on."""
+    raise NotImplementedError(type(self))
+
   def evaluate_at(self, session):  # type: (Session) -> T
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
@@ -95,7 +102,8 @@ class PlaceholderExpression(Expression):
   """An expression whose value must be explicitly bound in the session."""
   def __init__(
       self,  # type: PlaceholderExpression
-      proxy  # type: T
+      proxy, # type: T
+      reference=None,  # type: Any
   ):
     """Initialize a placeholder expression.
 
@@ -104,6 +112,10 @@ class PlaceholderExpression(Expression):
         expression. Used for type checking at pipeline construction time.
     """
     super(PlaceholderExpression, self).__init__('placeholder', proxy)
+    self._reference = reference
+
+  def placeholders(self):
+    return frozenset([self])
 
   def args(self):
     return ()
@@ -137,6 +149,9 @@ class ConstantExpression(Expression):
       proxy = value
     super(ConstantExpression, self).__init__('constant', proxy)
     self._value = value
+
+  def placeholders(self):
+    return frozenset()
 
   def args(self):
     return ()
@@ -191,11 +206,15 @@ class ComputedExpression(Expression):
     self._requires_partition_by_index = requires_partition_by_index
     self._preserves_partition_by_index = preserves_partition_by_index
 
+  def placeholders(self):
+    return frozenset.union(
+        frozenset(), *[arg.placeholders() for arg in self.args()])
+
   def args(self):
     return self._args
 
   def evaluate_at(self, session):
-    return self._func(*(arg.evaluate_at(session) for arg in self._args))
+    return self._func(*(session.evaluate(arg) for arg in self._args))
 
   def requires_partition_by_index(self):
     return self._requires_partition_by_index

@@ -51,6 +51,7 @@ import org.apache.beam.sdk.util.common.ReflectHelpers.ObjectsClassComparator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -597,6 +598,10 @@ public class CoderRegistry {
       throws CannotProvideCoderException {
     Type type = typeDescriptor.getType();
     Coder<?> coder;
+    if (typeDescriptor.equals(TypeDescriptors.rows())) {
+      throw new CannotProvideCoderException(
+          "Cannot provide a coder for a Beam Row. Please provide a schema instead using PCollection.setRowSchema.");
+    }
     if (typeCoderBindings.containsKey(type)) {
       Set<Coder<?>> coders = typeCoderBindings.get(type);
       if (coders.size() == 1) {

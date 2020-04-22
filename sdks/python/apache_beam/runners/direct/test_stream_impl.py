@@ -26,16 +26,15 @@ tagged PCollection.
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import itertools
-
-import grpc
+import logging
 
 from apache_beam import ParDo
 from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2_grpc
 from apache_beam.testing.test_stream import ElementEvent
 from apache_beam.testing.test_stream import ProcessingTimeEvent
 from apache_beam.testing.test_stream import WatermarkEvent
@@ -46,6 +45,20 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
+
+try:
+  import grpc
+  from apache_beam.portability.api import beam_runner_api_pb2_grpc  # pylint: disable=ungrouped-imports
+except ImportError:
+  grpc = None
+  beam_runner_api_pb2_grpc = None
+  # A workaround for directrunner users who would cannot depend
+  # on grpc which are missing grpc dependencyy.
+  print(
+      'Exception: grpc was not able to be imported. '
+      'Skip importing all grpc related moduels.')
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class _WatermarkController(PTransform):
@@ -75,7 +88,6 @@ class _ExpandableTestStream(PTransform):
 
   def expand(self, pbegin):
     """Expands the TestStream into the DirectRunner implementation.
-
 
     Takes the TestStream transform and creates a _TestStream -> multiplexer ->
     _WatermarkController.
@@ -261,9 +273,20 @@ class _TestStream(PTransform):
     event_request = beam_runner_api_pb2.EventsRequest(
         output_ids=[str(tag) for tag in output_tags])
 
-    event_stream = stub.Events(event_request)
-    for e in event_stream:
-      yield _TestStream.test_stream_payload_to_events(e, coder)
+    event_stream = stub.Events(event_request, timeout=30)
+    try:
+      while True:
+        yield _TestStream.test_stream_payload_to_events(
+            next(event_stream), coder)
+    except StopIteration:
+      return
+    except grpc.RpcError as e:
+      if e.code() == grpc.StatusCode.DEADLINE_EXCEEDED:
+        _LOGGER.warning(
+            'TestStream timed out waiting for new events from service.'
+            ' Stopping pipeline.')
+        return
+      raise e
 
   @staticmethod
   def test_stream_payload_to_events(payload, coder):

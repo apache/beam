@@ -155,7 +155,7 @@ public class ExternalTranslation {
             outputEntry.getKey(),
             pColRenameMap.getOrDefault(outputEntry.getValue(), outputEntry.getValue()));
       }
-      components.mergeFrom(mergingComponentsBuilder.build());
+      components.mergeFrom(mergingComponentsBuilder.build(), null);
 
       return rootTransformBuilder.build();
     }

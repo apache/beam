@@ -26,7 +26,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
@@ -34,6 +33,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -61,6 +61,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.joda.time.Instant;
@@ -135,21 +136,25 @@ class SparkExecutableStageFunction<InputT, SideInputT>
           timerInternals.advanceProcessingTime(Instant.now());
           timerInternals.advanceSynchronizedProcessingTime(Instant.now());
 
-          ReceiverFactory receiverFactory =
-              new ReceiverFactory(
-                  collector,
-                  outputMap,
-                  new TimerReceiverFactory(
-                      stageBundleFactory,
-                      (WindowedValue timerElement, TimerInternals.TimerData timerData) -> {
-                        currentTimerKey = ((KV) timerElement.getValue()).getKey();
-                        timerInternals.setTimer(timerData);
-                      },
-                      windowCoder));
+          ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
+
+          TimerReceiverFactory timerReceiverFactory =
+              new TimerReceiverFactory(
+                  stageBundleFactory,
+                  (Timer<?> timer, TimerInternals.TimerData timerData) -> {
+                    currentTimerKey = timer.getUserKey();
+                    timerInternals.setTimer(timerData);
+                  },
+                  windowCoder);
 
           // Process inputs.
           processElements(
-              executableStage, stateRequestHandler, receiverFactory, stageBundleFactory, inputs);
+              executableStage,
+              stateRequestHandler,
+              receiverFactory,
+              timerReceiverFactory,
+              stageBundleFactory,
+              inputs);
 
           // Finish any pending windows by advancing the input watermark to infinity.
           timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -161,15 +166,18 @@ class SparkExecutableStageFunction<InputT, SideInputT>
           // itself)
           try (RemoteBundle bundle =
               stageBundleFactory.getBundle(
-                  receiverFactory, stateRequestHandler, getBundleProgressHandler())) {
+                  receiverFactory,
+                  timerReceiverFactory,
+                  stateRequestHandler,
+                  getBundleProgressHandler())) {
 
             PipelineTranslatorUtils.fireEligibleTimers(
                 timerInternals,
-                (String timerId, WindowedValue timerValue) -> {
-                  FnDataReceiver<WindowedValue<?>> fnTimerReceiver =
-                      bundle.getInputReceivers().get(timerId);
+                (KV<String, String> transformAndTimerId, Timer<?> timerValue) -> {
+                  FnDataReceiver<Timer> fnTimerReceiver =
+                      bundle.getTimerReceivers().get(transformAndTimerId);
                   Preconditions.checkNotNull(
-                      fnTimerReceiver, "No FnDataReceiver found for %s", timerId);
+                      fnTimerReceiver, "No FnDataReceiver found for %s", transformAndTimerId);
                   try {
                     fnTimerReceiver.accept(timerValue);
                   } catch (Exception e) {
@@ -182,7 +190,12 @@ class SparkExecutableStageFunction<InputT, SideInputT>
         } else {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
           processElements(
-              executableStage, stateRequestHandler, receiverFactory, stageBundleFactory, inputs);
+              executableStage,
+              stateRequestHandler,
+              receiverFactory,
+              null,
+              stageBundleFactory,
+              inputs);
         }
         return collector.iterator();
       }
@@ -195,15 +208,18 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       ExecutableStage executableStage,
       StateRequestHandler stateRequestHandler,
       ReceiverFactory receiverFactory,
+      TimerReceiverFactory timerReceiverFactory,
       StageBundleFactory stageBundleFactory,
       Iterator<WindowedValue<InputT>> inputs)
       throws Exception {
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(
-            receiverFactory, stateRequestHandler, getBundleProgressHandler())) {
-      String inputPCollectionId = executableStage.getInputPCollection().getId();
+            receiverFactory,
+            timerReceiverFactory,
+            stateRequestHandler,
+            getBundleProgressHandler())) {
       FnDataReceiver<WindowedValue<?>> mainReceiver =
-          bundle.getInputReceivers().get(inputPCollectionId);
+          Iterables.getOnlyElement(bundle.getInputReceivers().values());
       while (inputs.hasNext()) {
         WindowedValue<InputT> input = inputs.next();
         mainReceiver.accept(input);
@@ -290,20 +306,11 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
     private final ConcurrentLinkedQueue<RawUnionValue> collector;
     private final Map<String, Integer> outputMap;
-    @Nullable private final TimerReceiverFactory timerReceiverFactory;
 
     ReceiverFactory(
         ConcurrentLinkedQueue<RawUnionValue> collector, Map<String, Integer> outputMap) {
-      this(collector, outputMap, null);
-    }
-
-    ReceiverFactory(
-        ConcurrentLinkedQueue<RawUnionValue> collector,
-        Map<String, Integer> outputMap,
-        @Nullable TimerReceiverFactory timerReceiverFactory) {
       this.collector = collector;
       this.outputMap = outputMap;
-      this.timerReceiverFactory = timerReceiverFactory;
     }
 
     @Override
@@ -312,9 +319,6 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       if (unionTag != null) {
         int tagInt = unionTag;
         return receivedElement -> collector.add(new RawUnionValue(tagInt, receivedElement));
-      } else if (timerReceiverFactory != null) {
-        // Delegate to TimerReceiverFactory
-        return timerReceiverFactory.create(pCollectionId);
       } else {
         throw new IllegalStateException(
             String.format(Locale.ENGLISH, "Unknown PCollectionId %s", pCollectionId));

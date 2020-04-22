@@ -90,10 +90,17 @@ versions denoted `0.x.y`.
 
 ## Releases
 
+### 2.20.0 (2020-04-15)
+Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.20.0/apache-beam-2.20.0-source-release.zip).
+[SHA-512](https://downloads.apache.org/beam/2.20.0/apache-beam-2.20.0-source-release.zip.sha512).
+[signature](https://downloads.apache.org/beam/2.20.0/apache-beam-2.20.0-source-release.zip.asc).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12346582).
+
 ### 2.19.0 (2020-02-04)
-Official [source code download](http://www.apache.org/dyn/closer.cgi/beam/2.19.0/apache-beam-2.19.0-source-release.zip).
-[SHA-512](https://downloads.apache.org/beam/2.19.0/apache-beam-2.19.0-source-release.zip.sha512).
-[signature](https://downloads.apache.org/beam/2.19.0/apache-beam-2.19.0-source-release.zip.asc).
+Official [source code download](https://archive.apache.org/dist/beam/2.19.0/apache-beam-2.19.0-source-release.zip).
+[SHA-512](https://archive.apache.org/dist/beam/2.19.0/apache-beam-2.19.0-source-release.zip.sha512).
+[signature](https://archive.apache.org/dist/beam/2.19.0/apache-beam-2.19.0-source-release.zip.asc).
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12346582).
 
@@ -181,7 +188,9 @@ Official [source code download](https://archive.apache.org/dist/beam/2.7.0/apach
 
 [Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12343654).
 
-2.7.0 branch is [designated](https://lists.apache.org/thread.html/896cbc9fef2e60f19b466d6b1e12ce1aeda49ce5065a0b1156233f01@%3Cdev.beam.apache.org%3E) by the Beam community as a [long term support (LTS)](https://beam.apache.org/community/policies/) release branch. This branch will be supported for a window of 6 months starting from the day it is marked as an LTS branch ending at 2019-05-16. Beam community will decide on which issues will be backported and when patch releases on the branch will be made on a case by case basis.
+2.7.0 was [designated](https://lists.apache.org/thread.html/896cbc9fef2e60f19b466d6b1e12ce1aeda49ce5065a0b1156233f01@%3Cdev.beam.apache.org%3E) by the Beam community as a long term support (LTS) version. LTS versions are supported for a window of 6 months starting from the day it is marked as an LTS. Beam community will decide on which issues will be backported and when patch releases on the branch will be made on a case by case basis.
+
+*LTS Update (2020-04-06):* Due to the lack of interest from users the Beam community decided not to maintain or publish new LTS releases. We encourage users to update early and often to the most recent releases.
 
 ### 2.6.0 (2018-08-08)
 Official [source code download](https://archive.apache.org/dist/beam/2.6.0/apache-beam-2.6.0-source-release.zip).

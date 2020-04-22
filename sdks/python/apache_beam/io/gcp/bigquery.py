@@ -265,6 +265,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
+from apache_beam.options.value_provider import check_accessible
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
@@ -281,7 +282,7 @@ __all__ = [
     'BigQuerySource',
     'BigQuerySink',
     'WriteToBigQuery',
-    '_ReadFromBigQuery',
+    'ReadFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
 
@@ -622,6 +623,8 @@ class _CustomBigQuerySource(BoundedSource):
       self.query = None
       self.use_legacy_sql = True
     else:
+      if isinstance(query, (str, unicode)):
+        query = StaticValueProvider(str, query)
       self.query = query
       # TODO(BEAM-1082): Change the internal flag to be standard_sql
       self.use_legacy_sql = not use_standard_sql
@@ -638,15 +641,22 @@ class _CustomBigQuerySource(BoundedSource):
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
     if self.table_reference is not None:
+      table_ref = self.table_reference
+      if (isinstance(self.table_reference, vp.ValueProvider) and
+          self.table_reference.is_accessible()):
+        table_ref = bigquery_tools.parse_table_reference(
+            self.table_reference.get(), self.dataset, self.project)
+      elif isinstance(self.table_reference, vp.ValueProvider):
+        # Size estimation is best effort. We return None as we have
+        # no access to the table that we're querying.
+        return None
       table = bq.get_table(
-          self.table_reference.projectId,
-          self.table_reference.datasetId,
-          self.table_reference.tableId)
+          table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
-    else:
+    elif self.query is not None and self.query.is_accessible():
       job = bq._start_query_job(
           self.project,
-          self.query,
+          self.query.get(),
           self.use_legacy_sql,
           self.flatten_results,
           job_id=uuid.uuid4().hex,
@@ -654,6 +664,10 @@ class _CustomBigQuerySource(BoundedSource):
           kms_key=self.kms_key)
       size = int(job.statistics.totalBytesProcessed)
       return size
+    else:
+      # Size estimation is best effort. We return None as we have
+      # no access to the query that we're running.
+      return None
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -672,7 +686,6 @@ class _CustomBigQuerySource(BoundedSource):
               True,
               self.coder(schema)) for metadata in metadata_list
       ]
-
       if self.query is not None:
         bq.clean_up_temporary_dataset(self.project)
 
@@ -693,15 +706,17 @@ class _CustomBigQuerySource(BoundedSource):
   def read(self, range_tracker):
     raise NotImplementedError('BigQuery source must be split before being read')
 
+  @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
     location = bq.get_query_location(
-        self.project, self.query, self.use_legacy_sql)
+        self.project, self.query.get(), self.use_legacy_sql)
     bq.create_temporary_dataset(self.project, location)
 
+  @check_accessible(['query'])
   def _execute_query(self, bq):
     job = bq._start_query_job(
         self.project,
-        self.query,
+        self.query.get(),
         self.use_legacy_sql,
         self.flatten_results,
         job_id=uuid.uuid4().hex,
@@ -725,10 +740,13 @@ class _CustomBigQuerySource(BoundedSource):
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
+    if isinstance(self.table_reference, vp.ValueProvider):
+      table_ref = bigquery_tools.parse_table_reference(
+          self.table_reference.get(), self.dataset, self.project)
+    else:
+      table_ref = self.table_reference
     table = bq.get_table(
-        self.table_reference.projectId,
-        self.table_reference.datasetId,
-        self.table_reference.tableId)
+        table_ref.projectId, table_ref.datasetId, table_ref.tableId)
 
     return table.schema, metadata_list
 
@@ -1348,8 +1366,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       validate: Indicates whether to perform validation checks on
         inputs. This parameter is primarily used for testing.
       temp_file_format: The format to use for file loads into BigQuery. The
-        options are NEWLINE_DELIMITED_JSON or AVRO, with AVRO being used
-        by default. For advantages and limitations of the two formats, see
+        options are NEWLINE_DELIMITED_JSON or AVRO, with NEWLINE_DELIMITED_JSON
+        being used by default. For advantages and limitations of the two
+        formats, see
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
@@ -1376,7 +1395,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self.triggering_frequency = triggering_frequency
     self.insert_retry_strategy = insert_retry_strategy
     self._validate = validate
-    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.AVRO
+    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     self.additional_bq_parameters = additional_bq_parameters or {}
     self.table_side_inputs = table_side_inputs or ()
@@ -1509,13 +1528,11 @@ class _PassThroughThenCleanup(PTransform):
 
 
 @experimental()
-class _ReadFromBigQuery(PTransform):
+class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
     on GCS, and then reads from each produced JSON file.
-
-    Do note that currently this source does not work with DirectRunner.
 
   Args:
     table (str, callable, ValueProvider): The ID of the table, or a callable
@@ -1530,8 +1547,8 @@ class _ReadFromBigQuery(PTransform):
       :data:`None` if the table reference is specified entirely by the table
       argument.
     project (str): The ID of the project containing this table.
-    query (str): A query to be used instead of arguments table, dataset, and
-      project.
+    query (str, ValueProvider): A query to be used instead of arguments
+      table, dataset, and project.
     validate (bool): If :data:`True`, various checks will be done when source
       gets initialized (e.g., is table present?). This should be
       :data:`True` for most scenarios in order to catch errors as early as
@@ -1551,8 +1568,8 @@ class _ReadFromBigQuery(PTransform):
       query results. The default value is :data:`True`.
     kms_key (str): Experimental. Optional Cloud KMS key name for use when
       creating new temporary tables.
-    gcs_location (str): The name of the Google Cloud Storage bucket where
-      the extracted table should be written as a string or
+    gcs_location (str, ValueProvider): The name of the Google Cloud Storage
+      bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
    """
@@ -1566,6 +1583,7 @@ class _ReadFromBigQuery(PTransform):
 
       if isinstance(gcs_location, (str, unicode)):
         gcs_location = StaticValueProvider(str, gcs_location)
+
     self.gcs_location = gcs_location
     self.validate = validate
 

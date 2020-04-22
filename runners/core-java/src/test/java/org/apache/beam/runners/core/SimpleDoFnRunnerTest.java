@@ -36,6 +36,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -119,7 +120,7 @@ public class SimpleDoFnRunnerTest {
     thrown.expectCause(is(fn.exceptionToThrow));
 
     runner.onTimer(
-        ThrowingDoFn.TIMER_ID,
+        TimerDeclaration.PREFIX + ThrowingDoFn.TIMER_ID,
         "",
         GlobalWindow.INSTANCE,
         new Instant(0),
@@ -160,7 +161,7 @@ public class SimpleDoFnRunnerTest {
     verify(mockTimerInternals)
         .setTimer(
             StateNamespaces.window(new GlobalWindows().windowCoder(), GlobalWindow.INSTANCE),
-            DoFnWithTimers.TIMER_ID,
+            TimerDeclaration.PREFIX + DoFnWithTimers.TIMER_ID,
             "",
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
             currentTime.plus(DoFnWithTimers.TIMER_OFFSET),
@@ -243,7 +244,7 @@ public class SimpleDoFnRunnerTest {
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
     runner.onTimer(
-        DoFnWithTimers.TIMER_ID,
+        TimerDeclaration.PREFIX + DoFnWithTimers.TIMER_ID,
         "",
         GlobalWindow.INSTANCE,
         currentTime.plus(offset),

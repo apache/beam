@@ -29,7 +29,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.meta.BaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
@@ -44,7 +43,6 @@ import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.FieldTypeDescriptors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.schemas.transforms.Filter;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.transforms.Create;
@@ -159,10 +157,6 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
       }
     }
 
-    public Coder<Row> rowCoder() {
-      return SchemaCoder.of(tableWithRows.table.getSchema());
-    }
-
     @Override
     public BeamTableStatistics getTableStatistics(PipelineOptions options) {
       return BeamTableStatistics.createBoundedTableStatistics(
@@ -175,7 +169,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
           GLOBAL_TABLES
               .get(this.tableWithRows.tableProviderInstanceId)
               .get(this.tableWithRows.table.getName());
-      return begin.apply(Create.of(tableWithRows.rows).withCoder(rowCoder()));
+      return begin.apply(Create.of(tableWithRows.rows).withRowSchema(getSchema()));
     }
 
     @Override
@@ -218,9 +212,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
         result =
             result.apply(
                 "IOPushDownProject",
-                Select.fieldAccess(
-                    FieldAccessDescriptor.withFieldNames(fieldNames)
-                        .withOrderByFieldInsertionOrder()));
+                Select.fieldAccess(FieldAccessDescriptor.withFieldNames(fieldNames)));
       }
 
       return result;
@@ -228,7 +220,7 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
 
     @Override
     public POutput buildIOWriter(PCollection<Row> input) {
-      input.apply(ParDo.of(new CollectorFn(tableWithRows)));
+      input.apply(ParDo.of(new CollectorFn(tableWithRows))).setRowSchema(input.getSchema());
       return PDone.in(input.getPipeline());
     }
 
@@ -383,11 +375,11 @@ public class TestTableProvider extends InMemoryMetaTableProvider {
     }
 
     @ProcessElement
-    public void procesElement(ProcessContext context) {
+    public void processElement(@Element Row element, OutputReceiver<Row> o) {
       long instanceId = tableWithRows.tableProviderInstanceId;
       String tableName = tableWithRows.table.getName();
-      GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(context.element());
-      context.output(context.element());
+      GLOBAL_TABLES.get(instanceId).get(tableName).rows.add(element);
+      o.output(element);
     }
   }
 

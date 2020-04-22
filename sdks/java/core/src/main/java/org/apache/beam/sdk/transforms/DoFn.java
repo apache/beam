@@ -265,18 +265,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
      * data has been explicitly requested. See {@link Window} for more information.
      */
     public abstract PaneInfo pane();
-
-    /**
-     * Gives the runner a (best-effort) lower bound about the timestamps of future output associated
-     * with the current element.
-     *
-     * <p>If the {@link DoFn} has multiple outputs, the watermark applies to all of them.
-     *
-     * <p>Only splittable {@link DoFn DoFns} are allowed to call this method. It is safe to call
-     * this method from a different thread than the one running {@link ProcessElement}, but all
-     * calls must finish before {@link ProcessElement} returns.
-     */
-    public abstract void updateWatermark(Instant watermark);
   }
 
   /** Information accessible when running a {@link DoFn.OnTimer} method. */

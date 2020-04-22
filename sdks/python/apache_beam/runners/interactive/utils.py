@@ -20,6 +20,7 @@
 
 from __future__ import absolute_import
 
+import hashlib
 import logging
 
 import pandas as pd
@@ -107,6 +108,8 @@ def register_ipython_log_handler():
 
 class IPythonLogHandler(logging.Handler):
   """A logging handler to display logs as HTML in IPython backed frontends."""
+  # TODO(BEAM-7923): Switch to Google hosted CDN once
+  # https://code.google.com/archive/p/google-ajax-apis/issues/637 is resolved.
   log_template = """
             <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
             <div class="alert alert-{level}">{msg}</div>"""
@@ -132,3 +135,72 @@ class IPythonLogHandler(logging.Handler):
                   msg=escape(record.msg % record.args))))
     except ImportError:
       pass  # NOOP when dependencies are not available.
+
+
+def obfuscate(*inputs):
+  # type: (*Any) -> str
+
+  """Obfuscates any inputs into a hexadecimal string."""
+  str_inputs = [str(input) for input in inputs]
+  merged_inputs = '_'.join(str_inputs)
+  return hashlib.md5(merged_inputs.encode('utf-8')).hexdigest()
+
+
+class ProgressIndicator(object):
+  """An indicator visualizing code execution in progress."""
+  # TODO(BEAM-7923): Switch to Google hosted CDN once
+  # https://code.google.com/archive/p/google-ajax-apis/issues/637 is resolved.
+  spinner_template = """
+            <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+            <div id="{id}" class="spinner-border text-info" role="status">
+            </div>"""
+  spinner_removal_template = """
+            $("#{id}").remove();"""
+
+  def __init__(self, enter_text, exit_text):
+    # type: (str, str) -> None
+
+    self._id = 'progress_indicator_{}'.format(obfuscate(id(self)))
+    self._enter_text = enter_text
+    self._exit_text = exit_text
+
+  def __enter__(self):
+    try:
+      from IPython.core.display import HTML
+      from IPython.core.display import display
+      from apache_beam.runners.interactive import interactive_environment as ie
+      if ie.current_env().is_in_notebook:
+        display(HTML(self.spinner_template.format(id=self._id)))
+      else:
+        display(self._enter_text)
+    except ImportError:
+      pass  # NOOP when dependencies are not available.
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    try:
+      from IPython.core.display import Javascript
+      from IPython.core.display import display
+      from IPython.core.display import display_javascript
+      from apache_beam.runners.interactive import interactive_environment as ie
+      if ie.current_env().is_in_notebook:
+        script = self.spinner_removal_template.format(id=self._id)
+        display_javascript(
+            Javascript(
+                ie._JQUERY_WITH_DATATABLE_TEMPLATE.format(
+                    customized_script=script)))
+      else:
+        display(self._exit_text)
+    except ImportError:
+      pass  # NOOP when dependencies are not avaialble.
+
+
+def progress_indicated(func):
+  # type: (Callable[..., Any]) -> Callable[..., Any]
+
+  """A decorator using a unique progress indicator as a context manager to
+  execute the given function within."""
+  def run_within_progress_indicator(*args, **kwargs):
+    with ProgressIndicator('Processing...', 'Done.'):
+      return func(*args, **kwargs)
+
+  return run_within_progress_indicator

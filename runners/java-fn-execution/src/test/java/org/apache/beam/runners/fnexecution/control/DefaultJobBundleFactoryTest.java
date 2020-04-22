@@ -45,7 +45,7 @@ import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory.Provider;
@@ -86,7 +86,7 @@ public class DefaultJobBundleFactoryTest {
   @Mock private InstructionRequestHandler instructionHandler;
   @Mock GrpcFnServer<FnApiControlClientPoolService> controlServer;
   @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
-  @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
+  @Mock GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
   @Mock private GrpcFnServer<GrpcDataService> dataServer;
   @Mock private GrpcFnServer<GrpcStateService> stateServer;
@@ -98,7 +98,7 @@ public class DefaultJobBundleFactoryTest {
   private final EnvironmentFactory.Provider envFactoryProvider =
       (GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
           GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-          GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+          GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
           GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
           ControlClientPool clientPool,
           IdGenerator idGenerator) -> envFactory;

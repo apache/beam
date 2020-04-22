@@ -57,10 +57,15 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
   private final Set<Consumer<FnApiControlClient>> onCloseListeners = ConcurrentHashMap.newKeySet();
   private final String workerId;
   private AtomicBoolean isClosed = new AtomicBoolean(false);
+  private final ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors;
 
-  private FnApiControlClient(String workerId, StreamObserver<InstructionRequest> requestReceiver) {
+  private FnApiControlClient(
+      String workerId,
+      StreamObserver<InstructionRequest> requestReceiver,
+      ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors) {
     this.workerId = workerId;
     this.requestReceiver = SynchronizedStreamObserver.wrapping(requestReceiver);
+    this.processBundleDescriptors = processBundleDescriptors;
     this.outstandingRequests = new ConcurrentHashMap<>();
   }
 
@@ -71,8 +76,10 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
    * responses (this will generally be done as part of fulfilling the contract of a gRPC service).
    */
   public static FnApiControlClient forRequestObserver(
-      String workerId, StreamObserver<BeamFnApi.InstructionRequest> requestObserver) {
-    return new FnApiControlClient(workerId, requestObserver);
+      String workerId,
+      StreamObserver<BeamFnApi.InstructionRequest> requestObserver,
+      ConcurrentMap<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors) {
+    return new FnApiControlClient(workerId, requestObserver, processBundleDescriptors);
   }
 
   @Override
@@ -87,6 +94,16 @@ public class FnApiControlClient implements Closeable, InstructionRequestHandler 
 
   public StreamObserver<BeamFnApi.InstructionResponse> asResponseObserver() {
     return responseObserver;
+  }
+
+  public BeamFnApi.ProcessBundleDescriptor getProcessBundleDescriptor(String id) {
+    return processBundleDescriptors.get(id);
+  }
+
+  @Override
+  public void registerProcessBundleDescriptor(
+      BeamFnApi.ProcessBundleDescriptor processBundleDescriptor) {
+    processBundleDescriptors.put(processBundleDescriptor.getId(), processBundleDescriptor);
   }
 
   @Override

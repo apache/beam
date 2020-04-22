@@ -38,8 +38,8 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: &GoodDoFnOmittedMethods{}, main: MainSingle},
 			{dfn: &GoodDoFnEmits{}, main: MainSingle},
 			{dfn: &GoodDoFnSideInputs{}, main: MainSingle},
+			{dfn: &GoodDoFnKv{}, main: MainKv},
 			{dfn: &GoodDoFnKvSideInputs{}, main: MainKv},
-			{dfn: &GoodDoFnKvNoSideInputs{}, main: MainKv},
 			{dfn: &GoodDoFnAllExtras{}, main: MainKv},
 			{dfn: &GoodDoFnUnexportedExtraMethod{}, main: MainSingle},
 		}
@@ -65,6 +65,7 @@ func TestNewDoFn(t *testing.T) {
 			{dfn: func(func(*int) bool, int) int { // Side input before main input.
 				return 0
 			}},
+			{dfn: &BadDoFnHasRTracker{}},
 			// Validate emit parameters.
 			{dfn: &BadDoFnNoEmitsStartBundle{}},
 			{dfn: &BadDoFnMissingEmitsStartBundle{}},
@@ -115,7 +116,7 @@ func TestNewDoFn(t *testing.T) {
 			main mainInputs
 		}{
 			{dfn: func(int) int { return 0 }, main: MainKv}, // Not enough inputs.
-			{dfn: func(int, func(*int) bool, int) int { // Side input before all main inputs.
+			{dfn: func(int, func(int)) int { // Emit before all main inputs.
 				return 0
 			}, main: MainKv},
 			{dfn: &BadDoFnAmbiguousMainInput{}, main: MainKv},
@@ -133,6 +134,84 @@ func TestNewDoFn(t *testing.T) {
 					t.Logf("NewDoFn failed as expected:\n%v", err)
 				} else {
 					t.Errorf("NewDoFn(%v, NumMainInputs(%v)) = %v, want failure", cfn.Name(), test.main, cfn)
+				}
+			})
+		}
+	})
+}
+
+func TestNewDoFnSdf(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		tests := []struct {
+			dfn  interface{}
+			main mainInputs
+		}{
+			{dfn: &GoodSdf{}, main: MainSingle},
+			{dfn: &GoodSdfKv{}, main: MainKv},
+		}
+
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				// Valid DoFns should pass validation with and without KV info.
+				if _, err := NewDoFn(test.dfn); err != nil {
+					t.Fatalf("NewDoFn with SDF failed: %v", err)
+				}
+				if _, err := NewDoFn(test.dfn, NumMainInputs(test.main)); err != nil {
+					t.Fatalf("NewDoFn(NumMainInputs(%v)) with SDF failed: %v", test.main, err)
+				}
+			})
+		}
+	})
+	t.Run("invalid", func(t *testing.T) {
+		tests := []struct {
+			dfn interface{}
+		}{
+			// Validate missing SDF methods cause errors.
+			{dfn: &BadSdfMissingMethods{}},
+			// Validate param numbers.
+			{dfn: &BadSdfParamsCreateRest{}},
+			{dfn: &BadSdfParamsSplitRest{}},
+			{dfn: &BadSdfParamsRestSize{}},
+			{dfn: &BadSdfParamsCreateTracker{}},
+			// Validate return numbers.
+			{dfn: &BadSdfReturnsCreateRest{}},
+			{dfn: &BadSdfReturnsSplitRest{}},
+			{dfn: &BadSdfReturnsRestSize{}},
+			{dfn: &BadSdfReturnsCreateTracker{}},
+			// Validate element types consistent with ProcessElement.
+			{dfn: &BadSdfElementTCreateRest{}},
+			{dfn: &BadSdfElementTSplitRest{}},
+			{dfn: &BadSdfElementTRestSize{}},
+			// Validate restriction type consistent with CreateRestriction.
+			{dfn: &BadSdfRestTSplitRestParam{}},
+			{dfn: &BadSdfRestTSplitRestReturn{}},
+			{dfn: &BadSdfRestTRestSize{}},
+			{dfn: &BadSdfRestTCreateTracker{}},
+			// Validate other types
+			{dfn: &BadSdfRestSizeReturn{}},
+			{dfn: &BadSdfCreateTrackerReturn{}},
+			{dfn: &BadSdfMismatchedRTracker{}},
+			{dfn: &BadSdfMissingRTracker{}},
+		}
+		for _, test := range tests {
+			t.Run(reflect.TypeOf(test.dfn).String(), func(t *testing.T) {
+				if cfn, err := NewDoFn(test.dfn); err != nil {
+					t.Logf("NewDoFn with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v) = %v, want failure", cfn.Name(), cfn)
+				}
+				// If validation fails with unknown main inputs, then it should
+				// always fail for any known number of main inputs, so test them
+				// all. Error messages won't necessarily match.
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainSingle)); err != nil {
+					t.Logf("NewDoFn(NumMainInputs(MainSingle)) with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainSingle)) = %v, want failure", cfn.Name(), cfn)
+				}
+				if cfn, err := NewDoFn(test.dfn, NumMainInputs(MainKv)); err != nil {
+					t.Logf("NewDoFn(NumMainInputs(MainKv)) with SDF failed as expected:\n%v", err)
+				} else {
+					t.Errorf("NewDoFn(%v, NumMainInputs(MainKv)) = %v, want failure", cfn.Name(), cfn)
 				}
 			})
 		}
@@ -265,6 +344,18 @@ func (fn *GoodDoFnSideInputs) StartBundle(func(*int) bool, string, func() func(*
 func (fn *GoodDoFnSideInputs) FinishBundle(func(*int) bool, string, func() func(*int) bool) {
 }
 
+type GoodDoFnKv struct{}
+
+func (fn *GoodDoFnKv) ProcessElement(int, int) int {
+	return 0
+}
+
+func (fn *GoodDoFnKv) StartBundle() {
+}
+
+func (fn *GoodDoFnKv) FinishBundle() {
+}
+
 type GoodDoFnKvSideInputs struct{}
 
 func (fn *GoodDoFnKvSideInputs) ProcessElement(int, int, string, func(*int) bool, func() func(*int) bool) int {
@@ -275,18 +366,6 @@ func (fn *GoodDoFnKvSideInputs) StartBundle(string, func(*int) bool, func() func
 }
 
 func (fn *GoodDoFnKvSideInputs) FinishBundle(string, func(*int) bool, func() func(*int) bool) {
-}
-
-type GoodDoFnKvNoSideInputs struct{}
-
-func (fn *GoodDoFnKvNoSideInputs) ProcessElement(int, int) int {
-	return 0
-}
-
-func (fn *GoodDoFnKvNoSideInputs) StartBundle() {
-}
-
-func (fn *GoodDoFnKvNoSideInputs) FinishBundle() {
 }
 
 type GoodDoFnAllExtras struct{}
@@ -332,7 +411,16 @@ func (fn *GoodDoFnUnexportedExtraMethod) unexportedFunction() {
 
 // Examples of incorrect DoFn signatures.
 // Embedding good DoFns avoids repetitive ProcessElement signatures when desired.
-// The immediately following examples are relating to emit parameter mismatches.
+
+type BadDoFnHasRTracker struct {
+	*GoodDoFn
+}
+
+func (fn *BadDoFnHasRTracker) ProcessElement(*RTrackerT, int) int {
+	return 0
+}
+
+// Examples of emit parameter mismatches.
 
 type BadDoFnNoEmitsStartBundle struct {
 	*GoodDoFnEmits
@@ -468,6 +556,256 @@ func (fn *BadDoFnAmbiguousSideInput) StartBundle(bool) {
 }
 
 func (fn *BadDoFnAmbiguousSideInput) FinishBundle(bool) {
+}
+
+// Examples of correct SplittableDoFn signatures
+
+type RestT struct{}
+type RTrackerT struct{}
+
+func (rt *RTrackerT) TryClaim(interface{}) bool {
+	return true
+}
+func (rt *RTrackerT) GetError() error {
+	return nil
+}
+func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, error) {
+	return nil, nil
+}
+func (rt *RTrackerT) GetProgress() float64 {
+	return 0
+}
+func (rt *RTrackerT) IsDone() bool {
+	return true
+}
+
+type GoodSdf struct {
+	*GoodDoFn
+}
+
+func (fn *GoodSdf) CreateInitialRestriction(int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdf) SplitRestriction(int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdf) RestrictionSize(int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdf) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdf) ProcessElement(*RTrackerT, int) int {
+	return 0
+}
+
+type GoodSdfKv struct {
+	*GoodDoFnKv
+}
+
+func (fn *GoodSdfKv) CreateInitialRestriction(int, int) RestT {
+	return RestT{}
+}
+
+func (fn *GoodSdfKv) SplitRestriction(int, int, RestT) []RestT {
+	return []RestT{}
+}
+
+func (fn *GoodSdfKv) RestrictionSize(int, int, RestT) float64 {
+	return 0
+}
+
+func (fn *GoodSdfKv) CreateTracker(RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+func (fn *GoodSdfKv) ProcessElement(*RTrackerT, int, int) int {
+	return 0
+}
+
+// Examples of incorrect SDF signatures.
+// Examples with missing methods.
+
+type BadSdfMissingMethods struct {
+	*GoodDoFn
+}
+
+func (fn *BadSdfMissingMethods) CreateInitialRestriction(int) RestT {
+	return RestT{}
+}
+
+// Examples with incorrect numbers of parameters.
+
+type BadSdfParamsCreateRest struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsCreateRest) CreateInitialRestriction(int, int) RestT {
+	return RestT{}
+}
+
+type BadSdfParamsSplitRest struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsSplitRest) SplitRestriction(int, int, RestT) []RestT {
+	return []RestT{}
+}
+
+type BadSdfParamsRestSize struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsRestSize) RestrictionSize(int, int, RestT) float64 {
+	return 0
+}
+
+type BadSdfParamsCreateTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfParamsCreateTracker) CreateTracker(int, RestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+// Examples with invalid numbers of return values.
+
+type BadSdfReturnsCreateRest struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsCreateRest) CreateInitialRestriction(int) (RestT, int) {
+	return RestT{}, 0
+}
+
+type BadSdfReturnsSplitRest struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsSplitRest) SplitRestriction(int, RestT) ([]RestT, int) {
+	return []RestT{}, 0
+}
+
+type BadSdfReturnsRestSize struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsRestSize) RestrictionSize(int, RestT) (float64, int) {
+	return 0, 0
+}
+
+type BadSdfReturnsCreateTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfReturnsCreateTracker) CreateTracker(RestT) (*RTrackerT, int) {
+	return &RTrackerT{}, 0
+}
+
+// Examples with element types inconsistent with ProcessElement.
+
+type BadSdfElementTCreateRest struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfElementTCreateRest) CreateInitialRestriction(float32) RestT {
+	return RestT{}
+}
+
+type BadSdfElementTSplitRest struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfElementTSplitRest) SplitRestriction(float32, RestT) []RestT {
+	return []RestT{}
+}
+
+type BadSdfElementTRestSize struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfElementTRestSize) RestrictionSize(float32, RestT) float64 {
+	return 0
+}
+
+// Examples with restriction type inconsistent CreateRestriction.
+
+type BadRestT struct{}
+
+type BadSdfRestTSplitRestParam struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestTSplitRestParam) SplitRestriction(int, BadRestT) []RestT {
+	return []RestT{}
+}
+
+type BadSdfRestTSplitRestReturn struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestTSplitRestReturn) SplitRestriction(int, RestT) []BadRestT {
+	return []BadRestT{}
+}
+
+type BadSdfRestTRestSize struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestTRestSize) RestrictionSize(int, BadRestT) float64 {
+	return 0
+}
+
+type BadSdfRestTCreateTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestTCreateTracker) CreateTracker(BadRestT) *RTrackerT {
+	return &RTrackerT{}
+}
+
+// Examples of other type validation that needs to be done.
+
+type BadSdfRestSizeReturn struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfRestSizeReturn) BadSdfRestSizeReturn(int, RestT) int {
+	return 0
+}
+
+type BadRTrackerT struct{} // Fails to implement RTracker interface.
+
+type BadSdfCreateTrackerReturn struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfCreateTrackerReturn) CreateTracker(RestT) *BadRTrackerT {
+	return &BadRTrackerT{}
+}
+
+type BadSdfMissingRTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfMissingRTracker) ProcessElement(int) int {
+	return 0
+}
+
+type OtherRTrackerT struct {
+	*RTrackerT
+}
+
+type BadSdfMismatchedRTracker struct {
+	*GoodSdf
+}
+
+func (fn *BadSdfMismatchedRTracker) ProcessElement(*OtherRTrackerT, int) int {
+	return 0
 }
 
 // Examples of correct CombineFn signatures

@@ -303,7 +303,9 @@ public class Schema implements Serializable {
     Schema other = (Schema) o;
     // If both schemas have a UUID set, we can simply compare the UUIDs.
     if (uuid != null && other.uuid != null) {
-      return Objects.equals(uuid, other.uuid);
+      if (Objects.equals(uuid, other.uuid)) {
+        return true;
+      }
     }
     return Objects.equals(fieldIndices, other.fieldIndices)
         && Objects.equals(getFields(), other.getFields())
@@ -334,7 +336,7 @@ public class Schema implements Serializable {
     SAME,
     WEAKEN,
     IGNORE
-  };
+  }
 
   /** Returns true if two Schemas have the same fields, but possibly in different orders. */
   public boolean equivalent(Schema other) {
@@ -387,7 +389,7 @@ public class Schema implements Serializable {
     builder.append("Options:");
     builder.append(options);
     return builder.toString();
-  };
+  }
 
   @Override
   public int hashCode() {
@@ -589,11 +591,16 @@ public class Schema implements Serializable {
     @Nullable
     public abstract Schema getRowSchema();
 
-    /** Returns optional extra metadata. */
+    /**
+     * Returns optional extra metadata.
+     *
+     * @deprecated use schema options instead.
+     */
     @SuppressWarnings("mutable")
-    protected abstract Map<String, ByteArrayWrapper> getMetadata();
+    @Deprecated
+    abstract Map<String, ByteArrayWrapper> getMetadata();
 
-    abstract FieldType.Builder toBuilder();
+    public abstract FieldType.Builder toBuilder();
 
     public boolean isLogicalType(String logicalTypeIdentifier) {
       return getTypeName().isLogicalType()
@@ -629,6 +636,8 @@ public class Schema implements Serializable {
 
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
 
+      /** @deprecated use schema options instead. */
+      @Deprecated
       abstract Builder setMetadata(Map<String, ByteArrayWrapper> metadata);
 
       abstract FieldType build();
@@ -716,7 +725,12 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.LOGICAL_TYPE).setLogicalType(logicalType).build();
     }
 
-    /** Set the metadata map for the type, overriding any existing metadata.. */
+    /**
+     * Set the metadata map for the type, overriding any existing metadata.
+     *
+     * @deprecated use schema options instead.
+     */
+    @Deprecated
     public FieldType withMetadata(Map<String, byte[]> metadata) {
       Map<String, ByteArrayWrapper> wrapped =
           metadata.entrySet().stream()
@@ -725,7 +739,12 @@ public class Schema implements Serializable {
       return toBuilder().setMetadata(wrapped).build();
     }
 
-    /** Returns a copy of the descriptor with metadata set for the given key. */
+    /**
+     * Returns a copy of the descriptor with metadata set for the given key.
+     *
+     * @deprecated use schema options instead.
+     */
+    @Deprecated
     public FieldType withMetadata(String key, byte[] metadata) {
       Map<String, ByteArrayWrapper> newMetadata =
           ImmutableMap.<String, ByteArrayWrapper>builder()
@@ -735,17 +754,33 @@ public class Schema implements Serializable {
       return toBuilder().setMetadata(newMetadata).build();
     }
 
-    /** Returns a copy of the descriptor with metadata set for the given key. */
+    /**
+     * Returns a copy of the descriptor with metadata set for the given key.
+     *
+     * @deprecated use schema options instead.
+     */
+    @Deprecated
     public FieldType withMetadata(String key, String metadata) {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
     }
 
+    /** @deprecated use schema options instead. */
+    @Deprecated
+    public Map<String, byte[]> getAllMetadata() {
+      return getMetadata().entrySet().stream()
+          .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().array));
+    }
+
+    /** @deprecated use schema options instead. */
+    @Deprecated
     @Nullable
     public byte[] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       return (metadata != null) ? metadata.array : null;
     }
 
+    /** @deprecated use schema options instead. */
+    @Deprecated
     public String getMetadataString(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       if (metadata != null) {
@@ -1112,7 +1147,7 @@ public class Schema implements Serializable {
         this(new HashMap<>());
       }
 
-      public Builder setRowOption(String optionName, Row value) {
+      public Builder setOption(String optionName, Row value) {
         setOption(optionName, FieldType.row(value.getSchema()), value);
         return this;
       }
@@ -1164,7 +1199,6 @@ public class Schema implements Serializable {
 
     /** Get the value of an option. If the option is not found null is returned. */
     @SuppressWarnings("TypeParameterUnusedInFormals")
-    @Nullable
     public <T> T getValue(String optionName) {
       Option option = options.get(optionName);
       if (option != null) {
@@ -1175,13 +1209,11 @@ public class Schema implements Serializable {
     }
 
     /** Get the value of an option. If the option is not found null is returned. */
-    @Nullable
     public <T> T getValue(String optionName, Class<T> valueClass) {
       return getValue(optionName);
     }
 
     /** Get the value of an option. If the option is not found the default value is returned. */
-    @Nullable
     public <T> T getValueOrDefault(String optionName, T defaultValue) {
       Option option = options.get(optionName);
       if (option != null) {
@@ -1191,7 +1223,6 @@ public class Schema implements Serializable {
     }
 
     /** Get the type of an option. */
-    @Nullable
     public FieldType getType(String optionName) {
       Option option = options.get(optionName);
       if (option != null) {
@@ -1205,8 +1236,8 @@ public class Schema implements Serializable {
       return Options.builder().setOption(optionName, fieldType, value);
     }
 
-    public static Options.Builder setRowOption(String optionName, Row value) {
-      return Options.builder().setRowOption(optionName, value);
+    public static Options.Builder setOption(String optionName, Row value) {
+      return Options.builder().setOption(optionName, value);
     }
   }
 

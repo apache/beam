@@ -45,6 +45,14 @@ class PipelineInstrumentTest(unittest.TestCase):
   def setUp(self):
     ie.new_env(cache_manager=InMemoryCache())
 
+  def cache_key_of(self, name, pcoll):
+    return repr(
+        instr.CacheKey(
+            name,
+            str(id(pcoll)),
+            str(id(pcoll.producer)),
+            str(id(pcoll.pipeline))))
+
   def test_pcolls_to_pcoll_id(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
     # pylint: disable=range-builtin-not-iterating
@@ -101,14 +109,12 @@ class PipelineInstrumentTest(unittest.TestCase):
     pipeline_instrument = instr.build_pipeline_instrument(p)
     self.assertEqual(
         pipeline_instrument.cache_key(init_pcoll),
-        'init_pcoll_' + str(id(init_pcoll)) + '_' +
-        str(id(init_pcoll.producer)))
+        self.cache_key_of('init_pcoll', init_pcoll))
     self.assertEqual(
         pipeline_instrument.cache_key(squares),
-        'squares_' + str(id(squares)) + '_' + str(id(squares.producer)))
+        self.cache_key_of('squares', squares))
     self.assertEqual(
-        pipeline_instrument.cache_key(cubes),
-        'cubes_' + str(id(cubes)) + '_' + str(id(cubes.producer)))
+        pipeline_instrument.cache_key(cubes), self.cache_key_of('cubes', cubes))
 
   def test_cacheables(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -122,27 +128,24 @@ class PipelineInstrumentTest(unittest.TestCase):
     self.assertEqual(
         pipeline_instrument.cacheables,
         {
-            pipeline_instrument._cacheable_key(init_pcoll): {
-                'var': 'init_pcoll',
-                'version': str(id(init_pcoll)),
-                'pcoll_id': 'ref_PCollection_PCollection_10',
-                'producer_version': str(id(init_pcoll.producer)),
-                'pcoll': init_pcoll
-            },
-            pipeline_instrument._cacheable_key(squares): {
-                'var': 'squares',
-                'version': str(id(squares)),
-                'pcoll_id': 'ref_PCollection_PCollection_11',
-                'producer_version': str(id(squares.producer)),
-                'pcoll': squares
-            },
-            pipeline_instrument._cacheable_key(cubes): {
-                'var': 'cubes',
-                'version': str(id(cubes)),
-                'pcoll_id': 'ref_PCollection_PCollection_12',
-                'producer_version': str(id(cubes.producer)),
-                'pcoll': cubes
-            }
+            pipeline_instrument._cacheable_key(init_pcoll): instr.Cacheable(
+                var='init_pcoll',
+                version=str(id(init_pcoll)),
+                pcoll_id='ref_PCollection_PCollection_10',
+                producer_version=str(id(init_pcoll.producer)),
+                pcoll=init_pcoll),
+            pipeline_instrument._cacheable_key(squares): instr.Cacheable(
+                var='squares',
+                version=str(id(squares)),
+                pcoll_id='ref_PCollection_PCollection_11',
+                producer_version=str(id(squares.producer)),
+                pcoll=squares),
+            pipeline_instrument._cacheable_key(cubes): instr.Cacheable(
+                var='cubes',
+                version=str(id(cubes)),
+                pcoll_id='ref_PCollection_PCollection_12',
+                producer_version=str(id(cubes.producer)),
+                pcoll=cubes)
         })
 
   def test_has_unbounded_source(self):
@@ -251,11 +254,9 @@ class PipelineInstrumentTest(unittest.TestCase):
     p_copy, _, _ = self._example_pipeline(False)
 
     # Mock as if cacheable PCollections are cached.
-    init_pcoll_cache_key = 'init_pcoll_' + str(id(init_pcoll)) + '_' + str(
-        id(init_pcoll.producer))
+    init_pcoll_cache_key = self.cache_key_of('init_pcoll', init_pcoll)
     self._mock_write_cache([b'1', b'2', b'3'], init_pcoll_cache_key)
-    second_pcoll_cache_key = 'second_pcoll_' + str(
-        id(second_pcoll)) + '_' + str(id(second_pcoll.producer))
+    second_pcoll_cache_key = self.cache_key_of('second_pcoll', second_pcoll)
     self._mock_write_cache([b'1', b'4', b'9'], second_pcoll_cache_key)
     # Mark the completeness of PCollections from the original(user) pipeline.
     ie.current_env().mark_pcollection_computed(
@@ -320,13 +321,10 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Mock as if cacheable PCollections are cached.
     ib.watch(locals())
 
-    def cache_key_of(name, pcoll):
-      return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
-
     for name, pcoll in locals().items():
       if not isinstance(pcoll, beam.pvalue.PCollection):
         continue
-      cache_key = cache_key_of(name, pcoll)
+      cache_key = self.cache_key_of(name, pcoll)
       self._mock_write_cache([b''], cache_key)
 
     # Instrument the original pipeline to create the pipeline the user will see.
@@ -338,11 +336,11 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Now, build the expected pipeline which replaces the unbounded source with
     # a TestStream.
-    source_1_cache_key = cache_key_of('source_1', source_1)
+    source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
     test_stream = (
         p_expected
-        | TestStream(output_tags=[cache_key_of('source_1', source_1)]))
+        | TestStream(output_tags=[self.cache_key_of('source_1', source_1)]))
     # pylint: disable=expression-not-assigned
     test_stream | 'square1' >> beam.Map(lambda x: x * x)
 
@@ -396,9 +394,6 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Watch but do not cache the PCollections.
     ib.watch(locals())
 
-    def cache_key_of(name, pcoll):
-      return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
-
     # Make sure that sources without a user reference are still cached.
     instr.watch_sources(p_original)
 
@@ -424,7 +419,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Now, build the expected pipeline which replaces the unbounded source with
     # a TestStream.
     intermediate_source_pcoll_cache_key = \
-        cache_key_of('synthetic_var_' + str(id(intermediate_source_pcoll)),
+        self.cache_key_of('synthetic_var_' + str(id(intermediate_source_pcoll)),
                      intermediate_source_pcoll)
     p_expected = beam.Pipeline()
 
@@ -488,10 +483,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Watch but do not cache the PCollections.
     ib.watch(locals())
 
-    def cache_key_of(name, pcoll):
-      return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
-
-    self._mock_write_cache([b''], cache_key_of('source_2', source_2))
+    self._mock_write_cache([b''], self.cache_key_of('source_2', source_2))
     ie.current_env().mark_pcollection_computed([source_2])
 
     # Instrument the original pipeline to create the pipeline the user will see.
@@ -507,8 +499,8 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Now, build the expected pipeline which replaces the unbounded source with
     # a TestStream.
-    source_1_cache_key = cache_key_of('source_1', source_1)
-    source_2_cache_key = cache_key_of('source_2', source_2)
+    source_1_cache_key = self.cache_key_of('source_1', source_1)
+    source_2_cache_key = self.cache_key_of('source_2', source_2)
     p_expected = beam.Pipeline()
 
     test_stream = (
@@ -516,8 +508,8 @@ class PipelineInstrumentTest(unittest.TestCase):
         | TestStream(output_tags=[source_1_cache_key, source_2_cache_key]))
     # pylint: disable=expression-not-assigned
     ((
-        test_stream[cache_key_of('source_1', source_1)],
-        test_stream[cache_key_of('source_2', source_2)])
+        test_stream[self.cache_key_of('source_1', source_1)],
+        test_stream[self.cache_key_of('source_2', source_2)])
      | beam.Flatten()
      | 'square1' >> beam.Map(lambda x: x * x)
      | 'reify' >> beam.Map(lambda _: _)
@@ -565,9 +557,6 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Watch but do not cache the PCollections.
     ib.watch(locals())
 
-    def cache_key_of(name, pcoll):
-      return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
-
     # Instrument the original pipeline to create the pipeline the user will see.
     p_copy = beam.Pipeline.from_runner_api(
         p_original.to_runner_api(),
@@ -581,13 +570,13 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Now, build the expected pipeline which replaces the unbounded source with
     # a TestStream.
-    source_1_cache_key = cache_key_of('source_1', source_1)
+    source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
 
     # pylint: disable=unused-variable
     test_stream = (
         p_expected
-        | TestStream(output_tags=[cache_key_of('source_1', source_1)]))
+        | TestStream(output_tags=[self.cache_key_of('source_1', source_1)]))
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
@@ -632,9 +621,6 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Watch but do not cache the PCollections.
     ib.watch(locals())
 
-    def cache_key_of(name, pcoll):
-      return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
-
     # Instrument the original pipeline to create the pipeline the user will see.
     p_copy = beam.Pipeline.from_runner_api(
         p_original.to_runner_api(),
@@ -648,11 +634,11 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Now, build the expected pipeline which replaces the unbounded source with
     # a TestStream.
-    source_1_cache_key = cache_key_of('source_1', source_1)
+    source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
     test_stream = (
         p_expected
-        | TestStream(output_tags=[cache_key_of('source_1', source_1)]))
+        | TestStream(output_tags=[self.cache_key_of('source_1', source_1)]))
     # pylint: disable=expression-not-assigned
     (
         test_stream
@@ -705,13 +691,10 @@ class PipelineInstrumentTest(unittest.TestCase):
     # Mock as if cacheable PCollections are cached.
     ib.watch(locals())
 
-    def cache_key_of(name, pcoll):
-      return name + '_' + str(id(pcoll)) + '_' + str(id(pcoll.producer))
-
     for name, pcoll in locals().items():
       if not isinstance(pcoll, beam.pvalue.PCollection):
         continue
-      cache_key = cache_key_of(name, pcoll)
+      cache_key = self.cache_key_of(name, pcoll)
       self._mock_write_cache([b''], cache_key)
 
     # Instrument the original pipeline to create the pipeline the user will see.
@@ -723,15 +706,15 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     # Now, build the expected pipeline which replaces the unbounded source with
     # a TestStream.
-    source_1_cache_key = cache_key_of('source_1', source_1)
-    source_2_cache_key = cache_key_of('source_2', source_2)
+    source_1_cache_key = self.cache_key_of('source_1', source_1)
+    source_2_cache_key = self.cache_key_of('source_2', source_2)
     p_expected = beam.Pipeline()
     test_stream = (
         p_expected
         | TestStream(
             output_tags=[
-                cache_key_of('source_1', source_1),
-                cache_key_of('source_2', source_2)
+                self.cache_key_of('source_1', source_1),
+                self.cache_key_of('source_2', source_2)
             ]))
     # pylint: disable=expression-not-assigned
     test_stream[source_1_cache_key] | 'square1' >> beam.Map(lambda x: x * x)
@@ -771,8 +754,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         None)
 
     # Mock as if init_pcoll is cached.
-    init_pcoll_cache_key = 'init_pcoll_' + str(id(init_pcoll)) + '_' + str(
-        id(init_pcoll.producer))
+    init_pcoll_cache_key = self.cache_key_of('init_pcoll', init_pcoll)
     self._mock_write_cache([b'1', b'2', b'3'], init_pcoll_cache_key)
     ie.current_env().mark_pcollection_computed([init_pcoll])
     # Build an instrument from the runner pipeline.

@@ -37,7 +37,6 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import decorators
 
-decorators._enable_from_callable = True
 T = TypeVariable('T')
 # Name is 'T' so it converts to a beam type with the same name.
 # mypy requires that the name of the variable match, so we must ignore this.
@@ -192,6 +191,24 @@ class DecoratorsTest(unittest.TestCase):
     # Same pipeline doesn't raise without annotations on fn.
     fn = decorators.no_annotations(fn)
     _ = ['a', 'b', 'c'] | Map(fn)
+
+
+class DecoratorsTest(unittest.TestCase):
+  def test_no_annotations(self):
+    def fn(a: int) -> int:
+      return a
+
+    _ = [1, 2, 3] | Map(fn)  # Doesn't raise - correct types.
+
+    with self.assertRaisesRegex(TypeCheckError,
+                                r'requires .*int.* but got .*str'):
+      _ = ['a', 'b', 'c'] | Map(fn)
+
+    @decorators.no_annotations
+    def fn2(a: int) -> int:
+      return a
+
+    _ = ['a', 'b', 'c'] | Map(fn2)  # Doesn't raise - no input type hints.
 
 
 if __name__ == '__main__':
