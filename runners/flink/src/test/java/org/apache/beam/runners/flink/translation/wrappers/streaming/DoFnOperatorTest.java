@@ -545,6 +545,9 @@ public class DoFnOperatorTest {
 
     TupleTag<KV<String, Integer>> outputTag = new TupleTag<>("main-output");
 
+    KeySelector<WindowedValue<KV<String, Integer>>, ByteBuffer> keySelector =
+        e -> FlinkKeyUtils.encodeKey(e.getValue().getKey(), StringUtf8Coder.of());
+
     DoFnOperator<KV<String, Integer>, KV<String, Integer>> doFnOperator =
         new DoFnOperator<>(
             fn,
@@ -559,17 +562,17 @@ public class DoFnOperatorTest {
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
             StringUtf8Coder.of(), /* key coder */
-            kvWindowedValue -> kvWindowedValue.getValue().getKey(),
+            keySelector,
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
     KeyedOneInputStreamOperatorTestHarness<
-            String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness<>(
                 doFnOperator,
-                kvWindowedValue -> kvWindowedValue.getValue().getKey(),
-                new CoderTypeInformation<>(StringUtf8Coder.of()));
+                keySelector,
+                new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
 
     testHarness.open();
 
