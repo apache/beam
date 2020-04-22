@@ -54,7 +54,6 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -278,10 +277,6 @@ public class ProcessBundleHandler {
             });
     PTransformFunctionRegistry startFunctionRegistry = bundleProcessor.getStartFunctionRegistry();
     PTransformFunctionRegistry finishFunctionRegistry = bundleProcessor.getFinishFunctionRegistry();
-    PCollectionConsumerRegistry pCollectionConsumerRegistry =
-        bundleProcessor.getpCollectionConsumerRegistry();
-    MetricsContainerStepMap metricsContainerRegistry =
-        bundleProcessor.getMetricsContainerRegistry();
     ExecutionStateTracker stateTracker = bundleProcessor.getStateTracker();
     QueueingBeamFnDataClient queueingClient = bundleProcessor.getQueueingClient();
 
@@ -306,23 +301,19 @@ public class ProcessBundleHandler {
       // Add all checkpointed residuals to the response.
       response.addAllResidualRoots(bundleProcessor.getSplitListener().getResidualRoots());
 
+      // TODO(BEAM-6597): This should be reporting monitoring infos using the short id system.
       // Get start bundle Execution Time Metrics.
-      for (MonitoringInfo mi : startFunctionRegistry.getExecutionTimeMonitoringInfos()) {
-        response.addMonitoringInfos(mi);
-      }
+      response.addAllMonitoringInfos(
+          bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringInfos());
       // Get process bundle Execution Time Metrics.
-      for (MonitoringInfo mi : pCollectionConsumerRegistry.getExecutionTimeMonitoringInfos()) {
-        response.addMonitoringInfos(mi);
-      }
-
+      response.addAllMonitoringInfos(
+          bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringInfos());
       // Get finish bundle Execution Time Metrics.
-      for (MonitoringInfo mi : finishFunctionRegistry.getExecutionTimeMonitoringInfos()) {
-        response.addMonitoringInfos(mi);
-      }
+      response.addAllMonitoringInfos(
+          bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
       // Extract all other MonitoringInfos other than the execution time monitoring infos.
-      for (MonitoringInfo mi : metricsContainerRegistry.getMonitoringInfos()) {
-        response.addMonitoringInfos(mi);
-      }
+      response.addAllMonitoringInfos(
+          bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
 
       if (!bundleProcessor.getBundleFinalizationCallbackRegistrations().isEmpty()) {
         finalizeBundleHandler.registerCallbacks(
@@ -335,6 +326,37 @@ public class ProcessBundleHandler {
           request.getProcessBundle().getProcessBundleDescriptorId(), bundleProcessor);
     }
     return BeamFnApi.InstructionResponse.newBuilder().setProcessBundle(response);
+  }
+
+  public BeamFnApi.InstructionResponse.Builder progress(BeamFnApi.InstructionRequest request) {
+    BundleProcessor bundleProcessor =
+        bundleProcessorCache.find(request.getProcessBundleProgress().getInstructionId());
+    if (bundleProcessor == null) {
+      throw new IllegalStateException(
+          String.format(
+              "Unable to find active bundle for instruction id %s.",
+              request.getProcessBundleProgress().getInstructionId()));
+    }
+    BeamFnApi.ProcessBundleProgressResponse.Builder response =
+        BeamFnApi.ProcessBundleProgressResponse.newBuilder();
+
+    // TODO(BEAM-6597): This should really only be reporting monitoring infos where the data changed
+    // and we should be using the short id system.
+
+    // Get start bundle Execution Time Metrics.
+    response.addAllMonitoringInfos(
+        bundleProcessor.getStartFunctionRegistry().getExecutionTimeMonitoringInfos());
+    // Get process bundle Execution Time Metrics.
+    response.addAllMonitoringInfos(
+        bundleProcessor.getpCollectionConsumerRegistry().getExecutionTimeMonitoringInfos());
+    // Get finish bundle Execution Time Metrics.
+    response.addAllMonitoringInfos(
+        bundleProcessor.getFinishFunctionRegistry().getExecutionTimeMonitoringInfos());
+    // Extract all other MonitoringInfos other than the execution time monitoring infos.
+    response.addAllMonitoringInfos(
+        bundleProcessor.getMetricsContainerRegistry().getMonitoringInfos());
+
+    return BeamFnApi.InstructionResponse.newBuilder().setProcessBundleProgress(response);
   }
 
   /** Splits an active bundle. */
