@@ -29,6 +29,8 @@ from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
+__all__ = ['SqlTransform']
+
 SqlTransformSchema = typing.NamedTuple(
     'SqlTransformSchema', [('query', unicode)])
 
@@ -38,32 +40,29 @@ class SqlTransform(ExternalTransform):
 
   Input PCollections must have a schema. Currently, this means the PCollection
   *must* have a NamedTuple output type, and that type must be registered to use
-  RowCoder. For example:
-  ```
-  Purchase = typing.NamedTuple('Purchase',
-                               [('item_name', unicode), ('price', float)])
-  coders.registry.register_coder(Purchase, coders.RowCoder)
-  ```
+  RowCoder. For example::
+
+    Purchase = typing.NamedTuple('Purchase',
+                                 [('item_name', unicode), ('price', float)])
+    coders.registry.register_coder(Purchase, coders.RowCoder)
 
   Similarly, the output of SqlTransform is a PCollection with a generated
-  NamedTuple type, and columns can be accessed as fields. For example:
-  ```
-  purchases | SqlTransform(\"\"\"
-                SELECT item_name, COUNT(*) AS `count`
-                FROM PCOLLECTION GROUP BY item_name\"\"\")
-            | beam.Map(lambda row: "We've sold %d %ss!" % (row.count,
-                                                           row.item_name))
-  ```
+  NamedTuple type, and columns can be accessed as fields. For example::
+
+    purchases | SqlTransform(\"\"\"
+                  SELECT item_name, COUNT(*) AS `count`
+                  FROM PCOLLECTION GROUP BY item_name\"\"\")
+              | beam.Map(lambda row: "We've sold %d %ss!" % (row.count,
+                                                             row.item_name))
 
   Additional examples can be found in
   `apache_beam.examples.wordcount_xlang_sql`, and
   `apache_beam.transforms.sql_test`.
 
-  For more details about Beam SQL in general see the Java transform [1], and the
-  documentation [2].
-
-  [1] https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html # pylint: disable=line-too-long
-  [2] https://beam.apache.org/documentation/dsls/sql/overview/
+  For more details about Beam SQL in general see the `Java transform
+  <https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/sql/SqlTransform.html>`_,
+  and the `documentation
+  <https://beam.apache.org/documentation/dsls/sql/overview/>`_.
   """
   URN = 'beam:external:java:sql:v1'
 
