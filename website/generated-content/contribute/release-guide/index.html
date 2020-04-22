@@ -1232,7 +1232,7 @@ done
   <li>Build Java images and push to DockerHub.</li>
 </ul>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 </code></pre></div></div>
 
 <ul>
