@@ -39,13 +39,11 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	err = StageViaPortableApi(ctx, cc, binary, st)
-
-	if err == nil {
-		return "", err
-	} else {
-		return StageViaLegacyApi(ctx, cc, binary, st)
+	if err := StageViaPortableApi(ctx, cc, binary, st); err == nil {
+		return "", nil
 	}
+
+  return StageViaLegacyApi(ctx, cc, binary, st)
 }
 
 func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
