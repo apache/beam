@@ -664,10 +664,10 @@ public class HL7v2IO {
       @ProcessElement
       public void writeMessages(ProcessContext context) {
         HL7v2Message msg = context.element();
-        // schematized data should be output only.
-        msg.setSchematizedData(null);
-        long startTime = System.currentTimeMillis();
-        Sleeper sleeper = Sleeper.DEFAULT;
+        // all fields but data should be null for ingest.
+        Message model = new Message();
+        model.setData(msg.getData());
+        model.setLabels(msg.getLabels());
         switch (writeMethod) {
           case BATCH_IMPORT:
             // TODO once healthcare API exposes batch import API add that functionality here to
@@ -677,7 +677,7 @@ public class HL7v2IO {
           default:
             try {
               long requestTimestamp = Instant.now().getMillis();
-              client.ingestHL7v2Message(hl7v2Store, msg.toModel());
+              client.ingestHL7v2Message(hl7v2Store, model);
               messageIngestLatency.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();
