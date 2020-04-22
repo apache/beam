@@ -128,8 +128,7 @@ func (a artifact) retrieve(ctx context.Context, dest string) error {
 		return errors.Wrapf(err, "failed to stat %v", filename)
 	}
 
-	err = os.MkdirAll(filepath.Dir(filename), os.ModePerm)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
 		return err
 	}
 
