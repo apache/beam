@@ -54,6 +54,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tempfile
 from builtins import object
 from builtins import zip
@@ -70,6 +71,7 @@ from typing import Type
 from typing import Union
 
 from future.utils import with_metaclass
+from past.builtins import unicode
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
@@ -1081,7 +1083,7 @@ class AppliedPTransform(object):
   def named_outputs(self):
     # type: () -> Dict[str, pvalue.PCollection]
     return {
-        str(tag): output
+        try_unicode(tag): output
         for tag,
         output in self.outputs.items()
         if isinstance(output, pvalue.PCollection)
@@ -1140,7 +1142,7 @@ class AppliedPTransform(object):
             for (tag, pc) in sorted(self.named_inputs().items())
         },
         outputs={
-            str(tag): context.pcollections.get_id(out)
+            tag: context.pcollections.get_id(out)
             for tag,
             out in sorted(self.named_outputs().items())
         },
@@ -1308,3 +1310,15 @@ class PTransformOverride(with_metaclass(abc.ABCMeta,
     """
     # Returns a PTransformReplacement
     raise NotImplementedError
+
+
+if sys.version_info >= (3, ):
+  try_unicode = str
+
+else:
+
+  def try_unicode(s):
+    try:
+      return unicode(s)
+    except UnicodeDecodeError:
+      return str(s).decode('ascii', 'replace')
