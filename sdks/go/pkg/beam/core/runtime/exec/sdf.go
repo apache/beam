@@ -62,8 +62,8 @@ func (n *PairWithRestriction) StartBundle(ctx context.Context, id string, data D
 // ProcessElement creates an initial restriction representing the entire input.
 // The output is in the structure <elem, restriction>, where elem is the main
 // input originally passed in (i.e. the parameter elm). Windows and Timestamp
-// are copied to the outer *FullValue. They still remain within the original
-// element as well, but will no longer be used.
+// are copied to the outer *FullValue. They can be left within the original
+// element, but won't be used by later SDF steps.
 //
 // Output Diagram:
 //
@@ -240,13 +240,16 @@ func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, i
 }
 
 // ProcessElement expects the same structure as the output of
-// SplitAndSizeRestrictions, approximately <<elem, restriction>, size>
+// SplitAndSizeRestrictions, approximately <<elem, restriction>, size>. The
+// only difference is that if the input was decoded in between the two steps,
+// then single-element inputs were lifted from the *FullValue they were
+// stored in.
 //
 // Input Diagram:
 //
 //   *FullValue {
 //     Elm: *FullValue {
-//       Elm:  *FullValue (original input)
+//       Elm:  *FullValue (KV input) or InputType (single-element input)
 //       Elm2: Restriction
 //     }
 //     Elm2: float64 (size)
@@ -263,20 +266,35 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 		return errors.Errorf("invalid status for ParDo %v: %v, want Active", n.PDo.UID, n.PDo.status)
 	}
 
-	userElm := elm.Elm.(*FullValue).Elm.(*FullValue)
 	rest := elm.Elm.(*FullValue).Elm2
 	rt := n.inv.Invoke(rest)
+	mainIn := &MainInput{
+		Values:   values,
+		RTracker: rt,
+	}
 
-	return n.PDo.processMainInput(&MainInput{
-		Key: FullValue{ // User userElm's values but the top-level windows and timestamp.
+	// For the key, the way we fill it out depends on whether the input element
+	// is a KV or single-element. Single-elements might have been lifted out of
+	// their FullValue if they were decoded, so we need to have a case for that.
+	// Also, we use the the top-level windows and timestamp.
+	// TODO(BEAM-9798): Optimize this so it's decided in exec/translate.go
+	// instead of checking per-element.
+	if userElm, ok := elm.Elm.(*FullValue).Elm.(*FullValue); ok {
+		mainIn.Key = FullValue{
 			Elm:       userElm.Elm,
 			Elm2:      userElm.Elm2,
 			Timestamp: elm.Timestamp,
 			Windows:   elm.Windows,
-		},
-		Values:   values,
-		RTracker: rt,
-	})
+		}
+	} else {
+		mainIn.Key = FullValue{
+			Elm:       elm.Elm.(*FullValue).Elm,
+			Timestamp: elm.Timestamp,
+			Windows:   elm.Windows,
+		}
+	}
+
+	return n.PDo.processMainInput(mainIn)
 }
 
 // FinishBundle does some teardown for the end of the bundle and then defers to
