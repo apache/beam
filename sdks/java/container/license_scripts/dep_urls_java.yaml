@@ -82,6 +82,8 @@ ehcache-core:
   '2.6.2':
     license: "https://raw.githubusercontent.com/ehcache/ehcache3/master/LICENSE"
     notice: "https://raw.githubusercontent.com/ehcache/ehcache3/master/LICENSE"
+fmpp:
+  '0.9.14': "http://fmpp.sourceforge.net/license.html"
 hdrhistogram:
   '2.1.6':
     license: "https://raw.githubusercontent.com/HdrHistogram/HdrHistogram/master/LICENSE.txt"
@@ -119,6 +121,8 @@ jsp-api:
 jsr166e:
   '1.1.0':
     license: "https://raw.githubusercontent.com/twitter-archive/jsr166e/master/LICENSE"
+jpam:
+  '1.1': "http://jpam.sourceforge.net/LICENSE.txt"
 log4j:
   '1.2.12':
     license: "https://raw.githubusercontent.com/apache/log4j/trunk/LICENSE"
