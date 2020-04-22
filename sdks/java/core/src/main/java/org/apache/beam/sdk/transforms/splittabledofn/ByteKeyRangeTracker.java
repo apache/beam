@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
@@ -40,7 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
-    implements Sizes.HasSize {
+    implements HasSize {
   /* An empty range which contains no keys. */
   @VisibleForTesting
   static final ByteKeyRange NO_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x00));

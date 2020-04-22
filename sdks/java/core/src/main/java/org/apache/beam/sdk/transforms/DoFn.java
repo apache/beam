@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -650,10 +649,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
    *   <li>It <i>should</i> define a {@link GetSize} method or ensure that the {@link
-   *       RestrictionTracker} implements one of the interfaces in {@link Sizes}. Poor auto-scaling
-   *       of workers and/or splitting may result if neither is defined or if the size is an
-   *       inaccurate representation of work. See {@link GetSize} and {@link Sizes} for further
-   *       details.
+   *       RestrictionTracker} implements one of the progress or sizing interfaces. Poor
+   *       auto-scaling of workers and/or splitting may result if neither is defined or if the size
+   *       is an inaccurate representation of work. See {@link GetSize} and {@link
+   *       RestrictionTracker} for further details.
    *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
    *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and

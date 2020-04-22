@@ -43,8 +43,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes.Progress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.util.NameUtils;
@@ -670,7 +669,7 @@ public class Read {
             OutputT, CheckpointT extends CheckpointMark>
         extends RestrictionTracker<
             KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue<OutputT>[]>
-        implements Sizes.HasProgress {
+        implements HasProgress {
       private final KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
       private UnboundedSource.UnboundedReader<OutputT> currentReader;
@@ -770,7 +769,7 @@ public class Read {
       public Progress getProgress() {
         // We treat the empty source as implicitly done.
         if (currentRestriction().getKey() instanceof EmptyUnboundedSource) {
-          return Sizes.Progress.from(1, 0);
+          return RestrictionTracker.Progress.from(1, 0);
         }
 
         if (currentReader == null) {
@@ -788,7 +787,7 @@ public class Read {
         if (size != UnboundedReader.BACKLOG_UNKNOWN) {
           // The UnboundedSource/UnboundedReader API has no way of reporting how much work
           // has been completed so runners can only see the work remaining changing.
-          return Sizes.Progress.from(0, size);
+          return RestrictionTracker.Progress.from(0, size);
         }
 
         // TODO: Support "global" backlog reporting
@@ -798,7 +797,7 @@ public class Read {
         // }
 
         // We treat unknown as 0 progress
-        return Sizes.Progress.from(0, 1);
+        return RestrictionTracker.Progress.from(0, 1);
       }
     }
   }

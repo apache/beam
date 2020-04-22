@@ -95,7 +95,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
@@ -658,7 +659,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             new ProgressRequestCallback() {
               @Override
               public List<MonitoringInfo> getMonitoringInfos() throws Exception {
-                Sizes.Progress progress = getProgress();
+                Progress progress = getProgress();
                 if (progress == null) {
                   return Collections.emptyList();
                 }
@@ -881,7 +882,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public double getProgress() {
-      Sizes.Progress progress = FnApiDoFnRunner.this.getProgress();
+      Progress progress = FnApiDoFnRunner.this.getProgress();
       if (progress != null) {
         double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
         if (totalWork > 0) {
@@ -892,11 +893,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
   }
 
-  private Sizes.Progress getProgress() {
+  private Progress getProgress() {
     synchronized (splitLock) {
-      if (currentTracker instanceof Sizes.HasProgress) {
-        return ((Sizes.HasProgress) currentTracker).getProgress();
-      } else if (currentTracker instanceof Sizes.HasSize) {
+      if (currentTracker instanceof RestrictionTracker.HasProgress) {
+        return ((HasProgress) currentTracker).getProgress();
+      } else if (currentTracker instanceof RestrictionTracker.HasSize) {
         double initialSize =
             doFnInvoker.invokeGetSize(
                 new DelegatingArgumentProvider<InputT, OutputT>(
@@ -924,8 +925,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             initialSize,
             currentRestriction,
             RestrictionTracker.class.getSimpleName(),
-            Sizes.HasProgress.class.getSimpleName());
-        return Sizes.Progress.from(initialSize - currentSize, currentSize);
+            HasProgress.class.getSimpleName());
+        return RestrictionTracker.Progress.from(initialSize - currentSize, currentSize);
       }
     }
     return null;

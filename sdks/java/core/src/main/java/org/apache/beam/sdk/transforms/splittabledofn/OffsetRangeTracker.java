@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
@@ -32,8 +33,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  * increasing fashion.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
-public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
-    implements Sizes.HasSize {
+public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long> implements HasSize {
   private OffsetRange range;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
