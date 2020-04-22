@@ -648,11 +648,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
-   *   <li>It <i>should</i> define a {@link GetSize} method or ensure that the {@link
-   *       RestrictionTracker} implements one of the progress or sizing interfaces. Poor
-   *       auto-scaling of workers and/or splitting may result if neither is defined or if the size
-   *       is an inaccurate representation of work. See {@link GetSize} and {@link
-   *       RestrictionTracker} for further details.
+   *   <li>It <i>may</i> define a {@link GetSize} method or ensure that the {@link
+   *       RestrictionTracker} implements {@link RestrictionTracker.HasProgress}. Poor auto-scaling
+   *       of workers and/or splitting may result if size or progress is an inaccurate
+   *       representation of work. See {@link GetSize} and {@link RestrictionTracker.HasProgress}
+   *       for further details.
    *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
    *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
@@ -953,8 +953,9 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>Returns a double representing the size of the current element and restriction.
    *
-   * <p>Splittable {@link DoFn}s should only provide this method if the default implementation
-   * within the {@link RestrictionTracker} is an inaccurate representation of known work.
+   * <p>Splittable {@link DoFn}s should only provide this method if the default {@link
+   * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an
+   * inaccurate representation of known work.
    *
    * <p>It is up to each splittable {@DoFn} to convert between their natural representation of
    * outstanding work and this representation. For example:

@@ -18,16 +18,13 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import static org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker.next;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -260,31 +257,43 @@ public class ByteKeyRangeTrackerTest {
   @Test
   public void testBacklogUnstarted() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
-    assertEquals(1., tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(1, progress.getWorkRemaining(), 0.001);
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
-    assertEquals(1., tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(1, progress.getWorkRemaining(), 0.001);
   }
 
   @Test
   public void testBacklogFinished() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
     tracker.tryClaim(ByteKey.EMPTY);
-    assertEquals(0., tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(1, progress.getWorkCompleted(), 0.001);
+    assertEquals(0, progress.getWorkRemaining(), 0.001);
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0xd0));
-    assertEquals(0., tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(1, progress.getWorkCompleted(), 0.001);
+    assertEquals(0, progress.getWorkRemaining(), 0.001);
   }
 
   @Test
   public void testBacklogPartiallyCompleted() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
     tracker.tryClaim(ByteKey.of(0xa0));
-    assertThat(tracker.getSize(), allOf(greaterThan(0.), lessThan(1.)));
+    Progress progress = tracker.getProgress();
+    assertEquals(0.625, progress.getWorkCompleted(), 0.001);
+    assertEquals(0.375, progress.getWorkRemaining(), 0.001);
 
-    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x40), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0xa0));
-    assertThat(tracker.getSize(), allOf(greaterThan(0.), lessThan(1.)));
+    progress = tracker.getProgress();
+    assertEquals(0.75, progress.getWorkCompleted(), 0.001);
+    assertEquals(0.25, progress.getWorkRemaining(), 0.001);
   }
 }

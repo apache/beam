@@ -26,9 +26,9 @@ import org.apache.beam.sdk.transforms.DoFn;
  * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
  *
- * <p>{@link RestrictionTracker}s which work on restrictions which have a fixed known size should
- * implement {@link HasSize} otherwise {@link RestrictionTracker}s which handle restrictions that
- * can grow or shrink over time should implement {@link HasProgress}.
+ * <p>{@link RestrictionTracker}s should implement {@link HasProgress} otherwise poor auto-scaling
+ * of workers and/or splitting may result if the progress is an inaccurate representation of the
+ * known amount of completed and remaining work.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
@@ -96,44 +96,8 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
   public abstract void checkDone() throws IllegalStateException;
 
   /**
-   * {@link RestrictionTracker}s which work on restrictions which have a fixed size should implement
-   * this interface.
-   *
-   * <p>By default, the initial amount of work will be captured from {@link #getSize()} before
-   * processing of the restriction begins. Afterwards progress will be reported as:
-   *
-   * <ul>
-   *   <li>{@code work_remaining = getSize()}
-   *   <li>{@code work_completed = max(initial_amount_of_work - work_remaining, 0)}
-   * </ul>
-   */
-  public interface HasSize {
-    /**
-     * A representation for the amount of known work represented as a size. Size {@code double}
-     * representations should preferably represent a linear space.
-     *
-     * <p>It is up to each restriction tracker to convert between their natural representation of
-     * outstanding work and this representation. For example:
-     *
-     * <ul>
-     *   <li>Block based file source (e.g. Avro): From the end of the current block, the remaining
-     *       number of bytes to the end of the restriction.
-     *   <li>Key range based source (e.g. BigQuery, Bigtable, ...): Scale the start key to be one
-     *       and end key to be zero and interpolate the position of the next splittable key as the
-     *       size. If information about the probability density function or cumulative distribution
-     *       function is available, size interpolation can be improved. Alternatively, if the number
-     *       of encoded bytes for the keys and values is known for the key range, the number of
-     *       remaining bytes can be used.
-     * </ul>
-     *
-     * @return The size of the restriction, must be {@code >= 0}.
-     */
-    double getSize();
-  }
-
-  /**
-   * {@link RestrictionTracker}s which handle restrictions that can grow or shrink over time should
-   * implement this interface.
+   * All {@link RestrictionTracker}s SHOULD implement this interface to improve auto-scaling and
+   * splitting performance.
    */
   public interface HasProgress {
     /**
@@ -143,11 +107,18 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
      * completed and remaining work and the {@code double} representation. For example:
      *
      * <ul>
+     *   <li>Block based file source (e.g. Avro): The number of bytes from the beginning of the
+     *       restriction to the current block and the number of bytes from the current block to the
+     *       end of the restriction.
      *   <li>Pull based queue based source (e.g. Pubsub): The local/global size available in number
      *       of messages or number of {@code message bytes} that have processed and the number of
      *       messages or number of {@code message bytes} that are outstanding.
-     *   <li>Claim set: The local/global number of objects that have been claimed and the number of
-     *       known objects that remain to be claimed.
+     *   <li>Key range based source (e.g. BigQuery, Bigtable, ...): Scale the start key to be one
+     *       and end key to be zero and interpolate the position of the next splittable key as a
+     *       position. If information about the probability density function or cumulative
+     *       distribution function is available, work completed and work remaining interpolation can
+     *       be improved. Alternatively, if the number of encoded bytes for the keys and values is
+     *       known for the key range, the number of completed and remaining bytes can be used.
      * </ul>
      *
      * <p>The work completed and work remaining must be of the same scale whether that be number of
