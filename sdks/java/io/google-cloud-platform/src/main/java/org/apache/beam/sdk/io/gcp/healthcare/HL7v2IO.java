@@ -664,7 +664,7 @@ public class HL7v2IO {
       @ProcessElement
       public void writeMessages(ProcessContext context) {
         HL7v2Message msg = context.element();
-        // all fields but data should be null for ingest.
+        // all fields but data and labels should be null for ingest.
         Message model = new Message();
         model.setData(msg.getData());
         model.setLabels(msg.getLabels());
