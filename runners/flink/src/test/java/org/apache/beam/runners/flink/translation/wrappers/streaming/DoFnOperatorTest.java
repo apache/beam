@@ -313,12 +313,16 @@ public class DoFnOperatorTest {
           }
         };
 
+    VarIntCoder keyCoder = VarIntCoder.of();
     WindowedValue.FullWindowedValueCoder<Integer> inputCoder =
-        WindowedValue.getFullCoder(VarIntCoder.of(), windowingStrategy.getWindowFn().windowCoder());
+        WindowedValue.getFullCoder(keyCoder, windowingStrategy.getWindowFn().windowCoder());
 
     WindowedValue.FullWindowedValueCoder<String> outputCoder =
         WindowedValue.getFullCoder(
             StringUtf8Coder.of(), windowingStrategy.getWindowFn().windowCoder());
+
+    KeySelector<WindowedValue<Integer>, ByteBuffer> keySelector =
+        e -> FlinkKeyUtils.encodeKey(e.getValue(), keyCoder);
 
     TupleTag<String> outputTag = new TupleTag<>("main-output");
 
@@ -335,14 +339,16 @@ public class DoFnOperatorTest {
             new HashMap<>(), /* side-input mapping */
             Collections.emptyList(), /* side inputs */
             PipelineOptionsFactory.as(FlinkPipelineOptions.class),
-            VarIntCoder.of(), /* key coder */
-            WindowedValue::getValue,
+            keyCoder, /* key coder */
+            keySelector,
             DoFnSchemaInformation.create(),
             Collections.emptyMap());
 
     OneInputStreamOperatorTestHarness<WindowedValue<Integer>, WindowedValue<String>> testHarness =
         new KeyedOneInputStreamOperatorTestHarness<>(
-            doFnOperator, WindowedValue::getValue, new CoderTypeInformation<>(VarIntCoder.of()));
+            doFnOperator,
+            keySelector,
+            new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
 
     testHarness.setup(new CoderTypeSerializer<>(outputCoder));
 
