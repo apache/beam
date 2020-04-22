@@ -40,7 +40,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.9"' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
@@ -57,7 +57,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.9"' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
@@ -74,7 +74,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.9"' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
@@ -91,7 +91,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.runner=":runners:flink:1.9"' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',

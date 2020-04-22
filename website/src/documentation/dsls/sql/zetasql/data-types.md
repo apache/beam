@@ -259,7 +259,7 @@ explicitly specified, the default time zone, UTC, is used.</p>
 <p>Time zones are represented by strings in one of these two canonical formats:</p>
 <ul>
 <li>Offset from Coordinated Universal Time (UTC), or the letter <code>Z</code> for UTC</li>
-<li>Time zone name from the <a href="http://www.iana.org/time-zones">tz database</a></li>
+<li>Time zone name from the <a href="https://www.iana.org/time-zones">tz database</a></li>
 </ul>
 <h4 id="offset-from-coordinated-universal-time-utc">Offset from Coordinated Universal Time (UTC)</h4>
 <h5 id="offset-format">Offset Format</h5>
@@ -277,9 +277,9 @@ of the timestamp.</p>
 <pre class="codehilite"><code>2014-09-27 12:30:00.45-8:00
 2014-09-27T12:30:00.45Z</code></pre>
 <h4 id="time-zone-name">Time zone name</h4>
-<p>Time zone names are from the <a href="http://www.iana.org/time-zones">tz database</a>. For a
+<p>Time zone names are from the <a href="https://www.iana.org/time-zones">tz database</a>. For a
 less comprehensive but simpler reference, see the
-<a href="http://en.wikipedia.org/wiki/List_of_tz_database_time_zones">List of tz database time zones</a>
+<a href="https://en.wikipedia.org/wiki/List_of_tz_database_time_zones">List of tz database time zones</a>
 on Wikipedia.</p>
 <h5 id="format">Format</h5>
 <pre class="codehilite"><code>continent/[region/]city</code></pre>

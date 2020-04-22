@@ -186,6 +186,11 @@ public class JAXBCoder<T> extends CustomCoder<T> {
     }
 
     @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      out.write(b, off, len);
+    }
+
+    @Override
     public void close() {
       // JAXB closes the underlying stream so we must filter out those calls.
     }

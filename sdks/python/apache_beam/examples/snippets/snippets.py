@@ -40,8 +40,6 @@ from builtins import object
 from builtins import range
 from decimal import Decimal
 
-from past.builtins import unicode
-
 import apache_beam as beam
 from apache_beam.io import iobase
 from apache_beam.io.range_trackers import OffsetRangeTracker
@@ -234,14 +232,15 @@ def pipeline_options_remote(argv):
   # Create and set your PipelineOptions.
   options = PipelineOptions(flags=argv)
 
-  # For Cloud execution, set the Cloud Platform project, job_name,
-  # staging location, temp_location and specify DataflowRunner.
+  # For Cloud execution, specify DataflowRunner and set the Cloud Platform
+  # project, job name, staging file location, temp file location, and region.
+  options.view_as(StandardOptions).runner = 'DataflowRunner'
   google_cloud_options = options.view_as(GoogleCloudOptions)
   google_cloud_options.project = 'my-project-id'
   google_cloud_options.job_name = 'myjob'
   google_cloud_options.staging_location = 'gs://my-bucket/binaries'
   google_cloud_options.temp_location = 'gs://my-bucket/temp'
-  options.view_as(StandardOptions).runner = 'DataflowRunner'
+  google_cloud_options.region = 'us-central1'
 
   # Create the Pipeline with the specified options.
   p = Pipeline(options=options)
@@ -1037,22 +1036,21 @@ def model_datastoreio():
   """Using a Read and Write transform to read/write to Cloud Datastore."""
 
   import uuid
-  from google.cloud.proto.datastore.v1 import entity_pb2
-  from google.cloud.proto.datastore.v1 import query_pb2
-  import googledatastore
   import apache_beam as beam
   from apache_beam.options.pipeline_options import PipelineOptions
-  from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-  from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1new.datastoreio import ReadFromDatastore
+  from apache_beam.io.gcp.datastore.v1new.datastoreio import WriteToDatastore
+  from apache_beam.io.gcp.datastore.v1new.types import Entity
+  from apache_beam.io.gcp.datastore.v1new.types import Key
+  from apache_beam.io.gcp.datastore.v1new.types import Query
 
   project = 'my_project'
   kind = 'my_kind'
-  query = query_pb2.Query()
-  query.kind.add().name = kind
+  query = Query(kind, project)
 
   # [START model_datastoreio_read]
   p = beam.Pipeline(options=PipelineOptions())
-  entities = p | 'Read From Datastore' >> ReadFromDatastore(project, query)
+  entities = p | 'Read From Datastore' >> ReadFromDatastore(query)
   # [END model_datastoreio_read]
 
   # [START model_datastoreio_write]
@@ -1061,9 +1059,9 @@ def model_datastoreio():
       ['Mozart', 'Chopin', 'Beethoven', 'Vivaldi'])
 
   def to_entity(content):
-    entity = entity_pb2.Entity()
-    googledatastore.helper.add_key_path(entity.key, kind, str(uuid.uuid4()))
-    googledatastore.helper.add_properties(entity, {'content': unicode(content)})
+    key = Key([kind, str(uuid.uuid4())])
+    entity = Entity(key)
+    entity.set_properties({'content': content})
     return entity
 
   entities = musicians | 'To Entity' >> beam.Map(to_entity)
@@ -1446,3 +1444,51 @@ def accessing_valueprovider_info_after_run():
         | beam.combiners.Sum.Globally())
 
   # [END AccessingValueProviderInfoAfterRunSnip1]
+
+
+def side_input_slow_update(
+    src_file_pattern,
+    first_timestamp,
+    last_timestamp,
+    interval,
+    sample_main_input_elements,
+    main_input_windowing_interval):
+  # [START SideInputSlowUpdateSnip1]
+  from apache_beam.transforms.periodicsequence import PeriodicImpulse
+  from apache_beam.transforms.window import TimestampedValue
+  from apache_beam.transforms import window
+
+  # from apache_beam.utils.timestamp import MAX_TIMESTAMP
+  # last_timestamp = MAX_TIMESTAMP to go on indefninitely
+
+  # Any user-defined function.
+  # cross join is used as an example.
+  def cross_join(left, rights):
+    for x in rights:
+      yield (left, x)
+
+  # Create pipeline.
+  pipeline_options = PipelineOptions()
+  p = beam.Pipeline(options=pipeline_options)
+  side_input = (
+      p
+      | 'PeriodicImpulse' >> PeriodicImpulse(
+          first_timestamp, last_timestamp, interval, True)
+      | 'MapToFileName' >> beam.Map(lambda x: src_file_pattern + str(x))
+      | 'ReadFromFile' >> beam.io.ReadAllFromText())
+
+  main_input = (
+      p
+      | 'MpImpulse' >> beam.Create(sample_main_input_elements)
+      |
+      'MapMpToTimestamped' >> beam.Map(lambda src: TimestampedValue(src, src))
+      | 'WindowMpInto' >> beam.WindowInto(
+          window.FixedWindows(main_input_windowing_interval)))
+
+  result = (
+      main_input
+      | 'ApplyCrossJoin' >> beam.FlatMap(
+          cross_join, rights=beam.pvalue.AsIter(side_input)))
+  # [END SideInputSlowUpdateSnip1]
+
+  return p, result

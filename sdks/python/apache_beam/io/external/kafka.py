@@ -44,6 +44,7 @@ import typing
 
 from past.builtins import unicode
 
+from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
@@ -55,6 +56,10 @@ ReadFromKafkaSchema = typing.NamedTuple(
         ('key_deserializer', unicode),
         ('value_deserializer', unicode),
     ])
+
+
+def default_io_expansion_service():
+  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
 
 
 class ReadFromKafka(ExternalTransform):
@@ -71,8 +76,8 @@ class ReadFromKafka(ExternalTransform):
   """
 
   # Returns the key/value data as raw byte arrays
-  byte_array_deserializer = 'org.apache.kafka.common.serialization.' \
-                            'ByteArrayDeserializer'
+  byte_array_deserializer = (
+      'org.apache.kafka.common.serialization.ByteArrayDeserializer')
 
   URN = 'beam:external:java:kafka:read:v1'
 
@@ -111,7 +116,7 @@ class ReadFromKafka(ExternalTransform):
                 key_deserializer=key_deserializer,
                 value_deserializer=value_deserializer,
             )),
-        expansion_service)
+        expansion_service or default_io_expansion_service())
 
 
 WriteToKafkaSchema = typing.NamedTuple(
@@ -135,8 +140,8 @@ class WriteToKafka(ExternalTransform):
   """
 
   # Default serializer which passes raw bytes to Kafka
-  byte_array_serializer = 'org.apache.kafka.common.serialization.' \
-                          'ByteArraySerializer'
+  byte_array_serializer = (
+      'org.apache.kafka.common.serialization.ByteArraySerializer')
 
   URN = 'beam:external:java:kafka:write:v1'
 
@@ -150,7 +155,7 @@ class WriteToKafka(ExternalTransform):
     """
     Initializes a write operation to Kafka.
 
-    :param consumer_config: A dictionary containing the producer configuration.
+    :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
                              Serializer for the topic's key, e.g.
@@ -175,4 +180,4 @@ class WriteToKafka(ExternalTransform):
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
             )),
-        expansion_service)
+        expansion_service or default_io_expansion_service())

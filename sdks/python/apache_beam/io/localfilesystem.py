@@ -21,6 +21,7 @@
 
 from __future__ import absolute_import
 
+import io
 import os
 import shutil
 from builtins import zip
@@ -139,7 +140,7 @@ class LocalFileSystem(FileSystem):
     """Helper functions to open a file in the provided mode.
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
-    raw_file = open(path, mode)
+    raw_file = io.open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     else:
@@ -161,6 +162,9 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
+    if not os.path.exists(os.path.dirname(path)):
+      # TODO(Py3): Add exist_ok parameter.
+      os.makedirs(os.path.dirname(path))
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(

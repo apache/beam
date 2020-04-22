@@ -38,18 +38,31 @@ TestStreamFileHeader.__test__ = False  # type: ignore[attr-defined]
 TestStreamFileRecord.__test__ = False  # type: ignore[attr-defined]
 
 
-class TestStreamServiceTest(unittest.TestCase):
-  def events(self):
-    events = []
+class EventsReader:
+  def __init__(self, expected_key):
+    self._expected_key = expected_key
+
+  def read_multiple(self, keys):
+    if keys != self._expected_key:
+      raise ValueError(
+          'Expected key ({}) is not argument({})'.format(
+              self._expected_key, keys))
+
     for i in range(10):
       e = TestStreamPayload.Event()
       e.element_event.elements.append(
           TestStreamPayload.TimestampedElement(timestamp=i))
-      events.append(e)
-    return events
+      yield e
 
+
+EXPECTED_KEY = 'key'
+EXPECTED_KEYS = [EXPECTED_KEY]
+
+
+class TestStreamServiceTest(unittest.TestCase):
   def setUp(self):
-    self.controller = TestStreamServiceController(self.events())
+    self.controller = TestStreamServiceController(
+        EventsReader(expected_key=[('full', EXPECTED_KEY)]))
     self.controller.start()
 
     channel = grpc.insecure_channel(self.controller.endpoint)
@@ -59,15 +72,21 @@ class TestStreamServiceTest(unittest.TestCase):
     self.controller.stop()
 
   def test_normal_run(self):
-    r = self.stub.Events(beam_runner_api_pb2.EventsRequest())
+    r = self.stub.Events(
+        beam_runner_api_pb2.EventsRequest(output_ids=EXPECTED_KEYS))
     events = [e for e in r]
-    expected_events = [e for e in self.events()]
+    expected_events = [
+        e for e in EventsReader(
+            expected_key=[EXPECTED_KEYS]).read_multiple([EXPECTED_KEYS])
+    ]
 
     self.assertEqual(events, expected_events)
 
   def test_multiple_sessions(self):
-    resp_a = self.stub.Events(beam_runner_api_pb2.EventsRequest())
-    resp_b = self.stub.Events(beam_runner_api_pb2.EventsRequest())
+    resp_a = self.stub.Events(
+        beam_runner_api_pb2.EventsRequest(output_ids=EXPECTED_KEYS))
+    resp_b = self.stub.Events(
+        beam_runner_api_pb2.EventsRequest(output_ids=EXPECTED_KEYS))
 
     events_a = []
     events_b = []
@@ -88,7 +107,10 @@ class TestStreamServiceTest(unittest.TestCase):
 
       done = a_is_done and b_is_done
 
-    expected_events = [e for e in self.events()]
+    expected_events = [
+        e for e in EventsReader(
+            expected_key=[EXPECTED_KEYS]).read_multiple([EXPECTED_KEYS])
+    ]
 
     self.assertEqual(events_a, expected_events)
     self.assertEqual(events_b, expected_events)

@@ -88,7 +88,11 @@ class Profile(object):
       self.profile_output = dump_location
 
     if self.log_results:
-      s = io.StringIO()
+      try:
+        import StringIO  # Python 2
+        s = StringIO.StringIO()
+      except ImportError:
+        s = io.StringIO()
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()
@@ -143,7 +147,9 @@ class MemoryReporter(object):
     mr.report_once()
   """
   def __init__(self, interval_second=60.0):
-    # guppy might not have installed. http://pypi.python.org/pypi/guppy/0.1.10
+    # guppy might not be installed.
+    # Python 2.7: https://pypi.org/project/guppy/0.1.10
+    # Python 3.x: https://pypi.org/project/guppy3/3.0.9
     # The reporter can be set up only when guppy is installed (and guppy cannot
     # be added to the required packages in setup.py, since it's not available
     # in all platforms).

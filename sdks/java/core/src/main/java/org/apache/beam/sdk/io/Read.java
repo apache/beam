@@ -33,6 +33,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -40,8 +41,10 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -202,8 +205,7 @@ public class Read {
 
       if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
           && !ExperimentalOptions.hasExperiment(
-              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")
-          && !source.requiresDeduping()) {
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
         // We don't use Create here since Create is defined as a BoundedSource and using it would
         // cause an infinite expansion loop. We can reconsider this if Create is implemented
         // directly as a SplittableDoFn.
@@ -222,13 +224,13 @@ public class Read {
                         new UnboundedSourceAsSDFWrapperFn<>(
                             (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
                 .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
-        // TODO(BEAM-2939): Add support for deduplication.
-        // if (source.requiresDeduping()) {
-        //   outputWithIds.apply(
-        //       Distinct.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
-        //               element -> element.getId())
-        //           .withRepresentativeType(TypeDescriptor.of(byte[].class)));
-        // }
+
+        if (source.requiresDeduping()) {
+          outputWithIds.apply(
+              Deduplicate.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+                      element -> element.getId())
+                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
+        }
         return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
       }
 
@@ -435,6 +437,7 @@ public class Read {
   @UnboundedPerElement
   static class UnboundedSourceAsSDFWrapperFn<OutputT, CheckpointT extends CheckpointMark>
       extends DoFn<UnboundedSource<OutputT, CheckpointT>, ValueWithRecordId<OutputT>> {
+
     private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
     private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
     private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
@@ -518,6 +521,7 @@ public class Read {
         RestrictionTracker<
                 KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
             tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator,
         OutputReceiver<ValueWithRecordId<OutputT>> receiver,
         BundleFinalizer bundleFinalizer)
         throws IOException {
@@ -525,7 +529,7 @@ public class Read {
       while (tracker.tryClaim(out)) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
-        context.updateWatermark(out[0].getWatermark());
+        watermarkEstimator.setWatermark(out[0].getWatermark());
       }
 
       // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
@@ -547,6 +551,17 @@ public class Read {
       return ProcessContinuation.resume();
     }
 
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.Manual(watermarkEstimatorState);
+    }
+
     @GetRestrictionCoder
     public Coder<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> restrictionCoder() {
       return KvCoder.of(
@@ -561,6 +576,7 @@ public class Read {
      */
     @AutoValue
     abstract static class UnboundedSourceValue<T> {
+
       public static <T> UnboundedSourceValue<T> create(
           byte[] id, T value, Instant timestamp, Instant watermark) {
         return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_UnboundedSourceValue<T>(
@@ -584,6 +600,7 @@ public class Read {
      */
     private static class EmptyUnboundedSource<OutputT, CheckpointT extends CheckpointMark>
         extends UnboundedSource<OutputT, CheckpointT> {
+
       private static final EmptyUnboundedSource INSTANCE = new EmptyUnboundedSource();
 
       @Override
@@ -595,52 +612,60 @@ public class Read {
       @Override
       public UnboundedReader<OutputT> createReader(
           PipelineOptions options, @Nullable CheckpointT checkpointMark) {
-        return new UnboundedReader<OutputT>() {
-          @Override
-          public boolean start() throws IOException {
-            return false;
-          }
-
-          @Override
-          public boolean advance() throws IOException {
-            return false;
-          }
-
-          @Override
-          public OutputT getCurrent() throws NoSuchElementException {
-            throw new UnsupportedOperationException("getCurrent is never meant to be invoked.");
-          }
-
-          @Override
-          public Instant getCurrentTimestamp() throws NoSuchElementException {
-            throw new UnsupportedOperationException(
-                "getCurrentTimestamp is never meant to be invoked.");
-          }
-
-          @Override
-          public void close() throws IOException {}
-
-          @Override
-          public Instant getWatermark() {
-            throw new UnsupportedOperationException("getWatermark is never meant to be invoked.");
-          }
-
-          @Override
-          public CheckpointMark getCheckpointMark() {
-            return checkpointMark;
-          }
-
-          @Override
-          public UnboundedSource<OutputT, ?> getCurrentSource() {
-            return EmptyUnboundedSource.INSTANCE;
-          }
-        };
+        return this.new EmptyUnboundedReader(checkpointMark);
       }
 
       @Override
       public Coder<CheckpointT> getCheckpointMarkCoder() {
         throw new UnsupportedOperationException(
             "getCheckpointMarkCoder is never meant to be invoked.");
+      }
+
+      private class EmptyUnboundedReader extends UnboundedReader<OutputT> {
+        private final @Nullable CheckpointT checkpointMark;
+
+        private EmptyUnboundedReader(@Nullable CheckpointT checkpointMark) {
+          this.checkpointMark = checkpointMark;
+        }
+
+        @Override
+        public boolean start() throws IOException {
+          return false;
+        }
+
+        @Override
+        public boolean advance() throws IOException {
+          return false;
+        }
+
+        @Override
+        public OutputT getCurrent() throws NoSuchElementException {
+          throw new UnsupportedOperationException("getCurrent is never meant to be invoked.");
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          throw new UnsupportedOperationException(
+              "getCurrentTimestamp is never meant to be invoked.");
+        }
+
+        @Override
+        public void close() throws IOException {}
+
+        @Override
+        public Instant getWatermark() {
+          throw new UnsupportedOperationException("getWatermark is never meant to be invoked.");
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          return checkpointMark;
+        }
+
+        @Override
+        public UnboundedSource<OutputT, ?> getCurrentSource() {
+          return EmptyUnboundedSource.INSTANCE;
+        }
       }
     }
 
@@ -670,7 +695,6 @@ public class Read {
       private final KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
       private UnboundedSource.UnboundedReader<OutputT> currentReader;
-      private boolean claimedAll;
 
       UnboundedSourceAsSDFRestrictionTracker(
           KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction,
@@ -681,9 +705,6 @@ public class Read {
 
       @Override
       public boolean tryClaim(UnboundedSourceValue<OutputT>[] position) {
-        if (claimedAll) {
-          return false;
-        }
         try {
           if (currentReader == null) {
             currentReader =
@@ -691,12 +712,6 @@ public class Read {
                     .getKey()
                     .createReader(pipelineOptions, initialRestriction.getValue());
             if (!currentReader.start()) {
-              claimedAll = true;
-              try {
-                currentReader.close();
-              } finally {
-                currentReader = null;
-              }
               return false;
             }
             position[0] =
@@ -708,12 +723,6 @@ public class Read {
             return true;
           }
           if (!currentReader.advance()) {
-            claimedAll = true;
-            try {
-              currentReader.close();
-            } finally {
-              currentReader = null;
-            }
             return false;
           }
           position[0] =
@@ -729,8 +738,6 @@ public class Read {
               currentReader.close();
             } catch (IOException closeException) {
               e.addSuppressed(closeException);
-            } finally {
-              currentReader = null;
             }
           }
           throw new RuntimeException(e);
@@ -763,29 +770,23 @@ public class Read {
       public SplitResult<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> trySplit(
           double fractionOfRemainder) {
         // Don't split if we have claimed all since the SDF wrapper will be finishing soon.
-        if (claimedAll) {
-          return null;
-        }
-
         // Our split result sets the primary to have no checkpoint mark associated
         // with it since when we resume we don't have any state but we specifically pass
         // the checkpoint mark to the current reader so that when we finish the current bundle
         // we may register for finalization.
-        CheckpointT checkpoint = (CheckpointT) currentReader.getCheckpointMark();
+        KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction =
+            currentRestriction();
         SplitResult<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> result =
-            SplitResult.of(
-                KV.of(EmptyUnboundedSource.INSTANCE, null),
-                KV.of(
-                    (UnboundedSource<OutputT, CheckpointT>) currentReader.getCurrentSource(),
-                    checkpoint));
-        currentReader = EmptyUnboundedSource.INSTANCE.createReader(null, checkpoint);
+            SplitResult.of(KV.of(EmptyUnboundedSource.INSTANCE, null), currentRestriction);
+        currentReader =
+            EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getValue());
         return result;
       }
 
       @Override
       public void checkDone() throws IllegalStateException {
         checkState(
-            claimedAll,
+            currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
       }

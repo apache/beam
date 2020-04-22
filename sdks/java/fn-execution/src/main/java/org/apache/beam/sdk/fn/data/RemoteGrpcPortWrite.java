@@ -33,7 +33,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  */
 @AutoValue
 public abstract class RemoteGrpcPortWrite {
-  public static final String URN = "beam:sink:runner:0.1";
+  public static final String URN = "beam:runner:sink:v1";
   private static final String LOCAL_INPUT_ID = "local_input";
 
   /**

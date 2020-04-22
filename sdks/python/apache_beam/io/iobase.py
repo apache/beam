@@ -1019,10 +1019,10 @@ class WriteImpl(ptransform.PTransform):
       min_shards = 1
       write_result_coll = (
           pcoll
+          | core.WindowInto(window.GlobalWindows())
           | 'WriteBundles' >> core.ParDo(
               _WriteBundleDoFn(self.sink), AsSingleton(init_result_coll))
           | 'Pair' >> core.Map(lambda x: (None, x))
-          | core.WindowInto(window.GlobalWindows())
           | core.GroupByKey()
           | 'Extract' >> core.FlatMap(lambda x: x[1]))
     # PreFinalize should run before FinalizeWrite, and the two should not be
@@ -1491,7 +1491,11 @@ class _SDFBoundedSourceWrapper(ptransform.PTransform):
         self.source = read_source
 
       def display_data(self):
-        return {'source': self.source, 'source_type': str(type(self.source))}
+        return {
+            'source': DisplayDataItem(
+                self.source.__class__, label='Read Source'),
+            'source_dd': self.source
+        }
 
       def process(
           self,

@@ -694,7 +694,7 @@ class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):  # type: ignore[misc]
         res = res + re.escape(c)
 
     logger.debug('translate_pattern: %r -> %r', pattern, res)
-    return res + r'\Z(?ms)'
+    return r'(?ms)' + res + r'\Z'
 
   def match(self, patterns, limits=None):
     """Find all matching paths to the patterns provided.

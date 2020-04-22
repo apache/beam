@@ -889,7 +889,7 @@ class UtilTest(unittest.TestCase):
     self.assertFalse(apiclient._use_unified_worker(pipeline_options))
 
     pipeline_options = PipelineOptions(['--experiments=use_unified_worker'])
-    self.assertFalse(apiclient._use_unified_worker(pipeline_options))
+    self.assertTrue(apiclient._use_unified_worker(pipeline_options))
 
     pipeline_options = PipelineOptions(
         ['--experiments=use_unified_worker', '--experiments=beam_fn_api'])

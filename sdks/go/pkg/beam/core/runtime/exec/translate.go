@@ -31,18 +31,19 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "beam:source:runner:0.1"
-	urnDataSink             = "beam:sink:runner:0.1"
+	urnDataSource           = "beam:runner:source:v1"
+	urnDataSink             = "beam:runner:sink:v1"
 	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
 	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
 	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert = "beam:transform:combine_per_key_convert_to_accumulators:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -78,16 +79,12 @@ func UnmarshalPlan(desc *fnpb.ProcessBundleDescriptor) (*Plan, error) {
 		for key, pid := range transform.GetOutputs() {
 			u.SID = StreamID{PtransformID: id, Port: port}
 			u.Name = key
+			u.outputPID = pid
 
 			u.Out, err = b.makePCollection(pid)
 			if err != nil {
 				return nil, err
 			}
-			// Elide the PCollection Node for DataSources.
-			// DataSources can get byte samples directly, and can handle CoGBKs.
-			u.PCol = *u.Out.(*PCollection)
-			u.Out = u.PCol.Out
-			b.units = b.units[:len(b.units)-1]
 		}
 
 		b.units = append(b.units, u)
@@ -103,8 +100,8 @@ type builder struct {
 	succ map[string][]linkID // PCollectionID -> []linkID
 
 	windowing map[string]*window.WindowingStrategy
-	nodes     map[string]*PCollection // PCollectionID -> Node (cache)
-	links     map[linkID]Node         // linkID -> Node (cache)
+	nodes     map[string]Node // PCollectionID -> Node (cache)
+	links     map[linkID]Node // linkID -> Node (cache)
 
 	units []Unit // result
 	idgen *GenID
@@ -146,7 +143,7 @@ func newBuilder(desc *fnpb.ProcessBundleDescriptor) (*builder, error) {
 		succ: succ,
 
 		windowing: make(map[string]*window.WindowingStrategy),
-		nodes:     make(map[string]*PCollection),
+		nodes:     make(map[string]Node),
 		links:     make(map[linkID]Node),
 
 		idgen: &GenID{},
@@ -176,13 +173,13 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	return w, nil
 }
 
-func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
+func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	switch urn := wfn.GetUrn(); urn {
 	case graphx.URNGlobalWindowsWindowFn:
 		return window.NewGlobalWindows(), nil
 
 	case graphx.URNFixedWindowsWindowFn:
-		var payload pb.FixedWindowsPayload
+		var payload pipepb.FixedWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -193,7 +190,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewFixedWindows(size), nil
 
 	case graphx.URNSlidingWindowsWindowFn:
-		var payload pb.SlidingWindowsPayload
+		var payload pipepb.SlidingWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -208,7 +205,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
-		var payload pb.SessionWindowsPayload
+		var payload pipepb.SessionWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -263,7 +260,7 @@ func (b *builder) makeCoderForPCollection(id string) (*coder.Coder, *coder.Windo
 	return c, wc, nil
 }
 
-func (b *builder) makePCollection(id string) (*PCollection, error) {
+func (b *builder) makePCollection(id string) (Node, error) {
 	if n, exists := b.nodes[id]; exists {
 		return n, nil
 	}
@@ -278,11 +275,8 @@ func (b *builder) makePCollection(id string) (*PCollection, error) {
 		u = &Discard{UID: b.idgen.New()}
 
 	case 1:
-		out, err := b.makeLink(id, list[0])
-		if err != nil {
-			return nil, err
-		}
-		return b.newPCollectionNode(id, out)
+		return b.makeLink(id, list[0])
+
 	default:
 		// Multiplex.
 
@@ -299,16 +293,7 @@ func (b *builder) makePCollection(id string) (*PCollection, error) {
 		b.units = append(b.units, u)
 		u = &Flatten{UID: b.idgen.New(), N: count, Out: u}
 	}
-	b.units = append(b.units, u)
-	return b.newPCollectionNode(id, u)
-}
 
-func (b *builder) newPCollectionNode(id string, out Node) (*PCollection, error) {
-	ec, _, err := b.makeCoderForPCollection(id)
-	if err != nil {
-		return nil, err
-	}
-	u := &PCollection{UID: b.idgen.New(), Out: out, PColID: id, Coder: ec, Seed: rand.Int63()}
 	b.nodes[id] = u
 	b.units = append(b.units, u)
 	return u, nil
@@ -348,17 +333,17 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
+	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
 		var data string
 		switch urn {
 		case graphx.URNParDo:
-			var pardo pb.ParDoPayload
+			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
-		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract:
-			var cmb pb.CombinePayload
+		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
+			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
 			}
@@ -388,7 +373,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			switch op {
 			case graph.ParDo:
 				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn)
+				n.Fn, err = graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
@@ -442,6 +427,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = &MergeAccumulators{Combine: cn}
 				case urnPerKeyCombineExtract:
 					u = &ExtractOutput{Combine: cn}
+				case urnPerKeyCombineConvert:
+					u = &ConvertToAccumulators{Combine: cn}
 				default: // For unlifted combines
 					u = cn
 				}
@@ -481,12 +468,32 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 			}
 			u = &Expand{UID: b.idgen.New(), ValueDecoders: decoders, Out: out[0]}
 
+		case graphx.URNReshuffleInput:
+			c, w, err := b.makeCoderForPCollection(from)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleInput{UID: b.idgen.New(), Seed: rand.Int63(), Coder: coder.NewW(c, w), Out: out[0]}
+
+		case graphx.URNReshuffleOutput:
+			var pid string
+			// There's only one output PCollection, and iterating through the map
+			// is the only way to extract it.
+			for _, id := range transform.GetOutputs() {
+				pid = id
+			}
+			c, w, err := b.makeCoderForPCollection(pid)
+			if err != nil {
+				return nil, err
+			}
+			u = &ReshuffleOutput{UID: b.idgen.New(), Coder: coder.NewW(c, w), Out: out[0]}
+
 		default:
 			return nil, errors.Errorf("unexpected payload: %v", tp)
 		}
 
 	case graphx.URNWindow:
-		var wp pb.WindowIntoPayload
+		var wp pipepb.WindowIntoPayload
 		if err := proto.Unmarshal(payload, &wp); err != nil {
 			return nil, errors.Wrapf(err, "invalid WindowInto payload for %v", transform)
 		}

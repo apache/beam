@@ -354,8 +354,11 @@ public class QueryablePipelineTest {
 
     assertThat(qp.getEnvironment(environmentalRead).isPresent(), is(true));
     assertThat(
-        qp.getEnvironment(environmentalRead).get(),
-        equalTo(Environments.JAVA_SDK_HARNESS_ENVIRONMENT));
+        qp.getEnvironment(environmentalRead).get().getUrn(),
+        equalTo(Environments.JAVA_SDK_HARNESS_ENVIRONMENT.getUrn()));
+    assertThat(
+        qp.getEnvironment(environmentalRead).get().getPayload(),
+        equalTo(Environments.JAVA_SDK_HARNESS_ENVIRONMENT.getPayload()));
     assertThat(qp.getEnvironment(nonEnvironmentalTransform).isPresent(), is(false));
   }
 

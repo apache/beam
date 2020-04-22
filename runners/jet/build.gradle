@@ -28,8 +28,8 @@ evaluationDependsOn(":runners:core-java")
 evaluationDependsOn(":runners:core-construction-java")
 
 project.ext {
-    jet_version = '3.0'
-    hazelcast_version = '3.12'
+    jet_version = '4.0'
+    hazelcast_version = '4.0'
 }
 
 configurations {
@@ -47,9 +47,9 @@ dependencies {
     testCompile project(path: ":runners:core-construction-java", configuration: "testRuntime")
     testCompile library.java.hamcrest_core
     testCompile library.java.junit
+    testCompile library.java.joda_time
     testCompile "com.hazelcast.jet:hazelcast-jet-core:$jet_version:tests"
     testCompile "com.hazelcast:hazelcast:$hazelcast_version:tests"
-    testCompile "com.hazelcast:hazelcast-client:$hazelcast_version:tests"
 
     needsRunner project(path: ":sdks:java:core", configuration: "shadowTest")
     needsRunner project(path: ":runners:core-java", configuration: "testRuntime")

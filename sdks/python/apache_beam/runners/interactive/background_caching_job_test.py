@@ -30,7 +30,9 @@ from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.runners.interactive.testing.test_cache_manager import FileRecordsBuilder
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 from apache_beam.transforms.window import TimestampedValue
@@ -44,6 +46,7 @@ except ImportError:
 
 _FOO_PUBSUB_SUB = 'projects/test-project/subscriptions/foo'
 _BAR_PUBSUB_SUB = 'projects/test-project/subscriptions/bar'
+_TEST_CACHE_KEY = 'test'
 
 
 def _build_a_test_stream_pipeline():
@@ -68,6 +71,19 @@ def _build_an_empty_stream_pipeline():
   return p
 
 
+def _setup_test_streaming_cache():
+  cache_manager = StreamingCache(cache_dir=None)
+  ie.current_env().set_cache_manager(cache_manager)
+  builder = FileRecordsBuilder(tag=_TEST_CACHE_KEY)
+  (builder
+      .advance_watermark(watermark_secs=0)
+      .advance_processing_time(5)
+      .add_element(element='a', event_time_secs=1)
+      .advance_watermark(watermark_secs=100)
+      .advance_processing_time(10)) # yapf: disable
+  cache_manager.write(builder.build(), _TEST_CACHE_KEY)
+
+
 @unittest.skipIf(
     not ie.current_env().is_interactive_ready,
     '[interactive] dependency is not installed.')
@@ -85,8 +101,14 @@ class BackgroundCachingJobTest(unittest.TestCase):
       'apache_beam.runners.interactive.background_caching_job'
       '.has_source_to_cache',
       lambda x: True)
+  # Disable the clean up so that we can keep the test streaming cache.
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup',
+      lambda x: None)
   def test_background_caching_job_starts_when_none_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
+    _setup_test_streaming_cache()
     p.run()
     self.assertIsNotNone(ie.current_env().get_background_caching_job(p))
     expected_cached_source_signature = bcj.extract_source_to_cache_signature(p)
@@ -109,10 +131,16 @@ class BackgroundCachingJobTest(unittest.TestCase):
       'apache_beam.runners.interactive.background_caching_job'
       '.has_source_to_cache',
       lambda x: True)
+  # Disable the clean up so that we can keep the test streaming cache.
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup',
+      lambda x: None)
   def test_background_caching_job_not_start_when_such_job_exists(self):
     p = _build_a_test_stream_pipeline()
+    _setup_test_streaming_cache()
     a_running_background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.RUNNING))
+        runner.PipelineResult(runner.PipelineState.RUNNING), limiters=[])
     ie.current_env().set_background_caching_job(
         p, a_running_background_caching_job)
     main_job_result = p.run()
@@ -127,10 +155,16 @@ class BackgroundCachingJobTest(unittest.TestCase):
       'apache_beam.runners.interactive.background_caching_job'
       '.has_source_to_cache',
       lambda x: True)
+  # Disable the clean up so that we can keep the test streaming cache.
+  @patch(
+      'apache_beam.runners.interactive.interactive_environment'
+      '.InteractiveEnvironment.cleanup',
+      lambda x: None)
   def test_background_caching_job_not_start_when_such_job_is_done(self):
     p = _build_a_test_stream_pipeline()
+    _setup_test_streaming_cache()
     a_done_background_caching_job = bcj.BackgroundCachingJob(
-        runner.PipelineResult(runner.PipelineState.DONE))
+        runner.PipelineResult(runner.PipelineState.DONE), limiters=[])
     ie.current_env().set_background_caching_job(
         p, a_done_background_caching_job)
     main_job_result = p.run()
@@ -267,14 +301,14 @@ class BackgroundCachingJobTest(unittest.TestCase):
 
   def test_determine_a_test_stream_service_running(self):
     pipeline = _build_an_empty_stream_pipeline()
-    test_stream_service = TestStreamServiceController(events=iter([]))
+    test_stream_service = TestStreamServiceController(reader=None)
     ie.current_env().set_test_stream_service_controller(
         pipeline, test_stream_service)
     self.assertTrue(bcj.is_a_test_stream_service_running(pipeline))
 
   def test_stop_a_running_test_stream_service(self):
     pipeline = _build_an_empty_stream_pipeline()
-    test_stream_service = TestStreamServiceController(events=iter([]))
+    test_stream_service = TestStreamServiceController(reader=None)
     test_stream_service.start()
     ie.current_env().set_test_stream_service_controller(
         pipeline, test_stream_service)

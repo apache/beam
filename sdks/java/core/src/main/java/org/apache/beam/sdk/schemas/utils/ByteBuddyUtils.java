@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import javax.annotation.Nullable;
@@ -66,6 +67,7 @@ import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.byt
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.collection.ArrayAccess;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.collection.ArrayFactory;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.IntegerConstant;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.constant.NullConstant;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.FieldAccess;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
 import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
@@ -149,14 +151,14 @@ public class ByteBuddyUtils {
     }
   };
 
-  // This StackManipulation returns onNotNull if the result of readValue is not null. Otherwise it
-  // returns null.
-  static class ShortCircuitReturnNull implements StackManipulation {
+  static class IfNullElse implements StackManipulation {
     private final StackManipulation readValue;
+    private final StackManipulation onNull;
     private final StackManipulation onNotNull;
 
-    ShortCircuitReturnNull(StackManipulation readValue, StackManipulation onNotNull) {
+    IfNullElse(StackManipulation readValue, StackManipulation onNull, StackManipulation onNotNull) {
       this.readValue = readValue;
+      this.onNull = onNull;
       this.onNotNull = onNotNull;
     }
 
@@ -173,7 +175,7 @@ public class ByteBuddyUtils {
       Label skipLabel = new Label();
       methodVisitor.visitJumpInsn(Opcodes.IFNONNULL, label);
       size = size.aggregate(new Size(-1, 0));
-      methodVisitor.visitInsn(Opcodes.ACONST_NULL);
+      size = size.aggregate(onNull.apply(methodVisitor, context));
       methodVisitor.visitJumpInsn(Opcodes.GOTO, skipLabel);
       size = size.aggregate(new Size(0, 1));
       methodVisitor.visitLabel(label);
@@ -182,6 +184,14 @@ public class ByteBuddyUtils {
       size = size.aggregate(onNotNull.apply(methodVisitor, context));
       methodVisitor.visitLabel(skipLabel);
       return size;
+    }
+  }
+
+  // This StackManipulation returns onNotNull if the result of readValue is not null. Otherwise it
+  // returns null.
+  static class ShortCircuitReturnNull extends IfNullElse {
+    ShortCircuitReturnNull(StackManipulation readValue, StackManipulation onNotNull) {
+      super(readValue, NullConstant.INSTANCE, onNotNull);
     }
   }
 
@@ -368,8 +378,6 @@ public class ByteBuddyUtils {
 
     @Override
     protected Type convertEnum(TypeDescriptor<?> type) {
-      // We represent enums in the Row as Integers. The EnumerationType handles the mapping to the
-      // actual enum type.
       return Integer.class;
     }
 
@@ -567,6 +575,28 @@ public class ByteBuddyUtils {
     @Override
     public Set<Entry<K2, V2>> entrySet() {
       return delegateMap.entrySet();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      TransformingMap<?, ?, ?, ?> that = (TransformingMap<?, ?, ?, ?>) o;
+      return Objects.equals(delegateMap, that.delegateMap);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(delegateMap);
+    }
+
+    @Override
+    public String toString() {
+      return delegateMap.toString();
     }
   }
 
@@ -1436,7 +1466,7 @@ public class ByteBuddyUtils {
                   stackManipulation,
                   typeConversionsFactory
                       .createSetterConversions(readParameter)
-                      .convert(TypeDescriptor.of(parameter.getType())));
+                      .convert(TypeDescriptor.of(parameter.getParameterizedType())));
         }
         stackManipulation =
             new StackManipulation.Compound(

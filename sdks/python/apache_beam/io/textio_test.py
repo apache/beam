@@ -1133,7 +1133,7 @@ class TextSinkTest(unittest.TestCase):
     with open(self.path, 'rb') as f:
       self.assertEqual(f.read().splitlines(), header.splitlines())
 
-  def test_write_dataflow(self):
+  def test_write_pipeline(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | beam.core.Create(self.lines)
       pcoll | 'Write' >> WriteToText(self.path)  # pylint: disable=expression-not-assigned
@@ -1145,7 +1145,22 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result), sorted(self.lines))
 
-  def test_write_dataflow_auto_compression(self):
+  def test_write_pipeline_non_globalwindow_input(self):
+    with TestPipeline() as p:
+      _ = (
+          p
+          | beam.core.Create(self.lines)
+          | beam.WindowInto(beam.transforms.window.FixedWindows(1))
+          | 'Write' >> WriteToText(self.path))
+
+    read_result = []
+    for file_name in glob.glob(self.path + '*'):
+      with open(file_name, 'rb') as f:
+        read_result.extend(f.read().splitlines())
+
+    self.assertEqual(sorted(read_result), sorted(self.lines))
+
+  def test_write_pipeline_auto_compression(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | beam.core.Create(self.lines)
       pcoll | 'Write' >> WriteToText(self.path, file_name_suffix='.gz')  # pylint: disable=expression-not-assigned
@@ -1157,7 +1172,7 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result), sorted(self.lines))
 
-  def test_write_dataflow_auto_compression_unsharded(self):
+  def test_write_pipeline_auto_compression_unsharded(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
       pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
@@ -1171,7 +1186,7 @@ class TextSinkTest(unittest.TestCase):
 
     self.assertEqual(sorted(read_result), sorted(self.lines))
 
-  def test_write_dataflow_header(self):
+  def test_write_pipeline_header(self):
     with TestPipeline() as pipeline:
       pcoll = pipeline | 'Create' >> beam.core.Create(self.lines)
       header_text = 'foo'

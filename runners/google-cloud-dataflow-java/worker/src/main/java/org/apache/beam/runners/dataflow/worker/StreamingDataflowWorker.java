@@ -690,9 +690,14 @@ public class StreamingDataflowWorker {
       Function<MutableNetwork<Node, Edge>, Node> sdkFusedStage =
           pipeline == null
               ? RegisterNodeFunction.withoutPipeline(
-                  idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor())
+                  idGenerator,
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor())
               : RegisterNodeFunction.forPipeline(
-                  pipeline, idGenerator, sdkHarnessRegistry.beamFnStateApiServiceDescriptor());
+                  pipeline,
+                  idGenerator,
+                  sdkHarnessRegistry.beamFnStateApiServiceDescriptor(),
+                  sdkHarnessRegistry.beamFnDataApiServiceDescriptor());
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>> lengthPrefixUnknownCoders =
           LengthPrefixUnknownCoders::forSdkNetwork;
       Function<MutableNetwork<Node, Edge>, MutableNetwork<Node, Edge>>
@@ -1376,7 +1381,7 @@ public class StreamingDataflowWorker {
 
       // Detect overflow of integer serialized size or if the byte limit was exceeded.
       windmillMaxObservedWorkItemCommitBytes.addValue(estimatedCommitSize);
-      if (estimatedCommitSize > byteLimit) {
+      if (commitSize < 0 || commitSize > byteLimit) {
         KeyCommitTooLargeException e =
             KeyCommitTooLargeException.causedBy(computationId, byteLimit, commitRequest);
         reportFailure(computationId, workItem, e);

@@ -25,22 +25,25 @@ import sys
 import unittest
 
 import apache_beam as beam
+from apache_beam import coders
+from apache_beam.portability.api.beam_interactive_api_pb2 import TestStreamFileRecord
+from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
 from apache_beam.runners import runner
 from apache_beam.runners.interactive import background_caching_job as bcj
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
+from apache_beam.runners.interactive.caching.streaming_cache import StreamingCache
 from apache_beam.runners.interactive.options import capture_control
+from apache_beam.runners.interactive.options import capture_limiters
 from apache_beam.testing.test_stream_service import TestStreamServiceController
 
 # TODO(BEAM-8288): clean up the work-around of nose tests using Python2 without
 # unittest.mock module.
 try:
   from unittest.mock import patch
-  from unittest.mock import MagicMock
 except ImportError:
   from mock import patch  # type: ignore[misc]
-  from mock import MagicMock
 
 
 def _build_an_empty_streaming_pipeline():
@@ -52,15 +55,6 @@ def _build_an_empty_streaming_pipeline():
       interactive_runner.InteractiveRunner(), options=pipeline_options)
   ib.watch({'pipeline': p})
   return p
-
-
-def _fake_a_running_background_caching_job(pipeline):
-  background_caching_job = bcj.BackgroundCachingJob(
-      runner.PipelineResult(runner.PipelineState.RUNNING),
-      # Do not start multithreaded checkers in tests.
-      start_limit_checkers=False)
-  ie.current_env().set_background_caching_job(pipeline, background_caching_job)
-  return background_caching_job
 
 
 def _fake_a_running_test_stream_service(pipeline):
@@ -96,9 +90,11 @@ class CaptureControlTest(unittest.TestCase):
     p = _build_an_empty_streaming_pipeline()
     ie.current_env().track_user_pipelines()
     self.assertFalse(ie.current_env().tracked_user_pipelines == set())
-    background_caching_job = _fake_a_running_background_caching_job(p)
-    # Makes sure the background caching job is tracked.
-    self.assertIsNotNone(ie.current_env().get_background_caching_job(p))
+
+    background_caching_job = bcj.BackgroundCachingJob(
+        runner.PipelineResult(runner.PipelineState.RUNNING), limiters=[])
+    ie.current_env().set_background_caching_job(p, background_caching_job)
+
     _fake_a_running_test_stream_service(p)
     # Fake the canceling state of the main job.
     background_caching_job._pipeline_result = runner.PipelineResult(
@@ -116,29 +112,73 @@ class CaptureControlTest(unittest.TestCase):
     self.assertTrue(ie.current_env().computed_pcollections == set())
     self.assertTrue(ie.current_env().get_cached_source_signature(p) == set())
 
-  def test_capture_size_not_reached_when_no_cache(self):
+  def test_capture_size_limit_not_reached_when_no_cache(self):
     self.assertIsNone(ie.current_env().cache_manager())
-    self.assertFalse(
-        ie.current_env().options.capture_control.is_capture_size_reached())
+    limiter = capture_limiters.SizeLimiter(1)
+    self.assertFalse(limiter.is_triggered())
 
-  def test_capture_size_not_reached_when_no_file(self):
-    _ = _build_an_empty_streaming_pipeline()
-    self.assertIsNotNone(ie.current_env().cache_manager())
-    self.assertFalse(
-        ie.current_env().options.capture_control.is_capture_size_reached())
+  def test_capture_size_limit_not_reached_when_no_file(self):
+    cache = StreamingCache(cache_dir=None)
+    self.assertFalse(cache.exists('my_label'))
+    ie.current_env().set_cache_manager(cache)
 
-  # TODO(BEAM-8335): add more capture_size tests when the property is
-  # implemented in streaming_cache.
+    limiter = capture_limiters.SizeLimiter(1)
+    self.assertFalse(limiter.is_triggered())
+
+  def test_capture_size_limit_not_reached_when_file_size_under_limit(self):
+    ib.options.capture_size_limit = 100
+    cache = StreamingCache(cache_dir=None)
+    # Build a sink object to track the label as a capture in the test.
+    cache.sink(['my_label'], is_capture=True)
+    cache.write([TestStreamFileRecord()], 'my_label')
+    self.assertTrue(cache.exists('my_label'))
+    ie.current_env().set_cache_manager(cache)
+
+    limiter = capture_limiters.SizeLimiter(ib.options.capture_size_limit)
+    self.assertFalse(limiter.is_triggered())
+
+  def test_capture_size_limit_reached_when_file_size_above_limit(self):
+    ib.options.capture_size_limit = 1
+    cache = StreamingCache(cache_dir=None)
+    cache.sink(['my_label'], is_capture=True)
+    cache.write([
+        TestStreamFileRecord(
+            recorded_event=TestStreamPayload.Event(
+                element_event=TestStreamPayload.Event.AddElements(
+                    elements=[
+                        TestStreamPayload.TimestampedElement(
+                            encoded_element=coders.FastPrimitivesCoder().encode(
+                                'a'),
+                            timestamp=0)
+                    ])))
+    ],
+                'my_label')
+    self.assertTrue(cache.exists('my_label'))
+    ie.current_env().set_cache_manager(cache)
+
+    limiter = capture_limiters.SizeLimiter(1)
+    self.assertTrue(limiter.is_triggered())
 
   def test_timer_terminates_capture_size_checker(self):
     p = _build_an_empty_streaming_pipeline()
-    background_caching_job = _fake_a_running_background_caching_job(p)
-    background_caching_job._timer = MagicMock()
-    background_caching_job._timer.is_alive.return_value = True
-    self.assertFalse(background_caching_job._should_end_condition_checker())
-    background_caching_job._timer.is_alive.return_value = False
-    self.assertFalse(background_caching_job._timer.is_alive())
-    self.assertTrue(background_caching_job._should_end_condition_checker())
+
+    class FakeLimiter(capture_limiters.Limiter):
+      def __init__(self):
+        self.trigger = False
+
+      def is_triggered(self):
+        return self.trigger
+
+    limiter = FakeLimiter()
+    background_caching_job = bcj.BackgroundCachingJob(
+        runner.PipelineResult(runner.PipelineState.CANCELLED),
+        limiters=[limiter])
+    ie.current_env().set_background_caching_job(p, background_caching_job)
+
+    self.assertFalse(background_caching_job.is_done())
+
+    limiter.trigger = True
+    self.assertTrue(background_caching_job.is_done())
 
 
 if __name__ == '__main__':

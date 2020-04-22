@@ -183,6 +183,8 @@ class GrpcVendoring_1_26_0 {
       "org/checkerframework/**",
       "org/codehaus/mojo/animal_sniffer/**",
       "org/conscrypt/**",
+      "META-INF/native/libconscrypt**",
+      "META-INF/native/conscrypt**",
       "org/hamcrest/**",
       // This Main class prevents shading (BEAM-9252)
       "org/jboss/modules/Main*",

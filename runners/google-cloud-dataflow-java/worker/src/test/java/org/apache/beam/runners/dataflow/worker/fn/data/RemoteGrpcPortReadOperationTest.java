@@ -99,7 +99,7 @@ public class RemoteGrpcPortReadOperationTest {
     operation.start();
     verify(beamFnDataService)
         .receive(
-            eq(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
+            eq(LogicalEndpoint.data(BUNDLE_ID, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
 
     Future<Void> operationFinish =
         Executors.newSingleThreadExecutor()
@@ -132,7 +132,9 @@ public class RemoteGrpcPortReadOperationTest {
     operation.start();
     verify(beamFnDataService)
         .receive(
-            eq(LogicalEndpoint.of(BUNDLE_ID_2, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
+            eq(LogicalEndpoint.data(BUNDLE_ID_2, TRANSFORM_ID)),
+            eq(CODER),
+            consumerCaptor.capture());
   }
 
   @Test
@@ -145,7 +147,7 @@ public class RemoteGrpcPortReadOperationTest {
     operation.start();
     verify(beamFnDataService)
         .receive(
-            eq(LogicalEndpoint.of(BUNDLE_ID, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
+            eq(LogicalEndpoint.data(BUNDLE_ID, TRANSFORM_ID)), eq(CODER), consumerCaptor.capture());
 
     assertFalse(inboundDataClient.isDone());
     operation.abort();

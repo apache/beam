@@ -38,6 +38,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from typing import Dict
 from typing import Optional
 from typing import Tuple
@@ -88,6 +89,7 @@ class BeamFnExternalWorkerPoolServicer(
     beam_fn_api_pb2_grpc.add_BeamFnExternalWorkerPoolServicer_to_server(
         worker_pool, worker_server)
     worker_server.start()
+    _LOGGER.info('Listening for workers at %s', worker_address)
 
     # Register to kill the subprocesses on exit.
     def kill_worker_processes():
@@ -113,7 +115,7 @@ class BeamFnExternalWorkerPoolServicer(
             'SdkHarness('
             '"%s",'
             'worker_id="%s",'
-            'state_cache_size=%d'
+            'state_cache_size=%d,'
             'data_buffer_time_limit_ms=%d'
             ')'
             '.run()' % (
@@ -156,8 +158,8 @@ class BeamFnExternalWorkerPoolServicer(
         worker_thread.start()
 
       return beam_fn_api_pb2.StartWorkerResponse()
-    except Exception as exn:
-      return beam_fn_api_pb2.StartWorkerResponse(error=str(exn))
+    except Exception:
+      return beam_fn_api_pb2.StartWorkerResponse(error=traceback.format_exc())
 
   def StopWorker(self,
                  stop_worker_request,  # type: beam_fn_api_pb2.StopWorkerRequest

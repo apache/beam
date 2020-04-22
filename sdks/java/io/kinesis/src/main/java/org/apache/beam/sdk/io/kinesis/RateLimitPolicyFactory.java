@@ -24,7 +24,9 @@ import org.joda.time.Duration;
 
 /**
  * Implement this interface to create a {@code RateLimitPolicy}. Used to create a rate limiter for
- * each shard.
+ * each shard. The factory will be called from multiple threads, so if it returns a singleton
+ * instance of RateLimitPolicy then that instance should be thread-safe, otherwise it should return
+ * separate RateLimitPolicy instances.
  */
 public interface RateLimitPolicyFactory extends Serializable {
 

@@ -400,15 +400,43 @@ public class BigQueryIOStorageReadTest {
     doTableSourceInitialSplitTest(10L, 10_000);
   }
 
+  private static final String AVRO_SCHEMA_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + " \"type\": \"record\",\n"
+          + " \"name\": \"RowRecord\",\n"
+          + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"number\", \"type\": \"long\"}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema AVRO_SCHEMA = new Schema.Parser().parse(AVRO_SCHEMA_STRING);
+
+  private static final String TRIMMED_AVRO_SCHEMA_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + "\"type\": \"record\",\n"
+          + "\"name\": \"RowRecord\",\n"
+          + "\"fields\": [\n"
+          + "    {\"name\": \"name\", \"type\": \"string\"}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema TRIMMED_AVRO_SCHEMA =
+      new Schema.Parser().parse(TRIMMED_AVRO_SCHEMA_STRING);
+
+  private static final TableSchema TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
+                  new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED")));
+
   private void doTableSourceInitialSplitTest(long bundleSize, int streamCount) throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
 
     Table table =
-        new Table()
-            .setTableReference(tableRef)
-            .setNumBytes(1024L * 1024L)
-            .setSchema(new TableSchema());
+        new Table().setTableReference(tableRef).setNumBytes(1024L * 1024L).setSchema(TABLE_SCHEMA);
 
     fakeDatasetService.createTable(table);
 
@@ -420,7 +448,9 @@ public class BigQueryIOStorageReadTest {
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING));
     for (int i = 0; i < streamCount; i++) {
       builder.addStreams(Stream.newBuilder().setName("stream-" + i));
     }
@@ -449,23 +479,13 @@ public class BigQueryIOStorageReadTest {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
 
-    Table table =
-        new Table()
-            .setTableReference(tableRef)
-            .setNumBytes(100L)
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+    Table table = new Table().setTableReference(tableRef).setNumBytes(100L).setSchema(TABLE_SCHEMA);
 
     fakeDatasetService.createTable(table);
 
     TableReadOptions readOptions =
         TableReadOptions.newBuilder()
             .addSelectedFields("name")
-            .addSelectedFields("number")
             .setRowRestriction("number > 5")
             .build();
 
@@ -478,7 +498,9 @@ public class BigQueryIOStorageReadTest {
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(TRIMMED_AVRO_SCHEMA_STRING));
     for (int i = 0; i < 10; i++) {
       builder.addStreams(Stream.newBuilder().setName("stream-" + i));
     }
@@ -507,23 +529,13 @@ public class BigQueryIOStorageReadTest {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
 
-    Table table =
-        new Table()
-            .setTableReference(tableRef)
-            .setNumBytes(100L)
-            .setSchema(
-                new TableSchema()
-                    .setFields(
-                        ImmutableList.of(
-                            new TableFieldSchema().setName("name").setType("STRING"),
-                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+    Table table = new Table().setTableReference(tableRef).setNumBytes(100L).setSchema(TABLE_SCHEMA);
 
     fakeDatasetService.createTable(table);
 
     TableReadOptions readOptions =
         TableReadOptions.newBuilder()
             .addSelectedFields("name")
-            .addSelectedFields("number")
             .setRowRestriction("number > 5")
             .build();
 
@@ -536,7 +548,9 @@ public class BigQueryIOStorageReadTest {
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(TRIMMED_AVRO_SCHEMA_STRING));
     for (int i = 0; i < 10; i++) {
       builder.addStreams(Stream.newBuilder().setName("stream-" + i));
     }
@@ -548,7 +562,7 @@ public class BigQueryIOStorageReadTest {
         BigQueryStorageTableSource.create(
             ValueProvider.StaticValueProvider.of(tableRef),
             null,
-            StaticValueProvider.of(Lists.newArrayList("name", "number")),
+            StaticValueProvider.of(Lists.newArrayList("name")),
             StaticValueProvider.of("number > 5"),
             new TableRowParser(),
             TableRowJsonCoder.of(),
@@ -566,10 +580,7 @@ public class BigQueryIOStorageReadTest {
     TableReference tableRef = BigQueryHelpers.parseTableSpec("project-id:dataset.table");
 
     Table table =
-        new Table()
-            .setTableReference(tableRef)
-            .setNumBytes(1024L * 1024L)
-            .setSchema(new TableSchema());
+        new Table().setTableReference(tableRef).setNumBytes(1024L * 1024L).setSchema(TABLE_SCHEMA);
 
     fakeDatasetService.createTable(table);
 
@@ -581,7 +592,9 @@ public class BigQueryIOStorageReadTest {
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
-    ReadSession.Builder builder = ReadSession.newBuilder();
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING));
     for (int i = 0; i < 50; i++) {
       builder.addStreams(Stream.newBuilder().setName("stream-" + i));
     }
@@ -664,24 +677,11 @@ public class BigQueryIOStorageReadTest {
     tableSource.createReader(options);
   }
 
-  private static final String AVRO_SCHEMA_STRING =
-      "{\"namespace\": \"example.avro\",\n"
-          + " \"type\": \"record\",\n"
-          + " \"name\": \"RowRecord\",\n"
-          + " \"fields\": [\n"
-          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
-          + "     {\"name\": \"number\", \"type\": \"long\"}\n"
-          + " ]\n"
-          + "}";
-
-  private static final Schema AVRO_SCHEMA = new Schema.Parser().parse(AVRO_SCHEMA_STRING);
-
-  private static final TableSchema TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(
-              ImmutableList.of(
-                  new TableFieldSchema().setName("name").setType("STRING").setMode("REQUIRED"),
-                  new TableFieldSchema().setName("number").setType("INTEGER").setMode("REQUIRED")));
+  private static GenericRecord createRecord(String name, Schema schema) {
+    GenericRecord genericRecord = new Record(schema);
+    genericRecord.put("name", name);
+    return genericRecord;
+  }
 
   private static GenericRecord createRecord(String name, long number, Schema schema) {
     GenericRecord genericRecord = new Record(schema);
@@ -1368,10 +1368,7 @@ public class BigQueryIOStorageReadTest {
   public void testReadFromBigQueryIO() throws Exception {
     fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
     TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
-
-    Table table =
-        new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(new TableSchema());
-
+    Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
     fakeDatasetService.createTable(table);
 
     CreateReadSessionRequest expectedCreateReadSessionRequest =
@@ -1379,8 +1376,6 @@ public class BigQueryIOStorageReadTest {
             .setParent("projects/project-id")
             .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
             .setRequestedStreams(10)
-            .setReadOptions(
-                TableReadOptions.newBuilder().addSelectedFields("name").addSelectedFields("number"))
             .setShardingStrategy(ShardingStrategy.BALANCED)
             .build();
 
@@ -1420,7 +1415,6 @@ public class BigQueryIOStorageReadTest {
             BigQueryIO.read(new ParseKeyValue())
                 .from("foo.com:project:dataset.table")
                 .withMethod(Method.DIRECT_READ)
-                .withSelectedFields(p.newProvider(Lists.newArrayList("name", "number")))
                 .withTestServices(
                     new FakeBigQueryServices()
                         .withDatasetService(fakeDatasetService)
@@ -1429,6 +1423,75 @@ public class BigQueryIOStorageReadTest {
     PAssert.that(output)
         .containsInAnyOrder(
             ImmutableList.of(KV.of("A", 1L), KV.of("B", 2L), KV.of("C", 3L), KV.of("D", 4L)));
+
+    p.run();
+  }
+
+  @Test
+  public void testReadFromBigQueryIOWithTrimmedSchema() throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(10L).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    CreateReadSessionRequest expectedCreateReadSessionRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setTableReference(BigQueryHelpers.toTableRefProto(tableRef))
+            .setRequestedStreams(10)
+            .setReadOptions(TableReadOptions.newBuilder().addSelectedFields("name"))
+            .setShardingStrategy(ShardingStrategy.BALANCED)
+            .build();
+
+    ReadSession readSession =
+        ReadSession.newBuilder()
+            .setName("readSessionName")
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(TRIMMED_AVRO_SCHEMA_STRING))
+            .addStreams(Stream.newBuilder().setName("streamName"))
+            .build();
+
+    ReadRowsRequest expectedReadRowsRequest =
+        ReadRowsRequest.newBuilder()
+            .setReadPosition(
+                StreamPosition.newBuilder().setStream(Stream.newBuilder().setName("streamName")))
+            .build();
+
+    List<GenericRecord> records =
+        Lists.newArrayList(
+            createRecord("A", TRIMMED_AVRO_SCHEMA),
+            createRecord("B", TRIMMED_AVRO_SCHEMA),
+            createRecord("C", TRIMMED_AVRO_SCHEMA),
+            createRecord("D", TRIMMED_AVRO_SCHEMA));
+
+    List<ReadRowsResponse> readRowsResponses =
+        Lists.newArrayList(
+            createResponse(TRIMMED_AVRO_SCHEMA, records.subList(0, 2), 0.50),
+            createResponse(TRIMMED_AVRO_SCHEMA, records.subList(2, 4), 0.75));
+
+    StorageClient fakeStorageClient = mock(StorageClient.class, withSettings().serializable());
+    when(fakeStorageClient.createReadSession(expectedCreateReadSessionRequest))
+        .thenReturn(readSession);
+    when(fakeStorageClient.readRows(expectedReadRowsRequest))
+        .thenReturn(new FakeBigQueryServerStream<>(readRowsResponses));
+
+    PCollection<TableRow> output =
+        p.apply(
+            BigQueryIO.readTableRows()
+                .from("foo.com:project:dataset.table")
+                .withMethod(Method.DIRECT_READ)
+                .withSelectedFields(Lists.newArrayList("name"))
+                .withTestServices(
+                    new FakeBigQueryServices()
+                        .withDatasetService(fakeDatasetService)
+                        .withStorageClient(fakeStorageClient)));
+
+    PAssert.that(output)
+        .containsInAnyOrder(
+            ImmutableList.of(
+                new TableRow().set("name", "A"),
+                new TableRow().set("name", "B"),
+                new TableRow().set("name", "C"),
+                new TableRow().set("name", "D")));
 
     p.run();
   }

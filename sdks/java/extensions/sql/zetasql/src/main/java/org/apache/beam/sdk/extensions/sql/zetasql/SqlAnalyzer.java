@@ -60,14 +60,16 @@ class SqlAnalyzer {
       ImmutableList.of(
           // TODO: support optional function argument (for window_offset).
           "CREATE FUNCTION TUMBLE(ts TIMESTAMP, window_size STRING) AS (1);",
-          "CREATE FUNCTION TUMBLE_START(window_size STRING) AS (1);",
-          "CREATE FUNCTION TUMBLE_END(window_size STRING) AS (1);",
+          "CREATE FUNCTION TUMBLE_START(window_size STRING) RETURNS TIMESTAMP AS (null);",
+          "CREATE FUNCTION TUMBLE_END(window_size STRING) RETURNS TIMESTAMP AS (null);",
           "CREATE FUNCTION HOP(ts TIMESTAMP, emit_frequency STRING, window_size STRING) AS (1);",
-          "CREATE FUNCTION HOP_START(emit_frequency STRING, window_size STRING) AS (1);",
-          "CREATE FUNCTION HOP_END(emit_frequency STRING, window_size STRING) AS (1);",
+          "CREATE FUNCTION HOP_START(emit_frequency STRING, window_size STRING) "
+              + "RETURNS TIMESTAMP AS (null);",
+          "CREATE FUNCTION HOP_END(emit_frequency STRING, window_size STRING) "
+              + "RETURNS TIMESTAMP AS (null);",
           "CREATE FUNCTION SESSION(ts TIMESTAMP, session_gap STRING) AS (1);",
-          "CREATE FUNCTION SESSION_START(session_gap STRING) AS (1);",
-          "CREATE FUNCTION SESSION_END(session_gap STRING) AS (1);");
+          "CREATE FUNCTION SESSION_START(session_gap STRING) RETURNS TIMESTAMP AS (null);",
+          "CREATE FUNCTION SESSION_END(session_gap STRING) RETURNS TIMESTAMP AS (null);");
 
   private final Builder builder;
 

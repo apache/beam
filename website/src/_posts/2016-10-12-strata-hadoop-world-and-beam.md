@@ -21,7 +21,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-Tyler Akidau and I gave a [three-hour tutorial](http://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129) on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.<!--more-->
+Tyler Akidau and I gave a [three-hour tutorial](https://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129) on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.<!--more-->
 
 <img src="{{ "/images/blog/IMG_20160927_170956.jpg" | prepend: site.baseurl }}" alt="Exercise time">
 

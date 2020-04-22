@@ -150,7 +150,7 @@ class StagerTest(unittest.TestCase):
 
   def test_no_staging_location(self):
     with self.assertRaises(RuntimeError) as cm:
-      self.stager.stage_job_resources(PipelineOptions(), staging_location=None)
+      self.stager.stage_job_resources([], staging_location=None)
     self.assertEqual(
         'The staging_location must be specified.', cm.exception.args[0])
 
@@ -162,7 +162,7 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
 
     self.assertEqual([],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
   # xdist adds unpicklable modules to the main session.
@@ -175,7 +175,7 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
 
     self.assertEqual([shared_names.PICKLED_MAIN_SESSION_FILE],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
     self.assertTrue(
         os.path.isfile(
@@ -187,7 +187,7 @@ class StagerTest(unittest.TestCase):
     self.update_options(options)
 
     self.assertEqual([],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
   def test_with_requirements_file(self):
@@ -205,7 +205,7 @@ class StagerTest(unittest.TestCase):
     self.assertEqual(
         sorted([stager.REQUIREMENTS_FILE, 'abc.txt', 'def.txt']),
         sorted(
-            self.stager.stage_job_resources(
+            self.stager.create_and_stage_job_resources(
                 options,
                 populate_requirements_cache=self.populate_requirements_cache,
                 staging_location=staging_dir)[1]))
@@ -220,7 +220,7 @@ class StagerTest(unittest.TestCase):
       options = PipelineOptions()
       self.update_options(options)
       options.view_as(SetupOptions).requirements_file = 'nosuchfile'
-      self.stager.stage_job_resources(
+      self.stager.create_and_stage_job_resources(
           options,
           populate_requirements_cache=self.populate_requirements_cache,
           staging_location=staging_dir)
@@ -243,7 +243,7 @@ class StagerTest(unittest.TestCase):
     self.assertEqual(
         sorted([stager.REQUIREMENTS_FILE, 'abc.txt', 'def.txt']),
         sorted(
-            self.stager.stage_job_resources(
+            self.stager.create_and_stage_job_resources(
                 options,
                 populate_requirements_cache=self.populate_requirements_cache,
                 staging_location=staging_dir)[1]))
@@ -269,7 +269,7 @@ class StagerTest(unittest.TestCase):
 
     self.assertEqual(
         [stager.WORKFLOW_TARBALL_FILE],
-        self.stager.stage_job_resources(
+        self.stager.create_and_stage_job_resources(
             options,
             # We replace the build setup command because a realistic one would
             # require the setuptools package to be installed. Note that we can't
@@ -295,7 +295,8 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).setup_file = 'nosuchfile'
 
     with self.assertRaises(RuntimeError) as cm:
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
@@ -312,7 +313,8 @@ class StagerTest(unittest.TestCase):
 
     self.create_temp_file(os.path.join(source_dir, 'xyz-setup.py'), 'notused')
     with self.assertRaises(RuntimeError) as cm:
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertTrue(
         cm.exception.args[0].startswith(
             'The --setup_file option expects the full path to a file named '
@@ -327,7 +329,7 @@ class StagerTest(unittest.TestCase):
     with mock.patch(
         'apache_beam.utils.processes.check_output',
         self.build_fake_pip_download_command_handler(has_wheels=False)):
-      _, staged_resources = self.stager.stage_job_resources(
+      _, staged_resources = self.stager.create_and_stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE], staged_resources)
@@ -345,7 +347,7 @@ class StagerTest(unittest.TestCase):
     with mock.patch(
         'apache_beam.utils.processes.check_output',
         self.build_fake_pip_download_command_handler(has_wheels=True)):
-      _, staged_resources = self.stager.stage_job_resources(
+      _, staged_resources = self.stager.create_and_stage_job_resources(
           options, temp_dir=self.make_temp_dir(), staging_location=staging_dir)
 
       self.assertEqual(len(staged_resources), 2)
@@ -368,7 +370,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
@@ -386,7 +388,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
     with open(tarball_path) as f:
@@ -404,7 +406,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     self.assertEqual([sdk_filename],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
     tarball_path = os.path.join(staging_dir, sdk_filename)
     with open(tarball_path) as f:
@@ -418,7 +420,8 @@ class StagerTest(unittest.TestCase):
       self.update_options(options)
       options.view_as(SetupOptions).sdk_location = sdk_location
 
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertEqual(
         'The file "%s" cannot be found. Its '
         'location was specified by the --sdk_location command-line option.' %
@@ -439,7 +442,7 @@ class StagerTest(unittest.TestCase):
     options.view_as(SetupOptions).sdk_location = sdk_location
 
     self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
-                     self.stager.stage_job_resources(
+                     self.stager.create_and_stage_job_resources(
                          options, staging_location=staging_dir)[1])
 
   @mock.patch(
@@ -460,7 +463,7 @@ class StagerTest(unittest.TestCase):
                     '.stager.Stager._is_remote_path',
                     staticmethod(self.is_remote_path)):
       self.assertEqual([sdk_filename],
-                       self.stager.stage_job_resources(
+                       self.stager.create_and_stage_job_resources(
                            options, staging_location=staging_dir)[1])
 
   def test_sdk_location_http(self):
@@ -480,7 +483,7 @@ class StagerTest(unittest.TestCase):
                     '.stager.Stager._download_file',
                     staticmethod(file_download)):
       self.assertEqual([names.DATAFLOW_SDK_TARBALL_FILE],
-                       self.stager.stage_job_resources(
+                       self.stager.create_and_stage_job_resources(
                            options, staging_location=staging_dir)[1])
 
     tarball_path = os.path.join(staging_dir, names.DATAFLOW_SDK_TARBALL_FILE)
@@ -523,7 +526,7 @@ class StagerTest(unittest.TestCase):
             'remote_file.tar.gz',
             stager.EXTRA_PACKAGES_FILE
         ],
-                         self.stager.stage_job_resources(
+                         self.stager.create_and_stage_job_resources(
                              options, staging_location=staging_dir)[1])
     with open(os.path.join(staging_dir, stager.EXTRA_PACKAGES_FILE)) as f:
       self.assertEqual([
@@ -545,7 +548,8 @@ class StagerTest(unittest.TestCase):
       self.update_options(options)
       options.view_as(SetupOptions).extra_packages = ['nosuchfile.tar.gz']
 
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
@@ -561,7 +565,8 @@ class StagerTest(unittest.TestCase):
       options.view_as(SetupOptions).extra_packages = [
           os.path.join(source_dir, 'abc.tgz')
       ]
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The --extra_package option expects a full path ending with '
@@ -577,7 +582,8 @@ class StagerTest(unittest.TestCase):
       options.view_as(DebugOptions).experiments = [
           'jar_packages=nosuchfile.jar'
       ]
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The file %s cannot be found. It was specified in the '
@@ -594,7 +600,8 @@ class StagerTest(unittest.TestCase):
       options.view_as(DebugOptions).experiments = [
           'jar_packages=' + os.path.join(source_dir, 'abc.tgz')
       ]
-      self.stager.stage_job_resources(options, staging_location=staging_dir)
+      self.stager.create_and_stage_job_resources(
+          options, staging_location=staging_dir)
     self.assertEqual(
         cm.exception.args[0],
         'The --experiment=\'jar_packages=\' option expects a full path ending '
@@ -626,7 +633,7 @@ class StagerTest(unittest.TestCase):
                       '.stager.Stager._is_remote_path',
                       staticmethod(self.is_remote_path)):
         self.assertEqual(['abc.jar', 'xyz.jar', 'ijk.jar', 'remote.jar'],
-                         self.stager.stage_job_resources(
+                         self.stager.create_and_stage_job_resources(
                              options, staging_location=staging_dir)[1])
     self.assertEqual(['/tmp/remote/remote.jar'], self.remote_copied_files)
 

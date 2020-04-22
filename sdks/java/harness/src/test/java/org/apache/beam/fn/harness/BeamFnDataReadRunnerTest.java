@@ -163,6 +163,7 @@ public class BeamFnDataReadRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
@@ -188,7 +189,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId, pTransformId)),
+            eq(LogicalEndpoint.data(bundleId, pTransformId)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -229,7 +230,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -260,7 +261,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -314,7 +315,7 @@ public class BeamFnDataReadRunnerTest {
                     .build())
             .build();
     ProcessBundleSplitResponse.Builder responseBuilder = ProcessBundleSplitResponse.newBuilder();
-    readRunner.split(request, responseBuilder);
+    readRunner.trySplit(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =
         ProcessBundleSplitResponse.newBuilder()
@@ -363,7 +364,7 @@ public class BeamFnDataReadRunnerTest {
     // Process 2 elements then split
     readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
-    readRunner.split(request, responseBuilder);
+    readRunner.trySplit(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =
         ProcessBundleSplitResponse.newBuilder()
@@ -420,7 +421,7 @@ public class BeamFnDataReadRunnerTest {
     readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
     readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
-    readRunner.split(request, responseBuilder);
+    readRunner.trySplit(request, responseBuilder);
 
     ProcessBundleSplitResponse expected =
         ProcessBundleSplitResponse.newBuilder()
@@ -465,6 +466,7 @@ public class BeamFnDataReadRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,

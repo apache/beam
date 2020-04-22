@@ -42,6 +42,10 @@ if TYPE_CHECKING:
 
 WindowMappingFn = Callable[[window.BoundedWindow], window.BoundedWindow]
 
+SIDE_INPUT_PREFIX = 'python_side_input'
+
+SIDE_INPUT_REGEX = SIDE_INPUT_PREFIX + '([0-9]+)(-.*)?$'
+
 
 # Top-level function so we can identify it later.
 def _global_window_mapping_fn(w, global_window=window.GlobalWindow()):
@@ -65,7 +69,7 @@ def default_window_mapping_fn(target_window_fn):
 
 def get_sideinput_index(tag):
   # type: (str) -> int
-  match = re.match('side([0-9]+)(-.*)?$', tag, re.DOTALL)
+  match = re.match(SIDE_INPUT_REGEX, tag, re.DOTALL)
   if match:
     return int(match.group(1))
   else:

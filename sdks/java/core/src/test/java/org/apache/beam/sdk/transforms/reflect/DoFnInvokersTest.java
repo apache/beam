@@ -23,6 +23,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -34,15 +35,19 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -55,10 +60,14 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.FakeArgumentProvider;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.testhelper.DoFnInvokersTestHelper;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -115,7 +124,8 @@ public class DoFnInvokersTest {
   }
 
   private void invokeOnTimer(String timerId, DoFn<String, String> fn) {
-    DoFnInvokers.invokerFor(fn).invokeOnTimer(timerId, "", mockArgumentProvider);
+    DoFnInvokers.invokerFor(fn)
+        .invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
   }
 
   @Test
@@ -261,7 +271,7 @@ public class DoFnInvokersTest {
   public void testDoFnWithTimer() throws Exception {
     Timer mockTimer = mock(Timer.class);
     final String timerId = "my-timer-id-here";
-    when(mockArgumentProvider.timer(timerId)).thenReturn(mockTimer);
+    when(mockArgumentProvider.timer(TimerDeclaration.PREFIX + timerId)).thenReturn(mockTimer);
 
     class MockFn extends DoFn<String, String> {
       @TimerId(timerId)
@@ -402,7 +412,9 @@ public class DoFnInvokersTest {
   public static class MockFn extends DoFn<String, String> {
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext c, RestrictionTracker<SomeRestriction, Void> tracker) {
+        ProcessContext c,
+        RestrictionTracker<SomeRestriction, Void> tracker,
+        WatermarkEstimator<Instant> watermarkEstimator) {
       return null;
     }
 
@@ -426,6 +438,22 @@ public class DoFnInvokersTest {
     public SomeRestrictionCoder getRestrictionCoder() {
       return null;
     }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState() {
+      return null;
+    }
+
+    @GetWatermarkEstimatorStateCoder
+    public InstantCoder getWatermarkEstimatorStateCoder() {
+      return null;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimator<Instant> newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return null;
+    }
   }
 
   @Test
@@ -434,11 +462,16 @@ public class DoFnInvokersTest {
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
     final SomeRestrictionTracker tracker = mock(SomeRestrictionTracker.class);
     final SomeRestrictionCoder coder = mock(SomeRestrictionCoder.class);
+    final InstantCoder watermarkEstimatorStateCoder = InstantCoder.of();
+    final Instant watermarkEstimatorState = Instant.now();
+    final WatermarkEstimator<Instant> watermarkEstimator =
+        new WatermarkEstimators.Manual(watermarkEstimatorState);
     SomeRestriction restriction = new SomeRestriction();
     final SomeRestriction part1 = new SomeRestriction();
     final SomeRestriction part2 = new SomeRestriction();
     final SomeRestriction part3 = new SomeRestriction();
     when(fn.getRestrictionCoder()).thenReturn(coder);
+    when(fn.getWatermarkEstimatorStateCoder()).thenReturn(watermarkEstimatorStateCoder);
     when(fn.getInitialRestriction(mockElement)).thenReturn(restriction);
     doAnswer(
             AdditionalAnswers.delegatesTo(
@@ -456,11 +489,15 @@ public class DoFnInvokersTest {
                 }))
         .when(fn)
         .splitRestriction(eq(mockElement), same(restriction), any());
+    when(fn.getInitialWatermarkEstimatorState()).thenReturn(watermarkEstimatorState);
     when(fn.newTracker(restriction)).thenReturn(tracker);
-    when(fn.processElement(mockProcessContext, tracker)).thenReturn(resume());
+    when(fn.newWatermarkEstimator(watermarkEstimatorState)).thenReturn(watermarkEstimator);
+    when(fn.processElement(mockProcessContext, tracker, watermarkEstimator)).thenReturn(resume());
 
     assertEquals(coder, invoker.invokeGetRestrictionCoder(CoderRegistry.createDefault()));
-
+    assertEquals(
+        watermarkEstimatorStateCoder,
+        invoker.invokeGetWatermarkEstimatorStateCoder(CoderRegistry.createDefault()));
     assertEquals(
         restriction,
         invoker.invokeGetInitialRestriction(
@@ -501,6 +538,9 @@ public class DoFnInvokersTest {
 
     assertEquals(Arrays.asList(part1, part2, part3), outputs);
     assertEquals(
+        watermarkEstimatorState,
+        invoker.invokeGetInitialWatermarkEstimatorState(new FakeArgumentProvider<>()));
+    assertEquals(
         tracker,
         invoker.invokeNewTracker(
             new FakeArgumentProvider<String, String>() {
@@ -515,6 +555,15 @@ public class DoFnInvokersTest {
               }
             }));
     assertEquals(
+        watermarkEstimator,
+        invoker.invokeNewWatermarkEstimator(
+            new FakeArgumentProvider<String, String>() {
+              @Override
+              public Object watermarkEstimatorState() {
+                return watermarkEstimatorState;
+              }
+            }));
+    assertEquals(
         resume(),
         invoker.invokeProcessElement(
             new FakeArgumentProvider<String, String>() {
@@ -526,6 +575,11 @@ public class DoFnInvokersTest {
               @Override
               public RestrictionTracker<?, ?> restrictionTracker() {
                 return tracker;
+              }
+
+              @Override
+              public WatermarkEstimator<?> watermarkEstimator() {
+                return watermarkEstimator;
               }
             }));
   }
@@ -573,15 +627,62 @@ public class DoFnInvokersTest {
     }
   }
 
+  private static class WatermarkEstimatorStateWithDefaultWatermarkEstimator
+      implements HasDefaultWatermarkEstimator<
+          WatermarkEstimatorStateWithDefaultWatermarkEstimator, DefaultWatermarkEstimator> {
+
+    @Override
+    public DefaultWatermarkEstimator newWatermarkEstimator() {
+      return new DefaultWatermarkEstimator();
+    }
+  }
+
+  private static class DefaultWatermarkEstimator
+      implements WatermarkEstimator<WatermarkEstimatorStateWithDefaultWatermarkEstimator> {
+    @Override
+    public Instant currentWatermark() {
+      return null;
+    }
+
+    @Override
+    public WatermarkEstimatorStateWithDefaultWatermarkEstimator getState() {
+      return null;
+    }
+  }
+
+  private static class CoderForWatermarkEstimatorStateWithDefaultWatermarkEstimator
+      extends AtomicCoder<WatermarkEstimatorStateWithDefaultWatermarkEstimator> {
+
+    @Override
+    public void encode(
+        WatermarkEstimatorStateWithDefaultWatermarkEstimator value, OutputStream outStream)
+        throws CoderException, IOException {}
+
+    @Override
+    public WatermarkEstimatorStateWithDefaultWatermarkEstimator decode(InputStream inStream)
+        throws CoderException, IOException {
+      return null;
+    }
+  }
+
   @Test
-  public void testSplittableDoFnDefaultMethods() throws Exception {
+  public void testSplittableDoFnWithHasDefaultMethods() throws Exception {
     class MockFn extends DoFn<String, String> {
       @ProcessElement
       public void processElement(
-          ProcessContext c, RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker) {}
+          ProcessContext c,
+          RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker,
+          WatermarkEstimator<WatermarkEstimatorStateWithDefaultWatermarkEstimator>
+              watermarkEstimator) {}
 
       @GetInitialRestriction
       public RestrictionWithDefaultTracker getInitialRestriction(@Element String element) {
+        return null;
+      }
+
+      @GetInitialWatermarkEstimatorState
+      public WatermarkEstimatorStateWithDefaultWatermarkEstimator
+          getInitialWatermarkEstimatorState() {
         return null;
       }
     }
@@ -593,9 +694,15 @@ public class DoFnInvokersTest {
     coderRegistry.registerCoderProvider(
         CoderProviders.fromStaticMethods(
             RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class));
+    coderRegistry.registerCoderForClass(
+        WatermarkEstimatorStateWithDefaultWatermarkEstimator.class,
+        new CoderForWatermarkEstimatorStateWithDefaultWatermarkEstimator());
     assertThat(
         invoker.<RestrictionWithDefaultTracker>invokeGetRestrictionCoder(coderRegistry),
         instanceOf(CoderForDefaultTracker.class));
+    assertThat(
+        invoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry),
+        instanceOf(CoderForWatermarkEstimatorStateWithDefaultWatermarkEstimator.class));
     invoker.invokeSplitRestriction(
         new FakeArgumentProvider<String, String>() {
           @Override
@@ -639,6 +746,39 @@ public class DoFnInvokersTest {
               }
             }),
         instanceOf(DefaultTracker.class));
+    assertThat(
+        invoker.invokeNewWatermarkEstimator(
+            new FakeArgumentProvider<String, String>() {
+              @Override
+              public Object watermarkEstimatorState() {
+                return new WatermarkEstimatorStateWithDefaultWatermarkEstimator();
+              }
+            }),
+        instanceOf(DefaultWatermarkEstimator.class));
+  }
+
+  @Test
+  public void testDefaultWatermarkEstimatorStateAndCoder() throws Exception {
+    class MockFn extends DoFn<String, String> {
+      @ProcessElement
+      public void processElement(
+          ProcessContext c, RestrictionTracker<RestrictionWithDefaultTracker, Void> tracker) {}
+
+      @GetInitialRestriction
+      public RestrictionWithDefaultTracker getInitialRestriction(@Element String element) {
+        return null;
+      }
+    }
+
+    MockFn fn = mock(MockFn.class);
+    DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
+
+    CoderRegistry coderRegistry = CoderRegistry.createDefault();
+    coderRegistry.registerCoderProvider(
+        CoderProviders.fromStaticMethods(
+            RestrictionWithDefaultTracker.class, CoderForDefaultTracker.class));
+    assertEquals(VoidCoder.of(), invoker.invokeGetWatermarkEstimatorStateCoder(coderRegistry));
+    assertNull(invoker.invokeGetInitialWatermarkEstimatorState(new FakeArgumentProvider<>()));
   }
 
   // ---------------------------------------------------------------------------------------
@@ -900,7 +1040,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, "", mockArgumentProvider);
+    invoker.invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
     assertThat(fn.status, equalTo("OK now"));
   }
 
@@ -929,7 +1069,7 @@ public class DoFnInvokersTest {
     SimpleTimerDoFn fn = new SimpleTimerDoFn();
 
     DoFnInvoker<String, String> invoker = DoFnInvokers.invokerFor(fn);
-    invoker.invokeOnTimer(timerId, "", mockArgumentProvider);
+    invoker.invokeOnTimer(TimerDeclaration.PREFIX + timerId, "", mockArgumentProvider);
     assertThat(fn.window, equalTo(testWindow));
   }
 

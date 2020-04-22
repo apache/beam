@@ -29,6 +29,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-1-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -49,6 +50,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-2-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -69,6 +71,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-3-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -89,6 +92,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-4-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -109,6 +113,7 @@ def loadTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-gbk-5-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -131,11 +136,11 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         this
 ) {
         def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.PR)
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations(datasetName), "GBK", "batch")
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
         def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.POST_COMMIT)
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, loadTestConfigurations(datasetName), "GBK", "batch")
+        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 

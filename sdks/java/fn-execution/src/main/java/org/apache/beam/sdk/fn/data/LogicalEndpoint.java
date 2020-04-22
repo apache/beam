@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.fn.data;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
 /**
@@ -32,7 +33,22 @@ public abstract class LogicalEndpoint {
 
   public abstract String getTransformId();
 
-  public static LogicalEndpoint of(String instructionId, String transformId) {
-    return new AutoValue_LogicalEndpoint(instructionId, transformId);
+  @Nullable
+  public abstract String getTimerFamilyId();
+
+  public boolean isTimer() {
+    return getTimerFamilyId() != null;
+  }
+
+  public static LogicalEndpoint data(String instructionId, String transformId) {
+    return new AutoValue_LogicalEndpoint(instructionId, transformId, null);
+  }
+
+  public static LogicalEndpoint timer(
+      String instructionId, String transformId, String timerFamilyId) {
+    if (timerFamilyId == null) {
+      throw new NullPointerException("timerFamilyId");
+    }
+    return new AutoValue_LogicalEndpoint(instructionId, transformId, timerFamilyId);
   }
 }

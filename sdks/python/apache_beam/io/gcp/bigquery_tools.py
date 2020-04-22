@@ -31,6 +31,7 @@ from __future__ import absolute_import
 
 import datetime
 import decimal
+import io
 import json
 import logging
 import re
@@ -39,13 +40,17 @@ import time
 import uuid
 from builtins import object
 
+import fastavro
 from future.utils import iteritems
+from future.utils import raise_with_traceback
+from past.builtins import unicode
 
 from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.internal.http_client import get_new_http
+from apache_beam.io.gcp import bigquery_avro_tools
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -69,7 +74,7 @@ MAX_RETRIES = 3
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
 
 
-class ExportFileFormat(object):
+class FileFormat(object):
   CSV = 'CSV'
   JSON = 'NEWLINE_DELIMITED_JSON'
   AVRO = 'AVRO'
@@ -344,7 +349,8 @@ class BigQueryWrapper(object):
       schema=None,
       write_disposition=None,
       create_disposition=None,
-      additional_load_parameters=None):
+      additional_load_parameters=None,
+      source_format=None):
     additional_load_parameters = additional_load_parameters or {}
     job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
@@ -358,7 +364,8 @@ class BigQueryWrapper(object):
                     schema=job_schema,
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
-                    sourceFormat='NEWLINE_DELIMITED_JSON',
+                    sourceFormat=source_format,
+                    useAvroLogicalTypes=True,
                     autodetect=schema == 'SCHEMA_AUTODETECT',
                     **additional_load_parameters)),
             jobReference=reference,
@@ -656,7 +663,8 @@ class BigQueryWrapper(object):
       schema=None,
       write_disposition=None,
       create_disposition=None,
-      additional_load_parameters=None):
+      additional_load_parameters=None,
+      source_format=None):
     """Starts a job to load data into BigQuery.
 
     Returns:
@@ -670,7 +678,8 @@ class BigQueryWrapper(object):
         schema=schema,
         create_disposition=create_disposition,
         write_disposition=write_disposition,
-        additional_load_parameters=additional_load_parameters)
+        additional_load_parameters=additional_load_parameters,
+        source_format=source_format)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -1171,6 +1180,104 @@ class RowAsDictJsonCoder(coders.Coder):
     return json.loads(encoded_table_row.decode('utf-8'))
 
 
+class JsonRowWriter(io.IOBase):
+  """
+  A writer which provides an IOBase-like interface for writing table rows
+  (represented as dicts) as newline-delimited JSON strings.
+  """
+  def __init__(self, file_handle):
+    """Initialize an JsonRowWriter.
+
+    Args:
+      file_handle (io.IOBase): Output stream to write to.
+    """
+    if not file_handle.writable():
+      raise ValueError("Output stream must be writable")
+
+    self._file_handle = file_handle
+    self._coder = RowAsDictJsonCoder()
+
+  def close(self):
+    self._file_handle.close()
+
+  @property
+  def closed(self):
+    return self._file_handle.closed
+
+  def flush(self):
+    self._file_handle.flush()
+
+  def read(self, size=-1):
+    raise io.UnsupportedOperation("JsonRowWriter is not readable")
+
+  def tell(self):
+    return self._file_handle.tell()
+
+  def writable(self):
+    return self._file_handle.writable()
+
+  def write(self, row):
+    return self._file_handle.write(self._coder.encode(row) + b'\n')
+
+
+class AvroRowWriter(io.IOBase):
+  """
+  A writer which provides an IOBase-like interface for writing table rows
+  (represented as dicts) as Avro records.
+  """
+  def __init__(self, file_handle, schema):
+    """Initialize an AvroRowWriter.
+
+    Args:
+      file_handle (io.IOBase): Output stream to write Avro records to.
+      schema (Dict[Text, Any]): BigQuery table schema.
+    """
+    if not file_handle.writable():
+      raise ValueError("Output stream must be writable")
+
+    self._file_handle = file_handle
+    avro_schema = fastavro.parse_schema(
+        get_avro_schema_from_table_schema(schema))
+    self._avro_writer = fastavro.write.Writer(self._file_handle, avro_schema)
+
+  def close(self):
+    if not self._file_handle.closed:
+      self.flush()
+      self._file_handle.close()
+
+  @property
+  def closed(self):
+    return self._file_handle.closed
+
+  def flush(self):
+    if self._file_handle.closed:
+      raise ValueError("flush on closed file")
+
+    self._avro_writer.flush()
+    self._file_handle.flush()
+
+  def read(self, size=-1):
+    raise io.UnsupportedOperation("AvroRowWriter is not readable")
+
+  def tell(self):
+    # Flush the fastavro Writer to the underlying stream, otherwise there isn't
+    # a reliable way to determine how many bytes have been written.
+    self._avro_writer.flush()
+    return self._file_handle.tell()
+
+  def writable(self):
+    return self._file_handle.writable()
+
+  def write(self, row):
+    try:
+      self._avro_writer.write(row)
+    except (TypeError, ValueError) as ex:
+      raise_with_traceback(
+          ex.__class__(
+              "Error writing row to Avro: {}\nSchema: {}\nRow: {}".format(
+                  ex, self._avro_writer.schema, row)))
+
+
 class RetryStrategy(object):
   RETRY_ALWAYS = 'RETRY_ALWAYS'
   RETRY_NEVER = 'RETRY_NEVER'
@@ -1221,3 +1328,97 @@ class AppendDestinationsFn(DoFn):
 
   def process(self, element, *side_inputs):
     yield (self.destination(element, *side_inputs), element)
+
+
+def get_table_schema_from_string(schema):
+  """Transform the string table schema into a
+  :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` instance.
+
+  Args:
+    schema (str): The sting schema to be used if the BigQuery table to write
+      has to be created.
+
+  Returns:
+    ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema:
+    The schema to be used if the BigQuery table to write has to be created
+    but in the :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` format.
+  """
+  table_schema = bigquery.TableSchema()
+  schema_list = [s.strip() for s in schema.split(',')]
+  for field_and_type in schema_list:
+    field_name, field_type = field_and_type.split(':')
+    field_schema = bigquery.TableFieldSchema()
+    field_schema.name = field_name
+    field_schema.type = field_type
+    field_schema.mode = 'NULLABLE'
+    table_schema.fields.append(field_schema)
+  return table_schema
+
+
+def table_schema_to_dict(table_schema):
+  """Create a dictionary representation of table schema for serialization
+  """
+  def get_table_field(field):
+    """Create a dictionary representation of a table field
+    """
+    result = {}
+    result['name'] = field.name
+    result['type'] = field.type
+    result['mode'] = getattr(field, 'mode', 'NULLABLE')
+    if hasattr(field, 'description') and field.description is not None:
+      result['description'] = field.description
+    if hasattr(field, 'fields') and field.fields:
+      result['fields'] = [get_table_field(f) for f in field.fields]
+    return result
+
+  if not isinstance(table_schema, bigquery.TableSchema):
+    raise ValueError("Table schema must be of the type bigquery.TableSchema")
+  schema = {'fields': []}
+  for field in table_schema.fields:
+    schema['fields'].append(get_table_field(field))
+  return schema
+
+
+def get_dict_table_schema(schema):
+  """Transform the table schema into a dictionary instance.
+
+  Args:
+    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema):
+      The schema to be used if the BigQuery table to write has to be created.
+      This can either be a dict or string or in the TableSchema format.
+
+  Returns:
+    Dict[str, Any]: The schema to be used if the BigQuery table to write has
+    to be created but in the dictionary format.
+  """
+  if (isinstance(schema, (dict, value_provider.ValueProvider)) or
+      callable(schema) or schema is None):
+    return schema
+  elif isinstance(schema, (str, unicode)):
+    table_schema = get_table_schema_from_string(schema)
+    return table_schema_to_dict(table_schema)
+  elif isinstance(schema, bigquery.TableSchema):
+    return table_schema_to_dict(schema)
+  else:
+    raise TypeError('Unexpected schema argument: %s.' % schema)
+
+
+def get_avro_schema_from_table_schema(schema):
+  """Transform the table schema into an Avro schema.
+
+  Args:
+    schema (str, dict, ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema):
+      The TableSchema to convert to Avro schema. This can either be a dict or
+      string or in the TableSchema format.
+
+  Returns:
+    Dict[str, Any]: An Avro schema, which can be used by fastavro.
+  """
+  dict_table_schema = get_dict_table_schema(schema)
+  return bigquery_avro_tools.get_record_schema_from_dict_table_schema(
+      "root", dict_table_schema)

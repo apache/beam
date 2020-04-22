@@ -26,6 +26,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollatio
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelCollations;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalSort;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
@@ -58,6 +59,11 @@ class LimitOffsetScanToLimitConverter extends RelConverter<ResolvedLimitOffsetSc
         getExpressionConverter()
             .convertRexNodeFromResolvedExpr(
                 zetaNode.getLimit(), zetaNode.getColumnList(), input.getRowType().getFieldList());
+
+    if (RexLiteral.isNullLiteral(offset) || RexLiteral.isNullLiteral(fetch)) {
+      throw new UnsupportedOperationException("Limit requires non-null count and offset");
+    }
+
     return LogicalSort.create(input, relCollation, offset, fetch);
   }
 }

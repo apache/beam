@@ -61,7 +61,7 @@ PCollection<String> lines = p.apply(
 
 ## Applying Transforms to Process Pipeline Data
 
-You can manipulate your data using the various [transforms]({{ site.baseurl }}/documentation/programming-guide/#transforms) provided in the Beam SDKs. To do this, you **apply** the trannsforms to your pipeline's `PCollection` by calling the `apply` method on each `PCollection` that you want to process and passing the desired transform object as an argument.
+You can manipulate your data using the various [transforms]({{ site.baseurl }}/documentation/programming-guide/#transforms) provided in the Beam SDKs. To do this, you **apply** the transforms to your pipeline's `PCollection` by calling the `apply` method on each `PCollection` that you want to process and passing the desired transform object as an argument.
 
 The following code shows how to `apply` a transform to a `PCollection` of strings. The transform is a user-defined custom transform that reverses the contents of each string and outputs a new `PCollection` containing the reversed strings.
 

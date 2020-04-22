@@ -5,22 +5,22 @@ body_class: body--index
 logos:
 - title: APEX
   image_url: /images/logo_apex.png
-  url: "http://apex.apache.org"
+  url: "https://apex.apache.org"
 - title: Flink
   image_url: /images/logo_flink.png
-  url: "http://flink.apache.org"
+  url: "https://flink.apache.org"
 - title: Spark
   image_url: /images/logo_spark.png
-  url: http://spark.apache.org/
+  url: https://spark.apache.org/
 - title: Google Cloud Dataflow
   image_url: /images/logo_google_cloud.png
   url: https://cloud.google.com/dataflow/
 - title: Gearpump
   image_url: /images/logo_gearpump.png
-  url: http://gearpump.apache.org/
+  url: https://gearpump.apache.org/
 - title: Samza
   image_url: /images/logo_samza.png
-  url: http://samza.apache.org/
+  url: https://samza.apache.org/
 
 pillars:
 - title: Unified
