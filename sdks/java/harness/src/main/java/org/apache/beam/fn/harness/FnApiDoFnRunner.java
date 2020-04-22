@@ -24,14 +24,17 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
@@ -43,6 +46,7 @@ import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -55,8 +59,11 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -105,6 +112,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -176,6 +184,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               coders,
               windowingStrategies,
               pCollectionConsumerRegistry,
+              addProgressRequestCallback,
               splitListener,
               bundleFinalizer);
 
@@ -335,6 +344,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
+      Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
@@ -640,6 +650,42 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       pTransform.getSpec().getUrn()));
             };
     }
+
+    switch (pTransform.getSpec().getUrn()) {
+      case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+        addProgressRequestCallback.accept(
+            new ProgressRequestCallback() {
+              @Override
+              public List<MonitoringInfo> getMonitoringInfos() throws Exception {
+                Sizes.Progress progress = getProgress();
+                if (progress == null) {
+                  return Collections.emptyList();
+                }
+                MonitoringInfo.Builder completedBuilder = MonitoringInfo.newBuilder();
+                completedBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
+                completedBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
+                completedBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+                completedBuilder.setPayload(encodeProgress(progress.getWorkCompleted()));
+                MonitoringInfo.Builder remainingBuilder = MonitoringInfo.newBuilder();
+                remainingBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
+                remainingBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
+                remainingBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+                remainingBuilder.setPayload(encodeProgress(progress.getWorkRemaining()));
+                return ImmutableList.of(completedBuilder.build(), remainingBuilder.build());
+              }
+
+              private ByteString encodeProgress(double value) throws IOException {
+                ByteString.Output output = ByteString.newOutput();
+                IterableCoder.of(DoubleCoder.of()).encode(Arrays.asList(value), output);
+                return output.toByteString();
+              }
+            });
+        break;
+      default:
+        // no-op
+
+    }
   }
 
   private void startBundle() {
@@ -835,39 +881,54 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public double getProgress() {
-      synchronized (splitLock) {
-        if (currentTracker instanceof Sizes.HasProgress) {
-          Sizes.Progress progress = ((Sizes.HasProgress) currentTracker).getProgress();
-          double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
-          if (totalWork > 0) {
-            return Math.max(0.0, Math.min(1.0, progress.getWorkCompleted() / totalWork));
-          }
-        } else if (currentTracker instanceof Sizes.HasSize) {
-          double initialSize =
-              doFnInvoker.invokeGetSize(
-                  new DelegatingArgumentProvider<InputT, OutputT>(
-                      processContext, pTransform.getSpec().getUrn() + "/GetInitialSize") {
-                    @Override
-                    public Object restriction() {
-                      return currentRestriction;
-                    }
-
-                    @Override
-                    public RestrictionTracker<?, ?> restrictionTracker() {
-                      return doFnInvoker.invokeNewTracker(this);
-                    }
-                  });
-          double currentSize =
-              doFnInvoker.invokeGetSize(
-                  new DelegatingArgumentProvider<>(
-                      processContext, pTransform.getSpec().getUrn() + "/GetCurrentSize"));
-          if (initialSize > 0) {
-            return Math.max(0.0, Math.min(1.0, (initialSize - currentSize) / initialSize));
-          }
+      Sizes.Progress progress = FnApiDoFnRunner.this.getProgress();
+      if (progress != null) {
+        double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
+        if (totalWork > 0) {
+          return progress.getWorkCompleted() / totalWork;
         }
       }
       return 0;
     }
+  }
+
+  private Sizes.Progress getProgress() {
+    synchronized (splitLock) {
+      if (currentTracker instanceof Sizes.HasProgress) {
+        return ((Sizes.HasProgress) currentTracker).getProgress();
+      } else if (currentTracker instanceof Sizes.HasSize) {
+        double initialSize =
+            doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<InputT, OutputT>(
+                    processContext, pTransform.getSpec().getUrn() + "/GetInitialSize") {
+                  @Override
+                  public Object restriction() {
+                    return currentRestriction;
+                  }
+
+                  @Override
+                  public RestrictionTracker<?, ?> restrictionTracker() {
+                    return doFnInvoker.invokeNewTracker(this);
+                  }
+                });
+        double currentSize =
+            doFnInvoker.invokeGetSize(
+                new DelegatingArgumentProvider<>(
+                    processContext, pTransform.getSpec().getUrn() + "/GetCurrentSize"));
+        checkState(
+            currentSize <= initialSize,
+            "The current size (%s) of the restriction is greater than the initial size (%s) of the "
+                + "restriction which typically means that %s can change in size and should be used "
+                + "with a %s that supports %s.",
+            currentSize,
+            initialSize,
+            currentRestriction,
+            RestrictionTracker.class.getSimpleName(),
+            Sizes.HasProgress.class.getSimpleName());
+        return Sizes.Progress.from(initialSize - currentSize, currentSize);
+      }
+    }
+    return null;
   }
 
   private HandlesSplits.SplitResult trySplitForElementAndRestriction(

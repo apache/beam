@@ -90,10 +90,27 @@ public final class Sizes {
     Progress getProgress();
   }
 
-  /** A representation for the amount of known completed and remaining work. */
+  /**
+   * A representation for the amount of known completed and remaining work. See {@link
+   * HasProgress#getProgress()} for details.
+   */
   @AutoValue
   public abstract static class Progress {
+
+    /**
+     * A representation for the amount of known completed and remaining work. See {@link
+     * HasProgress#getProgress()} for details.
+     *
+     * @param workCompleted Must be {@code >= 0}.
+     * @param workRemaining Must be {@code >= 0}.
+     */
     public static Progress from(double workCompleted, double workRemaining) {
+      if (workCompleted < 0 || workRemaining < 0) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Work completed and work remaining must be greater than or equal to zero but were %s and %s.",
+                workCompleted, workRemaining));
+      }
       return new AutoValue_Sizes_Progress(workCompleted, workRemaining);
     }
 
