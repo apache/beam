@@ -26,6 +26,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Collections;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -113,11 +114,12 @@ public class HL7v2IOReadWriteIT {
     PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages =
-        client
-            .getHL7v2MessageStream(healthcareDataset + "/hl7V2Stores/" + OUTPUT_HL7V2_STORE_NAME)
-            .count();
 
+    long numWrittenMessages = 0;
+    for (Stream<HL7v2Message> page:
+        new HttpHealthcareApiClient.HL7v2MessagePages(client, healthcareDataset + "/hl7V2Stores/" + OUTPUT_HL7V2_STORE_NAME)){
+      numWrittenMessages += page.count();
+    }
     assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }

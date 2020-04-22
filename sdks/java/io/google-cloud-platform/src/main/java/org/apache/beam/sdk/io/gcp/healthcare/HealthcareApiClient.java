@@ -54,25 +54,6 @@ public interface HealthcareApiClient {
   Hl7V2Store getHL7v2Store(String storeName) throws IOException;
 
   /**
-   * Gets HL7v2 message id page iterator.
-   *
-   * @param hl7v2Store the HL7v2 store
-   * @return the HL7v2 message id page iterator
-   * @throws IOException the io exception
-   */
-  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException;
-
-  /**
-   * Gets hl 7 v 2 message id page iterator.
-   *
-   * @param hl7v2Store the hl 7 v 2 store
-   * @param filter the filter
-   * @return the hl 7 v 2 message id page iterator
-   * @throws IOException the io exception
-   */
-  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, String filter) throws IOException;
-
-  /**
    * Make hl 7 v 2 list request list messages response.
    *
    * @param hl7v2Store the hl 7 v 2 store

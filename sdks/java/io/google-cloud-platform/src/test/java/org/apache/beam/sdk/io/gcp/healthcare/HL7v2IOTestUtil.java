@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -82,12 +84,10 @@ class HL7v2IOTestUtil {
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    for (String msgId :
-        client
-            .getHL7v2MessageStream(hl7v2Store)
-            .map(HL7v2Message::getName)
-            .collect(Collectors.toList())) {
-      client.deleteHL7v2Message(msgId);
+    for (Stream<HL7v2Message> page: new HL7v2MessagePages(client, hl7v2Store)){
+            for (String msgId : page.map(HL7v2Message::getName).collect(Collectors.toList())){
+              client.deleteHL7v2Message(msgId);
+            }
     }
   }
 
@@ -174,10 +174,11 @@ class HL7v2IOTestUtil {
     public void listMessages(ProcessContext context) throws IOException {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
-      this.client
-          .getHL7v2MessageStream(hl7v2Store, this.filter)
-          .map(HL7v2Message::getName)
-          .forEach(context::output);
+      HttpHealthcareApiClient.HL7v2MessagePages pages =
+          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
+      for (Stream<HL7v2Message> page: pages) {
+          page.map(HL7v2Message::getName).forEach(context::output);
+      }
     }
   }
 

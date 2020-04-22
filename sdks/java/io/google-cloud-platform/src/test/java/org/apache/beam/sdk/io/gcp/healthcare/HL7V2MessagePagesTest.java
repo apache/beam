@@ -83,13 +83,13 @@ public class HL7V2MessagePagesTest {
 
     HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo");
     assertTrue(pages.iterator().hasNext());
-    Iterator<List<HL7v2Message>> pagesIterator = pages.iterator();
+    Iterator<Stream<HL7v2Message>> pagesIterator = pages.iterator();
     assertEquals(
         page0.getHl7V2Messages().stream().map(Message::getName).collect(Collectors.toList()),
-        pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
+        pagesIterator.next().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertEquals(
         page1.getHl7V2Messages().stream().map(Message::getName).collect(Collectors.toList()),
-        pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
+        pagesIterator.next().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertFalse(pagesIterator.hasNext());
   }
 }
