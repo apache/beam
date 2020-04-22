@@ -736,6 +736,7 @@ class DataflowApplicationClient(object):
     _LOGGER.info('Create job: %s', response)
     # The response is a Job proto with the id for the new job.
     _LOGGER.info('Created job with id: [%s]', response.id)
+    _LOGGER.info('Submitted job: %s', response.id)
     _LOGGER.info(
         'To access the Dataflow monitoring console, please navigate to '
         'https://console.cloud.google.com/dataflow/jobs/%s/%s?project=%s',
