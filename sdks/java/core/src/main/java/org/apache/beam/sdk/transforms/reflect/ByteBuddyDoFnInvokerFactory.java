@@ -61,9 +61,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowPara
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasSize;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -398,7 +397,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   public static class DefaultGetSize {
-    /** Uses {@link Sizes.HasProgress} or {@link Sizes.HasSize} to produce the size. */
+    /** Uses {@link HasProgress} or {@link HasSize} to produce the size. */
     @SuppressWarnings("unused")
     public static <InputT, OutputT> double invokeGetSize(
         DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {

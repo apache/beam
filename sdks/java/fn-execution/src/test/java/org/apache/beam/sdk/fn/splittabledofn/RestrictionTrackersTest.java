@@ -26,7 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -86,7 +87,7 @@ public class RestrictionTrackersTest {
   }
 
   private static class RestrictionTrackerWithSize extends RestrictionTracker<Object, Object>
-      implements Sizes.HasSize {
+      implements HasSize {
 
     @Override
     public double getSize() {
@@ -116,15 +117,15 @@ public class RestrictionTrackersTest {
   public void testClaimObserversMaintainSizeInterfaces() {
     RestrictionTracker hasSize =
         RestrictionTrackers.observe(new RestrictionTrackerWithSize(), null);
-    assertThat(hasSize, instanceOf(Sizes.HasSize.class));
+    assertThat(hasSize, instanceOf(HasSize.class));
   }
 
   private static class RestrictionTrackerWithProgress extends RestrictionTracker<Object, Object>
-      implements Sizes.HasProgress {
+      implements HasProgress {
 
     @Override
-    public Sizes.Progress getProgress() {
-      return Sizes.Progress.from(2.0, 3.0);
+    public Progress getProgress() {
+      return RestrictionTracker.Progress.from(2.0, 3.0);
     }
 
     @Override
@@ -150,6 +151,6 @@ public class RestrictionTrackersTest {
   public void testClaimObserversMaintainBacklogInterfaces() {
     RestrictionTracker hasSize =
         RestrictionTrackers.observe(new RestrictionTrackerWithProgress(), null);
-    assertThat(hasSize, instanceOf(Sizes.HasProgress.class));
+    assertThat(hasSize, instanceOf(HasProgress.class));
   }
 }
