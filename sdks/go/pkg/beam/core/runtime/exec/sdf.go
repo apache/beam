@@ -268,7 +268,7 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 
 	rest := elm.Elm.(*FullValue).Elm2
 	rt := n.inv.Invoke(rest)
-	var mainIn = &MainInput{
+	mainIn := &MainInput{
 		Values:   values,
 		RTracker: rt,
 	}
@@ -277,6 +277,8 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 	// is a KV or single-element. Single-elements might have been lifted out of
 	// their FullValue if they were decoded, so we need to have a case for that.
 	// Also, we use the the top-level windows and timestamp.
+	// TODO(BEAM-9798): Optimize this so it's decided in exec/translate.go
+	// instead of checking per-element.
 	if userElm, ok := elm.Elm.(*FullValue).Elm.(*FullValue); ok {
 		mainIn.Key = FullValue{
 			Elm:       userElm.Elm,

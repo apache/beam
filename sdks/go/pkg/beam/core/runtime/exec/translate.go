@@ -417,10 +417,9 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
 						n.Side = append(n.Side, side)
 					}
+					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
 						u = &ProcessSizedElementsAndRestrictions{PDo: n}
-					} else {
-						u = n
 					}
 				}
 
