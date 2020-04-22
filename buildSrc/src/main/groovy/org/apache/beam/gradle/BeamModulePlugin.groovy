@@ -182,6 +182,9 @@ class BeamModulePlugin implements Plugin<Project> {
     // gcpProject sets the gcpProject argument when executing examples.
     String gcpProject
 
+    // gcpRegion sets the region for executing Dataflow examples.
+    String gcpRegion
+
     // gcsBucket sets the gcsProject argument when executing examples.
     String gcsBucket
 
@@ -1598,6 +1601,9 @@ class BeamModulePlugin implements Plugin<Project> {
       ]
       if (config.gcpProject) {
         argsNeeded.add("--gcpProject=${config.gcpProject}")
+      }
+      if (config.gcpRegion) {
+        argsNeeded.add("--gcpRegion=${config.gcpRegion}")
       }
       if (config.gcsBucket) {
         argsNeeded.add("--gcsBucket=${config.gcsBucket}")

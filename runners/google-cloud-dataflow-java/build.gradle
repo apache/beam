@@ -506,6 +506,7 @@ task cleanUpDockerImages() {
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
@@ -514,12 +515,14 @@ def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_top
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
   runner: 'Dataflow',
   gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
   gcsBucket: gcsBucket)
 
 // Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   runner: 'Dataflow',
   gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)
