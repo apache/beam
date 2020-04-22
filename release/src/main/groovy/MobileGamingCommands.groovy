@@ -114,6 +114,7 @@ class MobileGamingCommands {
     if(runner == "DataflowRunner"){
       return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
+        region: testScripts.gcpRegion(),
         output: "gs://${testScripts.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
     return [input: INPUT_GAMING_DATA,
@@ -124,6 +125,7 @@ class MobileGamingCommands {
     if(runner == "DataflowRunner"){
       return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
+        region: testScripts.gcpRegion(),
         output: "gs://${testScripts.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
     return [input: INPUT_GAMING_DATA,

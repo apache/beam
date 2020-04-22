@@ -217,7 +217,7 @@ class TestScripts {
        String maven_home = System.getenv("MAVEN_HOME") ?: '/home/jenkins/tools/maven/apache-maven-3.5.4'
        println "Using maven ${maven_home}"
        def mvnPath = "${maven_home}/bin"
-       def setPath = "export PATH=${mvnPath}:${path} && "
+       def setPath = "export PATH=\"${mvnPath}:${path}\" && "
        return _execute(setPath + cmd)
    }
 
