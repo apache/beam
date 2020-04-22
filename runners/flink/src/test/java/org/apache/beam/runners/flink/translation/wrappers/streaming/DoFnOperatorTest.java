@@ -991,12 +991,14 @@ public class DoFnOperatorTest {
   public void keyedParDoPushbackDataCheckpointing() throws Exception {
     pushbackDataCheckpointing(
         () -> {
+          StringUtf8Coder keyCoder = StringUtf8Coder.of();
           Coder<WindowedValue<String>> coder =
-              WindowedValue.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+              WindowedValue.getFullCoder(keyCoder, IntervalWindow.getCoder());
 
           TupleTag<String> outputTag = new TupleTag<>("main-output");
 
-          StringUtf8Coder keyCoder = StringUtf8Coder.of();
+          KeySelector<WindowedValue<String>, ByteBuffer> keySelector =
+              e -> FlinkKeyUtils.encodeKey(e.getValue(), keyCoder);
 
           ImmutableMap<Integer, PCollectionView<?>> sideInputMapping =
               ImmutableMap.<Integer, PCollectionView<?>>builder()
@@ -1018,16 +1020,16 @@ public class DoFnOperatorTest {
                   ImmutableList.of(view1, view2), /* side inputs */
                   PipelineOptionsFactory.as(FlinkPipelineOptions.class),
                   keyCoder,
-                  WindowedValue::getValue,
+                  keySelector,
                   DoFnSchemaInformation.create(),
                   Collections.emptyMap());
 
           return new KeyedTwoInputStreamOperatorTestHarness<>(
               doFnOperator,
-              WindowedValue::getValue,
+              keySelector,
               // we use a dummy key for the second input since it is considered to be broadcast
               null,
-              BasicTypeInfo.STRING_TYPE_INFO);
+              new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
         });
   }
 
