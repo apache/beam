@@ -20,7 +20,6 @@ package org.apache.beam.sdk.fn.splittabledofn;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
@@ -80,26 +79,6 @@ public class RestrictionTrackers {
   }
 
   /**
-   * A {@link RestrictionTracker} which forwards all calls to the delegate size reporting {@link
-   * RestrictionTracker}.
-   */
-  @ThreadSafe
-  private static class RestrictionTrackerObserverWithSize<RestrictionT, PositionT>
-      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasSize {
-
-    protected RestrictionTrackerObserverWithSize(
-        RestrictionTracker<RestrictionT, PositionT> delegate,
-        ClaimObserver<PositionT> claimObserver) {
-      super(delegate, claimObserver);
-    }
-
-    @Override
-    public synchronized double getSize() {
-      return ((HasSize) delegate).getSize();
-    }
-  }
-
-  /**
    * A {@link RestrictionTracker} which forwards all calls to the delegate progress reporting {@link
    * RestrictionTracker}.
    */
@@ -128,8 +107,6 @@ public class RestrictionTrackers {
       ClaimObserver<PositionT> claimObserver) {
     if (restrictionTracker instanceof RestrictionTracker.HasProgress) {
       return new RestrictionTrackerObserverWithProgress<>(restrictionTracker, claimObserver);
-    } else if (restrictionTracker instanceof RestrictionTracker.HasSize) {
-      return new RestrictionTrackerObserverWithSize<>(restrictionTracker, claimObserver);
     } else {
       return new RestrictionTrackerObserver<>(restrictionTracker, claimObserver);
     }

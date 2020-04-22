@@ -897,36 +897,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     synchronized (splitLock) {
       if (currentTracker instanceof RestrictionTracker.HasProgress) {
         return ((HasProgress) currentTracker).getProgress();
-      } else if (currentTracker instanceof RestrictionTracker.HasSize) {
-        double initialSize =
-            doFnInvoker.invokeGetSize(
-                new DelegatingArgumentProvider<InputT, OutputT>(
-                    processContext, pTransform.getSpec().getUrn() + "/GetInitialSize") {
-                  @Override
-                  public Object restriction() {
-                    return currentRestriction;
-                  }
-
-                  @Override
-                  public RestrictionTracker<?, ?> restrictionTracker() {
-                    return doFnInvoker.invokeNewTracker(this);
-                  }
-                });
-        double currentSize =
-            doFnInvoker.invokeGetSize(
-                new DelegatingArgumentProvider<>(
-                    processContext, pTransform.getSpec().getUrn() + "/GetCurrentSize"));
-        checkState(
-            currentSize <= initialSize,
-            "The current size (%s) of the restriction is greater than the initial size (%s) of the "
-                + "restriction which typically means that %s can change in size and should be used "
-                + "with a %s that supports %s.",
-            currentSize,
-            initialSize,
-            currentRestriction,
-            RestrictionTracker.class.getSimpleName(),
-            HasProgress.class.getSimpleName());
-        return RestrictionTracker.Progress.from(initialSize - currentSize, currentSize);
       }
     }
     return null;

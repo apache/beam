@@ -27,7 +27,6 @@ import java.util.List;
 import org.apache.beam.sdk.fn.splittabledofn.RestrictionTrackers.ClaimObserver;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,40 +83,6 @@ public class RestrictionTrackersTest {
     observingTracker.tryClaim("badClaim");
 
     assertThat(positionsObserved, contains("goodClaim", "badClaim"));
-  }
-
-  private static class RestrictionTrackerWithSize extends RestrictionTracker<Object, Object>
-      implements HasSize {
-
-    @Override
-    public double getSize() {
-      return 3.0;
-    }
-
-    @Override
-    public boolean tryClaim(Object position) {
-      return false;
-    }
-
-    @Override
-    public Object currentRestriction() {
-      return null;
-    }
-
-    @Override
-    public SplitResult<Object> trySplit(double fractionOfRemainder) {
-      return null;
-    }
-
-    @Override
-    public void checkDone() throws IllegalStateException {}
-  }
-
-  @Test
-  public void testClaimObserversMaintainSizeInterfaces() {
-    RestrictionTracker hasSize =
-        RestrictionTrackers.observe(new RestrictionTrackerWithSize(), null);
-    assertThat(hasSize, instanceOf(HasSize.class));
   }
 
   private static class RestrictionTrackerWithProgress extends RestrictionTracker<Object, Object>

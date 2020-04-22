@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.DoFn.TimerId;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasSize;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -100,7 +99,6 @@ public interface DoFnInvoker<InputT, OutputT> {
    * <ol>
    *   <li>get the work remaining from the {@link RestrictionTracker} if it supports {@link
    *       HasProgress}.
-   *   <li>get the size if the {@link RestrictionTracker} supports {@link HasSize}.
    *   <li>returning the constant {@link 1.0}.
    * </ol>
    */
