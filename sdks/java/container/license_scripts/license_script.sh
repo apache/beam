@@ -39,7 +39,7 @@ pip uninstall -y future
 pip uninstall -y PyYAML
 pip uninstall -y tenacity
 
-mkdir sdks/java/container/third_party_licenses
+mkdir -p sdks/java/container/third_party_licenses
 if [ "$1" = 'true' ]; then
   echo "Copy licenses to sdks/java/container/third_party_licenses/."
   cp -r java_third_party_licenses/*.jar sdks/java/container/third_party_licenses/
