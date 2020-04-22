@@ -27,7 +27,7 @@ from tensorflow_transform.coders import example_proto_coder
 from tensorflow_transform.tf_metadata import dataset_metadata, dataset_schema
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigquery import _ReadFromBigQuery as ReadFromBigQuery
+from apache_beam.io.gcp.bigquery import ReadFromBigQuery
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.load_tests.load_test_metrics_utils import (
     MeasureTime, MetricsReader)
