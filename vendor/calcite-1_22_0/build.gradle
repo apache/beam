@@ -100,7 +100,7 @@ vendorJava(
         exclusions: [
                 "com/google/errorprone/**",
                 "junit/**",
-                "module-info.class",
+                "**/module-info.class",
                 "org/apache/log/**",
                 "org/apache/log4j/**",
                 "org/apache/logging/log4j/**",
