@@ -2226,50 +2226,11 @@ class GroupByKey(PTransform):
           key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
 
   def expand(self, pcoll):
-    # This code path is only used in the local direct runner.  For Dataflow
-    # runner execution, the GroupByKey transform is expanded on the service.
-    input_type = pcoll.element_type
-    if input_type is not None:
-      # Initialize type-hints used below to enforce type-checking and to pass
-      # downstream to further PTransforms.
-      key_type, value_type = trivial_inference.key_value_types(input_type)
-      # Enforce the input to a GBK has a KV element type.
-      pcoll.element_type = typehints.KV[key_type, value_type]
-      typecoders.registry.verify_deterministic(
-          typecoders.registry.get_coder(key_type),
-          'GroupByKey operation "%s"' % self.label)
-
-      reify_output_type = typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
-      gbk_input_type = (
-          typehints.KV[
-              key_type,
-              typehints.Iterable[typehints.WindowedValue[  # type: ignore[misc]
-                  value_type]]])
-      gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
-
-      # pylint: disable=bad-continuation
-      return (
-          pcoll
-          | 'ReifyWindows' >>
-          (ParDo(self.ReifyWindows()).with_output_types(reify_output_type))
-          | 'GroupByKey' >> (
-              _GroupByKeyOnly().with_input_types(
-                  reify_output_type).with_output_types(gbk_input_type))
-          | (
-              'GroupByWindow' >>
-              _GroupAlsoByWindow(pcoll.windowing).with_input_types(
-                  gbk_input_type).with_output_types(gbk_output_type)))
-    else:
-      # The input_type is None, run the default
-      return (
-          pcoll
-          | 'ReifyWindows' >> ParDo(self.ReifyWindows())
-          | 'GroupByKey' >> _GroupByKeyOnly()
-          | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
+    return pvalue.PCollection.from_(pcoll)
 
   def infer_output_type(self, input_type):
-    key_type, value_type = trivial_inference.key_value_types(input_type)
+    key_type, value_type = (typehints.typehints.coerce_to_kv_type(
+        input_type).tuple_types)
     return typehints.KV[key_type, typehints.Iterable[value_type]]
 
   def to_runner_api_parameter(self, unused_context):

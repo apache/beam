@@ -234,7 +234,89 @@ def _get_transform_overrides(pipeline_options):
       from apache_beam.runners.direct.test_stream_impl import _ExpandableTestStream
       return _ExpandableTestStream(transform)
 
+  class GroupByKeyPTransformOverride(PTransformOverride):
+    """A ``PTransformOverride`` for ``GroupByKey``.
+
+    This replaces the Beam implementation as a primitive.
+    """
+    def matches(self, applied_ptransform):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.transforms.core import GroupByKey
+      if (isinstance(applied_ptransform.transform, GroupByKey) and
+          not getattr(applied_ptransform.transform, 'override', False)):
+        self.input_type = applied_ptransform.inputs[0].element_type
+        return True
+      return False
+
+    def get_replacement_transform(self, ptransform):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.transforms.core import GroupByKey
+
+      # Subclass from GroupByKey to inherit all the proper methods.
+      class GroupByKey(GroupByKey):
+        override = True
+
+        def expand(self, pcoll):
+          # Imported here to avoid circular dependencies.
+          # pylint: disable=wrong-import-order, wrong-import-position
+          from apache_beam.coders import typecoders
+          from apache_beam.typehints import trivial_inference
+
+          input_type = pcoll.element_type
+          if input_type is not None:
+            # Initialize type-hints used below to enforce type-checking and to
+            # pass downstream to further PTransforms.
+            key_type, value_type = trivial_inference.key_value_types(input_type)
+            # Enforce the input to a GBK has a KV element type.
+            pcoll.element_type = typehints.typehints.coerce_to_kv_type(
+                pcoll.element_type)
+            typecoders.registry.verify_deterministic(
+                typecoders.registry.get_coder(key_type),
+                'GroupByKey operation "%s"' % self.label)
+
+            reify_output_type = typehints.KV[
+                key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
+            gbk_input_type = (
+                typehints.
+                KV[key_type,
+                   typehints.Iterable[
+                       typehints.WindowedValue[  # type: ignore[misc]
+                           value_type]]])
+            gbk_output_type = typehints.KV[key_type,
+                                           typehints.Iterable[value_type]]
+
+            # pylint: disable=bad-continuation
+            return (
+                pcoll
+                | 'ReifyWindows' >> (
+                    ParDo(self.ReifyWindows()).with_output_types(
+                        reify_output_type))
+                | 'GroupByKey' >> (
+                    _GroupByKeyOnly().with_input_types(
+                        reify_output_type).with_output_types(gbk_input_type))
+                | (
+                    'GroupByWindow' >>
+                    _GroupAlsoByWindow(pcoll.windowing).with_input_types(
+                        gbk_input_type).with_output_types(gbk_output_type)))
+          else:
+            # The input_type is None, run the default
+            return (
+                pcoll
+                | 'ReifyWindows' >> ParDo(self.ReifyWindows())
+                | 'GroupByKey' >> _GroupByKeyOnly()
+                | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
+
+      # Infer the correct type.
+      return GroupByKey().with_output_types(
+          ptransform.infer_output_type(self.input_type))
+
   overrides = [
+      # This needs to be the first and the last override. Other overrides depend
+      # on the GroupByKey implementation to be composed of _GroupByKeyOnly and
+      # _GroupAlsoByWindow.
+      GroupByKeyPTransformOverride(),
       SplittableParDoOverride(),
       ProcessKeyedElementsViaKeyedWorkItemsOverride(),
       CombinePerKeyOverride(),
@@ -252,6 +334,10 @@ def _get_transform_overrides(pipeline_options):
     overrides += _get_pubsub_transform_overrides(pipeline_options)
   except ImportError:
     pass
+
+  # This also needs to be last because other transforms apply GBKs which need to
+  # be translated into a DirectRunner-compatible transform.
+  overrides.append(GroupByKeyPTransformOverride())
 
   return overrides
 

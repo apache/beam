@@ -1190,7 +1190,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # postgbk monitoring infos
       labels = {
-          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_8'
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_6'
       }
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
@@ -1198,7 +1198,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
       labels = {
-          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_9'
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_7'
       }
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
