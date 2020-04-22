@@ -105,7 +105,7 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 				&pipepb.ArtifactInformation{
 					TypeUrn: URNArtifactGoWorker,
 					RoleUrn: URNArtifactStagingTo,
-					RolePayload: MarshalOrPanic(&pipepb.ArtifactStagingToRolePayload{
+					RolePayload: MustMarshal(&pipepb.ArtifactStagingToRolePayload{
 						StagedName: "worker",
 					}),
 				},
@@ -114,7 +114,7 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 	}
 }
 
-func MarshalOrPanic(msg proto.Message) []byte {
+func MustMarshal(msg proto.Message) []byte {
 	res, err := proto.Marshal(msg)
 	if err != nil {
 		panic(err)

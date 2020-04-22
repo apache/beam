@@ -39,7 +39,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 	defer cc.Close()
 
-	err = StageViaPorableApi(ctx, cc, binary, st)
+	err = StageViaPortableApi(ctx, cc, binary, st)
 
 	if err == nil {
 		return "", err
@@ -48,7 +48,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 	}
 }
 
-func StageViaPorableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
+func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {
 	client := jobpb.NewArtifactStagingServiceClient(cc)
 
 	stream, err := client.ReverseArtifactRetrievalService(context.Background())
@@ -82,17 +82,16 @@ func StageViaPorableApi(ctx context.Context, cc *grpc.ClientConn, binary, st str
 			}
 
 		case *jobpb.ArtifactRequestWrapper_GetArtifact:
-			TypeUrn := request.GetArtifact.Artifact.TypeUrn
-			switch TypeUrn {
+			switch typeUrn := request.GetArtifact.Artifact.TypeUrn; typeUrn {
 			case graphx.URNArtifactGoWorker:
 				StageFile(binary, stream)
 
 			default:
-				return errors.Errorf("Request has unexpected artifact type %s", TypeUrn)
+				return errors.Errorf("request has unexpected artifact type %s", typeUrn)
 			}
 
 		default:
-			return errors.Errorf("Request has unexpected type %T", request)
+			return errors.Errorf("request has unexpected type %T", request)
 		}
 	}
 }
