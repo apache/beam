@@ -2981,6 +2981,16 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testNamedUNNESTLiteralOffset() {
+    String sql = "SELECT x, p FROM UNNEST([3, 4]) AS x WITH OFFSET p";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    thrown.expect(UnsupportedOperationException.class);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+  }
+
+  @Test
   @Ignore("Seeing exception in Beam, need further investigation on the cause of this failed query.")
   public void testNamedUNNESTJoin() {
     String sql =
