@@ -183,7 +183,9 @@ else:
     def get_web_driver(cls):
       chrome_options = Options()
       if cls._headless:
-        chrome_options.add_argument("--headless")
+        chrome_options.add_argument('--headless')
+      chrome_options.add_argument('--no-sandbox')
+      chrome_options.add_argument('--disable-dev-shm-usage')
       return NeedleChrome(options=chrome_options)
 
     def setUp(self):
