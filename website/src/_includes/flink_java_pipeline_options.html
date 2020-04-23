@@ -108,6 +108,11 @@ which should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
+  <td><code>numConcurrentCheckpoints</code></td>
+  <td>The maximum number of concurrent checkpoints. Defaults to 1 (=no concurrent checkpoints).</td>
+  <td>Default: <code>1</code></td>
+</tr>
+<tr>
   <td><code>numberOfExecutionRetries</code></td>
   <td>Sets the number of times that failed tasks are re-executed. A value of zero effectively disables fault tolerance. A value of -1 indicates that the system default value (as defined in the configuration) should be used.</td>
   <td>Default: <code>-1</code></td>

@@ -438,7 +438,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
                   windowedInputCoder,
                   windowingStrategy.getWindowFn().windowCoder(),
                   getOperatorStateBackend(),
-                  getKeyedStateBackend());
+                  getKeyedStateBackend(),
+                  options.getNumConcurrentCheckpoints());
     }
     doFnRunner = createWrappingDoFnRunner(doFnRunner, stepContext);
     earlyBindStateIfNeeded();
