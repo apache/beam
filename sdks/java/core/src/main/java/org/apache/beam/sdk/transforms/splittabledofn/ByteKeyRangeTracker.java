@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes;
@@ -40,7 +41,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Bytes
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKey>
-    implements Sizes.HasSize {
+    implements HasProgress {
   /* An empty range which contains no keys. */
   @VisibleForTesting
   static final ByteKeyRange NO_KEYS = ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x00));
@@ -189,26 +190,27 @@ public class ByteKeyRangeTracker extends RestrictionTracker<ByteKeyRange, ByteKe
   private static final byte[] ZERO_BYTE_ARRAY = new byte[] {0};
 
   @Override
-  public double getSize() {
-    // Return 0 for the empty range which is implicitly done.
+  public Progress getProgress() {
+    // Return [0,0] for the empty range which is implicitly done.
     // This case can occur if the range tracker is checkpointed before any keys have been claimed
     // or if the range tracker is checkpointed once the range is done.
     if (NO_KEYS.equals(range)) {
-      return 0;
+      return Progress.from(0, 0);
     }
 
-    // If we are attempting to get the backlog without processing a single key, we return 1.0
+    // If we are attempting to get the backlog without processing a single key, we return [0,1]
     if (lastAttemptedKey == null) {
-      return 1;
+      return Progress.from(0, 1);
     }
 
-    // Return 0 if the last attempted key was the empty key representing the end of range for
+    // Return [1,0] if the last attempted key was the empty key representing the end of range for
     // all ranges or the last attempted key is beyond the end of the range.
     if (lastAttemptedKey.isEmpty()
         || !(range.getEndKey().isEmpty() || range.getEndKey().compareTo(lastAttemptedKey) > 0)) {
-      return 0;
+      return Progress.from(1, 0);
     }
 
-    return range.estimateFractionForKey(lastAttemptedKey);
+    double workCompleted = range.estimateFractionForKey(lastAttemptedKey);
+    return Progress.from(workCompleted, 1 - workCompleted);
   }
 }
