@@ -43,6 +43,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.util.NameUtils;
@@ -453,29 +454,6 @@ public class Read {
       return KV.of(element, null);
     }
 
-    @GetSize
-    public double getSize(
-        @Restriction KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> restriction,
-        PipelineOptions pipelineOptions)
-        throws Exception {
-      if (restriction.getKey() instanceof EmptyUnboundedSource) {
-        return 1;
-      }
-
-      UnboundedReader<OutputT> reader =
-          restriction.getKey().createReader(pipelineOptions, restriction.getValue());
-      long size = reader.getSplitBacklogBytes();
-      if (size != UnboundedReader.BACKLOG_UNKNOWN) {
-        return size;
-      }
-      // TODO: Support "global" backlog reporting
-      // size = reader.getTotalBacklogBytes();
-      // if (size != UnboundedReader.BACKLOG_UNKNOWN) {
-      //   return size;
-      // }
-      return 1;
-    }
-
     @SplitRestriction
     public void splitRestriction(
         @Restriction KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> restriction,
@@ -690,11 +668,12 @@ public class Read {
     private static class UnboundedSourceAsSDFRestrictionTracker<
             OutputT, CheckpointT extends CheckpointMark>
         extends RestrictionTracker<
-            KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>,
-            UnboundedSourceValue<OutputT>[]> {
+            KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue<OutputT>[]>
+        implements HasProgress {
       private final KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction;
       private final PipelineOptions pipelineOptions;
       private UnboundedSource.UnboundedReader<OutputT> currentReader;
+      private boolean readerHasBeenStarted;
 
       UnboundedSourceAsSDFRestrictionTracker(
           KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction,
@@ -711,18 +690,13 @@ public class Read {
                 initialRestriction
                     .getKey()
                     .createReader(pipelineOptions, initialRestriction.getValue());
+          }
+          if (!readerHasBeenStarted) {
+            readerHasBeenStarted = true;
             if (!currentReader.start()) {
               return false;
             }
-            position[0] =
-                UnboundedSourceValue.create(
-                    currentReader.getCurrentRecordId(),
-                    currentReader.getCurrent(),
-                    currentReader.getCurrentTimestamp(),
-                    currentReader.getWatermark());
-            return true;
-          }
-          if (!currentReader.advance()) {
+          } else if (!currentReader.advance()) {
             return false;
           }
           position[0] =
@@ -789,6 +763,41 @@ public class Read {
             currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
             "Expected all records to have been claimed but finished processing "
                 + "unbounded source while some records may have not been read.");
+      }
+
+      @Override
+      public Progress getProgress() {
+        // We treat the empty source as implicitly done.
+        if (currentRestriction().getKey() instanceof EmptyUnboundedSource) {
+          return RestrictionTracker.Progress.from(1, 0);
+        }
+
+        if (currentReader == null) {
+          try {
+            currentReader =
+                initialRestriction
+                    .getKey()
+                    .createReader(pipelineOptions, initialRestriction.getValue());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
+
+        long size = currentReader.getSplitBacklogBytes();
+        if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+          // The UnboundedSource/UnboundedReader API has no way of reporting how much work
+          // has been completed so runners can only see the work remaining changing.
+          return RestrictionTracker.Progress.from(0, size);
+        }
+
+        // TODO: Support "global" backlog reporting
+        // size = reader.getTotalBacklogBytes();
+        // if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+        //   return size;
+        // }
+
+        // We treat unknown as 0 progress
+        return RestrictionTracker.Progress.from(0, 1);
       }
     }
   }
