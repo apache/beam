@@ -40,6 +40,7 @@ import (
 	"context"
 	"flag"
 	"reflect"
+	"time"
 
 	"github.com/apache/beam/sdks/go/examples/stringsplit/offsetrange"
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -49,6 +50,7 @@ import (
 
 func init() {
 	beam.RegisterType(reflect.TypeOf((*StringSplitFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*LogFn)(nil)).Elem())
 }
 
 // StringSplitFn is a Splittable DoFn that splits strings into substrings of the
@@ -61,7 +63,9 @@ type StringSplitFn struct {
 // CreateInitialRestriction creates an offset range restriction for each element
 // with the size of the restriction corresponding to the length of the string.
 func (fn *StringSplitFn) CreateInitialRestriction(s string) offsetrange.Restriction {
-	return offsetrange.Restriction{Start: 0, End: int64(len(s))}
+	rest := offsetrange.Restriction{Start: 0, End: int64(len(s))}
+	log.Debugf(context.Background(), "StringSplit CreateInitialRestriction: %v", rest)
+	return rest
 }
 
 // SplitRestriction performs initial splits so that each restriction is split
@@ -80,13 +84,16 @@ func (fn *StringSplitFn) SplitRestriction(s string, rest offsetrange.Restriction
 	for i := 0; i < len(splitPts)-1; i++ {
 		splits = append(splits, offsetrange.Restriction{Start: splitPts[i], End: splitPts[i+1]})
 	}
+	log.Debugf(context.Background(), "StringSplit SplitRestrictions: %v -> %v", rest, splits)
 	return splits
 }
 
 // RestrictionSize returns the size as the difference between the restriction's
 // start and end.
 func (fn *StringSplitFn) RestrictionSize(s string, rest offsetrange.Restriction) float64 {
-	return float64(rest.End - rest.Start)
+	size := float64(rest.End - rest.Start)
+	log.Debugf(context.Background(), "StringSplit RestrictionSize: %v -> %v", rest, size)
+	return size
 }
 
 // CreateTracker creates an offset range restriction tracker out of the offset
@@ -106,6 +113,7 @@ func (fn *StringSplitFn) CreateTracker(rest offsetrange.Restriction) *offsetrang
 // Example: If BufSize is 100, then a restriction of 75 to 325 should emit the
 // following substrings: [100, 200], [200, 300], [300, 400]
 func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, emit func(string)) error {
+	log.Debugf(context.Background(), "StringSplit ProcessElement: Tracker = %v", rt)
 	i := rt.Rest.Start
 	if rem := i % fn.BufSize; rem != 0 {
 		i += fn.BufSize - rem // Skip to next multiple of BufSize.
@@ -127,6 +135,19 @@ func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, em
 	return nil
 }
 
+// LogFn is a DoFn to log our split output.
+type LogFn struct{}
+
+// ProcessElement logs each element it receives.
+func (fn *LogFn) ProcessElement(ctx context.Context, in string) {
+	log.Infof(ctx, "StringSplit Output:\n%v", in)
+}
+
+// FinishBundle waits a bit so the job server finishes receiving logs.
+func (fn *LogFn) FinishBundle() {
+	time.Sleep(2 * time.Second)
+}
+
 // Use our StringSplitFn to split Shakespeare monologues into substrings and
 // output them.
 func main() {
@@ -140,9 +161,7 @@ func main() {
 
 	monologues := beam.Create(s, macbeth, juliet, helena)
 	split := beam.ParDo(s, &StringSplitFn{50}, monologues)
-	beam.ParDo0(s, func(ctx context.Context, in string) {
-		log.Infof(ctx, "[StringSplit Output]: %v", in)
-	}, split)
+	beam.ParDo0(s, &LogFn{}, split)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Fatalf(ctx, "Failed to execute job: %v", err)
