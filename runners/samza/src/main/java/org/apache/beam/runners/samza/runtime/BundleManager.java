@@ -37,6 +37,8 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 import org.apache.samza.operators.Scheduler;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Bundle management for the {@link DoFnOp} that handles lifecycle of a bundle. It also serves as a
@@ -57,6 +59,7 @@ import org.joda.time.Instant;
  * @param <OutT> output type of the {@link DoFnOp}
  */
 public class BundleManager<OutT> {
+  private static final Logger LOG = LoggerFactory.getLogger(BundleManager.class);
   private static final long MIN_BUNDLE_CHECK_TIME_MS = 10L;
 
   private final long maxBundleSize;
@@ -82,7 +85,6 @@ public class BundleManager<OutT> {
   private transient List<CompletionStage<Collection<WindowedValue<OutT>>>>
       currentBundleResultFutures;
   private transient CompletionStage<Void> watermarkFuture;
-  private transient BiConsumer<Collection<WindowedValue<OutT>>, Void> watermarkPropagationFn;
 
   public BundleManager(
       BundleProgressListener<OutT> bundleProgressListener,
@@ -134,6 +136,7 @@ public class BundleManager<OutT> {
     futureCollector.prepare();
 
     if (isBundleStarted.compareAndSet(false, true)) {
+      LOG.debug("Starting a new bundle.");
       // make sure the previous bundle is sealed and futures are cleared
       Preconditions.checkArgument(
           currentBundleResultFutures.isEmpty(),
@@ -150,6 +153,7 @@ public class BundleManager<OutT> {
     // propagate watermark immediately if no bundle is in progress and all the previous bundles have
     // completed.
     if (!isBundleStarted() && pendingBundleCount.get() == 0) {
+      LOG.debug("Propagating watermark: {} directly since no bundle in progress.", watermark);
       bundleProgressListener.onWatermark(watermark, emitter);
       return;
     }
@@ -166,9 +170,13 @@ public class BundleManager<OutT> {
        * If no bundle in progress, we progress watermark explicitly after the completion of previous watermark futures.
        */
       if (isBundleStarted()) {
+        LOG.info(
+            "Received max watermark. Triggering finish bundle before flushing the watermark downstream.");
         tryFinishBundle(emitter);
         watermarkFuture.toCompletableFuture().join();
       } else {
+        LOG.info(
+            "Received max watermark. Waiting for previous bundles to complete before flushing the watermark downstream.");
         watermarkFuture.toCompletableFuture().join();
         bundleProgressListener.onWatermark(watermark, emitter);
       }
@@ -183,6 +191,29 @@ public class BundleManager<OutT> {
     }
   }
 
+  /**
+   * Signal the bundle manager to handle failure. We discard the output collected as part of
+   * processing the current element and reset the bundle count.
+   *
+   * @param t failure cause
+   */
+  void signalFailure(Throwable t) {
+    LOG.error("Encountered error during processing the message. Discarding the output due to: ", t);
+    futureCollector.discard();
+    // reset the bundle start flag only if the bundle has started
+    isBundleStarted.compareAndSet(true, false);
+
+    // bundle start may not necessarily mean we have actually started the bundle since some of the
+    // invariant check conditions within bundle start could throw exceptions. so rely on bundle
+    // start time
+    if (bundleStartTime.get() != Long.MAX_VALUE) {
+      currentBundleElementCount.set(0L);
+      bundleStartTime.set(Long.MAX_VALUE);
+      pendingBundleCount.decrementAndGet();
+      currentBundleResultFutures.clear();
+    }
+  }
+
   void tryFinishBundle(OpEmitter<OutT> emitter) {
 
     // we need to seal the output for each element within a bundle irrespective of the whether we
@@ -191,6 +222,8 @@ public class BundleManager<OutT> {
     CompletionStage<Collection<WindowedValue<OutT>>> outputFuture = futureCollector.finish();
 
     if (shouldFinishBundle() && isBundleStarted.compareAndSet(true, false)) {
+      LOG.debug("Finishing the current bundle.");
+
       // reset the bundle count
       // seal the bundle and emit the result future (collection of results)
       // chain the finish bundle invocation on the finish bundle
@@ -208,11 +241,13 @@ public class BundleManager<OutT> {
                     return res;
                   });
 
+      BiConsumer<Collection<WindowedValue<OutT>>, Void> watermarkPropagationFn;
       if (watermarkHold == null) {
         watermarkPropagationFn = (ignored, res) -> pendingBundleCount.decrementAndGet();
       } else {
         watermarkPropagationFn =
             (ignored, res) -> {
+              LOG.debug("Propagating watermark: {} to downstream.", watermarkHold);
               bundleProgressListener.onWatermark(watermarkHold, emitter);
               pendingBundleCount.decrementAndGet();
             };
@@ -239,6 +274,12 @@ public class BundleManager<OutT> {
   @VisibleForTesting
   List<CompletionStage<Collection<WindowedValue<OutT>>>> getCurrentBundleResultFutures() {
     return currentBundleResultFutures;
+  }
+
+  @VisibleForTesting
+  void setCurrentBundleResultFutures(
+      List<CompletionStage<Collection<WindowedValue<OutT>>>> currentBundleResultFutures) {
+    this.currentBundleResultFutures = currentBundleResultFutures;
   }
 
   @VisibleForTesting

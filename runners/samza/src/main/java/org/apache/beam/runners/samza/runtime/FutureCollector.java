@@ -30,18 +30,17 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public interface FutureCollector<OutT> {
   /**
-   * Prepares the {@link FutureCollector} to accept output elements. The {@link
-   * #add(CompletionStage)} method will throw an {@link IllegalStateException} if called without
-   * preparing the collector.
-   */
-  void prepare();
-
-  /**
    * Outputs the element to the collector.
    *
    * @param element to add to the collector
    */
   void add(CompletionStage<WindowedValue<OutT>> element);
+
+  /**
+   * Discards the elements within the collector. Once the elements have been discarded, callers need
+   * to prepare the collector again before invoking {@link #add(CompletionStage)}.
+   */
+  void discard();
 
   /**
    * Seals this {@link FutureCollector}, returning a {@link CompletionStage} containing all of the
@@ -51,4 +50,11 @@ public interface FutureCollector<OutT> {
    * <p>The {@link FutureCollector} needs to be started again to collect newer batch of output.
    */
   CompletionStage<Collection<WindowedValue<OutT>>> finish();
+
+  /**
+   * Prepares the {@link FutureCollector} to accept output elements. The {@link
+   * #add(CompletionStage)} method will throw an {@link IllegalStateException} if called without
+   * preparing the collector.
+   */
+  void prepare();
 }

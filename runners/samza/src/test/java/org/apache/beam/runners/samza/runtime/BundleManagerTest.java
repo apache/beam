@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.anyObject;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -78,6 +79,52 @@ public final class BundleManagerTest {
     assertEquals(
         "Expected the pending bundle count to be 1", 1L, bundleManager.getPendingBundleCount());
     assertTrue("tryStartBundle() did not start the bundle", bundleManager.isBundleStarted());
+  }
+
+  @Test
+  public void testTryStartBundleThrowsExceptionAndSignalError() {
+    bundleManager.setCurrentBundleResultFutures(
+        Collections.singletonList(mock(CompletionStage.class)));
+    try {
+      bundleManager.tryStartBundle();
+    } catch (IllegalArgumentException e) {
+      bundleManager.signalFailure(e);
+    }
+
+    // verify if the signal failure only resets appropriate attributes of bundle
+    verify(mockFutureCollector, times(1)).prepare();
+    verify(mockFutureCollector, times(1)).discard();
+    assertEquals(
+        "Expected the number of element in the current bundle to 0",
+        0L,
+        bundleManager.getCurrentBundleElementCount());
+    assertEquals(
+        "Expected pending bundle count to be 0", 0L, bundleManager.getPendingBundleCount());
+    assertFalse("Error didn't reset the bundle as expected.", bundleManager.isBundleStarted());
+  }
+
+  @Test
+  public void testTryStartBundleThrowsExceptionFromTheListener() {
+    doThrow(new RuntimeException("User start bundle threw an exception"))
+        .when(bundleProgressListener)
+        .onBundleStarted();
+
+    try {
+      bundleManager.tryStartBundle();
+    } catch (RuntimeException e) {
+      bundleManager.signalFailure(e);
+    }
+
+    // verify if the signal failure only resets appropriate attributes of bundle
+    verify(mockFutureCollector, times(1)).prepare();
+    verify(mockFutureCollector, times(1)).discard();
+    assertEquals(
+        "Expected the number of element in the current bundle to 0",
+        0L,
+        bundleManager.getCurrentBundleElementCount());
+    assertEquals(
+        "Expected pending bundle count to be 0", 0L, bundleManager.getPendingBundleCount());
+    assertFalse("Error didn't reset the bundle as expected.", bundleManager.isBundleStarted());
   }
 
   @Test
@@ -338,6 +385,22 @@ public final class BundleManagerTest {
     assertEquals(
         "Expected the pending bundle count to be 1", 1L, bundleManager.getPendingBundleCount());
     assertTrue("tryFinishBundle() closed the bundle", bundleManager.isBundleStarted());
+  }
+
+  @Test
+  public void testSignalFailureResetsTheBundleAndCollector() {
+    bundleManager.tryStartBundle();
+
+    bundleManager.signalFailure(mock(Throwable.class));
+    verify(mockFutureCollector, times(1)).prepare();
+    verify(mockFutureCollector, times(1)).discard();
+    assertEquals(
+        "Expected the number of element in the current bundle to 0",
+        0L,
+        bundleManager.getCurrentBundleElementCount());
+    assertEquals(
+        "Expected pending bundle count to be 0", 0L, bundleManager.getPendingBundleCount());
+    assertFalse("Error didn't reset the bundle as expected.", bundleManager.isBundleStarted());
   }
 
   /*

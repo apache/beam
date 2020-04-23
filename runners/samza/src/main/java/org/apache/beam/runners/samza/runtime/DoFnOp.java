@@ -275,18 +275,23 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
 
   @Override
   public void processElement(WindowedValue<InT> inputElement, OpEmitter<OutT> emitter) {
-    bundleManager.tryStartBundle();
-
-    final Iterable<WindowedValue<InT>> rejectedValues =
-        pushbackFnRunner.processElementInReadyWindows(inputElement);
-    for (WindowedValue<InT> rejectedValue : rejectedValues) {
-      if (rejectedValue.getTimestamp().compareTo(pushbackWatermarkHold) < 0) {
-        pushbackWatermarkHold = rejectedValue.getTimestamp();
+    try {
+      bundleManager.tryStartBundle();
+      final Iterable<WindowedValue<InT>> rejectedValues =
+          pushbackFnRunner.processElementInReadyWindows(inputElement);
+      for (WindowedValue<InT> rejectedValue : rejectedValues) {
+        if (rejectedValue.getTimestamp().compareTo(pushbackWatermarkHold) < 0) {
+          pushbackWatermarkHold = rejectedValue.getTimestamp();
+        }
+        pushbackValues.add(rejectedValue);
       }
-      pushbackValues.add(rejectedValue);
-    }
 
-    bundleManager.tryFinishBundle(emitter);
+      bundleManager.tryFinishBundle(emitter);
+    } catch (Throwable t) {
+      LOG.error("Encountered error during process element", t);
+      bundleManager.signalFailure(t);
+      throw t;
+    }
   }
 
   private void doProcessWatermark(Instant watermark, OpEmitter<OutT> emitter) {
@@ -470,19 +475,17 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     }
 
     @Override
-    public void prepare() {
-      boolean isCollectorSealed = collectorSealed.compareAndSet(true, false);
-      checkState(
-          isCollectorSealed,
-          "Failed to prepare the collector. Collector needs to be sealed before prepare() is invoked.");
-    }
-
-    @Override
     public void add(CompletionStage<WindowedValue<OutT>> element) {
       checkState(
           !collectorSealed.get(),
           "Cannot add elements to an unprepared collector. Make sure prepare() is invoked before adding elements.");
       outputFutures.add(element);
+    }
+
+    @Override
+    public void discard() {
+      collectorSealed.compareAndSet(false, true);
+      outputFutures.clear();
     }
 
     @Override
@@ -497,6 +500,14 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
           FutureUtils.flattenFutures(outputFutures);
       outputFutures.clear();
       return sealedOutputFuture;
+    }
+
+    @Override
+    public void prepare() {
+      boolean isCollectorSealed = collectorSealed.compareAndSet(true, false);
+      checkState(
+          isCollectorSealed,
+          "Failed to prepare the collector. Collector needs to be sealed before prepare() is invoked.");
     }
   }
 
