@@ -1780,6 +1780,33 @@ class BeamModulePlugin implements Plugin<Project> {
         cleanupTask.mustRunAfter pythonTask
         config.cleanupJobServer.mustRunAfter pythonTask
       }
+      // Task for running testcases in Python SDK
+      def testOpts = [
+        "--attr=UsesSqlExpansionService"
+      ]
+      def pipelineOpts = [
+        "--runner=PortableRunner",
+        "--environment_cache_millis=10000",
+        "--job_endpoint=${config.jobEndpoint}"
+      ]
+      def beamPythonTestPipelineOptions = [
+        "pipeline_opts": pipelineOpts,
+        "test_opts": testOpts,
+        "suite": "xlangSqlValidateRunner"
+      ]
+      def cmdArgs = project.project(':sdks:python').mapToArgString(beamPythonTestPipelineOptions)
+      def pythonSqlTask = project.tasks.create(name: config.name+"PythonUsingSql", type: Exec) {
+        group = "Verification"
+        description = "Validates runner for cross-language capability of using Java's SqlTransform from Python SDK"
+        executable 'sh'
+        args '-c', ". $envDir/bin/activate && cd $pythonDir && ./scripts/run_integration_test.sh $cmdArgs"
+        dependsOn config.startJobServer
+        dependsOn ':sdks:python:container:py'+pythonContainerSuffix+':docker'
+        dependsOn ':sdks:java:extensions:sql:expansion-service:shadowJar'
+        dependsOn ":sdks:python:installGcpTest"
+      }
+      mainTask.dependsOn pythonSqlTask
+      config.cleanupJobServer.mustRunAfter pythonSqlTask
     }
 
     /** ***********************************************************************************************/
