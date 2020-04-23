@@ -44,6 +44,10 @@ try:
   from needle.cases import NeedleTestCase
   from needle.driver import NeedleChrome
   from selenium.webdriver.chrome.options import Options
+  from selenium.webdriver.common.by import By
+  from selenium.webdriver.common.keys import Keys
+  from selenium.webdriver.support import expected_conditions
+  from selenium.webdriver.support.ui import WebDriverWait
   _interactive_integration_ready = (
       notebook_executor._interactive_integration_ready)
 except ImportError:
@@ -198,10 +202,20 @@ else:
         self._test_env = test_env
         super(BaseTestCase, self).run(result)
 
+    def explicit_wait(self):
+      """Wait for common elements to be visible."""
+      WebDriverWait(self.driver, 5).until(
+          expected_conditions.visibility_of_element_located(
+              (By.TAG_NAME, 'facets-overview')))
+      WebDriverWait(self.driver, 5).until(
+          expected_conditions.visibility_of_element_located(
+              (By.TAG_NAME, 'facets-dive')))
+
     def assert_all(self):
       """Asserts screenshots for all notebooks in the test_notebook_path."""
       for test_id, test_url in self._test_env.test_urls.items():
         self.driver.get(test_url)
+        self.explicit_wait()
         self.assertScreenshot('body', test_id)
 
     def assert_single(self, test_id):
@@ -210,6 +224,7 @@ else:
       test_url = self._test_env.test_urls.get(test_id, None)
       assert test_url, '{} is not a valid test id.'.format(test_id)
       self.driver.get(test_url)
+      self.explicit_wait()
       self.assertScreenshot('body', test_id)
 
     def assert_notebook(self, notebook_name):
