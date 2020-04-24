@@ -181,3 +181,23 @@ xz:
     license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"
   '1.8':
     license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"
+zetasql-client:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-jni-channel:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-jni-channel-darwin:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-jni-channel-linux:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-types:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
