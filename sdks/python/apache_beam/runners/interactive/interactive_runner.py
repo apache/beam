@@ -27,6 +27,7 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
+import sys
 
 import apache_beam as beam
 from apache_beam import runners
@@ -131,7 +132,7 @@ class InteractiveRunner(runners.PipelineRunner):
     if exit is not None:
       self._in_session = False
       _LOGGER.info('Ending session.')
-      exit(None, None, None)
+      sys.exit(None, None, None)
 
   def cleanup(self):
     self._cache_manager.cleanup()

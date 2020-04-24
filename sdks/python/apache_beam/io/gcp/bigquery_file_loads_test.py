@@ -105,7 +105,7 @@ _DESTINATION_ELEMENT_PAIRS = [
 ]
 
 _DISTINCT_DESTINATIONS = list(
-    set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
+    {elm[0] for elm in _DESTINATION_ELEMENT_PAIRS})
 
 _ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 

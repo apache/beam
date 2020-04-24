@@ -897,7 +897,7 @@ def expand_sdf(stages, context):
               setattr(proto, name, value)
           if 'unique_name' not in kwargs and hasattr(proto, 'unique_name'):
             proto.unique_name = unique_name(
-                set([p.unique_name for p in protos.values()]),
+                {p.unique_name for p in protos.values()},
                 original.unique_name + suffix)
           return new_id
 

@@ -137,7 +137,7 @@ class OffsetRestrictionTracker(RestrictionTracker):
           'of the range. Tried to claim position %r for the range [%r, %r)' %
           (position, self._range.start, self._range.stop))
 
-    if position >= self._range.start and position < self._range.stop:
+    if self._range.start >= position < self._range.stop:
       self._current_position = position
       return True
 

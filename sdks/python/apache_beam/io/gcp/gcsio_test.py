@@ -117,7 +117,7 @@ class FakeGcsObjects(object):
       stream = download.stream
 
       def get_range_callback(start, end):
-        if not (start >= 0 and end >= start and end < len(f.contents)):
+        if not (0 <= start <= end < len(f.contents)):
           raise ValueError(
               'start=%d end=%d len=%s' % (start, end, len(f.contents)))
         stream.write(f.contents[start:end + 1])

@@ -357,8 +357,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
   CSV_HEADERS = ['project', 'foundation']
 
-  SIMPLE_COLLECTION_VALIDATION_SET = set([(elm['project'], elm['foundation'])
-                                          for elm in SIMPLE_COLLECTION])
+  SIMPLE_COLLECTION_VALIDATION_SET = {(elm['project'], elm['foundation'])
+                                      for elm in SIMPLE_COLLECTION}
 
   class CsvSink(fileio.TextSink):
     def __init__(self, headers):

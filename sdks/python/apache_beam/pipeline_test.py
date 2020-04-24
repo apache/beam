@@ -780,30 +780,30 @@ class PipelineOptionsTest(unittest.TestCase):
   def test_dir(self):
     options = Breakfast()
     self.assertEqual(
-        set([
-            'from_dictionary',
-            'get_all_options',
-            'slices',
-            'style',
-            'view_as',
-            'display_data'
-        ]),
-        set([
-            attr for attr in dir(options)
-            if not attr.startswith('_') and attr != 'next'
-        ]))
+      {
+        'from_dictionary',
+        'get_all_options',
+        'slices',
+        'style',
+        'view_as',
+        'display_data'
+      },
+      {
+        attr for attr in dir(options)
+        if not attr.startswith('_') and attr != 'next'
+      })
     self.assertEqual(
-        set([
-            'from_dictionary',
-            'get_all_options',
-            'style',
-            'view_as',
-            'display_data'
-        ]),
-        set([
-            attr for attr in dir(options.view_as(Eggs))
-            if not attr.startswith('_') and attr != 'next'
-        ]))
+      {
+        'from_dictionary',
+        'get_all_options',
+        'style',
+        'view_as',
+        'display_data'
+      },
+      {
+        attr for attr in dir(options.view_as(Eggs))
+        if not attr.startswith('_') and attr != 'next'
+      })
 
 
 class RunnerApiTest(unittest.TestCase):
