@@ -1035,8 +1035,9 @@ class BundleProcessor(object):
     # Construct a new dict first to remove duplicates.
     all_monitoring_infos_dict = {}
     for transform_id, op in self.ops.items():
-      pcollection_ids = self.process_bundle_descriptor.transforms[
-          transform_id].outputs.values()
+      pcollection_ids = list(
+          self.process_bundle_descriptor.transforms[transform_id].outputs.
+          values())
       all_monitoring_infos_dict.update(
           op.monitoring_infos(transform_id, pcollection_ids))
 
