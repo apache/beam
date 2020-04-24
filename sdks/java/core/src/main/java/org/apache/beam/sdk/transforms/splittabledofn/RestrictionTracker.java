@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -34,7 +35,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
    * Attempts to claim the block of work in the current restriction identified by the given
-   * position.
+   * position. Each claimed position MUST be a valid split point.
    *
    * <p>If this succeeds, the DoFn MUST execute the entire block of work. If this fails:
    *
@@ -83,8 +84,11 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *
    * @param fractionOfRemainder A hint as to the fraction of work the primary restriction should
    *     represent based upon the current known remaining amount of work.
-   * @return a {@link SplitResult} if a split was possible, otherwise returns {@code null}.
+   * @return a {@link SplitResult} if a split was possible, otherwise returns {@code null}. If the
+   *     {@code fractionOfRemainder == 0}, a {@code null} result MUST imply that the restriction
+   *     tracker is done and there is no more work left to do.
    */
+  @Nullable
   public abstract SplitResult<RestrictionT> trySplit(double fractionOfRemainder);
 
   /**
