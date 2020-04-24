@@ -223,7 +223,7 @@ type RTracker struct {
 func (rt *RTracker) TryClaim(interface{}) bool                      { return false }
 func (rt *RTracker) GetError() error                                { return nil }
 func (rt *RTracker) TrySplit(fraction float64) (interface{}, error) { return nil, nil }
-func (rt *RTracker) GetProgress() float64                           { return 0 }
+func (rt *RTracker) GetProgress() (float64, float64)                { return 0, 0 }
 func (rt *RTracker) IsDone() bool                                   { return false }
 
 // In order to test that these methods get called properly, each one has an

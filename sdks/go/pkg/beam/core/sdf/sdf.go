@@ -63,9 +63,10 @@ type RTracker interface {
 	// an error.
 	TrySplit(fraction float64) (residual interface{}, err error)
 
-	// GetProgress returns a double representing the current progress of the restriction as a range
-	// from 0 to 1.0.
-	GetProgress() float64
+	// GetProgress returns two abstract scalars representing the amount of done and remaining work.
+	// These values have no specific units, but are used to estimate work in relation to each other
+	// and should be self-consistent.
+	GetProgress() (done float64, remaining float64)
 
 	// IsDone returns a boolean indicating whether all blocks inside the restriction have been
 	// claimed. This method is called by the SDK Harness to validate that a Splittable DoFn has

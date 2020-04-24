@@ -129,10 +129,7 @@ func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, em
 		i += fn.BufSize
 	}
 	// TODO(BEAM-9799): Remove this check once error checking is automatic.
-	if err := rt.GetError(); err != nil {
-		return err
-	}
-	return nil
+	return rt.GetError()
 }
 
 // LogFn is a DoFn to log our split output.

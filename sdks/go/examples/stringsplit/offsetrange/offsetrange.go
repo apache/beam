@@ -16,7 +16,6 @@ package offsetrange
 
 import (
 	"errors"
-	"math"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -107,12 +106,11 @@ func (tracker *Tracker) TrySplit(fraction float64) (interface{}, error) {
 	return residual, nil
 }
 
-// GetProgress reports progress as the claimed fraction of the restriction.
-func (tracker *Tracker) GetProgress() float64 {
-	fraction := float64(tracker.Claimed-tracker.Rest.Start) /
-		float64(tracker.Rest.End-tracker.Rest.Start)
-
-	return math.Min(fraction, 1.0)
+// GetProgress reports progress based on the claimed size and unclaimed sizes of the restriction.
+func (tracker *Tracker) GetProgress() (done, remaining float64) {
+	done = float64(tracker.Claimed - tracker.Rest.Start)
+	remaining = float64(tracker.Rest.End - tracker.Claimed)
+	return
 }
 
 // IsDone returns true if the most recent claimed element is past the end of the restriction.
