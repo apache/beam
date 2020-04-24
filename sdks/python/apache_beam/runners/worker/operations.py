@@ -355,7 +355,7 @@ class Operation(object):
     # Skip producing monitoring infos if there is more then one receiver
     # since there is no way to provide a mapping from tag to pcollection id
     # within Operation.
-    if len(self.receivers) != len(tag_to_pcollection_id) != 1:
+    if len(self.receivers) != 1 or len(tag_to_pcollection_id) != 1:
       return {}
 
     all_monitoring_infos = {}
