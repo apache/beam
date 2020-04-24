@@ -355,9 +355,7 @@ class Operation(object):
           (self.receivers, pcollection_ids))
 
     all_monitoring_infos = {}
-    for i in range(len(self.receivers)):
-      receiver = self.receivers[i]
-      pcollection_id = pcollection_ids[i]
+    for pcollection_id, receiver in zip(pcollection_ids, self.receivers):
       elem_count_mi = monitoring_infos.int64_counter(
           monitoring_infos.ELEMENT_COUNT_URN,
           receiver.opcounter.element_counter.value(),
