@@ -13,42 +13,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package sdf is experimental, incomplete, and not yet meant for general usage.
+// Package sdf contains interfaces used specifically for splittable DoFns.
 package sdf
 
 // RTracker is an interface used to interact with restrictions while processing elements in
-// SplittableDoFns. Each implementation of RTracker is expected to be used for tracking a single
-// restriction type, which is the type that should be used to create the RTracker, and output by
-// TrySplit.
+// splittable DoFns (specifically, in the ProcessElement method). Each RTracker tracks the progress
+// of a single restriction.
 type RTracker interface {
-	// TryClaim attempts to claim the block of work in the current restriction located at a given
-	// position. This method must be used in the ProcessElement method of Splittable DoFns to claim
-	// work before performing it. If no work is claimed, the ProcessElement is not allowed to perform
-	// work or emit outputs. If the claim is successful, the DoFn must process the entire block. If
-	// the claim is unsuccessful the ProcessElement method of the DoFn must return without performing
+	// TryClaim attempts to claim the block of work located in the given position of the
+	// restriction. This method must be called in ProcessElement to claim work before it can be
+	// processed. Processing work without claiming it first can lead to incorrect output.
+	//
+	// If the claim is successful, the DoFn must process the entire block. If the claim is
+	// unsuccessful ProcessElement method of the DoFn must return without performing
 	// any additional work or emitting any outputs.
 	//
-	// TryClaim accepts an arbitrary value that can be interpreted as the position of a block, and
-	// returns a boolean indicating whether the claim succeeded.
-	//
-	// If the claim fails due to an error, that error can be retrieved with GetError.
-	//
-	// For SDFs to work properly, claims must always be monotonically increasing in reference to the
-	// restriction's start and end points, and every block of work in a restriction must be claimed.
+	// If the claim fails due to an error, that error is stored and will be automatically emitted
+	// when the RTracker is validated, or can be manually retrieved with GetError.
 	//
 	// This pseudocode example illustrates the typical usage of TryClaim:
 	//
-	// 	pos = position of first block after restriction.start
+	// 	pos = position of first block within the restriction
 	// 	for TryClaim(pos) == true {
 	// 		// Do all work in the claimed block and emit outputs.
-	// 		pos = position of next block
+	// 		pos = position of next block within the restriction
 	// 	}
 	// 	return
 	TryClaim(pos interface{}) (ok bool)
 
-	// GetError returns the error that made this RTracker stop executing, and it returns nil if no
-	// error occurred. If IsDone fails while validating this RTracker, this method will be
-	// called to log the error.
+	// GetError returns the error that made this RTracker stop executing, and returns nil if no
+	// error occurred. This is the error that is emitted if automated validation fails.
 	GetError() error
 
 	// TrySplit splits the current restriction into a primary and residual based on a fraction of the
@@ -69,7 +63,7 @@ type RTracker interface {
 	GetProgress() (done float64, remaining float64)
 
 	// IsDone returns a boolean indicating whether all blocks inside the restriction have been
-	// claimed. This method is called by the SDK Harness to validate that a Splittable DoFn has
+	// claimed. This method is called by the SDK Harness to validate that a splittable DoFn has
 	// correctly processed all work in a restriction before finishing. If this method returns false
 	// then GetError is expected to return a non-nil error.
 	IsDone() bool
