@@ -250,6 +250,7 @@ public class DoFnOperatorTest {
   public void testWatermarkContract() throws Exception {
 
     final Instant timerTimestamp = new Instant(1000);
+    final Instant timerOutputTimestamp = timerTimestamp.minus(1);
     final String eventTimeMessage = "Event timer fired: ";
     final String processingTimeMessage = "Processing timer fired";
 
@@ -279,7 +280,7 @@ public class DoFnOperatorTest {
               @TimerId(processingTimerId) Timer processingTimer) {
             eventTimer.set(timerTimestamp);
             eventTimerWithOutputTimestamp
-                .withOutputTimestamp(timerTimestamp.minus(1))
+                .withOutputTimestamp(timerOutputTimestamp)
                 .set(timerTimestamp);
             processingTimer.offset(Duration.millis(timerTimestamp.getMillis())).setRelative();
           }
@@ -365,7 +366,7 @@ public class DoFnOperatorTest {
     assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), emptyIterable());
     assertThat(
         doFnOperator.timerInternals.getMinOutputTimestampMs(),
-        is(timerTimestamp.minus(1).getMillis()));
+        is(timerOutputTimestamp.getMillis()));
 
     // this must fire the event timers
     testHarness.processWatermark(timerTimestamp.getMillis() + 1);
