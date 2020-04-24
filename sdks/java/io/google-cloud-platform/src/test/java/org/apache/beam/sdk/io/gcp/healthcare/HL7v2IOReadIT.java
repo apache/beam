@@ -27,10 +27,8 @@ import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.Collections;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -89,35 +87,6 @@ public class HL7v2IOReadIT {
   }
 
   @Test
-  public void testHL7v2IORead() throws Exception {
-    // Should read all messages.
-    HL7v2IO.Read.Result result =
-        pipeline
-            .apply(
-                new ListHL7v2MessageIDs(
-                    Collections.singletonList(
-                        healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)))
-            .apply(HL7v2IO.getAll());
-    PCollection<Long> numReadMessages =
-        result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
-    PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
-    PAssert.that(result.getFailedReads()).empty();
-
-    PAssert.that(result.getMessages())
-        .satisfies(
-            input -> {
-              for (HL7v2Message elem : input) {
-                assertFalse(elem.getName().isEmpty());
-                assertFalse(elem.getData().isEmpty());
-                assertFalse(elem.getMessageType().isEmpty());
-              }
-              return null;
-            });
-
-    pipeline.run();
-  }
-
-  @Test
   public void testHL7v2IO_ListHL7v2Messages() throws Exception {
     // Should read all messages.
     Pipeline pipeline = Pipeline.create();
@@ -163,35 +132,6 @@ public class HL7v2IOReadIT {
               return null;
             });
 
-    pipeline.run();
-  }
-
-  @Test
-  public void testHL7v2IORead_filtered() throws Exception {
-    final String adtFilter = "messageType = \"ADT\"";
-    // Should read only messages matching the filter.
-    Pipeline pipeline = Pipeline.create();
-    HL7v2IO.Read.Result result =
-        pipeline
-            .apply(
-                new ListHL7v2MessageIDs(
-                    Collections.singletonList(
-                        healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME),
-                    adtFilter))
-            .apply(HL7v2IO.getAll());
-    PCollection<Long> numReadMessages =
-        result.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
-    PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
-    PAssert.that(result.getFailedReads()).empty();
-
-    PAssert.that(result.getMessages())
-        .satisfies(
-            input -> {
-              for (HL7v2Message elem : input) {
-                assertEquals("ADT", elem.getMessageType());
-              }
-              return null;
-            });
     pipeline.run();
   }
 }

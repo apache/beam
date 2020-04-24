@@ -21,20 +21,21 @@ import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_D
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.writeHL7v2Messages;
-import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Collections;
-import java.util.stream.Stream;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -115,11 +116,14 @@ public class HL7v2IOReadWriteIT {
 
     pipeline.run().waitUntilFinish();
 
-    long numWrittenMessages = 0;
-    for (Stream<HL7v2Message> page:
-        new HttpHealthcareApiClient.HL7v2MessagePages(client, healthcareDataset + "/hl7V2Stores/" + OUTPUT_HL7V2_STORE_NAME)){
-      numWrittenMessages += page.count();
+    try {
+      HL7v2IOTestUtil.waitForHL7v2Indexing(
+          client,
+          healthcareDataset + "/hl7V2Stores/" + OUTPUT_HL7V2_STORE_NAME,
+          MESSAGES.size(),
+          Duration.standardMinutes(10));
+    } catch (TimeoutException e) {
+      Assert.fail(e.getMessage());
     }
-    assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }

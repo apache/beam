@@ -20,18 +20,19 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
-import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.stream.Stream;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -86,11 +87,15 @@ public class HL7v2IOWriteIT {
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages = 0;
-    for (Stream<HL7v2Message> page:
-        new HttpHealthcareApiClient.HL7v2MessagePages(client, healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)){
-      numWrittenMessages += page.count();
+
+    try {
+      HL7v2IOTestUtil.waitForHL7v2Indexing(
+          client,
+          healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME,
+          MESSAGES.size(),
+          Duration.standardMinutes(10));
+    } catch (TimeoutException e) {
+      Assert.fail(e.getMessage());
     }
-    assertEquals(MESSAGES.size(), numWrittenMessages);
   }
 }

@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -40,13 +39,9 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -448,18 +443,20 @@ public class HL7v2IO {
       return input
           .apply(Create.of(this.hl7v2Stores))
           .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
+          .setCoder(new HL7v2MessageCoder())
           // Listing takes a long time for each input element (HL7v2 store) because it has to
           // paginate through results in a single thread / ProcessElement call in order to keep
           // track of page token.
           // Eagerly emit data on 1 second intervals so downstream processing can get started before
           // all of the list results have been paginated through.
-          .apply(Window.<HL7v2Message>into(new GlobalWindows())
-              .triggering(
-                 AfterWatermark.pastEndOfWindow()
-                  .withEarlyFirings(
-                    AfterProcessingTime.pastFirstElementInPane()
-                        .plusDelayOf(Duration.standardSeconds(1))))
-              .discardingFiredPanes()).setCoder(new HL7v2MessageCoder())
+          .apply(
+              Window.<HL7v2Message>into(new GlobalWindows())
+                  .triggering(
+                      AfterWatermark.pastEndOfWindow()
+                          .withEarlyFirings(
+                              AfterProcessingTime.pastFirstElementInPane()
+                                  .plusDelayOf(Duration.standardSeconds(1))))
+                  .discardingFiredPanes())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
     }
@@ -472,7 +469,7 @@ public class HL7v2IO {
     private Distribution messageListingLatencyMs =
         Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-pagination-latency-ms");
     /**
-     * Instantiates a new List HL7v2 fn.l
+     * Instantiates a new List HL7v2 fn.
      *
      * @param filter the filter
      */
@@ -510,7 +507,6 @@ public class HL7v2IO {
       }
     }
   }
-
 
   /** The type Write. */
   @AutoValue

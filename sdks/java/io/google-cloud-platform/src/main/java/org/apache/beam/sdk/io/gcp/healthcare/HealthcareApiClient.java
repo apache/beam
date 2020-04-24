@@ -26,7 +26,6 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /** Defines a client that talks to the Cloud Healthcare API. */
