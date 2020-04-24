@@ -165,6 +165,8 @@ else:
         #. cleanup=<True/False>. Whether to clean up the output directory.
            Should always be True in automated test environment. When debugging,
            turn it False to manually check the output for difference.
+        #. threshold=<float>. An image difference threshold, when the image
+           pixel distance is bigger than the value, the test will fail.
       """
       self._golden_dir = kwargs.pop(
           'golden_dir',
@@ -177,6 +179,7 @@ else:
       self._viewport_width, self._viewport_height = kwargs.pop(
         'golden_size', (1024, 10000))
       self._cleanup = kwargs.pop('cleanup', True)
+      self._threshold = kwargs.pop('threshold', 5000)
       self.baseline_directory = os.path.join(os.getcwd(), self._golden_dir)
       self.output_directory = os.path.join(
           os.getcwd(), self._test_notebook_dir, 'output')
@@ -216,7 +219,7 @@ else:
       for test_id, test_url in self._test_env.test_urls.items():
         self.driver.get(test_url)
         self.explicit_wait()
-        self.assertScreenshot('body', test_id)
+        self.assertScreenshot('body', test_id, self._threshold)
 
     def assert_single(self, test_id):
       """Asserts the screenshot for a single test. The given test id will be the
@@ -225,7 +228,7 @@ else:
       assert test_url, '{} is not a valid test id.'.format(test_id)
       self.driver.get(test_url)
       self.explicit_wait()
-      self.assertScreenshot('body', test_id)
+      self.assertScreenshot('body', test_id, self._threshold)
 
     def assert_notebook(self, notebook_name):
       """Asserts the screenshot for a single notebook. The notebook with the
