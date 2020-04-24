@@ -73,8 +73,8 @@ cdef class Operation(object):
   cpdef output(self, WindowedValue windowed_value, int output_index=*)
   cpdef execution_time_monitoring_infos(self, transform_id)
   cpdef user_monitoring_infos(self, transform_id)
-  cpdef pcollection_count_monitoring_infos(self, pcollection_ids)
-  cpdef monitoring_infos(self, transform_id, pcollection_ids)
+  cpdef pcollection_count_monitoring_infos(self, tag_to_pcollection_id)
+  cpdef monitoring_infos(self, transform_id, tag_to_pcollection_id)
 
 
 cdef class ReadOperation(Operation):
