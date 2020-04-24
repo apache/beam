@@ -360,7 +360,7 @@ class Operation(object):
 
     all_monitoring_infos = {}
     pcollection_id = next(iter(tag_to_pcollection_id.values()))
-    receiver = receivers[0]
+    receiver = self.receivers[0]
     elem_count_mi = monitoring_infos.int64_counter(
         monitoring_infos.ELEMENT_COUNT_URN,
         receiver.opcounter.element_counter.value(),
