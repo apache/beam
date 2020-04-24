@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import os
+import platform
 import threading
 import unittest
 from multiprocessing import Process
@@ -51,6 +52,10 @@ try:
       notebook_executor._interactive_integration_ready)
 except ImportError:
   _interactive_integration_ready = False
+
+# Web elements will be rendered differently on different platforms. List all
+# supported platforms with goldens here.
+_SUPPORTED_PLATFORMS = ['Darwin', 'Linux']
 
 
 class ScreenDiffIntegrationTestEnvironment(object):
@@ -127,6 +132,7 @@ class ScreenDiffIntegrationTestEnvironment(object):
 def should_skip():
   """Whether a screen diff test should be skipped."""
   return not (
+      platform.system() in _SUPPORTED_PLATFORMS and
       ie.current_env().is_py_version_ready and
       ie.current_env().is_interactive_ready and _interactive_integration_ready)
 
@@ -168,9 +174,10 @@ else:
         #. threshold=<float>. An image difference threshold, when the image
            pixel distance is bigger than the value, the test will fail.
       """
-      self._golden_dir = kwargs.pop(
+      golden_root = kwargs.pop(
           'golden_dir',
           'apache_beam/runners/interactive/testing/integration/goldens')
+      self._golden_dir = os.path.join(golden_root, platform.system())
       self._test_notebook_dir = kwargs.pop(
           'test_notebook_dir',
           'apache_beam/runners/interactive/testing/integration/test_notebooks')
