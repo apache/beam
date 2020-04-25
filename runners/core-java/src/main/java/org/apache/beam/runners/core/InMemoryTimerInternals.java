@@ -66,6 +66,13 @@ public class InMemoryTimerInternals implements TimerInternals {
     return outputWatermarkTime;
   }
 
+  /** Returns true when there are still timers to be fired. */
+  public boolean hasPendingTimers() {
+    return !(watermarkTimers.isEmpty()
+        && processingTimers.isEmpty()
+        && synchronizedProcessingTimers.isEmpty());
+  }
+
   /**
    * Returns when the next timer in the given time domain will fire, or {@code null} if there are no
    * timers scheduled in that time domain.
