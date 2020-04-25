@@ -30,7 +30,7 @@ files:
   - offset: 1024
     length: 123
     placeholder_text: TODO()
-- name: main/main.go
+- name: cmd/main.go
   visible: true
 - name: go.mod
   visible: false
