@@ -31,3 +31,5 @@ files:
   visible: true
 - name: go.mod
   visible: false
+- name: go.sum
+  visible: false
