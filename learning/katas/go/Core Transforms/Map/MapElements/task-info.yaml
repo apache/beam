@@ -23,6 +23,10 @@ files:
   visible: false
 - name: pkg/task/task.go
   visible: true
+  placeholders:
+  - offset: 937
+    length: 88
+    placeholder_text: TODO()
 - name: main/main.go
   visible: true
 - name: go.mod
