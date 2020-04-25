@@ -78,7 +78,7 @@ func main() {
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
 	}
-	log.Printf("Initializing AWESOME Go harness: %v", strings.Join(os.Args, " "))
+	log.Printf("Initializing Go harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
@@ -104,7 +104,7 @@ func main() {
 
 	switch len(artifacts) {
 	case 0:
-		log.Fatal("No artifacts staged")
+		log.Printf("No artifacts staged. Attempting to run default \"worker\".")
 	case 1:
 		name = artifacts[0].Name
 	default:
