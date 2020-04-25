@@ -23,7 +23,7 @@ import (
 	"testing"
 )
 
-func TestSum(t *testing.T) {
+func TestTask(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	tests := []struct {
 		input beam.PCollection
