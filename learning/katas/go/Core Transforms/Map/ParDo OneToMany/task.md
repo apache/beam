@@ -17,6 +17,11 @@
     under the License.
 -->
 
+# ParDo - One to Many
+
+In the previous kata we learned that ParDo maps a single element into another element.
+In this kata we will map a single element into many by splitting a sentence into words.
+
 **Kata:** Please write a ParDo that maps each input sentence into words tokenized by whitespace (" ").
 
 <div class="hint">
