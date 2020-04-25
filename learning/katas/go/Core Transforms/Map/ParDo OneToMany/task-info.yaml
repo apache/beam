@@ -21,7 +21,7 @@ type: edu
 files:
 - name: test/task_test.go
   visible: false
-- name: task.go
+- name: pkg/task/task.go
   visible: true
 - name: cmd/main.go
   visible: true

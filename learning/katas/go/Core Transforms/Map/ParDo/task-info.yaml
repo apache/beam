@@ -33,5 +33,3 @@ files:
   - offset: 937
     length: 101
     placeholder_text: TODO()
-- name: pkg/task/task_test.go
-  visible: true
