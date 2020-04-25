@@ -78,7 +78,7 @@ func main() {
 	if *controlEndpoint == "" {
 		log.Fatal("No control endpoint provided.")
 	}
-	log.Printf("Initializing Go harness: %v", strings.Join(os.Args, " "))
+	log.Printf("Initializing AWESOME Go harness: %v", strings.Join(os.Args, " "))
 
 	// (1) Obtain the pipeline options
 
