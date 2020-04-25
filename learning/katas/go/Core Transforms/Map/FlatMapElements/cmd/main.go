@@ -13,15 +13,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module flatmapelements
+package main
 
-go 1.13
-
-require (
-	github.com/apache/beam v2.20.0+incompatible
-	github.com/golang/protobuf v1.4.0 // indirect
-	github.com/googleapis/gax-go v2.0.2+incompatible // indirect
-	go.opencensus.io v0.22.3 // indirect
-	google.golang.org/api v0.22.0 // indirect
-	google.golang.org/grpc v1.29.1 // indirect
+import (
+	"context"
+	"flatmapelements/pkg/task"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
+
+func main() {
+	p, s := beam.NewPipelineWithRoot()
+
+	col := task.ApplyTransform(s, beam.Create(s, "Apache Beam", "Unified Batch and Streaming"))
+
+	debug.Print(s, col)
+
+	err := beamx.Run(context.Background(), p)
+
+	if err != nil {
+		log.Exitf(context.Background(), "Failed to execute job: %v", err)
+	}
+}

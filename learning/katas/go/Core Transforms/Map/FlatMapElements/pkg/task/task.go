@@ -15,7 +15,24 @@
 
 package task
 
-// todo: replace this with an actual task
-func Sum(a, b int) int {
-	return a + b
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"strings"
+)
+
+func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	processFn := &splitFn{
+		Separator: " ",
+	}
+	return beam.ParDo(s, processFn, input)
+}
+
+type splitFn struct {
+	Separator string
+}
+
+func (f *splitFn) ProcessElement(input string, emit func(string)) {
+	for _, k := range strings.Split(input, f.Separator) {
+		emit(k)
+	}
 }

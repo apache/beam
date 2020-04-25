@@ -16,29 +16,33 @@
 package test
 
 import (
-	task "flatmapelements"
+	"flatmapelements/pkg/task"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 	"testing"
 )
 
-//todo: replace this with an actual test
-func TestSum(t *testing.T) {
-	type args struct {
-		a int
-		b int
-	}
+func TestTask(t *testing.T) {
+	p, s := beam.NewPipelineWithRoot()
 	tests := []struct {
-		name string
-		args args
-		want int
+		input beam.PCollection
+		want []interface{}
 	}{
-		{"1", args{1, 1}, 2},
-		{"2", args{1, 2}, 3},
+		{
+			input: beam.Create(s, "Hello Beam", "It is awesome"),
+			want: []interface{}{"Hello", "Beam", "It", "is", "awesome"},
+		},
+		{
+			input: beam.Create(s, "Apache Beam", "Unified Batch and Streaming"),
+			want: []interface{}{"Apache", "Beam", "Unified", "Batch", "and", "Streaming"},
+		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := task.Sum(tt.args.a, tt.args.b); got != tt.want {
-				t.Errorf("Sum() = %v, want %v", got, tt.want)
-			}
-		})
+		got := task.ApplyTransform(s, tt.input)
+		passert.Equals(s, got, tt.want...)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("ApplyTransform(\"%v\") = %v", tt.input, err)
+		}
 	}
 }

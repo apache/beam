@@ -16,6 +16,8 @@
     specific language governing permissions and limitations
     under the License.
 -->
+In this kata, we continue the use of a DoFn struct to map a single element into multiple elements
+(one to many).
 
 **Kata:** Implement a function that maps each input sentence into words tokenized by whitespace (" ").
 
@@ -23,5 +25,7 @@
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">
   ParDo</a>
   with <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
-  DoFn</a>.
+  DoFn</a> as a struct with the ProcessElement method 
+  <a href="https://github.com/apache/beam/blob/master/sdks/go/examples/contains/contains.go#L66">
+  as in this example</a>.
 </div>
