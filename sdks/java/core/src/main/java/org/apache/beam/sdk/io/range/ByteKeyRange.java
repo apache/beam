@@ -331,7 +331,7 @@ public final class ByteKeyRange
       // bit when converting to bytes.
       verify(
           padding == -1,
-          "key %s: expected length %d with exactly one byte of padding, found %d",
+          "key %s: expected length %s with exactly one byte of padding, found %s",
           ByteKey.copyFrom(array),
           size,
           -padding);
