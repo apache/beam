@@ -24,10 +24,15 @@ files:
 - name: pkg/task/task.go
   visible: true
   placeholders:
-  - offset: 937
-    length: 88
+  - offset: 950
+    length: 30
+    placeholder_text: TODO()
+  - offset: 1024
+    length: 123
     placeholder_text: TODO()
 - name: main/main.go
   visible: true
 - name: go.mod
+  visible: false
+- name: go.sum
   visible: false

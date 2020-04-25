@@ -16,12 +16,19 @@
     specific language governing permissions and limitations
     under the License.
 -->
+# Mapping Elements using structs
 
-**Kata:** Implement a simple map function that multiplies all input elements by 5.
+In previous katas, we mapped elements using a `func` as a DoFn.  In this example, we will explore
+the use of a `struct` as a DoFn.
+
+**Kata:** Implement a simple map function that multiplies all input elements by 5.  Use a `struct` as your DoFn with
+a `ProcessElement` method.
 
 <div class="hint">
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">
   ParDo</a>
   with <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
-  DoFn</a>.
+  DoFn</a> as a struct with the ProcessElement method 
+  <a href="https://github.com/apache/beam/blob/master/sdks/go/examples/contains/contains.go#L66">
+  as in this example</a>.
 </div>

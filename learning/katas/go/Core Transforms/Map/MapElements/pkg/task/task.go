@@ -18,8 +18,16 @@ package task
 import "github.com/apache/beam/sdks/go/pkg/beam"
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	processFn := func(v int) int {
-		return v * 5
+	processFn := &multiplyByFn{
+		Factor: 5,
 	}
 	return beam.ParDo(s, processFn, input)
+}
+
+type multiplyByFn struct {
+	Factor int
+}
+
+func (f *multiplyByFn) ProcessElement(input int) int {
+	return f.Factor * input
 }
