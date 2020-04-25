@@ -102,9 +102,8 @@ case $key in
 esac
 done
 
-if [[ "$RUNNER" != "universal" ]]; then
-  PUSH_CONTAINER_TO_GCR='yes'
-else
+PUSH_CONTAINER_TO_GCR='yes'
+if [ "$RUNNER" = "universal" ]; then
   PUSH_CONTAINER_TO_GCR=''
 fi
 
@@ -118,7 +117,7 @@ test -d sdks/go/test
 command -v docker
 docker -v
 
-if [[ PUSH_CONTAINER_TO_GCR == 'yes' ]]; then
+if [ "$PUSH_CONTAINER_TO_GCR" = "yes" ]; then
   command -v gcloud
   gcloud --version
 
@@ -148,7 +147,7 @@ if [[ PUSH_CONTAINER_TO_GCR == 'yes' ]]; then
 
   # Push the container
   gcloud docker -- push $CONTAINER
-else
+else 
   TAG=dev
   ./gradlew :sdks:go:container:docker -Pdocker-tag=$TAG
   CONTAINER=apache/beam_go_sdk
@@ -216,7 +215,7 @@ if [[ ! -z "$JOB_PORT" ]]; then
   kill %1 || echo "Failed to shut down job server"
 fi
 
-if [[ PUSH_CONTAINER_TO_GCR == 'yes' ]]; then
+if [ "$PUSH_CONTAINER_TO_GCR" = 'yes' ]; then
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
