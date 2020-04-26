@@ -33,6 +33,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -108,7 +109,7 @@ public final class PipelineTranslatorUtils {
    */
   public static void fireEligibleTimers(
       InMemoryTimerInternals timerInternals,
-      BiConsumer<String, WindowedValue> timerConsumer,
+      BiConsumer<KV<String, String>, Timer<?>> timerConsumer,
       Object currentTimerKey) {
 
     boolean hasFired;
@@ -133,19 +134,22 @@ public final class PipelineTranslatorUtils {
 
   private static void fireTimer(
       TimerInternals.TimerData timer,
-      BiConsumer<String, WindowedValue> timerConsumer,
+      BiConsumer<KV<String, String>, Timer<?>> timerConsumer,
       Object currentTimerKey) {
     StateNamespace namespace = timer.getNamespace();
     Preconditions.checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     Instant timestamp = timer.getTimestamp();
     Instant outputTimestamp = timer.getOutputTimestamp();
-    WindowedValue<KV<Object, Timer>> timerValue =
-        WindowedValue.of(
-            KV.of(currentTimerKey, Timer.of(timestamp, new byte[0])),
+    Timer<?> timerValue =
+        Timer.of(
+            currentTimerKey,
+            "",
+            Collections.singletonList(window),
+            timestamp,
             outputTimestamp,
-            Collections.singleton(window),
             PaneInfo.NO_FIRING);
-    timerConsumer.accept(timer.getTimerId(), timerValue);
+    timerConsumer.accept(
+        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerId()), timerValue);
   }
 }

@@ -152,7 +152,7 @@ __NOTE__: When generating the key, please make sure you choose the key type as _
 
 #### Access to Apache Nexus repository
 
-Configure access to the [Apache Nexus repository](http://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
+Configure access to the [Apache Nexus repository](https://repository.apache.org/), which enables final deployment of releases to the Maven Central Repository.
 
 1. You log in with your Apache account.
 1. Confirm you have appropriate access by finding `org.apache.beam` under `Staging Profiles`.
@@ -182,7 +182,7 @@ In order to make yourself have right permission to stage java artifacts in Apach
 please submit your GPG public key into [MIT PGP Public Key Server](http://pgp.mit.edu:11371/).
 
 If MIT doesn't work for you (it probably won't, it's slow, returns 502 a lot, Nexus might error out not being able to find the keys),
-use a keyserver at `ubuntu.com` instead: http://keyserver.ubuntu.com/.
+use a keyserver at `ubuntu.com` instead: https://keyserver.ubuntu.com/.
 
 #### Website development setup
 
@@ -218,7 +218,7 @@ docker login docker.io
 After successful login, authorization info will be stored at ~/.docker/config.json file. For example,
 ```
 "https://index.docker.io/v1/": {
-   "auth": "aGFubmFoamlhbmc6cmtkdGpmZ2hrMTIxMw=="
+   "auth": "xxxxxx"
 }
 ```
 Release managers should have push permission; please ask for help at dev@.
@@ -586,7 +586,7 @@ For this step, we recommend you using automation script to create a RC, but you 
   1. Run gradle publish to push java artifacts into Maven staging repo.
   1. Stage source release into dist.apache.org dev [repo](https://dist.apache.org/repos/dist/dev/beam/).
   1. Stage,sign and hash python binaries into dist.apache.ord dev repo python dir
-  1. Stage SDK docker images to [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam).
+  1. Stage SDK docker images to [docker hub Apache organization](https://hub.docker.com/search?q=apache%2Fbeam&type=image).
   1. Create a PR to update beam and beam-site, changes includes:
      * Copy python doc into beam-site
      * Copy java doc into beam-site
@@ -692,47 +692,47 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
-   docker push apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM} &
+   docker push apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM} &
 done
 ``` 
 
 * Build Java images and push to DockerHub.
 
 ```
-./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-```
-
-* Build Go images and push to DockerHub.
-
-```
-./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
 * Build Flink job server images and push to DockerHub.
 
 ```
-FLINK_VER=("1.7" "1.8" "1.9")
+FLINK_VER=("1.8" "1.9" "1.10")
 for ver in "${FLINK_VER[@]}"; do
   ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 done
+```
+
+* Build Spark job server image and push to DockerHub.
+
+```
+./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 ```
 
 Clean up images from local
 
 ```
 for ver in "${PYTHON_VER[@]}"; do
-   docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc{RC_NUM}
+   docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
 done
-docker rmi -f apachebeam/java_sdk:${RELEASE}_rc{RC_NUM}
-docker rmi -f apachebeam/go_sdk:${RELEASE}_rc{RC_NUM}
+docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
 for ver in "${FLINK_VER[@]}"; do
-   docker rmi -f "apachebeam/flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+   docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
+docker rmi -f "apache/beam_spark_job_server:${RELEASE}_rc${RC_NUM}"
 
 ```
 
 How to find images:
-1. Visit [https://hub.docker.com/u/apachebeam](https://hub.docker.com/u/apachebeam)
+1. Visit [https://hub.docker.com/u/apache](https://hub.docker.com/search?q=apache%2Fbeam&type=image)
 2. Visit each repository and navigate to *tags* tab.
 3. Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}
 
@@ -825,6 +825,9 @@ This pull request is against the `apache/beam` repo, on the `master` branch.
 
 Write a blog post similar to https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html
 
+- Update `CHANGES.md` by adding a new section for the next release.
+- Copy the changes for the current release from `CHANGES.md` to the blog post and edit as necessary.
+
 __Tip__: Use git log to find contributors to the releases. (e.g: `git log --pretty='%aN' ^v2.10.0 v2.11.0 | sort | uniq`).
 Make sure to clean it up, as there may be duplicate or incorrect user names.
 
@@ -857,7 +860,7 @@ Template:
     ### Breaking Changes
 
     * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
     ### Deprecations
 
@@ -888,7 +891,7 @@ Template:
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
 1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
-1. Docker images are published to [DockerHub](https://hub.docker.com/u/apachebeam) with tags: {RELEASE}_rc{RC_NUM}.
+1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
 1. Check that Python zip file contains the `README.md`, `NOTICE`, and `LICENSE` files.
@@ -899,7 +902,7 @@ You can (optionally) also do additional verification by:
 1. Pull docker images to make sure they are pullable.
 ```
 docker pull {image_name}
-docker pull apachebeam/python3.5_sdk:2.16.0_rc1
+docker pull apache/beam_python3.5_sdk:2.16.0_rc1
 ```
 
 
@@ -947,7 +950,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     [7] https://github.com/apache/beam-site/pull/...
     [8] https://github.com/apache/beam/pull/...
     [9] https://docs.google.com/spreadsheets/d/1qk-N5vjXvbcEk68GjbkSZTR8AGqyNUM-oLFo_ZXBpJw/edit#gid=...
-    [10] https://hub.docker.com/u/apachebeam
+    [10] https://hub.docker.com/search?q=apache%2Fbeam&type=image
     
 If there are any issues found in the release candidate, reply on the vote thread to cancel the vote. There’s no need to wait 72 hours. Proceed to the `Fix Issues` step below and address the problem. However, some issues don’t require cancellation. For example, if an issue is found in the website pull request, just correct it on the spot and the vote can continue as-is.
 
@@ -982,7 +985,7 @@ Since there are a bunch of tests, we recommend you running validations using aut
      [script.config](https://github.com/apache/beam/blob/master/release/src/main/scripts/script.config)
   1. Then run
       ```
-      cd beam/release/src/main/scripts && ./run_rc_validation.sh
+      ./beam/release/src/main/scripts/run_rc_validation.sh
       ```
 
 * Tasks included
@@ -1019,12 +1022,12 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Apex Local Runner
   ```
   ./gradlew :runners:apex:runQuickstartJavaApex \
-  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam${KEY} \
+  -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
   Flink Local Runner
   ```
-  ./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
   -Prepourl=https://repository.apache.org/content/repositories/orgapachebeam-${KEY} \
   -Pver=${RELEASE_VERSION}
   ```
@@ -1047,7 +1050,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   Pre-request
   * Create your own BigQuery dataset
     ```
-    bq mk --project=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
+    bq mk --project_id=${YOUR_GCP_PROJECT} ${YOUR_DATASET}
     ```
   * Create yout PubSub topic 
     ```
@@ -1113,7 +1116,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     
     ```
     bq rm -rf --project=${YOUR_PROJECT} ${USER}_test
-    bq mk --project=${YOUR_PROJECT} ${USER}_test
+    bq mk --project_id=${YOUR_PROJECT} ${USER}_test
     gsutil rm -rf ${YOUR_GS_STORAGE]
     gsutil mb -p ${YOUR_PROJECT} ${YOUR_GS_STORAGE}
     gcloud alpha pubsub topics create --project=${YOUR_PROJECT} ${YOUR_PUBSUB_TOPIC}
@@ -1175,6 +1178,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     ```
     python -m apache_beam.examples.complete.game.leader_board \ 
     --project=${YOUR_PROJECT} \ 
+    --region=${GCE_REGION} \
     --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
     --dataset ${USER}_test \ 
     --runner DataflowRunner \ 
@@ -1204,6 +1208,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
     ```
     python -m apache_beam.examples.complete.game.game_stats \ 
     --project=${YOUR_PROJECT} \ 
+    --region=${GCE_REGION} \
     --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
     --dataset ${USER}_test \ 
     --runner DataflowRunner \ 
@@ -1273,7 +1278,7 @@ Make sure the download address for last release version is upldaed, [example PR]
 ./beam/release/src/main/scripts/publish_docker_images.sh
 ```
 Verify that:
-* Images are published at [DockerHub](https://hub.docker.com/u/apachebeam) with tags {RELEASE} and *latest*.
+* Images are published at [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags {RELEASE} and *latest*.
 * Images with *latest* tag are pointing to current release by confirming 
   1. Digest of the image with *latest* tag is the same as the one with {RELEASE} tag.
 

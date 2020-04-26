@@ -34,7 +34,6 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.Pipel
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -66,7 +65,6 @@ import org.slf4j.LoggerFactory;
  * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
  * }
  */
-@Experimental(value = Experimental.Kind.WITH_EXCEPTIONS)
 public final class SparkStructuredStreamingRunner
     extends PipelineRunner<SparkStructuredStreamingPipelineResult> {
 
@@ -109,7 +107,8 @@ public final class SparkStructuredStreamingRunner
     SparkStructuredStreamingPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null) {
+    if (sparkOptions.getFilesToStage() == null
+        && !PipelineTranslator.isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
           detectClassPathResourcesToStage(
               SparkStructuredStreamingRunner.class.getClassLoader(), options));

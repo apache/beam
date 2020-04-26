@@ -60,7 +60,7 @@ func TestParDo(t *testing.T) {
 	cN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
 	dN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
 
-	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil)
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN, aN, bN, cN, dN}, nil, nil)
 	if err != nil {
 		t.Fatalf("invalid pardo: %v", err)
 	}
@@ -113,7 +113,7 @@ func BenchmarkParDo_EmitSumFn(b *testing.B) {
 
 	g := graph.New()
 	nN := g.NewNode(typex.New(reflectx.Int), window.DefaultWindowingStrategy(), true)
-	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil)
+	edge, err := graph.NewParDo(g, g.Root(), fn, []*graph.Node{nN}, nil, nil)
 	if err != nil {
 		b.Fatalf("invalid pardo: %v", err)
 	}

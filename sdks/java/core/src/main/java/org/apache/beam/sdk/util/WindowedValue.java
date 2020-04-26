@@ -34,6 +34,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -54,6 +55,7 @@ import org.joda.time.Instant;
  *
  * @param <T> the type of the value
  */
+@Internal
 public abstract class WindowedValue<T> {
 
   /** Returns a {@code WindowedValue} with the given value, timestamp, and windows. */

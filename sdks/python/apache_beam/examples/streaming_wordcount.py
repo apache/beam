@@ -39,18 +39,22 @@ def run(argv=None, save_main_session=True):
   """Build and run the pipeline."""
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '--output_topic', required=True,
-      help=('Output PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
+      '--output_topic',
+      required=True,
+      help=(
+          'Output PubSub topic of the form '
+          '"projects/<PROJECT>/topics/<TOPIC>".'))
   group = parser.add_mutually_exclusive_group(required=True)
   group.add_argument(
       '--input_topic',
-      help=('Input PubSub topic of the form '
-            '"projects/<PROJECT>/topics/<TOPIC>".'))
+      help=(
+          'Input PubSub topic of the form '
+          '"projects/<PROJECT>/topics/<TOPIC>".'))
   group.add_argument(
       '--input_subscription',
-      help=('Input PubSub subscription of the form '
-            '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
+      help=(
+          'Input PubSub subscription of the form '
+          '"projects/<PROJECT>/subscriptions/<SUBSCRIPTION>."'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   # We use the save_main_session option because one or more DoFn's in this
@@ -62,14 +66,15 @@ def run(argv=None, save_main_session=True):
 
     # Read from PubSub into a PCollection.
     if known_args.input_subscription:
-      messages = (p
-                  | beam.io.ReadFromPubSub(
-                      subscription=known_args.input_subscription)
-                  .with_output_types(bytes))
+      messages = (
+          p
+          | beam.io.ReadFromPubSub(subscription=known_args.input_subscription).
+          with_output_types(bytes))
     else:
-      messages = (p
-                  | beam.io.ReadFromPubSub(topic=known_args.input_topic)
-                  .with_output_types(bytes))
+      messages = (
+          p
+          | beam.io.ReadFromPubSub(
+              topic=known_args.input_topic).with_output_types(bytes))
 
     lines = messages | 'decode' >> beam.Map(lambda x: x.decode('utf-8'))
 
@@ -78,28 +83,29 @@ def run(argv=None, save_main_session=True):
       (word, ones) = word_ones
       return (word, sum(ones))
 
-    counts = (lines
-              | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                            .with_output_types(unicode))
-              | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-              | beam.WindowInto(window.FixedWindows(15, 0))
-              | 'group' >> beam.GroupByKey()
-              | 'count' >> beam.Map(count_ones))
+    counts = (
+        lines
+        | 'split' >>
+        (beam.ParDo(WordExtractingDoFn()).with_output_types(unicode))
+        | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+        | beam.WindowInto(window.FixedWindows(15, 0))
+        | 'group' >> beam.GroupByKey()
+        | 'count' >> beam.Map(count_ones))
 
     # Format the counts into a PCollection of strings.
     def format_result(word_count):
       (word, count) = word_count
       return '%s: %d' % (word, count)
 
-    output = (counts
-              | 'format' >> beam.Map(format_result)
-              | 'encode' >> beam.Map(lambda x: x.encode('utf-8'))
-              .with_output_types(bytes))
+    output = (
+        counts
+        | 'format' >> beam.Map(format_result)
+        | 'encode' >>
+        beam.Map(lambda x: x.encode('utf-8')).with_output_types(bytes))
 
     # Write to PubSub.
     # pylint: disable=expression-not-assigned
     output | beam.io.WriteToPubSub(known_args.output_topic)
-
 
 
 if __name__ == '__main__':

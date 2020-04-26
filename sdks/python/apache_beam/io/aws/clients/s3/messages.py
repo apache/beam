@@ -24,7 +24,6 @@ class GetRequest():
   """
   S3 request object for `Get` command
   """
-
   def __init__(self, bucket, object):
     self.bucket = bucket
     self.object = object
@@ -34,7 +33,6 @@ class UploadResponse():
   """
   S3 response object for `StartUpload` command
   """
-
   def __init__(self, upload_id):
     self.upload_id = upload_id
 
@@ -43,7 +41,6 @@ class UploadRequest():
   """
   S3 request object for `StartUpload` command
   """
-
   def __init__(self, bucket, object, mime_type):
     self.bucket = bucket
     self.object = object
@@ -54,7 +51,6 @@ class UploadPartRequest():
   """
   S3 request object for `UploadPart` command
   """
-
   def __init__(self, bucket, object, upload_id, part_number, bytes):
     self.bucket = bucket
     self.object = object
@@ -68,7 +64,6 @@ class UploadPartResponse():
   """
   S3 response object for `UploadPart` command
   """
-
   def __init__(self, etag, part_number):
     self.etag = etag
     self.part_number = part_number
@@ -78,7 +73,6 @@ class CompleteMultipartUploadRequest():
   """
   S3 request object for `UploadPart` command
   """
-
   def __init__(self, bucket, object, upload_id, parts):
     # parts is a list of objects of the form
     # {'ETag': response.etag, 'PartNumber': response.part_number}
@@ -93,7 +87,6 @@ class ListRequest():
   """
   S3 request object for `List` command
   """
-
   def __init__(self, bucket, prefix, continuation_token=None):
     self.bucket = bucket
     self.prefix = prefix
@@ -104,7 +97,6 @@ class ListResponse():
   """
   S3 response object for `List` command
   """
-
   def __init__(self, items, next_token=None):
     self.items = items
     self.next_token = next_token
@@ -114,7 +106,6 @@ class Item():
   """
   An item in S3
   """
-
   def __init__(self, etag, key, last_modified, size, mime_type=None):
     self.etag = etag
     self.key = key
@@ -127,14 +118,12 @@ class DeleteRequest():
   """
   S3 request object for `Delete` command
   """
-
   def __init__(self, bucket, object):
     self.bucket = bucket
     self.object = object
 
 
 class DeleteBatchRequest():
-
   def __init__(self, bucket, objects):
     # `objects` is a list of strings corresponding to the keys to be deleted
     # in the bucket
@@ -143,7 +132,6 @@ class DeleteBatchRequest():
 
 
 class DeleteBatchResponse():
-
   def __init__(self, deleted, failed, errors):
     # `deleted` is a list of strings corresponding to the keys that were deleted
     # `failed` is a list of strings corresponding to the keys that caused errors
@@ -154,7 +142,6 @@ class DeleteBatchResponse():
 
 
 class CopyRequest():
-
   def __init__(self, src_bucket, src_key, dest_bucket, dest_key):
     self.src_bucket = src_bucket
     self.src_key = src_key
@@ -163,7 +150,6 @@ class CopyRequest():
 
 
 class S3ClientError(Exception):
-
-  def __init__(self, message = None, code = None):
+  def __init__(self, message=None, code=None):
     self.message = message
     self.code = code

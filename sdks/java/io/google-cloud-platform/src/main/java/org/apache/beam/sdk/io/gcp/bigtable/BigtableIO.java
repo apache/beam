@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -173,7 +174,7 @@ import org.slf4j.LoggerFactory;
  * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner
  * PipelineRunners} for more details.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class BigtableIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigtableIO.class);
 
@@ -206,7 +207,6 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<Row>> {
 
@@ -493,7 +493,6 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write
       extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
@@ -728,7 +727,6 @@ public class BigtableIO {
    *
    * @see BigtableIO
    */
-  @Experimental(Experimental.Kind.SOURCE_SINK)
   public static class WriteWithResults
       extends PTransform<
           PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<BigtableWriteResult>> {

@@ -19,29 +19,26 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.api.gax.rpc.FixedHeaderProvider;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
-import com.google.cloud.spanner.BatchClient;
-import com.google.cloud.spanner.DatabaseAdminClient;
-import com.google.cloud.spanner.DatabaseClient;
-import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.joda.time.Duration;
 
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
 public abstract class SpannerConfig implements Serializable {
-  // A common user agent token that indicates that this request was originated from Apache Beam.
-  private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
   // A default host name for batch traffic.
   private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
+  // Deadline for Commit API call.
+  private static final Duration DEFAULT_COMMIT_DEADLINE = Duration.standardSeconds(15);
+  // Total allowable backoff time.
+  private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardMinutes(15);
 
   @Nullable
   public abstract ValueProvider<String> getProjectId();
@@ -56,13 +53,24 @@ public abstract class SpannerConfig implements Serializable {
   public abstract ValueProvider<String> getHost();
 
   @Nullable
+  public abstract ValueProvider<Duration> getCommitDeadline();
+
+  @Nullable
+  public abstract ValueProvider<Duration> getMaxCumulativeBackoff();
+
+  @Nullable
   @VisibleForTesting
   abstract ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
-    return builder().setHost(ValueProvider.StaticValueProvider.of(DEFAULT_HOST)).build();
+    return builder()
+        .setHost(ValueProvider.StaticValueProvider.of(DEFAULT_HOST))
+        .setCommitDeadline(ValueProvider.StaticValueProvider.of(DEFAULT_COMMIT_DEADLINE))
+        .setMaxCumulativeBackoff(
+            ValueProvider.StaticValueProvider.of(DEFAULT_MAX_CUMULATIVE_BACKOFF))
+        .build();
   }
 
   static Builder builder() {
@@ -103,6 +111,10 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setHost(ValueProvider<String> host);
 
+    abstract Builder setCommitDeadline(ValueProvider<Duration> commitDeadline);
+
+    abstract Builder setMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff);
+
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
     public abstract SpannerConfig build();
@@ -136,33 +148,24 @@ public abstract class SpannerConfig implements Serializable {
     return toBuilder().setHost(host).build();
   }
 
+  public SpannerConfig withCommitDeadline(Duration commitDeadline) {
+    return withCommitDeadline(ValueProvider.StaticValueProvider.of(commitDeadline));
+  }
+
+  public SpannerConfig withCommitDeadline(ValueProvider<Duration> commitDeadline) {
+    return toBuilder().setCommitDeadline(commitDeadline).build();
+  }
+
+  public SpannerConfig withMaxCumulativeBackoff(Duration maxCumulativeBackoff) {
+    return withMaxCumulativeBackoff(ValueProvider.StaticValueProvider.of(maxCumulativeBackoff));
+  }
+
+  public SpannerConfig withMaxCumulativeBackoff(ValueProvider<Duration> maxCumulativeBackoff) {
+    return toBuilder().setMaxCumulativeBackoff(maxCumulativeBackoff).build();
+  }
+
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
-  }
-
-  public SpannerAccessor connectToSpanner() {
-    SpannerOptions.Builder builder = SpannerOptions.newBuilder();
-    if (getProjectId() != null) {
-      builder.setProjectId(getProjectId().get());
-    }
-    if (getServiceFactory() != null) {
-      builder.setServiceFactory(this.getServiceFactory());
-    }
-    if (getHost() != null) {
-      builder.setHost(getHost().get());
-    }
-    String userAgentString = USER_AGENT_PREFIX + "/" + ReleaseInfo.getReleaseInfo().getVersion();
-    builder.setHeaderProvider(FixedHeaderProvider.create("user-agent", userAgentString));
-    SpannerOptions options = builder.build();
-    Spanner spanner = options.getService();
-    DatabaseClient databaseClient =
-        spanner.getDatabaseClient(
-            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    BatchClient batchClient =
-        spanner.getBatchClient(
-            DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
-    DatabaseAdminClient databaseAdminClient = spanner.getDatabaseAdminClient();
-    return new SpannerAccessor(spanner, databaseClient, databaseAdminClient, batchClient);
   }
 }

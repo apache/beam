@@ -52,8 +52,10 @@ class CountingSourceTest(unittest.TestCase):
       splits = list(self.source.split(desired_bundle_size=size))
 
       reference_info = (self.source, None, None)
-      sources_info = ([(split.source, split.start_position, split.stop_position)
-                       for split in splits])
+      sources_info = ([
+          (split.source, split.start_position, split.stop_position)
+          for split in splits
+      ])
       source_test_utils.assert_sources_equal_reference_source(
           reference_info, sources_info)
 

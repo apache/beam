@@ -96,12 +96,15 @@ class ParDoBoundMultiTranslator<InT, OutT>
             .collect(
                 Collectors.toMap(e -> e.getKey(), e -> ((PCollection<?>) e.getValue()).getCoder()));
 
-    final DoFnSignature signature = DoFnSignatures.getSignature(transform.getFn().getClass());
-    final Coder<?> keyCoder =
-        signature.usesState() ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
+    boolean isStateful = DoFnSignatures.isStateful(transform.getFn());
+    final Coder<?> keyCoder = isStateful ? ((KvCoder<?, ?>) input.getCoder()).getKeyCoder() : null;
 
-    if (signature.processElement().isSplittable()) {
+    if (DoFnSignatures.isSplittable(transform.getFn())) {
       throw new UnsupportedOperationException("Splittable DoFn is not currently supported");
+    }
+    if (DoFnSignatures.requiresTimeSortedInput(transform.getFn())) {
+      throw new UnsupportedOperationException(
+          "@RequiresTimeSortedInput annotation is not currently supported");
     }
 
     final MessageStream<OpMessage<InT>> inputStream = ctx.getMessageStream(input);

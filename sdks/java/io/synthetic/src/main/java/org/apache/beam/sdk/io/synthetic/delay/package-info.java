@@ -16,4 +16,8 @@
  * limitations under the License.
  */
 /** Delay related classes. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.synthetic.delay;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Beam fn API log handler."""
 
 # pytype: skip-file
@@ -66,7 +67,8 @@ class FnApiLogRecordHandler(logging.Handler):
 
     self._alive = True
     self._dropped_logs = 0
-    self._log_entry_queue = queue.Queue(maxsize=self._QUEUE_SIZE)  # type: queue.Queue[beam_fn_api_pb2.LogEntry]
+    self._log_entry_queue = queue.Queue(
+        maxsize=self._QUEUE_SIZE)  # type: queue.Queue[beam_fn_api_pb2.LogEntry]
 
     ch = GRPCChannelFactory.insecure_channel(log_service_descriptor.url)
     # Make sure the channel is ready to avoid [BEAM-4649]
@@ -90,8 +92,8 @@ class FnApiLogRecordHandler(logging.Handler):
       return self.LOG_LEVEL_MAP[level]
     except KeyError:
       return max(
-          beam_level for python_level, beam_level in self.LOG_LEVEL_MAP.items()
-          if python_level <= level)
+          beam_level for python_level,
+          beam_level in self.LOG_LEVEL_MAP.items() if python_level <= level)
 
   def emit(self, record):
     # type: (logging.LogRecord) -> None
@@ -113,9 +115,8 @@ class FnApiLogRecordHandler(logging.Handler):
     tracker = statesampler.get_current_tracker()
     if tracker:
       current_state = tracker.current_state()
-      if (current_state
-          and current_state.name_context
-          and current_state.name_context.transform_id):
+      if (current_state and current_state.name_context and
+          current_state.name_context.transform_id):
         log_entry.transform_id = current_state.name_context.transform_id
 
     try:
@@ -170,8 +171,9 @@ class FnApiLogRecordHandler(logging.Handler):
       # Loop for reconnection.
       log_control_iterator = self.connect()
       if self._dropped_logs > 0:
-        logging.warning("Dropped %d logs while logging client disconnected",
-                        self._dropped_logs)
+        logging.warning(
+            "Dropped %d logs while logging client disconnected",
+            self._dropped_logs)
         self._dropped_logs = 0
       try:
         for _ in log_control_iterator:
@@ -181,8 +183,9 @@ class FnApiLogRecordHandler(logging.Handler):
         # iterator is closed
         return
       except Exception as ex:
-        print("Logging client failed: {}... resetting".format(ex),
-              file=sys.stderr)
+        print(
+            "Logging client failed: {}... resetting".format(ex),
+            file=sys.stderr)
         # Wait a bit before trying a reconnect
-        time.sleep(0.5) # 0.5 seconds
+        time.sleep(0.5)  # 0.5 seconds
       alive = self._alive

@@ -19,7 +19,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import itertools
 import logging
 import unittest
 
@@ -30,52 +29,40 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import local_job_service
+from apache_beam.runners.portability.portable_runner import JobServiceHandle
 
 
-def increment_iter(iter):
-  return itertools.chain([next(iter)], iter)
+class TestJobServicePlan(JobServiceHandle):
+  def __init__(self, job_service):
+    self.job_service = job_service
+    self.options = None
+    self.timeout = None
+
+  def get_pipeline_options(self):
+    return None
+
+  def stage(self, pipeline, artifact_staging_endpoint, staging_session_token):
+    channel = grpc.insecure_channel(artifact_staging_endpoint)
+    staging_stub = beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceStub(
+        channel)
+    manifest_response = staging_stub.CommitManifest(
+        beam_artifact_api_pb2.CommitManifestRequest(
+            staging_session_token=staging_session_token,
+            manifest=beam_artifact_api_pb2.Manifest()))
+    channel.close()
+    return manifest_response.retrieval_token
 
 
 class LocalJobServerTest(unittest.TestCase):
-
   def test_end_to_end(self):
 
     job_service = local_job_service.LocalJobServicer()
     job_service.start_grpc_server()
 
-    # this logic is taken roughly from PortableRunner.run_pipeline()
+    plan = TestJobServicePlan(job_service)
 
-    # Prepare the job.
-    prepare_response = job_service.Prepare(
-        beam_job_api_pb2.PrepareJobRequest(
-            job_name='job',
-            pipeline=beam_runner_api_pb2.Pipeline()))
-    channel = grpc.insecure_channel(
-        prepare_response.artifact_staging_endpoint.url)
-    retrieval_token = beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-        channel).CommitManifest(
-            beam_artifact_api_pb2.CommitManifestRequest(
-                staging_session_token=prepare_response.staging_session_token,
-                manifest=beam_artifact_api_pb2.Manifest())
-        ).retrieval_token
-    channel.close()
-
-    state_stream = job_service.GetStateStream(
-        beam_job_api_pb2.GetJobStateRequest(
-            job_id=prepare_response.preparation_id))
-    # If there's an error, we don't always get it until we try to read.
-    # Fortunately, there's always an immediate current state published.
-    # state_results.append(next(state_stream))
-    state_stream = increment_iter(state_stream)
-
-    message_stream = job_service.GetMessageStream(
-        beam_job_api_pb2.JobMessagesRequest(
-            job_id=prepare_response.preparation_id))
-
-    job_service.Run(
-        beam_job_api_pb2.RunJobRequest(
-            preparation_id=prepare_response.preparation_id,
-            retrieval_token=retrieval_token))
+    _, message_stream, state_stream = plan.submit(
+        beam_runner_api_pb2.Pipeline())
 
     state_results = list(state_stream)
     message_results = list(message_stream)
@@ -86,13 +73,10 @@ class LocalJobServerTest(unittest.TestCase):
         beam_job_api_pb2.JobState.RUNNING,
         beam_job_api_pb2.JobState.DONE,
     ]
-    self.assertEqual(
-        [s.state for s in state_results],
-        expected_states)
+    self.assertEqual([s.state for s in state_results], expected_states)
 
-    self.assertEqual(
-        [s.state_response.state for s in message_results],
-        expected_states)
+    self.assertEqual([s.state_response.state for s in message_results],
+                     expected_states)
 
 
 if __name__ == '__main__':

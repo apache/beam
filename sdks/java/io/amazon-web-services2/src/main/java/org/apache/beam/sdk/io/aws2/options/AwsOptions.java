@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.aws2.options;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
@@ -30,7 +31,7 @@ import software.amazon.awssdk.http.apache.ProxyConfiguration;
 /**
  * Options used to configure Amazon Web Services specific options such as credentials and region.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public interface AwsOptions extends PipelineOptions {
 
   /** AWS region used by the AWS client. */

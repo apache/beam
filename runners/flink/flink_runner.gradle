@@ -111,18 +111,21 @@ spotless {
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
-  //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
+  // Change log level to debug:
+  // systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
+  // Change log level to debug only for the package and nested packages:
+  // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.flink.translation.wrappers.streaming", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.path == ":runners:flink:1.8") {
-    mustRunAfter(":runners:flink:1.7:test")
-  } else if (project.path == ":runners:flink:1.9") {
-    mustRunAfter(":runners:flink:1.7:test")
+  if (project.path == ":runners:flink:1.9") {
     mustRunAfter(":runners:flink:1.8:test")
+  } else if (project.path == ":runners:flink:1.10") {
+    mustRunAfter(":runners:flink:1.8:test")
+    mustRunAfter(":runners:flink:1.9:test")
   }
 }
 
@@ -143,7 +146,6 @@ dependencies {
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.commons_compress
   compile library.java.args4j
   compile "org.apache.flink:flink-clients_2.11:$flink_version"
   compile "org.apache.flink:flink-core:$flink_version"
@@ -199,16 +201,18 @@ def createValidatesRunnerTask(Map m) {
     maxParallelForks 2
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
       excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       if (config.streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
@@ -226,7 +230,7 @@ tasks.register('validatesRunner') {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.9:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.10:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
 
 /**

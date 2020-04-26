@@ -34,8 +34,8 @@ class MultipleOutputParDo(unittest.TestCase):
 
   SAMPLE_TEXT = 'A whole new world\nA new fantastic point of view'
   EXPECTED_SHORT_WORDS = [('A', 2), ('new', 2), ('of', 1)]
-  EXPECTED_WORDS = [
-      ('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1), ('view', 1)]
+  EXPECTED_WORDS = [('whole', 1), ('world', 1), ('fantastic', 1), ('point', 1),
+                    ('view', 1)]
 
   def create_temp_file(self, contents):
     with tempfile.NamedTemporaryFile(delete=False) as f:
@@ -56,8 +56,7 @@ class MultipleOutputParDo(unittest.TestCase):
     result_prefix = temp_path + '.result'
 
     multiple_output_pardo.run(
-        ['--input=%s*' % temp_path,
-         '--output=%s' % result_prefix],
+        ['--input=%s*' % temp_path, '--output=%s' % result_prefix],
         save_main_session=False)
 
     expected_char_count = len(''.join(self.SAMPLE_TEXT.split('\n')))

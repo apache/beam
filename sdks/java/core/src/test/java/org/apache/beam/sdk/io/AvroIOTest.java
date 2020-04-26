@@ -30,6 +30,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -66,6 +67,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -1496,6 +1498,10 @@ public class AvroIOTest implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
     public void testPrimitiveReadDisplayData() {
+      // Read is no longer a primitive transform when using the portability framework.
+      assumeFalse(
+          ExperimentalOptions.hasExperiment(
+              DisplayDataEvaluator.getDefaultOptions(), "beam_fn_api"));
       DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
       AvroIO.Read<GenericRecord> read =

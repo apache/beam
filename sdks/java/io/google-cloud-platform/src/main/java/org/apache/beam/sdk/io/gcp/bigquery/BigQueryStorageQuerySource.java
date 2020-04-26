@@ -27,6 +27,7 @@ import java.io.ObjectInputStream;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.QueryPriority;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -35,7 +36,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /** A {@link org.apache.beam.sdk.io.Source} representing reading the results of a query. */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -45,6 +46,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       Boolean useLegacySql,
       QueryPriority priority,
       @Nullable String location,
+      @Nullable String queryTempDataset,
       @Nullable String kmsKey,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
@@ -56,6 +58,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
         useLegacySql,
         priority,
         location,
+        queryTempDataset,
         kmsKey,
         parseFn,
         outputCoder,
@@ -68,6 +71,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
   private final Boolean useLegacySql;
   private final QueryPriority priority;
   private final String location;
+  private final String queryTempDataset;
   private final String kmsKey;
 
   private transient AtomicReference<JobStatistics> dryRunJobStats;
@@ -79,6 +83,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
       Boolean useLegacySql,
       QueryPriority priority,
       @Nullable String location,
+      @Nullable String queryTempDataset,
       @Nullable String kmsKey,
       SerializableFunction<SchemaAndRecord, T> parseFn,
       Coder<T> outputCoder,
@@ -90,6 +95,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.priority = checkNotNull(priority, "priority");
     this.location = location;
+    this.queryTempDataset = queryTempDataset;
     this.kmsKey = kmsKey;
     this.dryRunJobStats = new AtomicReference<>();
   }
@@ -132,6 +138,7 @@ public class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> 
             useLegacySql,
             priority,
             location,
+            queryTempDataset,
             kmsKey);
     return bqServices.getDatasetService(options).getTable(queryResultTable);
   }

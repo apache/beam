@@ -23,6 +23,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -90,6 +92,7 @@ class BigQueryTableSourceDef implements BigQuerySourceDef {
   }
 
   /** {@inheritDoc} */
+  @Experimental(Kind.SCHEMAS)
   @Override
   public Schema getBeamSchema(BigQueryOptions bqOptions) {
     try {

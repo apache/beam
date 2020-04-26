@@ -26,7 +26,6 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
-import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -40,7 +39,6 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,7 +91,6 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   protected FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
-    Workarounds.restoreOriginalStdOutAndStdErrIfApplicable();
   }
 
   @Override
@@ -121,7 +118,13 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
-    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+    // The package of DetachedJobExecutionResult has been changed in 1.10.
+    // Refer to https://github.com/apache/flink/commit/c36b35e6876ecdc717dade653e8554f9d8b543c9 for
+    // more details.
+    String resultClassName = result.getClass().getCanonicalName();
+    if (resultClassName.equals(
+            "org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult")
+        || resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
       // no metricsPusher because metrics are not supported in detached mode
       return new FlinkDetachedRunnerResult();

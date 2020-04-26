@@ -18,8 +18,6 @@
 package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * A {@link MetricCell} is used for accumulating in-memory changes to a metric. It represents a
@@ -27,7 +25,6 @@ import org.apache.beam.sdk.annotations.Experimental.Kind;
  *
  * @param <DataT> The type of metric data stored (and extracted) from this cell.
  */
-@Experimental(Kind.METRICS)
 public interface MetricCell<DataT> extends Serializable {
   /**
    * Return the {@link DirtyState} tracking whether this metric cell contains uncommitted changes.

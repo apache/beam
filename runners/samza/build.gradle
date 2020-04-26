@@ -45,7 +45,6 @@ dependencies {
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.commons_compress
   compile library.java.commons_io
   compile library.java.args4j
   compile "org.apache.samza:samza-api:$samza_version"
@@ -87,6 +86,8 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 

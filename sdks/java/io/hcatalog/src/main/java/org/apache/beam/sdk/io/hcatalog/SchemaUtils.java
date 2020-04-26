@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.schemas.Schema.toSchema;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -28,6 +30,7 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.serde.serdeConstants;
 
 /** Utils to convert between HCatalog schema types and Beam schema types. */
+@Experimental(Kind.SCHEMAS)
 class SchemaUtils {
 
   private static final Map<String, FieldType> PRIMITIVE_SERDE_TYPES_MAP =

@@ -29,7 +29,7 @@ def runScriptsDir = "${rootDir}/sdks/python/scripts"
 addPortableWordCountTasks()
 
 task preCommitPy2() {
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn portableWordCountBatch
   dependsOn portableWordCountStreaming
@@ -37,7 +37,7 @@ task preCommitPy2() {
 
 task postCommitPy2() {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
   dependsOn portableWordCountFlinkRunnerBatch
   dependsOn portableWordCountFlinkRunnerStreaming
   dependsOn 'postCommitPy2IT'
@@ -56,12 +56,12 @@ task postCommitPy2() {
 // 2. Either a) or b)
 //  a) If you want the Job Server to run in a Docker container:
 //
-//    ./gradlew :runners:flink:1.9:job-server-container:docker
+//    ./gradlew :runners:flink:1.10:job-server-container:docker
 //
 //  b) Otherwise, start a local JobService, for example, the Portable Flink runner
 //    (in a separate shell since it continues to run):
 //
-//    ./gradlew :runners:flink:1.9:job-server:runShadow
+//    ./gradlew :runners:flink:1.10:job-server:runShadow
 //
 // Then you can run this example:
 //
@@ -91,14 +91,14 @@ task crossLanguagePythonJavaDirect {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_java ${options.join(' ')}"
     }
   }
 }
 
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -115,14 +115,14 @@ task crossLanguagePythonJavaFlink {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_java ${options.join(' ')}"
     }
   }
 }
 
 task crossLanguagePortableWordCount {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -151,7 +151,7 @@ task crossLanguagePortableWordCount {
 task postCommitPy2IT {
   dependsOn 'installGcpTest'
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server:shadowJar'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
 
   doLast {
     def tests = [

@@ -20,4 +20,8 @@
  *
  * @see org.apache.beam.sdk.io.gcp.bigtable.BigtableIO
  */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.gcp.bigtable;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

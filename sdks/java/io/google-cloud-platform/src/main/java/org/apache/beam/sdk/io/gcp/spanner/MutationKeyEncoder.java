@@ -32,19 +32,29 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerSchema.KeyPart;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.joda.time.MutableDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Given the Schema, Encodes the table name and Key into a lexicographically sortable {@code
  * byte[]}.
  */
 class MutationKeyEncoder {
-
+  private static final Logger LOG = LoggerFactory.getLogger(MutationKeyEncoder.class);
+  private static final int ROWS_PER_UNKNOWN_TABLE_LOG_MESSAGE = 10000;
   private static final DateTime MIN_DATE = new DateTime(1, 1, 1, 0, 0);
   private final SpannerSchema schema;
+
+  // Global single instance. Use Concurrent Map and AtomicInteger for thread-safety.
+  @VisibleForTesting
+  private static final Map<String, AtomicInteger> unknownTablesWarnings = new ConcurrentHashMap<>();
 
   public MutationKeyEncoder(SpannerSchema schema) {
     this.schema = schema;
@@ -58,12 +68,30 @@ class MutationKeyEncoder {
    */
   public byte[] encodeTableNameAndKey(Mutation m) {
     OrderedCode orderedCode = new OrderedCode();
-    orderedCode.writeBytes(m.getTable().getBytes(StandardCharsets.UTF_8));
+    String tableName = m.getTable().toLowerCase();
+
+    if (schema.getColumns(tableName).isEmpty()) {
+      // Log an warning for an unknown table.
+      if (!unknownTablesWarnings.containsKey(tableName)) {
+        unknownTablesWarnings.putIfAbsent(tableName, new AtomicInteger(0));
+      }
+      // Only log every 10000 rows per table, or there will be way too much logging...
+      int numWarnings = unknownTablesWarnings.get(tableName).incrementAndGet();
+      if (1 == (numWarnings % ROWS_PER_UNKNOWN_TABLE_LOG_MESSAGE)) {
+        System.err.printf(
+            "Performance issue: Mutation references an unknown table: %s. "
+                + "See SpannerIO documentation section 'Database Schema Preparation' "
+                + "(At least %,d occurrences)\n",
+            tableName, numWarnings);
+      }
+    }
+
+    orderedCode.writeBytes(tableName.getBytes(StandardCharsets.UTF_8));
 
     if (m.getOperation() == Op.DELETE) {
       if (isPointDelete(m)) {
-        Key next = m.getKeySet().getKeys().iterator().next();
-        encodeKey(orderedCode, m.getTable(), next);
+        Key key = m.getKeySet().getKeys().iterator().next();
+        encodeKey(orderedCode, tableName, key);
       } else {
         // The key is left empty for non-point deletes, since there is no general way to batch them.
       }
@@ -114,8 +142,8 @@ class MutationKeyEncoder {
     }
   }
 
-  private void encodeKey(OrderedCode orderedCode, String table, Key key) {
-    List<SpannerSchema.KeyPart> parts = schema.getKeyParts(table);
+  private void encodeKey(OrderedCode orderedCode, String tableName, Key key) {
+    List<SpannerSchema.KeyPart> parts = schema.getKeyParts(tableName);
     Iterator<Object> it = key.getParts().iterator();
     for (SpannerSchema.KeyPart part : parts) {
       Object value = it.next();
@@ -199,5 +227,11 @@ class MutationKeyEncoder {
     jodaDate.setDate(date.getYear(), date.getMonth(), date.getDayOfMonth());
 
     return Days.daysBetween(MIN_DATE, jodaDate).getDays();
+  }
+
+  // Give tests access to the Unknown Tables Warning count.
+  @VisibleForTesting
+  static Map<String, AtomicInteger> getUnknownTablesWarningsMap() {
+    return unknownTablesWarnings;
   }
 }

@@ -18,16 +18,14 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -37,13 +35,13 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -165,6 +163,41 @@ import org.slf4j.LoggerFactory;
  * <br>
  * 3. Start from <em>latest</em> offset by default;
  *
+ * <p>Seek to initial offset is a blocking operation in Kafka API, which can block forever for
+ * certain versions of Kafka client library. This is resolved by <a
+ * href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-266%3A+Fix+consumer+indefinite+blocking+behavior">KIP-266</a>
+ * which provides `default.api.timeout.ms` consumer config setting to control such timeouts.
+ * KafkaIO.read implements timeout itself, to not to block forever in case older Kafka client is
+ * used. It does recognize `default.api.timeout.ms` setting and will honor the timeout value if it
+ * is passes in consumer config.
+ *
+ * <h3>Use Avro schema with Confluent Schema Registry</h3>
+ *
+ * <p>If you want to deserialize the keys and/or values based on a schema available in Confluent
+ * Schema Registry, KafkaIO can fetch this schema from a specified Schema Registry URL and use it
+ * for deserialization. A {@link Coder} will be inferred automatically based on the respective
+ * {@link Deserializer}.
+ *
+ * <p>For an Avro schema it will return a {@link PCollection} of {@link KafkaRecord}s where key
+ * and/or value will be typed as {@link org.apache.avro.generic.GenericRecord}. In this case, users
+ * don't need to specify key or/and value deserializers and coders since they will be set to {@link
+ * KafkaAvroDeserializer} and {@link AvroCoder} by default accordingly.
+ *
+ * <p>For example, below topic values are serialized with Avro schema stored in Schema Registry,
+ * keys are typed as {@link Long}:
+ *
+ * <pre>{@code
+ * PCollection<KafkaRecord<Long, GenericRecord>> input = pipeline
+ *   .apply(KafkaIO.<Long, GenericRecord>read()
+ *      .withBootstrapServers("broker_1:9092,broker_2:9092")
+ *      .withTopic("my_topic")
+ *      .withKeyDeserializer(LongDeserializer.class)
+ *      // Use Confluent Schema Registry, specify schema registry URL and value subject
+ *      .withValueDeserializer(
+ *          ConfluentSchemaRegistryDeserializerProvider.of("http://localhost:8081", "my_topic-value"))
+ *    ...
+ * }</pre>
+ *
  * <h3>Writing to Kafka</h3>
  *
  * <p>KafkaIO sink supports writing key-value pairs to a Kafka topic. Users can also write just the
@@ -246,7 +279,7 @@ import org.slf4j.LoggerFactory;
  * Kafka cluster. Kafka client usually fails to initialize with a clear error message in case of
  * incompatibility.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class KafkaIO {
 
   /**
@@ -329,12 +362,6 @@ public class KafkaIO {
     @Nullable
     abstract Coder<V> getValueCoder();
 
-    @Nullable
-    abstract Class<? extends Deserializer<K>> getKeyDeserializer();
-
-    @Nullable
-    abstract Class<? extends Deserializer<V>> getValueDeserializer();
-
     abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         getConsumerFactoryFn();
 
@@ -356,9 +383,15 @@ public class KafkaIO {
     @Nullable
     abstract Map<String, Object> getOffsetConsumerConfig();
 
+    @Nullable
+    abstract DeserializerProvider getKeyDeserializerProvider();
+
+    @Nullable
+    abstract DeserializerProvider getValueDeserializerProvider();
+
     abstract Builder<K, V> toBuilder();
 
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PBegin, PCollection<KV<K, V>>> {
@@ -371,11 +404,6 @@ public class KafkaIO {
       abstract Builder<K, V> setKeyCoder(Coder<K> keyCoder);
 
       abstract Builder<K, V> setValueCoder(Coder<V> valueCoder);
-
-      abstract Builder<K, V> setKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer);
-
-      abstract Builder<K, V> setValueDeserializer(
-          Class<? extends Deserializer<V>> valueDeserializer);
 
       abstract Builder<K, V> setConsumerFactoryFn(
           SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn);
@@ -395,6 +423,11 @@ public class KafkaIO {
 
       abstract Builder<K, V> setOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig);
 
+      abstract Builder<K, V> setKeyDeserializerProvider(DeserializerProvider deserializerProvider);
+
+      abstract Builder<K, V> setValueDeserializerProvider(
+          DeserializerProvider deserializerProvider);
+
       abstract Read<K, V> build();
 
       @Override
@@ -407,11 +440,11 @@ public class KafkaIO {
         setTopics(listBuilder.build());
 
         Class keyDeserializer = resolveClass(config.keyDeserializer);
-        setKeyDeserializer(keyDeserializer);
+        setKeyDeserializerProvider(LocalDeserializerProvider.of(keyDeserializer));
         setKeyCoder(resolveCoder(keyDeserializer));
 
         Class valueDeserializer = resolveClass(config.valueDeserializer);
-        setValueDeserializer(valueDeserializer);
+        setValueDeserializerProvider(LocalDeserializerProvider.of(valueDeserializer));
         setValueCoder(resolveCoder(valueDeserializer));
 
         Map<String, Object> consumerConfig = new HashMap<>();
@@ -460,7 +493,7 @@ public class KafkaIO {
      * Exposes {@link KafkaIO.TypedWithoutMetadata} as an external transform for cross-language
      * usage.
      */
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -547,7 +580,7 @@ public class KafkaIO {
      * provide the key coder explicitly.
      */
     public Read<K, V> withKeyDeserializer(Class<? extends Deserializer<K>> keyDeserializer) {
-      return toBuilder().setKeyDeserializer(keyDeserializer).build();
+      return withKeyDeserializer(LocalDeserializerProvider.of(keyDeserializer));
     }
 
     /**
@@ -559,7 +592,11 @@ public class KafkaIO {
      */
     public Read<K, V> withKeyDeserializerAndCoder(
         Class<? extends Deserializer<K>> keyDeserializer, Coder<K> keyCoder) {
-      return toBuilder().setKeyDeserializer(keyDeserializer).setKeyCoder(keyCoder).build();
+      return withKeyDeserializer(keyDeserializer).toBuilder().setKeyCoder(keyCoder).build();
+    }
+
+    public Read<K, V> withKeyDeserializer(DeserializerProvider<K> deserializerProvider) {
+      return toBuilder().setKeyDeserializerProvider(deserializerProvider).build();
     }
 
     /**
@@ -571,7 +608,7 @@ public class KafkaIO {
      * Coder)} to provide the value coder explicitly.
      */
     public Read<K, V> withValueDeserializer(Class<? extends Deserializer<V>> valueDeserializer) {
-      return toBuilder().setValueDeserializer(valueDeserializer).build();
+      return withValueDeserializer(LocalDeserializerProvider.of(valueDeserializer));
     }
 
     /**
@@ -583,7 +620,11 @@ public class KafkaIO {
      */
     public Read<K, V> withValueDeserializerAndCoder(
         Class<? extends Deserializer<V>> valueDeserializer, Coder<V> valueCoder) {
-      return toBuilder().setValueDeserializer(valueDeserializer).setValueCoder(valueCoder).build();
+      return withValueDeserializer(valueDeserializer).toBuilder().setValueCoder(valueCoder).build();
+    }
+
+    public Read<K, V> withValueDeserializer(DeserializerProvider<V> deserializerProvider) {
+      return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
     }
 
     /**
@@ -825,10 +866,10 @@ public class KafkaIO {
       checkArgument(
           getTopics().size() > 0 || getTopicPartitions().size() > 0,
           "Either withTopic(), withTopics() or withTopicPartitions() is required");
-      checkArgument(getKeyDeserializer() != null, "withKeyDeserializer() is required");
-      checkArgument(getValueDeserializer() != null, "withValueDeserializer() is required");
-      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
+      checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
+      checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
 
+      ConsumerSpEL consumerSpEL = new ConsumerSpEL();
       if (!consumerSpEL.hasOffsetsForTimes()) {
         LOG.warn(
             "Kafka client version {} is too old. Versions before 0.10.1.0 are deprecated and "
@@ -860,21 +901,10 @@ public class KafkaIO {
       }
 
       // Infer key/value coders if not specified explicitly
-      CoderRegistry registry = input.getPipeline().getCoderRegistry();
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
 
-      Coder<K> keyCoder =
-          getKeyCoder() != null ? getKeyCoder() : inferCoder(registry, getKeyDeserializer());
-      checkArgument(
-          keyCoder != null,
-          "Key coder could not be inferred from key deserializer. Please provide"
-              + "key coder explicitly using withKeyDeserializerAndCoder()");
-
-      Coder<V> valueCoder =
-          getValueCoder() != null ? getValueCoder() : inferCoder(registry, getValueDeserializer());
-      checkArgument(
-          valueCoder != null,
-          "Value coder could not be inferred from value deserializer. Please provide"
-              + "value coder explicitly using withValueDeserializerAndCoder()");
+      Coder<K> keyCoder = getKeyCoder(coderRegistry);
+      Coder<V> valueCoder = getValueCoder(coderRegistry);
 
       // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
       Unbounded<KafkaRecord<K, V>> unbounded =
@@ -889,6 +919,18 @@ public class KafkaIO {
       }
 
       return input.getPipeline().apply(transform);
+    }
+
+    private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
+      return (getKeyCoder() != null)
+          ? getKeyCoder()
+          : getKeyDeserializerProvider().getCoder(coderRegistry);
+    }
+
+    private Coder<V> getValueCoder(CoderRegistry coderRegistry) {
+      return (getValueCoder() != null)
+          ? getValueCoder()
+          : getValueDeserializerProvider().getCoder(coderRegistry);
     }
 
     /**
@@ -1347,7 +1389,7 @@ public class KafkaIO {
 
     abstract Builder<K, V> toBuilder();
 
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoValue.Builder
     abstract static class Builder<K, V>
         implements ExternalTransformBuilder<External.Configuration, PCollection<KV<K, V>>, PDone> {
@@ -1382,7 +1424,7 @@ public class KafkaIO {
     }
 
     /** Exposes {@link KafkaIO.Write} as an external transform for cross-language usage. */
-    @Experimental
+    @Experimental(Kind.PORTABILITY)
     @AutoService(ExternalTransformRegistrar.class)
     public static class External implements ExternalTransformRegistrar {
 
@@ -1641,46 +1683,6 @@ public class KafkaIO {
     public T decode(InputStream inStream) {
       return null;
     }
-  }
-
-  /**
-   * Attempt to infer a {@link Coder} by extracting the type of the deserialized-class from the
-   * deserializer argument using the {@link Coder} registry.
-   */
-  @VisibleForTesting
-  static <T> NullableCoder<T> inferCoder(
-      CoderRegistry coderRegistry, Class<? extends Deserializer<T>> deserializer) {
-    checkNotNull(deserializer);
-
-    for (Type type : deserializer.getGenericInterfaces()) {
-      if (!(type instanceof ParameterizedType)) {
-        continue;
-      }
-
-      // This does not recurse: we will not infer from a class that extends
-      // a class that extends Deserializer<T>.
-      ParameterizedType parameterizedType = (ParameterizedType) type;
-
-      if (parameterizedType.getRawType() == Deserializer.class) {
-        Type parameter = parameterizedType.getActualTypeArguments()[0];
-
-        @SuppressWarnings("unchecked")
-        Class<T> clazz = (Class<T>) parameter;
-
-        try {
-          return NullableCoder.of(coderRegistry.getCoder(clazz));
-        } catch (CannotProvideCoderException e) {
-          throw new RuntimeException(
-              String.format(
-                  "Unable to automatically infer a Coder for "
-                      + "the Kafka Deserializer %s: no coder registered for type %s",
-                  deserializer, clazz));
-        }
-      }
-    }
-
-    throw new RuntimeException(
-        String.format("Could not extract the Kafka Deserializer type from %s", deserializer));
   }
 
   private static Class resolveClass(String className) {

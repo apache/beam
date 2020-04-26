@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.decodeInt64Distribution;
+
 import com.google.api.services.dataflow.model.CounterMetadata;
 import com.google.api.services.dataflow.model.CounterStructuredName;
 import com.google.api.services.dataflow.model.CounterStructuredNameAndMetadata;
@@ -25,9 +27,11 @@ import com.google.api.services.dataflow.model.DistributionUpdate;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.MetricsApi.IntDistributionData;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
@@ -56,9 +60,6 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
     this.specValidator = specMonitoringInfoValidator;
   }
 
-  static final String BEAM_METRICS_USER_DISTRIBUTION_URN =
-      MonitoringInfoConstants.Urns.USER_DISTRIBUTION_COUNTER;
-
   private Optional<String> validate(MonitoringInfo monitoringInfo) {
     Optional<String> validatorResult = specValidator.validate(monitoringInfo);
     if (validatorResult.isPresent()) {
@@ -66,11 +67,19 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
     }
 
     String urn = monitoringInfo.getUrn();
-    if (!urn.equals(BEAM_METRICS_USER_DISTRIBUTION_URN)) {
+    if (!urn.equals(Urns.USER_DISTRIBUTION_INT64)) {
       throw new RuntimeException(
           String.format(
               "Received unexpected counter urn. Expected urn: %s, received: %s",
-              BEAM_METRICS_USER_DISTRIBUTION_URN, urn));
+              Urns.USER_DISTRIBUTION_INT64, urn));
+    }
+
+    String type = monitoringInfo.getType();
+    if (!type.equals(TypeUrns.DISTRIBUTION_INT64_TYPE)) {
+      throw new RuntimeException(
+          String.format(
+              "Received unexpected counter type. Expected type: %s, received: %s",
+              TypeUrns.DISTRIBUTION_INT64_TYPE, type));
     }
 
     final String ptransform =
@@ -98,9 +107,7 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
       return null;
     }
 
-    IntDistributionData value =
-        monitoringInfo.getMetric().getDistributionData().getIntDistributionData();
-
+    DistributionData data = decodeInt64Distribution(monitoringInfo.getPayload());
     Map<String, String> miLabels = monitoringInfo.getLabelsMap();
     final String ptransform = miLabels.get(MonitoringInfoConstants.Labels.PTRANSFORM);
     final String counterName = miLabels.get(MonitoringInfoConstants.Labels.NAME);
@@ -121,14 +128,14 @@ class UserDistributionMonitoringInfoToCounterUpdateTransformer
         .setCumulative(true)
         .setDistribution(
             new DistributionUpdate()
-                .setMax(DataflowCounterUpdateExtractor.longToSplitInt(value.getMax()))
-                .setMin(DataflowCounterUpdateExtractor.longToSplitInt(value.getMin()))
-                .setSum(DataflowCounterUpdateExtractor.longToSplitInt(value.getSum()))
-                .setCount(DataflowCounterUpdateExtractor.longToSplitInt(value.getCount())));
+                .setMax(DataflowCounterUpdateExtractor.longToSplitInt(data.max()))
+                .setMin(DataflowCounterUpdateExtractor.longToSplitInt(data.min()))
+                .setSum(DataflowCounterUpdateExtractor.longToSplitInt(data.sum()))
+                .setCount(DataflowCounterUpdateExtractor.longToSplitInt(data.count())));
   }
 
-  /** @return MonitoringInfo urns prefix that this transformer can convert to CounterUpdates. */
-  public String getSupportedUrnPrefix() {
-    return BEAM_METRICS_USER_DISTRIBUTION_URN;
+  /** @return URNS that this transformer can convert to {@link CounterUpdate}s. */
+  public static String getSupportedUrn() {
+    return Urns.USER_DISTRIBUTION_INT64;
   }
 }

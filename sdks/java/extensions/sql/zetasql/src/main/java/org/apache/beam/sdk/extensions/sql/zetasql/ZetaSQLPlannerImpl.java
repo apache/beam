@@ -54,7 +54,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
 
 /** ZetaSQLPlannerImpl. */
 public class ZetaSQLPlannerImpl implements Planner {
-  private static final Logger logger = Logger.getLogger(ZetaSQLPlannerImpl.class.getName());
+  private static final Logger LOG = Logger.getLogger(ZetaSQLPlannerImpl.class.getName());
 
   private final SchemaPlus defaultSchemaPlus;
 

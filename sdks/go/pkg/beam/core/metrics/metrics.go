@@ -50,15 +50,11 @@ import (
 	"context"
 	"fmt"
 	"hash/fnv"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	"github.com/golang/protobuf/ptypes"
 )
 
 // Metric cells are named and scoped by ptransform, and bundle,
@@ -67,32 +63,11 @@ import (
 // using metrics requires the PTransform have a context.Context
 // argument.
 
-// perBundle is a struct that retains per transform countersets.
-// TODO(lostluck): Migrate the exec package to use these to extract
-// metric data for export to runner, rather than the global store.
-type perBundle struct {
-	mu  sync.Mutex
-	css []*ptCounterSet
-}
-
-type nameHash uint64
-
-// ptCounterSet is the internal tracking struct for a single ptransform
-// in a single bundle for all counter types.
-type ptCounterSet struct {
-	// We store the user path access to the cells in metric type segregated
-	// maps. At present, caching the name hash,
-	counters      map[nameHash]*counter
-	distributions map[nameHash]*distribution
-	gauges        map[nameHash]*gauge
-}
-
 type ctxKey string
 
 const (
-	bundleKey     ctxKey = "beam:bundle"
-	ptransformKey ctxKey = "beam:ptransform"
 	counterSetKey ctxKey = "beam:counterset"
+	storeKey      ctxKey = "beam:bundlestore"
 )
 
 // beamCtx is a caching context for IDs necessary to place metric updates.
@@ -101,12 +76,13 @@ const (
 type beamCtx struct {
 	context.Context
 	bundleID, ptransformID string
-	bs                     *perBundle
+	store                  *Store
 	cs                     *ptCounterSet
 }
 
-// Value implements context.Value for beamCtx, and lifts the
-// values for metrics keys for value for faster lookups.
+// Value implements the Context interface Value method for beamCtx.
+// The implementation lifts the stored values for metrics keys to the
+// top level beamCtx for faster lookups.
 func (ctx *beamCtx) Value(key interface{}) interface{} {
 	switch key {
 	case counterSetKey:
@@ -114,28 +90,27 @@ func (ctx *beamCtx) Value(key interface{}) interface{} {
 			if cs := ctx.Context.Value(key); cs != nil {
 				ctx.cs = cs.(*ptCounterSet)
 			} else {
-				return nil
+				// It's not created previously
+				ctx.store.mu.Lock()
+				cs := &ptCounterSet{
+					pid:           ctx.ptransformID,
+					counters:      make(map[nameHash]*counter),
+					distributions: make(map[nameHash]*distribution),
+					gauges:        make(map[nameHash]*gauge),
+				}
+				ctx.store.css = append(ctx.store.css, cs)
+				ctx.cs = cs
+				ctx.store.mu.Unlock()
 			}
 		}
 		return ctx.cs
-	case bundleKey:
-		if ctx.bundleID == "" {
-			if id := ctx.Context.Value(key); id != nil {
-				ctx.bundleID = id.(string)
-			} else {
-				return nil
+	case storeKey:
+		if ctx.store == nil {
+			if store := ctx.Context.Value(key); store != nil {
+				ctx.store = store.(*Store)
 			}
 		}
-		return ctx.bundleID
-	case ptransformKey:
-		if ctx.ptransformID == "" {
-			if id := ctx.Context.Value(key); id != nil {
-				ctx.ptransformID = id.(string)
-			} else {
-				return nil
-			}
-		}
-		return ctx.ptransformID
+		return ctx.store
 	}
 	return ctx.Context.Value(key)
 }
@@ -144,26 +119,39 @@ func (ctx *beamCtx) String() string {
 	return fmt.Sprintf("beamCtx[%s;%s]", ctx.bundleID, ctx.ptransformID)
 }
 
-// SetBundleID sets the id of the current Bundle.
+// SetBundleID sets the id of the current Bundle, and populates the store.
 func SetBundleID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
-		return &beamCtx{Context: bctx.Context, bundleID: id, bs: &perBundle{}, ptransformID: bctx.ptransformID}
+		return &beamCtx{Context: bctx.Context, bundleID: id, store: newStore(), ptransformID: bctx.ptransformID}
 	}
-	return &beamCtx{Context: ctx, bundleID: id, bs: &perBundle{}}
+	return &beamCtx{Context: ctx, bundleID: id, store: newStore()}
 }
 
 // SetPTransformID sets the id of the current PTransform.
-// Must only be called on a context returened by SetBundleID.
+// Must only be called on a context returned by SetBundleID.
 func SetPTransformID(ctx context.Context, id string) context.Context {
 	// Checking for *beamCtx is an optimization, so we don't dig deeply
 	// for ids if not necessary.
 	if bctx, ok := ctx.(*beamCtx); ok {
-		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, bs: bctx.bs, ptransformID: id}
+		return &beamCtx{Context: bctx.Context, bundleID: bctx.bundleID, store: bctx.store, ptransformID: id}
 	}
-	panic(fmt.Sprintf("SetPTransformID called before SetBundleID for %v", id))
-	return nil // never runs.
+	// Avoid breaking if the bundle is unset in testing.
+	return &beamCtx{Context: ctx, bundleID: bundleIDUnset, store: newStore(), ptransformID: id}
+}
+
+// GetStore extracts the metrics Store for the given context for a bundle.
+//
+// Returns nil if the context doesn't contain a metric Store.
+func GetStore(ctx context.Context) *Store {
+	if bctx, ok := ctx.(*beamCtx); ok {
+		return bctx.store
+	}
+	if v := ctx.Value(storeKey); v != nil {
+		return v.(*Store)
+	}
+	return nil
 }
 
 const (
@@ -171,36 +159,16 @@ const (
 	ptransformIDUnset = "(ptransform id unset)"
 )
 
-func getContextKey(ctx context.Context, n name) key {
-	key := key{name: n, bundle: bundleIDUnset, ptransform: ptransformIDUnset}
-	if id := ctx.Value(bundleKey); id != nil {
-		key.bundle = id.(string)
-	}
-	if id := ctx.Value(ptransformKey); id != nil {
-		key.ptransform = id.(string)
-	}
-	return key
-}
-
 func getCounterSet(ctx context.Context) *ptCounterSet {
-	if id := ctx.Value(counterSetKey); id != nil {
-		return id.(*ptCounterSet)
+	if bctx, ok := ctx.(*beamCtx); ok && bctx.cs != nil {
+		return bctx.cs
 	}
-	// It's not set anywhere and wasn't hoisted, so create it.
-	if bctx, ok := ctx.(*beamCtx); ok {
-		bctx.bs.mu.Lock()
-		cs := &ptCounterSet{
-			counters:      make(map[nameHash]*counter),
-			distributions: make(map[nameHash]*distribution),
-			gauges:        make(map[nameHash]*gauge),
-		}
-		bctx.bs.css = append(bctx.bs.css, cs)
-		bctx.cs = cs
-		bctx.bs.mu.Unlock()
-		return cs
+	if set := ctx.Value(counterSetKey); set != nil {
+		return set.(*ptCounterSet)
 	}
-	panic("counterSet missing, beam isn't set up properly.")
-	return nil // never runs.
+	// This isn't a beam context, so we don't have a
+	// useful counterset to return.
+	return nil
 }
 
 type kind uint8
@@ -223,14 +191,6 @@ func (t kind) String() string {
 	default:
 		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
 	}
-}
-
-// userMetric knows how to convert it's value to a Metrics_User proto.
-// TODO(lostluck): Move proto translation to the harness package to
-// avoid the proto dependency outside of the harness.
-type userMetric interface {
-	toProto() *fnexecution_v1.Metrics_User
-	kind() kind
 }
 
 // name is a pair of strings identifying a specific metric.
@@ -287,45 +247,6 @@ func hashString(s string, b []byte) {
 	ioutilx.WriteUnsafe(hasher, b[:n])
 }
 
-type key struct {
-	name               name
-	bundle, ptransform string
-}
-
-var (
-	// mu protects access to the global store
-	mu sync.RWMutex
-	// store is a map of BundleIDs to PtransformIDs to userMetrics.
-	// it permits us to extract metric protos for runners per data Bundle, and
-	// per PTransform.
-	// TODO(lostluck): Migrate exec/plan.go to manage it's own perBundle counter stores.
-	// Note: This is safe to use to read the metrics concurrently with user modification
-	// in bundles, as only initial use modifies this map, and only contains the resulting
-	// metrics.
-	store = make(map[string]map[string]map[name]userMetric)
-)
-
-// storeMetric stores a metric away on its first use so it may be retrieved later on.
-// In the event of a name collision, storeMetric can panic, so it's prudent to release
-// locks if they are no longer required.
-func storeMetric(key key, m userMetric) {
-	mu.Lock()
-	defer mu.Unlock()
-	if _, ok := store[key.bundle]; !ok {
-		store[key.bundle] = make(map[string]map[name]userMetric)
-	}
-	if _, ok := store[key.bundle][key.ptransform]; !ok {
-		store[key.bundle][key.ptransform] = make(map[name]userMetric)
-	}
-	if ms, ok := store[key.bundle][key.ptransform][key.name]; ok {
-		if ms.kind() != m.kind() {
-			panic(fmt.Sprintf("metric name %s being reused for a second metric in a single PTransform", key.name))
-		}
-		return
-	}
-	store[key.bundle][key.ptransform][key.name] = m
-}
-
 // Counter is a simple counter for incrementing and decrementing a value.
 type Counter struct {
 	name name
@@ -347,6 +268,9 @@ func NewCounter(ns, n string) *Counter {
 // Inc increments the counter within the given PTransform context by v.
 func (m *Counter) Inc(ctx context.Context, v int64) {
 	cs := getCounterSet(ctx)
+	if cs == nil {
+		return
+	}
 	if c, ok := cs.counters[m.hash]; ok {
 		c.inc(v)
 		return
@@ -356,8 +280,7 @@ func (m *Counter) Inc(ctx context.Context, v int64) {
 		value: v,
 	}
 	cs.counters[m.hash] = c
-	key := getContextKey(ctx, m.name)
-	storeMetric(key, c)
+	GetStore(ctx).storeMetric(cs.pid, m.name, c)
 }
 
 // Dec decrements the counter within the given PTransform context by v.
@@ -378,20 +301,12 @@ func (m *counter) String() string {
 	return fmt.Sprintf("value: %d", m.value)
 }
 
-// toProto returns a Metrics_User populated with the Data messages, but not the name. The
-// caller needs to populate with the metric's name.
-func (m *counter) toProto() *fnexecution_v1.Metrics_User {
-	return &fnexecution_v1.Metrics_User{
-		Data: &fnexecution_v1.Metrics_User_CounterData_{
-			CounterData: &fnexecution_v1.Metrics_User_CounterData{
-				Value: atomic.LoadInt64(&m.value),
-			},
-		},
-	}
-}
-
 func (m *counter) kind() kind {
 	return kindSumCounter
+}
+
+func (m *counter) get() int64 {
+	return atomic.LoadInt64(&m.value)
 }
 
 // Distribution is a simple distribution of values.
@@ -415,6 +330,9 @@ func NewDistribution(ns, n string) *Distribution {
 // Update updates the distribution within the given PTransform context with v.
 func (m *Distribution) Update(ctx context.Context, v int64) {
 	cs := getCounterSet(ctx)
+	if cs == nil {
+		return
+	}
 	if d, ok := cs.distributions[m.hash]; ok {
 		d.update(v)
 		return
@@ -427,8 +345,7 @@ func (m *Distribution) Update(ctx context.Context, v int64) {
 		max:   v,
 	}
 	cs.distributions[m.hash] = d
-	key := getContextKey(ctx, m.name)
-	storeMetric(key, d)
+	GetStore(ctx).storeMetric(cs.pid, m.name, d)
 }
 
 // distribution is a metric cell for distribution values.
@@ -454,25 +371,14 @@ func (m *distribution) String() string {
 	return fmt.Sprintf("count: %d sum: %d min: %d max: %d", m.count, m.sum, m.min, m.max)
 }
 
-// toProto returns a Metrics_User populated with the Data messages, but not the name. The
-// caller needs to populate with the metric's name.
-func (m *distribution) toProto() *fnexecution_v1.Metrics_User {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return &fnexecution_v1.Metrics_User{
-		Data: &fnexecution_v1.Metrics_User_DistributionData_{
-			DistributionData: &fnexecution_v1.Metrics_User_DistributionData{
-				Count: m.count,
-				Sum:   m.sum,
-				Min:   m.min,
-				Max:   m.max,
-			},
-		},
-	}
-}
-
 func (m *distribution) kind() kind {
 	return kindDistribution
+}
+
+func (m *distribution) get() (count, sum, min, max int64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.count, m.sum, m.min, m.max
 }
 
 // Gauge is a time, value pair metric.
@@ -499,6 +405,9 @@ var now = time.Now
 // Set sets the gauge to the given value, and associates it with the current time on the clock.
 func (m *Gauge) Set(ctx context.Context, v int64) {
 	cs := getCounterSet(ctx)
+	if cs == nil {
+		return
+	}
 	if g, ok := cs.gauges[m.hash]; ok {
 		g.set(v)
 		return
@@ -509,8 +418,7 @@ func (m *Gauge) Set(ctx context.Context, v int64) {
 		v: v,
 	}
 	cs.gauges[m.hash] = g
-	key := getContextKey(ctx, m.name)
-	storeMetric(key, g)
+	GetStore(ctx).storeMetric(cs.pid, m.name, g)
 }
 
 // gauge is a metric cell for gauge values.
@@ -527,23 +435,6 @@ func (m *gauge) set(v int64) {
 	m.mu.Unlock()
 }
 
-func (m *gauge) toProto() *fnexecution_v1.Metrics_User {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	ts, err := ptypes.TimestampProto(m.t)
-	if err != nil {
-		panic(err)
-	}
-	return &fnexecution_v1.Metrics_User{
-		Data: &fnexecution_v1.Metrics_User_GaugeData_{
-			GaugeData: &fnexecution_v1.Metrics_User_GaugeData{
-				Value:     m.v,
-				Timestamp: ts,
-			},
-		},
-	}
-}
-
 func (m *gauge) kind() kind {
 	return kindGauge
 }
@@ -552,92 +443,8 @@ func (m *gauge) String() string {
 	return fmt.Sprintf("%v time: %s value: %d", m.kind(), m.t, m.v)
 }
 
-// ToProto exports all collected metrics for the given BundleID and PTransform ID pair.
-func ToProto(b, pt string) []*fnexecution_v1.Metrics_User {
-	mu.RLock()
-	defer mu.RUnlock()
-	ps := store[b]
-	s := ps[pt]
-	var ret []*fnexecution_v1.Metrics_User
-	for n, m := range s {
-		p := m.toProto()
-		p.MetricName = &fnexecution_v1.Metrics_User_MetricName{
-			Name:      n.name,
-			Namespace: n.namespace,
-		}
-		ret = append(ret, p)
-	}
-	return ret
-}
-
-// DumpToLog is a debugging function that outputs all metrics available locally to beam.Log.
-func DumpToLog(ctx context.Context) {
-	dumpTo(func(format string, args ...interface{}) {
-		log.Errorf(ctx, format, args...)
-	})
-}
-
-// DumpToOut is a debugging function that outputs all metrics available locally to std out.
-func DumpToOut() {
-	dumpTo(func(format string, args ...interface{}) {
-		fmt.Printf(format+"\n", args...)
-	})
-}
-
-func dumpTo(p func(format string, args ...interface{})) {
-	mu.RLock()
-	defer mu.RUnlock()
-	var bs []string
-	for b := range store {
-		bs = append(bs, b)
-	}
-	sort.Strings(bs)
-
-	for _, b := range bs {
-		var pts []string
-		for pt := range store[b] {
-			pts = append(pts, pt)
-		}
-		sort.Strings(pts)
-
-		for _, pt := range pts {
-			var ns []name
-			for n := range store[b][pt] {
-				ns = append(ns, n)
-			}
-			sort.Slice(ns, func(i, j int) bool {
-				if ns[i].namespace < ns[j].namespace {
-					return true
-				}
-				if ns[i].namespace == ns[j].namespace && ns[i].name < ns[j].name {
-					return true
-				}
-				return false
-			})
-			p("Bundle: %q - PTransformID: %q", b, pt)
-
-			for _, n := range ns {
-				m := store[b][pt][n]
-				p("\t%s - %s", n, m)
-			}
-		}
-	}
-}
-
-// Clear resets all storage associated with metrics for tests.
-// Calling this in pipeline code leads to inaccurate metrics.
-func Clear() {
-	mu.Lock()
-	store = make(map[string]map[string]map[name]userMetric)
-	mu.Unlock()
-}
-
-// ClearBundleData removes stored references associated with a given bundle,
-// so it can be garbage collected.
-func ClearBundleData(b string) {
-	// No concurrency races since mu guards all access to store,
-	// and the metric cell sync.Maps are goroutine safe.
-	mu.Lock()
-	delete(store, b)
-	mu.Unlock()
+func (m *gauge) get() (int64, time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.v, m.t
 }

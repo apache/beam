@@ -129,7 +129,7 @@ public class BeamFnDataGrpcServiceTest {
       CloseableFnDataReceiver<WindowedValue<String>> consumer =
           service
               .getDataService(DEFAULT_CLIENT)
-              .send(LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID), CODER);
+              .send(LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID), CODER);
 
       consumer.accept(valueInGlobalWindow("A" + i));
       consumer.accept(valueInGlobalWindow("B" + i));
@@ -202,7 +202,7 @@ public class BeamFnDataGrpcServiceTest {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
             service
                 .getDataService(Integer.toString(client))
-                .send(LogicalEndpoint.of(instructionId, TRANSFORM_ID), CODER);
+                .send(LogicalEndpoint.data(instructionId, TRANSFORM_ID), CODER);
 
         consumer.accept(valueInGlobalWindow("A" + instructionId));
         consumer.accept(valueInGlobalWindow("B" + instructionId));
@@ -259,7 +259,7 @@ public class BeamFnDataGrpcServiceTest {
           service
               .getDataService(DEFAULT_CLIENT)
               .receive(
-                  LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID),
+                  LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID),
                   CODER,
                   serverInboundValue::add));
     }
@@ -295,7 +295,10 @@ public class BeamFnDataGrpcServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
+                .setIsLast(true))
         .build();
   }
 

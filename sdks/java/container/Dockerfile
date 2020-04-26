@@ -30,4 +30,9 @@ ADD target/kafka-clients.jar /opt/apache/beam/jars/
 
 ADD target/linux_amd64/boot /opt/apache/beam/
 
+COPY target/LICENSE /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
+
+# copy third party licenses
+ADD target/third_party_licenses /opt/apache/beam/third_party_licenses/
 ENTRYPOINT ["/opt/apache/beam/boot"]

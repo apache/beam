@@ -26,6 +26,7 @@ from __future__ import absolute_import
 
 import types
 from builtins import object
+from collections import namedtuple
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
@@ -49,7 +50,6 @@ CallableT = TypeVar('CallableT', bound=Callable)
 
 class StateSpec(object):
   """Specification for a user DoFn state cell."""
-
   def __init__(self, name, coder):
     # type: (str, Coder) -> None
     if not isinstance(name, str):
@@ -68,7 +68,6 @@ class StateSpec(object):
 
 class BagStateSpec(StateSpec):
   """Specification for a user DoFn bag state cell."""
-
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
     return beam_runner_api_pb2.StateSpec(
@@ -78,7 +77,6 @@ class BagStateSpec(StateSpec):
 
 class SetStateSpec(StateSpec):
   """Specification for a user DoFn Set State cell"""
-
   def to_runner_api(self, context):
     return beam_runner_api_pb2.StateSpec(
         set_spec=beam_runner_api_pb2.SetStateSpec(
@@ -87,9 +85,9 @@ class SetStateSpec(StateSpec):
 
 class CombiningValueStateSpec(StateSpec):
   """Specification for a user DoFn combining value state cell."""
-
   def __init__(self, name, coder=None, combine_fn=None):
     # type: (str, Optional[Coder], Any) -> None
+
     """Initialize the specification for CombiningValue state.
 
     CombiningValueStateSpec(name, combine_fn) -> Coder-inferred combining value
@@ -132,29 +130,64 @@ class CombiningValueStateSpec(StateSpec):
             accumulator_coder_id=context.coders.get_id(self.coder)))
 
 
+# TODO(BEAM-9562): Update Timer to have of() and clear() APIs.
+Timer = namedtuple(
+    'Timer',
+    'user_key '
+    'dynamic_timer_tag '
+    'windows '
+    'clear_bit '
+    'fire_timestamp '
+    'hold_timestamp '
+    'paneinfo')
+
+
+# TODO(BEAM-9562): Plumb through actual key_coder and window_coder.
 class TimerSpec(object):
   """Specification for a user stateful DoFn timer."""
+  prefix = "ts-"
 
   def __init__(self, name, time_domain):
-    self.name = name
+    self.name = self.prefix + name
     if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
-      raise ValueError('Unsupported TimeDomain: %r.' % (time_domain,))
+      raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
     self.time_domain = time_domain
     self._attached_callback = None
 
   def __repr__(self):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
-  def to_runner_api(self, context):
-    # type: (PipelineContext) -> beam_runner_api_pb2.TimerSpec
-    return beam_runner_api_pb2.TimerSpec(
+  def to_runner_api(self, context, key_coder, window_coder):
+    # type: (PipelineContext) -> beam_runner_api_pb2.TimerFamilySpec
+    return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
-        timer_coder_id=context.coders.get_id(
-            coders._TimerCoder(coders.SingletonCoder(None))))
+        timer_family_coder_id=context.coders.get_id(
+            coders._TimerCoder(key_coder, window_coder)))
+
+
+# TODO(BEAM-9602): Provide support for dynamic timer.
+class TimerFamilySpec(object):
+  prefix = "tfs-"
+
+  def __init__(self, name, time_domain):
+    self.name = self.prefix + name
+    if time_domain not in (TimeDomain.WATERMARK, TimeDomain.REAL_TIME):
+      raise ValueError('Unsupported TimeDomain: %r.' % (time_domain, ))
+    self.time_domain = time_domain
+
+  def __repr__(self):
+    return '%s(%s)' % (self.__class__.__name__, self.name)
+
+  def to_runner_api(self, context, key_coder, window_coder):
+    return beam_runner_api_pb2.TimerFamilySpec(
+        time_domain=TimeDomain.to_runner_api(self.time_domain),
+        timer_family_coder_id=context.coders.get_id(
+            coders._TimerCoder(key_coder, window_coder)))
 
 
 def on_timer(timer_spec):
   # type: (TimerSpec) -> Callable[[CallableT], CallableT]
+
   """Decorator for timer firing DoFn method.
 
   This decorator allows a user to specify an on_timer processing method
@@ -185,6 +218,7 @@ def on_timer(timer_spec):
 
 def get_dofn_specs(dofn):
   # type: (...) -> Tuple[Set[StateSpec], Set[TimerSpec]]
+
   """Gets the state and timer specs for a DoFn, if any.
 
   Args:
@@ -207,12 +241,13 @@ def get_dofn_specs(dofn):
     if not isinstance(getattr(dofn, method_name, None), types.MethodType):
       continue
     method = MethodWrapper(dofn, method_name)
-    param_ids = [d.param_id for d in method.defaults
-                 if isinstance(d, _DoFnParam)]
+    param_ids = [
+        d.param_id for d in method.defaults if isinstance(d, _DoFnParam)
+    ]
     if len(param_ids) != len(set(param_ids)):
       raise ValueError(
-          'DoFn %r has duplicate %s method parameters: %s.' % (
-              dofn, method_name, param_ids))
+          'DoFn %r has duplicate %s method parameters: %s.' %
+          (dofn, method_name, param_ids))
     for d in method.defaults:
       if isinstance(d, _StateDoFnParam):
         all_state_specs.add(d.state_spec)
@@ -239,31 +274,30 @@ def validate_stateful_dofn(dofn):
   # Reject DoFns that have multiple state or timer specs with the same name.
   if len(all_state_specs) != len(set(s.name for s in all_state_specs)):
     raise ValueError(
-        'DoFn %r has multiple StateSpecs with the same name: %s.' % (
-            dofn, all_state_specs))
+        'DoFn %r has multiple StateSpecs with the same name: %s.' %
+        (dofn, all_state_specs))
   if len(all_timer_specs) != len(set(s.name for s in all_timer_specs)):
     raise ValueError(
-        'DoFn %r has multiple TimerSpecs with the same name: %s.' % (
-            dofn, all_timer_specs))
+        'DoFn %r has multiple TimerSpecs with the same name: %s.' %
+        (dofn, all_timer_specs))
 
   # Reject DoFns that use timer specs without corresponding timer callbacks.
   for timer_spec in all_timer_specs:
     if not timer_spec._attached_callback:
-      raise ValueError(
-          ('DoFn %r has a TimerSpec without an associated on_timer '
-           'callback: %s.') % (dofn, timer_spec))
+      raise ValueError((
+          'DoFn %r has a TimerSpec without an associated on_timer '
+          'callback: %s.') % (dofn, timer_spec))
     method_name = timer_spec._attached_callback.__name__
-    if (timer_spec._attached_callback !=
-        getattr(dofn, method_name, None).__func__):
-      raise ValueError(
-          ('The on_timer callback for %s is not the specified .%s method '
-           'for DoFn %r (perhaps it was overwritten?).') % (
-               timer_spec, method_name, dofn))
+    if (timer_spec._attached_callback != getattr(dofn, method_name,
+                                                 None).__func__):
+      raise ValueError((
+          'The on_timer callback for %s is not the specified .%s method '
+          'for DoFn %r (perhaps it was overwritten?).') %
+                       (timer_spec, method_name, dofn))
 
 
 class RuntimeTimer(object):
   """Timer interface object passed to user code."""
-
   def __init__(self, timer_spec):
     self._cleared = False
     self._new_timestamp = None
@@ -315,8 +349,7 @@ class CombiningValueRuntimeState(AccumulatingRuntimeState):
 
 class UserStateContext(object):
   """Wrapper allowing user state and timers to be accessed by a DoFnInvoker."""
-
-  def get_timer(self, timer_spec, key, window):
+  def get_timer(self, timer_spec, key, window, timestamp, pane):
     raise NotImplementedError(type(self))
 
   def get_state(self, state_spec, key, window):

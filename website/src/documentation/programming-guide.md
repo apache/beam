@@ -87,7 +87,7 @@ A typical Beam driver program works as follows:
 * Create an initial `PCollection` for pipeline data, either using the IOs
   to read data from an external storage system, or using a `Create` transform to
   build a `PCollection` from in-memory data.
-* **Apply** `PTransforms` to each `PCollection`. Transforms can change, filter,
+* **Apply** `PTransform`s to each `PCollection`. Transforms can change, filter,
   group, analyze, or otherwise process the elements in a `PCollection`. A
   transform creates a new output `PCollection` *without modifying the input
   collection*. A typical pipeline applies subsequent transforms to each new
@@ -112,7 +112,7 @@ processing task. Your Beam driver program typically starts by constructing a
 <span class="language-java">[Pipeline](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/Pipeline.html)</span>
 <span class="language-py">[Pipeline](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py)</span>
 object, and then using that object as the basis for creating the pipeline's data
-sets as `PCollection`s and its operations as `Transform`s.
+sets as `PCollection`s and its operations as `PTransform`s.
 
 To use Beam, your driver program must first create an instance of the Beam SDK
 class `Pipeline` (typically in the `main()` function). When you create your
@@ -227,7 +227,7 @@ public interface MyOptions extends PipelineOptions {
     void setInput(String input);
 
     @Description("Output for the pipeline")
-    @Default.String("gs://my-bucket/input")
+    @Default.String("gs://my-bucket/output")
     String getOutput();
     void setOutput(String output);
 }
@@ -387,19 +387,25 @@ around to distributed workers). The Beam SDKs provide a data encoding mechanism
 that includes built-in encoding for commonly-used types as well as support for
 specifying custom encodings as needed.
 
-#### 3.2.2. Immutability {#immutability}
+#### 3.2.2. Element schema {#element-schema}
+
+In many cases, the element type in a `PCollection` has a structure that can introspected. 
+Examples are JSON, Protocol Buffer, Avro, and database records. Schemas provide a way to 
+express types as a set of named fields, allowing for more-expressive aggregations.
+ 
+#### 3.2.3. Immutability {#immutability}
 
 A `PCollection` is immutable. Once created, you cannot add, remove, or change
 individual elements. A Beam Transform might process each element of a
 `PCollection` and generate new pipeline data (as a new `PCollection`), *but it
 does not consume or modify the original input collection*.
 
-#### 3.2.3. Random access {#random-access}
+#### 3.2.4. Random access {#random-access}
 
 A `PCollection` does not support random access to individual elements. Instead,
 Beam Transforms consider every element in a `PCollection` individually.
 
-#### 3.2.4. Size and boundedness {#size-and-boundedness}
+#### 3.2.5. Size and boundedness {#size-and-boundedness}
 
 A `PCollection` is a large, immutable "bag" of elements. There is no upper limit
 on how many elements a `PCollection` can contain; any given `PCollection` might
@@ -430,7 +436,7 @@ on a per-window basis — as the data set is generated, they process each
 `PCollection` as a succession of these finite windows.
 
 
-#### 3.2.5. Element timestamps {#element-timestamps}
+#### 3.2.6. Element timestamps {#element-timestamps}
 
 Each element in a `PCollection` has an associated intrinsic **timestamp**. The
 timestamp for each element is initially assigned by the [Source](#pipeline-io)
@@ -1970,7 +1976,1109 @@ records.apply("WriteToText",
 See the [Beam-provided I/O Transforms]({{site.baseurl }}/documentation/io/built-in/)
 page for a list of the currently available I/O transforms.
 
-## 6. Data encoding and type safety {#data-encoding-and-type-safety}
+## 6. Schemas {#schemas}
+Often, the types of the records being processed have an obvious structure. Common Beam sources produce
+JSON, Avro, Protocol Buffer, or database row objects; all of these types have well defined structures, 
+structures that can often be determined by examining the type. Even within a SDK pipeline, Simple Java POJOs 
+(or  equivalent structures in other languages) are often used as intermediate types, and these also have a
+ clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s 
+ records, we can provide much more concise APIs for data processing.
+ 
+### 6.1. What is a schema {#what-is-a-schema}
+Most structured records share some common characteristics: 
+* They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
+ tuples - have numerical indices instead.
+* There is a confined list of primitive types that a field can have. These often match primitive types in most programming 
+ languages: int, long, string, etc.
+* Often a field type can be marked as optional (sometimes referred to as nullable) or required.
+
+Oten records have a nested structure. A nested structure occurs when a field itself has subfields so the 
+type of the field itself has a schema. Fields that are  array or map types is also a common feature of these structured 
+records.
+
+For example, consider the following schema, representing actions in a fictitious e-commerce company:
+
+**Purchase**
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>itemId</td>
+      <td>INT64</td>      
+    </tr>
+    <tr>
+      <td>shippingAddress</td>
+      <td>ROW(ShippingAddress)</td>      
+    </tr>
+    <tr>
+      <td>cost</td>
+      <td>INT64</td>      
+    </tr>
+    <tr>
+      <td>transactions</td>
+      <td>ARRAY[ROW(Transaction)]</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+**ShippingAddress**
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>streetAddress</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>city</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>state</td>
+      <td>nullable STRING</td>      
+    </tr>
+    <tr>
+      <td>country</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>postCode</td>
+      <td>STRING</td>      
+    </tr>                  
+  </tbody>
+</table> 
+<br/>
+
+**Transaction**
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>bank</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>purchaseAmount</td>
+      <td>DOUBLE</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+Purchase event records are represented by the above purchase schema. Each purchase event contains a shipping address, which
+is a nested row containing its own schema. Each purchase also contains an array of credit-card transactions 
+(a list, because a purchase might be split across multiple credit cards); each item in the transaction list is a row 
+with its own schema.
+
+This provides an abstract description of the types involved, one that is abstracted away from any specific programming 
+language.
+
+Schemas provide us a type-system for Beam records that is independent of any specific programming-language type. There
+might be multiple Java classes that all have the same schema (for example a Protocol-Buffer class or a POJO class),
+and Beam will allow us to seamlessly convert between these types. Schemas also provide a simple way to reason about 
+types across different programming-language APIs.
+
+A `PCollection` with a schema does not need to have a `Coder` specified, as Beam knows how to encode and decode 
+Schema rows; Beam uses a special coder to encode schema types.
+
+### 6.2. Schemas for programming language types {#schemas-for-pl-types}
+While schemas themselves are language independent, they are designed to embed naturally into the programming languages
+of the Beam SDK being used. This allows Beam users to continue using native types while reaping the advantage of 
+having Beam understand their element schemas.
+ 
+ {:.language-java}
+ In Java you could use the following set of classes to represent the purchase schema.  Beam will automatically  
+ infer the correct schema based on the members of the class.
+
+```java
+@DefaultSchema(JavaBeanSchema.class)
+public class Purchase {
+  public String getUserId();  // Returns the id of the user who made the purchase.
+  public long getItemId();  // Returns the identifier of the item that was purchased.
+  public ShippingAddress getShippingAddress();  // Returns the shipping address, a nested type.
+  public long getCostCents();  // Returns the cost of the item.
+  public List<Transaction> getTransactions();  // Returns the transactions that paid for this purchase (returns a list, since the purchase might be spread out over multiple credit cards).
+  
+  @SchemaCreate
+  public Purchase(String userId, long itemId, ShippingAddress shippingAddress, long costCents, 
+                  List<Transaction> transactions) {
+      ...
+  }
+}
+
+@DefaultSchema(JavaBeanSchema.class)
+public class ShippingAddress {
+  public String getStreetAddress();
+  public String getCity();
+  @Nullable public String getState();
+  public String getCountry();
+  public String getPostCode();
+  
+  @SchemaCreate
+  public ShippingAddress(String streetAddress, String city, @Nullable String state, String country,
+                         String postCode) {
+     ...
+  }
+}
+
+@DefaultSchema(JavaBeanSchema.class)
+public class Transaction {
+  public String getBank();
+  public double getPurchaseAmount();
+ 
+  @SchemaCreate
+  public Transaction(String bank, double purchaseAmount) {
+     ...
+  }
+}
+```
+
+Using JavaBean classes as above is one way to map a schema to Java classes. However multiple Java classes might have
+the same schema, in which case the different Java types can often be used interchangeably. Beam will add implicit
+conversions betweens types that have matching schemas. For example, the above
+`Transaction` class has the same schema as the following class:
+
+```java
+@DefaultSchema(JavaFieldSchema.class)
+public class TransactionPojo {
+  public String bank;
+  public double purchaseAmount;
+}
+```
+
+So if we had two `PCollection`s as follows
+
+```java
+PCollection<Transaction> transactionBeans = readTransactionsAsJavaBean();
+PCollection<TransactionPojos> transactionPojos = readTransactionsAsPojo();
+```
+
+Then these two `PCollection`s would have the same schema, even though their Java types would be different. This means
+for example the following two code snippets are valid:
+
+```java
+transactionBeans.apply(ParDo.of(new DoFn<...>() {
+   @ProcessElement public void process(@Element TransactionPojo pojo) {
+      ...
+   }
+}));
+```
+
+and
+```java
+transactionPojos.apply(ParDo.of(new DoFn<...>() {
+   @ProcessElement public void process(@Element Transaction row) {
+    }
+}));
+```
+
+Even though the in both cases the `@Element` parameter differs from the the `PCollection`'s Java type, since the
+schemas are the same Beam will automatically make the conversion. The built-in `Convert` transform can also be used
+to translate between Java types of equivalent schemas, as detailed below.
+
+### 6.3. Schema definition {#schema-definition}
+The schema for a `PCollection` defines elements of that `PCollection` as an ordered list of named fields. Each field
+has a name, a type, and possibly a set of user options. The type of a field can be primitive or composite. The following
+are the primitive types currently supported by Beam:
+
+<table>
+  <thead>
+    <tr class="header">
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BYTE</td>
+      <td>An 8-bit signed value</td>
+    </tr>
+     <tr>
+       <td>INT16</td>
+       <td>A 16-bit signed value</td>
+     </tr>
+     <tr>
+       <td>INT32</td>
+       <td>A 32-bit signed value</td>
+     </tr>
+    <tr>
+      <td>INT64</td>
+       <td>A 64-bit signed value</td>
+     </tr>
+     <tr>
+       <td>DECIMAL</td>
+       <td>An arbitrary-precision decimal type</td>
+     </tr>
+     <tr>
+       <td>FLOAT</td>
+       <td>A 32-bit IEEE 754 floating point number</td>
+     </tr>
+     <tr>
+       <td>DOUBLE</td>
+       <td>A 64-bit IEEE 754 floating point number</td>
+     </tr>
+     <tr>
+       <td>STRING</td>
+       <td>A string</td>
+     </tr>
+     <tr>
+       <td>DATETIME</td>
+       <td>A timestamp represented as milliseconds since the epoch</td>
+     </tr>  
+     <tr>
+       <td>BOOLEAN</td>
+       <td>A boolean value</td>
+     </tr>
+     <tr>
+       <td>BYTES</td>
+       <td>A raw byte array</td>
+     </tr>             
+  </tbody>
+</table>
+<br/>
+
+A field can also reference a nested schema. In this case, the field will have type ROW, and the nested schema will 
+be an attribute of this field type.
+
+Three collection types are supported as field types: ARRAY, ITERABLE and MAP:
+* **ARRAY** This represents a repeated value type, where the repeated elements can have any supported type. Arrays of 
+nested rows are supported, as are arrays of arrays.
+* **ITERABLE** This is very similar to the array type, it represents a repeated value, but one in which the full list of 
+items is not known until iterated over. This is intended for the case where an iterable might be larger than the 
+available memory, and backed by external storage (for example, this can happen with the iterable returned by a 
+`GroupByKey`). The repeated elements can have any supported type.
+* **MAP** This represents an associative map from keys to values. All schema types are supported for both keys and values.
+ Values that contain map types cannot be used as keys in any grouping operation.
+
+### 6.4. Logical types {#logical-types}
+Users can extend the schema type system to add custom logical types that can be used as a field. A logical type is 
+identified by a unique identifier and an argument. A logical type also specifies an underlying schema type to be used 
+for storage, along with conversions to and from that type. As an example, a logical union can always be represented as 
+a row with nullable fields, where the user ensures that only one of those fields is ever set at a time. However this can
+be tedious and complex to manage. The OneOf logical type provides a value class that makes it easier to manage the type
+as a union, while still using a row with nullable fields as its underlying storage. Each logical type also has a 
+unique identifier, so they can be interpreted by other languages as well. More examples of logical types are listed 
+below.
+
+#### 6.4.1. Defining a logical type {#defining-a-logical-type}
+To define a logical type you must specify a Schema type to be used to represent the underlying type as well as a unique
+identifier for that type. A logical type imposes additional semantics on top a schema type. For example, a logical 
+type to represent nanosecond timestamps is represented as a schema containing an INT64 and an INT32 field. This schema
+alone does not say anything about how to interpret this type, however the logical type tells you that this represents
+a nanosecond timestamp, with the INT64 field representing seconds and the INT32 field representing nanoseconds.
+
+Logical types are also specified by an argument, which allows creating a class of related types. For example, a 
+limited-precision decimal type would have an integer argument indicating how many digits of precision are represented.
+The argument is represented by a schema type, so can itself be a complex type.
+
+ {:.language-java}
+In Java, a logical type is specified as a subclass of the `LogicalType` class. A custom Java class can be specified to 
+represent the logical type and conversion functions must be supplied to convert back and forth between this Java class
+and the underlying Schema type representation. For example, the logical type representing nanosecond timestamp might
+be implemented as follows
+
+```java
+// A Logical type using java.time.Instant to represent the logical type.
+public class TimestampNanos implements LogicalType<Instant, Row> {
+  // The underlying schema used to represent rows.
+  private final Schema SCHEMA = Schema.builder().addInt64Field("seconds").addInt32Field("nanos").build();
+  @Override public String getIdentifier() { return "timestampNanos"; }
+  @Override public FieldType getBaseType() { return schema; }
+  
+  // Convert the representation type to the underlying Row type. Called by Beam when necessary.
+  @Override public Row toBaseType(Instant instant) {
+    return Row.withSchema(schema).addValues(instant.getEpochSecond(), instant.getNano()).build();
+  }
+  
+  // Convert the underlying Row type to and Instant. Called by Beam when necessary.
+  @Override public Instant toInputType(Row base) {
+    return Instant.of(row.getInt64("seconds"), row.getInt32("nanos"));
+  }
+
+     ...
+}
+```
+
+#### 6.4.2. Useful logical types {#built-in-logical-types}
+##### **EnumerationType**
+This logical type allows creating an enumeration type consisting of a set of named constants.
+
+```java
+Schema schema = Schema.builder()
+               …
+     .addLogicalTypeField(“color”, EnumerationType.create(“RED”, “GREEN”, “BLUE”))
+     .build();
+```
+
+The value of this field is stored in the row as an INT32 type, however the logical type defines a value type that lets 
+you access the enumeration either as a string or a value. For example:
+
+```java
+EnumerationType.Value enumValue = enumType.valueOf(“RED”);
+enumValue.getValue();  // Returns 0, the integer value of the constant.
+enumValue.toString();  // Returns “RED”, the string value of the constant
+```
+
+Given a row object with an enumeration field, you can also extract the field as the enumeration value.
+
+```java
+EnumerationType.Value enumValue = row.getLogicalTypeValue(“color”, EnumerationType.Value.class);
+```
+
+Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical 
+types.
+
+##### **OneOfType**
+OneOfType allows creating a disjoint union type over a set of schema fields. For example:
+
+```java
+Schema schema = Schema.builder()
+               …
+     .addLogicalTypeField(“oneOfField”, 
+        OneOfType.create(Field.of(“intField”, FieldType.INT32),
+                         Field.of(“stringField”, FieldType.STRING),
+                         Field.of(“bytesField”, FieldType.BYTES)))
+      .build();
+```
+
+The value of this field is stored in the row as another Row type, where all the fields are marked as nullable. The 
+logical type however defines a Value object that contains an enumeration value indicating which field was set and allows
+ getting just that field:
+
+```java
+// Returns an enumeration indicating all possible case values for the enum.
+// For the above example, this will be 
+// EnumerationType.create(“intField”, “stringField”, “bytesField”);
+EnumerationType oneOfEnum = onOfType.getCaseEnumType();
+
+// Creates an instance of the union with the string field set.
+OneOfType.Value oneOfValue = oneOfType.createValue(“stringField”, “foobar”);
+
+// Handle the oneof
+switch (oneOfValue.getCaseEnumType().toString()) {
+  case “intField”:  
+    return processInt(oneOfValue.getValue(Integer.class));
+  case “stringField”:
+    return processString(oneOfValue.getValue(String.class));
+  case “bytesField”:
+    return processBytes(oneOfValue.getValue(bytes[].class));
+}
+```
+
+In the above example we used the field names in the switch statement for clarity, however the enum integer values could
+ also be used.
+
+### 6.5. Creating Schemas {#creating-schemas}
+
+In order to take advantage of schemas, your `PCollection`s must have a schema attached to it. Often, the source 
+itself will attach a schema to the PCollection. For example, when using `AvroIO` to read Avro files, the source can
+automatically infer a Beam schema from the Avro schema and attach that to the Beam `PCollection`. However not all sources 
+produce schemas. In addition, often Beam pipelines have intermediate stages and types, and those also can benefit from
+the expressiveness of schemas.
+ 
+#### 6.5.1. Inferring schemas {#inferring-schemas}
+{:.language-java}
+Beam is able to infer schemas from a variety of common Java types. The `@DefaultSchema` annotation can be used to tell
+Beam to infer schemas from a specific type. The annotation takes a `SchemaProvider` as an argument, and `SchemaProvider` 
+classes are already built in for common Java types. The `SchemaRegistry` can also be invoked programmatically for cases 
+where it is not practical to annotate the Java type itself.
+
+##### **Java POJOs**
+A POJO (Plain Old Java Object) is a Java object that is not bound by any restriction other than the Java Language 
+Specification. A POJO can contain member variables that are primitives, that are other POJOs, or are collections maps or
+arrays thereof. POJOs do not have to extend prespecified classes or extend any specific interfaces.
+
+If a POJO class is annotated with `@DefaultSchema(JavaFieldSchema.class)`, Beam will automatically infer a schema for 
+this class. Nested classes are supported as are classes with `List`, array, and `Map` fields.
+
+For example, annotating the following class tells Beam to infer a schema from this POJO class and apply it to any 
+`PCollection<TransactionPojo>`.
+
+```java
+@DefaultSchema(JavaFieldSchema.class)
+public class TransactionPojo {
+  public final String bank;
+  public final double purchaseAmount;
+  @SchemaCreate
+  public TransactionPojo(String bank, double purchaseAmount) {
+    this.bank = bank.
+    this.purchaseAmount = purchaseAmount;
+  }
+}
+// Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.
+PCollection<TransactionPojo> pojos = readPojos();
+````
+
+The `@SchemaCreate` annotation tells Beam that this constructor can be used to create instances of TransactionPojo, 
+assuming that constructor parameters have the same names as the field names. `@SchemaCreate` can also be used to annotate
+static factory methods on the class, allowing the constructor to remain private. If there is no `@SchemaCreate`
+ annotation then all the fields must be non-final and the class must have a zero-argument constructor.
+
+There are a couple of other useful annotations that affect how Beam infers schemas. By default the schema field names 
+inferred will match that of the class field names. However `@SchemaFieldName` can be used to specify a different name to
+be used for the schema field. `@SchemaIgnore` can be used to mark specific class fields as excluded from the inferred
+schema. For example, it’s common to have ephemeral fields in a class that should not be included in a schema 
+(e.g. caching the hash value to prevent expensive recomputation of the hash), and `@SchemaIgnore` can be used to
+exclude these fields. Note that ignored fields will not be included in the encoding of these records.
+
+In some cases it is not convenient to annotate the POJO class, for example if the POJO is in a different package that is
+not owned by the Beam pipeline author. In these cases the schema inference can be triggered programmatically in 
+pipeline’s main function as follows:
+
+```java
+ pipeline.getSchemaRegistry().registerPOJO(TransactionPOJO.class); 
+```
+
+##### **Java Beans**
+Java Beans are a de-facto standard for creating reusable property classes in Java. While the full 
+standard has many characteristics, the key ones are that all properties are accessed via getter and setter classes, and 
+the name format for these getters and setters is standardized. A Java Bean class can be annotated with 
+`@DefaultSchema(JavaBeanSchema.class)` and Beam will automatically infer a schema for this class. For example:
+
+```java
+@DefaultSchema(JavaBeanSchema.class)
+public class TransactionBean {
+  public TransactionBean() { … } 
+  public String getBank() { … }
+  public void setBank(String bank) { … }
+  public double getPurchaseAmount() { … }
+  public void setPurchaseAmount(double purchaseAmount) { … }
+}
+// Beam will automatically infer the correct schema for this PCollection. No coder is needed as a result.
+PCollection<TransactionBean> beans = readBeans();
+```
+
+The `@SchemaCreate` annotation can be used to specify a constructor or a static factory method, in which case the 
+setters and zero-argument constructor can be omitted.
+
+```java
+@DefaultSchema(JavaBeanSchema.class)
+public class TransactionBean {
+  @SchemaCreate
+  Public TransactionBean(String bank, double purchaseAmount) { … }
+  public String getBank() { … }
+  public double getPurchaseAmount() { … }
+}
+```
+
+`@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred, just like with POJO classes.
+
+##### **AutoValue**
+Java value classes are notoriously difficult to generate correctly. There is a lot of boilerplate you must create in 
+order to properly implement a value class. AutoValue is a popular library for easily generating such classes by i
+mplementing a simple abstract base class.
+
+Beam can infer a schema from an AutoValue class. For example:
+
+```java
+@DefaultSchema(AutoValueSchema.class)
+@AutoValue
+public abstract class TransactionValue {
+  public abstract String getBank(); 
+  public abstract double getPurchaseAmount();
+}
+```
+
+This is all that’s needed to generate a simple AutoValue class, and the above `@DefaultSchema` annotation tells Beam to
+infer a schema from it. This also allows AutoValue elements to be used inside of `PCollection`s.
+
+`@SchemaFieldName` and `@SchemaIgnore` can be used to alter the schema inferred.
+
+### 6.6. Using Schema Transforms {#using-schemas}
+A schema on a `PCollection` enables a rich variety of relational transforms. The fact that each record is composed of
+named fields allows for simple and readable aggregations that reference fields by name, similar to the aggregations in
+a SQL expression. 
+
+#### 6.6.1. Field selection syntax
+The advantage of schemas is that they allow referencing of element fields by name. Beam provides a selection syntax for
+referencing fields, including nested and repeated fields. This syntax is used by all of the schema transforms when 
+referencing the fields they operate on. The syntax can also be used inside of a DoFn to specify which schema fields to
+process.
+
+Addressing fields by name still retains type safety as Beam will check that schemas match at the time the pipeline graph
+is constructed. If a field is specified that does not exist in the schema, the pipeline will fail to launch. In addition,
+if a field is specified with a type that does not match the type of that field in the schema, the pipeline will fail to
+launch.
+
+The following characters are not allowed in field names: . *  [ ] { } 
+
+##### **Top-level fields**
+In order to select a field at the top level of a schema, the name of the field is specified. For example, to select just
+the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
+
+```java
+purchases.apply(Select.fieldNames(“userId”));
+```
+
+##### **Nested fields**
+Individual nested fields can be specified using the dot operator. For example, to select just the postal code from the
+ shipping address one would write
+
+```java
+purchases.apply(Select.fieldNames(“shippingAddress.postCode”));
+```
+
+##### **Wildcards**
+The * operator can be specified at any nesting level to represent all fields at that level. For example, to select all
+shipping-address fields one would write
+
+```java
+purchases.apply(Select.fieldNames(“shippingAddress.*”));
+```
+
+##### **Arrays**
+An array field, where the array element type is a row, can also have subfields of the element type addressed. When 
+selected, the result is an array of the selected subfield type. For example
+
+```java
+purchases.apply(Select.fieldNames(“transactions[].bank”));
+```
+
+Will result in a row containing an array field with element-type string, containing the list of banks for each 
+transaction. 
+
+While the use of  [] brackets in the selector is recommended, to make it clear that array elements are being selected, 
+they can be omitted for brevity. In the future, array slicing will be supported, allowing selection of portions of the 
+array.
+
+##### **Maps**
+A map field, where the value type is a row, can also have subfields of the value type addressed. When selected, the 
+result is a map where the keys are the same as in the original map but the value is the specified type. Similar to 
+arrays, the use of {} curly brackets in the selector is recommended, to make it clear that map value elements are being 
+selected, they can be omitted for brevity. In the future, map key selectors will be supported, allowing selection of 
+specific keys from the map. For example, given the following schema:
+
+**PurchasesByType**
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>purchases</td>
+      <td>MAP{STRING, ROW{PURCHASE}</td>      
+    </tr>                 
+  </tbody>
+</table>
+<br/>
+
+The following 
+
+```java
+purchasesByType.apply(Select.fieldNames(“purchases{}.userId”));
+```
+
+Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
+all of the keys from the original map, and the values will be the userId contained in the purchasee reecord. 
+
+While the use of {} brackets in the selector is recommended, to make it clear that map value elements are being selected, 
+they can be omitted for brevity. In the future, map slicing will be supported, allowing selection of specific keys from
+the map.
+
+#### 6.6.2. Schema transforms
+Beam provides a collection of transforms that operate natively on schemas. These transforms are very expressive,
+allowing selections and aggregations in terms of named schema fields. Following are some examples of useful
+schema transforms. 
+
+##### **Selecting input**
+Often a computation is only interested in a subset of the fields in an input `PCollection`. The `Select` transform allows
+one to easily project out only the fields of interest. The resulting `PCollection` has  a schema containing each selected
+field as a top-level field. Both top-level and nested fields can be selected. For example, in the Purchase schema, one 
+could select only the userId and streetAddress fields as follows
+
+```java
+purchases.apply(Select.fieldNames(“userId”, shippingAddress.streetAddress”));
+```
+
+The resulting `PCollection` will have the following schema
+
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>streetAddress</td>
+      <td>STRING</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+The same is true for wildcard selections. The following
+
+```java
+purchases.apply(Select.fieldNames(“userId”, shippingAddress.*”));
+```
+
+Will result in the following schema
+
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>streetAddress</td>
+      <td>STRING</td>      
+    </tr>  
+    <tr>
+      <td>city</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>state</td>
+      <td>nullable STRING</td>      
+    </tr> 
+    <tr>
+      <td>country</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>postCode</td>
+      <td>STRING</td>      
+    </tr>                                 
+  </tbody>
+</table>
+<br/>
+
+When selecting fields nested inside of an array, the same rule applies that each selected field appears separately as a 
+top-level field in the resulting row. This means that if multiple fields are selected from the same nested row, each 
+selected field will appear as its own array field. For example
+
+```java
+purchases.apply(Select.fieldNames( “transactions.bank”, transactions.purchaseAmount”));
+```
+
+Will result in the following schema
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>bank</td>
+      <td>ARRAY[STRING]</td>      
+    </tr>
+    <tr>
+      <td>purchaseAmount</td>
+      <td>ARRAY[DOUBLE]</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+Wildcard selections are equivalent to separately selecting each field.
+
+Selecting fields nested inside of maps have the same semantics as arrays. If you select multiple fields from a map 
+, then each selected field will be expanded to its own map at the top level. This means that the set of map keys will
+ be copied, once for each selected field.
+
+Sometimes different nested rows will have fields with the same name. Selecting multiple of these fields would result in 
+a name conflict, as all selected fields are put in the same row schema. When this situation arises, the 
+`Select.withFieldNameAs` builder method can be used to provide an alternate name for the selected field.
+
+Another use of the Select transform is to flatten a nested schema into a single flat schema. For example
+
+```java
+purchases.apply(Select.flattenedSchema());
+```
+
+Will result in the following schema
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>userId</td>
+      <td>STRING</td>      
+    </tr>
+    <tr>
+      <td>itemId</td>
+      <td>STRING</td>      
+    </tr>  
+    <tr>
+      <td>shippingAddress_streetAddress</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>shippingAddress_city</td>
+      <td>nullable STRING</td>      
+    </tr> 
+    <tr>
+      <td>shippingAddress_state</td>
+      <td>STRING</td>      
+    </tr> 
+    <tr>
+      <td>shippingAddress_country</td>
+      <td>STRING</td>      
+    </tr>         
+    <tr>
+      <td>shippingAddress_postCode</td>
+      <td>STRING</td>      
+    </tr>    
+     <tr>
+       <td>costCents</td>
+       <td>INT64</td>      
+     </tr>    
+     <tr>
+       <td>transactions_bank</td>
+       <td>ARRAY[STRING]</td>      
+     </tr>    
+    <tr>
+      <td>transactions_purchaseAmount</td>
+      <td>ARRAY[DOUBLE]</td>      
+    </tr>                                            
+  </tbody>
+</table>
+<br/>
+
+##### **Grouping aggregations**
+The `Group` transform allows simply grouping data by any number of fields in the input schema, applying aggregations to
+those groupings, and storing the result of those aggregations in a new schema field. The output of the `Group` transform
+has a schema with one field corresponding to each aggregation performed. 
+
+The simplest usage of `Group` specifies no aggregations, in which case all inputs matching the provided set of fields
+are grouped together into an `ITERABLE` field. For example
+
+```java
+purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”));
+```
+
+The output schema of this is:
+
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>key</td>
+      <td>ROW{userId:STRING, streetAddress:STRING}</td>      
+    </tr>
+    <tr>
+      <td>values</td>
+      <td>ITERABLE[ROW[Purchase]]</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+The key field contains the grouping key and the values field contains a list of all the values that matched that key.
+
+The names of the key and values fields in the output schema can be controlled using this withKeyField and withValueField 
+builders, as follows:
+
+```java
+purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”)
+    .withKeyField(“userAndStreet”)
+    .withValueField(“matchingPurchases”));
+```
+
+It is quite common to apply one or more aggregations to the grouped result. Each aggregation can  specify one or more fields 
+to aggregate, an aggregation function, and the name of the resulting field in the output schema. For example, the 
+following application computes three aggregations grouped by userId, with all aggregations represented in a single 
+output schema:
+
+```java
+purchases.apply(Group.byFieldNames(“userId”)
+    .aggregateField(“itemId”, Count.combineFn(), “numPurchases”)
+    .aggregateField(“costCents”, Sum.ofLongs(), “totalSpendCents”)
+    .aggregateField(“costCents”, Top.<Long>largestLongsFn(10), “topPurchases”));
+```
+
+The result of this aggregation will have the following schema:
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>key</td>
+      <td>ROW{userId:STRING}</td>      
+    </tr>
+    <tr>
+      <td>value</td>
+      <td>ROW{numPurchases: INT64, totalSpendCents: INT64, topPurchases: ARRAY[INT64]}</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+Often `Selected.flattenedSchema` will be use to flatten the result into a non-nested, flat schema.
+
+##### **Joins**
+Beam supports equijoins on schema `PCollections` - namely joins where the join condition depends on the equality of a 
+subset of fields. For example, the following examples uses the Purchases schema to join transactions with the reviews
+that are likely associated with that transaction (both the user and product match that in the transaction). This is a
+"natural join" - one in which the same field names are used on both the left-hand and right-hand sides of the join - 
+and is specified with the `using` keyword:
+
+```java
+PCollection<Transaction> transactions = readTransactions();
+PCollection<Review> reviews = readReviews();
+PCollection<Row> joined = transactions.apply(
+    Join.innerJoin(reviews).using(“userId”, “productId”));
+```
+
+The resulting schema is the following:
+<table>
+  <thead>
+    <tr class="header">
+      <th><b>Field Name</b></th>
+      <th><b>Field Type</b></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>lhs</td>
+      <td>ROW{Transaction}</td>      
+    </tr>
+    <tr>
+      <td>rhs</td>
+      <td>ROW{Review}</td>      
+    </tr>                  
+  </tbody>
+</table>
+<br/>
+
+Each resulting row contains one Review and one Review that matched the join condition.
+
+If the fields to match in the two schemas have different names, then the on function can be used. For example, if the 
+Review schema named those fields differently than the Transaction schema, then we could write the following:
+
+```java
+PCollection<Row> joined = transactions.apply(
+    Join.innerJoin(reviews).on(
+      FieldsEqual
+         .left(“userId”, “productId”)
+         .right(“reviewUserId”, “reviewProductId”)));
+```
+
+In addition to inner joins, the Join transform supports full outer joins, left outer joins, and right outer joins.
+
+##### **Complex joins**
+While most joins tend to be binary joins - joining two inputs together - sometimes you have more than two input
+streams that all need to be joined on a common key. The `CoGroup` transform allows joining multiple `PCollections`
+together based on equality of schema fields. Each `PCollection` can be marked as required or optional in the final 
+join record, providing a generalization of outer joins to joins with greater than two input `PCollection`s. The output
+can optionally be expanded - providing individual joined records, as in the `Join` transform. The output can also be
+processed in unexpanded format - providing the join key along with Iterables of all records from each input that matched
+that key.
+
+##### **Filtering events**
+The `Filter` transform can be configured with a set of predicates, each one based one specified fields. Only records for 
+which all predicates return true will pass the filter. For example the following 
+
+```java
+purchases.apply(Filter
+    .whereFieldName(“costCents”, c -> c > 100 * 20)
+    .whereFieldName(“shippingAddress.country”, c -> c.equals(“de”));
+```
+
+Will produce all purchases made from Germany with a purchase price of greater than twenty cents.
+
+
+##### **Adding fields to a schema**
+The AddFields transform can be used to extend a schema with new fields. Input rows will be extended to the new schema by
+inserting null values for the new fields, though alternate default values can be specified; if the default null value 
+is used then the new field type will be marked as nullable. Nested subfields can be added using the field selection 
+syntax, including nested fields inside arrays or map values.
+
+For example, the following application
+
+```java
+purchases.apply(AddFields.<PurchasePojo>create()
+    .field(“timeOfDaySeconds”, FieldType.INT32)
+    .field(“shippingAddress.deliveryNotes”, FieldType.STRING)
+    .field(“transactions.isFlagged, FieldType.BOOLEAN, false));
+```
+
+Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified 
+fields added to the schema. All resulting rows will have null values filled in for the **timeOfDaySeconds** and the
+**shippingAddress.deliveryNotes** fields, and a false value filled in for the **transactions.isFlagged** field.
+
+##### **Removing fields from a schema**
+`DropFields` allows specific fields to be dropped from a schema. Input rows will have their schemas truncated, and any 
+values for dropped fields will be removed from the output. Nested fields can also be dropped using the field selection 
+syntax.
+
+For example, the following snippet
+
+```java
+purchases.apply(DropFields.fields(“userId”, “shippingAddress.streetAddress”));
+```
+
+Results in a copy of the input with those two fields and their corresponding values removed.
+
+##### **Renaming schema fields**
+`RenameFields` allows specific fields in a schema to be renamed. The field values in input rows are left unchanged, only 
+the schema is modified. This transform is often used to prepare records for output to a schema-aware sink, such as an 
+RDBMS, to make sure that the `PCollection` schema field names match that of the output. It can also be used to rename
+fields generated by other transforms to make them more usable (similar to SELECT AS in SQL). Nested fields can also be
+renamed using the field-selection syntax.
+
+For example, the following snippet
+
+```java
+purchases.apply(RenameFields.<PurchasePojo>create()
+  .rename(“userId”, “userIdentifier”)
+  .rename(“shippingAddress.streetAddress”, “shippingAddress.street”));
+```
+
+Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename 
+**userId** to **userIdentifier** and **shippingAddress.streetAddress** to **shippingAddress.street**.
+
+##### **Converting between types**
+As mentioned, Beam can automatically convert between different Java types, as long as those types have equivalent
+schemas. One way to do this is by using the `Convert` transform, as follows.
+
+```java
+PCollection<PurchaseBean> purchaseBeans = readPurchasesAsBeans();
+PCollection<PurchasePojo> pojoPurchases = 
+    purchaseBeans.apply(Convert.to(PurchasePojo.class));
+```
+
+Beam will validate that the inferred schema for `PurchasePojo` matches that of the input `PCollection`, and will
+then cast to a `PCollection<PurchasePojo>`.
+
+Since the `Row` class can support any schema, any `PCollection` with schema can be cast to a `PCollection` of rows, as
+follows.
+
+```java
+PCollection<Row> purchaseRows = purchaseBeans.apply(Convert.toRows());
+```
+
+If the source type is a single-field schema, Convert will also convert to the type of the field if asked, effectively
+unboxing the row. For example, give a schema with a single INT64 field, the following will convert it to a
+`PCollection<Long>`
+
+```java
+PCollection<Long> longs = rows.apply(Convert.to(TypeDescriptors.longs()));
+```
+
+In all cases, type checking is done at pipeline graph construction, and if the types do not match the schema then the
+pipeline will fail to launch.
+
+#### 6.6.3. Schemas in ParDo
+A `PCollection` with a schema can apply a `ParDo`, just like any other `PCollection`. However the Beam runner is aware
+ of schemas when applying a `ParDo`, which enables additional functionality.
+
+##### **Input conversion**
+Since Beam knows the schema of the source `PCollection`, it can automatically convert the elements to any Java type for 
+which a matching schema is known. For example, using the above-mentioned Transaction schema, say we have the following
+`PCollection`:
+
+```java
+PCollection<PurchasePojo> purchases = readPurchases();
+```
+
+If there were no schema, then the applied `DoFn` would have to accept an element of type `TransactionPojo`. However
+since there is a schema, you could apply the following DoFn:
+
+```java
+purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+  @ProcessElement public void process(@Element PurchaseBean purchase) {
+      ...
+  }
+}));
+```
+
+Even though the `@Element` parameter does not match the Java type of the `PCollection`, since it has a matching schema
+Beam will automatically convert elements. If the schema does not match, Beam will detect this at graph-construction time
+and will fail the job with a type error.
+
+Since every schema can be represented by a Row type, Row can also be used here:
+
+```java
+purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+  @ProcessElement public void process(@Element Row purchase) {
+      ...
+  }
+}));
+```
+
+##### **Input selection**
+Since the input has a schema, you can also automatically select specific fields to process in the DoFn.
+
+Given the above purchases `PCollection`, say you want to process just the userId and the itemId fields. You can do these 
+using the above-described selection expressions, as follows:
+
+```java
+purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+  @ProcessElement public void process(
+     @FieldAccess(“userId”) String userId, @FieldAccess(“itemId”) long itemId) {
+      ...
+  }
+}));
+```
+
+You can also select nested fields, as follows.
+
+```java
+purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
+  @ProcessElement public void process(
+    @FieldAccess(“shippingAddress.street”) String street) {
+      ...
+  }
+}));
+```
+
+For more information, see the section on field-selection expressions. When selecting subschemas, Beam will 
+automatically convert to any matching schema type, just like when reading the entire row. 
+
+
+## 7. Data encoding and type safety {#data-encoding-and-type-safety}
 
 When Beam runners execute your pipeline, they often need to materialize the
 intermediate data in your `PCollection`s, which requires converting elements to
@@ -2004,7 +3112,7 @@ package.
 > input data that uses BigEndianIntegerCoder, and Integer-typed output data that
 > uses VarIntCoder.
 
-### 6.1. Specifying coders {#specifying-coders}
+### 7.1. Specifying coders {#specifying-coders}
 
 The Beam SDKs require a coder for every `PCollection` in your pipeline. In most
 cases, the Beam SDK is able to automatically infer a `Coder` for a `PCollection`
@@ -2065,7 +3173,7 @@ Python will automatically infer the default `Coder` for the output `PCollection`
 When using `Create`, the simplest way to ensure that you have the correct coder
 is by invoking `withCoder` when you apply the `Create` transform.
 
-### 6.2. Default coders and the CoderRegistry {#default-coders-and-the-coderregistry}
+### 7.2. Default coders and the CoderRegistry {#default-coders-and-the-coderregistry}
 
 Each Pipeline object has a `CoderRegistry` object, which maps language types to
 the default coder the pipeline should use for those types. You can use the
@@ -2174,7 +3282,7 @@ The following table shows the standard mapping:
   </tbody>
 </table>
 
-#### 6.2.1. Looking up a default coder {#default-coder-lookup}
+#### 7.2.1. Looking up a default coder {#default-coder-lookup}
 
 {:.language-java}
 You can use the method `CoderRegistry.getCoder` to determine the default
@@ -2189,7 +3297,7 @@ You can use the method `CoderRegistry.get_coder` to determine the default Coder
 for a Python type. You can use `coders.registry` to access the `CoderRegistry`.
 This allows you to determine (or set) the default Coder for a Python type.
 
-#### 6.2.2. Setting the default coder for a type {#setting-default-coder}
+#### 7.2.2. Setting the default coder for a type {#setting-default-coder}
 
 To set the default Coder for a
 <span class="language-java">Java</span><span class="language-py">Python</span>
@@ -2219,7 +3327,7 @@ cr.registerCoder(Integer.class, BigEndianIntegerCoder.class);
 apache_beam.coders.registry.register_coder(int, BigEndianIntegerCoder)
 ```
 
-#### 6.2.3. Annotating a custom data type with a default coder {#annotating-custom-type-default-coder}
+#### 7.2.3. Annotating a custom data type with a default coder {#annotating-custom-type-default-coder}
 
 {:.language-java}
 If your pipeline program defines a custom data type, you can use the
@@ -2256,7 +3364,7 @@ The Beam SDK for Python does not support annotating data types with a default
 coder. If you would like to set a default coder, use the method described in the
 previous section, *Setting the default coder for a type*.
 
-## 7. Windowing {#windowing}
+## 8. Windowing {#windowing}
 
 Windowing subdivides a `PCollection` according to the timestamps of its
 individual elements. Transforms that aggregate multiple elements, such as
@@ -2270,7 +3378,7 @@ windowing strategy for your `PCollection`. Triggers allow you to deal with
 late-arriving data or to provide early results. See the [triggers](#triggers)
 section for more information.
 
-### 7.1. Windowing basics {#windowing-basics}
+### 8.1. Windowing basics {#windowing-basics}
 
 Some Beam transforms, such as `GroupByKey` and `Combine`, group multiple
 elements by a common key. Ordinarily, that grouping operation groups all of the
@@ -2303,7 +3411,7 @@ your unbounded `PCollection` and subsequently use a grouping transform such as
 `GroupByKey` or `Combine`, your pipeline will generate an error upon
 construction and your job will fail.
 
-#### 7.1.1. Windowing constraints {#windowing-constraints}
+#### 8.1.1. Windowing constraints {#windowing-constraints}
 
 After you set the windowing function for a `PCollection`, the elements' windows
 are used the next time you apply a grouping transform to that `PCollection`.
@@ -2326,7 +3434,7 @@ windows are not actually used until they're needed for the `GroupByKey`.
 Subsequent transforms, however, are applied to the result of the `GroupByKey` --
 data is grouped by both key and window.
 
-#### 7.1.2. Windowing with bounded PCollections {#windowing-bounded-collections}
+#### 8.1.2. Windowing with bounded PCollections {#windowing-bounded-collections}
 
 You can use windowing with fixed-size data sets in **bounded** `PCollection`s.
 However, note that windowing considers only the implicit timestamps attached to
@@ -2369,7 +3477,7 @@ for that `PCollection`.  The `GroupByKey` transform groups the elements of the
 subsequent `ParDo` transform gets applied multiple times per key, once for each
 window.
 
-### 7.2. Provided windowing functions {#provided-windowing-functions}
+### 8.2. Provided windowing functions {#provided-windowing-functions}
 
 You can define different kinds of windows to divide the elements of your
 `PCollection`. Beam provides several windowing functions, including:
@@ -2388,7 +3496,7 @@ overlapping windows wherein a single element can be assigned to multiple
 windows.
 
 
-#### 7.2.1. Fixed time windows {#fixed-time-windows}
+#### 8.2.1. Fixed time windows {#fixed-time-windows}
 
 The simplest form of windowing is using **fixed time windows**: given a
 timestamped `PCollection` which might be continuously updating, each window
@@ -2406,7 +3514,7 @@ the second window, and so on.
 
 **Figure 6:** Fixed time windows, 30s in duration.
 
-#### 7.2.2. Sliding time windows {#sliding-time-windows}
+#### 8.2.2. Sliding time windows {#sliding-time-windows}
 
 A **sliding time window** also represents time intervals in the data stream;
 however, sliding time windows can overlap. For example, each window might
@@ -2426,7 +3534,7 @@ example.
 **Figure 7:** Sliding time windows, with 1 minute window duration and 30s window
 period.
 
-#### 7.2.3. Session windows {#session-windows}
+#### 8.2.3. Session windows {#session-windows}
 
 A **session window** function defines windows that contain elements that are
 within a certain gap duration of another element. Session windowing applies on a
@@ -2441,7 +3549,7 @@ the start of a new window.
 **Figure 8:** Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.
 
-#### 7.2.4. The single global window {#single-global-window}
+#### 8.2.4. The single global window {#single-global-window}
 
 By default, all data in a `PCollection` is assigned to the single global window,
 and late data is discarded. If your data set is of a fixed size, you can use the
@@ -2455,7 +3563,7 @@ processing, which is not possible with continuously updating data. To perform
 aggregations on an unbounded `PCollection` that uses global windowing, you
 should specify a non-default trigger for that `PCollection`.
 
-### 7.3. Setting your PCollection's windowing function {#setting-your-pcollections-windowing-function}
+### 8.3. Setting your PCollection's windowing function {#setting-your-pcollections-windowing-function}
 
 You can set the windowing function for a `PCollection` by applying the `Window`
 transform. When you apply the `Window` transform, you must provide a `WindowFn`.
@@ -2468,7 +3576,7 @@ and emitted, and helps refine how the windowing function performs with respect
 to late data and computing early results. See the [triggers](#triggers) section
 for more information.
 
-#### 7.3.1. Fixed-time windows {#using-fixed-time-windows}
+#### 8.3.1. Fixed-time windows {#using-fixed-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
 into fixed windows, each 60 seconds in length:
@@ -2483,7 +3591,7 @@ into fixed windows, each 60 seconds in length:
 %}
 ```
 
-#### 7.3.2. Sliding time windows {#using-sliding-time-windows}
+#### 8.3.2. Sliding time windows {#using-sliding-time-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
 into sliding time windows. Each window is 30 seconds in length, and a new window
@@ -2499,7 +3607,7 @@ begins every five seconds:
 %}
 ```
 
-#### 7.3.3. Session windows {#using-session-windows}
+#### 8.3.3. Session windows {#using-session-windows}
 
 The following example code shows how to apply `Window` to divide a `PCollection`
 into session windows, where each session must be separated by a time gap of at
@@ -2518,7 +3626,7 @@ least 10 minutes (600 seconds):
 Note that the sessions are per-key — each key in the collection will have its
 own session groupings depending on the data distribution.
 
-#### 7.3.4. Single global window {#using-single-global-window}
+#### 8.3.4. Single global window {#using-single-global-window}
 
 If your `PCollection` is bounded (the size is fixed), you can assign all the
 elements to a single global window. The following example code shows how to set
@@ -2534,7 +3642,7 @@ a single global window for a `PCollection`:
 %}
 ```
 
-### 7.4. Watermarks and late data {#watermarks-and-late-data}
+### 8.4. Watermarks and late data {#watermarks-and-late-data}
 
 In any data processing system, there is a certain amount of lag between the time
 a data event occurs (the "event time", determined by the timestamp on the data
@@ -2575,9 +3683,8 @@ a `PCollection`. You can use triggers to decide when each individual window
 aggregates and reports its results, including how the window emits late
 elements.
 
-#### 7.4.1. Managing late data {#managing-late-data}
+#### 8.4.1. Managing late data {#managing-late-data}
 
-> **Note:** Managing late data is not supported in the Beam SDK for Python.
 
 You can allow late data by invoking the `.withAllowedLateness` operation when
 you set your `PCollection`'s windowing strategy. The following code example
@@ -2591,13 +3698,22 @@ the end of a window.
               .withAllowedLateness(Duration.standardDays(2)));
 ```
 
+```py
+   pc = [Initial PCollection]
+   pc | beam.WindowInto(
+              FixedWindows(60),
+              trigger=trigger_fn,
+              accumulation_mode=accumulation_mode,
+              timestamp_combiner=timestamp_combiner,
+              allowed_lateness=Duration(seconds=2*24*60*60)) # 2 days
+```
 When you set `.withAllowedLateness` on a `PCollection`, that allowed lateness
 propagates forward to any subsequent `PCollection` derived from the first
 `PCollection` you applied allowed lateness to. If you want to change the allowed
 lateness later in your pipeline, you must do so explictly by applying
 `Window.configure().withAllowedLateness()`.
 
-### 7.5. Adding timestamps to a PCollection's elements {#adding-timestamps-to-a-pcollections-elements}
+### 8.5. Adding timestamps to a PCollection's elements {#adding-timestamps-to-a-pcollections-elements}
 
 An unbounded source provides a timestamp for each element. Depending on your
 unbounded source, you may need to configure how the timestamp is extracted from
@@ -2635,7 +3751,7 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 %}
 ```
 
-## 8. Triggers {#triggers}
+## 9. Triggers {#triggers}
 
 When collecting and grouping data into windows, Beam uses **triggers** to
 determine when to emit the aggregated results of each window (referred to as a
@@ -2691,7 +3807,7 @@ you want your pipeline to provide periodic updates on an unbounded data set —
 for example, a running average of all data provided to the present time, updated
 every N seconds or every N elements.
 
-### 8.1. Event time triggers {#event-time-triggers}
+### 9.1. Event time triggers {#event-time-triggers}
 
 The `AfterWatermark` trigger operates on *event time*. The `AfterWatermark`
 trigger emits the contents of a window after the
@@ -2723,7 +3839,7 @@ firings:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_early_late_triggers
 %}```
 
-#### 8.1.1. Default trigger {#default-trigger}
+#### 9.1.1. Default trigger {#default-trigger}
 
 The default trigger for a `PCollection` is based on event time, and emits the
 results of the window when the Beam's watermark passes the end of the window,
@@ -2735,7 +3851,7 @@ discarded. This is because the default windowing configuration has an allowed
 lateness value of 0. See the Handling Late Data section for information about
 modifying this behavior.
 
-### 8.2. Processing time triggers {#processing-time-triggers}
+### 9.2. Processing time triggers {#processing-time-triggers}
 
 The `AfterProcessingTime` trigger operates on *processing time*. For example,
 the <span class="language-java">`AfterProcessingTime.pastFirstElementInPane()`</span>
@@ -2748,7 +3864,7 @@ The `AfterProcessingTime` trigger is useful for triggering early results from a
 window, particularly a window with a large time frame such as a single global
 window.
 
-### 8.3. Data-driven triggers {#data-driven-triggers}
+### 9.3. Data-driven triggers {#data-driven-triggers}
 
 Beam provides one data-driven trigger,
 <span class="language-java">`AfterPane.elementCountAtLeast()`</span>
@@ -2765,7 +3881,7 @@ consider using [composite triggers](#composite-triggers) to combine multiple
 conditions. This allows you to specify multiple firing conditions such as “fire
 either when I receive 50 elements, or every 1 second”.
 
-### 8.4. Setting a trigger {#setting-a-trigger}
+### 9.4. Setting a trigger {#setting-a-trigger}
 
 When you set a windowing function for a `PCollection` by using the
 <span class="language-java">`Window`</span><span class="language-py">`WindowInto`</span>
@@ -2797,7 +3913,7 @@ sets the window's **accumulation mode**.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_setting_trigger
 %}```
 
-#### 8.4.1. Window accumulation modes {#window-accumulation-modes}
+#### 9.4.1. Window accumulation modes {#window-accumulation-modes}
 
 When you specify a trigger, you must also set the the window's **accumulation
 mode**. When a trigger fires, it emits the current contents of the window as a
@@ -2832,7 +3948,7 @@ we'll assume that the events all arrive in the pipeline in order.
 
 ![Diagram of data events for acculumating mode example]({{ "/images/trigger-accumulation.png" | prepend: site.baseurl }} "Data events for accumulating mode example")
 
-##### 8.4.1.1. Accumulating mode {#accumulating-mode}
+##### 9.4.1.1. Accumulating mode {#accumulating-mode}
 
 If our trigger is set to accumulating mode, the trigger emits the following
 values each time it fires. Keep in mind that the trigger fires every time three
@@ -2845,7 +3961,7 @@ elements arrive:
 ```
 
 
-##### 8.4.1.2. Discarding mode {#discarding-mode}
+##### 9.4.1.2. Discarding mode {#discarding-mode}
 
 If our trigger is set to discarding mode, the trigger emits the following values
 on each firing:
@@ -2856,9 +3972,8 @@ on each firing:
   Third trigger firing:                         [9, 13, 10]
 ```
 
-#### 8.4.2. Handling late data {#handling-late-data}
+#### 9.4.2. Handling late data {#handling-late-data}
 
-> The Beam SDK for Python does not currently support allowed lateness.
 
 If you want your pipeline to process data that arrives after the watermark
 passes the end of the window, you can apply an *allowed lateness* when you set
@@ -2877,7 +3992,13 @@ windowing function:
                               .withAllowedLateness(Duration.standardMinutes(30));
 ```
 ```py
-  # The Beam SDK for Python does not currently support allowed lateness.
+  pc = [Initial PCollection]
+  pc | beam.WindowInto(
+            FixedWindows(60),
+            trigger=AfterProcessingTime(60),
+            allowed_lateness=1800) # 30 minutes
+     | ...
+  
 ```
 
 This allowed lateness propagates to all `PCollection`s derived as a result of
@@ -2886,13 +4007,13 @@ allowed lateness later in your pipeline, you can apply
 `Window.configure().withAllowedLateness()` again, explicitly.
 
 
-### 8.5. Composite triggers {#composite-triggers}
+### 9.5. Composite triggers {#composite-triggers}
 
 You can combine multiple triggers to form **composite triggers**, and can
 specify a trigger to emit results repeatedly, at most once, or under other
 custom conditions.
 
-#### 8.5.1. Composite trigger types {#composite-trigger-types}
+#### 9.5.1. Composite trigger types {#composite-trigger-types}
 
 Beam includes the following composite triggers:
 
@@ -2916,7 +4037,7 @@ Beam includes the following composite triggers:
 *   `orFinally` can serve as a final condition to cause any trigger to fire one
     final time and never fire again.
 
-#### 8.5.2. Composition with AfterWatermark {#composite-afterwatermark}
+#### 9.5.2. Composition with AfterWatermark {#composite-afterwatermark}
 
 Some of the most useful composite triggers fire a single time when Beam
 estimates that all the data has arrived (i.e. when the watermark passes the end
@@ -2954,7 +4075,7 @@ example trigger code fires on the following conditions:
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_composite_triggers
 %}```
 
-#### 8.5.3. Other composite triggers {#other-composite-triggers}
+#### 9.5.3. Other composite triggers {#other-composite-triggers}
 
 You can also build other sorts of composite triggers. The following example code
 shows a simple composite trigger that fires whenever the pane has at least 100
@@ -2969,7 +4090,7 @@ elements, or after a minute.
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_other_composite_triggers
 %}```
 
-## 9. Metrics {#metrics}
+## 10. Metrics {#metrics}
 In the Beam model, metrics provide some insight into the current state of a user pipeline, 
 potentially while the pipeline is running. There could be different reasons for that, for instance:
 *   Check the number of errors encountered while running a specific step in the pipeline;
@@ -2977,7 +4098,7 @@ potentially while the pipeline is running. There could be different reasons for 
 *   Retrieve an accurate count of the number of elements that have been processed;
 *   ...and so on.
 
-### 9.1 The main concepts of Beam metrics
+### 10.1 The main concepts of Beam metrics
 *   **Named**. Each metric has a name which consists of a namespace and an actual name. The 
     namespace can be used to differentiate between multiple metrics with the same name and also 
     allows querying for all metrics within a specific namespace. 
@@ -2997,7 +4118,7 @@ transform reported, as well as aggregating the metric across the entire pipeline
 > **Note:** It is runner-dependent whether metrics are accessible during pipeline execution or only 
 after jobs have completed.
 
-### 9.2 Types of metrics {#types-of-metrics}
+### 10.2 Types of metrics {#types-of-metrics}
 There are three types of metrics that are supported for the moment: `Counter`, `Distribution` and 
 `Gauge`.
 
@@ -3043,7 +4164,7 @@ public void processElement(ProcessContext context) {
 }
 ```
 
-### 9.3 Querying metrics {#querying-metrics}
+### 10.3 Querying metrics {#querying-metrics}
 `PipelineResult` has a method `metrics()` which returns a `MetricResults` object that allows 
 accessing metrics. The main method available in `MetricResults` allows querying for all metrics 
 matching a given filter.
@@ -3071,7 +4192,7 @@ public interface MetricResult<T> {
 }
 ```
 
-### 9.4 Using metrics in pipeline {#using-metrics}
+### 10.4 Using metrics in pipeline {#using-metrics}
 Below, there is a simple example of how to use a `Counter` metric in a user pipeline.
 
 ```java
@@ -3108,3 +4229,551 @@ public class MyMetricsDoFn extends DoFn<Integer, Integer> {
   }
 }
 ```  
+### 9.5 Export metrics {#export-metrics}
+Beam metrics can be exported to external sinks. If a metrics sink is set up in the configuration, the runner will push metrics to it at a default 5s period. 
+The configuration is held in the [MetricsOptions](https://beam.apache.org/releases/javadoc/2.19.0/org/apache/beam/sdk/metrics/MetricsOptions.html) class.
+It contains push period configuration and also sink specific options such as type and URL. As for now only the REST HTTP and the Graphite sinks are supported and only
+Flink and Spark runners support metrics export.
+
+Also Beam metrics are exported to inner Spark and Flink dashboards to be consulted in their respective UI.
+
+
+
+## 10. State and Timers {#state-and-timers}
+Beam's windowing and triggering facilities provide a powerful abstraction for grouping and aggregating unbounded input
+data based on timestamps. However there are aggregation use cases for which developers may require a higher degree of
+control than provided by windows and triggers. Beam provides an API for manually managing per-key state, allowing for 
+fine-grained control over aggregations.
+
+Beam's state API models state per key. To use the state API, you start out with a keyed `PCollection`, which in Java
+is modeled as a `PCollection<KV<K, V>>`. A `ParDo` processing this `PCollection` can now declare state variables. Inside
+the `ParDo` these state variables can be used to write or update state for the current key or to read previous state
+written for that key. State is always fully scoped only to the current processing key.
+
+Windowing can still be used together with stateful processing. All state for a key is scoped to the current window. This
+means that the first time a key is seen for a given window any state reads will return empty, and that a runner can
+garbage collect state when a window is completed. It's also often useful to use Beam's windowed aggegations prior to
+the stateful operator. For example, using a combiner to preaggregate data, and then storing aggregated data inside of
+state. Merging windows are not currently supported when using state and timers.
+
+Sometimes stateful processing is used to implement state-machine style processing inside a `DoFn`. When doing this,
+care must be taken to remember that the elements in input PCollection have no guaranteed order and to ensure that the
+program logic is resilient to this. Unit tests written using the DirectRunner will shuffle the order of element
+processing, and are recommended to test for correctness.
+
+In Java DoFn declares states to be accessed by creating final `StateSpec` member variables representing each state. Each
+state must be named using the `StateId` annotation; this name is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. A `DoFn` can declare multiple state variables.
+
+### 10.1 Types of state {#types-of-state}
+Beam provides several types of state:
+
+#### ValueState
+A ValueState is a scalar state value. For each key in the input, a ValueState will store a typed value that can be
+read and modified inside the DoFn's `@ProcessElement` or `@OnTimer` methods. If the type of the ValueState has a coder 
+registered, then Beam will automatically infer the coder for the state value. Otherwise, a coder can be explicitly
+specified when creating the ValueState. For example, the following ParDo creates a  single state variable that 
+accumulates the number of elements seen.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<ValueState<Integer>> numElements = StateSpecs.value();
+  
+  @ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
+    // Read the number element seen so far for this user key.
+    // state.read() returns null if it was never set. The below code allows us to have a default value of 0.
+    int currentValue = MoreObjects.firstNonNull(state.read(), 0);
+    // Update the state.
+    state.write(currentValue + 1);
+  }
+}));
+```
+
+Beam also allows explicitly specifying a coder for `ValueState` values. For example:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<ValueState<MyType>> numElements = StateSpecs.value(new MyTypeCoder());
+                 ...
+}));
+```
+
+#### CombiningState
+`CombiningState` allows you to create a state object that is updated using a Beam combiner. For example, the previous
+`ValueState` example could be rewritten to use `CombiningState`
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<CombiningState<Integer, int[], Integer>> numElements = 
+      StateSpecs.combining(Sum.ofIntegers());
+  
+  @ProcessElement public void process(@StateId("state") ValueState<Integer> state) {
+    state.add(1);
+  }
+}));
+```
+
+#### BagState
+A common use case for state is to accumulate multiple elements. `BagState` allows for accumulating an unordered set
+ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
+collection first, which is an efficiency gain. In addition, runners that support paged reads can allow individual
+bags larger than available memory.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<BagState<ValueT>> numElements = StateSpecs.bag();
+  
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element, 
+    @StateId("state") BagState<ValueT> state) {
+    // Add the current element to the bag for this key.
+    state.add(element.getValue());
+    if (shouldFetch()) {
+      // Occasionally we fetch and process the values.
+      Iterable<ValueT> values = state.read();
+      processValues(values);
+      state.clear();  // Clear the state for this key.
+    }
+  }
+}));
+```
+### 10.2 Deferred state reads {#deferred-state-reads}
+When a `DoFn` contains multiple state specifications, reading each one in order can be slow. Calling the `read()` function
+on a state can cause the runner to perform a blocking read. Performing multiple blocking reads in sequence adds latency
+to element processing. If you know that a state will always be read, you can annotate it as @AlwaysFetched, and then the
+runner can prefetch all of the states necessary. For example:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+   @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+   @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+   @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @AlwaysFetched @StateId("state1") ValueState<Integer> state1,
+    @AlwaysFetched @StateId("state2") ValueState<String> state2,
+    @AlwaysFetched @StateId("state3") BagState<ValueT> state3) {
+    state1.read();
+    state2.read();
+    state3.read();
+  }
+}));
+```
+
+If however there are code paths in which the states are not fetched, then annotating with @AlwaysFetched will add
+unnecessary fetching for those paths. In this case, the readLater method allows the runner to know that the state will
+be read in the future, allowing multiple state reads to be batched together.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state1") private final StateSpec<ValueState<Integer>> state1 = StateSpecs.value();
+  @StateId("state2") private final StateSpec<ValueState<String>> state2 = StateSpecs.value();
+  @StateId("state3") private final StateSpec<BagState<ValueT>> state3 = StateSpecs.bag();
+
+  @ProcessElement public void process(
+    @StateId("state1") ValueState<Integer> state1,
+    @StateId("state2") ValueState<String> state2,
+    @StateId("state3") BagState<ValueT> state3) {
+    if (/* should read state */) {
+      state1.readLater();
+      state2.readLater();
+      state3.readLater();
+    }
+   
+    // The runner can now batch all three states into a single read, reducing latency.
+     processState1(state1.read());
+    processState2(state2.read());
+    processState3(state3.read());
+  }
+}));
+```
+
+### 10.3 Timers {#timers}
+Beam provides a per-key timer callback API. This allows for delayed processing of data stored using the state API.
+Timers can be set to callback at either an event-time or a processing-time timestamp. Every timer is identified with a
+TimerId. A given timer for a key can only be set for a single timestamp. Calling set on a timer overwrites the previous
+firing time for that key's timer.
+
+#### 10.3.1 Event-time timers {#event-time-timers}
+Event-time timers fire when the input watermark for the DoFn passes the time at which the timer is set, meaning that 
+the runner believes that there are no more elements to be processed with timestamps before the timer timestamp. This
+allows for event-time aggregations. 
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+  @TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element,
+      @Timestamp Instant elementTs,
+      @StateId("state") ValueState<Integer> state, 
+      @TimerId("timer") Timer timer) {
+     ...
+     // Set an event-time timer to the element timestamp.
+     timer.set(elementTs);
+  }
+  
+   @OnTimer("timer") public void onTimer() {
+      //Process timer.
+   }
+}));
+
+```
+#### 10.3.2 Processing-time timers {#processing-time-timers}
+Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
+before processing. It can also be used to schedule events that should occur at a specific time. Just like with
+event-time timers, processing-time timers are per key - each key has a separate copy of the timer.
+
+While processing-time timers can be set to an absolute timestamp, it is very common to set them to an offset relative 
+to the current time. The `Timer.offset` and `Timer.setRelative` methods can be used to accomplish this.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @TimerId("timer") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+  @ProcessElement public void process(@TimerId("timer") Timer timer) {
+     ...
+     // Set a timer to go off 30 seconds in the future.
+     timer.offset(Duration.standardSeconds(30)).setRelative();
+  }
+  
+   @OnTimer("timer") public void onTimer() {
+      //Process timer.
+   }
+}));
+
+```
+
+#### 10.3.3 Dynamic timer tags {#dynamic-timer-tags}
+Beam also supports dynamically setting a timer tag using `TimerMap`. This allows for setting multiple different timers
+in a `DoFn` and allowing for the timer tags to be dynamically chosen - e.g. based on data in the input elements. A
+timer with a specific tag can only be set to a single timestamp, so setting the timer again has the effect of
+overwriting the previous expiration time for the timer with that tag. Each `TimerMap` is identified with a timer family
+id, and timers in different timer families are independent.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @TimerFamily("actionTimers") private final TimerSpec timer =
+    TimerSpecs.timerMap(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element, 
+      @Timestamp Instant elementTs,
+      @TimerFamily("actionTimers") TimerMap timers) {
+     timers.set(element.getValue().getActionType(), elementTs);
+  }
+  
+   @OnTimerFamily("actionTimers") public void onTimer(@TimerId String timerId) {
+     LOG.info("Timer fired with id " + timerId);
+   }
+}));
+
+```
+
+#### 10.3.4 Timer output timestamps {#timer-output-timestamps}
+By default, event-time timers will hold the output watermark of the `ParDo` to the timestamp of the timer. This means
+that if a timer is set to 12pm, any windowed aggregations or event-time timers later in the pipeline graph that finish  
+after 12pm will not expire. The timestamp of the timer is also the default output timestamp for the timer callback. This
+means that any elements output from the onTimer method will have a timestamp equal to the timestamp of the timer firing.
+For processing-time timers, the default output timestamp and watermark hold is the value of the input watermark at the
+time the timer was set.
+
+In some cases, a DoFn needs to output timestamps earlier than the timer expiration time, and therefore also needs to
+hold its output watermark to those timestamps. For example, consider the following pipeline that temporarily batches 
+records into state, and sets a timer to drain the state. This code may appear correct, but will not work properly.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  @StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
+  @StateId("timerSet") private final StateSpec<ValueState<Boolean>> timerSet = StateSpecs.value();
+  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element, 
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @StateId("timerSet") ValueState<Boolean> timerSet,
+      @TimerId("outputState") Timer timer) {
+    // Add the current element to the bag for this key.
+    elementBag.add(element.getValue());
+    if (!MoreObjects.firstNonNull(timerSet.read(), false)) {
+      // If the timer is not current set, then set it to go off in a minute.
+      timer.offset(Duration.standardMinutes(1)).setRelative();
+      timerSet.write(true);
+    }
+  }
+  
+  @OnTimer("outputState") public void onTimer(
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @StateId("timerSet") ValueState<Boolean> timerSet,
+      OutputReceiver<ValueT> output) {
+    for (ValueT bufferedElement : elementBag.read()) {
+      // Output each element.
+      output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
+    }
+    elementBag.clear();
+    // Note that the timer has now fired.
+    timerSet.clear();
+  }
+}));
+```
+The problem with this code is that the ParDo is buffering elements, however nothing is preventing the watermark
+from advancing past the timestamp of those elements, so all those elements might be dropped as late data. In order
+to prevent this from happening, an output timestamp needs to be set on the timer to prevent the watermark from advancing
+past the timestamp of the minimum element. The following code demonstrates this.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  // The bag of elements accumulated.
+  @StateId("elementBag") private final StateSpec<BagState<ValueT>> elementBag = StateSpecs.bag();
+  // The timestamp of the timer set.
+  @StateId("timerTimestamp") private final StateSpec<ValueState<Long>> timerTimestamp = StateSpecs.value();
+  // The minimum timestamp stored in the bag.
+  @StateId("minTimestampInBag") private final StateSpec<CombiningState<Long, long[], Long>> 
+     minTimestampInBag = StateSpecs.combining(Min.ofLongs());
+
+  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element, 
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @AlwaysFetched @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+      @AlwaysFetched @StateId("minTimestampInBag") CombiningState<Long, long[], Long> minTimestamp,
+      @TimerId("outputState") Timer timer) {
+    // Add the current element to the bag for this key.
+    elementBag.add(element.getValue());
+    // Keep track of the minimum element timestamp currently stored in the bag.
+    minTimestamp.add(element.getValue().timestamp());
+
+    // If the timer is already set, then reset it at the same time but with an updated output timestamp (otherwise
+    // we would keep resetting the timer to the future). If there is no timer set, then set one to expire in a minute.
+    Long timerTimestampMs = timerTimestamp.read();
+    Instant timerToSet = (timerTimestamp.isEmpty().read())
+        ? Instant.now().plus(Duration.standardMinutes(1)) : new Instant(timerTimestampMs);
+    // Setting the outputTimestamp to the minimum timestamp in the bag holds the watermark to that timestamp until the
+    // timer fires. This allows outputting all the elements with their timestamp.
+    timer.withOutputTimestamp(minTimestamp.read()).set(timerToSet).
+    timerTimestamp.write(timerToSet.getMillis());
+  }
+  
+  @OnTimer("outputState") public void onTimer(
+      @StateId("elementBag") BagState<ValueT> elementBag,
+      @StateId("timerTimestamp") ValueState<Long> timerTimestamp,
+      OutputReceiver<ValueT> output) {
+    for (ValueT bufferedElement : elementBag.read()) {
+      // Output each element.
+      output.outputWithTimestamp(bufferedElement, bufferedElement.timestamp());
+    }
+    // Note that the timer has now fired.
+    timerTimestamp.clear();
+  }
+}));
+```
+### 10.4 Garbage collecting state {#garbage-collecting-state}
+Per-key state needs to be garbage collected, or eventually the increasing size of state may negatively impact 
+performance. There are two common strategies for garbage collecting state.
+
+##### 10.4.1 **Using windows for garbage collection** {#using-windows-for-garbage-collection}
+All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the 
+input element the ParDo will see different values for the state depending on the window that element falls into. In
+addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
+window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watemark to
+pass the end of the window plus the allowed lateness before garbage collecting state). This can be used as a 
+garbage-collection strategy.
+
+For example, given the following:
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(Window.into(CalendarWindows.days(1)
+   .withTimeZone(DateTimeZone.forID("America/Los_Angeles"))));
+       .apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+           @StateId("state") private final StateSpec<ValueState<Integer>> state = StateSpecs.value();
+                              ...
+           @ProcessElement public void process(@Timestamp Instant ts, @StateId("state") ValueState<Integer> state) {
+              // The state is scoped to a calendar day window. That means that if the input timestamp ts is after
+              // midnight PST, then a new copy of the state will be seen for the next day.
+           }
+         }));
+```
+
+This `ParDo` stores state per day. Once the pipeline is done processing data for a given day, all the state for that
+day is garbage collected.
+
+##### 10.4.1 **Using timers For garbage collection** {#using-timers-for-garbage-collection}
+In some cases, it is difficult to find a windowing strategy that models the desired garbage-collection strategy. For 
+example, a common desire is to garbage collect state for a key once no activity has been seen on the key for some time.
+This can be done by updating a timer that garbage collects state. For example
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  // The state for the key.
+  @StateId("state") private final StateSpec<ValueState<ValueT>> state = StateSpecs.value();
+
+  // The maximum element timestamp seen so far.
+  @StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>> 
+     maxTimestamp = StateSpecs.combining(Max.ofLongs());
+
+  @TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, ValueT> element,
+      @Timestamp Instant ts,
+      @StateId("state") ValueState<ValueT> state,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp,
+      @TimerId("gcTimer") gcTimer) { 
+    updateState(state, element);
+    maxTimestamp.add(ts.getMillis());
+    
+    // Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+    // as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
+    // worth of event time (as measured by the watermark), then the gc timer will fire.
+    Instant expirationTime = new Instant(maxTimestamp.read()).plus(Duration.standardHours(1));
+    timer.set(expirationTime);
+  }
+
+  @OnTimer("gcTimer") public void onTimer(
+      @StateId("state") ValueState<ValueT> state,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestamp) {
+       // Clear all state for the key.
+       state.clear();
+       maxTimestamp.clear();
+    }
+ }
+````
+
+### 10.5 State and timers examples {#state-timers-examples}
+Following are some example uses of state and timers
+
+#### 10.5.1. Joining clicks and views {#joining-clicks-and-views}
+In this example, the pipeline is processing data from an e-commerce site's home page. There are two input streams:
+a stream of views, representing suggested product links displayed to the user on the home page, and a stream of 
+clicks, representing actual user clicks on these links. The goal of the pipeline is to join click events with view
+events, outputting a new joined event that contains information from both events. Each link has a unique identifier
+that is present in both the view event and the join event.
+
+Many view events will never be followed up with clicks. This pipeline will wait one hour for a click, after which it 
+will give up on this join. While every click event should have a view event, some small number of view events may be
+lost and never make it to the Beam pipeline; the pipeline will similarly wait one hour after seeing a click event, and
+give up if the view event does not arrive in that time. Input events are not ordered - it is possible to see the click 
+event before the view event. The one hour join timeout should be based on event time, not on processing time.
+
+```java
+// Read the event stream and key it by the link id.
+PCollection<KV<String, Event>> eventsPerLinkId = 
+    readEvents()
+    .apply(WithKeys.of(Event::getLinkId).withKeyType(TypeDescriptors.strings()));
+
+perUser.apply(ParDo.of(new DoFn<KV<String, Event>, JoinedEvent>() {
+  // Store the view event.
+  @StateId("view") private final StateSpec<ValueState<Event>> viewState = StateSpecs.value();
+  // Store the click event.
+  @StateId("click") private final StateSpec<ValueState<Event>> clickState = StateSpecs.value();
+
+  // The maximum element timestamp seen so far.
+  @StateId("maxTimestampSeen") private final StateSpec<CombiningState<Long, long[], Long>> 
+     maxTimestamp = StateSpecs.combining(Max.ofLongs());
+
+  // Timer that fires when an hour goes by with an incomplete join.
+  @TimerId("gcTimer") private final TimerSpec gcTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+  @ProcessElement public void process(
+      @Element KV<String, Event> element,
+      @Timestamp Instant ts,
+      @AlwaysFetched @StateId("view") ValueState<Event> viewState,
+      @AlwaysFetched @StateId("click") ValueState<Event> clickState,
+      @AlwaysFetched @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState,
+      @TimerId("gcTimer") gcTimer,
+      OutputReceiver<JoinedEvent> output) { 
+    // Store the event into the correct state variable.
+    Event event = element.getValue();
+    ValueState<Event> valueState = event.getType().equals(VIEW) ? viewState : clickState;
+    valueState.write(event);
+  
+    Event view = viewState.read();
+    Event click = clickState.read();
+    (if view != null && click != null) {
+      // We've seen both a view and a click. Output a joined event and clear state.
+      output.output(JoinedEvent.of(view, click));
+      clearState(viewState, clickState, maxTimestampState);
+    } else {
+       // We've only seen on half of the join.
+       // Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so 
+       // as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour's
+       // worth of event time (as measured by the watermark), then the gc timer will fire.
+        maxTimestampState.add(ts.getMillis());
+       Instant expirationTime = new Instant(maxTimestampState.read()).plus(Duration.standardHours(1));
+       gcTimer.set(expirationTime);
+    }
+  }
+
+  @OnTimer("gcTimer") public void onTimer(
+      @StateId("view") ValueState<Event> viewState,
+      @StateId("click") ValueState<Event> clickState,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState) {
+       // An hour has gone by with an incomplete join. Give up and clear the state.
+       clearState(viewState, clickState, maxTimestampState);
+    }
+   
+    private void clearState(
+      @StateId("view") ValueState<Event> viewState,
+      @StateId("click") ValueState<Event> clickState,
+      @StateId("maxTimestampSeen") CombiningState<Long, long[], Long> maxTimestampState) {
+      viewState.clear();
+      clickState.clear();
+      maxTimestampState.clear();
+    }
+ }));
+````
+
+#### 10.5.2 Batching RPCs {#batching-rpcs}
+
+In this example, input elements are being forwarded to an external RPC service. The RPC accepts batch requests - 
+multiple events for the same user can be batched in a single RPC call. Since this RPC service also imposes rate limits,
+we want to batch ten seconds worth of events together in order to reduce the number of calls.
+
+```java
+PCollection<KV<String, ValueT>> perUser = readPerUser();
+perUser.apply(ParDo.of(new DoFn<KV<String, ValueT>, OutputT>() {
+  // Store the elements buffered so far.
+  @StateId("state") private final StateSpec<BagState<ValueT>> elements = StateSpecs.bag();
+  // Keep track of whether a timer is currently set or not.
+  @StateId("isTimerSet") private final StateSpec<ValueState<Boolean>> isTimerSet = StateSpecs.value();
+  // The processing-time timer user to publish the RPC.
+  @TimerId("outputState") private final TimerSpec timer = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+  
+  @ProcessElement public void process(
+    @Element KV<String, ValueT> element, 
+    @StateId("state") BagState<ValueT> elementsState,
+    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState,
+    @TimerId("outputState") Timer timer) {
+    // Add the current element to the bag for this key.
+    state.add(element.getValue());
+    if (!MoreObjects.firstNonNull(isTimerSetState.read(), false)) {
+      // If there is no timer currently set, then set one to go off in 10 seconds.
+      timer.offset(Duration.standardSeconds(10)).setRelative();
+      isTimerSetState.write(true);
+   }
+  }
+ 
+  @OnTimer("outputState") public void onTimer(
+    @StateId("state") BagState<ValueT> elementsState,
+    @StateId("isTimerSet") ValueState<Boolean> isTimerSetState) {
+    // Send an RPC containing the batched elements and clear state.
+    sendRPC(elementsState.read());
+    elementsState.clear();
+    isTimerSetState.clear();
+  }
+}));
+```

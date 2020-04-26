@@ -46,7 +46,6 @@ from apache_beam.pvalue import AsSingleton
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
   """Generate groups given the input PCollections."""
-
   def attach_corpus_fn(group, corpus, ignore):
     selected = None
     len_corpus = len(corpus)
@@ -65,17 +64,14 @@ def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):
       if c != ignore:
         selected = c
 
-    yield group + (selected,)
+    yield group + (selected, )
 
-  return (group_ids
-          | 'attach corpus' >> beam.FlatMap(
-              attach_corpus_fn,
-              AsList(corpus),
-              AsSingleton(ignore_corpus))
-          | 'attach word' >> beam.FlatMap(
-              attach_word_fn,
-              AsList(word),
-              AsSingleton(ignore_word)))
+  return (
+      group_ids
+      | 'attach corpus' >> beam.FlatMap(
+          attach_corpus_fn, AsList(corpus), AsSingleton(ignore_corpus))
+      | 'attach word' >> beam.FlatMap(
+          attach_word_fn, AsList(word), AsSingleton(ignore_word)))
 
 
 def run(argv=None):
@@ -112,8 +108,12 @@ def run(argv=None):
     pcoll_ignore_word = p | 'create_ignore_word' >> beam.Create([ignore_word])
     pcoll_group_ids = p | 'create groups' >> beam.Create(group_ids)
 
-    pcoll_groups = create_groups(pcoll_group_ids, pcoll_corpus, pcoll_word,
-                                 pcoll_ignore_corpus, pcoll_ignore_word)
+    pcoll_groups = create_groups(
+        pcoll_group_ids,
+        pcoll_corpus,
+        pcoll_word,
+        pcoll_ignore_corpus,
+        pcoll_ignore_word)
 
     # pylint:disable=expression-not-assigned
     pcoll_groups | WriteToText(known_args.output)

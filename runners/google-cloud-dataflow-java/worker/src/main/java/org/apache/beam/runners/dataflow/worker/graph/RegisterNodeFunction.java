@@ -94,9 +94,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.graph.Network;
  */
 public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>, Node> {
   /** Must match declared fields within {@code ProcessBundleHandler}. */
-  private static final String DATA_INPUT_URN = "beam:source:runner:0.1";
+  private static final String DATA_INPUT_URN = "beam:runner:source:v1";
 
-  private static final String DATA_OUTPUT_URN = "beam:sink:runner:0.1";
+  private static final String DATA_OUTPUT_URN = "beam:runner:sink:v1";
   private static final String JAVA_SOURCE_URN = "beam:source:java:0.1";
 
   public static final String COMBINE_PER_KEY_URN =
@@ -124,8 +124,10 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
   public static RegisterNodeFunction forPipeline(
       RunnerApi.Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
-    return new RegisterNodeFunction(pipeline, idGenerator, stateApiServiceDescriptor);
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+    return new RegisterNodeFunction(
+        pipeline, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
   /**
@@ -134,14 +136,18 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
    * harnesses, then this method should be removed.
    */
   public static RegisterNodeFunction withoutPipeline(
-      IdGenerator idGenerator, Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
-    return new RegisterNodeFunction(null, idGenerator, stateApiServiceDescriptor);
+      IdGenerator idGenerator,
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
+    return new RegisterNodeFunction(
+        null, idGenerator, stateApiServiceDescriptor, timerApiServiceDescriptor);
   }
 
   private RegisterNodeFunction(
       @Nullable RunnerApi.Pipeline pipeline,
       IdGenerator idGenerator,
-      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor) {
+      Endpoints.ApiServiceDescriptor stateApiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor timerApiServiceDescriptor) {
     this.pipeline = pipeline;
     this.idGenerator = idGenerator;
     this.stateApiServiceDescriptor = stateApiServiceDescriptor;
@@ -188,7 +194,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
 
     // For intermediate PCollections we fabricate, we make a bogus WindowingStrategy
     // TODO: create a correct windowing strategy, including coders and environment
-    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents());
+    SdkComponents sdkComponents = SdkComponents.create(pipeline.getComponents(), null);
 
     // Default to use the Java environment if pipeline doesn't have environment specified.
     if (pipeline.getComponents().getEnvironmentsMap().isEmpty()) {
@@ -216,6 +222,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
     ImmutableMap.Builder<String, Iterable<PCollectionView<?>>> ptransformIdToPCollectionViews =
         ImmutableMap.builder();
     ImmutableMap.Builder<String, NameContext> pcollectionIdToNameContexts = ImmutableMap.builder();
+    ImmutableMap.Builder<InstructionOutputNode, String> instructionOutputNodeToCoderIdBuilder =
+        ImmutableMap.builder();
 
     // For each instruction output node:
     // 1. Generate new Coder and register it with SDKComponents and ProcessBundleDescriptor.
@@ -225,6 +233,7 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       InstructionOutput instructionOutput = node.getInstructionOutput();
 
       String coderId = "generatedCoder" + idGenerator.getId();
+      instructionOutputNodeToCoderIdBuilder.put(node, coderId);
       try (ByteString.Output output = ByteString.newOutput()) {
         try {
           Coder<?> javaCoder =
@@ -274,6 +283,8 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
               instructionOutput.getName()));
     }
     processBundleDescriptor.putAllCoders(sdkComponents.toComponents().getCodersMap());
+    Map<InstructionOutputNode, String> instructionOutputNodeToCoderIdMap =
+        instructionOutputNodeToCoderIdBuilder.build();
 
     for (ParallelInstructionNode node :
         Iterables.filter(input.nodes(), ParallelInstructionNode.class)) {
@@ -408,22 +419,33 @@ public class RegisterNodeFunction implements Function<MutableNetwork<Node, Edge>
       Set<Node> predecessors = input.predecessors(node);
       Set<Node> successors = input.successors(node);
       if (predecessors.isEmpty() && !successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(successors);
         pTransform.putOutputs(
             "generatedOutput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(successors)));
+            nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_INPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else if (!predecessors.isEmpty() && successors.isEmpty()) {
+        Node instructionOutputNode = Iterables.getOnlyElement(predecessors);
         pTransform.putInputs(
-            "generatedInput" + idGenerator.getId(),
-            nodesToPCollections.get(Iterables.getOnlyElement(predecessors)));
+            "generatedInput" + idGenerator.getId(), nodesToPCollections.get(instructionOutputNode));
         pTransform.setSpec(
             RunnerApi.FunctionSpec.newBuilder()
                 .setUrn(DATA_OUTPUT_URN)
-                .setPayload(node.getRemoteGrpcPort().toByteString())
+                .setPayload(
+                    node.getRemoteGrpcPort()
+                        .toBuilder()
+                        .setCoderId(instructionOutputNodeToCoderIdMap.get(instructionOutputNode))
+                        .build()
+                        .toByteString())
                 .build());
       } else {
         throw new IllegalStateException(

@@ -46,25 +46,26 @@ GCS_LOCATION=${GCS_LOCATION:-gs://temp-storage-for-end-to-end-tests}
 
 # Project for the container and integration test
 PROJECT=${PROJECT:-apache-beam-testing}
+IMAGE_PREFIX="$(grep 'docker_image_default_repo_prefix' gradle.properties | cut -d'=' -f2)"
 
 # Other variables branched by Python version.
 if [[ $1 == "python2" ]]; then
-  IMAGE_NAME="python2.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
+  IMAGE_NAME="${IMAGE_PREFIX}python2.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py2"  # Use this to build container by Gradle.
   GRADLE_PY3_FLAG=""        # Use this in Gradle command.
   PY_INTERPRETER="python"   # Use this in virtualenv command.
 elif [[ $1 == "python35" ]]; then
-  IMAGE_NAME="python3.5_sdk"    # Use this to create CONTAINER_IMAGE variable.
+  IMAGE_NAME="${IMAGE_PREFIX}python3.5_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py35"  # Use this to build container by Gradle.
   GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.5"    # Use this in virtualenv command.
 elif [[ $1 == "python36" ]]; then
-  IMAGE_NAME="python3.6_sdk"    # Use this to create CONTAINER_IMAGE variable.
+  IMAGE_NAME="${IMAGE_PREFIX}python3.6_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py36"  # Use this to build container by Gradle.
   GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.6"    # Use this in virtualenv command.
 elif [[ $1 == "python37" ]]; then
-  IMAGE_NAME="python3.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
+  IMAGE_NAME="${IMAGE_PREFIX}python3.7_sdk"    # Use this to create CONTAINER_IMAGE variable.
   CONTAINER_PROJECT="sdks:python:container:py37"  # Use this to build container by Gradle.
   GRADLE_PY3_FLAG="-Ppython3"   # Use this in Gradle command.
   PY_INTERPRETER="python3.7"    # Use this in virtualenv command.
@@ -129,6 +130,7 @@ python setup.py nosetests \
   --test-pipeline-options=" \
     --runner=TestDataflowRunner \
     --project=$PROJECT \
+    --region=$REGION \
     --worker_harness_container_image=$CONTAINER:$TAG \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \

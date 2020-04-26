@@ -58,7 +58,7 @@ public class BigQueryTableProviderTest {
     Table table = fakeTable("hello");
     BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
-    assertEquals(Method.DEFAULT, sqlTable.method);
+    assertEquals(Method.DIRECT_READ, sqlTable.method);
   }
 
   @Test

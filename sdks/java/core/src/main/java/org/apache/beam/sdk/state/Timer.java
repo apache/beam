@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -40,7 +41,7 @@ import org.joda.time.Instant;
  * <p>Timer callbacks are not guaranteed to be called immediately according to the local view of the
  * {@link TimeDomain}, but will be called at some time after the requested time, in timestamp order.
  */
-@Experimental(Experimental.Kind.TIMERS)
+@Experimental(Kind.TIMERS)
 public interface Timer {
   /**
    * Sets or resets the time in the timer's {@link TimeDomain} at which it should fire. If the timer
@@ -49,12 +50,34 @@ public interface Timer {
    * <p>For {@link TimeDomain#PROCESSING_TIME}, the behavior is be unpredictable, since processing
    * time timers are ignored after a window has expired. Instead, it is recommended to use {@link
    * #setRelative()}.
+   *
+   * <p>If the {@link #withOutputTimestamp output timestamp} has not been explicitly set then the
+   * default output timestamp per {@link TimeDomain} is:
+   *
+   * <ul>
+   *   <li>{@link TimeDomain#EVENT_TIME}: the firing time of this new timer.
+   *   <li>{@link TimeDomain#PROCESSING_TIME}: current element's timestamp or current timer's output
+   *       timestamp.
+   *   <li>{@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME}: current element's timestamp or current
+   *       timer's output timestamp.
+   * </ul>
    */
   void set(Instant absoluteTime);
 
   /**
    * Sets the timer relative to the current time, according to any offset and alignment specified.
    * Using {@link #offset(Duration)} and {@link #align(Duration)}.
+   *
+   * <p>If the {@link #withOutputTimestamp output timestamp} has not been explicitly set then the
+   * default output timestamp per {@link TimeDomain} is:
+   *
+   * <ul>
+   *   <li>{@link TimeDomain#EVENT_TIME}: the firing time of this new timer.
+   *   <li>{@link TimeDomain#PROCESSING_TIME}: current element's timestamp or current timer's output
+   *       timestamp.
+   *   <li>{@link TimeDomain#SYNCHRONIZED_PROCESSING_TIME}: current element's timestamp or current
+   *       timer's output timestamp.
+   * </ul>
    */
   void setRelative();
 

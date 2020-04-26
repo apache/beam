@@ -41,7 +41,12 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.Minutes;
 
@@ -53,6 +58,9 @@ class SimplifiedKinesisClient {
   private static final int PERIOD_GRANULARITY_IN_SECONDS = 60;
   private static final String SUM_STATISTIC = "Sum";
   private static final String STREAM_NAME_DIMENSION = "StreamName";
+  private static final int LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS = 10;
+  private static final Duration LIST_SHARDS_DESCRIBE_STREAM_INITIAL_BACKOFF =
+      Duration.standardSeconds(1);
   private final AmazonKinesis kinesis;
   private final AmazonCloudWatch cloudWatch;
   private final Integer limit;
@@ -96,9 +104,31 @@ class SimplifiedKinesisClient {
           List<Shard> shards = Lists.newArrayList();
           String lastShardId = null;
 
-          StreamDescription description;
+          // DescribeStream has limits that can be hit fairly easily if we are attempting
+          // to configure multiple KinesisIO inputs in the same account. Retry up to
+          // LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS times if we end up hitting that limit.
+          //
+          // Only pass the wrapped exception up once that limit is reached. Use FluentBackoff
+          // to implement the retry policy.
+          FluentBackoff retryBackoff =
+              FluentBackoff.DEFAULT
+                  .withMaxRetries(LIST_SHARDS_DESCRIBE_STREAM_MAX_ATTEMPTS)
+                  .withInitialBackoff(LIST_SHARDS_DESCRIBE_STREAM_INITIAL_BACKOFF);
+          StreamDescription description = null;
           do {
-            description = kinesis.describeStream(streamName, lastShardId).getStreamDescription();
+            BackOff backoff = retryBackoff.backoff();
+            Sleeper sleeper = Sleeper.DEFAULT;
+            while (true) {
+              try {
+                description =
+                    kinesis.describeStream(streamName, lastShardId).getStreamDescription();
+                break;
+              } catch (LimitExceededException exc) {
+                if (!BackOffUtils.next(sleeper, backoff)) {
+                  throw exc;
+                }
+              }
+            }
 
             shards.addAll(description.getShards());
             lastShardId = shards.get(shards.size() - 1).getShardId();
@@ -211,7 +241,7 @@ class SimplifiedKinesisClient {
     } catch (ExpiredIteratorException e) {
       throw e;
     } catch (LimitExceededException | ProvisionedThroughputExceededException e) {
-      throw new TransientKinesisException(
+      throw new KinesisClientThrottledException(
           "Too many requests to Kinesis. Wait some time and retry.", e);
     } catch (AmazonServiceException e) {
       if (e.getErrorType() == AmazonServiceException.ErrorType.Service) {

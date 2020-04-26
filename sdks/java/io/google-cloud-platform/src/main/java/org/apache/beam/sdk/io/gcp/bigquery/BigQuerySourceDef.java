@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -47,6 +48,6 @@ interface BigQuerySourceDef extends Serializable {
    * @return Beam schema of the source
    * @throws BigQuerySchemaRetrievalException if schema retrieval fails
    */
-  @Experimental(Experimental.Kind.SCHEMAS)
+  @Experimental(Kind.SCHEMAS)
   Schema getBeamSchema(BigQueryOptions bqOptions);
 }

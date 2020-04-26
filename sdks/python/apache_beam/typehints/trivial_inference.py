@@ -39,9 +39,9 @@ from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:                  # Python 2
+try:  # Python 2
   import __builtin__ as builtins
-except ImportError:   # Python 3
+except ImportError:  # Python 3
   import builtins  # type: ignore
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
@@ -68,16 +68,16 @@ def instance_to_type(o):
     return typehints.Tuple[[instance_to_type(item) for item in o]]
   elif t == list:
     if len(o) > 0:
-      return typehints.List[
-          typehints.Union[[instance_to_type(item) for item in o]]
-      ]
+      return typehints.List[typehints.Union[[
+          instance_to_type(item) for item in o
+      ]]]
     else:
       return typehints.List[typehints.Any]
   elif t == set:
     if len(o) > 0:
-      return typehints.Set[
-          typehints.Union[[instance_to_type(item) for item in o]]
-      ]
+      return typehints.Set[typehints.Union[[
+          instance_to_type(item) for item in o
+      ]]]
     else:
       return typehints.Set[typehints.Any]
   elif t == dict:
@@ -98,7 +98,6 @@ def union_list(xs, ys):
 
 
 class Const(object):
-
   def __init__(self, value):
     self.value = value
     self.type = instance_to_type(value)
@@ -130,7 +129,6 @@ class Const(object):
 class FrameState(object):
   """Stores the state of the frame at a particular point of execution.
   """
-
   def __init__(self, f, local_vars=None, stack=()):
     self.f = f
     self.co = f.__code__
@@ -187,8 +185,10 @@ class FrameState(object):
       return other.copy()
     elif other is None:
       return self.copy()
-    return FrameState(self.f, union_list(self.vars, other.vars), union_list(
-        self.stack, other.stack))
+    return FrameState(
+        self.f,
+        union_list(self.vars, other.vars),
+        union_list(self.stack, other.stack))
 
   def __ror__(self, left):
     return self | left
@@ -243,19 +243,21 @@ def key_value_types(kv_type):
   """
   # TODO(robertwb): Unions of tuples, etc.
   # TODO(robertwb): Assert?
-  if (isinstance(kv_type, typehints.TupleHint.TupleConstraint)
-      and len(kv_type.tuple_types) == 2):
+  if (isinstance(kv_type, typehints.TupleHint.TupleConstraint) and
+      len(kv_type.tuple_types) == 2):
     return kv_type.tuple_types
   return Any, Any
 
 
-known_return_types = {len: int, hash: int,}
+known_return_types = {
+    len: int,
+    hash: int,
+}
 
 
 class BoundMethod(object):
   """Used to create a bound method when we only know the type of the instance.
   """
-
   def __init__(self, func, type):
     """Instantiates a bound method object.
 
@@ -356,8 +358,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   yields = set()
   returns = set()
   # TODO(robertwb): Default args via inspect module.
-  local_vars = list(input_types) + [typehints.Union[()]] * (len(co.co_varnames)
-                                                            - len(input_types))
+  local_vars = list(input_types) + [typehints.Union[()]] * (
+      len(co.co_varnames) - len(input_types))
   state = FrameState(f, local_vars)
   states = collections.defaultdict(lambda: None)
   jumps = collections.defaultdict(int)
@@ -446,10 +448,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           if var_args or kw_args:
             state.stack[-1] = Any
             state.stack[-var_args - kw_args] = Any
-          return_type = infer_return_type(state.stack[-pop_count].value,
-                                          state.stack[1 - pop_count:],
-                                          debug=debug,
-                                          depth=depth - 1)
+          return_type = infer_return_type(
+              state.stack[-pop_count].value,
+              state.stack[1 - pop_count:],
+              debug=debug,
+              depth=depth - 1)
         else:
           return_type = Any
         state.stack[-pop_count:] = [return_type]
@@ -459,10 +462,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           if depth <= 0:
             return_type = Any
           else:
-            return_type = infer_return_type(state.stack[-pop_count].value,
-                                            state.stack[1 - pop_count:],
-                                            debug=debug,
-                                            depth=depth - 1)
+            return_type = infer_return_type(
+                state.stack[-pop_count].value,
+                state.stack[1 - pop_count:],
+                debug=debug,
+                depth=depth - 1)
         elif opname == 'CALL_FUNCTION_KW':
           # TODO(udim): Handle keyword arguments. Requires passing them by name
           #   to infer_return_type.
@@ -486,10 +490,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
               args = [args]
             elif isinstance(args, typehints.TupleConstraint):
               args = list(args._inner_types())
-            return_type = infer_return_type(_callable.value,
-                                            args,
-                                            debug=debug,
-                                            depth=depth - 1)
+            return_type = infer_return_type(
+                _callable.value, args, debug=debug, depth=depth - 1)
         else:
           raise TypeInferenceError('unable to handle %s' % opname)
         state.stack[-pop_count:] = [return_type]
@@ -497,10 +499,11 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       pop_count = 1 + arg
       # LOAD_METHOD will return a non-Const (Any) if loading from an Any.
       if isinstance(state.stack[-pop_count], Const) and depth > 0:
-        return_type = infer_return_type(state.stack[-pop_count].value,
-                                        state.stack[1 - pop_count:],
-                                        debug=debug,
-                                        depth=depth - 1)
+        return_type = infer_return_type(
+            state.stack[-pop_count].value,
+            state.stack[1 - pop_count:],
+            debug=debug,
+            depth=depth - 1)
       else:
         return_type = typehints.Any
       state.stack[-pop_count:] = [return_type]

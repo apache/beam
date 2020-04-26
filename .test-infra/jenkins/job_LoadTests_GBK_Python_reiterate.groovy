@@ -27,10 +27,11 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'GroupByKey Python Load test: reiterate 4 times 10kB values',
-                test           :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           :  'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-gbk-6-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
@@ -49,10 +50,11 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python Load test: reiterate 4 times 2MB values',
-                test           :  'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           :  'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-gbk-7-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
@@ -77,7 +79,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     for (testConfiguration in loadTestConfigurations(datasetName)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 

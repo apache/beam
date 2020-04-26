@@ -17,22 +17,35 @@
  */
 package org.apache.beam.sdk.io.aws.sns;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.fail;
 
+import com.amazonaws.http.SdkHttpMetadata;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.sns.AmazonSNS;
+import com.amazonaws.services.sns.model.GetTopicAttributesResult;
+import com.amazonaws.services.sns.model.InternalErrorException;
 import com.amazonaws.services.sns.model.PublishRequest;
 import com.amazonaws.services.sns.model.PublishResult;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
@@ -79,6 +92,7 @@ public class SnsIOTest implements Serializable {
     final PublishRequest request2 = createSampleMessage("my_second_message");
 
     final TupleTag<PublishResult> results = new TupleTag<>();
+    final AmazonSNS amazonSnsSuccess = getAmazonSnsMockSuccess();
 
     final PCollectionTuple snsWrites =
         p.apply(Create.of(request1, request2))
@@ -88,7 +102,7 @@ public class SnsIOTest implements Serializable {
                     .withRetryConfiguration(
                         SnsIO.RetryConfiguration.create(
                             5, org.joda.time.Duration.standardMinutes(1)))
-                    .withAWSClientsProvider(new Provider(new AmazonSNSMockSuccess()))
+                    .withAWSClientsProvider(new Provider(amazonSnsSuccess))
                     .withResultOutputTag(results));
 
     final PCollection<Long> publishedResultsSize = snsWrites.get(results).apply(Count.globally());
@@ -103,13 +117,14 @@ public class SnsIOTest implements Serializable {
     thrown.expectMessage("Error writing to SNS");
     final PublishRequest request1 = createSampleMessage("my message that will not be published");
     final TupleTag<PublishResult> results = new TupleTag<>();
+    final AmazonSNS amazonSnsErrors = getAmazonSnsMockErrors();
     p.apply(Create.of(request1))
         .apply(
             SnsIO.write()
                 .withTopicName(topicName)
                 .withRetryConfiguration(
                     SnsIO.RetryConfiguration.create(4, org.joda.time.Duration.standardSeconds(10)))
-                .withAWSClientsProvider(new Provider(new AmazonSNSMockErrors()))
+                .withAWSClientsProvider(new Provider(amazonSnsErrors))
                 .withResultOutputTag(results));
 
     try {
@@ -122,5 +137,83 @@ public class SnsIOTest implements Serializable {
       throw e.getCause();
     }
     fail("Pipeline is expected to fail because we were unable to write to SNS.");
+  }
+
+  @Test
+  public void testCustomCoder() throws Exception {
+    final PublishRequest request1 = createSampleMessage("my_first_message");
+
+    final TupleTag<PublishResult> results = new TupleTag<>();
+    final AmazonSNS amazonSnsSuccess = getAmazonSnsMockSuccess();
+    final MockCoder mockCoder = new MockCoder();
+
+    final PCollectionTuple snsWrites =
+        p.apply(Create.of(request1))
+            .apply(
+                SnsIO.write()
+                    .withTopicName(topicName)
+                    .withAWSClientsProvider(new Provider(amazonSnsSuccess))
+                    .withResultOutputTag(results)
+                    .withCoder(mockCoder));
+
+    final PCollection<Long> publishedResultsSize =
+        snsWrites
+            .get(results)
+            .apply(MapElements.into(TypeDescriptors.strings()).via(result -> result.getMessageId()))
+            .apply(Count.globally());
+    PAssert.that(publishedResultsSize).containsInAnyOrder(ImmutableList.of(1L));
+    p.run().waitUntilFinish();
+    assertThat(mockCoder.captured).isNotNull();
+  }
+
+  // Hand-code mock because Mockito mocks cause NotSerializableException even with
+  // withSettings().serializable().
+  private static class MockCoder extends AtomicCoder<PublishResult> {
+
+    private PublishResult captured;
+
+    @Override
+    public void encode(PublishResult value, OutputStream outStream)
+        throws CoderException, IOException {
+      this.captured = value;
+      PublishResultCoders.defaultPublishResult().encode(value, outStream);
+    }
+
+    @Override
+    public PublishResult decode(InputStream inStream) throws CoderException, IOException {
+      return PublishResultCoders.defaultPublishResult().decode(inStream);
+    }
+  };
+
+  private static AmazonSNS getAmazonSnsMockSuccess() {
+    final AmazonSNS amazonSNS = Mockito.mock(AmazonSNS.class);
+    configureAmazonSnsMock(amazonSNS);
+
+    final PublishResult result = Mockito.mock(PublishResult.class);
+    final SdkHttpMetadata metadata = Mockito.mock(SdkHttpMetadata.class);
+    Mockito.when(metadata.getHttpHeaders()).thenReturn(new HashMap<>());
+    Mockito.when(metadata.getHttpStatusCode()).thenReturn(200);
+    Mockito.when(result.getSdkHttpMetadata()).thenReturn(metadata);
+    Mockito.when(result.getMessageId()).thenReturn(UUID.randomUUID().toString());
+    Mockito.when(amazonSNS.publish(Mockito.any())).thenReturn(result);
+    return amazonSNS;
+  }
+
+  private static AmazonSNS getAmazonSnsMockErrors() {
+    final AmazonSNS amazonSNS = Mockito.mock(AmazonSNS.class);
+    configureAmazonSnsMock(amazonSNS);
+
+    Mockito.when(amazonSNS.publish(Mockito.any()))
+        .thenThrow(new InternalErrorException("Service unavailable"));
+    return amazonSNS;
+  }
+
+  private static void configureAmazonSnsMock(AmazonSNS amazonSNS) {
+    final GetTopicAttributesResult result = Mockito.mock(GetTopicAttributesResult.class);
+    final SdkHttpMetadata metadata = Mockito.mock(SdkHttpMetadata.class);
+    Mockito.when(metadata.getHttpHeaders()).thenReturn(new HashMap<>());
+    Mockito.when(metadata.getHttpStatusCode()).thenReturn(200);
+    Mockito.when(result.getSdkHttpMetadata()).thenReturn(metadata);
+    Mockito.when(amazonSNS.getTopicAttributes(Mockito.anyString())).thenReturn(result);
   }
 }

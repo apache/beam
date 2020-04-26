@@ -18,8 +18,6 @@
 
 package org.apache.beam.gradle
 
-import org.gradle.api.Project
-
 /**
  * Utilities for working with our vendored version of gRPC.
  */
@@ -75,7 +73,6 @@ class GrpcVendoring_1_26_0 {
       "net.jpountz.lz4:lz4:$lz4_version",
       "org.bouncycastle:bcpkix-jdk15on:$bouncycastle_version",
       "org.bouncycastle:bcprov-jdk15on:$bouncycastle_version",
-      "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version",
       "org.eclipse.jetty.alpn:alpn-api:$alpn_api_version",
       "org.eclipse.jetty.npn:npn-api:$npn_api_version",
       "org.jboss.marshalling:jboss-marshalling:$jboss_marshalling_version",
@@ -92,7 +89,9 @@ class GrpcVendoring_1_26_0 {
       'com.google.errorprone:error_prone_annotations:2.3.3',
       'commons-logging:commons-logging:1.2',
       'org.apache.logging.log4j:log4j-api:2.6.2',
-      'org.slf4j:slf4j-api:1.7.21'
+      'org.slf4j:slf4j-api:1.7.21',
+      // TODO(BEAM-9288): Enable relocation for conscrypt
+      "org.conscrypt:conscrypt-openjdk-uber:$conscrypt_version"
     ]
   }
 
@@ -147,7 +146,6 @@ class GrpcVendoring_1_26_0 {
       "net.jpountz",
       "org.bouncycastle",
       "org.cservenak.streams",
-      "org.conscrypt",
       "org.eclipse.jetty.alpn",
       "org.eclipse.jetty.npn",
       "org.jboss.marshalling",
@@ -177,13 +175,19 @@ class GrpcVendoring_1_26_0 {
       "com/google/j2objc/annotations/**",
       "javax/annotation/**",
       "junit/**",
+      "module-info.class",
       "org/apache/commons/logging/**",
       "org/apache/log/**",
       "org/apache/log4j/**",
       "org/apache/logging/log4j/**",
       "org/checkerframework/**",
       "org/codehaus/mojo/animal_sniffer/**",
+      "org/conscrypt/**",
+      "META-INF/native/libconscrypt**",
+      "META-INF/native/conscrypt**",
       "org/hamcrest/**",
+      // This Main class prevents shading (BEAM-9252)
+      "org/jboss/modules/Main*",
       "org/junit/**",
       "org/mockito/**",
       "org/objenesis/**",

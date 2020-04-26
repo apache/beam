@@ -33,15 +33,24 @@ def filter_function(test=None):
     perennials = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'
+            },
         ])
         | 'Filter perennials' >> beam.Filter(is_perennial)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END filter_function]
     if test:
       test(perennials)
@@ -55,16 +64,25 @@ def filter_lambda(test=None):
     perennials = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'
+            },
         ])
-        | 'Filter perennials' >> beam.Filter(
-            lambda plant: plant['duration'] == 'perennial')
-        | beam.Map(print)
-    )
+        | 'Filter perennials' >>
+        beam.Filter(lambda plant: plant['duration'] == 'perennial')
+        | beam.Map(print))
     # [END filter_lambda]
     if test:
       test(perennials)
@@ -81,15 +99,24 @@ def filter_multiple_arguments(test=None):
     perennials = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'
+            },
         ])
         | 'Filter perennials' >> beam.Filter(has_duration, 'perennial')
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END filter_multiple_arguments]
     if test:
       test(perennials)
@@ -105,18 +132,28 @@ def filter_side_inputs_singleton(test=None):
     perennials = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'
+            },
         ])
         | 'Filter perennials' >> beam.Filter(
-            lambda plant, duration: plant['duration'] == duration,
+            lambda plant,
+            duration: plant['duration'] == duration,
             duration=beam.pvalue.AsSingleton(perennial),
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END filter_side_inputs_singleton]
     if test:
       test(perennials)
@@ -136,18 +173,28 @@ def filter_side_inputs_iter(test=None):
     valid_plants = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'PERENNIAL'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'PERENNIAL'
+            },
         ])
         | 'Filter valid plants' >> beam.Filter(
-            lambda plant, valid_durations: plant['duration'] in valid_durations,
+            lambda plant,
+            valid_durations: plant['duration'] in valid_durations,
             valid_durations=beam.pvalue.AsIter(valid_durations),
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END filter_side_inputs_iter]
     if test:
       test(valid_plants)
@@ -167,18 +214,28 @@ def filter_side_inputs_dict(test=None):
     perennials = (
         pipeline
         | 'Gardening plants' >> beam.Create([
-            {'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'},
-            {'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'},
-            {'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'},
-            {'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'},
-            {'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'},
+            {
+                'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'
+            },
+            {
+                'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'
+            },
+            {
+                'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'
+            },
+            {
+                'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'
+            },
+            {
+                'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'
+            },
         ])
         | 'Filter plants by duration' >> beam.Filter(
-            lambda plant, keep_duration: keep_duration[plant['duration']],
+            lambda plant,
+            keep_duration: keep_duration[plant['duration']],
             keep_duration=beam.pvalue.AsDict(keep_duration),
         )
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END filter_side_inputs_dict]
     if test:
       test(perennials)

@@ -43,7 +43,6 @@ class BundleFactory(object):
       in case consecutive ones share the same timestamp and windows.
       DirectRunnerOptions.direct_runner_use_stacked_bundle controls this option.
   """
-
   def __init__(self, stacked):
     # type: (bool) -> None
     self._stacked = stacked
@@ -81,7 +80,6 @@ class _Bundle(common.Receiver):
 
     b = Bundle(stacked=False)
   """
-
   class _StackedWindowedValues(object):
     """A stack of WindowedValues with the same timestamp and windows.
 
@@ -96,7 +94,6 @@ class _Bundle(common.Receiver):
       windowed_values = [wv for wv in s.windowed_values()]
       # now windowed_values equals to [windowed_value, another_windowed_value]
     """
-
     def __init__(self, initial_windowed_value):
       self._initial_windowed_value = initial_windowed_value
       self._appended_values = []
@@ -128,13 +125,15 @@ class _Bundle(common.Receiver):
     # type: (Union[pvalue.PBegin, pvalue.PCollection], bool) -> None
     assert isinstance(pcollection, (pvalue.PBegin, pvalue.PCollection))
     self._pcollection = pcollection
-    self._elements = []  # type: List[Union[WindowedValue, _Bundle._StackedWindowedValues]]
+    self._elements = [
+    ]  # type: List[Union[WindowedValue, _Bundle._StackedWindowedValues]]
     self._stacked = stacked
     self._committed = False
     self._tag = None  # optional tag information for this bundle
 
   def get_elements_iterable(self, make_copy=False):
     # type: (bool) -> Iterable[WindowedValue]
+
     """Returns iterable elements.
 
     Args:
@@ -193,8 +192,8 @@ class _Bundle(common.Receiver):
       self._elements.append(element)
       return
     if (self._elements and
-        (isinstance(self._elements[-1], (WindowedValue,
-                                         _Bundle._StackedWindowedValues))) and
+        (isinstance(self._elements[-1],
+                    (WindowedValue, _Bundle._StackedWindowedValues))) and
         self._elements[-1].timestamp == element.timestamp and
         self._elements[-1].windows == element.windows and
         self._elements[-1].pane_info == element.pane_info):

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tests for S3 client."""
 # pytype: skip-file
 
@@ -41,8 +42,7 @@ class TestS3PathParser(unittest.TestCase):
   ]
 
   def test_s3_path(self):
-    self.assertEqual(
-        s3io.parse_s3_path('s3://bucket/name'), ('bucket', 'name'))
+    self.assertEqual(s3io.parse_s3_path('s3://bucket/name'), ('bucket', 'name'))
     self.assertEqual(
         s3io.parse_s3_path('s3://bucket/name/sub'), ('bucket', 'name/sub'))
 
@@ -65,7 +65,6 @@ class TestS3PathParser(unittest.TestCase):
 
 
 class TestS3IO(unittest.TestCase):
-
   def _insert_random_file(self, client, path, size):
     bucket, name = s3io.parse_s3_path(path)
     contents = os.urandom(size)
@@ -115,16 +114,16 @@ class TestS3IO(unittest.TestCase):
     self.aws.delete(file_name)
 
   def test_last_updated(self):
+    self.skipTest('BEAM-9532 fix issue with s3 last updated')
     file_name = self.TEST_DATA_PATH + 'dummy_file'
     file_size = 1234
 
     self._insert_random_file(self.client, file_name, file_size)
     self.assertTrue(self.aws.exists(file_name))
 
-    tolerance = 5 * 60 # 5 mins
-    low_bound, high_bound = time.time() - tolerance, time.time() + tolerance
+    tolerance = 5 * 60  # 5 mins
     result = self.aws.last_updated(file_name)
-    self.assertTrue(low_bound <= result <= high_bound)
+    self.assertAlmostEqual(result, time.time(), delta=tolerance)
 
     # Clean up
     self.aws.delete(file_name)
@@ -157,25 +156,23 @@ class TestS3IO(unittest.TestCase):
     file_size = 1024
     self._insert_random_file(self.client, src_file_name, file_size)
 
-    self.assertTrue(src_file_name in
-                    self.aws.list_prefix(self.TEST_DATA_PATH))
-    self.assertFalse(dest_file_name in
-                     self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertFalse(
+        dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
 
     self.aws.copy(src_file_name, dest_file_name)
 
-    self.assertTrue(src_file_name in
-                    self.aws.list_prefix(self.TEST_DATA_PATH))
-    self.assertTrue(dest_file_name in
-                    self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
 
     # Clean up
     self.aws.delete_files([src_file_name, dest_file_name])
 
     # Test copy of non-existent files.
     with self.assertRaises(messages.S3ClientError) as err:
-      self.aws.copy(self.TEST_DATA_PATH + 'non-existent',
-                    self.TEST_DATA_PATH + 'non-existent-destination')
+      self.aws.copy(
+          self.TEST_DATA_PATH + 'non-existent',
+          self.TEST_DATA_PATH + 'non-existent-destination')
 
     self.assertTrue('Not Found' in err.exception.message)
 
@@ -232,7 +229,8 @@ class TestS3IO(unittest.TestCase):
     files = [from_path + '%d' % i for i in range(n_real_files)]
     to_path = self.TEST_DATA_PATH + 'destination/'
     destinations = [to_path + '%d' % i for i in range(n_real_files)]
-    for file_ in files: self._insert_random_file(self.client, file_, 1024)
+    for file_ in files:
+      self._insert_random_file(self.client, file_, 1024)
 
     # Add nonexistent files to the sources and destinations
     sources = files + [
@@ -267,7 +265,6 @@ class TestS3IO(unittest.TestCase):
     # Clean up
     self.aws.delete_files(files)
     self.aws.delete_files(destinations)
-
 
   def test_copy_tree(self):
     src_dir_name = self.TEST_DATA_PATH + 'source/'
@@ -309,17 +306,14 @@ class TestS3IO(unittest.TestCase):
 
     self._insert_random_file(self.client, src_file_name, file_size)
 
-    self.assertTrue(
-        src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
     self.assertFalse(
         dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
 
     self.aws.rename(src_file_name, dest_file_name)
 
-    self.assertFalse(
-        src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
-    self.assertTrue(
-        dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertFalse(src_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
+    self.assertTrue(dest_file_name in self.aws.list_prefix(self.TEST_DATA_PATH))
 
     # Clean up
     self.aws.delete_files([src_file_name, dest_file_name])
@@ -559,8 +553,7 @@ class TestS3IO(unittest.TestCase):
     f.close()
     new_f = self.aws.open(file_name, 'r')
     new_f_contents = new_f.read()
-    self.assertEqual(
-        new_f_contents, contents)
+    self.assertEqual(new_f_contents, contents)
 
     # Clean up
     self.aws.delete(file_name)
@@ -583,7 +576,6 @@ class TestS3IO(unittest.TestCase):
     # Clean up
     self.aws.delete(file_name)
 
-
   def test_file_random_seek(self):
     file_name = self.TEST_DATA_PATH + 'write_seek_file'
     file_size = 5 * 1024 * 1024 - 100
@@ -602,9 +594,7 @@ class TestS3IO(unittest.TestCase):
 
       self.assertEqual(f.tell(), start)
 
-      self.assertEqual(
-          f.read(end - start + 1), contents[start:end + 1]
-      )
+      self.assertEqual(f.read(end - start + 1), contents[start:end + 1])
       self.assertEqual(f.tell(), end + 1)
 
     # Clean up
@@ -622,11 +612,11 @@ class TestS3IO(unittest.TestCase):
     f.flush()
     f.flush()  # Should be a NOOP.
     f.write(contents[1024 * 1024:])
-    f.close() # This should al`read`y call the equivalent of flush() in its body
+    f.close(
+    )  # This should al`read`y call the equivalent of flush() in its body
     new_f = self.aws.open(file_name, 'r')
     new_f_contents = new_f.read()
-    self.assertEqual(
-        new_f_contents, contents)
+    self.assertEqual(new_f_contents, contents)
 
     # Clean up
     self.aws.delete(file_name)
@@ -725,8 +715,7 @@ class TestS3IO(unittest.TestCase):
     with self.aws.open(file_name, 'r') as f:
       read_contents = f.read()
 
-    self.assertEqual(
-        read_contents, contents)
+    self.assertEqual(read_contents, contents)
 
     # Clean up
     self.aws.delete(file_name)
@@ -758,19 +747,24 @@ class TestS3IO(unittest.TestCase):
       self._insert_random_file(self.aws.client, file_name, size)
 
     test_cases = [
-        (self.TEST_DATA_PATH + 'j', [
-            ('jerry/pigpen/phil', 5),
-            ('jerry/pigpen/bobby', 3),
-            ('jerry/billy/bobby', 4),
-        ]),
-        (self.TEST_DATA_PATH + 'jerry/', [
-            ('jerry/pigpen/phil', 5),
-            ('jerry/pigpen/bobby', 3),
-            ('jerry/billy/bobby', 4),
-        ]),
-        (self.TEST_DATA_PATH + 'jerry/pigpen/phil', [
-            ('jerry/pigpen/phil', 5),
-        ]),
+        (
+            self.TEST_DATA_PATH + 'j',
+            [
+                ('jerry/pigpen/phil', 5),
+                ('jerry/pigpen/bobby', 3),
+                ('jerry/billy/bobby', 4),
+            ]),
+        (
+            self.TEST_DATA_PATH + 'jerry/',
+            [
+                ('jerry/pigpen/phil', 5),
+                ('jerry/pigpen/bobby', 3),
+                ('jerry/billy/bobby', 4),
+            ]),
+        (
+            self.TEST_DATA_PATH + 'jerry/pigpen/phil', [
+                ('jerry/pigpen/phil', 5),
+            ]),
     ]
 
     for file_pattern, expected_object_names in test_cases:

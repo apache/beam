@@ -26,6 +26,7 @@ import logging
 import os
 import tempfile
 import time
+import urllib
 import zipfile
 
 import requests
@@ -44,14 +45,14 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   The jar contains the Beam pipeline definition, dependencies, and
   the pipeline artifacts.
   """
-
   def __init__(self, master_url, options):
     super(FlinkUberJarJobServer, self).__init__()
     self._master_url = master_url
-    self._executable_jar = (options.view_as(pipeline_options.FlinkRunnerOptions)
-                            .flink_job_server_jar)
-    self._artifact_port = (options.view_as(pipeline_options.JobServerOptions)
-                           .artifact_port)
+    self._executable_jar = (
+        options.view_as(
+            pipeline_options.FlinkRunnerOptions).flink_job_server_jar)
+    self._artifact_port = (
+        options.view_as(pipeline_options.JobServerOptions).artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-flink')
 
   def start(self):
@@ -61,14 +62,25 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    url = (self._executable_jar or
-           job_server.JavaJarJobServer.path_to_beam_jar(
-               'runners:flink:%s:job-server:shadowJar' % self.flink_version()))
+    if self._executable_jar:
+      if not os.path.exists(self._executable_jar):
+        parsed = urllib.parse.urlparse(self._executable_jar)
+        if not parsed.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:flink:%s:job-server:shadowJar`.' %
+              (self._executable_jar, self._flink_version))
+      url = self._executable_jar
+    else:
+      url = job_server.JavaJarJobServer.path_to_beam_jar(
+          'runners:flink:%s:job-server:shadowJar' % self.flink_version())
     return job_server.JavaJarJobServer.local_jar(url)
 
   def flink_version(self):
-    full_version = requests.get(
-        '%s/v1/config' % self._master_url).json()['flink-version']
+    full_version = requests.get('%s/v1/config' %
+                                self._master_url).json()['flink-version']
     # Only return up to minor version.
     return '.'.join(full_version.split('.')[:2])
 
@@ -86,12 +98,21 @@ class FlinkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
 class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
   """Runs a single Beam job on Flink by staging all contents into a Jar
   and uploading it via the Flink Rest API."""
-
   def __init__(
-      self, master_url, executable_jar, job_id, job_name, pipeline, options,
+      self,
+      master_url,
+      executable_jar,
+      job_id,
+      job_name,
+      pipeline,
+      options,
       artifact_port=0):
     super(FlinkBeamJob, self).__init__(
-        executable_jar, job_id, job_name, pipeline, options,
+        executable_jar,
+        job_id,
+        job_name,
+        pipeline,
+        options,
         artifact_port=artifact_port)
     self._master_url = master_url
 
@@ -99,8 +120,9 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     url = '%s/%s' % (self._master_url, path)
     response = method(url, **kwargs)
     if response.status_code != expected_status:
-      raise RuntimeError("Request to %s failed with status %d: %s" %
-                         (url, response.status_code, response.text))
+      raise RuntimeError(
+          "Request to %s failed with status %d: %s" %
+          (url, response.status_code, response.text))
     if response.text:
       return response.json()
 
@@ -156,8 +178,8 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
       timestamp will be None if the state has not changed since the last query.
     """
     # For just getting the status, execution-result seems cheaper.
-    flink_status = self.get(
-        'v1/jobs/%s/execution-result' % self._flink_job_id)['status']['id']
+    flink_status = self.get('v1/jobs/%s/execution-result' %
+                            self._flink_job_id)['status']['id']
     if flink_status == 'COMPLETED':
       flink_status = self.get('v1/jobs/%s' % self._flink_job_id)['state']
     beam_state = {
@@ -191,10 +213,7 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
     def _state_iter():
       sleep_secs = 1.0
       while True:
-        current_state, timestamp = self._get_state()
-        if timestamp is not None:
-          # non-None indicates that the state has changed
-          yield current_state, timestamp
+        yield self.get_state()
         sleep_secs = min(60, sleep_secs * 1.2)
         time.sleep(sleep_secs)
 
@@ -211,8 +230,8 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
           yield beam_job_api_pb2.JobMessage(
               message_id='message%d' % ix,
               time=str(exc['timestamp']),
-              importance=
-              beam_job_api_pb2.JobMessage.MessageImportance.JOB_MESSAGE_ERROR,
+              importance=beam_job_api_pb2.JobMessage.MessageImportance.
+              JOB_MESSAGE_ERROR,
               message_text=exc['exception'])
         yield state, timestamp
         break

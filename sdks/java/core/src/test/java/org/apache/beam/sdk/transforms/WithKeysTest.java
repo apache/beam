@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -28,6 +29,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -138,6 +140,24 @@ public class WithKeysTest {
     PAssert.that(kvs)
         .containsInAnyOrder(
             KV.of(1234, "1234"), KV.of(0, "0"), KV.of(-12, "-12"), KV.of(3210, "3210"));
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void withLambdaAndParameterizedTypeDescriptorShouldSucceed() {
+
+    PCollection<String> values = p.apply(Create.of("1234", "3210"));
+    PCollection<KV<List<String>, String>> kvs =
+        values.apply(
+            WithKeys.of((SerializableFunction<String, List<String>>) Collections::singletonList)
+                .withKeyType(TypeDescriptors.lists(TypeDescriptors.strings())));
+
+    PAssert.that(kvs)
+        .containsInAnyOrder(
+            KV.of(Collections.singletonList("1234"), "1234"),
+            KV.of(Collections.singletonList("3210"), "3210"));
 
     p.run();
   }

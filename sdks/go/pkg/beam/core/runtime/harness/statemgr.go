@@ -26,7 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -104,7 +104,7 @@ func (s *ScopedStateReader) Close() error {
 
 type stateKeyReader struct {
 	instID instructionID
-	key    *pb.StateKey
+	key    *fnpb.StateKey
 
 	token []byte
 	buf   []byte
@@ -116,9 +116,9 @@ type stateKeyReader struct {
 }
 
 func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, instID instructionID, k, w []byte) *stateKeyReader {
-	key := &pb.StateKey{
-		Type: &pb.StateKey_MultimapSideInput_{
-			MultimapSideInput: &pb.StateKey_MultimapSideInput{
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_MultimapSideInput_{
+			MultimapSideInput: &fnpb.StateKey_MultimapSideInput{
 				TransformId: id.PtransformID,
 				SideInputId: sideInputID,
 				Window:      w,
@@ -134,9 +134,9 @@ func newSideInputReader(ch *StateChannel, id exec.StreamID, sideInputID string, 
 }
 
 func newRunnerReader(ch *StateChannel, instID instructionID, k []byte) *stateKeyReader {
-	key := &pb.StateKey{
-		Type: &pb.StateKey_Runner_{
-			Runner: &pb.StateKey_Runner{
+	key := &fnpb.StateKey{
+		Type: &fnpb.StateKey_Runner_{
+			Runner: &fnpb.StateKey_Runner{
 				Key: k,
 			},
 		},
@@ -164,12 +164,12 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 		localChannel := r.ch
 		r.mu.Unlock()
 
-		req := &pb.StateRequest{
+		req := &fnpb.StateRequest{
 			// Id: set by StateChannel
 			InstructionId: string(r.instID),
 			StateKey:      r.key,
-			Request: &pb.StateRequest_Get{
-				Get: &pb.StateGetRequest{
+			Request: &fnpb.StateRequest_Get{
+				Get: &fnpb.StateGetRequest{
 					ContinuationToken: r.token,
 				},
 			},
@@ -193,9 +193,15 @@ func (r *stateKeyReader) Read(buf []byte) (int, error) {
 
 	n := copy(buf, r.buf)
 
-	if len(r.buf) == n {
+	switch {
+	case n == 0 && len(buf) != 0 && r.eof:
+		// If no data was copied, and this is the last segment anyway, return EOF now.
+		// This prevent spurious zero elements.
 		r.buf = nil
-	} else {
+		return 0, io.EOF
+	case len(r.buf) == n:
+		r.buf = nil
+	default:
 		r.buf = r.buf[n:]
 	}
 	return n, nil
@@ -243,8 +249,8 @@ func (m *StateChannelManager) Open(ctx context.Context, port exec.Port) (*StateC
 }
 
 type stateClient interface {
-	Send(*pb.StateRequest) error
-	Recv() (*pb.StateResponse, error)
+	Send(*fnpb.StateRequest) error
+	Recv() (*fnpb.StateResponse, error)
 }
 
 // StateChannel manages state transactions over a single gRPC connection.
@@ -254,10 +260,10 @@ type StateChannel struct {
 	id     string
 	client stateClient
 
-	requests      chan *pb.StateRequest
+	requests      chan *fnpb.StateRequest
 	nextRequestNo int32
 
-	responses map[string]chan<- *pb.StateResponse
+	responses map[string]chan<- *fnpb.StateResponse
 	mu        sync.Mutex
 
 	// a closure that forces the state manager to recreate this stream.
@@ -274,8 +280,6 @@ func (c *StateChannel) terminateStreamOnError(err error) {
 		c.forceRecreate(c.id, err)
 		c.forceRecreate = nil
 	}
-	c.responses = nil
-	c.requests = nil
 	// Cancelling context after forcing recreation to ensure closedErr is set.
 	c.cancelFn()
 	c.mu.Unlock()
@@ -285,11 +289,13 @@ func newStateChannel(ctx context.Context, port exec.Port) (*StateChannel, error)
 	ctx, cancelFn := context.WithCancel(ctx)
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to state service %v", port.URL)
 	}
-	client, err := pb.NewBeamFnStateClient(cc).State(ctx)
+	client, err := fnpb.NewBeamFnStateClient(cc).State(ctx)
 	if err != nil {
 		cc.Close()
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create state client %v", port.URL)
 	}
 	return makeStateChannel(ctx, cancelFn, port.URL, client), nil
@@ -299,8 +305,8 @@ func makeStateChannel(ctx context.Context, cancelFn context.CancelFunc, id strin
 	ret := &StateChannel{
 		id:        id,
 		client:    client,
-		requests:  make(chan *pb.StateRequest, 10),
-		responses: make(map[string]chan<- *pb.StateResponse),
+		requests:  make(chan *fnpb.StateRequest, 10),
+		responses: make(map[string]chan<- *fnpb.StateResponse),
 		cancelFn:  cancelFn,
 		DoneCh:    ctx.Done(),
 	}
@@ -348,7 +354,7 @@ func (c *StateChannel) write(ctx context.Context) {
 	var err error
 	var id string
 	for {
-		var req *pb.StateRequest
+		var req *fnpb.StateRequest
 		select {
 		case req = <-c.requests:
 		case <-c.DoneCh: // Close the goroutine on context cancel.
@@ -382,16 +388,16 @@ func (c *StateChannel) write(ctx context.Context) {
 	c.terminateStreamOnError(err)
 
 	if ok {
-		ch <- &pb.StateResponse{Id: id, Error: fmt.Sprintf("StateChannel[%v].write failed to send: %v", c.id, err)}
+		ch <- &fnpb.StateResponse{Id: id, Error: fmt.Sprintf("StateChannel[%v].write failed to send: %v", c.id, err)}
 	}
 }
 
 // Send sends a state request and returns the response.
-func (c *StateChannel) Send(req *pb.StateRequest) (*pb.StateResponse, error) {
+func (c *StateChannel) Send(req *fnpb.StateRequest) (*fnpb.StateResponse, error) {
 	id := fmt.Sprintf("r%v", atomic.AddInt32(&c.nextRequestNo, 1))
 	req.Id = id
 
-	ch := make(chan *pb.StateResponse, 1)
+	ch := make(chan *fnpb.StateResponse, 1)
 	c.mu.Lock()
 	if c.closedErr != nil {
 		defer c.mu.Unlock()
@@ -402,7 +408,7 @@ func (c *StateChannel) Send(req *pb.StateRequest) (*pb.StateResponse, error) {
 
 	c.requests <- req
 
-	var resp *pb.StateResponse
+	var resp *fnpb.StateResponse
 	select {
 	case resp = <-ch:
 	case <-c.DoneCh:

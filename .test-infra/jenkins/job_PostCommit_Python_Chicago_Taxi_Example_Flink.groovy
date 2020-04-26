@@ -30,11 +30,11 @@ def chicagoTaxiJob = { scope ->
     def numberOfWorkers = 5
 
     Docker publisher = new Docker(scope, LoadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
-    publisher.publish(':sdks:python:container:py2:docker', 'python2.7_sdk')
-    publisher.publish(':runners:flink:1.9:job-server-container:docker', 'flink1.9_job_server')
-    String pythonHarnessImageTag = publisher.getFullImageName('python2.7_sdk')
+    publisher.publish(':sdks:python:container:py2:docker', 'beam_python2.7_sdk')
+    publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
+    String pythonHarnessImageTag = publisher.getFullImageName('beam_python2.7_sdk')
     Flink flink = new Flink(scope, 'beam_PostCommit_Python_Chicago_Taxi_Flink')
-    flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('flink1.9_job_server'))
+    flink.setUp([pythonHarnessImageTag], numberOfWorkers, publisher.getFullImageName('beam_flink1.10_job_server'))
 
     def pipelineOptions = [
         parallelism             : numberOfWorkers,

@@ -29,7 +29,9 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -41,6 +43,12 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class ReadTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
+
+  @Test
+  public void testInstantiationOfBoundedSourceAsSDFWrapper() {
+    DoFn dofn = new Read.BoundedSourceAsSDFWrapperFn<>();
+    DoFnInvokers.invokerFor(dofn);
+  }
 
   @Test
   public void failsWhenCustomBoundedSourceIsNotSerializable() {

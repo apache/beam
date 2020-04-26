@@ -32,6 +32,7 @@ public class SnsCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
-        CoderProviders.forCoder(TypeDescriptor.of(PublishResult.class), PublishResultCoder.of()));
+        CoderProviders.forCoder(
+            TypeDescriptor.of(PublishResult.class), PublishResultCoders.defaultPublishResult()));
   }
 }

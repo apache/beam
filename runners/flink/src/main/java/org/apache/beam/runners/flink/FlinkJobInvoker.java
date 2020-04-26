@@ -23,7 +23,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
-import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
 import org.apache.beam.runners.fnexecution.jobsubmission.JobInvoker;
 import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarCreator;
@@ -57,7 +56,6 @@ public class FlinkJobInvoker extends JobInvoker {
       Struct options,
       @Nullable String retrievalToken,
       ListeningExecutorService executorService) {
-    Workarounds.restoreOriginalStdOutAndStdErrIfApplicable();
 
     // TODO: How to make Java/Python agree on names of keys and their values?
     LOG.trace("Parsing pipeline options");

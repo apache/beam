@@ -74,6 +74,9 @@ rat {
     "**/apache_beam/portability/api/*_pb2*.py",
     "**/go/pkg/beam/**/*.pb.go",
 
+    // Ignore go.sum files, which don't permit headers
+    "**/go.sum",
+
     // Ignore Go test data files
     "**/go/data/**",
 
@@ -107,7 +110,8 @@ rat {
     "learning/katas/*/IO/**/*.txt",
 
     // Mockito extensions
-    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
+    "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
+    "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
   ]
 
   // Add .gitignore excludes to the Apache Rat exclusion list. We re-create the behavior
@@ -141,6 +145,7 @@ task javaPreCommit() {
   dependsOn ":sdks:java:extensions:sql:jdbc:preCommit"
   dependsOn ":sdks:java:javadoc:allJavadoc"
   dependsOn ":runners:direct-java:needsRunnerTests"
+  dependsOn ":sdks:java:container:docker"
 }
 
 task sqlPreCommit() {
@@ -208,15 +213,28 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
   dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT_V2"
   dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
+  dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT_V2"
   // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
   // We can reconsider if we ever see an issue that these suites would
   // have caught. Note that the same tests will still run in postcommit.
 }
 
+task pythonDockerBuildPreCommit() {
+  dependsOn ":sdks:python:container:py2:docker"
+  dependsOn ":sdks:python:container:py35:docker"
+  dependsOn ":sdks:python:container:py36:docker"
+  dependsOn ":sdks:python:container:py37:docker"
+}
+
 task pythonLintPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
+}
+
+task pythonFormatterPreCommit() {
+  dependsOn 'sdks:python:test-suites:tox:py37:formatter'
 }
 
 task python2PostCommit() {
@@ -303,7 +321,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.2"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.4"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the

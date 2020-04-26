@@ -65,6 +65,7 @@ import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -83,8 +84,11 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -335,24 +339,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             .getAutoscalingSettings()
             .getMaxNumWorkers()
             .intValue());
-  }
-
-  @Test
-  public void testZoneConfig() throws IOException {
-    final String testZone = "test-zone-1";
-
-    DataflowPipelineOptions options = buildPipelineOptions();
-    options.setZone(testZone);
-
-    Pipeline p = buildPipeline(options);
-    p.traverseTopologically(new RecordingPipelineVisitor());
-    Job job =
-        DataflowPipelineTranslator.fromOptions(options)
-            .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList())
-            .getJob();
-
-    assertEquals(1, job.getEnvironment().getWorkerPools().size());
-    assertEquals(testZone, job.getEnvironment().getWorkerPools().get(0).getZone());
   }
 
   @Test
@@ -729,7 +715,8 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 Structs.getObject(
                     processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
 
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+    assertEquals(
+        KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of()), restrictionCoder);
   }
 
   /** Smoke test to fail fast if translation of a splittable ParDo in FnAPI. */
@@ -744,7 +731,15 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     PCollection<String> windowedInput =
         pipeline
-            .apply(Create.of("a"))
+            .apply(Impulse.create())
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<byte[], String>() {
+                      @Override
+                      public String apply(byte[] input) {
+                        return "";
+                      }
+                    }))
             .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
     windowedInput.apply(ParDo.of(new TestSplittableFn()));
 
@@ -778,8 +773,10 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertThat(
         ParDoTranslation.doFnWithExecutionInformationFromProto(payload.getDoFn()).getDoFn(),
         instanceOf(TestSplittableFn.class));
-    assertThat(
-        components.getCoder(payload.getRestrictionCoderId()), instanceOf(SerializableCoder.class));
+    Coder expectedRestrictionAndStateCoder =
+        KvCoder.of(SerializableCoder.of(OffsetRange.class), VoidCoder.of());
+    assertEquals(
+        expectedRestrictionAndStateCoder, components.getCoder(payload.getRestrictionCoderId()));
 
     // In the Fn API case, we still translate the restriction coder into the RESTRICTION_CODER
     // property as a CloudObject, and it gets passed through the Dataflow backend, but in the end
@@ -789,7 +786,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
             (CloudObject)
                 Structs.getObject(
                     splittableParDo.getProperties(), PropertyNames.RESTRICTION_ENCODING));
-    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+    assertEquals(expectedRestrictionAndStateCoder, restrictionCoder);
   }
 
   @Test
@@ -869,7 +866,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
-    assertEquals(14, steps.size());
+    assertEquals(9, steps.size());
 
     Step collectionToSingletonStep = steps.get(steps.size() - 1);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
@@ -900,7 +897,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
-    assertEquals(10, steps.size());
+    assertEquals(5, steps.size());
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> ctsOutputs =
@@ -1069,7 +1066,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange(@Element String element) {
       return null;
     }
   }

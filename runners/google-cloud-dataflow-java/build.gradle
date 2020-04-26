@@ -37,9 +37,9 @@ evaluationDependsOn(":sdks:java:container")
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-    'dataflow.legacy_environment_major_version' : '7',
-    'dataflow.fnapi_environment_major_version' : '7',
-    'dataflow.container_version' : 'beam-master-20200123'
+    'dataflow.legacy_environment_major_version' : '8',
+    'dataflow.fnapi_environment_major_version' : '8',
+    'dataflow.container_version' : 'beam-master-20200227'
   ]
 }
 
@@ -107,6 +107,7 @@ dependencies {
 }
 
 def dataflowProject = project.findProperty('dataflowProject') ?: 'apache-beam-testing'
+def dataflowRegion = project.findProperty('dataflowRegion') ?: 'us-central1'
 def dataflowValidatesTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-validates-runner-tests'
 def dataflowPostCommitTempRoot = project.findProperty('dataflowTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
 def dataflowPostCommitTempRootKms = project.findProperty('dataflowTempRootKms') ?: 'gs://temp-storage-for-end-to-end-tests-cmek'
@@ -120,7 +121,7 @@ def dockerImageRoot = project.findProperty('dockerImageRoot') ?: "us.gcr.io/${da
 def dockerImageContainer = "${dockerImageRoot}/java"
 def dockerTag = new Date().format('yyyyMMddHHmmss')
 // If -PuseExecutableStage is set, the use_executable_stage_bundle_execution wil be enabled.
-def fnapiExperiments = project.findProperty('useExecutableStage') ? 'beam_fn_api,use_executable_stage_bundle_execution' : "beam_fn_api"
+def fnapiExperiments = project.hasProperty('useExecutableStage') ? 'beam_fn_api,beam_fn_api_use_deprecated_read,use_executable_stage_bundle_execution' : "beam_fn_api,beam_fn_api_use_deprecated_read"
 ext.dockerImageName = "${dockerImageContainer}:${dockerTag}"
 
 def fnApiPipelineOptions = [
@@ -138,10 +139,10 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesSetState',
   'org.apache.beam.sdk.testing.UsesMapState',
   'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs',
-  'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
   'org.apache.beam.sdk.testing.UsesTestStream',
   'org.apache.beam.sdk.testing.UsesParDoLifecycle',
   'org.apache.beam.sdk.testing.UsesMetricsPusher',
+  'org.apache.beam.sdk.testing.UsesBundleFinalizer'
 ]
 
 def fnApiWorkerExcludeCategories = [
@@ -162,6 +163,7 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowValidatesTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -181,33 +183,6 @@ task validatesRunnerLegacyWorkerTest(type: Test) {
   }
 }
 
-task validatesRunnerLegacyWorkerJava11Test(type: Test) {
-    group = "Verification"
-    dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
-    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-            "--runner=TestDataflowRunner",
-            "--project=${dataflowProject}",
-            "--tempRoot=${dataflowValidatesTempRoot}",
-            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
-            "--workerHarnessContainerImage=",
-    ])
-    
-    systemProperty "java.specification.version", "11"
-
-    // Increase test parallelism up to the number of Gradle workers. By default this is equal
-    // to the number of CPU cores, but can be increased by setting --max-workers=N.
-    maxParallelForks Integer.MAX_VALUE
-    classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-          files(project(project.path).sourceSets.test.output.classesDirs)
-    useJUnit {
-        includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-        commonExcludeCategories.each {
-            excludeCategories it
-        }
-    }
-}
-
 // Push docker images to a container registry for use within tests.
 // NB: Tasks which consume docker images from the registry should depend on this
 // task directly ('dependsOn buildAndPushDockerContainer'). This ensures the correct
@@ -216,8 +191,8 @@ task buildAndPushDockerContainer() {
   dependsOn ":sdks:java:container:docker"
   finalizedBy 'cleanUpDockerImages'
   def defaultDockerImageName = containerImageName(
-          name: "java_sdk",
-          root: "apachebeam",
+          name: project.docker_image_default_repo_prefix + "java_sdk",
+          root: "apache",
           tag: project.sdk_version)
   doLast {
     exec {
@@ -258,6 +233,7 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
@@ -288,6 +264,7 @@ task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
           "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
@@ -319,18 +296,13 @@ task validatesRunner {
   dependsOn validatesRunnerLegacyWorkerTest
 }
 
-task validatesJava11Runner {
-    group = 'Verification'
-    description 'Verifies Dataflow runner with Java 11 container harness'
-    dependsOn validatesRunnerLegacyWorkerJava11Test
-}
-
 task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -354,6 +326,7 @@ task googleCloudPlatformLegacyWorkerKmsIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRootKms}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -378,6 +351,7 @@ task googleCloudPlatformFnApiWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
@@ -410,6 +384,7 @@ task examplesJavaLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -436,6 +411,7 @@ task examplesJavaFnApiWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 
@@ -463,6 +439,7 @@ task coreSDKJavaLegacyWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}",
           "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
           "--workerHarnessContainerImage=",
@@ -485,6 +462,7 @@ task coreSDKJavaFnApiWorkerIntegrationTest(type: Test) {
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
           "--runner=TestDataflowRunner",
           "--project=${dataflowProject}",
+          "--region=${dataflowRegion}",
           "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
   )
 

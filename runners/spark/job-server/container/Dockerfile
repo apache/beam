@@ -25,4 +25,8 @@ ADD beam-runners-spark-job-server.jar /opt/apache/beam/jars/
 ADD spark-job-server.sh /opt/apache/beam/
 
 WORKDIR /opt/apache/beam
+
+COPY target/LICENSE /opt/apache/beam/
+COPY target/NOTICE /opt/apache/beam/
+
 ENTRYPOINT ["./spark-job-server.sh"]

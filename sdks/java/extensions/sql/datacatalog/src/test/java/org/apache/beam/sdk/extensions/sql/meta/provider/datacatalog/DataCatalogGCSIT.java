@@ -57,23 +57,24 @@ public class DataCatalogGCSIT implements Serializable {
             + ".`samples`"
             + ".`integ_test_small_csv_test_1`";
 
-    PCollection<Row> result =
-        pipeline.apply(
-            "query",
-            SqlTransform.query("SELECT id, name, type FROM " + gcsEntryId)
-                .withDefaultTableProvider(
-                    "dc",
-                    DataCatalogTableProvider.create(
-                        pipeline.getOptions().as(DataCatalogPipelineOptions.class))));
+    try (DataCatalogTableProvider tableProvider =
+        DataCatalogTableProvider.create(
+            pipeline.getOptions().as(DataCatalogPipelineOptions.class))) {
+      PCollection<Row> result =
+          pipeline.apply(
+              "query",
+              SqlTransform.query("SELECT id, name, type FROM " + gcsEntryId)
+                  .withDefaultTableProvider("dc", tableProvider));
 
-    pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(true);
-    PAssert.that(result)
-        .containsInAnyOrder(
-            row(1, "customer1", "test"),
-            row(2, "customer2", "test"),
-            row(3, "customer1", "test"),
-            row(4, "customer2", "test"));
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+      pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(true);
+      PAssert.that(result)
+          .containsInAnyOrder(
+              row(1, "customer1", "test"),
+              row(2, "customer2", "test"),
+              row(3, "customer1", "test"),
+              row(4, "customer2", "test"));
+      pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
+    }
   }
 
   private Row row(int id, String name, String type) {

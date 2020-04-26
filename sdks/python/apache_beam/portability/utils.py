@@ -24,9 +24,9 @@ from typing import NamedTuple
 if TYPE_CHECKING:
   from apache_beam.portability.api import metrics_pb2
 
-
 PropertiesFromEnumValue = NamedTuple(
-    'PropertiesFromEnumValue', [
+    'PropertiesFromEnumValue',
+    [
         ('urn', str),
         ('constant', str),
         ('spec', 'metrics_pb2.MonitoringInfoSpec'),

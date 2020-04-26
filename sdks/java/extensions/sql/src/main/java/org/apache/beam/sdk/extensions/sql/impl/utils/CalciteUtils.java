@@ -129,10 +129,15 @@ public class CalciteUtils {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType CHAR = FieldType.logicalType(new CharType());
   public static final FieldType DATE = FieldType.logicalType(new DateType());
+  public static final FieldType NULLABLE_DATE =
+      FieldType.logicalType(new DateType()).withNullable(true);
   public static final FieldType TIME = FieldType.logicalType(new TimeType());
+  public static final FieldType NULLABLE_TIME =
+      FieldType.logicalType(new TimeType()).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
+  public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimestampWithLocalTzType());
 

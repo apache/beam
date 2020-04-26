@@ -273,7 +273,8 @@ public final class TranslationUtils {
               SparkRunner.class.getSimpleName()));
     }
 
-    if (signature.timerDeclarations().size() > 0) {
+    if (signature.timerDeclarations().size() > 0
+        || signature.timerFamilyDeclarations().size() > 0) {
       throw new UnsupportedOperationException(
           String.format(
               "Found %s annotations on %s, but %s cannot yet be used with timers in the %s.",

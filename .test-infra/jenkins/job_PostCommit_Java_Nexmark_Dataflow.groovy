@@ -44,6 +44,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -64,6 +65,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -84,6 +86,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -105,6 +108,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -128,6 +132,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
   def final JOB_SPECIFIC_OPTIONS = [
+          'region' : 'us-central1',
           'suite' : 'STRESS',
           'numWorkers' : 4,
           'maxNumWorkers' : 4,

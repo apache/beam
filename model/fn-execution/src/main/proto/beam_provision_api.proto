@@ -29,6 +29,7 @@ option go_package = "fnexecution_v1";
 option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "ProvisionApi";
 
+import "beam_runner_api.proto";
 import "endpoints.proto";
 import "google/protobuf/struct.proto";
 
@@ -51,26 +52,12 @@ message GetProvisionInfoResponse {
 // Runtime provisioning information for a SDK harness worker instance,
 // such as pipeline options, resource constraints and other job metadata
 message ProvisionInfo {
-    // (required) The job ID.
-    string job_id = 1;
-    // (required) The job name.
-    string job_name = 2;
-    // (required) The worker ID. Often this will be the hostname.
-    //
-    // This is independent of the id passed to the SDK harness via the 'id'
-    // argument in the Beam container contract.
-    string worker_id = 5;
-
     // (required) Pipeline options. For non-template jobs, the options are
     // identical to what is passed to job submission.
     google.protobuf.Struct pipeline_options = 3;
 
-    // (optional) Resource limits that the SDK harness worker should respect.
-    // Runners may -- but are not required to -- enforce any limits provided.
-    Resources resource_limits = 4;
-
     // (required) The artifact retrieval token produced by
-    // ArtifactStagingService.CommitManifestResponse.
+    // LegacyArtifactStagingService.CommitManifestResponse.
     string retrieval_token = 6;
 
     // (optional) The endpoint that the runner is hosting for the SDK to submit
@@ -78,38 +65,16 @@ message ProvisionInfo {
     // populated if the runner supports SDK status reports. For more details see
     // https://s.apache.org/beam-fn-api-harness-status
     org.apache.beam.model.pipeline.v1.ApiServiceDescriptor status_endpoint = 7;
-}
 
-// Resources specify limits for local resources, such memory and cpu. It
-// is used to inform SDK harnesses of their allocated footprint.
-message Resources {
-    // Memory limits.
-    message Memory {
-        // (optional) Hard limit in bytes. A zero value means unspecified.
-        uint64 size = 1;
+    // (optional) The logging endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor logging_endpoint = 8;
 
-        // TODO(herohde) 10/20/2017: consider soft limits, shm usage?
-    }
-    // (optional) Memory usage limits. SDKs can use this value to configure
-    // internal buffer sizes and language specific sizes.
-    Memory memory = 1;
+    // (optional) The artifact retrieval endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_endpoint = 9;
 
-    // CPU limits.
-    message Cpu {
-        // (optional) Shares of a cpu to use. Fractional values, such as "0.2"
-        // or "2.5", are fine. Any value <= 0 means unspecified.
-        float shares = 1;
+    // (optional) The control endpoint this SDK should use.
+    org.apache.beam.model.pipeline.v1.ApiServiceDescriptor control_endpoint = 10;
 
-        // TODO(herohde) 10/20/2017: consider cpuset?
-    }
-    // (optional) CPU usage limits.
-    Cpu cpu = 2;
-
-    // Disk limits.
-    message Disk {
-        // (optional) Hard limit in bytes. A zero value means unspecified.
-        uint64 size = 1;
-    }
-    // (optional) Disk size limits for the semi-persistent location.
-    Disk semi_persistent_disk = 3;
+    // The set of dependencies that should be staged into this environment.
+    repeated org.apache.beam.model.pipeline.v1.ArtifactInformation dependencies = 11;
 }

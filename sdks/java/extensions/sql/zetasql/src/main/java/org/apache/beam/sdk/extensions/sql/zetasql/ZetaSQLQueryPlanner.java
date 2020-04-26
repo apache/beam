@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.Value;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner.NonCumulativeCostImpl;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
@@ -29,6 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
 import org.apache.beam.sdk.extensions.sql.impl.planner.RelMdNodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamCalcRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.CalciteSchema;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.ConventionTraitDef;
@@ -81,13 +83,9 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
         //  requires the JoinCommuteRule, which doesn't work without struct flattening.
         if (rule instanceof JoinCommuteRule) {
           continue;
-        }
-        // TODO[BEAM-8630]: uncomment the next block once we have fully migrated to
-        //  BeamZetaSqlCalcRel
-        // else if (rule instanceof BeamCalcRule) {
-        //   bd.add(BeamZetaSqlCalcRule.INSTANCE);
-        // }
-        else {
+        } else if (rule instanceof BeamCalcRule) {
+          bd.add(BeamZetaSqlCalcRule.INSTANCE);
+        } else {
           bd.add(rule);
         }
       }
@@ -100,11 +98,21 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     return convertToBeamRel(sqlStatement, QueryParameters.ofNone());
   }
 
+  public BeamRelNode convertToBeamRel(String sqlStatement, Map<String, Value> queryParams)
+      throws ParseException, SqlConversionException {
+    return convertToBeamRel(sqlStatement, QueryParameters.ofNamed(queryParams));
+  }
+
+  public BeamRelNode convertToBeamRel(String sqlStatement, List<Value> queryParams)
+      throws ParseException, SqlConversionException {
+    return convertToBeamRel(sqlStatement, QueryParameters.ofPositional(queryParams));
+  }
+
   @Override
   public BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException {
     try {
-      return parseQuery(sqlStatement, queryParameters);
+      return convertToBeamRelInternal(sqlStatement, queryParameters);
     } catch (RelConversionException e) {
       throw new SqlConversionException(e.getCause());
     }
@@ -118,20 +126,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
             this.getClass().getCanonicalName()));
   }
 
-  public BeamRelNode convertToBeamRel(String sqlStatement, Map<String, Value> queryParams)
-      throws ParseException, SqlConversionException {
-    try {
-      return parseQuery(sqlStatement, QueryParameters.ofNamed(queryParams));
-    } catch (RelConversionException e) {
-      throw new SqlConversionException(e.getCause());
-    }
-  }
-
-  public BeamRelNode parseQuery(String sql) throws RelConversionException {
-    return parseQuery(sql, QueryParameters.ofNone());
-  }
-
-  public BeamRelNode parseQuery(String sql, QueryParameters queryParams)
+  private BeamRelNode convertToBeamRelInternal(String sql, QueryParameters queryParams)
       throws RelConversionException {
     RelRoot root = plannerImpl.rel(sql, queryParams);
     RelTraitSet desiredTraits =
@@ -152,8 +147,7 @@ public class ZetaSQLQueryPlanner implements QueryPlanner {
     RelMetadataQuery.THREAD_PROVIDERS.set(
         JaninoRelMetadataProvider.of(root.rel.getCluster().getMetadataProvider()));
     root.rel.getCluster().invalidateMetadataQuery();
-    BeamRelNode beamRelNode = (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
-    return beamRelNode;
+    return (BeamRelNode) plannerImpl.transform(0, desiredTraits, root.rel);
   }
 
   private FrameworkConfig defaultConfig(JdbcConnection connection, RuleSet[] ruleSets) {

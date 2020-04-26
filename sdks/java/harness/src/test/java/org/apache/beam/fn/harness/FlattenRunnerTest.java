@@ -82,6 +82,7 @@ public class FlattenRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -92,7 +93,9 @@ public class FlattenRunnerTest {
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
             null, /* tearDownRegistry */
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(
@@ -150,6 +153,7 @@ public class FlattenRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -160,7 +164,9 @@ public class FlattenRunnerTest {
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
             null, /* tearDownRegistry */
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder("inputATarget", "mainOutputTarget"));

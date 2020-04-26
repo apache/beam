@@ -155,9 +155,10 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
 
     @Override
-    public JobApi.MetricResults portableMetrics() throws UnsupportedOperationException {
-      LOG.warn("Collecting monitoring infos is not implemented yet in Spark portable runner.");
-      return JobApi.MetricResults.newBuilder().build();
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
     }
   }
 

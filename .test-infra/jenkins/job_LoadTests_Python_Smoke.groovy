@@ -24,7 +24,7 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def smokeTestConfigurations = { datasetName -> [
         [
                 title          : 'GroupByKey Python load test Direct',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DIRECT,
                 pipelineOptions: [
                         publish_to_big_query: true,
@@ -39,11 +39,12 @@ def smokeTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'GroupByKey Python load test Dataflow',
-                test           : 'apache_beam.testing.load_tests.group_by_key_test:GroupByKeyTest.testGroupByKey',
+                test           : 'apache_beam.testing.load_tests.group_by_key_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
                         metrics_dataset     : datasetName,
@@ -64,5 +65,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         this
 ) {
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
-    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, smokeTestConfigurations(datasetName), "GBK", "smoke")
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, smokeTestConfigurations(datasetName), "GBK", "smoke")
 }

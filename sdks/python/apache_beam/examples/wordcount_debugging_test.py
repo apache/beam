@@ -52,8 +52,7 @@ class WordCountDebuggingTest(unittest.TestCase):
     temp_path = self.create_temp_file(self.SAMPLE_TEXT)
     expected_words = [('Flourish', 3), ('stomach', 1)]
     wordcount_debugging.run(
-        ['--input=%s*' % temp_path,
-         '--output=%s.result' % temp_path],
+        ['--input=%s*' % temp_path, '--output=%s.result' % temp_path],
         save_main_session=False)
 
     # Parse result file and compare.

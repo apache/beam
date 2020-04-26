@@ -25,11 +25,12 @@ def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 def loadTestConfigurations = { datasetName -> [
         [
                 title          : 'Combine Python Load test: 2GB 10 byte records',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-combine-1-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -45,11 +46,12 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Combine Python Load test: 2GB Fanout 4',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-combine-4-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -66,11 +68,12 @@ def loadTestConfigurations = { datasetName -> [
         ],
         [
                 title          : 'Combine Python Load test: 2GB Fanout 8',
-                test           : 'apache_beam.testing.load_tests.combine_test:CombineTest.testCombineGlobally',
+                test           : 'apache_beam.testing.load_tests.combine_test',
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         job_name             : 'load-tests-python-dataflow-batch-combine-5-' + now,
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location        : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
@@ -93,7 +96,7 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     for (testConfiguration in loadTestConfigurations(datasetName)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 

@@ -21,10 +21,10 @@ plugins { id 'org.apache.beam.vendor-java' }
 description = "Apache Beam :: Vendored Dependencies :: Calcite 1.20.0"
 
 group = "org.apache.beam"
-version = "0.1"
+version = "0.2"
 
 def calcite_version = "1.20.0"
-def avatica_version = "1.15.0"
+def avatica_version = "1.16.0"
 def prefix = "org.apache.beam.vendor.calcite.v1_20_0"
 
 List<String> packagesToRelocate = [
@@ -52,10 +52,11 @@ vendorJava(
                 library.java.slf4j_api
         ],
         relocations: packagesToRelocate.collectEntries {
-            [ (it): "${prefix}.${it}" ]
+            [ (it): "${prefix}.${it}" ] + [ "jdbc:calcite:": "jdbc:beam-vendor-calcite:"]
         },
         exclusions: [
-                "org/slf4j/**"
+                "org/slf4j/**",
+                "**/module-info.class"
         ],
         groupId: group,
         artifactId: "beam-vendor-calcite-1_20_0",

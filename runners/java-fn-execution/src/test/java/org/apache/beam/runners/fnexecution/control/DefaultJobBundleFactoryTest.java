@@ -45,7 +45,7 @@ import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory.Provider;
@@ -72,6 +72,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -85,7 +86,7 @@ public class DefaultJobBundleFactoryTest {
   @Mock private InstructionRequestHandler instructionHandler;
   @Mock GrpcFnServer<FnApiControlClientPoolService> controlServer;
   @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
-  @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
+  @Mock GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
   @Mock private GrpcFnServer<GrpcDataService> dataServer;
   @Mock private GrpcFnServer<GrpcStateService> stateServer;
@@ -97,7 +98,7 @@ public class DefaultJobBundleFactoryTest {
   private final EnvironmentFactory.Provider envFactoryProvider =
       (GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
           GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-          GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+          GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
           GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
           ControlClientPool clientPool,
           IdGenerator idGenerator) -> envFactory;
@@ -358,6 +359,33 @@ public class DefaultJobBundleFactoryTest {
       bundleFactory.forStage(getExecutableStage(environment));
     }
     verify(remoteEnvironment).close();
+  }
+
+  @Test
+  public void closesFnServices() throws Exception {
+    InOrder inOrder =
+        Mockito.inOrder(
+            loggingServer,
+            controlServer,
+            dataServer,
+            stateServer,
+            retrievalServer,
+            provisioningServer,
+            remoteEnvironment);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environment));
+    }
+
+    // Close logging service first to avoid spaming the logs
+    inOrder.verify(loggingServer).close();
+    inOrder.verify(controlServer).close();
+    inOrder.verify(dataServer).close();
+    inOrder.verify(stateServer).close();
+    inOrder.verify(retrievalServer).close();
+    inOrder.verify(provisioningServer).close();
+    inOrder.verify(remoteEnvironment).close();
   }
 
   @Test

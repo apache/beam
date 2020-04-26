@@ -53,18 +53,19 @@ _LOGGER = logging.getLogger(__name__)
 
 StateEvent = Tuple[int, Union[timestamp_pb2.Timestamp, Timestamp]]
 
+
 def make_state_event(state, timestamp):
   if isinstance(timestamp, Timestamp):
     proto_timestamp = timestamp.to_proto()
   elif isinstance(timestamp, timestamp_pb2.Timestamp):
     proto_timestamp = timestamp
   else:
-    raise ValueError("Expected apache_beam.utils.timestamp.Timestamp, "
-                     "or google.protobuf.timestamp_pb2.Timestamp. "
-                     "Got %s" % type(timestamp))
+    raise ValueError(
+        "Expected apache_beam.utils.timestamp.Timestamp, "
+        "or google.protobuf.timestamp_pb2.Timestamp. "
+        "Got %s" % type(timestamp))
 
-  return beam_job_api_pb2.JobStateEvent(
-      state=state, timestamp=proto_timestamp)
+  return beam_job_api_pb2.JobStateEvent(state=state, timestamp=proto_timestamp)
 
 
 class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
@@ -82,6 +83,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
                       options  # type: struct_pb2.Struct
                      ):
     # type: (...) -> AbstractBeamJob
+
     """Returns an instance of AbstractBeamJob specific to this servicer."""
     raise NotImplementedError(type(self))
 
@@ -102,8 +104,8 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     _LOGGER.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
     return beam_job_api_pb2.PrepareJobResponse(
         preparation_id=preparation_id,
-        artifact_staging_endpoint=self._jobs[
-            preparation_id].artifact_staging_endpoint(),
+        artifact_staging_endpoint=self._jobs[preparation_id].
+        artifact_staging_endpoint(),
         staging_session_token=preparation_id)
 
   def Run(self,
@@ -127,10 +129,10 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     return beam_job_api_pb2.GetJobsResponse(
         job_info=[job.to_runner_api() for job in self._jobs.values()])
 
-  def GetState(self,
-               request,  # type: beam_job_api_pb2.GetJobStateRequest
-               context=None
-              ):
+  def GetState(
+      self,
+      request,  # type: beam_job_api_pb2.GetJobStateRequest
+      context=None):
     # type: (...) -> beam_job_api_pb2.JobStateEvent
     return beam_job_api_pb2.JobStateEvent(
         state=self._jobs[request.job_id].get_state())
@@ -156,6 +158,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
   def GetStateStream(self, request, context=None, timeout=None):
     # type: (...) -> Iterator[beam_job_api_pb2.JobStateEvent]
+
     """Yields state transitions since the stream started.
       """
     if request.job_id not in self._jobs:
@@ -167,6 +170,7 @@ class AbstractJobServiceServicer(beam_job_api_pb2_grpc.JobServiceServicer):
 
   def GetMessageStream(self, request, context=None, timeout=None):
     # type: (...) -> Iterator[beam_job_api_pb2.JobMessagesResponse]
+
     """Yields messages since the stream started.
       """
     if request.job_id not in self._jobs:
@@ -191,7 +195,7 @@ class AbstractBeamJob(object):
 
   def __init__(self,
                job_id,  # type: str
-               job_name,  # type: str
+               job_name,  # type: Optional[str]
                pipeline,  # type: beam_runner_api_pb2.Pipeline
                options  # type: struct_pb2.Struct
               ):
@@ -199,11 +203,11 @@ class AbstractBeamJob(object):
     self._job_name = job_name
     self._pipeline_proto = pipeline
     self._pipeline_options = options
-    self._state_history = [(beam_job_api_pb2.JobState.STOPPED,
-                            Timestamp.now())]
+    self._state_history = [(beam_job_api_pb2.JobState.STOPPED, Timestamp.now())]
 
   def prepare(self):
     # type: () -> None
+
     """Called immediately after this class is instantiated"""
     raise NotImplementedError(self)
 
@@ -226,7 +230,6 @@ class AbstractBeamJob(object):
   def get_message_stream(self):
     # type: () -> Iterator[Union[StateEvent, Optional[beam_job_api_pb2.JobMessage]]]
     raise NotImplementedError(self)
-
 
   @property
   def state(self):
@@ -285,8 +288,7 @@ class UberJarBeamJob(AbstractBeamJob):
 
   # We only stage a single pipeline in the jar.
   PIPELINE_NAME = 'pipeline'
-  PIPELINE_PATH = '/'.join(
-      [PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
+  PIPELINE_PATH = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, "pipeline.json"])
   PIPELINE_OPTIONS_PATH = '/'.join(
       [PIPELINE_FOLDER, PIPELINE_NAME, 'pipeline-options.json'])
   ARTIFACT_MANIFEST_PATH = '/'.join(
@@ -294,7 +296,12 @@ class UberJarBeamJob(AbstractBeamJob):
   ARTIFACT_FOLDER = '/'.join([PIPELINE_FOLDER, PIPELINE_NAME, 'artifacts'])
 
   def __init__(
-      self, executable_jar, job_id, job_name, pipeline, options,
+      self,
+      executable_jar,
+      job_id,
+      job_name,
+      pipeline,
+      options,
       artifact_port=0):
     super(UberJarBeamJob, self).__init__(job_id, job_name, pipeline, options)
     self._executable_jar = executable_jar
@@ -308,14 +315,16 @@ class UberJarBeamJob(AbstractBeamJob):
     shutil.copy(self._executable_jar, self._jar)
     with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
       with z.open(self.PIPELINE_PATH, 'w') as fout:
-        fout.write(json_format.MessageToJson(
-            self._pipeline_proto).encode('utf-8'))
+        fout.write(
+            json_format.MessageToJson(self._pipeline_proto).encode('utf-8'))
       with z.open(self.PIPELINE_OPTIONS_PATH, 'w') as fout:
-        fout.write(json_format.MessageToJson(
-            self._pipeline_options).encode('utf-8'))
+        fout.write(
+            json_format.MessageToJson(self._pipeline_options).encode('utf-8'))
       with z.open(self.PIPELINE_MANIFEST, 'w') as fout:
-        fout.write(json.dumps(
-            {'defaultJobName': self.PIPELINE_NAME}).encode('utf-8'))
+        fout.write(
+            json.dumps({
+                'defaultJobName': self.PIPELINE_NAME
+            }).encode('utf-8'))
     self._start_artifact_service(self._jar, self._artifact_port)
 
   def _start_artifact_service(self, jar, requested_port):
@@ -324,7 +333,7 @@ class UberJarBeamJob(AbstractBeamJob):
     self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
     port = self._artifact_staging_server.add_insecure_port(
         '[::]:%s' % requested_port)
-    beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
+    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
         self._artifact_staging_service, self._artifact_staging_server)
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
         url='localhost:%d' % port)

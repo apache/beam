@@ -35,6 +35,7 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
+from apache_beam.utils import proto_utils
 
 __all__ = ["RowCoder"]
 
@@ -44,7 +45,6 @@ class RowCoder(FastCoder):
 
   Implements the beam:coder:row:v1 standard coder spec.
   """
-
   def __init__(self, schema):
     """Initializes a :class:`RowCoder`.
 
@@ -70,7 +70,8 @@ class RowCoder(FastCoder):
   def as_cloud_object(self, coders_context=None):
     raise NotImplementedError("as_cloud_object not supported for RowCoder")
 
-  __hash__ = None  # type: ignore[assignment]
+  def __hash__(self):
+    return hash(self.schema.SerializeToString())
 
   def __eq__(self, other):
     return type(self) == type(other) and self.schema == other.schema
@@ -78,20 +79,25 @@ class RowCoder(FastCoder):
   def to_runner_api_parameter(self, unused_context):
     return (common_urns.coders.ROW.urn, self.schema, [])
 
+  @staticmethod
   @Coder.register_urn(common_urns.coders.ROW.urn, schema_pb2.Schema)
-  def from_runner_api_parameter(payload, components, unused_context):
-    return RowCoder(payload)
+  def from_runner_api_parameter(schema, components, unused_context):
+    return RowCoder(schema)
 
   @staticmethod
   def from_type_hint(named_tuple_type, registry):
     return RowCoder(named_tuple_to_schema(named_tuple_type))
 
   @staticmethod
+  def from_payload(payload):
+    # type: (bytes) -> RowCoder
+    return RowCoder(proto_utils.parse_Bytes(payload, schema_pb2.Schema))
+
+  @staticmethod
   def coder_from_type(field_type):
     type_info = field_type.WhichOneof("type_info")
     if type_info == "atomic_type":
-      if field_type.atomic_type in (schema_pb2.INT32,
-                                    schema_pb2.INT64):
+      if field_type.atomic_type in (schema_pb2.INT32, schema_pb2.INT64):
         return VarIntCoder()
       elif field_type.atomic_type == schema_pb2.DOUBLE:
         return FloatCoder()
@@ -106,6 +112,11 @@ class RowCoder(FastCoder):
     raise ValueError(
         "Encountered a type that is not currently supported by RowCoder: %s" %
         field_type)
+
+  def __reduce__(self):
+    # when pickling, use bytes representation of the schema. schema_pb2.Schema
+    # objects cannot be pickled.
+    return (RowCoder.from_payload, (self.schema.SerializeToString(), ))
 
 
 class RowCoderImpl(StreamCoderImpl):
@@ -129,9 +140,9 @@ class RowCoderImpl(StreamCoderImpl):
     if self.has_nullable_fields:
       nulls = list(attr is None for attr in attrs)
       if any(nulls):
-        words = array('B', itertools.repeat(0, (nvals+7)//8))
+        words = array('B', itertools.repeat(0, (nvals + 7) // 8))
         for i, is_null in enumerate(nulls):
-          words[i//8] |= is_null << (i % 8)
+          words[i // 8] |= is_null << (i % 8)
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tostring(), out, True)
 
@@ -158,19 +169,19 @@ class RowCoderImpl(StreamCoderImpl):
     # the schema must have changed. Populate the unencoded fields with nulls.
     if len(self.components) > nvals:
       nulls = itertools.chain(
-          nulls,
-          itertools.repeat(True, len(self.components) - nvals))
+          nulls, itertools.repeat(True, len(self.components) - nvals))
 
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
     # here because we only decode as many values as we have coders for.
-    return self.constructor(*(
-        None if is_null else c.decode_from_stream(in_stream, True)
-        for c, is_null in zip(self.components, nulls)))
+    return self.constructor(
+        *(
+            None if is_null else c.decode_from_stream(in_stream, True) for c,
+            is_null in zip(self.components, nulls)))
 
   def _make_value_coder(self, nulls=itertools.repeat(False)):
     components = [
-        component for component, is_null in zip(self.components, nulls)
-        if not is_null
+        component for component,
+        is_null in zip(self.components, nulls) if not is_null
     ] if self.has_nullable_fields else self.components
     return TupleCoder(components).get_impl()

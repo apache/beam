@@ -602,7 +602,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   @Test
   public void testUnsupportedDistinct2() throws Exception {
-    exceptions.expect(IllegalArgumentException.class);
+    exceptions.expect(UnsupportedOperationException.class);
     exceptions.expectMessage(containsString("COUNT DISTINCT"));
     pipeline.enableAbandonedNodeEnforcement(false);
 

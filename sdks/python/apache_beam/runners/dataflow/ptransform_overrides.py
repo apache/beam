@@ -26,7 +26,6 @@ from apache_beam.pipeline import PTransformOverride
 
 class CreatePTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``Create`` in streaming mode."""
-
   def matches(self, applied_ptransform):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -43,23 +42,24 @@ class CreatePTransformOverride(PTransformOverride):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam import PTransform
+
     # Return a wrapper rather than ptransform.as_read() directly to
     # ensure backwards compatibility of the pipeline structure.
     class LegacyCreate(PTransform):
       def expand(self, pbegin):
         return pbegin | ptransform.as_read()
+
     return LegacyCreate().with_output_types(ptransform.get_output_type())
 
 
 class ReadPTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
-
   def matches(self, applied_ptransform):
     from apache_beam.io import Read
     from apache_beam.io.iobase import BoundedSource
     # Only overrides Read(BoundedSource) transform
-    if (isinstance(applied_ptransform.transform, Read)
-        and not getattr(applied_ptransform.transform, 'override', False)):
+    if (isinstance(applied_ptransform.transform, Read) and
+        not getattr(applied_ptransform.transform, 'override', False)):
       if isinstance(applied_ptransform.transform.source, BoundedSource):
         return True
     return False
@@ -67,23 +67,26 @@ class ReadPTransformOverride(PTransformOverride):
   def get_replacement_transform(self, ptransform):
     from apache_beam import pvalue
     from apache_beam.io import iobase
+
     class Read(iobase.Read):
       override = True
+
       def expand(self, pbegin):
         return pvalue.PCollection(
             self.pipeline, is_bounded=self.source.is_bounded())
+
     return Read(ptransform.source).with_output_types(
         ptransform.get_type_hints().simple_output_type('Read'))
 
 
 class JrhReadPTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``Read(BoundedSource)``"""
-
   def matches(self, applied_ptransform):
     from apache_beam.io import Read
     from apache_beam.io.iobase import BoundedSource
-    return (isinstance(applied_ptransform.transform, Read)
-            and isinstance(applied_ptransform.transform.source, BoundedSource))
+    return (
+        isinstance(applied_ptransform.transform, Read) and
+        isinstance(applied_ptransform.transform.source, BoundedSource))
 
   def get_replacement_transform(self, ptransform):
     from apache_beam.io import Read
@@ -97,12 +100,49 @@ class JrhReadPTransformOverride(PTransformOverride):
         return (
             pbegin
             | core.Impulse()
-            | 'Split' >> core.FlatMap(lambda _: source.split(
-                Read.get_desired_chunk_size(source.estimate_size())))
+            | 'Split' >> core.FlatMap(
+                lambda _: source.split(
+                    Read.get_desired_chunk_size(source.estimate_size())))
             | util.Reshuffle()
-            | 'ReadSplits' >> core.FlatMap(lambda split: split.source.read(
-                split.source.get_range_tracker(
-                    split.start_position, split.stop_position))))
+            | 'ReadSplits' >> core.FlatMap(
+                lambda split: split.source.read(
+                    split.source.get_range_tracker(
+                        split.start_position, split.stop_position))))
 
     return JrhRead().with_output_types(
         ptransform.get_type_hints().simple_output_type('Read'))
+
+
+class CombineValuesPTransformOverride(PTransformOverride):
+  """A ``PTransformOverride`` for ``CombineValues``.
+
+  The DataflowRunner expects that the CombineValues PTransform acts as a
+  primitive. So this override replaces the CombineValues with a primitive.
+  """
+  def matches(self, applied_ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import CombineValues
+
+    if isinstance(applied_ptransform.transform, CombineValues):
+      self.transform = applied_ptransform.transform
+      return True
+    return False
+
+  def get_replacement_transform(self, ptransform):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam import PTransform
+    from apache_beam.pvalue import PCollection
+
+    # The DataflowRunner still needs access to the CombineValues members to
+    # generate a V1B3 proto representation, so we remember the transform from
+    # the matches method and forward it here.
+    class CombineValuesReplacement(PTransform):
+      def __init__(self, transform):
+        self.transform = transform
+
+      def expand(self, pcoll):
+        return PCollection.from_(pcoll)
+
+    return CombineValuesReplacement(self.transform)

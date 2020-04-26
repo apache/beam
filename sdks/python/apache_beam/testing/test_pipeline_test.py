@@ -41,16 +41,16 @@ class SimpleMatcher(BaseMatcher):
 
 class TestPipelineTest(unittest.TestCase):
 
-  TEST_CASE = {'options':
-                   ['--test-pipeline-options', '--job=mockJob --male --age=1'],
-               'expected_list': ['--job=mockJob', '--male', '--age=1'],
-               'expected_dict': {'job': 'mockJob',
-                                 'male': True,
-                                 'age': 1}}
+  TEST_CASE = {
+      'options': ['--test-pipeline-options', '--job=mockJob --male --age=1'],
+      'expected_list': ['--job=mockJob', '--male', '--age=1'],
+      'expected_dict': {
+          'job': 'mockJob', 'male': True, 'age': 1
+      }
+  }
 
   # Used for testing pipeline option creation.
   class TestParsingOptions(PipelineOptions):
-
     @classmethod
     def _add_argparse_args(cls, parser):
       parser.add_argument('--job', action='store', help='mock job')
@@ -65,25 +65,33 @@ class TestPipelineTest(unittest.TestCase):
 
   def test_empty_option_args_parsing(self):
     test_pipeline = TestPipeline()
-    self.assertListEqual([],
-                         test_pipeline.get_full_options_as_args())
+    self.assertListEqual([], test_pipeline.get_full_options_as_args())
 
   def test_create_test_pipeline_options(self):
     test_pipeline = TestPipeline(argv=self.TEST_CASE['options'])
     test_options = PipelineOptions(test_pipeline.get_full_options_as_args())
-    self.assertDictContainsSubset(self.TEST_CASE['expected_dict'],
-                                  test_options.get_all_options())
+    self.assertDictContainsSubset(
+        self.TEST_CASE['expected_dict'], test_options.get_all_options())
 
-  EXTRA_OPT_CASES = [
-      {'options': {'name': 'Mark'},
-       'expected': ['--name=Mark']},
-      {'options': {'student': True},
-       'expected': ['--student']},
-      {'options': {'student': False},
-       'expected': []},
-      {'options': {'name': 'Mark', 'student': True},
-       'expected': ['--name=Mark', '--student']}
-  ]
+  EXTRA_OPT_CASES = [{
+      'options': {
+          'name': 'Mark'
+      }, 'expected': ['--name=Mark']
+  }, {
+      'options': {
+          'student': True
+      }, 'expected': ['--student']
+  }, {
+      'options': {
+          'student': False
+      }, 'expected': []
+  },
+                     {
+                         'options': {
+                             'name': 'Mark', 'student': True
+                         },
+                         'expected': ['--name=Mark', '--student']
+                     }]
 
   def test_append_extra_options(self):
     test_pipeline = TestPipeline()

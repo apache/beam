@@ -21,7 +21,8 @@
 
 from __future__ import absolute_import
 
-import abc
+# TODO(BEAM-2685): Issue with dill + local classes + abc metaclass
+# import abc
 import inspect
 from builtins import object
 from typing import TYPE_CHECKING
@@ -46,10 +47,8 @@ if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
 T = TypeVar('T')
-ConstructorFn = Callable[
-    [Union['message.Message', bytes],
-     'PipelineContext'],
-    Any]
+ConstructorFn = Callable[[Union['message.Message', bytes], 'PipelineContext'],
+                         Any]
 
 
 class RunnerApiFn(object):
@@ -68,30 +67,39 @@ class RunnerApiFn(object):
 
   _known_urns = {}  # type: Dict[str, Tuple[Optional[type], ConstructorFn]]
 
-  @abc.abstractmethod
+  # @abc.abstractmethod is disabled here to avoid an error with mypy. mypy
+  # performs abc.abtractmethod/property checks even if a class does
+  # not use abc.ABCMeta, however, functions like `register_pickle_urn`
+  # dynamically patch `to_runner_api_parameter`, which mypy cannot track, so
+  # mypy incorrectly infers that this method has not been overridden with a
+  # concrete implementation.
+  # @abc.abstractmethod
   def to_runner_api_parameter(self, unused_context):
     # type: (PipelineContext) -> Tuple[str, Any]
+
     """Returns the urn and payload for this Fn.
 
     The returned urn(s) should be registered with `register_urn`.
     """
-    pass
+    raise NotImplementedError
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: Type[T]
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: Type[T]
+  ):
     # type: (...) -> Callable[[Callable[[T, PipelineContext], Any]], Callable[[T, PipelineContext], Any]]
     pass
 
   @classmethod
   @overload
-  def register_urn(cls,
-                   urn,  # type: str
-                   parameter_type,  # type: None
-                  ):
+  def register_urn(
+      cls,
+      urn,  # type: str
+      parameter_type,  # type: None
+  ):
     # type: (...) -> Callable[[Callable[[bytes, PipelineContext], Any]], Callable[[bytes, PipelineContext], Any]]
     pass
 
@@ -130,7 +138,8 @@ class RunnerApiFn(object):
     """
     def register(fn):
       cls._known_urns[urn] = parameter_type, fn
-      return staticmethod(fn)
+      return fn
+
     if fn:
       # Used as a statement.
       register(fn)
@@ -143,15 +152,18 @@ class RunnerApiFn(object):
     """Registers and implements the given urn via pickling.
     """
     inspect.currentframe().f_back.f_locals['to_runner_api_parameter'] = (
-        lambda self, context: (
-            pickle_urn, wrappers_pb2.BytesValue(value=pickler.dumps(self))))
+        lambda self,
+        context:
+        (pickle_urn, wrappers_pb2.BytesValue(value=pickler.dumps(self))))
     cls.register_urn(
         pickle_urn,
         wrappers_pb2.BytesValue,
-        lambda proto, unused_context: pickler.loads(proto.value))
+        lambda proto,
+        unused_context: pickler.loads(proto.value))
 
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.FunctionSpec
+
     """Returns an FunctionSpec encoding this Fn.
 
     Prefer overriding self.to_runner_api_parameter.
@@ -160,17 +172,17 @@ class RunnerApiFn(object):
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
-        payload=typed_param.SerializeToString()
-        if isinstance(typed_param, message.Message) else typed_param)
+        payload=typed_param.SerializeToString() if isinstance(
+            typed_param, message.Message) else typed_param)
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
     # type: (beam_runner_api_pb2.FunctionSpec, PipelineContext) -> Any
+
     """Converts from an FunctionSpec to a Fn object.
 
     Prefer registering a urn with its parameter type and constructor.
     """
     parameter_type, constructor = cls._known_urns[fn_proto.urn]
     return constructor(
-        proto_utils.parse_Bytes(fn_proto.payload, parameter_type),
-        context)
+        proto_utils.parse_Bytes(fn_proto.payload, parameter_type), context)

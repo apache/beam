@@ -24,7 +24,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 const (
@@ -133,10 +133,10 @@ type clientID struct {
 
 // This is a reduced version of the full gRPC interface to help with testing.
 // TODO(wcn): need a compile-time assertion to make sure this stays synced with what's
-// in pb.BeamFnData_DataClient
+// in fnpb.BeamFnData_DataClient
 type dataClient interface {
-	Send(*pb.Elements) error
-	Recv() (*pb.Elements, error)
+	Send(*fnpb.Elements) error
+	Recv() (*fnpb.Elements, error)
 }
 
 // DataChannel manages a single gRPC stream over the Data API. Data from
@@ -164,11 +164,13 @@ func newDataChannel(ctx context.Context, port exec.Port) (*DataChannel, error) {
 	ctx, cancelFn := context.WithCancel(ctx)
 	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to connect to data service at %v", port.URL)
 	}
-	client, err := pb.NewBeamFnDataClient(cc).Data(ctx)
+	client, err := fnpb.NewBeamFnDataClient(cc).Data(ctx)
 	if err != nil {
 		cc.Close()
+		cancelFn()
 		return nil, errors.Wrapf(err, "failed to create data client on %v", port.URL)
 	}
 	return makeDataChannel(ctx, port.URL, client, cancelFn), nil
@@ -271,7 +273,8 @@ func (c *DataChannel) read(ctx context.Context) {
 				// through normal teardown.
 				continue
 			}
-			if len(elm.GetData()) == 0 {
+			// TODO(BEAM-9558): Cleanup once dataflow is updated.
+			if len(elm.GetData()) == 0 || elm.GetIsLast() {
 				// Sentinel EOF segment for stream. Close buffer to signal EOF.
 				r.completed = true
 				close(r.buf)
@@ -368,11 +371,14 @@ func (r *dataReader) Read(buf []byte) (int, error) {
 		r.cur = b
 	}
 
+	// We don't need to check for a 0 length copy from r.cur here, since that's
+	// checked before buffers are handed to the r.buf channel.
 	n := copy(buf, r.cur)
 
-	if len(r.cur) == n {
+	switch {
+	case len(r.cur) == n:
 		r.cur = nil
-	} else {
+	default:
 		r.cur = r.cur[n:]
 	}
 
@@ -390,7 +396,7 @@ type dataWriter struct {
 }
 
 // send requires the ch.mu lock to be held.
-func (w *dataWriter) send(msg *pb.Elements) error {
+func (w *dataWriter) send(msg *fnpb.Elements) error {
 	recordStreamSend(msg)
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
@@ -422,12 +428,13 @@ func (w *dataWriter) Close() error {
 	w.ch.mu.Lock()
 	defer w.ch.mu.Unlock()
 	delete(w.ch.writers, w.id)
-	msg := &pb.Elements{
-		Data: []*pb.Elements_Data{
+	msg := &fnpb.Elements{
+		Data: []*fnpb.Elements_Data{
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,
 				// Empty data == sentinel
+				IsLast: true,
 			},
 		},
 	}
@@ -444,8 +451,8 @@ func (w *dataWriter) Flush() error {
 		return nil
 	}
 
-	msg := &pb.Elements{
-		Data: []*pb.Elements_Data{
+	msg := &fnpb.Elements{
+		Data: []*fnpb.Elements_Data{
 			{
 				InstructionId: string(w.id.instID),
 				TransformId:   w.id.ptransformID,

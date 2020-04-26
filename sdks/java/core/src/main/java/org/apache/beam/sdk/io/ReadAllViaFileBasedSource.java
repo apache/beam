@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import java.io.IOException;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -40,7 +41,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>To obtain the collection of {@link ReadableFile} from a filepattern, use {@link
  * FileIO#readMatches()}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ReadAllViaFileBasedSource<T>
     extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
   private final long desiredBundleSizeBytes;

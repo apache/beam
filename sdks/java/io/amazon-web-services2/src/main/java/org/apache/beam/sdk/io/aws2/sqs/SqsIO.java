@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import java.net.URI;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.aws2.options.AwsOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -76,7 +77,7 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
  *
  * <p>For more information on the available options see {@link AwsOptions}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SqsIO {
 
   public static Read read() {

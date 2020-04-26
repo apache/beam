@@ -47,6 +47,7 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
 
 import com.google.protobuf.ByteString;
 import com.google.zetasql.SqlException;
+import com.google.zetasql.StructType;
 import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
@@ -58,7 +59,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
-import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
@@ -215,8 +215,7 @@ public class ZetaSQLDialectSpecTest {
     ImmutableList<Value> params = ImmutableList.of(Value.createStringValue("abc\n"));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("ColA", FieldType.STRING).build();
@@ -227,6 +226,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testEQ1() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 
@@ -271,6 +271,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testEQ3() {
     String sql = "SELECT @p0 = @p1 AS ColA";
 
@@ -330,8 +331,7 @@ public class ZetaSQLDialectSpecTest {
     ImmutableList<Value> params =
         ImmutableList.of(Value.createInt64Value(4L), Value.createInt64Value(5L));
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.BOOLEAN).build();
@@ -376,7 +376,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Does not support struct literal.")
   public void testIsNotNull3() {
     String sql = "SELECT @p0 IS NOT NULL AS ColA";
     ImmutableMap<String, Value> params =
@@ -429,8 +428,7 @@ public class ZetaSQLDialectSpecTest {
             Value.createBoolValue(true), Value.createInt64Value(1), Value.createInt64Value(2));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addNullableField("field1", FieldType.INT64).build();
@@ -502,6 +500,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testNullIfCoercion() {
     String sql = "SELECT NULLIF(@p0, @p1) AS ColA";
     ImmutableMap<String, Value> params =
@@ -522,7 +521,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Struct literals are not currently supported")
   public void testCoalesceNullStruct() {
     String sql = "SELECT COALESCE(NULL, STRUCT(\"a\" AS s, -33 AS i))";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -539,7 +537,7 @@ public class ZetaSQLDialectSpecTest {
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
-                .addValue(Row.withSchema(innerSchema).addValues("a", -33).build())
+                .addValue(Row.withSchema(innerSchema).addValues("a", -33L).build())
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -660,8 +658,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Throws IndexOutOfBoundsException")
-  public void testConstructEmptyArrayLiteral() {
+  public void testEmptyArrayParameter() {
     String sql = "SELECT @p0 AS ColA";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
@@ -675,6 +672,20 @@ public class ZetaSQLDialectSpecTest {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema = Schema.builder().addArrayField("field1", FieldType.INT64).build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValue(ImmutableList.of()).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testEmptyArrayLiteral() {
+    String sql = "SELECT ARRAY<STRING>[];";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addArrayField("field1", FieldType.STRING).build();
 
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValue(ImmutableList.of()).build());
@@ -700,6 +711,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-9182] NULL parameters do not work in BeamZetaSqlCalcRel")
   public void testLikeNullPattern() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -1285,6 +1297,32 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLSelectNullLimitParam() {
+    String sql = "SELECT Key, Value FROM KeyValue LIMIT @lmt;";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "lmt", Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64)));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Limit requires non-null count and offset");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
+  public void testZetaSQLSelectNullOffsetParam() {
+    String sql = "SELECT Key, Value FROM KeyValue LIMIT 1 OFFSET @lmt;";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "lmt", Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64)));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Limit requires non-null count and offset");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableLimitOffset() {
     String sql =
         "SELECT COUNT(a) FROM (\n"
@@ -1366,6 +1404,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-9191] CAST operator does not work fully due to bugs in unparsing")
   public void testZetaSQLStructFieldAccessInCast2() {
     String sql =
         "SELECT CAST(A.struct_col.struct_col_str AS TIMESTAMP) FROM table_with_struct_ts_string AS"
@@ -1384,6 +1423,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-9191] CAST operator does not work fully due to bugs in unparsing")
   public void testZetaSQLStructFieldAccessInTumble() {
     String sql =
         "SELECT TUMBLE_START('INTERVAL 1 MINUTE') FROM table_with_struct_ts_string AS A GROUP BY "
@@ -1398,6 +1438,45 @@ public class ZetaSQLDialectSpecTest {
             Row.withSchema(schema)
                 .addValue(parseTimestampWithUTCTimeZone("2019-01-15 13:21:00"))
                 .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  // Used to validate fix for [BEAM-8042].
+  public void testAggregateWithAndWithoutColumnRefs() {
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+
+    String sql =
+        "SELECT \n"
+            + "  id, \n"
+            + "  SUM(has_f1) as f1_count, \n"
+            + "  SUM(has_f2) as f2_count, \n"
+            + "  SUM(has_f3) as f3_count, \n"
+            + "  SUM(has_f4) as f4_count, \n"
+            + "  SUM(has_f5) as f5_count, \n"
+            + "  COUNT(*) as count, \n"
+            + "  SUM(has_f6) as f6_count  \n"
+            + "FROM (select 0 as id, 1 as has_f1, 2 as has_f2, 3 as has_f3, 4 as has_f4, 5 as has_f5, 6 as has_f6)\n"
+            + "GROUP BY id";
+
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("id")
+            .addInt64Field("f1_count")
+            .addInt64Field("f2_count")
+            .addInt64Field("f3_count")
+            .addInt64Field("f4_count")
+            .addInt64Field("f5_count")
+            .addInt64Field("count")
+            .addInt64Field("f6_count")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(0L, 1L, 2L, 3L, 4L, 5L, 1L, 6L).build());
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -1902,6 +1981,21 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLHavingNull() {
+    String sql = "SELECT SUM(int64_val) FROM all_null_table GROUP BY primary_key HAVING false";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field").build();
+
+    PAssert.that(stream).empty();
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLBasicFixedWindowing() {
     String sql =
         "SELECT "
@@ -2162,13 +2256,32 @@ public class ZetaSQLDialectSpecTest {
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
+  /////////////////////////////////////////////////////////////////////////////
+  // TIMESTAMP type tests
+  /////////////////////////////////////////////////////////////////////////////
+
   @Test
-  @Ignore("Does not support DATE_ADD and TIME_ADD.")
-  public void testDateAndTimeAddSub() {
+  public void testTimestampMicrosecondUnsupported() {
     String sql =
-        "SELECT "
-            + "DATE_ADD(DATE '2008-12-25', INTERVAL 5 DAY), "
-            + "TIME_ADD(TIME '13:24:30', INTERVAL 3 HOUR)";
+        "WITH Timestamps AS (\n"
+            + "  SELECT TIMESTAMP '2000-01-01 00:11:22.345678+00' as timestamp\n"
+            + ")\n"
+            + "SELECT\n"
+            + "  timestamp,\n"
+            + "  EXTRACT(ISOYEAR FROM timestamp) AS isoyear,\n"
+            + "  EXTRACT(YEAR FROM timestamp) AS year,\n"
+            + "  EXTRACT(ISOWEEK FROM timestamp) AS week,\n"
+            + "  EXTRACT(MINUTE FROM timestamp) AS minute\n"
+            + "FROM Timestamps\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testTimestampLiteralWithoutTimeZone() {
+    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00'";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
@@ -2176,21 +2289,203 @@ public class ZetaSQLDialectSpecTest {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(
-                    Schema.builder()
-                        .addDateTimeField("f_date_plus")
-                        .addDateTimeField("f_time_plus")
-                        .build())
-                .addValues(parseDate("2008-12-30"), parseTime("16:24:30"))
+            Row.withSchema(Schema.builder().addDateTimeField("field1").build())
+                .addValues(parseTimestampWithUTCTimeZone("2016-12-25 05:30:00"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
   @Test
-  public void testTimestampAddSub() {
+  public void testTimestampLiteralWithUTCTimeZone() {
+    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00+00'";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("field1").build())
+                .addValues(parseTimestampWithUTCTimeZone("2016-12-25 05:30:00"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullIntersectDistinct() {
+    String sql = "SELECT NULL INTERSECT DISTINCT SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    System.err.println("SCHEMA " + stream.getSchema());
+
+    PAssert.that(stream).empty();
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullIntersectAll() {
+    String sql = "SELECT NULL INTERSECT ALL SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    System.err.println("SCHEMA " + stream.getSchema());
+
+    PAssert.that(stream).empty();
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullExceptDistinct() {
+    String sql = "SELECT NULL EXCEPT DISTINCT SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testSelectNullExceptAll() {
+    String sql = "SELECT NULL EXCEPT ALL SELECT 2";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampLiteralWithNonUTCTimeZone() {
+    String sql = "SELECT TIMESTAMP '2018-12-10 10:38:59-10:00'";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp_with_time_zone").build())
+                .addValues(parseTimestampWithTimeZone("2018-12-10 10:38:59-1000"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  // TODO[BEAM-9166]: Add a test for CURRENT_TIMESTAMP function ("SELECT CURRENT_TIMESTAMP()")
+
+  @Test
+  public void testExtractTimestamp() {
+    String sql =
+        "WITH Timestamps AS (\n"
+            + "  SELECT TIMESTAMP '2007-12-31 12:34:56' AS timestamp UNION ALL\n"
+            + "  SELECT TIMESTAMP '2009-12-31'\n"
+            + ")\n"
+            + "SELECT\n"
+            + "  EXTRACT(ISOYEAR FROM timestamp) AS isoyear,\n"
+            + "  EXTRACT(YEAR FROM timestamp) AS year,\n"
+            + "  EXTRACT(ISOWEEK FROM timestamp) AS week,\n"
+            // TODO[BEAM-9178]: Add tests for TIMESTAMP_TRUNC and EXTRACT with "week with weekday"
+            //  date parts once they are supported
+            // + "  EXTRACT(WEEK FROM timestamp) AS week,\n"
+            + "  EXTRACT(MINUTE FROM timestamp) AS minute\n"
+            + "FROM Timestamps\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder()
+            .addField("isoyear", FieldType.INT64)
+            .addField("year", FieldType.INT64)
+            .addField("isoweek", FieldType.INT64)
+            // .addField("week", FieldType.INT64)
+            .addField("minute", FieldType.INT64)
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(2008L, 2007L, 1L /* , 53L */, 34L).build(),
+            Row.withSchema(schema).addValues(2009L, 2009L, 53L /* , 52L */, 0L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testExtractTimestampAtTimeZoneUnsupported() {
+    String sql =
+        "WITH Timestamps AS (\n"
+            + "  SELECT TIMESTAMP '2017-05-26' AS timestamp\n"
+            + ")\n"
+            + "SELECT\n"
+            + "  timestamp,\n"
+            + "  EXTRACT(HOUR FROM timestamp AT TIME ZONE 'America/Vancouver') AS hour,\n"
+            + "  EXTRACT(DAY FROM timestamp AT TIME ZONE 'America/Vancouver') AS day\n"
+            + "FROM Timestamps\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testExtractDateFromTimestampUnsupported() {
+    String sql =
+        "WITH Timestamps AS (\n"
+            + "  SELECT TIMESTAMP '2017-05-26' AS ts\n"
+            + ")\n"
+            + "SELECT\n"
+            + "  ts,\n"
+            + "  EXTRACT(DATE FROM ts) AS dt\n"
+            + "FROM Timestamps\n";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testStringFromTimestamp() {
+    String sql = "SELECT STRING(TIMESTAMP '2008-12-25 15:30:00', 'America/Los_Angeles')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addStringField("f_timestamp_string").build())
+                .addValues("2008-12-25 07:30:00-08")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampFromString() {
+    String sql = "SELECT TIMESTAMP('2008-12-25 15:30:00', 'America/Los_Angeles')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
+                .addValues(parseTimestampWithTimeZone("2008-12-25 15:30:00-08"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampAdd() {
     String sql =
         "SELECT "
-            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00 UTC', INTERVAL 10 MINUTE), "
+            + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00 UTC', INTERVAL 5+5 MINUTE), "
             + "TIMESTAMP_ADD(TIMESTAMP '2008-12-25 15:30:00+07:30', INTERVAL 10 MINUTE)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2201,8 +2496,8 @@ public class ZetaSQLDialectSpecTest {
         .containsInAnyOrder(
             Row.withSchema(
                     Schema.builder()
-                        .addDateTimeField("f_timestamp_plus")
-                        .addDateTimeField("f_timestamp_with_time_zone_plus")
+                        .addDateTimeField("f_timestamp_add")
+                        .addDateTimeField("f_timestamp_with_time_zone_add")
                         .build())
                 .addValues(
                     DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:40:00"),
@@ -2212,16 +2507,180 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testTimeZone() {
-    String sql = "SELECT TIMESTAMP '2018-12-10 10:38:59-10:00'";
+  public void testTimestampSub() {
+    String sql =
+        "SELECT "
+            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00 UTC', INTERVAL 5+5 MINUTE), "
+            + "TIMESTAMP_SUB(TIMESTAMP '2008-12-25 15:30:00+07:30', INTERVAL 10 MINUTE)";
+
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp_with_time_zone").build())
-                .addValues(parseTimestampWithTimeZone("2018-12-10 10:38:59-1000"))
+            Row.withSchema(
+                    Schema.builder()
+                        .addDateTimeField("f_timestamp_sub")
+                        .addDateTimeField("f_timestamp_with_time_zone_sub")
+                        .build())
+                .addValues(
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:20:00"),
+                    parseTimestampWithTimeZone("2008-12-25 15:20:00+0730"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampDiff() {
+    String sql =
+        "SELECT TIMESTAMP_DIFF("
+            + "TIMESTAMP '2018-10-14 15:30:00.000 UTC', "
+            + "TIMESTAMP '2018-08-14 15:05:00.001 UTC', "
+            + "MILLISECOND)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("f_timestamp_diff").build())
+                .addValues((61L * 24 * 60 + 25) * 60 * 1000 - 1)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampDiffNegativeResult() {
+    String sql = "SELECT TIMESTAMP_DIFF(TIMESTAMP '2018-08-14', TIMESTAMP '2018-10-14', DAY)";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addInt64Field("f_timestamp_diff").build())
+                .addValues(-61L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampTrunc() {
+    String sql = "SELECT TIMESTAMP_TRUNC(TIMESTAMP '2017-11-06 00:00:00+12', ISOWEEK, 'UTC')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp_trunc").build())
+                .addValues(DateTimeUtils.parseTimestampWithUTCTimeZone("2017-10-30 00:00:00"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testFormatTimestamp() {
+    String sql = "SELECT FORMAT_TIMESTAMP('%D %T', TIMESTAMP '2018-10-14 15:30:00.123+00', 'UTC')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addStringField("f_timestamp_str").build())
+                .addValues("10/14/18 15:30:00")
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParseTimestamp() {
+    String sql = "SELECT PARSE_TIMESTAMP('%m-%d-%y %T', '10-14-18 15:30:00', 'UTC')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(Schema.builder().addDateTimeField("f_timestamp").build())
+                .addValues(DateTimeUtils.parseTimestampWithUTCTimeZone("2018-10-14 15:30:00"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampFromInt64() {
+    String sql = "SELECT TIMESTAMP_SECONDS(1230219000), TIMESTAMP_MILLIS(1230219000123) ";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addDateTimeField("f_timestamp_seconds")
+                        .addDateTimeField("f_timestamp_millis")
+                        .build())
+                .addValues(
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00"),
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00.123"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampToUnixInt64() {
+    String sql =
+        "SELECT "
+            + "UNIX_SECONDS(TIMESTAMP '2008-12-25 15:30:00 UTC'), "
+            + "UNIX_MILLIS(TIMESTAMP '2008-12-25 15:30:00.123 UTC')";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addInt64Field("f_unix_seconds")
+                        .addInt64Field("f_unix_millis")
+                        .build())
+                .addValues(1230219000L, 1230219000123L)
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTimestampFromUnixInt64() {
+    String sql =
+        "SELECT "
+            + "TIMESTAMP_FROM_UNIX_SECONDS(1230219000), "
+            + "TIMESTAMP_FROM_UNIX_MILLIS(1230219000123) ";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(
+                    Schema.builder()
+                        .addDateTimeField("f_timestamp_seconds")
+                        .addDateTimeField("f_timestamp_millis")
+                        .build())
+                .addValues(
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00"),
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2008-12-25 15:30:00.123"))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
@@ -2464,6 +2923,44 @@ public class ZetaSQLDialectSpecTest {
         .containsInAnyOrder(
             Row.withSchema(schema).addValues("foo").build(),
             Row.withSchema(schema).addValues("bar").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUNNESTParameters() {
+    String sql = "SELECT * FROM UNNEST(@p0);";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "p0",
+            Value.createArrayValue(
+                TypeFactory.createArrayType(TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+                ImmutableList.of(Value.createStringValue("foo"), Value.createStringValue("bar"))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addStringField("str_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("foo").build(),
+            Row.withSchema(schema).addValues("bar").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore("BEAM-9515")
+  public void testUNNESTExpression() {
+    String sql = "SELECT * FROM UNNEST(ARRAY(SELECT Value FROM KeyValue));";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Schema schema = Schema.builder().addStringField("str_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues("KeyValue234").build(),
+            Row.withSchema(schema).addValues("KeyValue235").build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2826,54 +3323,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testTimeStampLiteral() {
-    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00+00'";
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    final Schema schema = Schema.builder().addDateTimeField("field1").build();
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema)
-                .addValues(parseTimestampWithUTCTimeZone("2016-12-25 05:30:00"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testTimeStampLiteralWithoutTimeZone() {
-    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00'";
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    final Schema schema = Schema.builder().addDateTimeField("field1").build();
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema)
-                .addValues(parseTimestampWithUTCTimeZone("2016-12-25 05:30:00"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testTimeStampLiteralWithNonUTCTimeZone() {
-    String sql = "SELECT TIMESTAMP '2016-12-25 05:30:00+05'";
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-    final Schema schema = Schema.builder().addDateTimeField("field1").build();
-
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema)
-                .addValues(parseTimestampWithTimeZone("2016-12-25 05:30:00+05"))
-                .build());
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
   public void testConcatWithOneParameters() {
     String sql = "SELECT concat('abc')";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2982,6 +3431,101 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testNamedParameterQuery() {
+    String sql = "SELECT @ColA AS ColA";
+    ImmutableMap<String, Value> params = ImmutableMap.of("ColA", Value.createInt64Value(5));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(5L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testArrayStructLiteral() {
+    String sql = "SELECT ARRAY<STRUCT<INT64, INT64>>[(11, 12)];";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema innerSchema =
+        Schema.of(Field.of("s", FieldType.INT64), Field.of("i", FieldType.INT64));
+    final Schema schema =
+        Schema.of(Field.of("field1", FieldType.array(FieldType.row(innerSchema))));
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValue(ImmutableList.of(Row.withSchema(innerSchema).addValues(11L, 12L).build()))
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParameterStruct() {
+    String sql = "SELECT @p as ColA";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "p",
+            Value.createStructValue(
+                TypeFactory.createStructType(
+                    ImmutableList.of(
+                        new StructType.StructField(
+                            "s", TypeFactory.createSimpleType(TypeKind.TYPE_STRING)),
+                        new StructType.StructField(
+                            "i", TypeFactory.createSimpleType(TypeKind.TYPE_INT64)))),
+                ImmutableList.of(Value.createStringValue("foo"), Value.createInt64Value(1L))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema innerSchema =
+        Schema.of(Field.of("s", FieldType.STRING), Field.of("i", FieldType.INT64));
+    final Schema schema = Schema.of(Field.of("field1", FieldType.row(innerSchema)));
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValue(Row.withSchema(innerSchema).addValues("foo", 1L).build())
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testParameterStructNested() {
+    String sql = "SELECT @outer_struct.inner_struct.s as ColA";
+    StructType innerStructType =
+        TypeFactory.createStructType(
+            ImmutableList.of(
+                new StructType.StructField(
+                    "s", TypeFactory.createSimpleType(TypeKind.TYPE_STRING))));
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "outer_struct",
+            Value.createStructValue(
+                TypeFactory.createStructType(
+                    ImmutableList.of(new StructType.StructField("inner_struct", innerStructType))),
+                ImmutableList.of(
+                    Value.createStructValue(
+                        innerStructType, ImmutableList.of(Value.createStringValue("foo"))))));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addStringField("field1").build();
+
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValue("foo").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testConcatNamedParameterQuery() {
     String sql = "SELECT CONCAT(@p0, @p1) AS ColA";
     ImmutableMap<String, Value> params =
@@ -3005,8 +3549,7 @@ public class ZetaSQLDialectSpecTest {
             Value.createStringValue("c"));
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode =
-        zetaSQLQueryPlanner.convertToBeamRel(sql, QueryParameters.ofPositional(params));
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
     final Schema schema = Schema.builder().addStringField("field1").build();
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues("abc").build());
@@ -3424,8 +3967,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
-  public void testTimestampAddWithParameter() {
+  public void testTimestampAddWithParameter1() {
     String sql = "SELECT TIMESTAMP_ADD(@p0, INTERVAL @p1 MILLISECOND)";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
@@ -3446,7 +3988,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testTimeStampAddWithParameter() {
+  public void testTimestampAddWithParameter2() {
     String sql = "SELECT TIMESTAMP_ADD(@p0, INTERVAL @p1 MINUTE)";
     ImmutableMap<String, Value> params =
         ImmutableMap.of(
@@ -3467,6 +4009,7 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  @Ignore("[BEAM-8593] ZetaSQL does not support Map type")
   public void testSelectFromTableWithMap() {
     String sql = "SELECT row_field FROM table_with_map";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -3486,7 +4029,7 @@ public class ZetaSQLDialectSpecTest {
     String sql = "select sum(Key) from KeyValue\n" + "group by (select Key)";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(UnsupportedOperationException.class);
     thrown.expectMessage("Does not support sub-queries");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
@@ -3727,109 +4270,6 @@ public class ZetaSQLDialectSpecTest {
     PAssert.that(stream)
         .containsInAnyOrder(Row.withSchema(schema).addValues((Object) null).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  public void testExtractTimestampThrowsOnMicrosecondNotSupported() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2000-01-01 00:11:22.345678+00' as timestamp\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  timestamp,\n"
-            + "  EXTRACT(ISOYEAR FROM timestamp) AS isoyear,\n"
-            + "  EXTRACT(YEAR FROM timestamp) AS year,\n"
-            + "  EXTRACT(ISOWEEK FROM timestamp) AS week,\n"
-            + "  EXTRACT(MINUTE FROM timestamp) AS minute\n"
-            + "FROM Timestamps\n";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    ImmutableMap<String, Value> params = ImmutableMap.of();
-    thrown.expect(IllegalArgumentException.class);
-    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
-  }
-
-  /** Only sample scenarios are covered here. Excessive testing is done via Compliance tests. */
-  @Test
-  public void testExtractTimestamp() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2005-01-03 12:34:56' AS timestamp UNION ALL\n"
-            + "  SELECT TIMESTAMP '2017-05-26'\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  timestamp,\n"
-            + "  EXTRACT(ISOYEAR FROM timestamp) AS isoyear,\n"
-            + "  EXTRACT(YEAR FROM timestamp) AS year,\n"
-            + "  EXTRACT(ISOWEEK FROM timestamp) AS week,\n"
-            + "  EXTRACT(MINUTE FROM timestamp) AS minute\n"
-            + "FROM Timestamps\n";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    ImmutableMap<String, Value> params = ImmutableMap.of();
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    final Schema schema =
-        Schema.builder()
-            .addDateTimeField("ts")
-            .addField("isoyear", FieldType.INT64)
-            .addField("year", FieldType.INT64)
-            .addField("week", FieldType.INT64)
-            .addField("minute", FieldType.INT64)
-            .build();
-    PAssert.that(stream)
-        .containsInAnyOrder(
-            Row.withSchema(schema)
-                .addValues(
-                    DateTimeUtils.parseTimestampWithUTCTimeZone("2005-01-03 12:34:56"),
-                    2005L,
-                    2005L,
-                    1L,
-                    34L)
-                .build(),
-            Row.withSchema(schema)
-                .addValues(parseDate("2017-05-26"), 2017L, 2017L, 21L, 0L)
-                .build());
-
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  @Ignore("ZetaSQL does not support EnumType to IdentifierLiteral")
-  public void testExtractTimestampAtTimeZoneThrowsBecauseNotSupported() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2017-05-26' AS timestamp\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  timestamp,\n"
-            + "  EXTRACT(HOUR FROM timestamp AT TIME ZONE 'America/Vancouver') AS hour,\n"
-            + "  EXTRACT(DAY FROM timestamp AT TIME ZONE 'America/Vancouver') AS day\n"
-            + "FROM Timestamps\n";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    ImmutableMap<String, Value> params = ImmutableMap.of();
-    thrown.expect(IllegalArgumentException.class);
-    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
-  }
-
-  @Test
-  @Ignore("")
-  public void testExtractDateFromTimestampThrowsBecauseNotSupported() {
-    String sql =
-        "WITH Timestamps AS (\n"
-            + "  SELECT TIMESTAMP '2017-05-26' AS ts\n"
-            + ")\n"
-            + "SELECT\n"
-            + "  ts,\n"
-            + "  EXTRACT(DATE FROM ts) AS dt\n"
-            + "FROM Timestamps\n";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    ImmutableMap<String, Value> params = ImmutableMap.of();
-    thrown.expect(SqlException.class);
-    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
   @Test

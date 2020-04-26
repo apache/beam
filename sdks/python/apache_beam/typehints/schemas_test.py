@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Tests for schemas."""
 
 # pytype: skip-file
@@ -31,9 +32,11 @@ from typing import Optional
 from typing import Sequence
 
 import numpy as np
+from future.moves import pickle
 from past.builtins import unicode
 
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import typing_from_runner_api
 from apache_beam.typehints.schemas import typing_to_runner_api
 
@@ -48,7 +51,6 @@ class SchemaTest(unittest.TestCase):
   are cached by ID, so performing just one of them wouldn't necessarily exercise
   all code paths.
   """
-
   def test_typing_survives_proto_roundtrip(self):
     all_nonoptional_primitives = [
         np.int8,
@@ -76,23 +78,25 @@ class SchemaTest(unittest.TestCase):
     basic_array_types = [Sequence[typ] for typ in all_primitives]
 
     basic_map_types = [
-        Mapping[key_type,
-                value_type] for key_type, value_type in itertools.product(
-                    all_primitives, all_primitives)
+        Mapping[key_type, value_type] for key_type,
+        value_type in itertools.product(all_primitives, all_primitives)
     ]
 
     selected_schemas = [
         NamedTuple(
             'AllPrimitives',
             [('field%d' % i, typ) for i, typ in enumerate(all_primitives)]),
-        NamedTuple('ComplexSchema', [
-            ('id', np.int64),
-            ('name', unicode),
-            ('optional_map', Optional[Mapping[unicode,
-                                              Optional[np.float64]]]),
-            ('optional_array', Optional[Sequence[np.float32]]),
-            ('array_optional', Sequence[Optional[bool]]),
-        ])
+        NamedTuple(
+            'ComplexSchema',
+            [
+                ('id', np.int64),
+                ('name', unicode),
+                (
+                    'optional_map',
+                    Optional[Mapping[unicode, Optional[np.float64]]]),
+                ('optional_array', Optional[Sequence[np.float32]]),
+                ('array_optional', Sequence[Optional[bool]]),
+            ])
     ]
 
     test_cases = all_primitives + \
@@ -101,8 +105,8 @@ class SchemaTest(unittest.TestCase):
                  selected_schemas
 
     for test_case in test_cases:
-      self.assertEqual(test_case,
-                       typing_from_runner_api(typing_to_runner_api(test_case)))
+      self.assertEqual(
+          test_case, typing_from_runner_api(typing_to_runner_api(test_case)))
 
   def test_proto_survives_typing_roundtrip(self):
     all_nonoptional_primitives = [
@@ -144,8 +148,8 @@ class SchemaTest(unittest.TestCase):
                 schema=schema_pb2.Schema(
                     id='32497414-85e8-46b7-9c90-9a9cc62fe390',
                     fields=[
-                        schema_pb2.Field(name='field%d' % i, type=typ)
-                        for i, typ in enumerate(all_primitives)
+                        schema_pb2.Field(name='field%d' % i, type=typ) for i,
+                        typ in enumerate(all_primitives)
                     ]))),
         schema_pb2.FieldType(
             row_type=schema_pb2.RowType(
@@ -166,27 +170,23 @@ class SchemaTest(unittest.TestCase):
                                 nullable=True,
                                 map_type=schema_pb2.MapType(
                                     key_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.STRING
-                                    ),
+                                        atomic_type=schema_pb2.STRING),
                                     value_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.DOUBLE
-                                    )))),
+                                        atomic_type=schema_pb2.DOUBLE)))),
                         schema_pb2.Field(
                             name='optional_array',
                             type=schema_pb2.FieldType(
                                 nullable=True,
                                 array_type=schema_pb2.ArrayType(
                                     element_type=schema_pb2.FieldType(
-                                        atomic_type=schema_pb2.FLOAT)
-                                ))),
+                                        atomic_type=schema_pb2.FLOAT)))),
                         schema_pb2.Field(
                             name='array_optional',
                             type=schema_pb2.FieldType(
                                 array_type=schema_pb2.ArrayType(
                                     element_type=schema_pb2.FieldType(
                                         nullable=True,
-                                        atomic_type=schema_pb2.BYTES)
-                                ))),
+                                        atomic_type=schema_pb2.BYTES)))),
                     ]))),
     ]
 
@@ -196,23 +196,24 @@ class SchemaTest(unittest.TestCase):
                  selected_schemas
 
     for test_case in test_cases:
-      self.assertEqual(test_case,
-                       typing_to_runner_api(typing_from_runner_api(test_case)))
+      self.assertEqual(
+          test_case, typing_to_runner_api(typing_from_runner_api(test_case)))
 
   def test_unknown_primitive_raise_valueerror(self):
     self.assertRaises(ValueError, lambda: typing_to_runner_api(np.uint32))
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
-        ValueError, lambda: typing_from_runner_api(
-            schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED))
-    )
+        ValueError,
+        lambda: typing_from_runner_api(
+            schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED)))
 
   @unittest.skipIf(IS_PYTHON_3, 'str is acceptable in python 3')
   def test_str_raises_error_py2(self):
     self.assertRaises(lambda: typing_to_runner_api(str))
-    self.assertRaises(lambda: typing_to_runner_api(
-        NamedTuple('Test', [('int', int), ('str', str)])))
+    self.assertRaises(
+        lambda: typing_to_runner_api(
+            NamedTuple('Test', [('int', int), ('str', str)])))
 
   def test_int_maps_to_int64(self):
     self.assertEqual(
@@ -225,47 +226,64 @@ class SchemaTest(unittest.TestCase):
         typing_to_runner_api(float))
 
   def test_trivial_example(self):
-    MyCuteClass = NamedTuple('MyCuteClass', [
-        ('name', unicode),
-        ('age', Optional[int]),
-        ('interests', List[unicode]),
-        ('height', float),
-        ('blob', ByteString),
-    ])
+    MyCuteClass = NamedTuple(
+        'MyCuteClass',
+        [
+            ('name', unicode),
+            ('age', Optional[int]),
+            ('interests', List[unicode]),
+            ('height', float),
+            ('blob', ByteString),
+        ])
 
     expected = schema_pb2.FieldType(
         row_type=schema_pb2.RowType(
-            schema=schema_pb2.Schema(fields=[
-                schema_pb2.Field(
-                    name='name',
-                    type=schema_pb2.FieldType(
-                        atomic_type=schema_pb2.STRING),
-                ),
-                schema_pb2.Field(
-                    name='age',
-                    type=schema_pb2.FieldType(
-                        nullable=True,
-                        atomic_type=schema_pb2.INT64)),
-                schema_pb2.Field(
-                    name='interests',
-                    type=schema_pb2.FieldType(
-                        array_type=schema_pb2.ArrayType(
-                            element_type=schema_pb2.FieldType(
-                                atomic_type=schema_pb2.STRING)))),
-                schema_pb2.Field(
-                    name='height',
-                    type=schema_pb2.FieldType(
-                        atomic_type=schema_pb2.DOUBLE)),
-                schema_pb2.Field(
-                    name='blob',
-                    type=schema_pb2.FieldType(
-                        atomic_type=schema_pb2.BYTES)),
-            ])))
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name='name',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                    ),
+                    schema_pb2.Field(
+                        name='age',
+                        type=schema_pb2.FieldType(
+                            nullable=True, atomic_type=schema_pb2.INT64)),
+                    schema_pb2.Field(
+                        name='interests',
+                        type=schema_pb2.FieldType(
+                            array_type=schema_pb2.ArrayType(
+                                element_type=schema_pb2.FieldType(
+                                    atomic_type=schema_pb2.STRING)))),
+                    schema_pb2.Field(
+                        name='height',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.DOUBLE)),
+                    schema_pb2.Field(
+                        name='blob',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTES)),
+                ])))
 
     # Only test that the fields are equal. If we attempt to test the entire type
     # or the entire schema, the generated id will break equality.
-    self.assertEqual(expected.row_type.schema.fields,
-                     typing_to_runner_api(MyCuteClass).row_type.schema.fields)
+    self.assertEqual(
+        expected.row_type.schema.fields,
+        typing_to_runner_api(MyCuteClass).row_type.schema.fields)
+
+  def test_generated_class_pickle(self):
+    schema = schema_pb2.Schema(
+        id="some-uuid",
+        fields=[
+            schema_pb2.Field(
+                name='name',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING),
+            )
+        ])
+    user_type = named_tuple_from_schema(schema)
+    instance = user_type(name="test")
+
+    self.assertEqual(instance, pickle.loads(pickle.dumps(instance)))
 
 
 if __name__ == '__main__':

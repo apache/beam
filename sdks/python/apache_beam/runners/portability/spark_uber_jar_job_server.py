@@ -24,8 +24,10 @@ from __future__ import print_function
 
 import itertools
 import logging
+import os
 import tempfile
 import time
+import urllib
 import zipfile
 
 import requests
@@ -45,14 +47,14 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
   The jar contains the Beam pipeline definition, dependencies, and
   the pipeline artifacts.
   """
-
   def __init__(self, rest_url, options):
     super(SparkUberJarJobServer, self).__init__()
     self._rest_url = rest_url
-    self._executable_jar = (options.view_as(pipeline_options.SparkRunnerOptions)
-                            .spark_job_server_jar)
-    self._artifact_port = (options.view_as(pipeline_options.JobServerOptions)
-                           .artifact_port)
+    self._executable_jar = (
+        options.view_as(
+            pipeline_options.SparkRunnerOptions).spark_job_server_jar)
+    self._artifact_port = (
+        options.view_as(pipeline_options.JobServerOptions).artifact_port)
     self._temp_dir = tempfile.mkdtemp(prefix='apache-beam-spark')
 
   def start(self):
@@ -62,9 +64,20 @@ class SparkUberJarJobServer(abstract_job_service.AbstractJobServiceServicer):
     pass
 
   def executable_jar(self):
-    url = (self._executable_jar or
-           job_server.JavaJarJobServer.path_to_beam_jar(
-               'runners:spark:job-server:shadowJar'))
+    if self._executable_jar:
+      if not os.path.exists(self._executable_jar):
+        parsed = urllib.parse.urlparse(self._executable_jar)
+        if not parsed.scheme:
+          raise ValueError(
+              'Unable to parse jar URL "%s". If using a full URL, make sure '
+              'the scheme is specified. If using a local file path, make sure '
+              'the file exists; you may have to first build the job server '
+              'using `./gradlew runners:spark:job-server:shadowJar`.' %
+              self._executable_jar)
+      url = self._executable_jar
+    else:
+      url = job_server.JavaJarJobServer.path_to_beam_jar(
+          'runners:spark:job-server:shadowJar')
     return job_server.JavaJarJobServer.local_jar(url)
 
   def create_beam_job(self, job_id, job_name, pipeline, options):
@@ -84,12 +97,21 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
 
   Note that the Spark Rest API is not enabled by default. It must be enabled by
   setting the configuration property spark.master.rest.enabled to true."""
-
   def __init__(
-      self, rest_url, executable_jar, job_id, job_name, pipeline, options,
+      self,
+      rest_url,
+      executable_jar,
+      job_id,
+      job_name,
+      pipeline,
+      options,
       artifact_port=0):
     super(SparkBeamJob, self).__init__(
-        executable_jar, job_id, job_name, pipeline, options,
+        executable_jar,
+        job_id,
+        job_name,
+        pipeline,
+        options,
         artifact_port=artifact_port)
     self._rest_url = rest_url
     # Message history is a superset of state history.
@@ -99,8 +121,9 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
     url = '%s/%s' % (self._rest_url, path)
     response = method(url, **kwargs)
     if response.status_code != expected_status:
-      raise RuntimeError("Request to %s failed with status %d: %s" %
-                         (url, response.status_code, response.text))
+      raise RuntimeError(
+          "Request to %s failed with status %d: %s" %
+          (url, response.status_code, response.text))
     if response.text:
       return response.json()
 
@@ -137,9 +160,9 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
     except Exception as e:
       _LOGGER.debug(e)
       server_version = self._get_server_spark_version()
-      _LOGGER.warning('Unable to parse Spark version from '
-                      'spark-version-info.properties. Defaulting to %s' %
-                      server_version)
+      _LOGGER.warning(
+          'Unable to parse Spark version from '
+          'spark-version-info.properties. Defaulting to %s' % server_version)
       return server_version
 
   def _create_submission_request(self, jar, job_name):
@@ -170,8 +193,8 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
     # Upload the jar and start the job.
     self._spark_submission_id = self.post(
         'v1/submissions/create',
-        json=self._create_submission_request(self._jar, self._job_name)
-    )['submissionId']
+        json=self._create_submission_request(self._jar,
+                                             self._job_name))['submissionId']
     _LOGGER.info('Submitted Spark job with ID %s' % self._spark_submission_id)
 
   def cancel(self):
@@ -219,8 +242,8 @@ class SparkBeamJob(abstract_job_service.UberJarBeamJob):
       message = None
       if 'message' in response:
         importance = (
-            beam_job_api_pb2.JobMessage.MessageImportance.JOB_MESSAGE_ERROR if
-            state == beam_job_api_pb2.JobState.FAILED else
+            beam_job_api_pb2.JobMessage.MessageImportance.JOB_MESSAGE_ERROR
+            if state == beam_job_api_pb2.JobState.FAILED else
             beam_job_api_pb2.JobMessage.MessageImportance.JOB_MESSAGE_BASIC)
         message = beam_job_api_pb2.JobMessage(
             message_id='message%d' % message_ix,

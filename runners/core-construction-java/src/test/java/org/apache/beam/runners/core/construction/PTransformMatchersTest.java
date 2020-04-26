@@ -169,12 +169,12 @@ public class PTransformMatchersTest implements Serializable {
             ProcessContext context, RestrictionTracker<Void, Void> tracker) {}
 
         @GetInitialRestriction
-        public Void getInitialRestriction(KV<String, Integer> element) {
+        public Void getInitialRestriction(@Element KV<String, Integer> element) {
           return null;
         }
 
         @NewTracker
-        public SomeTracker newTracker(Void restriction) {
+        public SomeTracker newTracker(@Restriction Void restriction) {
           return null;
         }
       };

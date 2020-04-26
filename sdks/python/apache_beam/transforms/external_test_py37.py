@@ -38,9 +38,7 @@ def get_payload(cls):
 
 
 class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
-
   def get_payload_from_typing_hints(self, values):
-
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'
@@ -56,7 +54,6 @@ class ExternalDataclassesPayloadTest(PayloadBase, unittest.TestCase):
     return get_payload(DataclassTransform(**values))
 
   def get_payload_from_beam_typehints(self, values):
-
     @dataclasses.dataclass
     class DataclassTransform(beam.ExternalTransform):
       URN = 'beam:external:fakeurn:v1'

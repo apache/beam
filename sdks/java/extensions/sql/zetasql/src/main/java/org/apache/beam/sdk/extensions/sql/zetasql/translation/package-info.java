@@ -17,4 +17,7 @@
  */
 
 /** Conversion logic between ZetaSQL resolved query nodes and Calcite rel nodes. */
+@Experimental
 package org.apache.beam.sdk.extensions.sql.zetasql.translation;
+
+import org.apache.beam.sdk.annotations.Experimental;

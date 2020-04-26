@@ -65,16 +65,18 @@ def run(argv=None, save_main_session=True):
   """Main entry point; defines and runs the wordcount pipeline."""
 
   parser = argparse.ArgumentParser()
-  parser.add_argument('--input',
-                      dest='input',
-                      default='gs://dataflow-samples/shakespeare/kinglear.txt',
-                      help='Input file to process.')
-  parser.add_argument('--output',
-                      dest='output',
-                      # CHANGE 1/5: The Google Cloud Storage path is required
-                      # for outputting the results.
-                      default='gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX',
-                      help='Output file to write results to.')
+  parser.add_argument(
+      '--input',
+      dest='input',
+      default='gs://dataflow-samples/shakespeare/kinglear.txt',
+      help='Input file to process.')
+  parser.add_argument(
+      '--output',
+      dest='output',
+      # CHANGE 1/5: The Google Cloud Storage path is required
+      # for outputting the results.
+      default='gs://YOUR_OUTPUT_BUCKET/AND_OUTPUT_PREFIX',
+      help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
   pipeline_args.extend([
       # CHANGE 2/5: (OPTIONAL) Change this to DataflowRunner to
@@ -104,8 +106,9 @@ def run(argv=None, save_main_session=True):
     # Count the occurrences of each word.
     counts = (
         lines
-        | 'Split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                      .with_output_types(unicode))
+        | 'Split' >> (
+            beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x)).
+            with_output_types(unicode))
         | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 

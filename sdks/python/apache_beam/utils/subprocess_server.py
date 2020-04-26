@@ -82,9 +82,21 @@ class SubprocessServer(object):
         port, = pick_port(None)
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
-      _LOGGER.warning("Starting service with %s", str(cmd).replace("',", "'"))
+      _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
       try:
-        self._process = subprocess.Popen(cmd)
+        self._process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        # Emit the output of this command as info level logging.
+        def log_stdout():
+          line = self._process.stdout.readline()
+          while line:
+            _LOGGER.info(line)
+            line = self._process.stdout.readline()
+
+        t = threading.Thread(target=log_stdout)
+        t.daemon = True
+        t.start()
         wait_secs = .1
         channel = grpc.insecure_channel(endpoint)
         channel_ready = grpc.channel_ready_future(channel)
@@ -99,9 +111,10 @@ class SubprocessServer(object):
             break
           except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
             wait_secs *= 1.2
-            logging.log(logging.WARNING if wait_secs > 1 else logging.DEBUG,
-                        'Waiting for grpc channel to be ready at %s.',
-                        endpoint)
+            logging.log(
+                logging.WARNING if wait_secs > 1 else logging.DEBUG,
+                'Waiting for grpc channel to be ready at %s.',
+                endpoint)
         return self._stub_class(channel)
       except:  # pylint: disable=bare-except
         _LOGGER.exception("Error bringing up service")
@@ -138,8 +151,8 @@ class JavaJarServer(SubprocessServer):
 
   @classmethod
   def jar_name(cls, artifact_id, version, classifier=None, appendix=None):
-    return '-'.join(filter(
-        None, [artifact_id, appendix, version, classifier]))  + '.jar'
+    return '-'.join(
+        filter(None, [artifact_id, appendix, version, classifier])) + '.jar'
 
   @classmethod
   def path_to_maven_jar(
@@ -148,17 +161,19 @@ class JavaJarServer(SubprocessServer):
       group_id,
       version,
       repository=APACHE_REPOSITORY,
-      classifier=None):
+      classifier=None,
+      appendix=None):
     return '/'.join([
         repository,
         group_id.replace('.', '/'),
         artifact_id,
         version,
-        cls.jar_name(artifact_id, version, classifier)])
+        cls.jar_name(artifact_id, version, classifier, appendix)
+    ])
 
   @classmethod
-  def path_to_beam_jar(cls, gradle_target, appendix=None):
-    gradle_package = gradle_target.strip(':')[:gradle_target.rindex(':')]
+  def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
     artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])
@@ -169,33 +184,42 @@ class JavaJarServer(SubprocessServer):
         'libs',
         cls.jar_name(
             artifact_id,
-            beam_version.replace('.dev', ''),
+            version.replace('.dev', ''),
             classifier='SNAPSHOT',
             appendix=appendix))
     if os.path.exists(local_path):
       _LOGGER.info('Using pre-built snapshot at %s', local_path)
       return local_path
-    elif '.dev' in beam_version:
+    elif '.dev' in version:
       # TODO: Attempt to use nightly snapshots?
       raise RuntimeError(
-          ('%s not found. '
-           'Please build the server with \n  cd %s; ./gradlew %s') % (
-               local_path, os.path.abspath(project_root), gradle_target))
+          (
+              '%s not found. '
+              'Please build the server with \n  cd %s; ./gradlew %s') %
+          (local_path, os.path.abspath(project_root), gradle_target))
     else:
       return cls.path_to_maven_jar(
-          artifact_id, cls.BEAM_GROUP_ID, beam_version, cls.APACHE_REPOSITORY)
+          artifact_id,
+          cls.BEAM_GROUP_ID,
+          version,
+          cls.APACHE_REPOSITORY,
+          appendix=appendix)
 
   @classmethod
-  def local_jar(cls, url):
+  def local_jar(cls, url, cache_dir=None):
+    if cache_dir is None:
+      cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
     if os.path.exists(url):
       return url
     else:
-      _LOGGER.warning('Downloading job server jar from %s' % url)
-      cached_jar = os.path.join(cls.JAR_CACHE, os.path.basename(url))
-      if not os.path.exists(cached_jar):
-        if not os.path.exists(cls.JAR_CACHE):
-          os.makedirs(cls.JAR_CACHE)
+      cached_jar = os.path.join(cache_dir, os.path.basename(url))
+      if os.path.exists(cached_jar):
+        _LOGGER.info('Using cached job server jar from %s' % url)
+      else:
+        _LOGGER.info('Downloading job server jar from %s' % url)
+        if not os.path.exists(cache_dir):
+          os.makedirs(cache_dir)
           # TODO: Clean up this cache according to some policy.
         try:
           url_read = urlopen(url)

@@ -29,10 +29,14 @@ from builtins import object
 
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
-
-  def __init__(self, transform_evaluator, uncommitted_output_bundles,
-               unprocessed_bundles, counters, keyed_watermark_holds,
-               undeclared_tag_values=None):
+  def __init__(
+      self,
+      transform_evaluator,
+      uncommitted_output_bundles,
+      unprocessed_bundles,
+      counters,
+      keyed_watermark_holds,
+      undeclared_tag_values=None):
     self.transform = transform_evaluator._applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
@@ -57,7 +61,6 @@ class TransformResult(object):
 
 class TimerFiring(object):
   """A single instance of a fired timer."""
-
   def __init__(self, encoded_key, window, name, time_domain, timestamp):
     self.encoded_key = encoded_key
     self.window = window

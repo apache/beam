@@ -30,6 +30,7 @@ import java.util.Collections;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -111,7 +112,7 @@ import org.slf4j.LoggerFactory;
  * <p>When writing it is possible to customize the retry behavior if an error is encountered. By
  * default this is disabled and only one attempt will be made.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class SolrIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(SolrIO.class);

@@ -29,7 +29,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncollect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -78,8 +77,7 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
                         columnRef.getColumn().getId(), zetaNode.getInputScan().getColumnList())));
 
     RelNode projectNode =
-        LogicalProject.create(
-            LogicalValues.createOneRow(getCluster()), projects, ImmutableList.of(columnName));
+        LogicalProject.create(createOneRow(getCluster()), projects, ImmutableList.of(columnName));
 
     // Create an UnCollect
     // TODO: how to handle ordinality.

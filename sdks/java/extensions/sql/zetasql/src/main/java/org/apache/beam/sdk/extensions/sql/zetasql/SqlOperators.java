@@ -29,7 +29,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlFunctionCategory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlKind;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlSyntax;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
@@ -55,6 +58,19 @@ public class SqlOperators {
   public static final RelDataType OTHER = createSqlType(SqlTypeName.OTHER, false);
   public static final RelDataType TIMESTAMP = createSqlType(SqlTypeName.TIMESTAMP, false);
   public static final RelDataType BIGINT = createSqlType(SqlTypeName.BIGINT, false);
+
+  public static final SqlOperator TIMESTAMP_ADD_FN =
+      createSimpleSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
+
+  public static SqlFunction createSimpleSqlFunction(String name, SqlTypeName returnType) {
+    return new SqlFunction(
+        name,
+        SqlKind.OTHER_FUNCTION,
+        x -> createTypeFactory().createSqlType(returnType),
+        null, // operandTypeInference
+        null, // operandTypeChecker
+        SqlFunctionCategory.USER_DEFINED_FUNCTION);
+  }
 
   public static SqlUserDefinedFunction createUdfOperator(
       String name,

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.datastore;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /**
  * {@link DatastoreIO} provides an API for reading from and writing to <a
@@ -26,7 +27,7 @@ import org.apache.beam.sdk.annotations.Experimental;
  *
  * <p>To use the v1 version see {@link DatastoreV1}.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class DatastoreIO {
 
   private DatastoreIO() {}

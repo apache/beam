@@ -350,7 +350,7 @@ public class UnboundedSourceSystem {
 
       private <X> X invoke(FnWithMetricsWrapper.SupplierWithException<X> fn) throws Exception {
         if (metricsWrapper != null) {
-          return metricsWrapper.wrap(fn);
+          return metricsWrapper.wrap(fn, true);
         } else {
           return fn.get();
         }

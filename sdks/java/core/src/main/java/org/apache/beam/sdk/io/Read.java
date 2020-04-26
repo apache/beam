@@ -17,16 +17,51 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
+import com.google.auto.value.AutoValue;
+import java.io.IOException;
+import java.util.List;
+import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
+import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Deduplicate;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
+import org.apache.beam.sdk.transforms.Impulse;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
+import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.ValueWithRecordId;
+import org.apache.beam.sdk.values.ValueWithRecordId.StripIdsDoFn;
+import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link PTransform} for reading from a {@link Source}.
@@ -94,6 +129,22 @@ public class Read {
     public final PCollection<T> expand(PBegin input) {
       source.validate();
 
+      if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && !ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+        // We don't use Create here since Create is defined as a BoundedSource and using it would
+        // cause an infinite expansion loop. We can reconsider this if Create is implemented
+        // directly as a SplittableDoFn.
+        return input
+            .getPipeline()
+            .apply(Impulse.create())
+            .apply(
+                MapElements.into(new TypeDescriptor<BoundedSource<T>>() {}).via(element -> source))
+            .setCoder(SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {}))
+            .apply(ParDo.of(new BoundedSourceAsSDFWrapperFn<>()))
+            .setCoder(source.getOutputCoder());
+      }
+
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
@@ -152,6 +203,38 @@ public class Read {
     @Override
     public final PCollection<T> expand(PBegin input) {
       source.validate();
+
+      if (ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          && !ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+        // We don't use Create here since Create is defined as a BoundedSource and using it would
+        // cause an infinite expansion loop. We can reconsider this if Create is implemented
+        // directly as a SplittableDoFn.
+        PCollection<ValueWithRecordId<T>> outputWithIds =
+            input
+                .getPipeline()
+                .apply(Impulse.create())
+                .apply(
+                    MapElements.into(new TypeDescriptor<UnboundedSource<T, CheckpointMark>>() {})
+                        .via(element -> (UnboundedSource<T, CheckpointMark>) source))
+                .setCoder(
+                    SerializableCoder.of(
+                        new TypeDescriptor<UnboundedSource<T, CheckpointMark>>() {}))
+                .apply(
+                    ParDo.of(
+                        new UnboundedSourceAsSDFWrapperFn<>(
+                            (Coder<CheckpointMark>) source.getCheckpointMarkCoder())))
+                .setCoder(ValueWithRecordIdCoder.of(source.getOutputCoder()));
+
+        if (source.requiresDeduping()) {
+          outputWithIds.apply(
+              Deduplicate.<ValueWithRecordId<T>, byte[]>withRepresentativeValueFn(
+                      element -> element.getId())
+                  .withRepresentativeType(TypeDescriptor.of(byte[].class)));
+        }
+        return outputWithIds.apply(ParDo.of(new StripIdsDoFn<>()));
+      }
+
       return PCollection.createPrimitiveOutputInternal(
           input.getPipeline(),
           WindowingStrategy.globalDefault(),
@@ -175,6 +258,547 @@ public class Read {
       builder
           .add(DisplayData.item("source", source.getClass()).withLabel("Read Source"))
           .include("source", source);
+    }
+  }
+
+  /**
+   * A splittable {@link DoFn} which executes a {@link BoundedSource}.
+   *
+   * <p>We model the element as the original source and the restriction as the sub-source. This
+   * allows us to split the sub-source over and over yet still receive "source" objects as inputs.
+   */
+  static class BoundedSourceAsSDFWrapperFn<T> extends DoFn<BoundedSource<T>, T> {
+    private static final Logger LOG = LoggerFactory.getLogger(BoundedSourceAsSDFWrapperFn.class);
+    private static final long DEFAULT_DESIRED_BUNDLE_SIZE_BYTES = 64 * (1 << 20);
+
+    @GetInitialRestriction
+    public BoundedSource<T> initialRestriction(@Element BoundedSource<T> element) {
+      return element;
+    }
+
+    @GetSize
+    public double getSize(
+        @Restriction BoundedSource<T> restriction, PipelineOptions pipelineOptions)
+        throws Exception {
+      return restriction.getEstimatedSizeBytes(pipelineOptions);
+    }
+
+    @SplitRestriction
+    public void splitRestriction(
+        @Restriction BoundedSource<T> restriction,
+        OutputReceiver<BoundedSource<T>> receiver,
+        PipelineOptions pipelineOptions)
+        throws Exception {
+      for (BoundedSource<T> split :
+          restriction.split(DEFAULT_DESIRED_BUNDLE_SIZE_BYTES, pipelineOptions)) {
+        receiver.output(split);
+      }
+    }
+
+    @NewTracker
+    public RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> restrictionTracker(
+        @Restriction BoundedSource<T> restriction, PipelineOptions pipelineOptions) {
+      return new BoundedSourceAsSDFRestrictionTracker<>(restriction, pipelineOptions);
+    }
+
+    @ProcessElement
+    public void processElement(
+        RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> tracker,
+        OutputReceiver<T> receiver)
+        throws IOException {
+      TimestampedValue<T>[] out = new TimestampedValue[1];
+      while (tracker.tryClaim(out)) {
+        receiver.outputWithTimestamp(out[0].getValue(), out[0].getTimestamp());
+      }
+    }
+
+    @GetRestrictionCoder
+    public Coder<BoundedSource<T>> restrictionCoder() {
+      return SerializableCoder.of(new TypeDescriptor<BoundedSource<T>>() {});
+    }
+
+    /**
+     * A fake restriction tracker which adapts to the {@link BoundedSource} API. The restriction
+     * object is used to advance the underlying source and to "return" the current element.
+     */
+    private static class BoundedSourceAsSDFRestrictionTracker<T>
+        extends RestrictionTracker<BoundedSource<T>, TimestampedValue<T>[]> {
+      private final BoundedSource<T> initialRestriction;
+      private final PipelineOptions pipelineOptions;
+      private BoundedSource.BoundedReader<T> currentReader;
+      private boolean claimedAll;
+
+      BoundedSourceAsSDFRestrictionTracker(
+          BoundedSource<T> initialRestriction, PipelineOptions pipelineOptions) {
+        this.initialRestriction = initialRestriction;
+        this.pipelineOptions = pipelineOptions;
+      }
+
+      @Override
+      public boolean tryClaim(TimestampedValue<T>[] position) {
+        if (claimedAll) {
+          return false;
+        }
+        try {
+          if (currentReader == null) {
+            currentReader = initialRestriction.createReader(pipelineOptions);
+            if (!currentReader.start()) {
+              claimedAll = true;
+              try {
+                currentReader.close();
+              } finally {
+                currentReader = null;
+              }
+              return false;
+            }
+            position[0] =
+                TimestampedValue.of(
+                    currentReader.getCurrent(), currentReader.getCurrentTimestamp());
+            return true;
+          }
+          if (!currentReader.advance()) {
+            claimedAll = true;
+            try {
+              currentReader.close();
+            } finally {
+              currentReader = null;
+            }
+            return false;
+          }
+          position[0] =
+              TimestampedValue.of(currentReader.getCurrent(), currentReader.getCurrentTimestamp());
+          return true;
+        } catch (IOException e) {
+          if (currentReader != null) {
+            try {
+              currentReader.close();
+            } catch (IOException closeException) {
+              e.addSuppressed(closeException);
+            } finally {
+              currentReader = null;
+            }
+          }
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      protected void finalize() throws Throwable {
+        if (currentReader != null) {
+          try {
+            currentReader.close();
+          } catch (IOException e) {
+            LOG.error("Failed to close BoundedReader due to failure processing bundle.", e);
+          }
+        }
+      }
+
+      /** The value is invalid if {@link #tryClaim} has ever thrown an exception. */
+      @Override
+      public BoundedSource<T> currentRestriction() {
+        if (currentReader == null) {
+          return initialRestriction;
+        }
+        return currentReader.getCurrentSource();
+      }
+
+      @Override
+      public SplitResult<BoundedSource<T>> trySplit(double fractionOfRemainder) {
+        if (currentReader == null) {
+          return null;
+        }
+        double consumedFraction = currentReader.getFractionConsumed();
+        double fraction = consumedFraction + (1 - consumedFraction) * fractionOfRemainder;
+        BoundedSource<T> residual = currentReader.splitAtFraction(fraction);
+        if (residual == null) {
+          return null;
+        }
+        BoundedSource<T> primary = currentReader.getCurrentSource();
+        return SplitResult.of(primary, residual);
+      }
+
+      @Override
+      public void checkDone() throws IllegalStateException {
+        checkState(
+            claimedAll,
+            "Expected all records to have been claimed but finished processing "
+                + "bounded source while some records may have not been read.");
+      }
+    }
+  }
+
+  /**
+   * A splittable {@link DoFn} which executes an {@link UnboundedSource}.
+   *
+   * <p>We model the element as the original source and the restriction as a pair of the sub-source
+   * and its {@link CheckpointMark}. This allows us to split the sub-source over and over as long as
+   * the checkpoint mark is {@code null} or the {@link NoopCheckpointMark} since it does not
+   * maintain any state.
+   */
+  @UnboundedPerElement
+  static class UnboundedSourceAsSDFWrapperFn<OutputT, CheckpointT extends CheckpointMark>
+      extends DoFn<UnboundedSource<OutputT, CheckpointT>, ValueWithRecordId<OutputT>> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(UnboundedSourceAsSDFWrapperFn.class);
+    private static final int DEFAULT_DESIRED_NUM_SPLITS = 20;
+    private static final int DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS = 10;
+    private final Coder<CheckpointT> restrictionCoder;
+
+    private UnboundedSourceAsSDFWrapperFn(Coder<CheckpointT> restrictionCoder) {
+      this.restrictionCoder = restrictionCoder;
+    }
+
+    @GetInitialRestriction
+    public KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction(
+        @Element UnboundedSource<OutputT, CheckpointT> element) {
+      return KV.of(element, null);
+    }
+
+    @SplitRestriction
+    public void splitRestriction(
+        @Restriction KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> restriction,
+        OutputReceiver<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> receiver,
+        PipelineOptions pipelineOptions)
+        throws Exception {
+      // The empty unbounded source is trivially done and hence we don't need to output any splits
+      // for it.
+      if (restriction.getKey() instanceof EmptyUnboundedSource) {
+        return;
+      }
+
+      // The UnboundedSource API does not support splitting after a meaningful checkpoint mark has
+      // been created.
+      if (restriction.getValue() != null
+          && !(restriction.getValue()
+              instanceof UnboundedSource.CheckpointMark.NoopCheckpointMark)) {
+        receiver.output(restriction);
+      }
+
+      try {
+        for (UnboundedSource<OutputT, CheckpointT> split :
+            restriction.getKey().split(DEFAULT_DESIRED_NUM_SPLITS, pipelineOptions)) {
+          receiver.output(KV.of(split, null));
+        }
+      } catch (Exception e) {
+        receiver.output(restriction);
+      }
+    }
+
+    @NewTracker
+    public RestrictionTracker<
+            KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue<OutputT>[]>
+        restrictionTracker(
+            @Restriction KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> restriction,
+            PipelineOptions pipelineOptions) {
+      return new UnboundedSourceAsSDFRestrictionTracker(restriction, pipelineOptions);
+    }
+
+    @ProcessElement
+    public ProcessContinuation processElement(
+        ProcessContext context,
+        RestrictionTracker<
+                KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
+            tracker,
+        ManualWatermarkEstimator<Instant> watermarkEstimator,
+        OutputReceiver<ValueWithRecordId<OutputT>> receiver,
+        BundleFinalizer bundleFinalizer)
+        throws IOException {
+      UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
+      while (tracker.tryClaim(out)) {
+        receiver.outputWithTimestamp(
+            new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
+        watermarkEstimator.setWatermark(out[0].getWatermark());
+      }
+
+      // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
+      KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction =
+          tracker.currentRestriction();
+      if (currentRestriction.getValue() != null
+          && !(tracker.currentRestriction().getValue() instanceof NoopCheckpointMark)) {
+        bundleFinalizer.afterBundleCommit(
+            Instant.now().plus(Duration.standardMinutes(DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS)),
+            currentRestriction.getValue()::finalizeCheckpoint);
+      }
+
+      // If we have been split/checkpoint by a runner, the tracker will have been updated to the
+      // empty source and we will return stop. Otherwise the unbounded source has only temporarily
+      // run out of work.
+      if (tracker.currentRestriction().getKey() instanceof EmptyUnboundedSource) {
+        return ProcessContinuation.stop();
+      }
+      return ProcessContinuation.resume();
+    }
+
+    @GetInitialWatermarkEstimatorState
+    public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
+      return currentElementTimestamp;
+    }
+
+    @NewWatermarkEstimator
+    public WatermarkEstimators.Manual newWatermarkEstimator(
+        @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      return new WatermarkEstimators.Manual(watermarkEstimatorState);
+    }
+
+    @GetRestrictionCoder
+    public Coder<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> restrictionCoder() {
+      return KvCoder.of(
+          SerializableCoder.of(new TypeDescriptor<UnboundedSource<OutputT, CheckpointT>>() {}),
+          NullableCoder.of(restrictionCoder));
+    }
+
+    /**
+     * A POJO representing all the values we need to pass between the {@link UnboundedReader} and
+     * the {@link org.apache.beam.sdk.transforms.DoFn.ProcessElement @ProcessElement} method of the
+     * splittable DoFn.
+     */
+    @AutoValue
+    abstract static class UnboundedSourceValue<T> {
+
+      public static <T> UnboundedSourceValue<T> create(
+          byte[] id, T value, Instant timestamp, Instant watermark) {
+        return new AutoValue_Read_UnboundedSourceAsSDFWrapperFn_UnboundedSourceValue<T>(
+            id, value, timestamp, watermark);
+      }
+
+      @SuppressWarnings("mutable")
+      public abstract byte[] getId();
+
+      public abstract T getValue();
+
+      public abstract Instant getTimestamp();
+
+      public abstract Instant getWatermark();
+    }
+
+    /**
+     * A marker implementation that is used to represent the primary "source" when performing a
+     * split. The methods on this object are not meant to be called and only exist to fulfill the
+     * {@link UnboundedSource} API contract.
+     */
+    private static class EmptyUnboundedSource<OutputT, CheckpointT extends CheckpointMark>
+        extends UnboundedSource<OutputT, CheckpointT> {
+
+      private static final EmptyUnboundedSource INSTANCE = new EmptyUnboundedSource();
+
+      @Override
+      public List<? extends UnboundedSource<OutputT, CheckpointT>> split(
+          int desiredNumSplits, PipelineOptions options) throws Exception {
+        throw new UnsupportedOperationException("split is never meant to be invoked.");
+      }
+
+      @Override
+      public UnboundedReader<OutputT> createReader(
+          PipelineOptions options, @Nullable CheckpointT checkpointMark) {
+        return this.new EmptyUnboundedReader(checkpointMark);
+      }
+
+      @Override
+      public Coder<CheckpointT> getCheckpointMarkCoder() {
+        throw new UnsupportedOperationException(
+            "getCheckpointMarkCoder is never meant to be invoked.");
+      }
+
+      private class EmptyUnboundedReader extends UnboundedReader<OutputT> {
+        private final @Nullable CheckpointT checkpointMark;
+
+        private EmptyUnboundedReader(@Nullable CheckpointT checkpointMark) {
+          this.checkpointMark = checkpointMark;
+        }
+
+        @Override
+        public boolean start() throws IOException {
+          return false;
+        }
+
+        @Override
+        public boolean advance() throws IOException {
+          return false;
+        }
+
+        @Override
+        public OutputT getCurrent() throws NoSuchElementException {
+          throw new UnsupportedOperationException("getCurrent is never meant to be invoked.");
+        }
+
+        @Override
+        public Instant getCurrentTimestamp() throws NoSuchElementException {
+          throw new UnsupportedOperationException(
+              "getCurrentTimestamp is never meant to be invoked.");
+        }
+
+        @Override
+        public void close() throws IOException {}
+
+        @Override
+        public Instant getWatermark() {
+          throw new UnsupportedOperationException("getWatermark is never meant to be invoked.");
+        }
+
+        @Override
+        public CheckpointMark getCheckpointMark() {
+          return checkpointMark;
+        }
+
+        @Override
+        public UnboundedSource<OutputT, ?> getCurrentSource() {
+          return EmptyUnboundedSource.INSTANCE;
+        }
+      }
+    }
+
+    /**
+     * A fake restriction tracker which adapts to the {@link UnboundedSource} API. The restriction
+     * object is used to advance the underlying source and to "return" the current element.
+     *
+     * <p>In an {@link UnboundedReader}, both {@link UnboundedReader#start} and {@link
+     * UnboundedReader#advance} will return false when there is no data to process right now so this
+     * restriction tracker only tracks the "known" amount of outstanding work.
+     *
+     * <p>In an {@link UnboundedSource}, the {@link CheckpointMark} represents both any work that
+     * should be done when "finalizing" the bundle and also any state information that is used to
+     * resume the next portion of processing. We use the {@link #currentRestriction} to return any
+     * checkpointing information. Typically accessing the {@link #currentRestriction} is meant to be
+     * thread safe since the "restriction" is meant to represent a point in time view of the
+     * restriction tracker but this is not possible because the {@link UnboundedSource} and {@link
+     * UnboundedReader} do not provide enough visibility into their position space to be able to
+     * update a meaningful restriction space so we must be careful to not mutate the current
+     * restriction when splitting if we are done.
+     */
+    private static class UnboundedSourceAsSDFRestrictionTracker<
+            OutputT, CheckpointT extends CheckpointMark>
+        extends RestrictionTracker<
+            KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue<OutputT>[]>
+        implements HasProgress {
+      private final KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction;
+      private final PipelineOptions pipelineOptions;
+      private UnboundedSource.UnboundedReader<OutputT> currentReader;
+      private boolean readerHasBeenStarted;
+
+      UnboundedSourceAsSDFRestrictionTracker(
+          KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction,
+          PipelineOptions pipelineOptions) {
+        this.initialRestriction = initialRestriction;
+        this.pipelineOptions = pipelineOptions;
+      }
+
+      @Override
+      public boolean tryClaim(UnboundedSourceValue<OutputT>[] position) {
+        try {
+          if (currentReader == null) {
+            currentReader =
+                initialRestriction
+                    .getKey()
+                    .createReader(pipelineOptions, initialRestriction.getValue());
+          }
+          if (!readerHasBeenStarted) {
+            readerHasBeenStarted = true;
+            if (!currentReader.start()) {
+              return false;
+            }
+          } else if (!currentReader.advance()) {
+            return false;
+          }
+          position[0] =
+              UnboundedSourceValue.create(
+                  currentReader.getCurrentRecordId(),
+                  currentReader.getCurrent(),
+                  currentReader.getCurrentTimestamp(),
+                  currentReader.getWatermark());
+          return true;
+        } catch (IOException e) {
+          if (currentReader != null) {
+            try {
+              currentReader.close();
+            } catch (IOException closeException) {
+              e.addSuppressed(closeException);
+            }
+          }
+          throw new RuntimeException(e);
+        }
+      }
+
+      @Override
+      protected void finalize() throws Throwable {
+        if (currentReader != null) {
+          try {
+            currentReader.close();
+          } catch (IOException e) {
+            LOG.error("Failed to close UnboundedReader due to failure processing bundle.", e);
+          }
+        }
+      }
+
+      /** The value is invalid if {@link #tryClaim} has ever thrown an exception. */
+      @Override
+      public KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction() {
+        if (currentReader == null) {
+          return initialRestriction;
+        }
+        return KV.of(
+            (UnboundedSource<OutputT, CheckpointT>) currentReader.getCurrentSource(),
+            (CheckpointT) currentReader.getCheckpointMark());
+      }
+
+      @Override
+      public SplitResult<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> trySplit(
+          double fractionOfRemainder) {
+        // Don't split if we have claimed all since the SDF wrapper will be finishing soon.
+        // Our split result sets the primary to have no checkpoint mark associated
+        // with it since when we resume we don't have any state but we specifically pass
+        // the checkpoint mark to the current reader so that when we finish the current bundle
+        // we may register for finalization.
+        KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction =
+            currentRestriction();
+        SplitResult<KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>> result =
+            SplitResult.of(KV.of(EmptyUnboundedSource.INSTANCE, null), currentRestriction);
+        currentReader =
+            EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getValue());
+        return result;
+      }
+
+      @Override
+      public void checkDone() throws IllegalStateException {
+        checkState(
+            currentReader instanceof EmptyUnboundedSource.EmptyUnboundedReader,
+            "Expected all records to have been claimed but finished processing "
+                + "unbounded source while some records may have not been read.");
+      }
+
+      @Override
+      public Progress getProgress() {
+        // We treat the empty source as implicitly done.
+        if (currentRestriction().getKey() instanceof EmptyUnboundedSource) {
+          return RestrictionTracker.Progress.from(1, 0);
+        }
+
+        if (currentReader == null) {
+          try {
+            currentReader =
+                initialRestriction
+                    .getKey()
+                    .createReader(pipelineOptions, initialRestriction.getValue());
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        }
+
+        long size = currentReader.getSplitBacklogBytes();
+        if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+          // The UnboundedSource/UnboundedReader API has no way of reporting how much work
+          // has been completed so runners can only see the work remaining changing.
+          return RestrictionTracker.Progress.from(0, size);
+        }
+
+        // TODO: Support "global" backlog reporting
+        // size = reader.getTotalBacklogBytes();
+        // if (size != UnboundedReader.BACKLOG_UNKNOWN) {
+        //   return size;
+        // }
+
+        // We treat unknown as 0 progress
+        return RestrictionTracker.Progress.from(0, 1);
+      }
     }
   }
 }

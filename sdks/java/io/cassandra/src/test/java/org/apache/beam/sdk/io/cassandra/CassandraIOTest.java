@@ -98,7 +98,7 @@ public class CassandraIOTest implements Serializable {
   private static final String CASSANDRA_KEYSPACE = "beam_ks";
   private static final String CASSANDRA_HOST = "127.0.0.1";
   private static final String CASSANDRA_TABLE = "scientist";
-  private static final Logger LOGGER = LoggerFactory.getLogger(CassandraIOTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CassandraIOTest.class);
   private static final String STORAGE_SERVICE_MBEAN = "org.apache.cassandra.db:type=StorageService";
   private static final float ACCEPTABLE_EMPTY_SPLITS_PERCENTAGE = 0.5f;
   private static final int FLUSH_TIMEOUT = 30000;
@@ -174,7 +174,7 @@ public class CassandraIOTest implements Serializable {
   }
 
   private static void insertData() throws Exception {
-    LOGGER.info("Create Cassandra tables");
+    LOG.info("Create Cassandra tables");
     session.execute(
         String.format(
             "CREATE TABLE IF NOT EXISTS %s.%s(person_id int, person_name text, PRIMARY KEY"
@@ -186,7 +186,7 @@ public class CassandraIOTest implements Serializable {
                 + "(person_id));",
             CASSANDRA_KEYSPACE, CASSANDRA_TABLE_WRITE));
 
-    LOGGER.info("Insert records");
+    LOG.info("Insert records");
     String[] scientists = {
       "Einstein",
       "Darwin",
@@ -484,10 +484,20 @@ public class CassandraIOTest implements Serializable {
     CassandraIO.CassandraSource<Scientist> initialSource =
         new CassandraIO.CassandraSource<>(read, Collections.singletonList(splitQuery));
     int desiredBundleSizeBytes = 2048;
+    long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     List<BoundedSource<Scientist>> splits = initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
     float expectedNumSplitsloat =
         (float) initialSource.getEstimatedSizeBytes(options) / desiredBundleSizeBytes;
+    long sum = 0;
+
+    for (BoundedSource<Scientist> subSource : splits) {
+      sum += subSource.getEstimatedSizeBytes(options);
+    }
+
+    // due to division and cast estimateSize != sum but will be close. Exact equals checked below
+    assertEquals((long) (estimatedSize / splits.size()) * splits.size(), sum);
+
     int expectedNumSplits = (int) Math.ceil(expectedNumSplitsloat);
     assertEquals("Wrong number of splits", expectedNumSplits, splits.size());
     int emptySplits = 0;

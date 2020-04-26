@@ -30,6 +30,7 @@ import (
 // FullValue represents the full runtime value for a data element, incl. the
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
 // The consumer is responsible for converting the values to the correct type.
+// To represent a nested KV with FullValues, assign a *FullValue to Elm/Elm2.
 type FullValue struct {
 	Elm  interface{} // Element or KV key.
 	Elm2 interface{} // KV value, if not invalid

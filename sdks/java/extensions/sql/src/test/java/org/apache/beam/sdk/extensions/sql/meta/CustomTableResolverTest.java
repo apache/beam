@@ -106,7 +106,7 @@ public class CustomTableResolverTest implements Serializable {
   }
 
   @Test
-  public void testSimpleId() throws Exception {
+  public void testSimpleId() {
     CustomResolutionTestTableProvider tableProvider = new CustomResolutionTestTableProvider();
     tableProvider.createTable(
         Table.builder().name("testtable").schema(BASIC_SCHEMA).type("test").build());
@@ -141,7 +141,7 @@ public class CustomTableResolverTest implements Serializable {
     TestBoundedTable testTable = TestBoundedTable.of(BASIC_SCHEMA).addRows(1, "one");
 
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () ->
             testTable.buildIOReader(
                 pipeline.begin(),
@@ -158,7 +158,7 @@ public class CustomTableResolverTest implements Serializable {
                 },
                 ImmutableList.of()));
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () ->
             testTable.buildIOReader(
                 pipeline.begin(),

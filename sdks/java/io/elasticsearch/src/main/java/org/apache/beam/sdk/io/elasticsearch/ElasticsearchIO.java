@@ -49,6 +49,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -151,7 +152,7 @@ import org.slf4j.LoggerFactory;
  * socket timeout of 30000ms. {@code withConnectTimeout()} can be used to override the default
  * connect timeout of 1000ms.
  */
-@Experimental(Experimental.Kind.SOURCE_SINK)
+@Experimental(Kind.SOURCE_SINK)
 public class ElasticsearchIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIO.class);

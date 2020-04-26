@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
@@ -69,7 +70,7 @@ import org.joda.time.Instant;
  *       have fired at least once. An {@link AfterAll} trigger finishes after it fires once.
  * </ul>
  */
-@Experimental(Experimental.Kind.TRIGGER)
+@Experimental(Kind.TRIGGER)
 public abstract class Trigger implements Serializable {
 
   @Nullable protected final List<Trigger> subTriggers;

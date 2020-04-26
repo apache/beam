@@ -21,7 +21,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-The latest release 0.4.0 of [Apache Beam]({{ site.baseurl }}/) adds a new runner for [Apache Apex](http://apex.apache.org/). We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.
+The latest release 0.4.0 of [Apache Beam]({{ site.baseurl }}/) adds a new runner for [Apache Apex](https://apex.apache.org/). We are excited to reach this initial milestone and are looking forward to continued collaboration between the Beam and Apex communities to advance the runner.
 
 <!--more-->
 

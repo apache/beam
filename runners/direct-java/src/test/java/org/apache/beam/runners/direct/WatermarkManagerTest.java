@@ -1052,10 +1052,9 @@ public class WatermarkManagerTest implements Serializable {
         Collections.emptyList(),
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
-    assertThat(filteredDoubledWms.getSynchronizedProcessingOutputTime(), equalTo(clock.now()));
 
     clock.set(new Instant(Long.MAX_VALUE));
-    assertThat(filteredWms.getSynchronizedProcessingOutputTime(), equalTo(new Instant(4096)));
+
     assertThat(
         filteredDoubledWms.getSynchronizedProcessingOutputTime(),
         not(greaterThan(new Instant(4096))));
@@ -1161,7 +1160,7 @@ public class WatermarkManagerTest implements Serializable {
         BoundedWindow.TIMESTAMP_MAX_VALUE);
     manager.refreshAll();
 
-    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), not(lessThan(clock.now())));
+    assertThat(downstreamWms.getSynchronizedProcessingInputTime(), not(greaterThan(clock.now())));
   }
 
   @Test

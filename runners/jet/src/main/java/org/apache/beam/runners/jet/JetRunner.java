@@ -18,12 +18,12 @@
 package org.apache.beam.runners.jet;
 
 import com.hazelcast.client.config.ClientConfig;
-import com.hazelcast.jet.IMapJet;
 import com.hazelcast.jet.Jet;
 import com.hazelcast.jet.JetInstance;
 import com.hazelcast.jet.Job;
 import com.hazelcast.jet.config.JobConfig;
 import com.hazelcast.jet.core.DAG;
+import com.hazelcast.map.IMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -115,7 +115,7 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
     // shared client with refcount
 
     Job job = jet.newJob(dag, getJobConfig(options));
-    IMapJet<String, MetricUpdates> metricsAccumulator =
+    IMap<String, MetricUpdates> metricsAccumulator =
         jet.getMap(JetMetricsContainer.getMetricsMapName(job.getId()));
     JetPipelineResult pipelineResult = new JetPipelineResult(job, metricsAccumulator);
     CompletableFuture<Void> completionFuture =
@@ -172,10 +172,10 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private JetInstance getJetInstance(JetPipelineOptions options) {
-    String jetGroupName = options.getJetGroupName();
+    String clusterName = options.getClusterName();
 
     ClientConfig clientConfig = new ClientConfig();
-    clientConfig.getGroupConfig().setName(jetGroupName);
+    clientConfig.setClusterName(clusterName);
     boolean hasNoLocalMembers = options.getJetLocalMode() <= 0;
     if (hasNoLocalMembers) {
       clientConfig
@@ -190,8 +190,8 @@ public class JetRunner extends PipelineRunner<PipelineResult> {
   }
 
   private static JetPipelineOptions validate(JetPipelineOptions options) {
-    if (options.getJetGroupName() == null) {
-      throw new IllegalArgumentException("Jet group name not set in options");
+    if (options.getClusterName() == null) {
+      throw new IllegalArgumentException("Jet cluster name not set in options");
     }
 
     Integer localParallelism = options.getJetDefaultParallelism();

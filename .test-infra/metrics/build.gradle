@@ -35,8 +35,27 @@ task testMetricsStack {
     // TODO(BEAM-5837): Add some actual validation of the metrics stack
     println "Hello world!" }
 }
+
+// Create an empty file and set DOCKER_CONFIG to ignore bad config file on Jenkins nodes. BEAM-7405
+task createEmptyConfig(type: Exec) {
+  outputs.file("${project.rootProject.buildDir}/config.json")
+  commandLine '/bin/sh', '-c', "echo '{}' > ${project.rootProject.buildDir}/config.json"
+}
+composeUp {
+  dependsOn "createEmptyConfig"
+}
+dockerCompose {
+  environment.put 'DOCKER_CONFIG', project.rootProject.buildDir
+}
+
 dockerCompose.isRequiredBy(testMetricsStack)
 
 task preCommit { dependsOn testMetricsStack }
 
-task checkProber { dependsOn test }
+task checkProber(type:Test) {
+  include "**/ProberTests.class"
+}
+
+project.test {
+  exclude "**/ProberTests.class"
+}

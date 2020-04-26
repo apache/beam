@@ -25,6 +25,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -67,7 +68,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *      .apply("FlattenFailureCollections", Flatten.pCollections());
  * }</pre>
  */
-@Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+@Experimental(Kind.WITH_EXCEPTIONS)
 public class WithFailures {
 
   /**

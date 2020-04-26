@@ -60,6 +60,7 @@ import java.util.Random;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -110,6 +111,7 @@ import org.slf4j.LoggerFactory;
  *    client.insertDataToTable(projectId, datasetId, tableName, rows)
  * ]}</pre>
  */
+@Internal
 public class BigqueryClient {
   private static final Logger LOG = LoggerFactory.getLogger(BigqueryClient.class);
   // The maximum number of retries to execute a BigQuery RPC

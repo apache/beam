@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import java.util.Objects;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
@@ -26,7 +27,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 
 /** A sub-class of SchemaCoder that can only encode {@link Row} instances. */
-@Experimental
+@Experimental(Kind.SCHEMAS)
 public class RowCoder extends SchemaCoder<Row> {
   public static RowCoder of(Schema schema) {
     return new RowCoder(schema);

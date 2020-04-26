@@ -23,11 +23,6 @@ description = "Apache Beam :: Runners :: Portability :: Java"
 ext.summary = """A Java implementation of the Beam Model which utilizes the portability
 framework to execute user-definied functions."""
 
-
-configurations {
-  validatesRunner
-}
-
 dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile library.java.hamcrest_library

@@ -26,6 +26,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.utils.RowSelector;
 import org.apache.beam.sdk.schemas.utils.SelectHelpers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -87,6 +88,8 @@ public class Filter {
 
   /** Implementation of the filter. */
   public static class Inner<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private RowSelector rowSelector;
+
     @AutoValue
     abstract static class FilterDescription<FieldT> implements Serializable {
       abstract FieldAccessDescriptor getFieldAccessDescriptor();
@@ -97,6 +100,9 @@ public class Filter {
       abstract Schema getSelectedSchema();
 
       abstract boolean getSelectsSingleField();
+
+      @Nullable
+      abstract Schema getInputSchema();
 
       abstract Builder<FieldT> toBuilder();
 
@@ -111,7 +117,19 @@ public class Filter {
 
         abstract Builder<FieldT> setSelectsSingleField(boolean unbox);
 
+        abstract Builder<FieldT> setInputSchema(@Nullable Schema inputSchema);
+
         abstract FilterDescription<FieldT> build();
+      }
+
+      transient RowSelector rowSelector;
+
+      public RowSelector getRowSelector() {
+        if (rowSelector == null) {
+          rowSelector =
+              SelectHelpers.getRowSelectorOptimized(getInputSchema(), getFieldAccessDescriptor());
+        }
+        return rowSelector;
       }
     }
 
@@ -179,6 +197,7 @@ public class Filter {
               .map(
                   f ->
                       f.toBuilder()
+                          .setInputSchema(inputSchema)
                           .setSelectedSchema(
                               SelectHelpers.getOutputSchema(
                                   inputSchema, f.getFieldAccessDescriptor()))
@@ -191,12 +210,7 @@ public class Filter {
                 @ProcessElement
                 public void process(@Element Row row, OutputReceiver<Row> o) {
                   for (FilterDescription filter : resolvedFilters) {
-                    Row selected =
-                        SelectHelpers.selectRow(
-                            row,
-                            filter.getFieldAccessDescriptor(),
-                            inputSchema,
-                            filter.getSelectedSchema());
+                    Row selected = filter.getRowSelector().select(row);
                     if (filter.getSelectsSingleField()) {
                       SerializableFunction<Object, Boolean> predicate =
                           (SerializableFunction<Object, Boolean>) filter.getPredicate();

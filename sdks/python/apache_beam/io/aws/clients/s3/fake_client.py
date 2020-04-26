@@ -26,7 +26,6 @@ from apache_beam.io.aws.clients.s3 import messages
 
 
 class FakeFile(object):
-
   def __init__(self, bucket, key, contents, etag=None):
     self.bucket = bucket
     self.key = key
@@ -45,11 +44,12 @@ class FakeFile(object):
       last_modified_datetime = datetime.datetime.utcfromtimestamp(
           self.last_modified)
 
-    return messages.Item(self.etag,
-                         self.key,
-                         last_modified_datetime,
-                         len(self.contents),
-                         mime_type=None)
+    return messages.Item(
+        self.etag,
+        self.key,
+        last_modified_datetime,
+        len(self.contents),
+        mime_type=None)
 
 
 class FakeS3Client(object):
@@ -120,8 +120,8 @@ class FakeS3Client(object):
 
     if range_start + items_per_page < len(matching_files):
       next_range_start = range_start + items_per_page
-      next_continuation_token = '_page_token_%s_%s_%d' % (bucket, prefix,
-                                                          next_range_start)
+      next_continuation_token = '_page_token_%s_%s_%d' % (
+          bucket, prefix, next_range_start)
       self.list_continuation_tokens[next_continuation_token] = next_range_start
       result.next_token = next_continuation_token
 
@@ -173,9 +173,8 @@ class FakeS3Client(object):
   def copy(self, request):
 
     src_file = self.get_file(request.src_bucket, request.src_key)
-    dest_file = FakeFile(request.dest_bucket,
-                         request.dest_key,
-                         src_file.contents)
+    dest_file = FakeFile(
+        request.dest_bucket, request.dest_key, src_file.contents)
     self.add_file(dest_file)
 
   def create_multipart_upload(self, request):
@@ -190,8 +189,8 @@ class FakeS3Client(object):
     upload_id, part_number = request.upload_id, request.part_number
 
     if part_number < 0 or not isinstance(part_number, int):
-      raise messages.S3ClientError('Param validation failed on part number',
-                                   400)
+      raise messages.S3ClientError(
+          'Param validation failed on part number', 400)
 
     if upload_id not in self.multipart_uploads:
       raise messages.S3ClientError('The specified upload does not exist', 404)
@@ -202,7 +201,7 @@ class FakeS3Client(object):
     return messages.UploadPartResponse(etag, part_number)
 
   def complete_multipart_upload(self, request):
-    MIN_PART_SIZE = 5 * 2**10 # 5 KiB
+    MIN_PART_SIZE = 5 * 2**10  # 5 KiB
 
     parts_received = self.multipart_uploads[request.upload_id]
 

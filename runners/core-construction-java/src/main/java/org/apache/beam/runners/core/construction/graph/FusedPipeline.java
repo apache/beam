@@ -38,8 +38,9 @@ public abstract class FusedPipeline {
   static FusedPipeline of(
       Components components,
       Set<ExecutableStage> environmentalStages,
-      Set<PTransformNode> runnerStages) {
-    return new AutoValue_FusedPipeline(components, environmentalStages, runnerStages);
+      Set<PTransformNode> runnerStages,
+      Set<String> requirements) {
+    return new AutoValue_FusedPipeline(components, environmentalStages, runnerStages, requirements);
   }
 
   abstract Components getComponents();
@@ -49,6 +50,9 @@ public abstract class FusedPipeline {
 
   /** The {@link PTransform PTransforms} that a runner is responsible for executing. */
   public abstract Set<PTransformNode> getRunnerExecutedTransforms();
+
+  /** The {@link PTransform PTransforms} that a runner is responsible for executing. */
+  public abstract Set<String> getRequirements();
 
   /**
    * Returns the {@link RunnerApi.Pipeline} representation of this {@link FusedPipeline}.
@@ -84,6 +88,7 @@ public abstract class FusedPipeline {
         Pipeline.newBuilder()
             .setComponents(fusedComponents)
             .addAllRootTransformIds(rootTransformIds)
+            .addAllRequirements(getRequirements())
             .build();
     // Validate that fusion didn't produce a malformed pipeline.
     PipelineValidator.validate(res);

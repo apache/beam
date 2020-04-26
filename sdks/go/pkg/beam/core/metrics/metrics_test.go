@@ -25,6 +25,17 @@ import (
 // bID is a bundleId to use in the tests, if nothing more specific is needed.
 const bID = "bID"
 
+// TestRobustness validates metrics not panicking if the context doesn't
+// have the bundle or transform ID.
+func TestRobustness(t *testing.T) {
+	m := NewCounter("Test", "myCount")
+	m.Inc(context.Background(), 3)
+	ptCtx := SetPTransformID(context.Background(), "MY_TRANSFORM")
+	m.Inc(ptCtx, 3)
+	bCtx := SetBundleID(context.Background(), bID)
+	m.Inc(bCtx, 3)
+}
+
 func ctxWith(b, pt string) context.Context {
 	ctx := context.Background()
 	ctx = SetBundleID(ctx, b)
@@ -231,9 +242,11 @@ func TestNameCollisions(t *testing.T) {
 	// metric, and the new metric are actually used, since we don't know the context until
 	// then.
 	// Pre-create and use so that we have existing metrics to collide with.
-	NewCounter(ns, c).Inc(ctxWith(bID, c), 1)
-	NewDistribution(ns, d).Update(ctxWith(bID, d), 1)
-	NewGauge(ns, g).Set(ctxWith(bID, g), 1)
+	ctx := SetBundleID(context.Background(), bID)
+	cctx, dctx, gctx := SetPTransformID(ctx, c), SetPTransformID(ctx, d), SetPTransformID(ctx, g)
+	NewCounter(ns, c).Inc(cctx, 1)
+	NewDistribution(ns, d).Update(dctx, 1)
+	NewGauge(ns, g).Set(gctx, 1)
 	tests := []struct {
 		existing, new kind
 	}{
@@ -262,23 +275,27 @@ func TestNameCollisions(t *testing.T) {
 					}
 				}()
 				var name string
+				var ctx context.Context
 				switch test.existing {
 				case kindSumCounter:
 					name = c
+					ctx = cctx
 				case kindDistribution:
 					name = d
+					ctx = dctx
 				case kindGauge:
 					name = g
+					ctx = gctx
 				default:
 					t.Fatalf("unknown existing metricType with value: %v", int(test.existing))
 				}
 				switch test.new {
 				case kindSumCounter:
-					NewCounter(ns, name).Inc(ctxWith(bID, name), 1)
+					NewCounter(ns, name).Inc(ctx, 1)
 				case kindDistribution:
-					NewDistribution(ns, name).Update(ctxWith(bID, name), 1)
+					NewDistribution(ns, name).Update(ctx, 1)
 				case kindGauge:
-					NewGauge(ns, name).Set(ctxWith(bID, name), 1)
+					NewGauge(ns, name).Set(ctx, 1)
 				default:
 					t.Fatalf("unknown new metricType with value: %v", int(test.new))
 				}
@@ -287,68 +304,32 @@ func TestNameCollisions(t *testing.T) {
 	}
 }
 
-func TestClearBundleData(t *testing.T) {
-	Clear()
-	dump := func(t *testing.T) {
-		dumpTo(func(format string, args ...interface{}) {
-			t.Logf(format, args...)
-		})
-	}
-	pt, c, d, g := "clear.bundle.data", "counter", "distribution", "gauge"
-	aBundleID := "aBID"
-	otherBundleID := "otherBID"
-	NewCounter(pt, c).Inc(ctxWith(aBundleID, pt), 1)
-	NewDistribution(pt, d).Update(ctxWith(aBundleID, pt), 1)
-	NewGauge(pt, g).Set(ctxWith(aBundleID, pt), 1)
-
-	NewCounter(pt, c).Inc(ctxWith(otherBundleID, pt), 1)
-	NewDistribution(pt, d).Update(ctxWith(otherBundleID, pt), 1)
-	NewGauge(pt, g).Set(ctxWith(otherBundleID, pt), 1)
-
-	initialAP := ToProto(aBundleID, pt)
-	if got, want := len(initialAP), 3; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - initialAP: %v", aBundleID, pt, got, want, initialAP)
-	}
-	initialOP := ToProto(otherBundleID, pt)
-	if got, want := len(initialOP), 3; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - initialOP: %v", otherBundleID, pt, got, want, initialOP)
-	}
-
-	ClearBundleData(aBundleID)
-
-	newAP := ToProto(aBundleID, pt)
-	if got, want := len(newAP), 0; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - newAP: %v", aBundleID, pt, got, want, newAP)
-	}
-
-	newOP := ToProto(otherBundleID, pt)
-	if got, want := len(newOP), 3; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - newOP: %v", otherBundleID, pt, got, want, newOP)
-	}
-}
-
 // Run on @lostluck's desktop (2020/01/21) go1.13.4
 //
-// Allocs & bytes should be consistetn within go versions, but ns/op is relative to the running machine.
+// Allocs & bytes should be consistent within go versions, but ns/op is relative to the running machine.
 //
-// BenchmarkMetrics/counter_inplace-12              4814373               243 ns/op              48 B/op          1 allocs/op
-// BenchmarkMetrics/distribution_inplace-12         4455957               273 ns/op              48 B/op          1 allocs/op
-// BenchmarkMetrics/gauge_inplace-12                4605908               265 ns/op              48 B/op          1 allocs/op
-// BenchmarkMetrics/counter_predeclared-12         75339600                15.5 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/distribution_predeclared-12            49202775                24.4 ns/op             0 B/op          0 allocs/op
-// BenchmarkMetrics/gauge_predeclared-12                   46614810                28.3 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/counter_inplace-12              6054129               208 ns/op              48 B/op          1 allocs/op
+// BenchmarkMetrics/distribution_inplace-12         5707147               228 ns/op              48 B/op          1 allocs/op
+// BenchmarkMetrics/gauge_inplace-12                4742331               259 ns/op              48 B/op          1 allocs/op
+// BenchmarkMetrics/counter_predeclared-12         90147133                12.7 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/distribution_predeclared-12            55396678                21.6 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/gauge_predeclared-12                   18535839                60.5 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/counter_raw-12                         159581343                7.18 ns/op            0 B/op          0 allocs/op
+// BenchmarkMetrics/distribution_raw-12                    82724314                14.7 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/gauge_raw-12                           23292386                55.2 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/getStore-12                            309361303                3.78 ns/op            0 B/op          0 allocs/op
+// BenchmarkMetrics/getCounterSet-12                       287720998                3.98 ns/op            0 B/op          0 allocs/op
 func BenchmarkMetrics(b *testing.B) {
-	Clear()
 	pt, c, d, g := "bench.bundle.data", "counter", "distribution", "gauge"
 	aBundleID := "benchBID"
 	ctx := ctxWith(aBundleID, pt)
 	count := NewCounter(pt, c)
 	dist := NewDistribution(pt, d)
-	gauge := NewGauge(pt, g)
+	gaug := NewGauge(pt, g)
+
+	rawCount := &counter{}
+	rawDist := &distribution{}
+	rawGauge := &gauge{}
 	tests := []struct {
 		name string
 		call func()
@@ -358,7 +339,15 @@ func BenchmarkMetrics(b *testing.B) {
 		{"gauge_inplace", func() { NewGauge(pt, g).Set(ctx, 1) }},
 		{"counter_predeclared", func() { count.Inc(ctx, 1) }},
 		{"distribution_predeclared", func() { dist.Update(ctx, 1) }},
-		{"gauge_predeclared", func() { gauge.Set(ctx, 1) }},
+		{"gauge_predeclared", func() { gaug.Set(ctx, 1) }},
+		// These measure the unwrapped metric cell operations, without looking up
+		// the store or counterset, rather than the user facing API.
+		{"counter_raw", func() { rawCount.inc(1) }},
+		{"distribution_raw", func() { rawDist.update(1) }},
+		{"gauge_raw", func() { rawGauge.set(1) }},
+		// This just measures GetStore and getCounterSet
+		{"getStore", func() { GetStore(ctx) }},
+		{"getCounterSet", func() { getCounterSet(ctx) }},
 	}
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {

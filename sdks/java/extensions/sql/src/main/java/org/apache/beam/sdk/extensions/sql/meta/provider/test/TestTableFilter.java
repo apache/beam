@@ -107,11 +107,11 @@ public class TestTableFilter implements BeamSqlTableFilter {
         // When field is a boolean
         return true;
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Encountered an unexpected node type: " + node.getClass().getSimpleName());
       }
     } else {
-      throw new RuntimeException(
+      throw new UnsupportedOperationException(
           "Predicate node '"
               + node.getClass().getSimpleName()
               + "' should be a boolean expression, but was: "

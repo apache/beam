@@ -45,6 +45,7 @@ def check_plants(actual):
     details['icons'] = sorted(details['icons'])
     details['durations'] = sorted(details['durations'])
     return name, details
+
   assert_matches_stdout(actual, expected, normalize_element)
 
 

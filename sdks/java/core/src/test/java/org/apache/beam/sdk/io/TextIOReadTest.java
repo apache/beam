@@ -39,6 +39,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -59,6 +60,7 @@ import java.util.zip.ZipOutputStream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -496,6 +498,10 @@ public class TextIOReadTest {
     @Test
     @Category(ValidatesRunner.class)
     public void testPrimitiveReadDisplayData() {
+      // Read is no longer a primitive transform when using the portability framework.
+      assumeFalse(
+          ExperimentalOptions.hasExperiment(
+              DisplayDataEvaluator.getDefaultOptions(), "beam_fn_api"));
       DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
 
       TextIO.Read read = TextIO.read().from("foobar");

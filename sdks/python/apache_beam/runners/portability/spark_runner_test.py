@@ -39,15 +39,21 @@ if __name__ == '__main__':
   #     [SparkRunnerTest.test_method, ...]
 
   parser = argparse.ArgumentParser(add_help=True)
-  parser.add_argument('--spark_job_server_jar',
-                      help='Job server jar to submit jobs.')
-  parser.add_argument('--environment_type', default='docker',
-                      help='Environment type. docker or process')
+  parser.add_argument(
+      '--spark_job_server_jar', help='Job server jar to submit jobs.')
+  parser.add_argument(
+      '--environment_type',
+      default='docker',
+      help='Environment type. docker or process')
   parser.add_argument('--environment_config', help='Environment config.')
-  parser.add_argument('--environment_cache_millis',
-                      help='Environment cache TTL in milliseconds.')
-  parser.add_argument('--extra_experiments', default=[], action='append',
-                      help='Beam experiments config.')
+  parser.add_argument(
+      '--environment_cache_millis',
+      help='Environment cache TTL in milliseconds.')
+  parser.add_argument(
+      '--extra_experiments',
+      default=[],
+      action='append',
+      help='Beam experiments config.')
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
@@ -73,12 +79,18 @@ if __name__ == '__main__':
         return [
             'java',
             '-Dbeam.spark.test.reuseSparkContext=true',
-            '-jar', spark_job_server_jar,
-            '--spark-master-url', 'local',
-            '--artifacts-dir', tmp_dir,
-            '--job-port', str(job_port),
-            '--artifact-port', '0',
-            '--expansion-port', str(expansion_port),
+            '-jar',
+            spark_job_server_jar,
+            '--spark-master-url',
+            'local',
+            '--artifacts-dir',
+            tmp_dir,
+            '--job-port',
+            str(job_port),
+            '--artifact-port',
+            '0',
+            '--expansion-port',
+            str(expansion_port),
         ]
       finally:
         rmtree(tmp_dir)
@@ -89,8 +101,8 @@ if __name__ == '__main__':
 
     def create_options(self):
       options = super(SparkRunnerTest, self).create_options()
-      options.view_as(DebugOptions).experiments = [
-          'beam_fn_api'] + extra_experiments
+      options.view_as(
+          DebugOptions).experiments = ['beam_fn_api'] + extra_experiments
       portable_options = options.view_as(PortableOptions)
       portable_options.environment_type = environment_type.upper()
       if environment_config:
@@ -135,8 +147,8 @@ if __name__ == '__main__':
     def test_flattened_side_input(self):
       # Blocked on support for transcoding
       # https://jira.apache.org/jira/browse/BEAM-7236
-      super(SparkRunnerTest, self).test_flattened_side_input(
-          with_transcoding=False)
+      super(SparkRunnerTest,
+            self).test_flattened_side_input(with_transcoding=False)
 
     # Inherits all other tests from PortableRunnerTest.
 

@@ -19,8 +19,11 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 
 /** A representation of a split result. */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 @AutoValue
 public abstract class SplitResult<RestrictionT> {
   /** Returns a {@link SplitResult} for the specified primary and residual restrictions. */

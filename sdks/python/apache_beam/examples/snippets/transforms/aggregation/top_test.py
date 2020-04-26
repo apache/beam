@@ -100,9 +100,10 @@ class TopTest(unittest.TestCase):
 
   # TODO: Remove this after Python 2 deprecation.
   # https://issues.apache.org/jira/browse/BEAM-8124
-  @unittest.skipIf(sys.version_info[0] == 2,
-                   'nosetests in Python 2 uses ascii instead of utf-8 in '
-                   'the Top.PerKey transform and causes this to fail')
+  @unittest.skipIf(
+      sys.version_info[0] == 2,
+      'nosetests in Python 2 uses ascii instead of utf-8 in '
+      'the Top.PerKey transform and causes this to fail')
   def test_top_per_key(self):
     top.top_per_key(check_shortest_elements_per_key)
 

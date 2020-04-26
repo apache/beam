@@ -18,13 +18,14 @@
 package org.apache.beam.sdk.state;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * {@link TimeDomain} specifies whether an operation is based on timestamps of elements or current
  * "real-world" time as reported while processing.
  */
-@Experimental(Experimental.Kind.TIMERS)
+@Experimental(Kind.TIMERS)
 public enum TimeDomain {
   /**
    * The {@link #EVENT_TIME} domain corresponds to the timestamps on the elements. Time advances on

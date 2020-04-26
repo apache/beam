@@ -20,9 +20,6 @@ package org.apache.beam.runners.core.metrics;
 import java.io.Serializable;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * Atomically tracks the dirty-state of a metric.
@@ -40,8 +37,6 @@ import org.apache.beam.sdk.annotations.Internal;
  * the next round of metric updating will see the changes. If this was for the final commit, then
  * the metric updates shouldn't be extracted until all possible user modifications have completed.
  */
-@Experimental(Kind.METRICS)
-@Internal
 public class DirtyState implements Serializable {
   private enum State {
     /** Indicates that there have been changes to the MetricCell since last commit. */

@@ -148,11 +148,14 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
       //SplitableDoFnTests
@@ -171,9 +174,29 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerStreaming
 }
 
-project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTask(
-  jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-  jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def artifactPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+
+def setupTask = project.tasks.create(name: "flinkJobServerSetup", type: Exec) {
+  dependsOn shadowJar
+  def pythonDir = project.project(":sdks:python").projectDir
+  def flinkJobServerJar = shadowJar.archivePath
+
+  executable 'sh'
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar}"
+}
+
+def cleanupTask = project.tasks.create(name: "flinkJobServerCleanup", type: Exec) {
+  def pythonDir = project.project(":sdks:python").projectDir
+
+  executable 'sh'
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name}"
+}
+
+createCrossLanguageValidatesRunnerTask(
+  startJobServer: setupTask,
+  cleanupJobServer: cleanupTask,
+  jobEndpoint: "localhost:${jobPort}",
   testClasspathConfiguration: configurations.validatesPortableRunner,
   numParallelTests: 1,
   pipelineOpts: [
@@ -191,13 +214,16 @@ def addTestJavaJarCreator(String pyVersion) {
       exec {
         executable "sh"
         def options = [
-                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--runner FlinkRunner",
+                "--job_server_jar ${shadowJar.archivePath}",
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + "${project.docker_image_default_repo_prefix}"
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
-        args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+        args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
       }
     }
   }
@@ -237,7 +263,9 @@ def addTestFlinkUberJarPy(String pyVersion) {
                 "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
                 "--python_root_dir ${project.rootDir}/sdks/python",
                 "--python_version ${pyVersion}",
-                "--python_container_image apachebeam/python${pyVersion}_sdk:${project['python_sdk_version']}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + "${project.docker_image_default_repo_prefix}"
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
         ]
         args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
       }

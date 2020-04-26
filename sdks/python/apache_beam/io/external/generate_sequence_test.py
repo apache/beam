@@ -48,9 +48,7 @@ class XlangGenerateSequenceTest(unittest.TestCase):
       with TestPipeline() as p:
         res = (
             p
-            | GenerateSequence(start=1, stop=10,
-                               expansion_service=address)
-        )
+            | GenerateSequence(start=1, stop=10, expansion_service=address))
 
         assert_that(res, equal_to([i for i in range(1, 10)]))
     except RuntimeError as e:

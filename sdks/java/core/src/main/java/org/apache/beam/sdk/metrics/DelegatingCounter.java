@@ -17,12 +17,11 @@
  */
 package org.apache.beam.sdk.metrics;
 
-// Intentionally package private, this is meant to be used with Metrics.java and
-// LabeledMetrics.java
-
 import java.io.Serializable;
+import org.apache.beam.sdk.annotations.Internal;
 
 /** Implementation of {@link Counter} that delegates to the instance for the current context. */
+@Internal
 public class DelegatingCounter implements Metric, Counter, Serializable {
   private final MetricName name;
 

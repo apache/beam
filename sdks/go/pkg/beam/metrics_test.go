@@ -34,11 +34,6 @@ func ctxWithPtransformID(id string) context.Context {
 	return ctx
 }
 
-func dumpAndClearMetrics() {
-	metrics.DumpToOut()
-	metrics.Clear()
-}
-
 var (
 	wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 )
@@ -61,8 +56,8 @@ func Example_metricsDeclaredAnywhere() {
 	extractWordsDofn(ctx, "this has six words in it", func(string) {})
 	extractWordsDofn(ctx, "this has seven words in it, see?", func(string) {})
 
-	dumpAndClearMetrics()
-	// Output: Bundle: "exampleBundle" - PTransformID: "example"
+	metrics.DumpToOutFromContext(ctx)
+	// Output: PTransformID: "example"
 	//	example.namespace.characters - count: 13 sum: 43 min: 2 max: 5
 	//	example.namespace.count - value: 13
 }
@@ -85,14 +80,15 @@ func Example_metricsReusable() {
 			c.Inc(ctx, 1)
 		}
 	}
-	extractWordsDofn(ctxWithPtransformID("extract1"), "this has six words in it", func(string) {})
+	ctx = metrics.SetBundleID(ctx, "exampleBundle")
+	extractWordsDofn(metrics.SetPTransformID(ctx, "extract1"), "this has six words in it", func(string) {})
 
-	extractRunesDofn(ctxWithPtransformID("extract2"), "seven thousand", func(rune) {})
+	extractRunesDofn(metrics.SetPTransformID(ctx, "extract2"), "seven thousand", func(rune) {})
 
-	dumpAndClearMetrics()
-	// Output: Bundle: "exampleBundle" - PTransformID: "extract1"
+	metrics.DumpToOutFromContext(ctx)
+	// Output: PTransformID: "extract1"
 	//	example.reusable.count - value: 6
-	// Bundle: "exampleBundle" - PTransformID: "extract2"
+	// PTransformID: "extract2"
 	//	example.reusable.count - value: 14
 }
 

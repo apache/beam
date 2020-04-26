@@ -19,4 +19,8 @@
  * Defines {@link org.apache.beam.sdk.options.PipelineOptions} for configuring pipeline execution
  * for Amazon Web Services components.
  */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.aws2.options;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

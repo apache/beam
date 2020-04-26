@@ -17,16 +17,25 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
  * Manages access to the restriction and keeps track of its claimed part for a <a
  * href="https://s.apache.org/splittable-do-fn">splittable</a> {@link DoFn}.
+ *
+ * <p>{@link RestrictionTracker}s should implement {@link HasProgress} otherwise poor auto-scaling
+ * of workers and/or splitting may result if the progress is an inaccurate representation of the
+ * known amount of completed and remaining work.
  */
+@Experimental(Kind.SPLITTABLE_DO_FN)
 public abstract class RestrictionTracker<RestrictionT, PositionT> {
   /**
    * Attempts to claim the block of work in the current restriction identified by the given
-   * position.
+   * position. Each claimed position MUST be a valid split point.
    *
    * <p>If this succeeds, the DoFn MUST execute the entire block of work. If this fails:
    *
@@ -68,15 +77,18 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    *
    * <p>{@code fractionOfRemainder = 0} means a checkpoint is required.
    *
-   * <p>The API is recommended to be implemented for batch pipeline given that it is very important
-   * for pipeline scaling and end to end pipeline execution.
+   * <p>The API is recommended to be implemented for a batch pipeline to improve parallel processing
+   * performance.
    *
    * <p>The API is required to be implemented for a streaming pipeline.
    *
    * @param fractionOfRemainder A hint as to the fraction of work the primary restriction should
    *     represent based upon the current known remaining amount of work.
-   * @return a {@link SplitResult} if a split was possible, otherwise returns {@code null}.
+   * @return a {@link SplitResult} if a split was possible, otherwise returns {@code null}. If the
+   *     {@code fractionOfRemainder == 0}, a {@code null} result MUST imply that the restriction
+   *     tracker is done and there is no more work left to do.
    */
+  @Nullable
   public abstract SplitResult<RestrictionT> trySplit(double fractionOfRemainder);
 
   /**
@@ -86,4 +98,67 @@ public abstract class RestrictionTracker<RestrictionT, PositionT> {
    * work remaining in the restriction.
    */
   public abstract void checkDone() throws IllegalStateException;
+
+  /**
+   * All {@link RestrictionTracker}s SHOULD implement this interface to improve auto-scaling and
+   * splitting performance.
+   */
+  public interface HasProgress {
+    /**
+     * A representation for the amount of known completed and known remaining work.
+     *
+     * <p>It is up to each restriction tracker to convert between their natural representation of
+     * completed and remaining work and the {@code double} representation. For example:
+     *
+     * <ul>
+     *   <li>Block based file source (e.g. Avro): The number of bytes from the beginning of the
+     *       restriction to the current block and the number of bytes from the current block to the
+     *       end of the restriction.
+     *   <li>Pull based queue based source (e.g. Pubsub): The local/global size available in number
+     *       of messages or number of {@code message bytes} that have processed and the number of
+     *       messages or number of {@code message bytes} that are outstanding.
+     *   <li>Key range based source (e.g. BigQuery, Bigtable, ...): Scale the start key to be one
+     *       and end key to be zero and interpolate the position of the next splittable key as a
+     *       position. If information about the probability density function or cumulative
+     *       distribution function is available, work completed and work remaining interpolation can
+     *       be improved. Alternatively, if the number of encoded bytes for the keys and values is
+     *       known for the key range, the number of completed and remaining bytes can be used.
+     * </ul>
+     *
+     * <p>The work completed and work remaining must be of the same scale whether that be number of
+     * messages or number of bytes and should never represent two distinct unit types.
+     */
+    Progress getProgress();
+  }
+
+  /**
+   * A representation for the amount of known completed and remaining work. See {@link
+   * HasProgress#getProgress()} for details.
+   */
+  @AutoValue
+  public abstract static class Progress {
+
+    /**
+     * A representation for the amount of known completed and remaining work. See {@link
+     * HasProgress#getProgress()} for details.
+     *
+     * @param workCompleted Must be {@code >= 0}.
+     * @param workRemaining Must be {@code >= 0}.
+     */
+    public static Progress from(double workCompleted, double workRemaining) {
+      if (workCompleted < 0 || workRemaining < 0) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Work completed and work remaining must be greater than or equal to zero but were %s and %s.",
+                workCompleted, workRemaining));
+      }
+      return new AutoValue_RestrictionTracker_Progress(workCompleted, workRemaining);
+    }
+
+    /** The known amount of completed work. */
+    public abstract double getWorkCompleted();
+
+    /** The known amount of work remaining. */
+    public abstract double getWorkRemaining();
+  }
 }

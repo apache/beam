@@ -84,7 +84,7 @@ public final class BeamTableUtils {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.getFieldCount(); i++) {
-        printer.print(row.getValue(i).toString());
+        printer.print(row.getBaseValue(i, Object.class).toString());
       }
       printer.println();
     } catch (IOException e) {

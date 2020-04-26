@@ -69,8 +69,16 @@ task createDockerContainer(type: Exec) {
       // Publish port 4000 where Jekyll serves website from
       extraOptions = '--publish 127.0.0.1:4000:4000'
     }
+
+    // Jenkins websites node: run as root. Files written to /repo will get
+    // "jenkins" user ownership. BEAM-9737
+    // Otherwise: run as current user, so as to not require sudo to clean up
+    // build/ directory.
+    if (System.getenv('NODE_NAME') != 'websites') {
+      extraOptions += " -u \$(id -u):\$(id -g)"
+    }
     commandLine '/bin/bash', '-c',
-      "docker create -v $project.rootDir:$dockerWorkDir -u \$(id -u):\$(id -g) $extraOptions $dockerImageTag"
+      "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag"
   }
 }
 

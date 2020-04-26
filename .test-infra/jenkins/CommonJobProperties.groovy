@@ -311,7 +311,7 @@ class CommonJobProperties {
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
-        shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
+        shell("git clone --single-branch --branch=v1.14.0 https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
         // Install Perfkit benchmark requirements.
         shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")

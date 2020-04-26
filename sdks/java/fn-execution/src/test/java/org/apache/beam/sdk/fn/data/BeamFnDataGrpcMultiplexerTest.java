@@ -31,6 +31,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.Test;
@@ -39,21 +40,36 @@ import org.junit.Test;
 public class BeamFnDataGrpcMultiplexerTest {
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final LogicalEndpoint OUTPUT_LOCATION = LogicalEndpoint.of("777L", "888L");
+  private static final LogicalEndpoint DATA_LOCATION = LogicalEndpoint.data("777L", "888L");
+  private static final LogicalEndpoint TIMER_LOCATION =
+      LogicalEndpoint.timer("999L", "555L", "333L");
   private static final BeamFnApi.Elements ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
-                  .setInstructionId(OUTPUT_LOCATION.getInstructionId())
-                  .setTransformId(OUTPUT_LOCATION.getTransformId())
+                  .setInstructionId(DATA_LOCATION.getInstructionId())
+                  .setTransformId(DATA_LOCATION.getTransformId())
                   .setData(ByteString.copyFrom(new byte[1])))
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
+                  .setInstructionId(TIMER_LOCATION.getInstructionId())
+                  .setTransformId(TIMER_LOCATION.getTransformId())
+                  .setTimerFamilyId(TIMER_LOCATION.getTimerFamilyId())
+                  .setTimers(ByteString.copyFrom(new byte[2])))
           .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS =
       BeamFnApi.Elements.newBuilder()
           .addData(
               BeamFnApi.Elements.Data.newBuilder()
-                  .setInstructionId(OUTPUT_LOCATION.getInstructionId())
-                  .setTransformId(OUTPUT_LOCATION.getTransformId()))
+                  .setInstructionId(DATA_LOCATION.getInstructionId())
+                  .setTransformId(DATA_LOCATION.getTransformId())
+                  .setIsLast(true))
+          .addTimers(
+              BeamFnApi.Elements.Timers.newBuilder()
+                  .setInstructionId(TIMER_LOCATION.getInstructionId())
+                  .setTransformId(TIMER_LOCATION.getTransformId())
+                  .setTimerFamilyId(TIMER_LOCATION.getTimerFamilyId())
+                  .setIsLast(true))
           .build();
 
   @Test
@@ -71,7 +87,8 @@ public class BeamFnDataGrpcMultiplexerTest {
   @Test
   public void testInboundObserverBlocksTillConsumerConnects() throws Exception {
     final Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
-    final Collection<BeamFnApi.Elements.Data> inboundValues = new ArrayList<>();
+    final Collection<KV<ByteString, Boolean>> dataInboundValues = new ArrayList<>();
+    final Collection<KV<ByteString, Boolean>> timerInboundValues = new ArrayList<>();
     final BeamFnDataGrpcMultiplexer multiplexer =
         new BeamFnDataGrpcMultiplexer(
             DESCRIPTOR,
@@ -83,16 +100,28 @@ public class BeamFnDataGrpcMultiplexerTest {
             () -> {
               // Purposefully sleep to simulate a delay in a consumer connecting.
               Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-              multiplexer.registerConsumer(OUTPUT_LOCATION, inboundValues::add);
+              multiplexer.registerConsumer(
+                  DATA_LOCATION,
+                  (payload, isLast) -> dataInboundValues.add(KV.of(payload, isLast)));
+              multiplexer.registerConsumer(
+                  TIMER_LOCATION,
+                  (payload, isLast) -> timerInboundValues.add(KV.of(payload, isLast)));
             })
         .get();
     multiplexer.getInboundObserver().onNext(ELEMENTS);
-    assertTrue(multiplexer.hasConsumer(OUTPUT_LOCATION));
+    assertTrue(multiplexer.hasConsumer(DATA_LOCATION));
+    assertTrue(multiplexer.hasConsumer(TIMER_LOCATION));
     // Ensure that when we see a terminal Elements object, we remove the consumer
     multiplexer.getInboundObserver().onNext(TERMINAL_ELEMENTS);
-    assertFalse(multiplexer.hasConsumer(OUTPUT_LOCATION));
+    assertFalse(multiplexer.hasConsumer(DATA_LOCATION));
+    assertFalse(multiplexer.hasConsumer(TIMER_LOCATION));
 
     // Assert that normal and terminal Elements are passed to the consumer
-    assertThat(inboundValues, contains(ELEMENTS.getData(0), TERMINAL_ELEMENTS.getData(0)));
+    assertThat(
+        dataInboundValues,
+        contains(KV.of(ELEMENTS.getData(0).getData(), false), KV.of(ByteString.EMPTY, true)));
+    assertThat(
+        timerInboundValues,
+        contains(KV.of(ELEMENTS.getTimers(0).getTimers(), false), KV.of(ByteString.EMPTY, true)));
   }
 }

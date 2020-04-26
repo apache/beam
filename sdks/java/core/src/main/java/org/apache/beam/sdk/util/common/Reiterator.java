@@ -18,12 +18,14 @@
 package org.apache.beam.sdk.util.common;
 
 import java.util.Iterator;
+import org.apache.beam.sdk.annotations.Internal;
 
 /**
  * An {@link Iterator} with the ability to copy its iteration state.
  *
  * @param <T> the type of elements returned by this iterator
  */
+@Internal
 public interface Reiterator<T> extends Iterator<T> {
   /**
    * Returns a copy of the current {@link Reiterator}. The copy's iteration state is logically

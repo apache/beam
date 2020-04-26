@@ -19,7 +19,7 @@ limitations under the License.
 -->
 # Using the Apache Hadoop MapReduce Runner
 
-The Apache Hadoop MapReduce Runner can be used to execute Beam pipelines using [Apache Hadoop](http://hadoop.apache.org/).
+The Apache Hadoop MapReduce Runner can be used to execute Beam pipelines using [Apache Hadoop](https://hadoop.apache.org/).
 
 The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Apache Hadoop MapReduce Runner.
 

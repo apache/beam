@@ -65,9 +65,9 @@ class MetricKey(object):
     self.labels = labels if labels else dict()
 
   def __eq__(self, other):
-    return (self.step == other.step and
-            self.metric == other.metric and
-            self.labels == other.labels)
+    return (
+        self.step == other.step and self.metric == other.metric and
+        self.labels == other.labels)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -108,9 +108,9 @@ class MetricResult(object):
     self.attempted = attempted
 
   def __eq__(self, other):
-    return (self.key == other.key and
-            self.committed == other.committed and
-            self.attempted == other.attempted)
+    return (
+        self.key == other.key and self.committed == other.committed and
+        self.attempted == other.attempted)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -190,8 +190,7 @@ class MetricUpdater(object):
   def __call__(self, value=_DEFAULT):
     if value is _DEFAULT:
       if self.default is _DEFAULT:
-        raise ValueError(
-            'Missing value for update of %s' % self.metric_name)
+        raise ValueError('Missing value for update of %s' % self.metric_name)
       value = self.default
     tracker = get_current_tracker()
     if tracker is not None:
@@ -230,31 +229,40 @@ class MetricsContainer(object):
 
     This returns all the cumulative values for all metrics.
     """
-    counters = {MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-                for k, v in self.metrics.items()
-                if k.cell_type == CounterCell}
+    counters = {
+        MetricKey(self.step_name, k.metric_name): v.get_cumulative()
+        for k,
+        v in self.metrics.items() if k.cell_type == CounterCell
+    }
 
     distributions = {
         MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-        for k, v in self.metrics.items()
-        if k.cell_type == DistributionCell}
+        for k,
+        v in self.metrics.items() if k.cell_type == DistributionCell
+    }
 
-    gauges = {MetricKey(self.step_name, k.metric_name): v.get_cumulative()
-              for k, v in self.metrics.items()
-              if k.cell_type == GaugeCell}
+    gauges = {
+        MetricKey(self.step_name, k.metric_name): v.get_cumulative()
+        for k,
+        v in self.metrics.items() if k.cell_type == GaugeCell
+    }
 
     return MetricUpdates(counters, distributions, gauges)
 
   def to_runner_api(self):
-    return [cell.to_runner_api_user_metric(key.metric_name)
-            for key, cell in self.metrics.items()]
+    return [
+        cell.to_runner_api_user_metric(key.metric_name) for key,
+        cell in self.metrics.items()
+    ]
 
   def to_runner_api_monitoring_infos(self, transform_id):
     """Returns a list of MonitoringInfos for the metrics in this container."""
     all_user_metrics = [
         cell.to_runner_api_monitoring_info(key.metric_name, transform_id)
-        for key, cell in self.metrics.items()]
-    return {monitoring_infos.to_key(mi) : mi for mi in all_user_metrics}
+        for key,
+        cell in self.metrics.items()
+    ]
+    return {monitoring_infos.to_key(mi): mi for mi in all_user_metrics}
 
   def reset(self):
     for metric in self.metrics.values():

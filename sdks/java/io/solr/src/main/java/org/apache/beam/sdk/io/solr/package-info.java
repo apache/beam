@@ -17,4 +17,8 @@
  */
 
 /** Transforms for reading and writing from/to Solr. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.solr;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

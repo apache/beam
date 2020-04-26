@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
+import org.apache.beam.fn.harness.control.FinalizeBundleHandler;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.control.RegisterHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataGrpcClient;
@@ -32,6 +33,7 @@ import org.apache.beam.fn.harness.stream.HarnessStreamObserverFactories;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -45,7 +47,11 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.TextFormat;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.CacheLoader;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.cache.LoadingCache;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,6 +188,11 @@ public class FnHarness {
               ThrowingFunction<InstructionRequest, Builder>>
           handlers = new EnumMap<>(BeamFnApi.InstructionRequest.RequestCase.class);
 
+      ManagedChannel channel = channelFactory.forDescriptor(controlApiServiceDescriptor);
+      BeamFnControlGrpc.BeamFnControlStub controlStub = BeamFnControlGrpc.newStub(channel);
+      BeamFnControlGrpc.BeamFnControlBlockingStub blockingControlStub =
+          BeamFnControlGrpc.newBlockingStub(channel);
+
       RegisterHandler fnApiRegistry = new RegisterHandler();
       BeamFnDataGrpcClient beamFnDataMultiplexer =
           new BeamFnDataGrpcClient(options, channelFactory::forDescriptor, outboundObserverFactory);
@@ -190,20 +201,48 @@ public class FnHarness {
           new BeamFnStateGrpcClientCache(
               idGenerator, channelFactory::forDescriptor, outboundObserverFactory);
 
+      FinalizeBundleHandler finalizeBundleHandler =
+          new FinalizeBundleHandler(options.as(GcsOptions.class).getExecutorService());
+
+      LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
+          CacheBuilder.newBuilder()
+              .build(
+                  new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
+                    @Override
+                    public BeamFnApi.ProcessBundleDescriptor load(String id) {
+                      try {
+                        return blockingControlStub.getProcessBundleDescriptor(
+                            BeamFnApi.GetProcessBundleDescriptorRequest.newBuilder()
+                                .setProcessBundleDescriptorId(id)
+                                .build());
+                      } catch (Throwable th) {
+                        return (BeamFnApi.ProcessBundleDescriptor) fnApiRegistry.getById(id);
+                      }
+                    }
+                  });
+
       ProcessBundleHandler processBundleHandler =
           new ProcessBundleHandler(
-              options, fnApiRegistry::getById, beamFnDataMultiplexer, beamFnStateGrpcClientCache);
+              options,
+              processBundleDescriptors::getUnchecked,
+              beamFnDataMultiplexer,
+              beamFnStateGrpcClientCache,
+              finalizeBundleHandler);
       handlers.put(BeamFnApi.InstructionRequest.RequestCase.REGISTER, fnApiRegistry::register);
-      // TODO(BEAM-6597): Collect MonitoringInfos in ProcessBundleProgressResponses.
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.FINALIZE_BUNDLE,
+          finalizeBundleHandler::finalizeBundle);
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
       handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_PROGRESS,
+          processBundleHandler::progress);
+      handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
-          processBundleHandler::split);
+          processBundleHandler::trySplit);
       BeamFnControlClient control =
-          new BeamFnControlClient(
-              id, controlApiServiceDescriptor, channelFactory, outboundObserverFactory, handlers);
+          new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 
       JvmInitializers.runBeforeProcessing(options);
 

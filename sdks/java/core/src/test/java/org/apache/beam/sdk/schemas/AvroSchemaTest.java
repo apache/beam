@@ -477,7 +477,7 @@ public class AvroSchemaTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testAvroPipelineGroupBy() {
-    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
+    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO).withRowSchema(POJO_SCHEMA));
 
     PCollection<Row> output = input.apply(Group.byFieldNames("string"));
     Schema keySchema = Schema.builder().addStringField("string").build();

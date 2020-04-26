@@ -27,7 +27,6 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/universal/runnerlib"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/vet"
@@ -62,7 +61,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
+	pipeline, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
+		ctx, jobopts.GetEnvironmentUrn(ctx), jobopts.GetEnvironmentConfig)})
 	if err != nil {
 		return errors.WithContextf(err, "generating model pipeline")
 	}
@@ -70,34 +70,11 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{
-		Name:        jobopts.GetJobName(),
-		Experiments: jobopts.GetExperiments(),
-		Worker:      *jobopts.WorkerBinary,
+		Name:         jobopts.GetJobName(),
+		Experiments:  jobopts.GetExperiments(),
+		Worker:       *jobopts.WorkerBinary,
+		RetainDocker: *jobopts.RetainDockerContainers,
 	}
 	_, err = runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 	return err
-}
-
-func createEnvironment(ctx context.Context) pb.Environment {
-	var environment pb.Environment
-	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
-	case "beam:env:process:v1":
-		// TODO Support process based SDK Harness.
-		panic(fmt.Sprintf("Unsupported environment %v", urn))
-	case "beam:env:docker:v1":
-		fallthrough
-	default:
-		config := jobopts.GetEnvironmentConfig(ctx)
-		payload := &pb.DockerPayload{ContainerImage: config}
-		serializedPayload, err := proto.Marshal(payload)
-		if err != nil {
-			panic(fmt.Sprintf(
-				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
-		}
-		environment = pb.Environment{
-			Urn:     urn,
-			Payload: serializedPayload,
-		}
-	}
-	return environment
 }

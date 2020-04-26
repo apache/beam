@@ -28,6 +28,7 @@ from builtins import object
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
+from typing import Iterable
 from typing import Mapping
 from typing import Optional
 from typing import Union
@@ -114,10 +115,20 @@ class _PipelineContextMap(object):
     # type: () -> Dict[str, message.Message]
     return self._id_to_proto
 
-  def put_proto(self, id, proto):
+  def get_proto_from_id(self, id):
+    return self.get_id_to_proto_map()[id]
+
+  def put_proto(self, id, proto, ignore_duplicates=False):
     # type: (str, message.Message) -> str
-    if id in self._id_to_proto:
+    if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
+    elif (ignore_duplicates and id in self._id_to_proto and
+          self._id_to_proto[id] != proto):
+      raise ValueError(
+          'Cannot insert different protos %r and %r with the same ID %r',
+          self._id_to_proto[id],
+          proto,
+          id)
     self._id_to_proto[id] = proto
     return id
 
@@ -143,7 +154,8 @@ class PipelineContext(object):
                iterable_state_read=None,  # type: Optional[IterableStateReader]
                iterable_state_write=None,  # type: Optional[IterableStateWriter]
                namespace='ref',
-               allow_proto_holders=False
+               allow_proto_holders=False,
+               requirements=(),  # type: Iterable[str]
               ):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
@@ -152,30 +164,48 @@ class PipelineContext(object):
           environments=dict(proto.environments.items()))
 
     self.transforms = _PipelineContextMap(
-        self, pipeline.AppliedPTransform, namespace,
+        self,
+        pipeline.AppliedPTransform,
+        namespace,
         proto.transforms if proto is not None else None)
     self.pcollections = _PipelineContextMap(
-        self, pvalue.PCollection, namespace,
+        self,
+        pvalue.PCollection,
+        namespace,
         proto.pcollections if proto is not None else None)
     self.coders = _PipelineContextMap(
-        self, coders.Coder, namespace,
+        self,
+        coders.Coder,
+        namespace,
         proto.coders if proto is not None else None)
     self.windowing_strategies = _PipelineContextMap(
-        self, core.Windowing, namespace,
+        self,
+        core.Windowing,
+        namespace,
         proto.windowing_strategies if proto is not None else None)
     self.environments = _PipelineContextMap(
-        self, environments.Environment, namespace,
+        self,
+        environments.Environment,
+        namespace,
         proto.environments if proto is not None else None)
 
     if default_environment:
       self._default_environment_id = self.environments.get_id(
-          default_environment, label='default_environment')  # type: Optional[str]
+          default_environment,
+          label='default_environment')  # type: Optional[str]
     else:
       self._default_environment_id = None
     self.use_fake_coders = use_fake_coders
     self.iterable_state_read = iterable_state_read
     self.iterable_state_write = iterable_state_write
     self.allow_proto_holders = allow_proto_holders
+    self._requirements = set(requirements)
+
+  def add_requirement(self, requirement):
+    self._requirements.add(requirement)
+
+  def requirements(self):
+    return frozenset(self._requirements)
 
   # If fake coders are requested, return a pickled version of the element type
   # rather than an actual coder. The element type is required for some runners,

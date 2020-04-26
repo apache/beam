@@ -63,7 +63,7 @@ PS> python -m pip install --upgrade pip
 
 ### Install Python virtual environment
 
-It is recommended that you install a [Python virtual environment](http://docs.python-guide.org/en/latest/dev/virtualenvs/)
+It is recommended that you install a [Python virtual environment](https://docs.python-guide.org/en/latest/dev/virtualenvs/)
 for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
@@ -203,6 +203,7 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --output gs://<your-gcs-bucket>/counts \
                                          --runner DataflowRunner \
                                          --project your-gcp-project \
+                                         --region your-gcp-region \
                                          --temp_location gs://<your-gcs-bucket>/tmp/
 ```
 

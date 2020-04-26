@@ -37,8 +37,7 @@ def values(test=None):
             ('🥔', 'Potato'),
         ])
         | 'Values' >> beam.Values()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END values]
     if test:
       test(plants)
