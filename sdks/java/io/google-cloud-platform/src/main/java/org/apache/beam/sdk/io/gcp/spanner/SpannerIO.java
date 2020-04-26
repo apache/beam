@@ -955,7 +955,17 @@ public class SpannerIO {
       super.populateDisplayData(builder);
       getSpannerConfig().populateDisplayData(builder);
       builder.add(
-          DisplayData.item("batchSizeBytes", getBatchSizeBytes()).withLabel("Batch Size in Bytes"));
+          DisplayData.item("batchSizeBytes", getBatchSizeBytes())
+              .withLabel("Max batch Size in Bytes"));
+      builder.add(
+          DisplayData.item("maxNumMutations", getMaxNumMutations())
+              .withLabel("Max number of mutated cells in batches"));
+      builder.add(
+          DisplayData.item("maxNumRows", getMaxNumRows())
+              .withLabel("Max number of rows in Batches"));
+      builder.add(
+          DisplayData.item("groupingFactor", getGroupingFactor())
+              .withLabel("Number of batches to sort over"));
     }
   }
 
@@ -990,6 +1000,24 @@ public class SpannerIO {
 
     public WriteGrouped(Write spec) {
       this.spec = spec;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      spec.getSpannerConfig().populateDisplayData(builder);
+      builder.add(
+          DisplayData.item("batchSizeBytes", spec.getBatchSizeBytes())
+              .withLabel("Max batch Size in Bytes"));
+      builder.add(
+          DisplayData.item("maxNumMutations", spec.getMaxNumMutations())
+              .withLabel("Max number of mutated cells in batches"));
+      builder.add(
+          DisplayData.item("maxNumRows", spec.getMaxNumRows())
+              .withLabel("Max number of rows in Batches"));
+      builder.add(
+          DisplayData.item("groupingFactor", spec.getGroupingFactor())
+              .withLabel("Number of batches to sort over"));
     }
 
     @Override
