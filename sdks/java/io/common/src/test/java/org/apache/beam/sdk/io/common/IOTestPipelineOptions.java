@@ -43,4 +43,34 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   String getBigQueryTable();
 
   void setBigQueryTable(@Nullable String tableName);
+
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxDBMeasurement();
+
+  void setInfluxDBMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB user name.")
+  @Nullable
+  String getInfluxDBUserName();
+
+  void setInfluxDBUserName(String username);
+
+  @Description("InfluxDB user password.")
+  @Nullable
+  String getInfluxDBUserPassword();
+
+  void setInfluxDBUserPassword(String password);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxDBHost();
+
+  void setInfluxDBHost(String host);
+
+  @Description("InfluxDB databse.")
+  @Nullable
+  String getInfluxDBDatabase();
+
+  void setInfluxDBDatabase(String database);
 }

@@ -24,6 +24,8 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.publishing.BigQueryResultsPublisher;
 import org.apache.beam.sdk.testutils.publishing.ConsoleResultPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBPublisher;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 
 /**
  * Contains a flexible mechanism of publishing metrics to BQ and console using suppliers provided in
@@ -69,5 +71,12 @@ public class IOITMetrics {
           .publish(results, bigQueryTable);
     }
     ConsoleResultPublisher.publish(results, uuid, timestamp);
+  }
+
+  public void publishToInflux(final InfluxDBSettings settings) {
+    MetricsReader reader = new MetricsReader(result, namespace);
+    Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
+
+    InfluxDBPublisher.publishWithSettings(namedTestResults, settings);
   }
 }
