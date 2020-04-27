@@ -74,7 +74,7 @@ class NexmarkBuilder {
 
   static void suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options) {
     context.steps {
-      shell("echo *** RUN ${title} ***")
+      shell('echo "*** RUN ${title} ***"')
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
