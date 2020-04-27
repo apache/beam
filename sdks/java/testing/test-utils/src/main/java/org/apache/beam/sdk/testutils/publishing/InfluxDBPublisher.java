@@ -27,8 +27,11 @@ import java.net.URL;
 import java.util.Base64;
 import java.util.Collection;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class InfluxDBPublisher {
+  private static final Logger LOGGER = LoggerFactory.getLogger(InfluxDBPublisher.class);
 
   private InfluxDBPublisher() {}
 
@@ -38,7 +41,7 @@ public final class InfluxDBPublisher {
     try {
       publish(results, settings);
     } catch (final Exception exception) {
-      throw new InfluxDBException(exception);
+      LOGGER.warn("Unable to publish metrics due to error: {}", exception.getMessage());
     }
   }
 
@@ -91,13 +94,7 @@ public final class InfluxDBPublisher {
 
   private static void is2xx(final int code) throws IOException {
     if (code < 200 || code >= 300) {
-      throw new IOException();
-    }
-  }
-
-  private static class InfluxDBException extends RuntimeException {
-    public InfluxDBException(final Exception exception) {
-      super("Unable to write metrics", exception);
+      throw new IOException("Response code: " + code);
     }
   }
 }

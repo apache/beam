@@ -20,6 +20,8 @@ package org.apache.beam.sdk.testutils.publishing;
 import java.util.Arrays;
 import java.util.Objects;
 
+import static java.util.Objects.isNull;
+
 public final class InfluxDBSettings {
 
   public final String host;
@@ -46,24 +48,16 @@ public final class InfluxDBSettings {
   }
 
   public static class Builder {
+    private static final String DEFAULT_HOST = "http://localhost:8086/";
+    private static final String INFLUX_USER = "INFLUXDB_USER";
+    private static final String INFLUX_PASSWORD = "INFLUXDB_USER_PASSWORD";
+
     private String host;
-    private String userName;
-    private String userPassword;
     private String measurement;
     private String database;
 
     public Builder withHost(final String host) {
       this.host = host;
-      return this;
-    }
-
-    public Builder withUserName(final String userName) {
-      this.userName = userName;
-      return this;
-    }
-
-    public Builder withUserPassword(final String userPassword) {
-      this.userPassword = userPassword;
       return this;
     }
 
@@ -78,8 +72,12 @@ public final class InfluxDBSettings {
     }
 
     public InfluxDBSettings get() {
-      allNotNull(host, userName, userPassword, measurement, database);
-      return new InfluxDBSettings(host, userName, userPassword, measurement, database);
+      final String userName = System.getenv(INFLUX_USER);
+      final String userPassword = System.getenv(INFLUX_PASSWORD);
+      final String influxHost = isNull(host) ? DEFAULT_HOST : host;
+      allNotNull(influxHost, userName, userPassword, measurement, database);
+
+      return new InfluxDBSettings(influxHost, userName, userPassword, measurement, database);
     }
 
     private void allNotNull(Object... objects) {

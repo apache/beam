@@ -118,11 +118,9 @@ public class HadoopFormatIOIT {
     bigQueryTable = options.getBigQueryTable();
     settings =
         InfluxDBSettings.builder()
-            .withUserName(options.getInfluxDBUserName())
-            .withUserPassword(options.getInfluxDBUserPassword())
-            .withHost(options.getInfluxDBHost())
-            .withDatabase(options.getInfluxDBDatabase())
-            .withMeasurement(options.getInfluxDBMeasurement())
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
             .get();
 
     executeWithRetry(HadoopFormatIOIT::createTable);

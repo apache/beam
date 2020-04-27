@@ -117,11 +117,9 @@ public class XmlIOIT {
     numberOfTextLines = options.getNumberOfRecords();
     settings =
         InfluxDBSettings.builder()
-            .withUserName(options.getInfluxDBUserName())
-            .withUserPassword(options.getInfluxDBUserPassword())
-            .withHost(options.getInfluxDBHost())
-            .withDatabase(options.getInfluxDBDatabase())
-            .withMeasurement(options.getInfluxDBMeasurement())
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
             .get();
   }
 
