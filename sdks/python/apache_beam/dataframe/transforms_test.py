@@ -28,7 +28,7 @@ from apache_beam.testing.util import assert_that
 
 
 class TransformTest(unittest.TestCase):
-  def run_test(self, input, func):
+  def run_scenario(self, input, func):
     expected = func(input)
 
     empty = input[0:0]
@@ -62,24 +62,24 @@ class TransformTest(unittest.TestCase):
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self.run_test(df, lambda x: x)
+    self.run_scenario(df, lambda x: x)
 
   def test_sum_mean(self):
     df = pd.DataFrame({
         'Animal': ['Falcon', 'Falcon', 'Parrot', 'Parrot'],
         'Speed': [380., 370., 24., 26.]
     })
-    self.run_test(df, lambda df: df.groupby('Animal').sum())
-    self.run_test(df, lambda df: df.groupby('Animal').mean())
+    self.run_scenario(df, lambda df: df.groupby('Animal').sum())
+    self.run_scenario(df, lambda df: df.groupby('Animal').mean())
 
   def test_filter(self):
     df = pd.DataFrame({
         'Animal': ['Aardvark', 'Ant', 'Elephant', 'Zebra'],
         'Speed': [5, 2, 35, 40]
     })
-    self.run_test(df, lambda df: df.filter(items=['Animal']))
-    self.run_test(df, lambda df: df.filter(regex='A.*'))
-    self.run_test(
+    self.run_scenario(df, lambda df: df.filter(items=['Animal']))
+    self.run_scenario(df, lambda df: df.filter(regex='A.*'))
+    self.run_scenario(
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
 
   def test_input_output_polymorphism(self):

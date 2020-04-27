@@ -232,13 +232,15 @@ public class FnHarness {
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.FINALIZE_BUNDLE,
           finalizeBundleHandler::finalizeBundle);
-      // TODO(BEAM-6597): Collect MonitoringInfos in ProcessBundleProgressResponses.
       handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE,
           processBundleHandler::processBundle);
       handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_PROGRESS,
+          processBundleHandler::progress);
+      handlers.put(
           BeamFnApi.InstructionRequest.RequestCase.PROCESS_BUNDLE_SPLIT,
-          processBundleHandler::split);
+          processBundleHandler::trySplit);
       BeamFnControlClient control =
           new BeamFnControlClient(id, controlStub, outboundObserverFactory, handlers);
 

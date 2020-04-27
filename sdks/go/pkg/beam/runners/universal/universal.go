@@ -70,9 +70,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Info(ctx, proto.MarshalTextString(pipeline))
 
 	opt := &runnerlib.JobOptions{
-		Name:        jobopts.GetJobName(),
-		Experiments: jobopts.GetExperiments(),
-		Worker:      *jobopts.WorkerBinary,
+		Name:         jobopts.GetJobName(),
+		Experiments:  jobopts.GetExperiments(),
+		Worker:       *jobopts.WorkerBinary,
+		RetainDocker: *jobopts.RetainDockerContainers,
 	}
 	_, err = runnerlib.Execute(ctx, pipeline, endpoint, opt, *jobopts.Async)
 	return err

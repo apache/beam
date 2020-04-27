@@ -29,7 +29,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 
 public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
-  public HL7v2MessageCoder() {}
+  HL7v2MessageCoder() {}
 
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
   private static final NullableCoder<Map<String, String>> MAP_CODER =

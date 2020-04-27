@@ -162,6 +162,9 @@ class LocalFileSystem(FileSystem):
 
     Returns: file handle with a close function for the user to use
     """
+    if not os.path.exists(os.path.dirname(path)):
+      # TODO(Py3): Add exist_ok parameter.
+      os.makedirs(os.path.dirname(path))
     return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(

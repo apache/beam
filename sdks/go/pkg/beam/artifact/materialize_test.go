@@ -174,6 +174,25 @@ func TestNewRetrieveWithManyFiles(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
+func TestNewRetrieveWithSubdir(t *testing.T) {
+	expected := map[string]string{"subdir/path/a.txt": "a"}
+
+	client := &fakeRetrievalService{
+		artifacts: expected,
+	}
+
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	mds, err := newMaterializeWithClient(ctx, client, client.resolvedArtifacts(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed: %v", err)
+	}
+
+	checkStagedFiles(mds, dest, expected, t)
+}
+
 func TestNewRetrieveWithResolution(t *testing.T) {
 	expected := map[string]string{"a.txt": "a", "b.txt": "bbb", "c.txt": "cccccccc"}
 

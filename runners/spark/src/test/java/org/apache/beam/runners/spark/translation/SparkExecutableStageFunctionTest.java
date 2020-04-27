@@ -170,6 +170,11 @@ public class SparkExecutableStageFunctionTest {
               }
 
               @Override
+              public void requestProgress() {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
               public void split(double fractionOfRemainder) {
                 throw new UnsupportedOperationException();
               }

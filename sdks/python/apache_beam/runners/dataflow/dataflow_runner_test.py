@@ -258,6 +258,18 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                     PipelineOptions(self.default_properties)) as p:
         _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
 
+  def test_biqquery_read_fn_api_fail(self):
+    remote_runner = DataflowRunner()
+    for flag in ['beam_fn_api', 'use_unified_worker', 'use_runner_v2']:
+      self.default_properties.append("--experiments=%s" % flag)
+      with self.assertRaisesRegex(
+          ValueError,
+          'The Read.BigQuerySource.*is not supported.*'
+          'apache_beam.io.gcp.bigquery.ReadFromBigQuery.*'):
+        with Pipeline(remote_runner,
+                      PipelineOptions(self.default_properties)) as p:
+          _ = p | beam.io.Read(beam.io.BigQuerySource('some.table'))
+
   def test_remote_runner_display_data(self):
     remote_runner = DataflowRunner()
     p = Pipeline(
@@ -567,6 +579,20 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     runner = DataflowRunner()
     result = runner.get_default_gcp_region()
     self.assertIsNone(result)
+
+  def test_combine_values_translation(self):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      (  # pylint: disable=expression-not-assigned
+          p
+          | beam.Create([('a', [1, 2]), ('b', [3, 4])])
+          | beam.CombineValues(lambda v, _: sum(v)))
+
+    job_dict = json.loads(str(runner.job))
+    self.assertIn(
+        u'CombineValues', set(step[u'kind'] for step in job_dict[u'steps']))
 
 
 class CustomMergingWindowFn(window.WindowFn):

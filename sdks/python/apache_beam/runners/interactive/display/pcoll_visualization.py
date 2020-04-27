@@ -130,7 +130,7 @@ _DATAFRAME_SCRIPT_TEMPLATE = """
               .draw('full-hold');"""
 _DATAFRAME_PAGINATION_TEMPLATE = _CSS + """
             <link rel="stylesheet" href="https://cdn.datatables.net/1.10.20/css/jquery.dataTables.min.css">
-            <table id="{table_id}" class="display"></table>
+            <table id="{table_id}" class="display" style="display:block"></table>
             <script>
               {script_in_jquery_with_datatable}
             </script>"""

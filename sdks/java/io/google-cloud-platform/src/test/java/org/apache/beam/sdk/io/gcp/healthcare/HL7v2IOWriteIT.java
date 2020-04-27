@@ -18,18 +18,22 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HL7V2_INDEXING_TIMEOUT_MINUTES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
-import static org.junit.Assert.assertEquals;
 
+import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -52,7 +56,8 @@ public class HL7v2IOWriteIT {
     String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.createHL7v2Store(healthcareDataset, HL7V2_STORE_NAME);
+    Hl7V2Store store = client.createHL7v2Store(healthcareDataset, HL7V2_STORE_NAME);
+    store.getParserConfig();
   }
 
   @AfterClass
@@ -74,7 +79,7 @@ public class HL7v2IOWriteIT {
   }
 
   @Test
-  public void testHL7v2IOWrite() throws IOException {
+  public void testHL7v2IOWrite() throws Exception {
     HL7v2IO.Write.Result result =
         pipeline
             .apply(Create.of(MESSAGES).withCoder(new HL7v2MessageCoder()))
@@ -83,10 +88,15 @@ public class HL7v2IOWriteIT {
     PAssert.that(result.getFailedInsertsWithErr()).empty();
 
     pipeline.run().waitUntilFinish();
-    long numWrittenMessages =
-        client
-            .getHL7v2MessageStream(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME)
-            .count();
-    assertEquals(MESSAGES.size(), numWrittenMessages);
+
+    try {
+      HL7v2IOTestUtil.waitForHL7v2Indexing(
+          client,
+          healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME,
+          MESSAGES.size(),
+          Duration.standardMinutes(HL7V2_INDEXING_TIMEOUT_MINUTES));
+    } catch (TimeoutException e) {
+      Assert.fail(e.getMessage());
+    }
   }
 }
