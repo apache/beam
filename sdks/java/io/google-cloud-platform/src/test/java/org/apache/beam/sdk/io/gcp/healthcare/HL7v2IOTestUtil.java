@@ -36,7 +36,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class HL7v2IOTestUtil {
-  public static long hl7V2IndexingTimeoutMinutes = 10L;
+  public static final long hl7V2IndexingTimeoutMinutes = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
   public static final String HEALTHCARE_DATASET_TEMPLATE =
       "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
