@@ -111,9 +111,7 @@ public class BeamFileSystemLegacyArtifactStagingService
       FileSystems.delete(Collections.singletonList(manifestResourceId));
     }
 
-    LOG.debug("Removing empty dir: {}", dir);
-    FileSystems.delete(Collections.singletonList(dir));
-    LOG.info("Removed dir {}", dir);
+    FileSystems.delete(Collections.singletonList(dir), StandardMoveOptions.IGNORE_MISSING_FILES);
   }
 
   @Override
