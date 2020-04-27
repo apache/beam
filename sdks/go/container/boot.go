@@ -104,7 +104,7 @@ func main() {
 
 	switch len(artifacts) {
 	case 0:
-		log.Printf("No artifacts staged. Attempting to run default \"worker\".")
+		log.Fatal("No artifacts staged")
 	case 1:
 		name = artifacts[0].Name
 	default:
