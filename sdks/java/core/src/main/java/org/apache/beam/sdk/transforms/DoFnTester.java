@@ -259,6 +259,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
+            public Object key() {
+              throw new UnsupportedOperationException(
+                  "Cannot access key as parameter outside of @OnTimer method.");
+            }
+
+            @Override
             public Instant timestamp(DoFn<InputT, OutputT> doFn) {
               return processContext.timestamp();
             }

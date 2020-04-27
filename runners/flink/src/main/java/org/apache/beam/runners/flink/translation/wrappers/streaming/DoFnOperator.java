@@ -878,7 +878,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
-  protected void fireTimerInternal(Object key, TimerData timerData) {
+  protected void fireTimerInternal(ByteBuffer key, TimerData timerData) {
     fireTimer(timerData);
   }
 
@@ -897,6 +897,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
+        keyedStateInternals.getKey(),
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),

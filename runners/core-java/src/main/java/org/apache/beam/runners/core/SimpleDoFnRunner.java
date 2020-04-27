@@ -188,9 +188,10 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -214,8 +215,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
         throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
     }
 
-    OnTimerArgumentProvider argumentProvider =
-        new OnTimerArgumentProvider(timerId, window, timestamp, effectiveTimestamp, timeDomain);
+    OnTimerArgumentProvider<KeyT> argumentProvider =
+        new OnTimerArgumentProvider<>(
+            timerId, key, window, timestamp, effectiveTimestamp, timeDomain);
     invoker.invokeOnTimer(timerId, timerFamilyId, argumentProvider);
   }
 
@@ -477,6 +479,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public Object sideInput(String tagId) {
       return sideInput(sideInputMapping.get(tagId));
     }
@@ -605,13 +613,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
    * DoFn} on a timer.
    */
-  private class OnTimerArgumentProvider extends DoFn<InputT, OutputT>.OnTimerContext
+  private class OnTimerArgumentProvider<KeyT> extends DoFn<InputT, OutputT>.OnTimerContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     private final BoundedWindow window;
     private final Instant fireTimestamp;
     private final Instant timestamp;
     private final TimeDomain timeDomain;
     private final String timerId;
+    private final KeyT key;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
@@ -632,6 +641,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     private OnTimerArgumentProvider(
         String timerId,
+        KeyT key,
         BoundedWindow window,
         Instant fireTimestamp,
         Instant timestamp,
@@ -642,6 +652,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       this.fireTimestamp = fireTimestamp;
       this.timestamp = timestamp;
       this.timeDomain = timeDomain;
+      this.key = key;
     }
 
     @Override
@@ -684,6 +695,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     @Override
     public TimeDomain timeDomain() {
       return timeDomain;
+    }
+
+    @Override
+    public KeyT key() {
+      return key;
     }
 
     @Override

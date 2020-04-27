@@ -171,6 +171,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
+    /**
+     * Provide a reference to the input element key in {@link org.apache.beam.sdk.values.KV} pair.
+     */
+    Object key();
+
     /** Provide a reference to the input sideInput with the specified tag. */
     Object sideInput(String tagId);
 
@@ -255,6 +260,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     public InputT element(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           String.format("Element unsupported in %s", getErrorContext()));
+    }
+
+    @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -448,6 +459,11 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public InputT element(DoFn<InputT, OutputT> doFn) {
       return delegate.element(doFn);
+    }
+
+    @Override
+    public Object key() {
+      return delegate.key();
     }
 
     @Override

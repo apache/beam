@@ -122,6 +122,7 @@ public class SimpleDoFnRunnerTest {
     runner.onTimer(
         TimerDeclaration.PREFIX + ThrowingDoFn.TIMER_ID,
         "",
+        null,
         GlobalWindow.INSTANCE,
         new Instant(0),
         new Instant(0),
@@ -246,6 +247,7 @@ public class SimpleDoFnRunnerTest {
     runner.onTimer(
         TimerDeclaration.PREFIX + DoFnWithTimers.TIMER_ID,
         "",
+        null,
         GlobalWindow.INSTANCE,
         currentTime.plus(offset),
         currentTime.plus(offset),
