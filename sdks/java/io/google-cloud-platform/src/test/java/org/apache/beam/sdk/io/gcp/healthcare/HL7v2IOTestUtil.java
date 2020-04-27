@@ -37,6 +37,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class HL7v2IOTestUtil {
+  public static final long HL7V2_INDEXING_TIMEOUT_MINUTES = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
   public static final String HEALTHCARE_DATASET_TEMPLATE =
       "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
@@ -114,12 +115,16 @@ class HL7v2IOTestUtil {
       }
       // exponential backoff.
       sleepMs *= 2;
-      Sleeper.DEFAULT.sleep(sleepMs);
+      // exit if next sleep will violate timeout
+      if (new Duration(start, Instant.now()).plus(sleepMs).isShorterThan(timeout)) {
+        Sleeper.DEFAULT.sleep(sleepMs);
+      } else {
+        throw new TimeoutException(
+            String.format(
+                "Timed out waiting for %s to reach %s messages. last list request returned %s messages.",
+                hl7v2Store, expectedNumMessages, numListedMessages));
+      }
     }
-    throw new TimeoutException(
-        String.format(
-            "Timed out waiting for %s to reach %s messages. last list request returned %s messages.",
-            hl7v2Store, expectedNumMessages, numListedMessages));
   }
 
   /** Populate the test messages into the HL7v2 store. */
@@ -131,7 +136,10 @@ class HL7v2IOTestUtil {
     // [BEAM-9779] HL7v2 indexing is asyncronous. Block until indexing completes to stabilize this
     // IT.
     HL7v2IOTestUtil.waitForHL7v2Indexing(
-        client, hl7v2Store, MESSAGES.size(), Duration.standardMinutes(10));
+        client,
+        hl7v2Store,
+        MESSAGES.size(),
+        Duration.standardMinutes(HL7V2_INDEXING_TIMEOUT_MINUTES));
   }
 
   /**
