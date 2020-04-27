@@ -126,7 +126,7 @@ public class HL7v2Message {
     return out;
   }
 
-  private HL7v2Message(
+  public HL7v2Message(
       String name,
       String messageType,
       String sendTime,
