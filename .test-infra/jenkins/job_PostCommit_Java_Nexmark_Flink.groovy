@@ -35,7 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Gradle goals for this job.
   steps {
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -52,7 +52,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--monitorJobs=true"'
               ].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -69,7 +69,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--monitorJobs=true"'
               ].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -86,7 +86,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--manageResources=false"'
               ].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
