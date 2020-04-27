@@ -19,7 +19,7 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 
 import org.apache.beam.sdk.schemas.Schema;
 
-/** Base class for types representing timestamps or durations as nanoseconds. */
+/** Base class for types representing timestamps or durations as milliseconds. */
 abstract class MillisType<T> implements Schema.LogicalType<T, Long> {
   private final String identifier;
 

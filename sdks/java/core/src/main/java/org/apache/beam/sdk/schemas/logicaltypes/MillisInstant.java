@@ -20,7 +20,7 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 import org.joda.time.Instant;
 import org.joda.time.ReadableInstant;
 
-/** A timestamp represented as nanoseconds since the epoch. */
+/** A timestamp represented as milliseconds since the epoch. */
 public class MillisInstant extends MillisType<ReadableInstant> {
   public static final String IDENTIFIER = "beam:logical_type:millis_instant:v1";
 
