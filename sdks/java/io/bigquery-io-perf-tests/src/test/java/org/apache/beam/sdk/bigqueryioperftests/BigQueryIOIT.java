@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.TableId;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 import org.apache.avro.generic.GenericData;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
@@ -92,6 +94,7 @@ public class BigQueryIOIT {
   private static String tempRoot;
   private static BigQueryPerfTestOptions options;
   private static WriteFormat writeFormat;
+  private static InfluxDBSettings settings;
 
   @BeforeClass
   public static void setup() throws IOException {
@@ -108,6 +111,13 @@ public class BigQueryIOIT {
     tableQualifier =
         String.format(
             "%s:%s.%s", bigQueryOptions.getProjectId(), testBigQueryDataset, testBigQueryTable);
+    settings = InfluxDBSettings.builder()
+            .withUserName(options.getInfluxDBUserName())
+            .withUserPassword(options.getInfluxDBUserPassword())
+            .withHost(options.getInfluxDBHost())
+            .withDatabase(options.getInfluxDBDatabase())
+            .withMeasurement(options.getInfluxDBMeasurement())
+            .get();
   }
 
   @AfterClass
@@ -193,14 +203,16 @@ public class BigQueryIOIT {
   }
 
   private void extractAndPublishTime(PipelineResult pipelineResult, String writeTimeMetricName) {
-    NamedTestResult metricResult =
+    final NamedTestResult metricResult =
         getMetricSupplier(writeTimeMetricName).apply(new MetricsReader(pipelineResult, NAMESPACE));
+    final List<NamedTestResult> listResults = Collections.singletonList(metricResult);
     IOITMetrics.publish(
         TEST_ID,
         TEST_TIMESTAMP,
         metricsBigQueryDataset,
         metricsBigQueryTable,
-        Collections.singletonList(metricResult));
+        listResults);
+    IOITMetrics.publishToInflux(TEST_ID, TEST_TIMESTAMP, listResults, settings);
   }
 
   private static Function<MetricsReader, NamedTestResult> getMetricSupplier(String metricName) {

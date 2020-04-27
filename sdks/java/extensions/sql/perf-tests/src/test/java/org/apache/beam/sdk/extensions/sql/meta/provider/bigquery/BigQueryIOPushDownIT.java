@@ -42,6 +42,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -89,6 +90,7 @@ public class BigQueryIOPushDownIT {
   private static SQLBigQueryPerfTestOptions options;
   private static String metricsBigQueryDataset;
   private static String metricsBigQueryTable;
+  private static InfluxDBSettings settings;
   private Pipeline pipeline = Pipeline.create(options);
   private BeamSqlEnv sqlEnv;
 
@@ -97,6 +99,13 @@ public class BigQueryIOPushDownIT {
     options = IOITHelper.readIOTestPipelineOptions(SQLBigQueryPerfTestOptions.class);
     metricsBigQueryDataset = options.getMetricsBigQueryDataset();
     metricsBigQueryTable = options.getMetricsBigQueryTable();
+    settings = InfluxDBSettings.builder()
+            .withUserName(options.getInfluxDBUserName())
+            .withUserPassword(options.getInfluxDBUserPassword())
+            .withHost(options.getInfluxDBHost())
+            .withDatabase(options.getInfluxDBDatabase())
+            .withMeasurement(options.getInfluxDBMeasurement())
+            .get();
   }
 
   @Before
@@ -169,6 +178,7 @@ public class BigQueryIOPushDownIT {
     IOITMetrics readMetrics =
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
     readMetrics.publish(metricsBigQueryDataset, metricsBigQueryTable + postfix);
+    readMetrics.publishToInflux(settings.copyWithMeasurement(settings.measurement + postfix));
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(

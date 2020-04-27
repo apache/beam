@@ -23,6 +23,16 @@ public final class InfluxDBSettings {
         return new Builder();
     }
 
+    public InfluxDBSettings copyWithMeasurement(final String newMeasurement) {
+        return new InfluxDBSettings(
+                host,
+                userName,
+                userPassword,
+                newMeasurement,
+                database
+        );
+    }
+
     public static class Builder {
         private String host;
         private String userName;

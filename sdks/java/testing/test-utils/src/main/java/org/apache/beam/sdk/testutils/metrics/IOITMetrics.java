@@ -79,4 +79,14 @@ public class IOITMetrics {
 
     InfluxDBPublisher.publishWithSettings(namedTestResults, settings);
   }
+
+  public static void publishToInflux(
+          final String uuid,
+          final String timestamp,
+          final Collection<NamedTestResult> results,
+          final InfluxDBSettings settings) {
+
+    InfluxDBPublisher.publishWithSettings(results, settings);
+    ConsoleResultPublisher.publish(results, uuid, timestamp);
+  }
 }

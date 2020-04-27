@@ -40,6 +40,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -99,6 +100,7 @@ public class HadoopFormatIOIT {
   private static SerializableConfiguration hadoopConfiguration;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
@@ -114,6 +116,13 @@ public class HadoopFormatIOIT {
     tableName = DatabaseTestHelper.getTestTableName("HadoopFormatIOIT");
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    settings = InfluxDBSettings.builder()
+            .withUserName(options.getInfluxDBUserName())
+            .withUserPassword(options.getInfluxDBUserPassword())
+            .withHost(options.getInfluxDBHost())
+            .withDatabase(options.getInfluxDBDatabase())
+            .withMeasurement(options.getInfluxDBMeasurement())
+            .get();
 
     executeWithRetry(HadoopFormatIOIT::createTable);
     setupHadoopConfiguration(options);
@@ -214,7 +223,9 @@ public class HadoopFormatIOIT {
     IOITMetrics writeMetrics =
         new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
     readMetrics.publish(bigQueryDataset, bigQueryTable);
+    readMetrics.publishToInflux(settings);
     writeMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(

@@ -44,6 +44,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -100,6 +101,7 @@ public class XmlIOIT {
   private static final String XMLIOIT_NAMESPACE = XmlIOIT.class.getName();
 
   private static Charset charset;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
@@ -113,6 +115,13 @@ public class XmlIOIT {
     datasetSize = options.getDatasetSize();
     expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();
+    settings = InfluxDBSettings.builder()
+            .withUserName(options.getInfluxDBUserName())
+            .withUserPassword(options.getInfluxDBUserPassword())
+            .withHost(options.getInfluxDBHost())
+            .withDatabase(options.getInfluxDBDatabase())
+            .withMeasurement(options.getInfluxDBMeasurement())
+            .get();
   }
 
   @Test
@@ -176,8 +185,9 @@ public class XmlIOIT {
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    new IOITMetrics(metricSuppliers, result, XMLIOIT_NAMESPACE, uuid, timestamp)
-        .publish(bigQueryDataset, bigQueryTable);
+    final IOITMetrics metrics = new IOITMetrics(metricSuppliers, result, XMLIOIT_NAMESPACE, uuid, timestamp);
+    metrics.publish(bigQueryDataset, bigQueryTable);
+    metrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> fillMetricSuppliers(
