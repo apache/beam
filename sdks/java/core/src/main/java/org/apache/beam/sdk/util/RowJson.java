@@ -81,9 +81,9 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
  *   <li>{@link Schema.TypeName#DECIMAL}
  * </ul>
  *
- * <p>The composite types {@link Schema.TypeName#ROW}, {@link Schema.TypeName#ARRAY}, and
- * {@link Schema.TypeName#ITERABLE} are also supported, as well as logical types, which are
- * represented in JSON using the representation for their base type.
+ * <p>The composite types {@link Schema.TypeName#ROW}, {@link Schema.TypeName#ARRAY}, and {@link
+ * Schema.TypeName#ITERABLE} are also supported, as well as logical types, which are represented in
+ * JSON using the representation for their base type.
  */
 @Experimental(Kind.SCHEMAS)
 public class RowJson {
