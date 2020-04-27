@@ -229,8 +229,8 @@ INTERACTIVE_BEAM_TEST = [
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
     'chromedriver-binary>=80,<81',
-    # use a fixed version of PIL for different python versions
-    'pillow==7.1.1',
+    # use a fixed major version of PIL for different python versions
+    'pillow>=7.1.1,<8',
 ]
 
 AWS_REQUIREMENTS = [
