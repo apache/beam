@@ -711,8 +711,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (keyCoder == null) {
       potentialOutputWatermark = inputWatermarkHold;
     } else {
-      Instant watermarkHold = keyedStateInternals.watermarkHold();
-      long combinedWatermarkHold = Math.min(watermarkHold.getMillis(), inputWatermarkHold);
+      long combinedWatermarkHold =
+          Math.min(keyedStateInternals.minWatermarkHoldMs(), inputWatermarkHold);
       potentialOutputWatermark =
           Math.min(combinedWatermarkHold, timerInternals.getMinOutputTimestampMs());
     }
@@ -1208,6 +1208,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       while ((internalTimer = processingTimeTimersQueue.poll()) != null) {
         keyedStateBackend.setCurrentKey(internalTimer.getKey());
         TimerData timer = internalTimer.getNamespace();
+        checkInvokeStartBundle();
         fireTimer(timer);
       }
     }
