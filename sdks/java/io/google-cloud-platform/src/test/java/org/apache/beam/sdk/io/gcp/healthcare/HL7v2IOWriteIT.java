@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
+import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HL7V2_INDEXING_TIMEOUT_MINUTES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.MESSAGES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.deleteAllHL7v2Messages;
 
@@ -93,7 +94,7 @@ public class HL7v2IOWriteIT {
           client,
           healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME,
           MESSAGES.size(),
-          Duration.standardMinutes(10));
+          Duration.standardMinutes(HL7V2_INDEXING_TIMEOUT_MINUTES));
     } catch (TimeoutException e) {
       Assert.fail(e.getMessage());
     }
