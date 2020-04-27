@@ -91,7 +91,8 @@ class SubprocessServer(object):
         def log_stdout():
           line = self._process.stdout.readline()
           while line:
-            _LOGGER.info(line)
+            # Remove newline via rstrip() to not print an empty line
+            _LOGGER.info(line.rstrip())
             line = self._process.stdout.readline()
 
         t = threading.Thread(target=log_stdout)
