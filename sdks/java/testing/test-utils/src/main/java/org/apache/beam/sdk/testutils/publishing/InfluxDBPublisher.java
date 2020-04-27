@@ -18,15 +18,20 @@
 package org.apache.beam.sdk.testutils.publishing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Base64;
 import java.util.Collection;
 import org.apache.beam.sdk.testutils.NamedTestResult;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,55 +46,49 @@ public final class InfluxDBPublisher {
     try {
       publish(results, settings);
     } catch (final Exception exception) {
-      LOGGER.warn("Unable to publish metrics due to error: {}", exception.getMessage());
+      LOGGER.warn("Unable to publish metrics due to error: {}", exception.getMessage(), exception);
     }
   }
 
   private static void publish(
       final Collection<NamedTestResult> results, final InfluxDBSettings settings) throws Exception {
-    final HttpURLConnection connection =
-        (HttpURLConnection)
-            new URL(settings.host + "write?db=" + settings.database).openConnection();
-    connection.setDoOutput(true);
-    connection.setRequestMethod("POST");
-    connection.setRequestProperty(
-        "Authorization", getTokenAsString(settings.userName, settings.userPassword));
 
-    try (final AutoCloseable ignored = connection::disconnect;
-        final DataOutputStream stream = new DataOutputStream(connection.getOutputStream())) {
+    final HttpClientBuilder builder = HttpClientBuilder.create();
 
-      final StringBuilder builder = new StringBuilder();
-      results.stream()
-          .map(NamedTestResult::toMap)
-          .forEach(
-              map ->
-                  builder
-                      .append(settings.measurement)
-                      .append(",")
-                      .append("test_id")
-                      .append("=")
-                      .append(map.get("test_id"))
-                      .append(",")
-                      .append("metric")
-                      .append("=")
-                      .append(map.get("metric"))
-                      .append(" ")
-                      .append("value")
-                      .append("=")
-                      .append(map.get("value"))
-                      .append('\n'));
-
-      stream.writeBytes(builder.toString());
-      stream.flush();
-
-      is2xx(connection.getResponseCode());
+    if (nonNull(settings.userName) && nonNull(settings.userPassword)) {
+      final CredentialsProvider provider = new BasicCredentialsProvider();
+      provider.setCredentials(
+          AuthScope.ANY, new UsernamePasswordCredentials(settings.userName, settings.userPassword));
+      builder.setDefaultCredentialsProvider(provider);
     }
-  }
 
-  private static String getTokenAsString(final String user, final String password) {
-    final String auth = user + ":" + password;
-    final byte[] encodedAuth = Base64.getEncoder().encode(auth.getBytes(UTF_8));
-    return "Basic " + new String(encodedAuth, UTF_8);
+    final HttpPost postRequest = new HttpPost(settings.host + "write?db=" + settings.database);
+
+    final StringBuilder metricBuilder = new StringBuilder();
+    results.stream()
+        .map(NamedTestResult::toMap)
+        .forEach(
+            map ->
+                metricBuilder
+                    .append(settings.measurement)
+                    .append(",")
+                    .append("test_id")
+                    .append("=")
+                    .append(map.get("test_id"))
+                    .append(",")
+                    .append("metric")
+                    .append("=")
+                    .append(map.get("metric"))
+                    .append(" ")
+                    .append("value")
+                    .append("=")
+                    .append(map.get("value"))
+                    .append('\n'));
+
+    postRequest.setEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8)));
+    try (final CloseableHttpResponse response = builder.build().execute(postRequest)) {
+      is2xx(response.getStatusLine().getStatusCode());
+    }
   }
 
   private static void is2xx(final int code) throws IOException {

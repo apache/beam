@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.testutils.publishing;
 
+import static java.util.Objects.isNull;
+
 import java.util.Arrays;
 import java.util.Objects;
-
-import static java.util.Objects.isNull;
 
 public final class InfluxDBSettings {
 
@@ -75,7 +75,7 @@ public final class InfluxDBSettings {
       final String userName = System.getenv(INFLUX_USER);
       final String userPassword = System.getenv(INFLUX_PASSWORD);
       final String influxHost = isNull(host) ? DEFAULT_HOST : host;
-      allNotNull(influxHost, userName, userPassword, measurement, database);
+      allNotNull(measurement, database);
 
       return new InfluxDBSettings(influxHost, userName, userPassword, measurement, database);
     }
