@@ -495,6 +495,14 @@ class Pipeline(object):
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
+    if test_runner_api == 'AUTO':
+      # Don't pay the cost of a round-trip if we're going to be going through
+      # the FnApi anyway...
+      test_runner_api = (
+          not self.runner.is_fnapi_compatible() and (
+              self.runner.__class__.__name__ != 'SwitchingDirectRunner'
+              or self._options.view_as(StandardOptions).streaming))
+
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
       return Pipeline.from_runner_api(
