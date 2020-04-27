@@ -1,0 +1,21 @@
+# https://cwiki.apache.org/confluence/display/INFRA/.asf.yaml+features+for+git+repositories
+
+github:
+  description: "Apache Beam is a unified programming model for Batch and Streaming"
+  homepage: https://beam.apache.org/
+  labels:
+    - python
+    - java
+    - big-data
+    - beam
+
+  enabled_merge_buttons:
+    squash: true
+    merge:  true
+    rebase: true
+
+notifications:
+  commits:      commits@beam.apache.org
+  issues:       issues@beam.apache.org
+  pullrequests: github@beam.apache.org
+  jira_options: link worklog
