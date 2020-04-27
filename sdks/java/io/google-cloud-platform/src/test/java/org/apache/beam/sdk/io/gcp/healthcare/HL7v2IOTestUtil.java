@@ -36,6 +36,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 class HL7v2IOTestUtil {
+  public static long hl7V2IndexingTimeoutMinutes = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
   public static final String HEALTHCARE_DATASET_TEMPLATE =
       "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
@@ -130,7 +131,7 @@ class HL7v2IOTestUtil {
     // [BEAM-9779] HL7v2 indexing is asyncronous. Block until indexing completes to stabilize this
     // IT.
     HL7v2IOTestUtil.waitForHL7v2Indexing(
-        client, hl7v2Store, MESSAGES.size(), Duration.standardMinutes(1));
+        client, hl7v2Store, MESSAGES.size(), Duration.standardMinutes(hl7V2IndexingTimeoutMinutes));
   }
 
   /**
