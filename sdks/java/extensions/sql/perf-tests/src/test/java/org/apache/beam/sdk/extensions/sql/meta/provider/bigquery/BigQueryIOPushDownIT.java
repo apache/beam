@@ -99,7 +99,8 @@ public class BigQueryIOPushDownIT {
     options = IOITHelper.readIOTestPipelineOptions(SQLBigQueryPerfTestOptions.class);
     metricsBigQueryDataset = options.getMetricsBigQueryDataset();
     metricsBigQueryTable = options.getMetricsBigQueryTable();
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())

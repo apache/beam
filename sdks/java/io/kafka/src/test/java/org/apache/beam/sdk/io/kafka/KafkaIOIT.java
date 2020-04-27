@@ -104,7 +104,8 @@ public class KafkaIOIT {
             1000L, "4507649971ee7c51abbb446e65a5c660",
             100_000_000L, "0f12c27c9a7672e14775594be66cad9a");
     expectedHashcode = getHashForRecordCount(sourceOptions.numRecords, expectedHashes);
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())

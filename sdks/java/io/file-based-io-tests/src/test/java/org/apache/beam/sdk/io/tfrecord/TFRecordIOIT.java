@@ -110,7 +110,8 @@ public class TFRecordIOIT {
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())

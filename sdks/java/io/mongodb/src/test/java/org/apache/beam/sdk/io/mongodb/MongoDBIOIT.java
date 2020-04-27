@@ -133,7 +133,8 @@ public class MongoDBIOIT {
     mongoUrl =
         String.format("mongodb://%s:%s", options.getMongoDBHostName(), options.getMongoDBPort());
     mongoClient = MongoClients.create(mongoUrl);
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())

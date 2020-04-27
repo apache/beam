@@ -111,7 +111,8 @@ public class BigQueryIOIT {
     tableQualifier =
         String.format(
             "%s:%s.%s", bigQueryOptions.getProjectId(), testBigQueryDataset, testBigQueryTable);
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())
@@ -207,11 +208,7 @@ public class BigQueryIOIT {
         getMetricSupplier(writeTimeMetricName).apply(new MetricsReader(pipelineResult, NAMESPACE));
     final List<NamedTestResult> listResults = Collections.singletonList(metricResult);
     IOITMetrics.publish(
-        TEST_ID,
-        TEST_TIMESTAMP,
-        metricsBigQueryDataset,
-        metricsBigQueryTable,
-        listResults);
+        TEST_ID, TEST_TIMESTAMP, metricsBigQueryDataset, metricsBigQueryTable, listResults);
     IOITMetrics.publishToInflux(TEST_ID, TEST_TIMESTAMP, listResults, settings);
   }
 

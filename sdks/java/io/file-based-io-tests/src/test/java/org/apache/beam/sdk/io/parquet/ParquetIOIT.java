@@ -112,7 +112,8 @@ public class ParquetIOIT {
     filenamePrefix = appendTimestampSuffix(options.getFilenamePrefix());
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())
@@ -178,7 +179,8 @@ public class ParquetIOIT {
     String timestamp = Timestamp.now().toString();
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    final IOITMetrics metrics = new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp);
+    final IOITMetrics metrics =
+        new IOITMetrics(metricSuppliers, result, PARQUET_NAMESPACE, uuid, timestamp);
     metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }

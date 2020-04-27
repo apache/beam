@@ -116,7 +116,8 @@ public class HadoopFormatIOIT {
     tableName = DatabaseTestHelper.getTestTableName("HadoopFormatIOIT");
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())

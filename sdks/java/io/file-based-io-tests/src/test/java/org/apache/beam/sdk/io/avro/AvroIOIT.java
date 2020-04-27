@@ -113,7 +113,8 @@ public class AvroIOIT {
     datasetSize = options.getDatasetSize();
     expectedHash = options.getExpectedHash();
     numberOfTextLines = options.getNumberOfRecords();
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())
@@ -173,7 +174,8 @@ public class AvroIOIT {
 
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp);
-    final IOITMetrics metrics = new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE, uuid, timestamp);
+    final IOITMetrics metrics =
+        new IOITMetrics(metricSuppliers, result, AVRO_NAMESPACE, uuid, timestamp);
     metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }

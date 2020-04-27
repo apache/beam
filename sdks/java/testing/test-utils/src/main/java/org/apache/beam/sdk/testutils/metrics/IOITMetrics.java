@@ -81,10 +81,10 @@ public class IOITMetrics {
   }
 
   public static void publishToInflux(
-          final String uuid,
-          final String timestamp,
-          final Collection<NamedTestResult> results,
-          final InfluxDBSettings settings) {
+      final String uuid,
+      final String timestamp,
+      final Collection<NamedTestResult> results,
+      final InfluxDBSettings settings) {
 
     InfluxDBPublisher.publishWithSettings(results, settings);
     ConsoleResultPublisher.publish(results, uuid, timestamp);

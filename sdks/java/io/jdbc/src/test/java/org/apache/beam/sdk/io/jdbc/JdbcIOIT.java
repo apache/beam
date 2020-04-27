@@ -102,7 +102,8 @@ public class JdbcIOIT {
     tableName = DatabaseTestHelper.getTestTableName("IT");
     executeWithRetry(JdbcIOIT::createTable);
     tableSize = DatabaseTestHelper.getPostgresTableSize(dataSource, tableName).orElse(0L);
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())

@@ -106,7 +106,8 @@ public class TextIOIT {
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
     gatherGcsPerformanceMetrics = options.getReportGcsPerformanceMetrics();
-    settings = InfluxDBSettings.builder()
+    settings =
+        InfluxDBSettings.builder()
             .withUserName(options.getInfluxDBUserName())
             .withUserPassword(options.getInfluxDBUserPassword())
             .withHost(options.getInfluxDBHost())
@@ -170,7 +171,8 @@ public class TextIOIT {
     Set<Function<MetricsReader, NamedTestResult>> metricSuppliers =
         fillMetricSuppliers(uuid, timestamp.toString());
 
-    final IOITMetrics metrics = new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString());
+    final IOITMetrics metrics =
+        new IOITMetrics(metricSuppliers, result, FILEIOIT_NAMESPACE, uuid, timestamp.toString());
     metrics.publish(bigQueryDataset, bigQueryTable);
     metrics.publishToInflux(settings);
   }
