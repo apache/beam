@@ -490,8 +490,8 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=True):
-    # type: (bool) -> PipelineResult
+  def run(self, test_runner_api='AUTO'):
+    # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
