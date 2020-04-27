@@ -488,7 +488,7 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
   }
 
   @Override
-  protected void fireTimerInternal(Object key, TimerInternals.TimerData timer) {
+  protected void fireTimerInternal(ByteBuffer key, TimerInternals.TimerData timer) {
     // We have to synchronize to ensure the state backend is not concurrently accessed by the state
     // requests
     try (Locker locker = Locker.locked(stateBackendLock)) {
@@ -730,9 +730,10 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
     }
 
     @Override
-    public void onTimer(
+    public <KeyT> void onTimer(
         String timerId,
         String timerFamilyId,
+        KeyT key,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,

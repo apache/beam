@@ -298,6 +298,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((TimerIdParameter) this);
       } else if (this instanceof BundleFinalizerParameter) {
         return cases.dispatch((BundleFinalizerParameter) this);
+      } else if (this instanceof KeyParameter) {
+        return cases.dispatch((KeyParameter) this);
       } else {
         throw new IllegalStateException(
             String.format(
@@ -353,6 +355,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(TimerIdParameter p);
 
       ResultT dispatch(BundleFinalizerParameter p);
+
+      ResultT dispatch(KeyParameter p);
 
       /** A base class for a visitor with a default method for cases it is not interested in. */
       abstract class WithDefault<ResultT> implements Cases<ResultT> {
@@ -473,6 +477,11 @@ public abstract class DoFnSignature {
         public ResultT dispatch(TimerFamilyParameter p) {
           return dispatchDefault(p);
         }
+
+        @Override
+        public ResultT dispatch(KeyParameter p) {
+          return dispatchDefault(p);
+        }
       }
     }
 
@@ -573,6 +582,11 @@ public abstract class DoFnSignature {
     /** Returns a {@link WindowParameter}. */
     public static WindowParameter boundedWindow(TypeDescriptor<? extends BoundedWindow> windowT) {
       return new AutoValue_DoFnSignature_Parameter_WindowParameter(windowT);
+    }
+
+    /** Returns a {@link KeyParameter}. */
+    public static KeyParameter keyT(TypeDescriptor<?> keyT) {
+      return new AutoValue_DoFnSignature_Parameter_KeyParameter(keyT);
     }
 
     /** Returns a {@link PipelineOptionsParameter}. */
@@ -717,6 +731,13 @@ public abstract class DoFnSignature {
     @AutoValue
     public abstract static class TimerIdParameter extends Parameter {
       TimerIdParameter() {}
+    }
+
+    @AutoValue
+    public abstract static class KeyParameter extends Parameter {
+      KeyParameter() {}
+
+      public abstract TypeDescriptor<?> keyT();
     }
 
     /**

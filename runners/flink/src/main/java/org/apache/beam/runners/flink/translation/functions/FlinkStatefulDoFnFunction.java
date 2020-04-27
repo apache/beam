@@ -179,13 +179,13 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     timerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
     timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
-    fireEligibleTimers(timerInternals, doFnRunner);
+    fireEligibleTimers(key, timerInternals, doFnRunner);
 
     doFnRunner.finishBundle();
   }
 
   private void fireEligibleTimers(
-      InMemoryTimerInternals timerInternals, DoFnRunner<KV<K, V>, OutputT> runner)
+      final K key, InMemoryTimerInternals timerInternals, DoFnRunner<KV<K, V>, OutputT> runner)
       throws Exception {
 
     while (true) {
@@ -195,15 +195,15 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
       while ((timer = timerInternals.removeNextEventTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, runner);
+        fireTimer(key, timer, runner);
       }
       while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, runner);
+        fireTimer(key, timer, runner);
       }
       while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, runner);
+        fireTimer(key, timer, runner);
       }
       if (!hasFired) {
         break;
@@ -211,13 +211,15 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
     }
   }
 
-  private void fireTimer(TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
+  private void fireTimer(
+      final K key, TimerInternals.TimerData timer, DoFnRunner<KV<K, V>, OutputT> doFnRunner) {
     StateNamespace namespace = timer.getNamespace();
     checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
     BoundedWindow window = ((StateNamespaces.WindowNamespace) namespace).getWindow();
     doFnRunner.onTimer(
         timer.getTimerId(),
         timer.getTimerFamilyId(),
+        key,
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),

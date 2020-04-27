@@ -271,7 +271,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContext processContext;
-  private final OnTimerContext onTimerContext;
+  private OnTimerContext onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
@@ -573,7 +573,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException(
             String.format("Unknown URN %s", pTransform.getSpec().getUrn()));
     }
-    this.onTimerContext = new OnTimerContext();
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
 
     switch (pTransform.getSpec().getUrn()) {
@@ -966,6 +965,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private <K> void processTimer(String timerId, TimeDomain timeDomain, Timer<K> timer) {
     currentTimer = timer;
     currentTimeDomain = timeDomain;
+    onTimerContext = new OnTimerContext<>(timer.getUserKey());
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
@@ -1350,6 +1350,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public Object sideInput(String tagId) {
       return sideInput(sideInputMapping.get(tagId));
     }
@@ -1527,7 +1533,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
-  private class OnTimerContext extends BaseArgumentProvider<InputT, OutputT> {
+  private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
+    private final K key;
+
+    public OnTimerContext(K key) {
+      this.key = key;
+    }
+
     private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
       private Context() {
         doFn.super();
@@ -1623,6 +1635,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return currentTimeDomain;
+    }
+
+    @Override
+    public K key() {
+      return key;
     }
 
     @Override
