@@ -26,6 +26,7 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /** Defines a client that talks to the Cloud Healthcare API. */
@@ -51,6 +52,25 @@ public interface HealthcareApiClient {
    * @throws IOException the io exception
    */
   Hl7V2Store getHL7v2Store(String storeName) throws IOException;
+
+  /**
+   * Gets HL7v2 message id page iterator.
+   *
+   * @param hl7v2Store the HL7v2 store
+   * @return the HL7v2 message id page iterator
+   * @throws IOException the io exception
+   */
+  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException;
+
+  /**
+   * Gets hl 7 v 2 message id page iterator.
+   *
+   * @param hl7v2Store the hl 7 v 2 store
+   * @param filter the filter
+   * @return the hl 7 v 2 message id page iterator
+   * @throws IOException the io exception
+   */
+  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, String filter) throws IOException;
 
   /**
    * Make hl 7 v 2 list request list messages response.

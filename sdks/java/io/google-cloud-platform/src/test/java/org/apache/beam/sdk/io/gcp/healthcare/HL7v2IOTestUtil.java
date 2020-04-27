@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -87,8 +86,8 @@ class HL7v2IOTestUtil {
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    for (Stream<HL7v2Message> page : new HL7v2MessagePages(client, hl7v2Store)) {
-      for (String msgId : page.map(HL7v2Message::getName).collect(Collectors.toList())) {
+    for (List<HL7v2Message> page : new HL7v2MessagePages(client, hl7v2Store)) {
+      for (String msgId : page.stream().map(HL7v2Message::getName).collect(Collectors.toList())) {
         client.deleteHL7v2Message(msgId);
       }
     }
@@ -105,9 +104,9 @@ class HL7v2IOTestUtil {
     while (new Duration(start, Instant.now()).isShorterThan(timeout)) {
       numListedMessages = 0;
       // count messages in HL7v2 Store.
-      for (Stream<HL7v2Message> page :
+      for (List<HL7v2Message> page :
           new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store)) {
-        numListedMessages += page.count();
+        numListedMessages += page.size();
       }
       if (numListedMessages == expectedNumMessages) {
         return;
@@ -131,7 +130,7 @@ class HL7v2IOTestUtil {
     // [BEAM-9779] HL7v2 indexing is asyncronous. Block until indexing completes to stabilize this
     // IT.
     HL7v2IOTestUtil.waitForHL7v2Indexing(
-        client, hl7v2Store, MESSAGES.size(), Duration.standardMinutes(10));
+        client, hl7v2Store, MESSAGES.size(), Duration.standardMinutes(1));
   }
 
   /**
@@ -209,8 +208,8 @@ class HL7v2IOTestUtil {
       // Output all elements of all pages.
       HttpHealthcareApiClient.HL7v2MessagePages pages =
           new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
-      for (Stream<HL7v2Message> page : pages) {
-        page.map(HL7v2Message::getName).forEach(context::output);
+      for (List<HL7v2Message> page : pages) {
+        page.stream().map(HL7v2Message::getName).forEach(context::output);
       }
     }
   }

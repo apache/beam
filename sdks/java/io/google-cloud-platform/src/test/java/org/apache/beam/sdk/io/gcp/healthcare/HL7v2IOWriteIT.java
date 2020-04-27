@@ -93,7 +93,7 @@ public class HL7v2IOWriteIT {
           client,
           healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME,
           MESSAGES.size(),
-          Duration.standardMinutes(10));
+          Duration.standardMinutes(2));
     } catch (TimeoutException e) {
       Assert.fail(e.getMessage());
     }

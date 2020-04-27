@@ -25,6 +25,7 @@ import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
@@ -82,13 +83,13 @@ public class HL7V2MessagePagesTest {
 
     HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo");
     assertTrue(pages.iterator().hasNext());
-    Iterator<Stream<HL7v2Message>> pagesIterator = pages.iterator();
+    Iterator<List<HL7v2Message>> pagesIterator = pages.iterator();
     assertEquals(
         page0.getHl7V2Messages().stream().map(Message::getName).collect(Collectors.toList()),
-        pagesIterator.next().map(HL7v2Message::getName).collect(Collectors.toList()));
+        pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertEquals(
         page1.getHl7V2Messages().stream().map(Message::getName).collect(Collectors.toList()),
-        pagesIterator.next().map(HL7v2Message::getName).collect(Collectors.toList()));
+        pagesIterator.next().stream().map(HL7v2Message::getName).collect(Collectors.toList()));
     assertFalse(pagesIterator.hasNext());
   }
 }

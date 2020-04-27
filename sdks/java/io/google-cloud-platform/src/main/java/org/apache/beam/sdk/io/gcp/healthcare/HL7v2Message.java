@@ -17,9 +17,9 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.Message;
-import java.io.IOException;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -44,25 +44,16 @@ public class HL7v2Message {
         && schematizedData.endsWith("}}")) {
       jsonData =
           schematizedData.substring(schematizedDataPrefix.length(), schematizedData.length() - 1);
-    } else {
-      jsonData = schematizedData;
-    }
-    try {
-      mapper.readTree(jsonData);
+      try {
+        mapper.readTree(jsonData);
+      } catch (JsonProcessingException e) {
+        throw new IllegalArgumentException(
+            String.format("Could not validate inner schematizedData JSON: %s", e.getMessage()));
+      }
       return jsonData;
-    } catch (IOException e) {
+    } else {
       throw new IllegalArgumentException(
-          String.format("Could not validate inner schematizedData JSON: %s", e.getMessage()));
-    }
-  }
-
-  @Override
-  public String toString() {
-    ObjectMapper mapper = new ObjectMapper();
-    try {
-      return mapper.writeValueAsString(this);
-    } catch (IOException e) {
-      return this.getData();
+          "expected schematized data string to be of the format '{data=<actual_valid_json>}'");
     }
   }
 
