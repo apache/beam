@@ -119,7 +119,7 @@ class V1TestUtil {
     private final String kind;
     @Nullable private final String namespace;
     private final int largePropertySize;
-    private Key ancestorKey;
+    private com.google.datastore.v1.Key ancestorKey;
 
     CreateEntityFn(
         String kind, @Nullable String namespace, String ancestor, int largePropertySize) {

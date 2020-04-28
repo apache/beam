@@ -61,8 +61,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowPara
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes.HasSize;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -133,6 +132,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   public static final String SIDE_INPUT_PARAMETER_METHOD = "sideInput";
   public static final String TIMER_FAMILY_PARAMETER_METHOD = "timerFamily";
   public static final String TIMER_ID_PARAMETER_METHOD = "timerId";
+  public static final String KEY_PARAMETER_METHOD = "key";
 
   /**
    * Returns a {@link ByteBuddyDoFnInvokerFactory} shared with all other invocations, so that its
@@ -397,12 +397,14 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   }
 
   public static class DefaultGetSize {
-    /** Uses {@link Sizes.HasSize} to produce the size. */
+    /** Uses {@link HasProgress} to produce the size. */
     @SuppressWarnings("unused")
     public static <InputT, OutputT> double invokeGetSize(
         DoFnInvoker.ArgumentProvider<InputT, OutputT> argumentProvider) {
-      if (argumentProvider.restrictionTracker() instanceof HasSize) {
-        return ((HasSize) argumentProvider.restrictionTracker()).getSize();
+      if (argumentProvider.restrictionTracker() instanceof HasProgress) {
+        return ((HasProgress) argumentProvider.restrictionTracker())
+            .getProgress()
+            .getWorkRemaining();
       } else {
         return 1.0;
       }
@@ -563,8 +565,6 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   private static Implementation getSizeDelegation(
       TypeDescription doFnType, @Nullable DoFnSignature.GetSizeMethod signature) {
     if (signature == null) {
-      // We must have already verified that in this case the restriction type
-      // is a subtype of HasDefaultTracker.
       return MethodDelegation.to(DefaultGetSize.class);
     } else {
       return new DoFnMethodWithExtraParametersDelegation(doFnType, signature);
@@ -1054,6 +1054,13 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
                 MethodInvocation.invoke(
                     getExtraContextFactoryMethodDescription(
                         TIMER_ID_PARAMETER_METHOD, DoFn.class)));
+          }
+
+          @Override
+          public StackManipulation dispatch(DoFnSignature.Parameter.KeyParameter p) {
+            return new StackManipulation.Compound(
+                simpleExtraContextParameter(KEY_PARAMETER_METHOD),
+                TypeCasting.to(new TypeDescription.ForLoadedType(p.keyT().getRawType())));
           }
         });
   }

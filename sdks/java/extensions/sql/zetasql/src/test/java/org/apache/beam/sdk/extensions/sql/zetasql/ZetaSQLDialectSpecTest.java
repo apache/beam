@@ -1981,6 +1981,21 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLHavingNull() {
+    String sql = "SELECT SUM(int64_val) FROM all_null_table GROUP BY primary_key HAVING false";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field").build();
+
+    PAssert.that(stream).empty();
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLBasicFixedWindowing() {
     String sql =
         "SELECT "

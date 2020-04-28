@@ -24,11 +24,11 @@ datasources:
   - name: BeamPSQL
     type: postgres
     orgId: 1
-    url: ${DB_HOST}:${DB_PORT}
+    url: ${PSQL_DB_HOST}:${PSQL_DB_PORT}
     secureJsonData:
-      password: ${DB_DBPWD}
-    user: ${DB_DBUSERNAME}
-    database: ${DB_DBNAME}
+      password: ${PSQL_DB_DBPWD}
+    user: ${PSQL_DB_DBUSERNAME}
+    database: ${PSQL_DB_DBNAME}
     jsonData:
       sslmode: disable
     editable: false
