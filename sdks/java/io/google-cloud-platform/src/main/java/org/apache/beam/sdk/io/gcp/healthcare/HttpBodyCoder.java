@@ -41,13 +41,13 @@ public class HttpBodyCoder extends AtomicCoder<HttpBody> {
   public HttpBodyCoder() {}
 
   @Override
-  public void encode(HttpBody value, OutputStream outStream) throws CoderException, IOException {
+  public void encode(HttpBody value, OutputStream outStream) throws IOException {
     String jsonStr = MAPPER.writeValueAsString(value);
     STRING_CODER.encode(jsonStr, outStream);
   }
 
   @Override
-  public HttpBody decode(InputStream inStream) throws CoderException, IOException {
+  public HttpBody decode(InputStream inStream) throws IOException {
     String strValue = StringUtf8Coder.of().decode(inStream);
     return MAPPER.readValue(strValue, HttpBody.class);
   }

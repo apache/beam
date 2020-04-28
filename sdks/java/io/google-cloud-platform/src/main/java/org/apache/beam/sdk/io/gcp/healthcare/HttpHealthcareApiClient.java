@@ -359,11 +359,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       initClient();
     }
 
-    // handle case where R4 http bodies aren't valid JSON.
-    if (bundle.getData().startsWith("GenericData{")) {
-      String data = bundle.getData();
-    }
-
     credentials.refreshIfExpired();
     StringEntity requestEntity = new StringEntity(bundle.getData(), ContentType.APPLICATION_JSON);
     URI uri;
