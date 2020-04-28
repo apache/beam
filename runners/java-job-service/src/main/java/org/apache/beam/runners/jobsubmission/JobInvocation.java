@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.jobsubmission;
+package org.apache.beam.runners.jobsubmission;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getRootCause;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables.getStackTraceAsString;

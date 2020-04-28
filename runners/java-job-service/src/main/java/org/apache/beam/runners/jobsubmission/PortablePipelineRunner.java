@@ -15,6 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.runners.jobsubmission;
 
-/** Job management services for use in beam runners. */
-package org.apache.beam.runners.fnexecution.jobsubmission;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+
+/** Runs a portable Beam pipeline on some execution engine. */
+public interface PortablePipelineRunner {
+  PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) throws Exception;
+}

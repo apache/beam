@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.jobsubmission;
+package org.apache.beam.runners.jobsubmission;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
@@ -46,7 +46,6 @@ import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineJarCreator.ArtifactRetriever;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Before;
 import org.junit.Test;
@@ -61,7 +60,7 @@ public class PortablePipelineJarCreatorTest implements Serializable {
   @Mock private JarFile inputJar;
   @Mock private JarOutputStream outputStream;
   @Mock private WritableByteChannel outputChannel;
-  @Mock private ArtifactRetriever retrievalServiceStub;
+  @Mock private PortablePipelineJarCreator.ArtifactRetriever retrievalServiceStub;
   private PortablePipelineJarCreator jarCreator;
 
   @Before

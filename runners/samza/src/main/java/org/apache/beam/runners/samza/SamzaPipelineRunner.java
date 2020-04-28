@@ -24,9 +24,9 @@ import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.construction.renderer.PipelineDotRenderer;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -15,12 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.jobsubmission;
+package org.apache.beam.runners.jobsubmission;
 
+import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.sdk.PipelineResult;
 
-/** Runs a portable Beam pipeline on some execution engine. */
-public interface PortablePipelineRunner {
-  PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) throws Exception;
+/** Result of a portable {@link PortablePipelineRunner#run(RunnerApi.Pipeline, JobInfo)}. */
+public interface PortablePipelineResult extends PipelineResult {
+
+  /**
+   * Returns the object to access monitoring infos from the pipeline.
+   *
+   * @throws UnsupportedOperationException if the runner doesn't support retrieving metrics.
+   */
+  JobApi.MetricResults portableMetrics() throws UnsupportedOperationException;
 }
