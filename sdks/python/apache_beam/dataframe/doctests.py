@@ -16,9 +16,9 @@
 
 """A module that allows running existing pandas doctests with Beam dataframes.
 
-This module hooks into the doctesting framework by customizing providing
-a custom runner and, in particular, an OutputChecker, as well as providing
-a fake object for mocking out the pandas module.
+This module hooks into the doctesting framework by providing a custom
+runner and, in particular, an OutputChecker, as well as providing a fake
+object for mocking out the pandas module.
 
 The (novel) sequence of events when running a doctest is as follows.
 
@@ -57,6 +57,9 @@ from apache_beam.dataframe import transforms
 class TestEnvironment(object):
   """A class managing the patching (of methods, inputs, and outputs) needed
   to run and validate tests.
+
+  These classes are patched to be able to recognize and retrieve inputs
+  and results, stored in `self._inputs` and `self._all_frames` respectively.
   """
   def __init__(self):
     self._inputs = {}
@@ -111,6 +114,8 @@ class TestEnvironment(object):
 
   @contextlib.contextmanager
   def context(self):
+    """Creates a context within which DeferredFrame types are monkey patched
+    to record ids."""
     with contextlib.ExitStack() as stack:
       for deferred_type in DeferredFrame._pandas_type_map.values():
         stack.enter_context(self._monkey_patch_type(deferred_type))
@@ -258,7 +263,7 @@ def teststring(text, report=True, **runner_kwargs):
   return result
 
 
-def testfile(*args, extraglobs=None, **kwargs):
+def testfile(*args, **kwargs):
   return _run_patched(doctest.testfile, *args, **kwargs)
 
 
@@ -266,15 +271,16 @@ def testmod(*args, **kwargs):
   return _run_patched(doctest.testmod, *args, **kwargs)
 
 
-def _run_patched(func, *args, extraglobs=None, use_beam=True, **kwargs):
+def _run_patched(func, *args, **kwargs):
   try:
     env = TestEnvironment()
-    extraglobs = dict(extraglobs or {})
+    use_beam = kwargs.pop('use_beam', True)
+    extraglobs = dict(kwargs.pop('extraglobs', {}))
     extraglobs['pd'] = env.fake_pandas_module()
     # Unfortunately the runner is not injectable.
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
-        env, use_beam, **kwargs)
+        env, use_beam=use_beam, **kwargs)
     return func(*args, extraglobs=extraglobs, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
