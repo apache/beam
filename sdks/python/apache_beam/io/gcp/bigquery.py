@@ -654,6 +654,10 @@ class _CustomBigQuerySource(BoundedSource):
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
+      project = self.project
+      if self.project is None:
+        project = pcoll.pipeline.options.view_as(
+            GoogleCloudOptions).project
       job = bq._start_query_job(
           self.project,
           self.query.get(),
