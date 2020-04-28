@@ -159,8 +159,7 @@ public class PeriodicSequence
     @Override
     public Progress getProgress() {
       double workRemaining = Math.max(range.getTo() - lastAttemptedOffset, 0);
-      return Progress
-          .from(range.getTo() - range.getFrom() - workRemaining, workRemaining);
+      return Progress.from(range.getTo() - range.getFrom() - workRemaining, workRemaining);
     }
   }
 
