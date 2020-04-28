@@ -242,8 +242,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
-    invoker.invokeOnWindowExpiration(new OnWindowExpirationArgumentProvider(window, timestamp));
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    invoker.invokeOnWindowExpiration(
+        new OnWindowExpirationArgumentProvider<>(window, timestamp, key));
   }
 
   private RuntimeException wrapUserCodeException(Throwable t) {
@@ -866,11 +867,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
    * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
    * DoFn} on window expiration.
    */
-  private class OnWindowExpirationArgumentProvider
+  private class OnWindowExpirationArgumentProvider<KeyT>
       extends DoFn<InputT, OutputT>.OnWindowExpirationContext
       implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
     private final BoundedWindow window;
     private final Instant timestamp;
+    private final KeyT key;
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
     private @Nullable StateNamespace namespace;
 
@@ -888,10 +890,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       return namespace;
     }
 
-    private OnWindowExpirationArgumentProvider(BoundedWindow window, Instant timestamp) {
+    private OnWindowExpirationArgumentProvider(BoundedWindow window, Instant timestamp, KeyT key) {
       fn.super();
       this.window = window;
       this.timestamp = timestamp;
+      this.key = key;
     }
 
     @Override
@@ -955,6 +958,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access time domain outside of @ProcessTimer method.");
+    }
+
+    @Override
+    public KeyT key() {
+      return key;
     }
 
     @Override

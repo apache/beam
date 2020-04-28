@@ -190,7 +190,8 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
-              Parameter.StateParameter.class);
+              Parameter.StateParameter.class,
+              Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =

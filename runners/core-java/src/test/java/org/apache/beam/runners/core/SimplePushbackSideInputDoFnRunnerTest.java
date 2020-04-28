@@ -374,7 +374,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     }
 
     @Override
-    public void onWindowExpiration(BoundedWindow window, Instant timestamp) {}
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
   }
 
   private SimplePushbackSideInputDoFnRunner<KV<String, Integer>, Integer> createRunner(

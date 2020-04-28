@@ -125,8 +125,8 @@ class DataflowProcessFnRunner<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
-    simpleRunner.onWindowExpiration(window, timestamp);
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    simpleRunner.onWindowExpiration(window, timestamp, key);
   }
 
   @Override

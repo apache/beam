@@ -151,8 +151,8 @@ public class StreamingKeyedWorkItemSideInputDoFnRunner<K, InputT, OutputT, W ext
   }
 
   @Override
-  public void onWindowExpiration(BoundedWindow window, Instant timestamp) {
-    simpleDoFnRunner.onWindowExpiration(window, timestamp);
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    simpleDoFnRunner.onWindowExpiration(window, timestamp, key);
   }
 
   ValueState<K> keyValue() {

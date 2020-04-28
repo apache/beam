@@ -397,7 +397,8 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           window,
           targetTime);
 
-      fnRunner.onWindowExpiration(window, timer.getOutputTimestamp());
+      fnRunner.onWindowExpiration(
+          window, timer.getOutputTimestamp(), this.stepContext.stateInternals().getKey());
 
       // This is for a timer for a window that is expired, so clean it up.
       for (StateDeclaration stateDecl : fnSignature.stateDeclarations().values()) {
