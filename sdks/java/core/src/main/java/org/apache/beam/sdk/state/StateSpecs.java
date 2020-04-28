@@ -27,9 +27,12 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.RowCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
+import org.apache.beam.sdk.values.Row;
 
 /** Static methods for working with {@link StateSpec StateSpecs}. */
 @Experimental(Kind.STATE)
@@ -42,12 +45,20 @@ public class StateSpecs {
   /**
    * Create a {@link StateSpec} for a single value of type {@code T}.
    *
-   * <p>This method attempts to infer the accumulator coder automatically.
+   * <p>This method attempts to infer the value coder automatically.
+   *
+   * <p>If the value type has a schema registered, then the schema will be used to encode the
+   * values.
    *
    * @see #value(Coder)
    */
   public static <T> StateSpec<ValueState<T>> value() {
     return new ValueStateSpec<>(null);
+  }
+
+  /** Create a {@link StateSpec} for a row value with the specified schema. */
+  public static StateSpec<ValueState<Row>> rowValue(Schema schema) {
+    return value(RowCoder.of(schema));
   }
 
   /**
@@ -129,10 +140,23 @@ public class StateSpecs {
    *
    * <p>This method attempts to infer the element coder automatically.
    *
+   * <p>If the element type has a schema registered, then the schema will be used to encode the
+   * values.
+   *
    * @see #bag(Coder)
    */
   public static <T> StateSpec<BagState<T>> bag() {
     return new BagStateSpec<>(null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link BagState}, optimized for adding values frequently and
+   * occasionally retrieving all the values that have been added.
+   *
+   * <p>This method is for storing row elements with the given schema.
+   */
+  public static StateSpec<BagState<Row>> rowBag(Schema schema) {
+    return new BagStateSpec<>(RowCoder.of(schema));
   }
 
   /**
@@ -149,10 +173,22 @@ public class StateSpecs {
    *
    * <p>This method attempts to infer the element coder automatically.
    *
+   * <p>If the element type has a schema registered, then the schema will be used to encode the
+   * values.
+   *
    * @see #set(Coder)
    */
   public static <T> StateSpec<SetState<T>> set() {
     return new SetStateSpec<>(null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link SetState}, optimized for checking membership.
+   *
+   * <p>This method is for storing row elements with the given schema.
+   */
+  public static StateSpec<SetState<Row>> rowSet(Schema schema) {
+    return new SetStateSpec<>(RowCoder.of(schema));
   }
 
   /**
@@ -169,10 +205,25 @@ public class StateSpecs {
    *
    * <p>This method attempts to infer the key and value coders automatically.
    *
+   * <p>If the key and value types have schemas registered, then the schemas will be used to encode
+   * the elements.
+   *
    * @see #map(Coder, Coder)
    */
   public static <K, V> StateSpec<MapState<K, V>> map() {
     return new MapStateSpec<>(null, null);
+  }
+
+  /**
+   * Create a {@link StateSpec} for a {@link SetState}, optimized for key lookups and writes.
+   *
+   * <p>This method is for storing maps where both the keys and the values are rows with the
+   * specified schemas.
+   *
+   * @see #map(Coder, Coder)
+   */
+  public static StateSpec<MapState<Row, Row>> rowMap(Schema keySchema, Schema valueSchema) {
+    return new MapStateSpec<>(RowCoder.of(keySchema), RowCoder.of(valueSchema));
   }
 
   /**
