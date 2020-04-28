@@ -88,22 +88,25 @@ func (tracker *Tracker) GetError() error {
 	return tracker.Err
 }
 
-// TrySplit splits at the nearest integer greater than the given fraction of the remainder.
-func (tracker *Tracker) TrySplit(fraction float64) (interface{}, error) {
+// TrySplit splits at the nearest integer greater than the given fraction of the remainder. If the
+// fraction given is outside of the [0, 1] range, it is clamped to 0 or 1.
+func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{}, err error) {
 	if tracker.Stopped || tracker.IsDone() {
-		return nil, nil
+		return tracker.Rest, nil, nil
 	}
-	if fraction < 0 || fraction > 1 {
-		return nil, errors.New("fraction must be in range [0, 1]")
+	if fraction < 0 {
+		fraction = 0
+	} else if fraction > 1 {
+		fraction = 1
 	}
 
-	splitPt := tracker.Rest.Start + int64(fraction*float64(tracker.Rest.End-tracker.Rest.Start))
-	if splitPt == tracker.Rest.End {
-		return nil, nil
+	splitPt := tracker.Claimed + int64(fraction*float64(tracker.Rest.End-tracker.Claimed))
+	if splitPt >= tracker.Rest.End {
+		return tracker.Rest, nil, nil
 	}
-	residual := Restriction{splitPt, tracker.Rest.End}
+	residual = Restriction{splitPt, tracker.Rest.End}
 	tracker.Rest.End = splitPt
-	return residual, nil
+	return tracker.Rest, residual, nil
 }
 
 // GetProgress reports progress based on the claimed size and unclaimed sizes of the restriction.

@@ -182,11 +182,13 @@ func TestMarshal(t *testing.T) {
 type testRT struct {
 }
 
-func (rt *testRT) TryClaim(interface{}) bool                      { return false }
-func (rt *testRT) GetError() error                                { return nil }
-func (rt *testRT) TrySplit(fraction float64) (interface{}, error) { return nil, nil }
-func (rt *testRT) GetProgress() (float64, float64)                { return 0, 0 }
-func (rt *testRT) IsDone() bool                                   { return true }
+func (rt *testRT) TryClaim(interface{}) bool       { return false }
+func (rt *testRT) GetError() error                 { return nil }
+func (rt *testRT) GetProgress() (float64, float64) { return 0, 0 }
+func (rt *testRT) IsDone() bool                    { return true }
+func (rt *testRT) TrySplit(fraction float64) (interface{}, interface{}, error) {
+	return nil, nil, nil
+}
 
 // splitPickFn is used for the SDF test, and just needs to fulfill SDF method
 // signatures.
