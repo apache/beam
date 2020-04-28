@@ -21,12 +21,13 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.schemas.JavaFieldSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
@@ -34,20 +35,55 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
- * A {@link PTransform} which generates a sequence of timestamped elements at given interval in
- * runtime.
+ * A {@link PTransform} which generates a sequence of timestamped elements at given runtime
+ * interval.
  *
- * <p>Receives a PCollection<List<Long>> where each element triggers the generation of sequence and
- * has following elements: 0: first element timestamp 1: last element timestamp 2: interval
+ * <p>Transform will not output elements prior to target time. Transform can output elements at any
+ * time after target time.
  *
- * <p>All elements that have timestamp in the past will be output right away. Elements that have
- * timestamp in the future will be delayed.
- *
- * <p>Transform will not output elements prior to target timestamp. Transform can output elements at
- * any time after target timestamp.
+ * <p>Multiple elements can be output at given moment if their timestamp is earlier than current
+ * time.
  */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
-public class PeriodicSequence extends PTransform<PCollection<List<Long>>, PCollection<Instant>> {
+public class PeriodicSequence
+    extends PTransform<PCollection<PeriodicSequence.SequenceDefinition>, PCollection<Instant>> {
+
+  @DefaultSchema(JavaFieldSchema.class)
+  public static class SequenceDefinition {
+    public Instant first;
+    public Instant last;
+    public Long durationMilliSec;
+
+    public SequenceDefinition() {}
+
+    public SequenceDefinition(Instant first, Instant last, Duration duration) {
+      this.first = first;
+      this.last = last;
+      this.durationMilliSec = duration.getMillis();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+
+      if (obj == null || obj.getClass() != this.getClass()) {
+        return false;
+      }
+
+      SequenceDefinition src = (SequenceDefinition) obj;
+      return src.first.equals(this.first)
+          && src.last.equals(this.last)
+          && src.durationMilliSec.equals(this.durationMilliSec);
+    }
+
+    @Override
+    public int hashCode() {
+      int result = Objects.hash(first, last, durationMilliSec);
+      return result;
+    }
+  }
 
   private PeriodicSequence() {}
 
@@ -57,7 +93,7 @@ public class PeriodicSequence extends PTransform<PCollection<List<Long>>, PColle
 
   @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
   public static class OutputRangeTracker extends RestrictionTracker<OffsetRange, Long>
-      implements Sizes.HasSize {
+      implements RestrictionTracker.HasProgress {
     private OffsetRange range;
     @Nullable private Long lastClaimedOffset = null;
     @Nullable private Long lastAttemptedOffset = null;
@@ -121,21 +157,18 @@ public class PeriodicSequence extends PTransform<PCollection<List<Long>>, PColle
     }
 
     @Override
-    public double getSize() {
-      return Math.max(range.getTo() - lastAttemptedOffset, 0);
+    public Progress getProgress() {
+      double workRemaining = Math.max(range.getTo() - lastAttemptedOffset, 0);
+      return Progress
+          .from(range.getTo() - range.getFrom() - workRemaining, workRemaining);
     }
   }
 
-  private static class PeriodicSequenceFn extends DoFn<List<Long>, Instant> {
+  private static class PeriodicSequenceFn extends DoFn<SequenceDefinition, Instant> {
     @GetInitialRestriction
-    public OffsetRange getInitialRange(@Element List<Long> element) {
-      String instruction =
-          "Source elements should be List<Long> with:\n"
-              + "  0: start timestamp\n"
-              + "  1: stop timestamp\n"
-              + "  3: period interval";
-      checkArgument(element.size() >= 3, instruction);
-      return new OffsetRange(element.get(0) - element.get(2), element.get(1));
+    public OffsetRange getInitialRange(@Element SequenceDefinition element) {
+      return new OffsetRange(
+          element.first.getMillis() - element.durationMilliSec, element.last.getMillis());
     }
 
     @NewTracker
@@ -145,12 +178,12 @@ public class PeriodicSequence extends PTransform<PCollection<List<Long>>, PColle
 
     @ProcessElement
     public ProcessContinuation processElement(
-        @Element List<Long> srcElement,
+        @Element SequenceDefinition srcElement,
         OutputReceiver<Instant> out,
         RestrictionTracker<OffsetRange, Long> restrictionTracker) {
 
       OffsetRange restriction = restrictionTracker.currentRestriction();
-      Long interval = srcElement.get(2);
+      Long interval = srcElement.durationMilliSec;
       Long nextOutput = restriction.getFrom() + interval;
 
       boolean claimSuccess = true;
@@ -174,7 +207,7 @@ public class PeriodicSequence extends PTransform<PCollection<List<Long>>, PColle
   }
 
   @Override
-  public PCollection<Instant> expand(PCollection<List<Long>> input) {
+  public PCollection<Instant> expand(PCollection<SequenceDefinition> input) {
     return input.apply(ParDo.of(new PeriodicSequenceFn()));
   }
 }

@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import java.util.List;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -69,13 +67,13 @@ public class PeriodicImpulse extends PTransform<PBegin, PCollection<Instant>> {
 
   @Override
   public PCollection<Instant> expand(PBegin input) {
-    Long[] seqInitArgsArr =
-        new Long[] {
-          startTimestamp.getMillis(), stopTimestamp.getMillis(), fireInterval.getMillis()
-        };
-    List<Long> seqInitArgs = Lists.newArrayList(seqInitArgsArr);
     PCollection<Instant> result =
-        input.apply(Create.<List<Long>>of(seqInitArgs)).apply(PeriodicSequence.create());
+        input
+            .apply(
+                Create.<PeriodicSequence.SequenceDefinition>of(
+                    new PeriodicSequence.SequenceDefinition(
+                        startTimestamp, stopTimestamp, fireInterval)))
+            .apply(PeriodicSequence.create());
 
     if (this.applyWindowing) {
       result =
