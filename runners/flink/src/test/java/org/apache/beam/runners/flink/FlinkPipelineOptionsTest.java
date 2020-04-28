@@ -76,6 +76,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getFilesToStage(), is(nullValue()));
     assertThat(options.getLatencyTrackingInterval(), is(0L));
     assertThat(options.isShutdownSourcesOnFinalWatermark(), is(false));
+    assertThat(options.getShutdownSourcesAfterIdleMs(), is(0L));
     assertThat(options.getObjectReuse(), is(false));
     assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE.name()));
     assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
