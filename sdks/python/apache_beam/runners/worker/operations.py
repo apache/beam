@@ -738,8 +738,7 @@ class DoOperation(Operation):
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
             DistributionData(sum, count, min, max),
             pcollection=pcollection_id)
-        infos[monitoring_infos.to_key(
-            sampled_byte_count)] = sampled_byte_count
+        infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
 
