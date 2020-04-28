@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.jobsubmission;
+package org.apache.beam.runners.jobsubmission;
 
 import com.google.auto.value.AutoValue;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
