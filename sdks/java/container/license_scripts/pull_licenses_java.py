@@ -279,7 +279,7 @@ if __name__ == "__main__":
                  'code of the dependencies on the internet and add "license" ' \
                  'and "notice" (if available) field to {yaml_file} for each ' \
                  'missing license. Dependency List: [{dep_list}]'.format(
-            dep_list=','.join(sorted(no_licenses)), yaml_file=yaml_file)
+            dep_list=','.join(sorted(no_licenses)), yaml_file=dep_url_yaml)
         error_msg.append(how_to)
         run_status = 'failed'
 
@@ -290,7 +290,7 @@ if __name__ == "__main__":
                  'source code of the dependency should be pulled or not. ' \
                  'Please add "type" field to {yaml_file} for each dependency. ' \
                  'Dependency List: [{dep_list}]'.format(
-            dep_list=','.join(sorted(no_license_type)), yaml_file=yaml_file)
+            dep_list=','.join(sorted(no_license_type)), yaml_file=dep_url_yaml)
         error_msg.append(how_to)
         run_status = 'failed'
 
@@ -301,7 +301,7 @@ if __name__ == "__main__":
                  '"source" field to {yaml_file} for each dependency. ' \
                  'Dependency List: [{dep_list}]'.format(
             dep_list=','.join(sorted(incorrect_source_url)),
-            yaml_file=yaml_file)
+            yaml_file=dep_url_yaml)
         error_msg.append(how_to)
         run_status = 'failed'
 
