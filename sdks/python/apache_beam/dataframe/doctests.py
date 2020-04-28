@@ -185,11 +185,12 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
             for placeholder,
             input in self._env._inputs.items()
         }
-        output_pcolls = input_pcolls | transforms._DataframeExpressionsTransform(
-            {name: frame._expr
-             for name, frame in to_compute.items()})
+        output_pcolls = (
+            input_pcolls | transforms._DataframeExpressionsTransform(
+                {name: frame._expr
+                 for name, frame in to_compute.items()}))
         for name, output_pcoll in output_pcolls.items():
-          output_pcoll | 'Record%s' % name >> beam.FlatMap(
+          _ = output_pcoll | 'Record%s' % name >> beam.FlatMap(
               recorder.record_fn(name))
       # pipeline runs, side effects recorded
       return {
