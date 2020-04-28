@@ -32,7 +32,6 @@ from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.transforms.sql import SqlTransform
-from apache_beam.utils import subprocess_server
 
 MyRow = typing.NamedTuple('MyRow', [('word', unicode)])
 coders.registry.register_coder(MyRow, coders.RowCoder)
@@ -96,11 +95,6 @@ def main():
 
   known_args, pipeline_args = parser.parse_known_args()
 
-  path_to_jar = subprocess_server.JavaJarServer.path_to_beam_jar(
-      ":sdks:java:extensions:sql:expansion-service:shadowJar")
-  # TODO(BEAM-9238): Remove this when it's no longer needed for artifact
-  # staging.
-  pipeline_args.extend(['--experiment', 'jar_packages=%s' % path_to_jar])
   pipeline_options = PipelineOptions(pipeline_args)
 
   # We use the save_main_session option because one or more DoFn's in this

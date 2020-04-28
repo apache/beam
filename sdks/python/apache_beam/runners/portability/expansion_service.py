@@ -40,7 +40,7 @@ class ExpansionServiceServicer(
     self._options = options or beam_pipeline.PipelineOptions(
         environment_type=python_urns.EMBEDDED_PYTHON, sdk_location='container')
 
-  def Expand(self, request, context):
+  def Expand(self, request, context=None):
     try:
       pipeline = beam_pipeline.Pipeline(options=self._options)
 
