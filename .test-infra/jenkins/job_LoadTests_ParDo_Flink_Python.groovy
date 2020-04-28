@@ -22,11 +22,12 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
 import Docker
+import InfluxDBCredentialsHelper
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
 /**
- * The test results for these load tests reside in BigQuery in the load_test_PRs table of the
+ * The test results for these load tests reside in BigQuery in the load_test/load_test_PRs table of the
  * apache-beam-testing project. A dashboard is available here:
  * https://apache-beam-testing.appspot.com/explore?dashboard=5751884853805056
  *
@@ -54,7 +55,7 @@ String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
  *   );
  */
 
-def batchScenarios = { datasetName, sdkHarnessImageTag -> [
+def batchScenarios = { datasetName -> [
         [
                 title          : 'ParDo Python Load test: 20M 100 byte records 10 times',
                 test           : 'apache_beam.testing.load_tests.pardo_test',
@@ -65,6 +66,7 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_1',
+                        influx_measurement   : 'python_batch_pardo_1',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -74,7 +76,6 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         number_of_counters   : 0,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -88,6 +89,7 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_2',
+                        influx_measurement   : 'python_batch_pardo_2',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -97,7 +99,6 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         number_of_counters   : 0,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -111,6 +112,7 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_3',
+                        influx_measurement   : 'python_batch_pardo_3',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -120,7 +122,6 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         number_of_counters   : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -134,6 +135,7 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_pardo_4',
+                        influx_measurement   : 'python_batch_pardo_4',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -143,13 +145,13 @@ def batchScenarios = { datasetName, sdkHarnessImageTag -> [
                         number_of_counters   : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
-def streamingScenarios = { datasetName, sdkHarnessImageTag -> [
+def streamingScenarios = { datasetName -> [
     [
         title          : 'ParDo Python Stateful Streaming Load test: 2M 100 byte records',
         test           : 'apache_beam.testing.load_tests.pardo_test',
@@ -160,6 +162,7 @@ def streamingScenarios = { datasetName, sdkHarnessImageTag -> [
             publish_to_big_query : true,
             metrics_dataset      : datasetName,
             metrics_table        : 'python_flink_streaming_pardo_5',
+            influx_measurement   : 'python_streaming_pardo_5',
             input_options        : '\'{' +
                 '"num_records": 2000000,' +
                 '"key_size": 10,' +
@@ -172,7 +175,6 @@ def streamingScenarios = { datasetName, sdkHarnessImageTag -> [
             streaming            : null,
             stateful             : null,
             job_endpoint         : 'localhost:8099',
-            environment_config   : sdkHarnessImageTag,
             environment_type     : 'DOCKER',
         ]
     ],
@@ -186,6 +188,7 @@ def streamingScenarios = { datasetName, sdkHarnessImageTag -> [
             publish_to_big_query : true,
             metrics_dataset      : datasetName,
             metrics_table        : 'python_flink_streaming_pardo_6',
+            influx_measurement   : 'python_streaming_pardo_6',
             input_options        : '\'{' +
                 '"num_records": 2000000,' +
                 '"key_size": 10,' +
@@ -204,11 +207,11 @@ def streamingScenarios = { datasetName, sdkHarnessImageTag -> [
             // Ensure that we can checkpoint the pipeline for at least 5 minutes to gather checkpointing stats
             shutdown_sources_after_idle_ms: 300000,
             job_endpoint         : 'localhost:8099',
-            environment_config   : sdkHarnessImageTag,
             environment_type     : 'DOCKER',
         ]
     ],
-]}
+  ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def loadBatchTests = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
@@ -216,7 +219,8 @@ def loadBatchTests = { scope, triggeringContext ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  List<Map> batchTestScenarios = batchScenarios(datasetName, pythonHarnessImageTag)
+  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
+  List<Map> batchTestScenarios = batchScenarios(datasetName)
 
   publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
   publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
@@ -232,7 +236,8 @@ def loadStreamingTests = { scope, triggeringContext ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  List<Map> streamingTestScenarios = streamingScenarios(datasetName, pythonHarnessImageTag)
+  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
+  List<Map> streamingTestScenarios = streamingScenarios(datasetName)
 
   publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
   publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server', 'streaming-load-tests')
@@ -248,6 +253,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
   'Load Tests Python ParDo Flink Batch suite',
   this
 ) {
+  additionalPipelineArgs = [:]
   loadBatchTests(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
@@ -257,13 +263,24 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     'Load Tests Python ParDo Flink Streaming suite',
     this
 ) {
+  additionalPipelineArgs = [:]
   loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Batch', 'H 13 * * *', this) {
+  InfluxDBCredentialsHelper.useCredentials(delegate)
+  additionalPipelineArgs = [
+      influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+      influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+  ]
   loadBatchTests(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Flink_Streaming', 'H 13 * * *', this) {
+  InfluxDBCredentialsHelper.useCredentials(delegate)
+  additionalPipelineArgs = [
+      influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+      influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+  ]
   loadStreamingTests(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
