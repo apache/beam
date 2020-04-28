@@ -21,15 +21,13 @@ apiVersion: 1
 deleteDatasources:
 
 datasources:
-  - name: BeamPSQL
-    type: postgres
+  - name: BeamInfluxDB
+    type: influxdb
+    access: proxy
     orgId: 1
-    url: ${PSQL_DB_HOST}:${PSQL_DB_PORT}
+    url: http://${INFLUX_DB_HOST}:${INFLUX_DB_PORT}
     secureJsonData:
-      password: ${PSQL_DB_DBPWD}
-    user: ${PSQL_DB_DBUSERNAME}
-    database: ${PSQL_DB_DBNAME}
-    jsonData:
-      sslmode: disable
+      password: ${INFLUX_DB_PASSWORD}
+    user: ${INFLUX_DB_USER}
+    database: ${INFLUX_DB_DBNAME}
     editable: false
-
