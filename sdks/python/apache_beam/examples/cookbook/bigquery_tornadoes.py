@@ -87,12 +87,19 @@ def run(argv=None):
       help=('GCS Location to store files to load '
             'data into Bigquery'))
 
+  parser.add_argument(
+    '--project',
+    required=False,
+    help=('Project in which temporary BigQuery tables are created for read '
+         'source.'))
+
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
 
     # Read the table rows into a PCollection.
-    rows = p | 'read' >> beam.io.ReadFromBigQuery(table=known_args.input)
+    rows = p | 'read' >> beam.io.ReadFromBigQuery(table=known_args.input,
+                                                  project=known_args.project)
     counts = count_tornadoes(rows)
 
     # Write the output using a "Write" transform that has side effects.
