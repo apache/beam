@@ -39,9 +39,9 @@ The (novel) sequence of events when running a doctest is as follows.
 
 from __future__ import absolute_import
 
-import doctest
 import collections
 import contextlib
+import doctest
 import re
 
 import numpy as np
@@ -49,9 +49,9 @@ import pandas as pd
 
 import apache_beam as beam
 from apache_beam.dataframe import expressions
-from apache_beam.dataframe.frame_base import DeferredFrame
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import transforms
+from apache_beam.dataframe.frame_base import DeferredFrame
 
 
 class TestEnvironment(object):
