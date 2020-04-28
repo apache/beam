@@ -724,6 +724,8 @@ class DoOperation(Operation):
 
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
+        if str(tag) not in tag_to_pcollection_id:
+          continue
         pcollection_id = tag_to_pcollection_id[str(tag)]
         if pcollection_id:
           mi = monitoring_infos.int64_counter(
