@@ -569,8 +569,8 @@ func (rt *RTrackerT) TryClaim(interface{}) bool {
 func (rt *RTrackerT) GetError() error {
 	return nil
 }
-func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, error) {
-	return nil, nil
+func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, interface{}, error) {
+	return nil, nil, nil
 }
 func (rt *RTrackerT) GetProgress() (float64, float64) {
 	return 0, 0

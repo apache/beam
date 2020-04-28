@@ -222,7 +222,10 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // DoFn instance via output PCollections, in the absence of external
 // communication mechanisms written by user code.
 //
-// Splittable DoFns
+// Splittable DoFns (Experimental)
+//
+// Warning: Splittable DoFns are still experimental, largely untested, and
+// likely to have bugs.
 //
 // Splittable DoFns are DoFns that are able to split work within an element,
 // as opposed to only at element boundaries like normal DoFns. This is useful
@@ -258,7 +261,9 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 // can land within a restriction and will require splitting that restriction.
 //
 // * Note: The Go SDK currently does not support dynamic splitting for SDFs,
-//   only initial splitting. Work can only be split at element boundaries.
+//   only initial splitting. Only initially split restrictions can be
+//   distributed by liquid sharding. Stragglers will not be split during
+//   execution with dynamic splitting.
 //
 // Splittable DoFn Methods
 //
@@ -286,11 +291,12 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 //     example, a size of 200 represents twice as much work as a size of
 //     100, but the numbers do not represent anything on their own. Size is
 //     used by runners to estimate work for liquid sharding.
-// * `CreateTracker(restriction) sdf.RTracker`
-//     CreateTracker creates a restriction tracker (implementing `sdf.RTracker`)
-//     from a restriction. The restriction tracker is used to track progress
-//     processing a restriction, and to allow for dynamic splits. This method
-//     is called on each restriction right before processing begins.
+// * `CreateTracker(restriction) restrictionTracker`
+//     CreateTracker creates and returns a restriction tracker (a concrete type
+//     implementing the `sdf.RTracker` interface) given a restriction. The
+//     restriction tracker is used to track progress processing a restriction,
+//     and to allow for dynamic splits. This method is called on each
+//     restriction right before processing begins.
 // * `ProcessElement(sdf.RTracker, element, func emit(output))`
 //     For splittable DoFns, ProcessElement requires a restriction tracker
 //     before inputs, and generally requires emits to be used for outputs, since
