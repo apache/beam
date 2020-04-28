@@ -132,7 +132,7 @@ class InteractiveRunner(runners.PipelineRunner):
     if exit is not None:
       self._in_session = False
       _LOGGER.info('Ending session.')
-      sys.exit(None, None, None)
+      exit(None, None, None)
 
   def cleanup(self):
     self._cache_manager.cleanup()

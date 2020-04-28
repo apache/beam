@@ -89,6 +89,7 @@ disable =
   comparison-with-callable,
   consider-using-enumerate,
   consider-using-in,
+  consider-using-sys-exit,
   cyclic-import,
   design,
   fixme,
