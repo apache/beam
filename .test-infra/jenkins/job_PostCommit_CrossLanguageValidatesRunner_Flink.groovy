@@ -34,14 +34,14 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Flink',
 
   // Gradle goals for this job.
   steps {
-    shell('echo *** RUN CROSS-LANGUAGE FLINK USING PYTHON 2.7 ***')
+    shell('echo "*** RUN CROSS-LANGUAGE FLINK USING PYTHON 2.7 ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')
       commonJobProperties.setGradleSwitches(delegate)
       switches('-PpythonVersion=2.7')
     }
-    shell('echo *** RUN CROSS-LANGUAGE FLINK USING PYTHON 3.5 ***')
+    shell('echo "*** RUN CROSS-LANGUAGE FLINK USING PYTHON 3.5 ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':runners:flink:1.10:job-server:validatesCrossLanguageRunner')

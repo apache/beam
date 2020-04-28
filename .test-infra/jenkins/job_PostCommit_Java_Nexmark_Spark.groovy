@@ -35,7 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Gradle goals for this job.
   steps {
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -50,7 +50,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--manageResources=false',
               '--monitorJobs=true'].join(' '))
     }
-    shell('echo *** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***')
+    shell('echo "*** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -66,7 +66,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--manageResources=false',
               '--monitorJobs=true'].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING SPARK STRUCTURED STREAMING RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING SPARK STRUCTURED STREAMING RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -83,7 +83,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--manageResources=false',
               '--monitorJobs=true'].join(' '))
     }
-    shell('echo *** RUN NEXMARK SQL IN BATCH MODE USING SPARK STRUCTURED STREAMING RUNNER ***')
+    shell('echo "*** RUN NEXMARK SQL IN BATCH MODE USING SPARK STRUCTURED STREAMING RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')

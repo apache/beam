@@ -39,7 +39,7 @@ class LoadTestsBuilder {
     options.put('runner', runner.option)
 
     context.steps {
-      shell("echo *** ${title} ***")
+      shell('echo "*** ${title} ***"')
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass)
