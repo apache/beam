@@ -304,7 +304,10 @@ interface for defaults and additional pipeline configuration options.</p>
 
 <p><strong>Setting parallelism</strong></p>
 
-<p>Number of threads or subprocesses is defined by setting the <code class="highlighter-rouge">direct_num_workers</code> option. There are several ways to set this option.</p>
+<p>Number of threads or subprocesses is defined by setting the <code class="highlighter-rouge">direct_num_workers</code> option. 
+From 2.22.0, <code class="highlighter-rouge">direct_num_workers = 0</code> is supported. When <code class="highlighter-rouge">direct_num_workers</code> is set to 0, it will set the number of threads/subprocess to the number of cores of the machine where the pipelien is running.</p>
+
+<p>There are several ways to set this option.</p>
 
 <ul>
   <li>Passing through CLI when executing a pipeline.
