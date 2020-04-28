@@ -103,8 +103,8 @@ python -m apache_beam.examples.wordcount \
 
 To build Beam SDK container images:
 
-1. Navigate to the local copy of your [customized container image](#customizing-container-images).
-2. Run Gradle with the `docker` target. If you're [building a child image](#writing-new-dockerfiles), set the optional `--file` flag to the new Dockerfile. If you're [building an image from an original Dockerfile](#modifying-dockerfiles), ignore the `--file` flag and use a default repository:
+1. Navigate to the root directory of the local copy of your Apache Beam.
+2. Run Gradle with the `docker` target. If you're [building a child image](#writing-new-dockerfiles), set the optional `--file` flag to the new Dockerfile. If you're [building an image from an original Dockerfile](#modifying-dockerfiles), ignore the `--file` flag:
 
 ```
 # The default repository of each SDK
@@ -118,6 +118,10 @@ To build Beam SDK container images:
 # Shortcut for building all four Python SDKs
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
 ```
+
+From 2.21.0, `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
+For example, `./gradlew :sdks:java:container:docker -Pdocker-pull-licenses`. The files are added to `/opt/apache/beam/third_party_licenses/`. 
+By default, no licenses/notices are added to the docker images.
 
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
 ```
