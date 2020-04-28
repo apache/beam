@@ -138,6 +138,9 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 		if err != nil {
 			return n.fail(err)
 		}
+		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+			return rtErrHelper(mainIn.RTracker.GetError())
+		}
 
 		// Forward direct output, if any. It is always a main output.
 		if val != nil {
@@ -152,6 +155,9 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 			if err != nil {
 				return n.fail(err)
 			}
+			if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+				return rtErrHelper(mainIn.RTracker.GetError())
+			}
 
 			// Forward direct output, if any. It is always a main output.
 			if val != nil {
@@ -160,6 +166,13 @@ func (n *ParDo) processMainInput(mainIn *MainInput) error {
 		}
 	}
 	return nil
+}
+
+func rtErrHelper(err error) error {
+	if err != nil {
+		return err
+	}
+	return errors.New("DoFn terminated without fully processing restriction")
 }
 
 // mustExplodeWindows returns true iif we need to call the function
