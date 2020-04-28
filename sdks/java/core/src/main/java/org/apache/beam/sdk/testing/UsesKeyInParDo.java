@@ -19,10 +19,12 @@ package org.apache.beam.sdk.testing;
 
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn.OnTimer;
+import org.apache.beam.sdk.transforms.DoFn.OnWindowExpiration;
 
 /**
- * Category tag for validation tests which use key. Tests tagged with {@link UsesKey} should be run
- * for runners which support key parameter in {@link OnTimer}.
+ * Category tag for validation tests which use key. Tests tagged with {@link UsesKeyInParDo} should
+ * be run for runners which support key parameter in {@link OnTimer} and {@link OnWindowExpiration},
+ * .
  */
 @Internal
-public interface UsesKey {}
+public interface UsesKeyInParDo {}
