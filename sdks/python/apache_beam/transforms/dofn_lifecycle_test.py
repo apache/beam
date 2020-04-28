@@ -91,8 +91,9 @@ class LocalDoFnLifecycleTest(unittest.TestCase):
   def test_dofn_lifecycle(self):
     from apache_beam.runners.direct import direct_runner
     from apache_beam.runners.portability import fn_api_runner
-    runners = [direct_runner.BundleBasedDirectRunner(),
-               fn_api_runner.FnApiRunner()]
+    runners = [
+        direct_runner.BundleBasedDirectRunner(), fn_api_runner.FnApiRunner()
+    ]
     for r in runners:
       with TestPipeline(runner=r) as p:
         _ = (
