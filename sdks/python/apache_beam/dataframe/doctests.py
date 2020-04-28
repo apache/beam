@@ -212,7 +212,8 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
 
   def check_output(self, want, got, optionflags):
     want, got = self.fix(want, got)
-    return super(OutputChecker, self).check_output(want, got, optionflags)
+    return super(_DeferrredDataframeOutputChecker,
+                 self).check_output(want, got, optionflags)
 
   def output_difference(self, example, got, optionflags):
     want, got = self.fix(example.want, got)
@@ -225,7 +226,7 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
           example.lineno,
           example.indent,
           example.options)
-    return super(OutputChecker,
+    return super(_DeferrredDataframeOutputChecker,
                  self).output_difference(example, got, optionflags)
 
 
