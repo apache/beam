@@ -55,10 +55,12 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.flink.FlinkDebugPipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.CheckpointStats;
 import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
@@ -67,6 +69,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -193,6 +196,9 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
   @Nullable transient FlinkMetricContainer flinkMetricContainer;
+
+  /** Helper class to report the checkpoint duration. */
+  @Nullable private transient CheckpointStats checkpointStats;
 
   /** A timer that finishes the current bundle after a fixed amount of time. */
   private transient ScheduledFuture<?> checkFinishBundleTimer;
@@ -455,6 +461,18 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (!options.getDisableMetrics()) {
       flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
+      String checkpointMetricNamespace =
+          options.as(FlinkDebugPipelineOptions.class).getReportCheckpointDuration();
+      if (checkpointMetricNamespace != null) {
+        MetricName checkpointMetric =
+            MetricName.named(checkpointMetricNamespace, "checkpoint_duration");
+        checkpointStats =
+            new CheckpointStats(
+                () ->
+                    flinkMetricContainer
+                        .getMetricsContainer(stepName)
+                        .getDistribution(checkpointMetric));
+      }
     }
 
     elementCount = 0L;
@@ -829,6 +847,10 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public final void snapshotState(StateSnapshotContext context) throws Exception {
+    if (checkpointStats != null) {
+      checkpointStats.snapshotStart(context.getCheckpointId());
+    }
+
     if (requiresStableInput) {
       // We notify the BufferingDoFnRunner to associate buffered state with this
       // snapshot id and start a new buffer for elements arriving after this snapshot.
@@ -857,12 +879,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public final void notifyCheckpointComplete(long checkpointId) throws Exception {
-    super.notifyCheckpointComplete(checkpointId);
+    if (checkpointStats != null) {
+      checkpointStats.reportCheckpointDuration(checkpointId);
+    }
+
     if (requiresStableInput) {
       // We can now release all buffered data which was held back for
       // @RequiresStableInput guarantees.
       bufferingDoFnRunner.checkpointCompleted(checkpointId);
     }
+
+    super.notifyCheckpointComplete(checkpointId);
   }
 
   @Override

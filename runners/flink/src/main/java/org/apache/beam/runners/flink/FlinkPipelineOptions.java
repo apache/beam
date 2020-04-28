@@ -25,13 +25,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
- * Options which can be used to configure a Flink PortablePipelineRunner.
+ * Options which can be used to configure the Flink Runner.
  *
  * <p>Avoid using `org.apache.flink.*` members below. This allows including the flink runner without
  * requiring flink on the classpath (e.g. to use with the direct runner).
  */
 public interface FlinkPipelineOptions
-    extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
+    extends FlinkDebugPipelineOptions, PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   String AUTO = "[auto]";
   String PIPELINED = "PIPELINED";

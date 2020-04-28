@@ -49,6 +49,12 @@ class LoadTestOptions(PipelineOptions):
         '--input_options',
         type=json.loads,
         help='Input specification of SyntheticSource.')
+    parser.add_argument(
+        '--timeout_ms',
+        type=int,
+        default=0,
+        help='Waiting time for the completion of the pipeline in milliseconds.'
+        'Defaults to waiting forever.')
 
   @staticmethod
   def _str_to_boolean(value):
@@ -62,10 +68,13 @@ class LoadTestOptions(PipelineOptions):
 
 class LoadTest(object):
   def __init__(self):
-    self.pipeline = TestPipeline(is_integration_test=True)
+    # Be sure to set blocking to false for timeout_ms to work properly
+    self.pipeline = TestPipeline(is_integration_test=True, blocking=False)
+    assert not self.pipeline.blocking
 
     load_test_options = self.pipeline.get_pipeline_options().view_as(
         LoadTestOptions)
+    self.timeout_ms = load_test_options.timeout_ms
     self.input_options = load_test_options.input_options
     self.metrics_namespace = load_test_options.metrics_table or 'default'
     publish_to_bq = load_test_options.publish_to_big_query
@@ -102,7 +111,8 @@ class LoadTest(object):
       self.test()
       if not hasattr(self, 'result'):
         self.result = self.pipeline.run()
-        self.result.wait_until_finish()
+        # Defaults to waiting forever, unless timeout_ms has been set
+        self.result.wait_until_finish(duration=self.timeout_ms)
       self._metrics_monitor.publish_metrics(self.result)
     finally:
       self.cleanup()
@@ -124,12 +134,15 @@ class LoadTest(object):
     }
 
   def get_option_or_default(self, opt_name, default=0):
-    """Returns a pipeline option or a default value if it was not provided.
+    """Returns a testing option or a default value if it was not provided.
 
-    The returned value is converted to an integer.
+    The returned value is cast to the type of the default value.
     """
-    option = self.pipeline.get_option(opt_name)
-    try:
-      return int(option)
-    except TypeError:
+    option = self.pipeline.get_option(
+        opt_name, bool_option=type(default) == bool)
+    if option is None:
       return default
+    try:
+      return type(default)(option)
+    except:
+      raise

@@ -97,6 +97,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
    */
   private final boolean shutdownOnFinalWatermark;
 
+  /** The idle time before we the source shuts down. */
+  private final long idleTimeoutMs;
+
   /** The local split sources. Assigned at runtime when the wrapper is executed in parallel. */
   private transient List<UnboundedSource<OutputT, CheckpointMarkT>> localSplitSources;
 
@@ -171,8 +174,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     // this is necessary so that the mapping of state to source is correct
     // when restoring
     splitSources = source.split(parallelism, pipelineOptions);
-    shutdownOnFinalWatermark =
-        pipelineOptions.as(FlinkPipelineOptions.class).isShutdownSourcesOnFinalWatermark();
+
+    FlinkPipelineOptions options = pipelineOptions.as(FlinkPipelineOptions.class);
+    shutdownOnFinalWatermark = options.isShutdownSourcesOnFinalWatermark();
+    idleTimeoutMs = options.getShutdownSourcesAfterIdleMs();
   }
 
   /** Initialize and restore state before starting execution of the source. */
@@ -313,8 +318,9 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
       //
       // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
 
-      // wait until this is canceled
-      while (isRunning) {
+      long idleStart = System.currentTimeMillis();
+      while (isRunning
+          && (idleTimeoutMs <= 0 || System.currentTimeMillis() - idleStart < idleTimeoutMs)) {
         try {
           // Flink will interrupt us at some point
           Thread.sleep(1000);

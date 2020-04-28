@@ -162,6 +162,8 @@ taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
 parallelism.default: ${flink_parallelism}
 taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
+state.backend: filesystem
+state.checkpoints.dir: ${GCS_BUCKET}/checkpoints
 EOF
 
 cat > "${FLINK_YARN_SCRIPT}" << EOF
