@@ -564,7 +564,7 @@ public class PipelineOptionsFactory {
     out.format(
         "%nUse --help=<OptionsName> for detailed help. For example:%n"
             + "  --help=DataflowPipelineOptions <short names valid for registered options>%n"
-            + "  --help=org.apache.beam.sdk.options.DataflowPipelineOptions%n");
+            + "  --help=org.apache.beam.runners.dataflow.options.DataflowPipelineOptions%n");
   }
 
   /**
