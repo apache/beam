@@ -607,6 +607,7 @@ class _CustomBigQuerySource(BoundedSource):
       project=None,
       query=None,
       validate=False,
+      pipeline_options=None,
       coder=None,
       use_standard_sql=False,
       flatten_results=True,
@@ -637,6 +638,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
     self.split_result = None
+    self.options = pipeline_options
 
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
@@ -656,7 +658,7 @@ class _CustomBigQuerySource(BoundedSource):
     elif self.query is not None and self.query.is_accessible():
       project = self.project
       if self.project is None:
-        project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
+        project = self.options.view_as(GoogleCloudOptions).project
       job = bq._start_query_job(
           project,
           self.query.get(),
@@ -1641,6 +1643,7 @@ class ReadFromBigQuery(PTransform):
             _CustomBigQuerySource(
                 gcs_location=gcs_location,
                 validate=self.validate,
+                pipeline_options=pcoll.pipeline.options,
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))
