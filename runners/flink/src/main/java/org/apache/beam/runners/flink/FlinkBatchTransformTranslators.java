@@ -91,6 +91,8 @@ import org.apache.flink.api.java.operators.Grouping;
 import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.Optimizer;
 import org.joda.time.Instant;
 
 /**
@@ -316,9 +318,8 @@ class FlinkBatchTransformTranslators {
           context.getInputDataSet(context.getInput(transform));
       // Construct an instance of CoderTypeInformation which contains the pipeline options.
       // This will be used to initialized FileSystems.
-      @SuppressWarnings("unchecked")
       final CoderTypeInformation<WindowedValue<KV<K, InputT>>> outputType =
-          ((CoderTypeInformation) inputDataSet.getType())
+          ((CoderTypeInformation<WindowedValue<KV<K, InputT>>>) inputDataSet.getType())
               .withPipelineOptions(context.getPipelineOptions());
       // We insert a NOOP here to initialize the FileSystems via the above CoderTypeInformation.
       // The output type coder may be relying on file system access. The shuffled data may have to
@@ -330,7 +331,12 @@ class FlinkBatchTransformTranslators {
               outputType,
               FlinkIdentityFunction.of(),
               getCurrentTransformName(context));
-      context.setOutputDataSet(context.getOutput(transform), retypedDataSet.rebalance());
+      final Configuration partitionOptions = new Configuration();
+      partitionOptions.setString(
+          Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION);
+      context.setOutputDataSet(
+          context.getOutput(transform),
+          retypedDataSet.map(FlinkIdentityFunction.of()).withParameters(partitionOptions));
     }
   }
 
