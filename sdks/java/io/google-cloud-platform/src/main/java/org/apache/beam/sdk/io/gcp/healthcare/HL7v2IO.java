@@ -449,6 +449,7 @@ public class HL7v2IO {
           // track of page token.
           // Eagerly emit data on 1 second intervals so downstream processing can get started before
           // all of the list results have been paginated through.
+          // TODO(BEAM-9847) Verify if triggering allows emitting eager results when processing a single element in HL7v2IO.
           .apply(
               Window.<HL7v2Message>into(new GlobalWindows())
                   .triggering(
