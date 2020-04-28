@@ -17,6 +17,7 @@
  */
 
 import CommonJobProperties as common
+import InfluxDBCredentialsHelper
 
 def jobs = [
         [
@@ -274,6 +275,12 @@ private void createGCSFileBasedIOITTestJob(testJob) {
     common.setTopLevelMainJobProperties(delegate)
     common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
     common.setAutoJob(delegate, 'H */6 * * *')
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
+    testJob.pipelineOptions.putAll(additionalPipelineArgs)
 
     def dataflowSpecificOptions = [
             runner        : 'DataflowRunner',
@@ -321,6 +328,11 @@ private void createHDFSFileBasedIOITTestJob(testJob) {
     common.setTopLevelMainJobProperties(delegate)
     common.enablePhraseTriggeringFromPullRequest(delegate, testJob.githubTitle, testJob.githubTriggerPhrase)
     common.setAutoJob(delegate, 'H */6 * * *')
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
 
     String namespace = common.getKubernetesNamespace(testJob.name)
     String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)

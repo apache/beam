@@ -21,6 +21,7 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -37,6 +38,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_dataflow_batch_gbk_6",
+                        influx_measurement   : 'python_batch_gbk_6',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +
@@ -60,6 +62,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_7',
+                        influx_measurement   : 'python_batch_gbk_7',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90,' +
@@ -71,7 +74,8 @@ def loadTestConfigurations = { datasetName -> [
                         autoscaling_algorithm: 'NONE'
                 ]
         ]
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python GBK reiterate load tests on Dataflow runner in batch mode')
@@ -84,6 +88,11 @@ def batchLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch', 'H 14 * * *', this) {
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
@@ -93,5 +102,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python GBK reiterate Dataflow Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }

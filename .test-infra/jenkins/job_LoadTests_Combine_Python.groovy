@@ -19,6 +19,7 @@
 import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -35,6 +36,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_combine_1',
+                        influx_measurement   : 'python_batch_combine_1',
                         input_options        : '\'{' +
                                 '"num_records": 200000000,' +
                                 '"key_size": 1,' +
@@ -56,6 +58,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_combine_4',
+                        influx_measurement   : 'python_batch_combine_4',
                         input_options        : '\'{' +
                                 '"num_records": 5000000,' +
                                 '"key_size": 10,' +
@@ -78,6 +81,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_combine_5',
+                        influx_measurement   : 'python_batch_combine_5',
                         input_options        : '\'{' +
                                 '"num_records": 2500000,' +
                                 '"key_size": 10,' +
@@ -88,7 +92,8 @@ def loadTestConfigurations = { datasetName -> [
                         top_count            : 20,
                 ]
         ],
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python Combine load tests on Dataflow runner in batch mode')
@@ -106,9 +111,15 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python Combine Dataflow Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Dataflow_Batch', 'H 15 * * *', this) {
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

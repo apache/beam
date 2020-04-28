@@ -22,10 +22,11 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
 import Docker
+import InfluxDBCredentialsHelper
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def scenarios = { datasetName, sdkHarnessImageTag -> [
+def scenarios = { datasetName -> [
         [
                 title          : 'Load test: 2GB of 10B records',
                 test           : 'apache_beam.testing.load_tests.group_by_key_test',
@@ -36,12 +37,12 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_1",
+                        influx_measurement  : 'python_batch_GBK_1',
                         input_options       : '\'{"num_records": 200000000,"key_size": 1,"value_size":9}\'',
                         iterations          : 1,
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -55,12 +56,12 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_2",
+                        influx_measurement  : 'python_batch_GBK_2',
                         input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -74,12 +75,12 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_4",
+                        influx_measurement  : 'python_batch_GBK_4',
                         input_options       : '\'{"num_records": 5000000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 4,
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -93,12 +94,12 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_5",
+                        influx_measurement  : 'python_batch_GBK_5',
                         input_options       : '\'{"num_records": 2500000,"key_size": 10,"value_size":90}\'',
                         iterations          : 1,
                         fanout              : 8,
                         parallelism         : 16,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
@@ -112,17 +113,17 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         project             : 'apache-beam-testing',
                         metrics_dataset     : datasetName,
                         metrics_table       : "python_flink_batch_GBK_6",
+                        influx_measurement  : 'python_batch_GBK_6',
                         input_options       : '\'{"num_records": 20000000,"key_size": 10,"value_size":90, "num_hot_keys": 200, "hot_key_fraction": 1}\'',
                         iterations          : 4,
                         fanout              : 1,
                         parallelism         : 5,
                         job_endpoint        : 'localhost:8099',
-                        environment_config  : sdkHarnessImageTag,
                         environment_type    : 'DOCKER'
                 ]
         ],
-    ]}
-
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
@@ -131,7 +132,8 @@ def loadTest = { scope, triggeringContext ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 16
-  List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
+  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
+  List<Map> testScenarios = scenarios(datasetName)
 
   publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
   publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
@@ -154,6 +156,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python GBK Flink Batch suite',
         this
 ) {
+  additionalPipelineArgs = [:]
   loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
