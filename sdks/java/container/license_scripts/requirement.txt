@@ -1,4 +1,4 @@
-################################################################################
+###############################################################################
 #  Licensed to the Apache Software Foundation (ASF) under one
 #  or more contributor license agreements.  See the NOTICE file
 #  distributed with this work for additional information
@@ -14,27 +14,9 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 # limitations under the License.
-################################################################################
+###############################################################################
 
-# A configuration file for the main Prometheus server.
-# Can be reloaded at runtime by sending a SIGHUP signal to the Prometheus
-# process.
-
-global:
-  scrape_interval:     6h
-  evaluation_interval: 1m
-
-rule_files:
-   - 'rules.yml'
-
-scrape_configs:
-  - job_name: 'beam'
-    honor_labels: true
-    honor_timestamps: true
-    static_configs:
-      - targets: ['pushgateway:9091']
-
-alerting:
-  alertmanagers:
-  - static_configs:
-    - targets: ['alertmanager:9093']
+beautifulsoup4>=4.9.0,<5.0
+future>=0.16.0,<1.0.0
+pyyaml>=3.12,<6.0.0
+tenacity>=5.0.2,<6.0

@@ -82,6 +82,8 @@ ehcache-core:
   '2.6.2':
     license: "https://raw.githubusercontent.com/ehcache/ehcache3/master/LICENSE"
     notice: "https://raw.githubusercontent.com/ehcache/ehcache3/master/LICENSE"
+fmpp:
+  '0.9.14': "http://fmpp.sourceforge.net/license.html"
 hdrhistogram:
   '2.1.6':
     license: "https://raw.githubusercontent.com/HdrHistogram/HdrHistogram/master/LICENSE.txt"
@@ -119,6 +121,8 @@ jsp-api:
 jsr166e:
   '1.1.0':
     license: "https://raw.githubusercontent.com/twitter-archive/jsr166e/master/LICENSE"
+jpam:
+  '1.1': "http://jpam.sourceforge.net/LICENSE.txt"
 log4j:
   '1.2.12':
     license: "https://raw.githubusercontent.com/apache/log4j/trunk/LICENSE"
@@ -177,3 +181,23 @@ xz:
     license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"
   '1.8':
     license: "https://git.tukaani.org/?p=xz-java.git;a=blob_plain;f=COPYING;h=c1d404dc7a6f06a0437bf1055fedaa4a4c89d728;hb=HEAD"
+zetasql-client:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-jni-channel:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-jni-channel-darwin:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-jni-channel-linux:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"
+zetasql-types:
+  '2020.04.1':
+    license: "http://www.apache.org/licenses/LICENSE-2.0.txt"
+    type: "Apache 2.0"

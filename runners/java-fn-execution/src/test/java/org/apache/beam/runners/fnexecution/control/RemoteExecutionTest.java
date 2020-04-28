@@ -23,6 +23,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -39,6 +40,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -94,7 +99,6 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
-import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
@@ -527,62 +531,69 @@ public class RemoteExecutionTest implements Serializable {
     }
   }
 
+  /**
+   * A {@link DoFn} that uses static maps of {@link CountDownLatch}es to block execution allowing
+   * for synchronization during test execution. The expected flow is:
+   *
+   * <ol>
+   *   <li>Runner -> wait for AFTER_PROCESS
+   *   <li>SDK -> unlock AFTER_PROCESS and wait for ALLOW_COMPLETION
+   *   <li>Runner -> issue progress request and on response unlock ALLOW_COMPLETION
+   * </ol>
+   */
+  private static class MetricsDoFn extends DoFn<byte[], String> {
+    private static final String PROCESS_USER_COUNTER_NAME = "processUserCounter";
+    private static final String START_USER_COUNTER_NAME = "startUserCounter";
+    private static final String FINISH_USER_COUNTER_NAME = "finishUserCounter";
+    private static final String PROCESS_USER_DISTRIBUTION_NAME = "processUserDistribution";
+    private static final String START_USER_DISTRIBUTION_NAME = "startUserDistribution";
+    private static final String FINISH_USER_DISTRIBUTION_NAME = "finishUserDistribution";
+    private static final ConcurrentMap<String, CountDownLatch> AFTER_PROCESS =
+        new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, CountDownLatch> ALLOW_COMPLETION =
+        new ConcurrentHashMap<>();
+
+    private final String uuid = UUID.randomUUID().toString();
+
+    public MetricsDoFn() {
+      AFTER_PROCESS.put(uuid, new CountDownLatch(1));
+      ALLOW_COMPLETION.put(uuid, new CountDownLatch(1));
+    }
+
+    @StartBundle
+    public void startBundle() throws InterruptedException {
+      Metrics.counter(RemoteExecutionTest.class, START_USER_COUNTER_NAME).inc(10);
+      Metrics.distribution(RemoteExecutionTest.class, START_USER_DISTRIBUTION_NAME).update(10);
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext ctxt) throws InterruptedException {
+      ctxt.output("zero");
+      ctxt.output("one");
+      ctxt.output("two");
+      Metrics.counter(RemoteExecutionTest.class, PROCESS_USER_COUNTER_NAME).inc();
+      Metrics.distribution(RemoteExecutionTest.class, PROCESS_USER_DISTRIBUTION_NAME).update(1);
+      AFTER_PROCESS.get(uuid).countDown();
+      checkState(
+          ALLOW_COMPLETION.get(uuid).await(60, TimeUnit.SECONDS),
+          "Failed to wait for DoFn to be allowed to complete.");
+    }
+
+    @FinishBundle
+    public void finishBundle() throws InterruptedException {
+      Metrics.counter(RemoteExecutionTest.class, FINISH_USER_COUNTER_NAME).inc(100);
+      Metrics.distribution(RemoteExecutionTest.class, FINISH_USER_DISTRIBUTION_NAME).update(100);
+    }
+  }
+
   @Test
   public void testMetrics() throws Exception {
-    final String processUserCounterName = "processUserCounter";
-    final String startUserCounterName = "startUserCounter";
-    final String finishUserCounterName = "finishUserCounter";
-    final String processUserDistributionName = "processUserDistribution";
-    final String startUserDistributionName = "startUserDistribution";
-    final String finishUserDistributionName = "finishUserDistribution";
+    MetricsDoFn metricsDoFn = new MetricsDoFn();
     Pipeline p = Pipeline.create();
-    // TODO(BEAM-6597): Remove sleeps in this test after collecting MonitoringInfos in
-    // ProcessBundleProgressResponses. Use CountDownLatches to wait in start, finish and process
-    // functions and open the latches when valid metrics are seen in the progress responses.
+
     PCollection<String> input =
         p.apply("impulse", Impulse.create())
-            .apply(
-                "create",
-                ParDo.of(
-                    new DoFn<byte[], String>() {
-                      private boolean emitted = false;
-                      private Counter startCounter =
-                          Metrics.counter(RemoteExecutionTest.class, startUserCounterName);
-
-                      @StartBundle
-                      public void startBundle() throws InterruptedException {
-                        Thread.sleep(1000);
-                        startCounter.inc(10);
-                        Metrics.distribution(RemoteExecutionTest.class, startUserDistributionName)
-                            .update(10);
-                      }
-
-                      @SuppressWarnings("unused")
-                      @ProcessElement
-                      public void processElement(ProcessContext ctxt) throws InterruptedException {
-                        // TODO(BEAM-6467): Impulse is producing two elements instead of one.
-                        // So add this check to only emit these three elemenets.
-                        if (!emitted) {
-                          ctxt.output("zero");
-                          ctxt.output("one");
-                          ctxt.output("two");
-                          Thread.sleep(1000);
-                          Metrics.counter(RemoteExecutionTest.class, processUserCounterName).inc();
-                          Metrics.distribution(
-                                  RemoteExecutionTest.class, processUserDistributionName)
-                              .update(1);
-                        }
-                        emitted = true;
-                      }
-
-                      @DoFn.FinishBundle
-                      public void finishBundle() throws InterruptedException {
-                        Thread.sleep(1000);
-                        Metrics.counter(RemoteExecutionTest.class, finishUserCounterName).inc(100);
-                        Metrics.distribution(RemoteExecutionTest.class, finishUserDistributionName)
-                            .update(100);
-                      }
-                    }))
+            .apply("create", ParDo.of(metricsDoFn))
             .setCoder(StringUtf8Coder.of());
 
     SingleOutput<String, String> pardo =
@@ -630,72 +641,26 @@ public class RemoteExecutionTest implements Serializable {
               (Coder<WindowedValue<?>>) remoteOutputCoder.getValue(), outputContents::add));
     }
 
-    Iterable<String> sideInputData = Arrays.asList("A", "B", "C");
-
-    StateRequestHandler stateRequestHandler =
-        StateRequestHandlers.forSideInputHandlerFactory(
-            descriptor.getSideInputSpecs(),
-            new SideInputHandlerFactory() {
-              @Override
-              public <V, W extends BoundedWindow>
-                  IterableSideInputHandler<V, W> forIterableSideInput(
-                      String pTransformId,
-                      String sideInputId,
-                      Coder<V> elementCoder,
-                      Coder<W> windowCoder) {
-                throw new UnsupportedOperationException();
-              }
-
-              @Override
-              public <K, V, W extends BoundedWindow>
-                  MultimapSideInputHandler<K, V, W> forMultimapSideInput(
-                      String pTransformId,
-                      String sideInputId,
-                      KvCoder<K, V> elementCoder,
-                      Coder<W> windowCoder) {
-                return new MultimapSideInputHandler<K, V, W>() {
-                  @Override
-                  public Iterable<V> get(BoundedWindow window) {
-                    return null;
-                  }
-
-                  @Override
-                  public Coder<K> keyCoder() {
-                    return elementCoder.getKeyCoder();
-                  }
-
-                  @Override
-                  public Coder<V> valueCoder() {
-                    return elementCoder.getValueCoder();
-                  }
-
-                  @Override
-                  public Iterable<V> get(K key, W window) {
-                    return (Iterable) sideInputData;
-                  }
-                };
-              }
-            });
-
-    String testPTransformId = "create/ParMultiDo(Anonymous)";
+    final String testPTransformId = "create/ParMultiDo(Metrics)";
     BundleProgressHandler progressHandler =
         new BundleProgressHandler() {
           @Override
-          public void onProgress(ProcessBundleProgressResponse progress) {}
+          public void onProgress(ProcessBundleProgressResponse response) {
+            MetricsDoFn.ALLOW_COMPLETION.get(metricsDoFn.uuid).countDown();
+            List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
 
-          @Override
-          public void onCompleted(ProcessBundleResponse response) {
-            List<Matcher<MonitoringInfo>> matchers = new ArrayList<Matcher<MonitoringInfo>>();
+            // We expect all user counters except for the ones in @FinishBundle
+            // Since non-user metrics are registered at bundle creation time, they will still report
+            // values most of which will be 0.
 
-            // User Counters.
             SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
             builder
                 .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
-                .setLabel(MonitoringInfoConstants.Labels.NAME, processUserCounterName);
-            builder.setLabel(
-                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.PROCESS_USER_COUNTER_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             builder.setInt64SumValue(1);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -704,9 +669,8 @@ public class RemoteExecutionTest implements Serializable {
                 .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
-                .setLabel(MonitoringInfoConstants.Labels.NAME, startUserCounterName);
-            builder.setLabel(
-                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+                .setLabel(MonitoringInfoConstants.Labels.NAME, MetricsDoFn.START_USER_COUNTER_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             builder.setInt64SumValue(10);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -715,20 +679,20 @@ public class RemoteExecutionTest implements Serializable {
                 .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
-                .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserCounterName);
-            builder.setLabel(
-                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
-            builder.setInt64SumValue(100);
-            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.FINISH_USER_COUNTER_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            matchers.add(not(MonitoringInfoMatchers.matchSetFields(builder.build())));
 
             // User Distributions.
             builder
                 .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
-                .setLabel(MonitoringInfoConstants.Labels.NAME, processUserDistributionName);
-            builder.setLabel(
-                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME,
+                    MetricsDoFn.PROCESS_USER_DISTRIBUTION_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             builder.setInt64DistributionValue(DistributionData.create(1, 1, 1, 1));
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -737,9 +701,9 @@ public class RemoteExecutionTest implements Serializable {
                 .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
-                .setLabel(MonitoringInfoConstants.Labels.NAME, startUserDistributionName);
-            builder.setLabel(
-                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.START_USER_DISTRIBUTION_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             builder.setInt64DistributionValue(DistributionData.create(10, 1, 10, 10));
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -748,9 +712,84 @@ public class RemoteExecutionTest implements Serializable {
                 .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
                 .setLabel(
                     MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
-                .setLabel(MonitoringInfoConstants.Labels.NAME, finishUserDistributionName);
-            builder.setLabel(
-                MonitoringInfoConstants.Labels.PTRANSFORM, "create/ParMultiDo(Anonymous)");
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.FINISH_USER_DISTRIBUTION_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            matchers.add(not(MonitoringInfoMatchers.matchSetFields(builder.build())));
+
+            assertThat(
+                response.getMonitoringInfosList(),
+                Matchers.hasItems(matchers.toArray(new Matcher[0])));
+          }
+
+          @Override
+          public void onCompleted(ProcessBundleResponse response) {
+            List<Matcher<MonitoringInfo>> matchers = new ArrayList<>();
+
+            // User Counters.
+            SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.PROCESS_USER_COUNTER_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            builder.setInt64SumValue(1);
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(MonitoringInfoConstants.Labels.NAME, MetricsDoFn.START_USER_COUNTER_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            builder.setInt64SumValue(10);
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_SUM_INT64)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.FINISH_USER_COUNTER_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            builder.setInt64SumValue(100);
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            // User Distributions.
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME,
+                    MetricsDoFn.PROCESS_USER_DISTRIBUTION_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            builder.setInt64DistributionValue(DistributionData.create(1, 1, 1, 1));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.START_USER_DISTRIBUTION_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
+            builder.setInt64DistributionValue(DistributionData.create(10, 1, 10, 10));
+            matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
+
+            builder = new SimpleMonitoringInfoBuilder();
+            builder
+                .setUrn(MonitoringInfoConstants.Urns.USER_DISTRIBUTION_INT64)
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAMESPACE, RemoteExecutionTest.class.getName())
+                .setLabel(
+                    MonitoringInfoConstants.Labels.NAME, MetricsDoFn.FINISH_USER_DISTRIBUTION_NAME);
+            builder.setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, testPTransformId);
             builder.setInt64DistributionValue(DistributionData.create(100, 1, 100, 100));
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -759,13 +798,13 @@ public class RemoteExecutionTest implements Serializable {
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(MonitoringInfoConstants.Labels.PCOLLECTION, "impulse.out");
-            builder.setInt64SumValue(2);
+            builder.setInt64SumValue(1);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
             builder = new SimpleMonitoringInfoBuilder();
             builder.setUrn(MonitoringInfoConstants.Urns.ELEMENT_COUNT);
             builder.setLabel(
-                MonitoringInfoConstants.Labels.PCOLLECTION, "create/ParMultiDo(Anonymous).output");
+                MonitoringInfoConstants.Labels.PCOLLECTION, testPTransformId + ".output");
             builder.setInt64SumValue(3);
             matchers.add(MonitoringInfoMatchers.matchSetFields(builder.build()));
 
@@ -815,19 +854,31 @@ public class RemoteExecutionTest implements Serializable {
                     MonitoringInfoMatchers.matchSetFields(builder.build()),
                     MonitoringInfoMatchers.counterValueGreaterThanOrEqualTo(0)));
 
-            for (Matcher<MonitoringInfo> matcher : matchers) {
-              assertThat(response.getMonitoringInfosList(), Matchers.hasItem(matcher));
-            }
+            assertThat(
+                response.getMonitoringInfosList(),
+                Matchers.hasItems(matchers.toArray(new Matcher[0])));
           }
         };
 
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    Future<Object> future;
+
     try (RemoteBundle bundle =
-        processor.newBundle(outputReceivers, stateRequestHandler, progressHandler)) {
+        processor.newBundle(outputReceivers, StateRequestHandler.unsupported(), progressHandler)) {
       Iterables.getOnlyElement(bundle.getInputReceivers().values())
           .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "X")));
-      Iterables.getOnlyElement(bundle.getInputReceivers().values())
-          .accept(valueInGlobalWindow(CoderUtils.encodeToByteArray(StringUtf8Coder.of(), "Y")));
+
+      future =
+          executor.submit(
+              () -> {
+                checkState(
+                    MetricsDoFn.AFTER_PROCESS.get(metricsDoFn.uuid).await(60, TimeUnit.SECONDS),
+                    "Runner waited too long for DoFn to get to AFTER_PROCESS.");
+                bundle.requestProgress();
+                return (Void) null;
+              });
     }
+    executor.shutdown();
   }
 
   @Test

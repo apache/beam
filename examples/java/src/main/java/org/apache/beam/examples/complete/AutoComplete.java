@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.datastore.v1.Entity;
-import com.google.datastore.v1.Key;
 import com.google.datastore.v1.Value;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -386,7 +385,8 @@ public class AutoComplete {
     @ProcessElement
     public void processElement(ProcessContext c) {
       Entity.Builder entityBuilder = Entity.newBuilder();
-      Key key = makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
+      com.google.datastore.v1.Key key =
+          makeKey(makeKey(kind, ancestorKey).build(), kind, c.element().getKey()).build();
 
       entityBuilder.setKey(key);
       List<Value> candidates = new ArrayList<>();

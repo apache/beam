@@ -64,6 +64,11 @@ const (
 
 	URNLegacyProgressReporting = "beam:protocol:progress_reporting:v0"
 	URNMultiCore               = "beam:protocol:multi_core_bundle_processing:v1"
+
+	URNRequiresSplittableDoFn = "beam:requirement:pardo:splittable_dofn:v1"
+
+	URNArtifactGoWorker  = "beam:artifact:type:go_worker_binary:v1"
+	URNArtifactStagingTo = "beam:artifact:role:staging_to:v1"
 )
 
 func goCapabilities() []string {
@@ -91,12 +96,30 @@ func CreateEnvironment(ctx context.Context, urn string, extractEnvironmentConfig
 			panic(fmt.Sprintf(
 				"Failed to serialize Environment payload %v for config %v: %v", payload, config, err))
 		}
+
 		return &pipepb.Environment{
 			Urn:          urn,
 			Payload:      serializedPayload,
 			Capabilities: goCapabilities(),
+			Dependencies: []*pipepb.ArtifactInformation{
+				&pipepb.ArtifactInformation{
+					TypeUrn: URNArtifactGoWorker,
+					RoleUrn: URNArtifactStagingTo,
+					RolePayload: MustMarshal(&pipepb.ArtifactStagingToRolePayload{
+						StagedName: "worker",
+					}),
+				},
+			},
 		}
 	}
+}
+
+func MustMarshal(msg proto.Message) []byte {
+	res, err := proto.Marshal(msg)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
@@ -120,7 +143,8 @@ func Marshal(edges []*graph.MultiEdge, opt *Options) (*pipepb.Pipeline, error) {
 	}
 
 	p := &pipepb.Pipeline{
-		Components: m.build(),
+		Components:   m.build(),
+		Requirements: m.getRequirements(),
 	}
 	return pipelinex.Normalize(p)
 }
@@ -132,6 +156,7 @@ type marshaller struct {
 	pcollections map[string]*pipepb.PCollection
 	windowing    map[string]*pipepb.WindowingStrategy
 	environments map[string]*pipepb.Environment
+	requirements map[string]bool
 
 	coders *CoderMarshaller
 
@@ -145,6 +170,7 @@ func newMarshaller(opt *Options) *marshaller {
 		pcollections: make(map[string]*pipepb.PCollection),
 		windowing:    make(map[string]*pipepb.WindowingStrategy),
 		environments: make(map[string]*pipepb.Environment),
+		requirements: make(map[string]bool),
 		coders:       NewCoderMarshaller(),
 		windowing2id: make(map[string]string),
 	}
@@ -158,6 +184,16 @@ func (m *marshaller) build() *pipepb.Components {
 		Environments:        m.environments,
 		Coders:              m.coders.Build(),
 	}
+}
+
+func (m *marshaller) getRequirements() []string {
+	var reqs []string
+	for req, ok := range m.requirements {
+		if ok {
+			reqs = append(reqs, req)
+		}
+	}
+	return reqs
 }
 
 func (m *marshaller) addScopeTree(s *ScopeTree) string {
@@ -314,6 +350,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		}
 		if edge.Edge.DoFn.IsSplittable() {
 			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
+			m.requirements[URNRequiresSplittableDoFn] = true
 		}
 		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}

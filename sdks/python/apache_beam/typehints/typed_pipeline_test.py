@@ -100,12 +100,9 @@ class MainInputTest(unittest.TestCase):
                                 r'requires.*int.*got.*str'):
       [1, 2, 3] | (beam.ParDo(MyDoFn()) | 'again' >> beam.ParDo(MyDoFn()))
 
-  @unittest.skip('BEAM-7981: Iterable in output type should not be removed.')
   def test_typed_callable_iterable_output(self):
-    # TODO(BEAM-7981): 2.7 and 3.x both erroneously strip the Iterable, but the
-    #   test only fails in 3.x.
     @typehints.with_input_types(int)
-    @typehints.with_output_types(typehints.Iterable[str])
+    @typehints.with_output_types(typehints.Iterable[typehints.Iterable[str]])
     def do_fn(element):
       return [[str(element)] * 2]
 

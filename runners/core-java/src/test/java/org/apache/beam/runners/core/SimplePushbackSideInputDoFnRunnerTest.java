@@ -303,7 +303,13 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     // Mocking is not easily compatible with annotation analysis, so we manually record
     // the method call.
     runner.onTimer(
-        timerId, "", window, new Instant(timestamp), new Instant(timestamp), TimeDomain.EVENT_TIME);
+        timerId,
+        "",
+        null,
+        window,
+        new Instant(timestamp),
+        new Instant(timestamp),
+        TimeDomain.EVENT_TIME);
 
     assertThat(
         underlying.firedTimers,
@@ -344,9 +350,10 @@ public class SimplePushbackSideInputDoFnRunnerTest {
     }
 
     @Override
-    public void onTimer(
+    public <KeyT> void onTimer(
         String timerId,
         String timerFamilyId,
+        KeyT key,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
@@ -496,6 +503,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
       toTrigger.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          null,
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

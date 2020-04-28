@@ -30,6 +30,8 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleProgressResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
@@ -365,6 +367,26 @@ public class SdkHarnessClient implements AutoCloseable {
           }
         }
         return rval.build();
+      }
+
+      @Override
+      public void requestProgress() {
+        InstructionRequest request =
+            InstructionRequest.newBuilder()
+                .setInstructionId(idGenerator.getId())
+                .setProcessBundleProgress(
+                    ProcessBundleProgressRequest.newBuilder().setInstructionId(bundleId).build())
+                .build();
+        CompletionStage<InstructionResponse> response = fnApiControlClient.handle(request);
+        response.thenAccept(
+            instructionResponse -> {
+              // Don't forward empty responses.
+              if (ProcessBundleProgressResponse.getDefaultInstance()
+                  .equals(instructionResponse.getProcessBundleProgress())) {
+                return;
+              }
+              progressHandler.onProgress(instructionResponse.getProcessBundleProgress());
+            });
       }
 
       @Override

@@ -94,6 +94,7 @@ public class MapFnRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -141,6 +142,7 @@ public class MapFnRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -187,6 +189,7 @@ public class MapFnRunnersTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 

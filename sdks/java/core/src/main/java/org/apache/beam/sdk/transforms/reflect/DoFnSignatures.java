@@ -86,6 +86,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -164,7 +165,8 @@ public class DoFnSignatures {
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
-          Parameter.TimerIdParameter.class);
+          Parameter.TimerIdParameter.class,
+          Parameter.KeyParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -1299,6 +1301,18 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          KV.class.equals(inputT.getRawType()),
+          "@Key argument is expected to be use with input element of type KV.");
+
+      Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
+      methodErrors.checkArgument(
+          TypeDescriptor.of(keyType).equals(paramT),
+          "@Key argument is expected to be type of %s, but found %s.",
+          keyType,
+          rawType);
+      return Parameter.keyT(paramT);
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {

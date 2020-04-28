@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.BaseArgumentProvider;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -300,7 +301,11 @@ public class SplittableParDoNaiveBounded {
           // Fetch the watermark before splitting to ensure that the watermark applies to both
           // the primary and the residual.
           watermarkEstimatorState = watermarkEstimator.getState();
-          restriction = tracker.trySplit(0).getResidual();
+          SplitResult<RestrictionT> split = tracker.trySplit(0);
+          if (split == null) {
+            break;
+          }
+          restriction = split.getResidual();
           Uninterruptibles.sleepUninterruptibly(
               continuation.resumeDelay().getMillis(), TimeUnit.MILLISECONDS);
         } else {
@@ -413,6 +418,11 @@ public class SplittableParDoNaiveBounded {
       @Override
       public InputT element(DoFn<InputT, OutputT> doFn) {
         return element;
+      }
+
+      @Override
+      public Object key() {
+        throw new UnsupportedOperationException();
       }
 
       @Override

@@ -295,6 +295,7 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         env = self._pipeline_proto.components.environments[env_id]
         del env.dependencies[:]
         env.dependencies.extend(deps)
+      self._provision_info.provision_info.ClearField('retrieval_token')
     except concurrent.futures.TimeoutError:
       pass  # TODO(BEAM-9577): Require this once all SDKs support it.
 

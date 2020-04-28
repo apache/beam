@@ -361,6 +361,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       fnRunner.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          this.stepContext.stateInternals().getKey(),
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

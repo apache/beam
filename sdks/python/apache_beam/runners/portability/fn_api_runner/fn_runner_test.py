@@ -240,6 +240,30 @@ class FnApiRunnerTest(unittest.TestCase):
               lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)),
           equal_to([('a', [1, 3]), ('b', [2])]))
 
+  def test_multimap_multiside_input(self):
+    # A test where two transforms in the same stage consume the same PCollection
+    # twice as side input.
+    with self.create_pipeline() as p:
+      main = p | 'main' >> beam.Create(['a', 'b'])
+      side = (
+          p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
+          # TODO(BEAM-4782): Obviate the need for this map.
+          | beam.Map(lambda kv: (kv[0], kv[1])))
+      assert_that(
+          main | 'first map' >> beam.Map(
+              lambda k,
+              d,
+              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              beam.pvalue.AsMultiMap(side),
+              beam.pvalue.AsList(side))
+          | 'second map' >> beam.Map(
+              lambda k,
+              d,
+              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              beam.pvalue.AsMultiMap(side),
+              beam.pvalue.AsList(side)),
+          equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
+
   def test_multimap_side_input_type_coercion(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
