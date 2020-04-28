@@ -656,10 +656,9 @@ class _CustomBigQuerySource(BoundedSource):
     elif self.query is not None and self.query.is_accessible():
       project = self.project
       if self.project is None:
-        project = pcoll.pipeline.options.view_as(
-            GoogleCloudOptions).project
+        project = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
       job = bq._start_query_job(
-          self.project,
+          project,
           self.query.get(),
           self.use_legacy_sql,
           self.flatten_results,
