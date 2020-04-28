@@ -28,6 +28,7 @@ import shutil
 import threading
 import traceback
 import yaml
+from multiprocessing.pool import ThreadPool
 
 from bs4 import BeautifulSoup
 from datetime import datetime
@@ -43,18 +44,24 @@ RETRY_NUM = 3
 THREADS = 16
 
 
-class Worker(threading.Thread):
-    def __init__(self, queue):
-        threading.Thread.__init__(self)
-        self.queue = queue
+def memoize(func):
+    cache = {}
 
-    def run(self):
-        while True:
-            dep = self.queue.get()
-            try:
-                execute(dep)
-            finally:
-                self.queue.task_done()
+    def wrapper(*args):
+        with thread_lock:
+            if args not in cache:
+                cache[args] = func(*args)
+            return cache[args]
+
+    return wrapper
+
+
+@memoize
+def check_accessible(url):
+    code = urlopen(url).getcode()
+    if code != 200:
+        raise ValueError('Url "{url}" had return code {code}'.format(
+            url=url, code=code))
 
 
 @retry(reraise=True,
@@ -72,8 +79,7 @@ def pull_from_url(file_name, url, dep, no_list):
                 'Successfully pulled {file_name} from {url} for {dep}'.format(
                     url=url, file_name=file_name, dep=dep))
         else:
-            code = urlopen(url).getcode()
-            assert code == 200
+            check_accessible(url)
             logging.debug(
                 'Confirmed that {url} for {dep} is accessable.'.format(
                     url=url, dep=dep))
@@ -268,14 +274,9 @@ if __name__ == "__main__":
         .format(num_deps=len(dependencies['dependencies']),
                 num_threads=THREADS))
     thread_lock = threading.Lock()
-    queue = Queue()
-    for x in range(THREADS):
-        worker = Worker(queue)
-        worker.daemon = True
-        worker.start()
-    for dep in dependencies['dependencies']:
-        queue.put(dep)
-    queue.join()
+
+    pool = ThreadPool(THREADS)
+    pool.map(execute, dependencies['dependencies'])
 
     if pull_licenses:
         write_to_csv(csv_list)
