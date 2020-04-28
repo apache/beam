@@ -699,7 +699,7 @@ done
 * Build Java images and push to DockerHub.
 
 ```
-./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
 ```
 
 * Build Flink job server images and push to DockerHub.

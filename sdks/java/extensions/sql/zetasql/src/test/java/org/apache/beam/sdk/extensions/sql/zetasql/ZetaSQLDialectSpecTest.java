@@ -1297,6 +1297,32 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLSelectNullLimitParam() {
+    String sql = "SELECT Key, Value FROM KeyValue LIMIT @lmt;";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "lmt", Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64)));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Limit requires non-null count and offset");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
+  public void testZetaSQLSelectNullOffsetParam() {
+    String sql = "SELECT Key, Value FROM KeyValue LIMIT 1 OFFSET @lmt;";
+    ImmutableMap<String, Value> params =
+        ImmutableMap.of(
+            "lmt", Value.createNullValue(TypeFactory.createSimpleType(TypeKind.TYPE_INT64)));
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(RuntimeException.class);
+    thrown.expectMessage("Limit requires non-null count and offset");
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableLimitOffset() {
     String sql =
         "SELECT COUNT(a) FROM (\n"
@@ -1950,6 +1976,21 @@ public class ZetaSQLDialectSpecTest {
     final Schema schema = Schema.builder().addInt64Field("field1").addInt64Field("field2").build();
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(2L, 3L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLHavingNull() {
+    String sql = "SELECT SUM(int64_val) FROM all_null_table GROUP BY primary_key HAVING false";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field").build();
+
+    PAssert.that(stream).empty();
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }

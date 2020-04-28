@@ -337,43 +337,49 @@ class Operation(object):
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
-  def monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+  def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+    # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
-        self.pcollection_count_monitoring_infos(transform_id))
+        self.pcollection_count_monitoring_infos(tag_to_pcollection_id))
     all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
     return all_monitoring_infos
 
-  def pcollection_count_monitoring_infos(self, transform_id):
+  def pcollection_count_monitoring_infos(self, tag_to_pcollection_id):
+    # type: (Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns the element count MonitoringInfo collected by this operation."""
-    if len(self.receivers) == 1:
-      # If there is exactly one output, we can unambiguously
-      # fix its name later, which we do.
-      # TODO(robertwb): Plumb the actual name here.
-      elem_count_mi = monitoring_infos.int64_counter(
-          monitoring_infos.ELEMENT_COUNT_URN,
-          self.receivers[0].opcounter.element_counter.value(),
-          ptransform=transform_id,
-          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
-      )
 
-      (unused_mean, sum, count, min, max) = (
-          self.receivers[0].opcounter.mean_byte_counter.value())
+    # Skip producing monitoring infos if there is more then one receiver
+    # since there is no way to provide a mapping from tag to pcollection id
+    # within Operation.
+    if len(self.receivers) != 1 or len(tag_to_pcollection_id) != 1:
+      return {}
 
-      sampled_byte_count = monitoring_infos.int64_distribution(
-          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-          DistributionData(sum, count, min, max),
-          ptransform=transform_id,
-          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
-      )
-      return {
-          monitoring_infos.to_key(elem_count_mi): elem_count_mi,
-          monitoring_infos.to_key(sampled_byte_count): sampled_byte_count
-      }
-    return {}
+    all_monitoring_infos = {}
+    pcollection_id = next(iter(tag_to_pcollection_id.values()))
+    receiver = self.receivers[0]
+    elem_count_mi = monitoring_infos.int64_counter(
+        monitoring_infos.ELEMENT_COUNT_URN,
+        receiver.opcounter.element_counter.value(),
+        pcollection=pcollection_id,
+    )
+
+    (unused_mean, sum, count, min, max) = (
+        receiver.opcounter.mean_byte_counter.value())
+
+    sampled_byte_count = monitoring_infos.int64_distribution(
+        monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+        DistributionData(sum, count, min, max),
+        pcollection=pcollection_id,
+    )
+    all_monitoring_infos[monitoring_infos.to_key(elem_count_mi)] = elem_count_mi
+    all_monitoring_infos[monitoring_infos.to_key(
+        sampled_byte_count)] = sampled_byte_count
+
+    return all_monitoring_infos
 
   def user_monitoring_infos(self, transform_id):
     """Returns the user MonitoringInfos collected by this operation."""
@@ -708,24 +714,30 @@ class DoOperation(Operation):
       self.user_state_context.reset()
     self.dofn_runner.bundle_finalizer_param.reset()
 
-  def monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
-    infos = super(DoOperation, self).monitoring_infos(transform_id)
+  def pcollection_count_monitoring_infos(self, tag_to_pcollection_id):
+    # type: (Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
+    """Returns the element count MonitoringInfo collected by this operation."""
+    infos = super(
+        DoOperation,
+        self).pcollection_count_monitoring_infos(tag_to_pcollection_id)
+
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
+        if str(tag) not in tag_to_pcollection_id:
+          continue
+        pcollection_id = tag_to_pcollection_id[str(tag)]
         mi = monitoring_infos.int64_counter(
             monitoring_infos.ELEMENT_COUNT_URN,
             receiver.opcounter.element_counter.value(),
-            ptransform=transform_id,
-            tag=str(tag))
+            pcollection=pcollection_id)
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
         sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
             DistributionData(sum, count, min, max),
-            ptransform=transform_id,
-            tag=str(tag))
+            pcollection=pcollection_id)
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
@@ -777,8 +789,8 @@ class SdfProcessSizedElements(DoOperation):
               self.element_start_output_bytes)
       return None
 
-  def monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+  def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+    # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     def encode_progress(value):
       # type: (float) -> bytes
@@ -787,7 +799,7 @@ class SdfProcessSizedElements(DoOperation):
 
     with self.lock:
       infos = super(SdfProcessSizedElements,
-                    self).monitoring_infos(transform_id)
+                    self).monitoring_infos(transform_id, tag_to_pcollection_id)
       current_element_progress = self.current_element_progress()
       if current_element_progress:
         if current_element_progress.completed_work:

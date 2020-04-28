@@ -1035,59 +1035,12 @@ class BundleProcessor(object):
     # Construct a new dict first to remove duplicates.
     all_monitoring_infos_dict = {}
     for transform_id, op in self.ops.items():
-      for mi in op.monitoring_infos(transform_id).values():
-        fixed_mi = self._fix_output_tags_monitoring_info(transform_id, mi)
-        all_monitoring_infos_dict[monitoring_infos.to_key(fixed_mi)] = fixed_mi
+      tag_to_pcollection_id = self.process_bundle_descriptor.transforms[
+          transform_id].outputs
+      all_monitoring_infos_dict.update(
+          op.monitoring_infos(transform_id, dict(tag_to_pcollection_id)))
 
-    infos_list = list(all_monitoring_infos_dict.values())
-
-    def inject_pcollection(monitoring_info):
-      """
-      If provided metric is element count metric:
-      Finds relevant transform output info in current process_bundle_descriptor
-      and adds tag with PCOLLECTION_LABEL and pcollection_id into monitoring
-      info.
-      """
-      if monitoring_info.urn in URNS_NEEDING_PCOLLECTIONS:
-        if not monitoring_infos.PTRANSFORM_LABEL in monitoring_info.labels:
-          return
-        ptransform_label = monitoring_info.labels[
-            monitoring_infos.PTRANSFORM_LABEL]
-        if not monitoring_infos.TAG_LABEL in monitoring_info.labels:
-          return
-        tag_label = monitoring_info.labels[monitoring_infos.TAG_LABEL]
-
-        if not ptransform_label in self.process_bundle_descriptor.transforms:
-          return
-        if not tag_label in self.process_bundle_descriptor.transforms[
-            ptransform_label].outputs:
-          return
-
-        pcollection_name = (
-            self.process_bundle_descriptor.transforms[ptransform_label].
-            outputs[tag_label])
-
-        monitoring_info.labels[
-            monitoring_infos.PCOLLECTION_LABEL] = pcollection_name
-
-        # Cleaning up labels that are not in specification.
-        monitoring_info.labels.pop(monitoring_infos.PTRANSFORM_LABEL)
-        monitoring_info.labels.pop(monitoring_infos.TAG_LABEL)
-
-    for mi in infos_list:
-      inject_pcollection(mi)
-
-    return infos_list
-
-  def _fix_output_tags_monitoring_info(self, transform_id, monitoring_info):
-    # type: (str, metrics_pb2.MonitoringInfo) -> metrics_pb2.MonitoringInfo
-    actual_output_tags = list(
-        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
-    if ('TAG' in monitoring_info.labels and
-        monitoring_info.labels['TAG'] == 'ONLY_OUTPUT'):
-      if len(actual_output_tags) == 1:
-        monitoring_info.labels['TAG'] = actual_output_tags[0]
-    return monitoring_info
+    return list(all_monitoring_infos_dict.values())
 
   def shutdown(self):
     # type: () -> None

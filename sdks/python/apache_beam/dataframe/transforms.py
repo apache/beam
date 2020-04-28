@@ -21,7 +21,6 @@ import pandas as pd
 import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
-from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
 
@@ -42,57 +41,44 @@ class DataframeTransform(transforms.PTransform):
     self._proxy = proxy
 
   def expand(self, input_pcolls):
-    def wrap_as_dict(values):
-      if isinstance(values, dict):
-        return values
-      elif isinstance(values, tuple):
-        return dict(enumerate(values))
-      else:
-        return {None: values}
+    # Avoid circular import.
+    from apache_beam.dataframe import convert
 
-    # TODO: Infer the proxy from the input schema.
-    def proxy(key):
-      if key is None:
-        return self._proxy
-      else:
-        return self._proxy[key]
+    # Convert inputs to a flat dict.
+    input_dict = _flatten(input_pcolls)  # type: Dict[Any, PCollection]
+    proxies = _flatten(self._proxy)
+    input_frames = {
+        k: convert.to_dataframe(pc, proxies[k])
+        for k, pc in input_dict.items()
+    }  # type: Dict[Any, DeferredFrame]
 
-    # The input can be a dictionary, tuple, or plain PCollection.
-    # Wrap as a dict for homogeneity.
-    # TODO: Possibly inject batching here.
-    input_dict = wrap_as_dict(input_pcolls)
-    placeholders = {
-        key: frame_base.DeferredFrame.wrap(
-            expressions.PlaceholderExpression(proxy(key)))
-        for key in input_dict.keys()
-    }
-
-    # The calling convention of the user-supplied func varies according to the
-    # type of the input.
-    if isinstance(input_pcolls, dict):
-      result_frames = self._func(**placeholders)
-    elif isinstance(input_pcolls, tuple):
-      result_frames = self._func(
-          *(value for _, value in sorted(placeholders.items())))
+    # Apply the function.
+    frames_input = _substitute(input_pcolls, input_frames)
+    if isinstance(frames_input, dict):
+      result_frames = self._func(**frames_input)
+    elif isinstance(frames_input, tuple):
+      result_frames = self._func(*frames_input)
     else:
-      result_frames = self._func(placeholders[None])
+      result_frames = self._func(frames_input)
 
-    # Likewise the output may be a dict, tuple, or raw (deferred) Dataframe.
-    result_dict = wrap_as_dict(result_frames)
+    # Compute results as a tuple.
+    result_frames_dict = _flatten(result_frames)
+    keys = list(result_frames_dict.keys())
+    result_frames_tuple = tuple(result_frames_dict[key] for key in keys)
+    result_pcolls_tuple = convert.to_pcollection(
+        *result_frames_tuple, label='Eval', always_return_tuple=True)
 
-    result_pcolls = self._apply_deferred_ops(
-        {placeholders[key]._expr: pcoll
-         for key, pcoll in input_dict.items()},
-        {key: df._expr
-         for key, df in result_dict.items()})
+    # Convert back to the structure returned by self._func.
+    result_pcolls_dict = dict(zip(keys, result_pcolls_tuple))
+    return _substitute(result_frames, result_pcolls_dict)
 
-    # Convert the result back into a set of PCollections.
-    if isinstance(result_frames, dict):
-      return result_pcolls
-    elif isinstance(result_frames, tuple):
-      return tuple((value for _, value in sorted(result_pcolls.items())))
-    else:
-      return result_pcolls[None]
+
+class _DataframeExpressionsTransform(transforms.PTransform):
+  def __init__(self, outputs):
+    self._outputs = outputs
+
+  def expand(self, inputs):
+    return self._apply_deferred_ops(inputs, self._outputs)
 
   def _apply_deferred_ops(
       self,
@@ -253,3 +239,53 @@ def memoize(f):
     return cache[args]
 
   return wrapper
+
+
+def _dict_union(dicts):
+  result = {}
+  for d in dicts:
+    result.update(d)
+  return result
+
+
+def _flatten(valueish, root=()):
+  """Given a nested structure of dicts, tuples, and lists, return a flat
+  dictionary where the values are the leafs and the keys are the "paths" to
+  these leaves.
+
+  For example `{a: x, b: (y, z)}` becomes `{(a,): x, (b, 0): y, (b, 1): c}`.
+  """
+  if isinstance(valueish, dict):
+    return _dict_union(_flatten(v, root + (k, )) for k, v in valueish.items())
+  elif isinstance(valueish, (tuple, list)):
+    return _dict_union(
+        _flatten(v, root + (ix, )) for ix, v in enumerate(valueish))
+  else:
+    return {root: valueish}
+
+
+def _substitute(valueish, replacements, root=()):
+  """Substitutes the values in valueish with those in replacements where the
+  keys are as in _flatten.
+
+  For example,
+
+  ```
+  _substitute(
+      {a: x, b: (y, z)},
+      {(a,): X, (b, 0): Y, (b, 1): Z})
+  ```
+
+  returns `{a: X, b: (Y, Z)}`.
+  """
+  if isinstance(valueish, dict):
+    return type(valueish)({
+        k: _substitute(v, replacements, root + (k, ))
+        for (k, v) in valueish.items()
+    })
+  elif isinstance(valueish, (tuple, list)):
+    return type(valueish)((
+        _substitute(v, replacements, root + (ix, ))
+        for (ix, v) in enumerate(valueish)))
+  else:
+    return replacements[root]

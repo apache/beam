@@ -572,8 +572,8 @@ func (rt *RTrackerT) GetError() error {
 func (rt *RTrackerT) TrySplit(fraction float64) (interface{}, error) {
 	return nil, nil
 }
-func (rt *RTrackerT) GetProgress() float64 {
-	return 0
+func (rt *RTrackerT) GetProgress() (float64, float64) {
+	return 0, 0
 }
 func (rt *RTrackerT) IsDone() bool {
 	return true

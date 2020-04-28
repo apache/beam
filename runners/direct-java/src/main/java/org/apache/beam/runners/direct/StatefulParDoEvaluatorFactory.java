@@ -284,7 +284,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             timer.getNamespace().getClass().getName());
         WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
         BoundedWindow timerWindow = windowNamespace.getWindow();
-        delegateEvaluator.onTimer(timer, timerWindow);
+
+        delegateEvaluator.onTimer(timer, gbkResult.getValue().key(), timerWindow);
 
         StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timer);
 

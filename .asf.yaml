@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -14,13 +12,25 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-#
-#    Creates config maps used by Prometheus deployment and deletes old ones.
 
-set -euxo pipefail
+# https://cwiki.apache.org/confluence/display/INFRA/.asf.yaml+features+for+git+repositories
 
-kubectl delete configmap prometheus-config --ignore-not-found=true
-kubectl delete configmap alertmanager-config --ignore-not-found=true
+github:
+  description: "Apache Beam is a unified programming model for Batch and Streaming"
+  homepage: https://beam.apache.org/
+  labels:
+    - python
+    - java
+    - big-data
+    - beam
 
-kubectl create configmap prometheus-config --from-file=prometheus/prometheus/config
-kubectl create configmap alertmanager-config --from-file=prometheus/alertmanager/config
+  enabled_merge_buttons:
+    squash: true
+    merge:  true
+    rebase: true
+
+notifications:
+  commits:      commits@beam.apache.org
+  issues:       github@beam.apache.org
+  pullrequests: github@beam.apache.org
+  jira_options: link worklog

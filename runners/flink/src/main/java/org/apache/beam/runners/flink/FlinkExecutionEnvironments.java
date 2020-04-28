@@ -242,6 +242,10 @@ public class FlinkExecutionEnvironments {
       }
       boolean failOnCheckpointingErrors = options.getFailOnCheckpointingErrors();
       flinkStreamEnv.getCheckpointConfig().setFailOnCheckpointingErrors(failOnCheckpointingErrors);
+
+      flinkStreamEnv
+          .getCheckpointConfig()
+          .setMaxConcurrentCheckpoints(options.getNumConcurrentCheckpoints());
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);

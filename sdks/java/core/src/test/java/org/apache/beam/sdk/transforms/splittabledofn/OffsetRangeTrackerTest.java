@@ -23,6 +23,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -183,31 +184,43 @@ public class OffsetRangeTrackerTest {
   @Test
   public void testBacklogUnstarted() {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
-    assertEquals(200, tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(200, progress.getWorkRemaining(), 0.001);
 
     tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
-    assertEquals(100, tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(100, progress.getWorkRemaining(), 0.001);
   }
 
   @Test
   public void testBacklogFinished() {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
     tracker.tryClaim(300L);
-    assertEquals(0, tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(200, progress.getWorkCompleted(), 0.001);
+    assertEquals(0, progress.getWorkRemaining(), 0.001);
 
     tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     tracker.tryClaim(300L);
-    assertEquals(0., tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(100, progress.getWorkCompleted(), 0.001);
+    assertEquals(0, progress.getWorkRemaining(), 0.001);
   }
 
   @Test
   public void testBacklogPartiallyCompleted() {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(0, 200));
     tracker.tryClaim(150L);
-    assertEquals(50., tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(150, progress.getWorkCompleted(), 0.001);
+    assertEquals(50, progress.getWorkRemaining(), 0.001);
 
     tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     tracker.tryClaim(150L);
-    assertEquals(50., tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(50, progress.getWorkCompleted(), 0.001);
+    assertEquals(50, progress.getWorkRemaining(), 0.001);
   }
 }

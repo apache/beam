@@ -249,12 +249,7 @@ func TestSdfNodes(t *testing.T) {
 				fn:   dfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm: &FullValue{
-							Elm:       3,
-							Elm2:      nil,
-							Timestamp: testTimestamp,
-							Windows:   testWindows,
-						},
+						Elm:  3,
 						Elm2: Restriction{5},
 					},
 					Elm2:      8.0,

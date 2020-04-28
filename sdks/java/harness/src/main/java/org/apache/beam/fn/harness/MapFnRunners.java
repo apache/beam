@@ -113,6 +113,7 @@ public abstract class MapFnRunners {
         PTransformFunctionRegistry startFunctionRegistry,
         PTransformFunctionRegistry finishFunctionRegistry,
         Consumer<ThrowingRunnable> tearDownFunctions,
+        Consumer<ProgressRequestCallback> addProgressRequestCallback,
         BundleSplitListener splitListener,
         BundleFinalizer bundleFinalizer)
         throws IOException {

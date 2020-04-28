@@ -86,35 +86,9 @@ services:
       - DB_DBNAME=beam_metrics
       - DB_DBUSERNAME=admin
       - DB_DBPWD=<PGPasswordHere>
-  prometheus:
-    image: prom/prometheus
-    ports:
-      - 9090:9090
-    container_name: prometheus
-    volumes:
-      - ./prometheus/prometheus/config:/etc/prometheus:ro
-      - prometheus-storage:/prometheus
-    command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --web.console.libraries=/etc/prometheus/console_libraries
-      - --web.console.templates=/etc/prometheus/consoles
-      - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=365d
-  pushgateway:
-    image: prom/pushgateway
-    container_name: pushgateway
-    ports:
-      - 9091:9091
-  alertmanager:
-    image: prom/alertmanager
-    container_name: alertmanager
-    ports:
-      - 9093:9093
-    volumes:
-      - ./prometheus/alertmanager/config:/etc/alertmanager:ro
 volumes:
   beam-postgresql-data:
   beam-grafana-libdata:
   beam-grafana-etcdata:
   beam-grafana-logdata:
-  prometheus-storage:
+
