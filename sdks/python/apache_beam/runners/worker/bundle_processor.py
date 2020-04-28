@@ -1038,7 +1038,7 @@ class BundleProcessor(object):
       tag_to_pcollection_id = self.process_bundle_descriptor.transforms[
           transform_id].outputs
       all_monitoring_infos_dict.update(
-          op.monitoring_infos(transform_id, tag_to_pcollection_id))
+          op.monitoring_infos(transform_id, dict(tag_to_pcollection_id)))
 
     return list(all_monitoring_infos_dict.values())
 

@@ -724,21 +724,21 @@ class DoOperation(Operation):
 
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
+        if str(tag) not in tag_to_pcollection_id:
+          continue
         pcollection_id = tag_to_pcollection_id[str(tag)]
-        if pcollection_id:
-          mi = monitoring_infos.int64_counter(
-              monitoring_infos.ELEMENT_COUNT_URN,
-              receiver.opcounter.element_counter.value(),
-              pcollection=pcollection_id)
-          infos[monitoring_infos.to_key(mi)] = mi
-          (unused_mean, sum, count, min, max) = (
-              receiver.opcounter.mean_byte_counter.value())
-          sampled_byte_count = monitoring_infos.int64_distribution(
-              monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-              DistributionData(sum, count, min, max),
-              pcollection=pcollection_id)
-          infos[monitoring_infos.to_key(
-              sampled_byte_count)] = sampled_byte_count
+        mi = monitoring_infos.int64_counter(
+            monitoring_infos.ELEMENT_COUNT_URN,
+            receiver.opcounter.element_counter.value(),
+            pcollection=pcollection_id)
+        infos[monitoring_infos.to_key(mi)] = mi
+        (unused_mean, sum, count, min, max) = (
+            receiver.opcounter.mean_byte_counter.value())
+        sampled_byte_count = monitoring_infos.int64_distribution(
+            monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+            DistributionData(sum, count, min, max),
+            pcollection=pcollection_id)
+        infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
 
