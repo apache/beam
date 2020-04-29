@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 
 /** Defines a client that talks to the Cloud Healthcare API. */
 public interface HealthcareApiClient {
@@ -133,7 +134,8 @@ public interface HealthcareApiClient {
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException;
+  HttpBody executeFhirBundle(String fhirStore, String bundle)
+      throws IOException, HealthcareHttpException;
 
   /**
    * Read fhir resource http body.

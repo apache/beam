@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -111,7 +110,7 @@ public class FhirIOReadIT {
     FhirIO.Read.Result result =
         pipeline.apply(PubsubIO.readStrings().fromTopic(pubsubTopic)).apply(FhirIO.readResources());
 
-    PCollection<HttpBody> resources = result.getResources();
+    PCollection<String> resources = result.getResources();
     resources.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(resources.getCoder(), anyResources -> true));
     // wait for any resource

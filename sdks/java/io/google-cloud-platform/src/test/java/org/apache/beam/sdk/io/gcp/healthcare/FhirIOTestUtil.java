@@ -21,7 +21,6 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -39,12 +38,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 
 class FhirIOTestUtil {
   public static final String TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
-  private static Stream<HttpBody> readPrettyBundles(String version) {
+  private static Stream<String> readPrettyBundles(String version) {
     Path resourceDir = Paths.get("src", "test", "resources", version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
@@ -60,29 +58,22 @@ class FhirIOTestUtil {
                 throw new RuntimeException(e);
               }
             })
-        .map(String::new)
-        .map(
-            (String data) -> {
-              HttpBody httpBody = new HttpBody();
-              httpBody.setContentType(ContentStructure.BUNDLE_PRETTY.name());
-              httpBody.setData(data);
-              return httpBody;
-            });
+        .map(String::new);
   }
 
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
-  static final List<HttpBody> DSTU2_PRETTY_BUNDLES =
+  static final List<String> DSTU2_PRETTY_BUNDLES =
       readPrettyBundles("DSTU2").collect(Collectors.toList());
-  static final List<HttpBody> STU3_PRETTY_BUNDLES =
+  static final List<String> STU3_PRETTY_BUNDLES =
       readPrettyBundles("STU3").collect(Collectors.toList());
-  static final List<HttpBody> R4_PRETTY_BUNDLES =
+  static final List<String> R4_PRETTY_BUNDLES =
       readPrettyBundles("R4").collect(Collectors.toList());
 
-  static final Map<String, List<HttpBody>> BUNDLES;
+  static final Map<String, List<String>> BUNDLES;
 
   static {
-    Map<String, List<HttpBody>> m = new HashMap<>();
+    Map<String, List<String>> m = new HashMap<>();
     m.put("DSTU2", DSTU2_PRETTY_BUNDLES);
     m.put("STU3", STU3_PRETTY_BUNDLES);
     m.put("R4", R4_PRETTY_BUNDLES);
@@ -90,9 +81,9 @@ class FhirIOTestUtil {
   }
 
   /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
-  static void executeFhirBundles(
-      HealthcareApiClient client, String fhirStore, List<HttpBody> bundles) throws IOException {
-    for (HttpBody bundle : bundles) {
+  static void executeFhirBundles(HealthcareApiClient client, String fhirStore, List<String> bundles)
+      throws IOException {
+    for (String bundle : bundles) {
       client.executeFhirBundle(fhirStore, bundle);
     }
   }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -48,36 +47,35 @@ public class FhirIOTest {
 
     PCollection<HealthcareIOError<String>> failed = readResult.getFailedReads();
 
-    PCollection<HttpBody> messages = readResult.getResources();
+    PCollection<String> resources = readResult.getResources();
 
     PCollection<String> failedMsgIds =
         failed.apply(
             MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
-    PAssert.that(messages).empty();
+    PAssert.that(resources).empty();
     pipeline.run();
   }
 
   @Test
   public void test_FhirIO_failedWrites() {
-    HttpBody badBundle = new HttpBody().setData("bad");
-    List<HttpBody> emptyMessages = Collections.singletonList(badBundle);
+    String badBundle = "bad";
+    List<String> emptyMessages = Collections.singletonList(badBundle);
 
-    PCollection<HttpBody> fhirBundles =
-        pipeline.apply(Create.of(emptyMessages).withCoder(new HttpBodyCoder()));
+    PCollection<String> fhirBundles = pipeline.apply(Create.of(emptyMessages));
 
     FhirIO.Write.Result writeResult =
         fhirBundles.apply(
             FhirIO.Write.executeBundles(
                 "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
 
-    PCollection<HealthcareIOError<HttpBody>> failedInserts = writeResult.getFailedInsertsWithErr();
+    PCollection<HealthcareIOError<String>> failedInserts = writeResult.getFailedInsertsWithErr();
 
     PAssert.thatSingleton(failedInserts)
         .satisfies(
-            (HealthcareIOError<HttpBody> err) -> {
-              Assert.assertEquals("bad", err.getDataResource().getData());
+            (HealthcareIOError<String> err) -> {
+              Assert.assertEquals("bad", err.getDataResource());
               return null;
             });
     PCollection<Long> numFailedInserts = failedInserts.apply(Count.globally());

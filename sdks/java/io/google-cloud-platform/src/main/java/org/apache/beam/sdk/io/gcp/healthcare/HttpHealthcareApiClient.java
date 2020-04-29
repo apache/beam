@@ -354,13 +354,14 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException {
+  public HttpBody executeFhirBundle(String fhirStore, String bundle)
+      throws IOException, HealthcareHttpException {
     if (httpClient == null || client == null) {
       initClient();
     }
 
     credentials.refreshIfExpired();
-    StringEntity requestEntity = new StringEntity(bundle.getData(), ContentType.APPLICATION_JSON);
+    StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
     URI uri;
     try {
       uri =
@@ -386,14 +387,45 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     String content = EntityUtils.toString(responseEntity);
     // Check 2XX code.
     if (!(response.getStatusLine().getStatusCode() / 100 == 2)) {
-      throw new IOException(
-          String.format(
-              "ExecuteBundle request to FHIR API failed with status code %s: %s",
-              String.valueOf(response.getStatusLine().getStatusCode()), content));
+      throw HealthcareHttpException.of(response);
     }
     HttpBody responseModel = new HttpBody();
     responseModel.setData(content);
     return responseModel;
+  }
+
+  /**
+   * Wraps {@link HttpResponse} in an exception with a statusCode field for use with {@link
+   * HealthcareIOError}
+   */
+  public static class HealthcareHttpException extends Exception {
+    private final Integer statusCode;
+
+    HealthcareHttpException(HttpResponse response, String message) {
+      super(message);
+      this.statusCode = response.getStatusLine().getStatusCode();
+      if (statusCode / 100 == 2) {
+        throw new IllegalArgumentException(
+            String.format(
+                "2xx codes should not be exceptions. Got status code: %s with body:",
+                statusCode, message));
+      }
+    }
+
+    /**
+     * Create Exception of {@link HttpResponse}
+     *
+     * @param response the HTTP response
+     * @return the healthcare http exception
+     * @throws IOException the io exception
+     */
+    public static HealthcareHttpException of(HttpResponse response) throws IOException {
+      return new HealthcareHttpException(response, EntityUtils.toString(response.getEntity()));
+    }
+
+    public Integer getStatusCode() {
+      return statusCode;
+    }
   }
 
   @Override

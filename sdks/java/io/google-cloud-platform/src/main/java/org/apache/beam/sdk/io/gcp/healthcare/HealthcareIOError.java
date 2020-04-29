@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.joda.time.Instant;
 
@@ -74,7 +75,10 @@ public class HealthcareIOError<T> {
 
     if (error instanceof com.google.api.client.googleapis.json.GoogleJsonResponseException) {
       statusCode = ((GoogleJsonResponseException) error).getStatusCode();
+    } else if (error instanceof HealthcareHttpException) {
+      statusCode = ((HealthcareHttpException) error).getStatusCode();
     }
+
     return new HealthcareIOError<>(dataResource, msg, stackTrace, null, statusCode);
   }
 }

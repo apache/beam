@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -79,7 +78,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID strings
  * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieved a
- * {@link PCollection} containing the successfully fetched {@link HttpBody}s and/or {@link
+ * {@link PCollection} containing the successfully fetched {@link String}s and/or {@link
  * FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
  * HealthcareIOError}* containing the resource ID that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
@@ -104,11 +103,11 @@ import org.slf4j.LoggerFactory;
  *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores/import></a>
- *     A {@link PCollection} of {@link HttpBody} can be ingested into an Fhir store using {@link
- *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This will return a
- *     {@link FhirIO.Write.Result} on which you can call {@link
+ *     A {@link PCollection} of {@link String} can be ingested into an Fhir store using {@link
+ *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This
+ *     will return a {@link FhirIO.Write.Result} on which you can call {@link
  *     FhirIO.Write.Result#getFailedInsertsWithErr()} to retrieve a {@link PCollection} of {@link
- *     HealthcareIOError} containing the {@link HttpBody} that failed to be ingested and the
+ *     HealthcareIOError} containing the {@link String} that failed to be ingested and the
  *     exception.
  *     <p>Example
  *     <pre>{@code
@@ -121,7 +120,7 @@ import org.slf4j.LoggerFactory;
  *   .apply(FhirIO.readResources());
  *
  * // happily retrived messages
- * PCollection<HttpBody> resources = readResult.getResources();
+ * PCollection<String> resources = readResult.getResources();
  * // message IDs that couldn't be retrieved + error context
  * PCollection<HealthcareIOError<String>> failedReads = readResult.getFailedReads();
  *
@@ -135,7 +134,7 @@ import org.slf4j.LoggerFactory;
  * FhirIO.Write.Result writeResult =
  *     output.apply("Execute FHIR Bundles", FhirIO.executeBundles(options.getFhirStore()));
  *
- * PCollection<HealthcareIOError<HttpBody>> failedBundles = writeResult.getFailedInsertsWithErr();
+ * PCollection<HealthcareIOError<String>> failedBundles = writeResult.getFailedInsertsWithErr();
  *
  * failedBundles.apply("Write failed bundles to BigQuery",
  *     BigQueryIO
@@ -203,7 +202,7 @@ public class FhirIO {
 
     /** The type Result. */
     public static class Result implements POutput, PInput {
-      private PCollection<HttpBody> resources;
+      private PCollection<String> resources;
 
       private PCollection<HealthcareIOError<String>> failedReads;
       /** The Pct. */
@@ -230,7 +229,7 @@ public class FhirIO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.resources = pct.get(OUT).setCoder(new HttpBodyCoder());
+        this.resources = pct.get(OUT);
         this.failedReads =
             pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
       }
@@ -249,7 +248,7 @@ public class FhirIO {
        *
        * @return the resources
        */
-      public PCollection<HttpBody> getResources() {
+      public PCollection<String> getResources() {
         return resources;
       }
 
@@ -269,21 +268,21 @@ public class FhirIO {
     }
 
     /** The tag for the main output of Fhir Messages. */
-    public static final TupleTag<HttpBody> OUT = new TupleTag<HttpBody>() {};
+    public static final TupleTag<String> OUT = new TupleTag<String>() {};
     /** The tag for the deadletter output of Fhir Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
 
     @Override
     public FhirIO.Read.Result expand(PCollection<String> input) {
-      return input.apply("Fetch Fhir messages", new FhirIO.Read.FetchHttpBody());
+      return input.apply("Fetch Fhir messages", new FhirIO.Read.FetchString());
     }
 
     /**
      * DoFn to fetch a resource from an Google Cloud Healthcare FHIR store based on resourceID
      *
      * <p>This DoFn consumes a {@link PCollection} of notifications {@link String}s from the FHIR
-     * store, and fetches the actual {@link HttpBody} object based on the id in the notification and
+     * store, and fetches the actual {@link String} object based on the id in the notification and
      * will output a {@link PCollectionTuple} which contains the output and dead-letter {@link
      * PCollection}*.
      *
@@ -297,33 +296,33 @@ public class FhirIO {
      *       error message and stacktrace.
      * </ul>
      */
-    public static class FetchHttpBody extends PTransform<PCollection<String>, FhirIO.Read.Result> {
+    public static class FetchString extends PTransform<PCollection<String>, FhirIO.Read.Result> {
 
       /** Instantiates a new Fetch Fhir message DoFn. */
-      public FetchHttpBody() {}
+      public FetchString() {}
 
       @Override
       public FhirIO.Read.Result expand(PCollection<String> resourceIds) {
         return new FhirIO.Read.Result(
             resourceIds.apply(
-                ParDo.of(new FhirIO.Read.FetchHttpBody.HttpBodyGetFn())
+                ParDo.of(new FhirIO.Read.FetchString.StringGetFn())
                     .withOutputTags(FhirIO.Read.OUT, TupleTagList.of(FhirIO.Read.DEAD_LETTER))));
       }
 
       /** DoFn for fetching messages from the Fhir store with error handling. */
-      public static class HttpBodyGetFn extends DoFn<String, HttpBody> {
+      public static class StringGetFn extends DoFn<String, String> {
 
         private Counter failedMessageGets =
-            Metrics.counter(FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class, "failed-message-reads");
+            Metrics.counter(FhirIO.Read.FetchString.StringGetFn.class, "failed-message-reads");
         private static final Logger LOG =
-            LoggerFactory.getLogger(FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class);
-        private final Counter successfulHttpBodyGets =
+            LoggerFactory.getLogger(FhirIO.Read.FetchString.StringGetFn.class);
+        private final Counter successfulStringGets =
             Metrics.counter(
-                FhirIO.Read.FetchHttpBody.HttpBodyGetFn.class, "successful-hl7v2-message-gets");
+                FhirIO.Read.FetchString.StringGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
 
         /** Instantiates a new Hl 7 v 2 message get fn. */
-        HttpBodyGetFn() {}
+        StringGetFn() {}
 
         /**
          * Instantiate healthcare client.
@@ -356,8 +355,8 @@ public class FhirIO {
           }
         }
 
-        private HttpBody fetchResource(HealthcareApiClient client, String resourceId)
-            throws IOException, IllegalArgumentException, InterruptedException {
+        private String fetchResource(HealthcareApiClient client, String resourceId)
+            throws IOException, IllegalArgumentException {
           long startTime = System.currentTimeMillis();
           Sleeper sleeper = Sleeper.DEFAULT;
 
@@ -367,8 +366,8 @@ public class FhirIO {
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
           }
-          this.successfulHttpBodyGets.inc();
-          return resource;
+          this.successfulStringGets.inc();
+          return resource.getData();
         }
       }
     }
@@ -376,11 +375,11 @@ public class FhirIO {
 
   /** The type Write. */
   @AutoValue
-  public abstract static class Write extends PTransform<PCollection<HttpBody>, Write.Result> {
+  public abstract static class Write extends PTransform<PCollection<String>, Write.Result> {
 
     /** The tag for the failed writes to FHIR store`. */
-    public static final TupleTag<HealthcareIOError<HttpBody>> FAILED_BODY =
-        new TupleTag<HealthcareIOError<HttpBody>>() {};
+    public static final TupleTag<HealthcareIOError<String>> FAILED_BODY =
+        new TupleTag<HealthcareIOError<String>>() {};
     /** The tag for the files that failed to FHIR store`. */
     public static final TupleTag<HealthcareIOError<String>> FAILED_FILES =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -405,7 +404,7 @@ public class FhirIO {
     /** The type Result. */
     public static class Result implements POutput {
       private final Pipeline pipeline;
-      private final PCollection<HealthcareIOError<HttpBody>> failedInsertsWithErr;
+      private final PCollection<HealthcareIOError<String>> failedInsertsWithErr;
 
       /**
        * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}. @param pipeline the
@@ -414,7 +413,7 @@ public class FhirIO {
        * @param failedInserts the failed inserts
        * @return the result
        */
-      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<HttpBody>> failedInserts) {
+      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<String>> failedInserts) {
         return new Result(pipeline, failedInserts);
       }
 
@@ -423,7 +422,7 @@ public class FhirIO {
        *
        * @return the failed inserts with err
        */
-      public PCollection<HealthcareIOError<HttpBody>> getFailedInsertsWithErr() {
+      public PCollection<HealthcareIOError<String>> getFailedInsertsWithErr() {
         return this.failedInsertsWithErr;
       }
 
@@ -434,7 +433,7 @@ public class FhirIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        failedInsertsWithErr.setCoder(new HealthcareIOErrorCoder<HttpBody>(new HttpBodyCoder()));
+        failedInsertsWithErr.setCoder(new HealthcareIOErrorCoder<String>(StringUtf8Coder.of()));
         return ImmutableMap.of(Write.FAILED_BODY, failedInsertsWithErr);
       }
 
@@ -443,7 +442,7 @@ public class FhirIO {
           String transformName, PInput input, PTransform<?, ?> transform) {}
 
       private Result(
-          Pipeline pipeline, PCollection<HealthcareIOError<HttpBody>> failedInsertsWithErr) {
+          Pipeline pipeline, PCollection<HealthcareIOError<String>> failedInsertsWithErr) {
         this.pipeline = pipeline;
         this.failedInsertsWithErr = failedInsertsWithErr;
       }
@@ -594,8 +593,8 @@ public class FhirIO {
     private static final Logger LOG = LoggerFactory.getLogger(Write.class);
 
     @Override
-    public Result expand(PCollection<HttpBody> input) {
-      PCollection<HealthcareIOError<HttpBody>> failedBundles;
+    public Result expand(PCollection<String> input) {
+      PCollection<HealthcareIOError<String>> failedBundles;
       PCollection<HealthcareIOError<String>> failedImports;
       switch (this.getWriteMethod()) {
         case IMPORT:
@@ -610,7 +609,7 @@ public class FhirIO {
           failedBundles =
               input
                   .apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure))
-                  .setCoder(new HealthcareIOErrorCoder<>(new HttpBodyCoder()));
+                  .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
           // fall through
         case EXECUTE_BUNDLE:
         default:
@@ -628,7 +627,7 @@ public class FhirIO {
    * fhirStores.import Request for that file.
    */
   public static class Import
-      extends PTransform<PCollection<HttpBody>, PCollection<HealthcareIOError<HttpBody>>> {
+      extends PTransform<PCollection<String>, PCollection<HealthcareIOError<String>>> {
 
     private final String fhirStore;
     private final String tempGcsPath;
@@ -683,8 +682,8 @@ public class FhirIO {
     }
 
     @Override
-    public PCollection<HealthcareIOError<HttpBody>> expand(PCollection<HttpBody> input) {
-      // write bundles of HttpBody to GCS
+    public PCollection<HealthcareIOError<String>> expand(PCollection<String> input) {
+      // write bundles of String to GCS
       PCollectionTuple writeResults =
           input.apply(
               "Write nd json to GCS",
@@ -706,7 +705,7 @@ public class FhirIO {
 
       return writeResults
           .get(Write.FAILED_BODY)
-          .setCoder(new HealthcareIOErrorCoder<>(HttpBodyCoder.of()));
+          .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
     }
 
     static class ImportFn
@@ -805,7 +804,7 @@ public class FhirIO {
     }
 
     /** The type Import fn. */
-    static class WriteBundlesToFilesFn extends DoFn<HttpBody, ResourceId> {
+    static class WriteBundlesToFilesFn extends DoFn<String, ResourceId> {
 
       private final String fhirStore;
       private final String tempGcsPath;
@@ -866,10 +865,10 @@ public class FhirIO {
       @ProcessElement
       public void addToFile(ProcessContext context, BoundedWindow window) throws IOException {
         this.window = window;
-        HttpBody httpBody = context.element();
+        String httpBody = context.element();
         try {
           // This will error if not valid JSON an convert Pretty JSON to raw JSON.
-          Object data = this.mapper.readValue(httpBody.getData(), Object.class);
+          Object data = this.mapper.readValue(httpBody, Object.class);
           String ndJson = this.mapper.writeValueAsString(data) + "\n";
           this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
         } catch (JsonProcessingException e) {
@@ -900,7 +899,7 @@ public class FhirIO {
   }
 
   /** The type Execute bundles. */
-  public static class ExecuteBundles extends PTransform<PCollection<HttpBody>, Write.Result> {
+  public static class ExecuteBundles extends PTransform<PCollection<String>, Write.Result> {
     private final String fhirStore;
 
     /**
@@ -922,13 +921,13 @@ public class FhirIO {
     }
 
     @Override
-    public FhirIO.Write.Result expand(PCollection<HttpBody> input) {
+    public FhirIO.Write.Result expand(PCollection<String> input) {
       return Write.Result.in(
           input.getPipeline(), input.apply(ParDo.of(new ExecuteBundlesFn(fhirStore))));
     }
 
     /** The type Write Fhir fn. */
-    static class ExecuteBundlesFn extends DoFn<HttpBody, HealthcareIOError<HttpBody>> {
+    static class ExecuteBundlesFn extends DoFn<String, HealthcareIOError<String>> {
 
       private Counter failedBundles = Metrics.counter(ExecuteBundlesFn.class, "failed-bundles");
       private transient HealthcareApiClient client;
@@ -962,10 +961,10 @@ public class FhirIO {
        */
       @ProcessElement
       public void executeBundles(ProcessContext context) {
-        HttpBody body = context.element();
+        String body = context.element();
         try {
           // Validate that data was set to valid JSON.
-          mapper.readTree(body.getData());
+          mapper.readTree(body);
           client.executeFhirBundle(fhirStore, body);
         } catch (IOException e) {
           failedBundles.inc();
