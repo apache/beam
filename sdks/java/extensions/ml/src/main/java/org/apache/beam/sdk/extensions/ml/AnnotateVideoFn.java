@@ -35,31 +35,31 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Base class for Video Intelligence transform.
+ * Base class for DoFns used in VideoIntelligence transforms.
  *
  * @param <T> Class of input data being passed in - either ByteString - video data encoded into.
  *     String or String - a GCS URI of the video to be annotated.
  */
 @Experimental
-public abstract class AnnotateVideo<T> extends DoFn<T, List<VideoAnnotationResults>> {
+abstract class AnnotateVideoFn<T> extends DoFn<T, List<VideoAnnotationResults>> {
 
   protected final PCollectionView<Map<T, VideoContext>> contextSideInput;
   protected final List<Feature> featureList;
   VideoIntelligenceServiceClient videoIntelligenceServiceClient;
 
-  public AnnotateVideo(
+  public AnnotateVideoFn(
       PCollectionView<Map<T, VideoContext>> contextSideInput, List<Feature> featureList) {
     this.contextSideInput = contextSideInput;
     this.featureList = featureList;
   }
 
-  public AnnotateVideo(List<Feature> featureList) {
+  public AnnotateVideoFn(List<Feature> featureList) {
     contextSideInput = null;
     this.featureList = featureList;
   }
 
-  @StartBundle
-  public void startBundle() throws IOException {
+  @Setup
+  public void setup() throws IOException {
     videoIntelligenceServiceClient = VideoIntelligenceServiceClient.create();
   }
 
