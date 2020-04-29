@@ -703,8 +703,7 @@ class BigQueryWrapper(object):
       bigquery.JobReference with the information about the job that was started.
     """
     job_project = project or table_reference.projectId
-    job_reference = bigquery.JobReference(
-        jobId=job_id, projectId=job_project)
+    job_reference = bigquery.JobReference(jobId=job_id, projectId=job_project)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=job_project,
         job=bigquery.Job(
