@@ -106,21 +106,19 @@ public interface SparkPipelineOptions extends SparkCommonPipelineOptions {
    * this when running in local master, it's better not to include non-jars files in classpath.
    */
   static void prepareFilesToStage(SparkPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
-      List<String> filesToStage =
-          options.getFilesToStage().stream()
-              .map(File::new)
-              .filter(File::exists)
-              .map(
-                  file -> {
-                    return file.getAbsolutePath();
-                  })
-              .collect(Collectors.toList());
-      options.setFilesToStage(
-          PipelineResources.prepareFilesForStaging(
-              filesToStage,
-              MoreObjects.firstNonNull(
-                  options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
-    }
+    List<String> filesToStage =
+        options.getFilesToStage().stream()
+            .map(File::new)
+            .filter(File::exists)
+            .map(
+                file -> {
+                  return file.getAbsolutePath();
+                })
+            .collect(Collectors.toList());
+    options.setFilesToStage(
+        PipelineResources.prepareFilesForStaging(
+            filesToStage,
+            MoreObjects.firstNonNull(
+                options.getTempLocation(), System.getProperty("java.io.tmpdir"))));
   }
 }
