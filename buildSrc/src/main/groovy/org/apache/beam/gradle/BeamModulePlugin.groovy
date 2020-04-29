@@ -1490,12 +1490,14 @@ class BeamModulePlugin implements Plugin<Project> {
       project.apply plugin: "groovy"
 
       project.apply plugin: "com.diffplug.gradle.spotless"
+      def disableSpotlessCheck = project.hasProperty('disableSpotlessCheck') &&
+              project.disableSpotlessCheck == 'true'
       project.spotless {
+        enforceCheck !disableSpotlessCheck
         def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
-          licenseHeader javaLicenseHeader
-          paddedCell() // Recommended to avoid cyclic ambiguity issues
           greclipse().configFile(grEclipseConfig)
+          target project.fileTree(project.projectDir) { include '**/*.groovy' }
         }
         groovyGradle { greclipse().configFile(grEclipseConfig) }
       }
