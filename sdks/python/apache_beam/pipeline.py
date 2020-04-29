@@ -76,6 +76,7 @@ from past.builtins import unicode
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -94,6 +95,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils import subprocess_server
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
 
@@ -524,6 +526,9 @@ class Pipeline(object):
 
   def __enter__(self):
     # type: () -> Pipeline
+    self._extra_context = subprocess_server.JavaJarServer.beam_services(
+        self._options.view_as(CrossLanguageOptions).beam_services)
+    self._extra_context.__enter__()
     return self
 
   def __exit__(self,
@@ -533,8 +538,11 @@ class Pipeline(object):
               ):
     # type: (...) -> None
 
-    if not exc_type:
-      self.run().wait_until_finish()
+    try:
+      if not exc_type:
+        self.run().wait_until_finish()
+    finally:
+      self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
   def visit(self, visitor):
     # type: (PipelineVisitor) -> None
