@@ -78,7 +78,8 @@ public interface AwsOptions extends PipelineOptions {
 
   /**
    * The client configuration instance that should be used to configure AWS service clients. Please
-   * note that the configuration deserialization only allows one to specify proxy settings.
+   * note that the configuration deserialization only allows one to specify proxy settings. Please
+   * use AwsHttpClientConfiguration's client configuration to set a wider range of options.
    *
    * <p>For example, to specify the proxy host, port, username and password, specify the following:
    * <code>
