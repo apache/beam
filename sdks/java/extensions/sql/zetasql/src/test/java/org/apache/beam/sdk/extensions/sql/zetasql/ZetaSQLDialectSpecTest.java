@@ -44,6 +44,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TAB
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TABLE_TWO;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIME_TABLE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import com.google.zetasql.SqlException;
@@ -56,6 +57,8 @@ import com.google.zetasql.ZetaSQLValue.ValueProto;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
@@ -1493,6 +1496,36 @@ public class ZetaSQLDialectSpecTest {
             Row.withSchema(schema).addValues(1L, 1L).build(),
             Row.withSchema(schema).addValues(2L, 1L).build(),
             Row.withSchema(schema).addValues(3L, 2L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLAnyValueInGroupBy() {
+    String sql =
+        "SELECT rowCol.row_id as key, ANY_VALUE(rowCol.data) as any_value FROM table_with_struct_two GROUP BY rowCol.row_id";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Map<Long, List<String>> allowedTuples = new HashMap<>();
+    allowedTuples.put(1L, Arrays.asList("data1"));
+    allowedTuples.put(2L, Arrays.asList("data2"));
+    allowedTuples.put(3L, Arrays.asList("data2", "data3"));
+
+    PAssert.that(stream)
+        .satisfies(
+            input -> {
+              Iterator<Row> iter = input.iterator();
+              while (iter.hasNext()) {
+                Row row = iter.next();
+                List<String> values = allowedTuples.remove(row.getInt64("key"));
+                assertTrue(values != null);
+                assertTrue(values.contains(row.getString("any_value")));
+              }
+              assertTrue(allowedTuples.isEmpty());
+              return null;
+            });
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
