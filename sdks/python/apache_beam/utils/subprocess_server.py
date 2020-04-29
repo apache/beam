@@ -173,7 +173,7 @@ class JavaJarServer(SubprocessServer):
 
   @classmethod
   def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
-    gradle_package = gradle_target.strip(':')[:gradle_target.rindex(':')]
+    gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
     artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
         os.path.abspath(__file__).split(os.path.sep)[:-5])

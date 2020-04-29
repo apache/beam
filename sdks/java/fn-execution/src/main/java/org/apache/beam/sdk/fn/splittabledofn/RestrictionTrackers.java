@@ -19,7 +19,7 @@ package org.apache.beam.sdk.fn.splittabledofn;
 
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 
 /** Support utilities for interacting with {@link RestrictionTracker RestrictionTrackers}. */
@@ -79,22 +79,22 @@ public class RestrictionTrackers {
   }
 
   /**
-   * A {@link RestrictionTracker} which forwards all calls to the delegate backlog reporting {@link
+   * A {@link RestrictionTracker} which forwards all calls to the delegate progress reporting {@link
    * RestrictionTracker}.
    */
   @ThreadSafe
-  private static class RestrictionTrackerObserverWithSize<RestrictionT, PositionT>
-      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements Sizes.HasSize {
+  private static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
+      extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasProgress {
 
-    protected RestrictionTrackerObserverWithSize(
+    protected RestrictionTrackerObserverWithProgress(
         RestrictionTracker<RestrictionT, PositionT> delegate,
         ClaimObserver<PositionT> claimObserver) {
       super(delegate, claimObserver);
     }
 
     @Override
-    public synchronized double getSize() {
-      return ((Sizes.HasSize) delegate).getSize();
+    public synchronized Progress getProgress() {
+      return ((HasProgress) delegate).getProgress();
     }
   }
 
@@ -105,8 +105,8 @@ public class RestrictionTrackers {
   public static <RestrictionT, PositionT> RestrictionTracker<RestrictionT, PositionT> observe(
       RestrictionTracker<RestrictionT, PositionT> restrictionTracker,
       ClaimObserver<PositionT> claimObserver) {
-    if (restrictionTracker instanceof Sizes.HasSize) {
-      return new RestrictionTrackerObserverWithSize<>(restrictionTracker, claimObserver);
+    if (restrictionTracker instanceof RestrictionTracker.HasProgress) {
+      return new RestrictionTrackerObserverWithProgress<>(restrictionTracker, claimObserver);
     } else {
       return new RestrictionTrackerObserver<>(restrictionTracker, claimObserver);
     }

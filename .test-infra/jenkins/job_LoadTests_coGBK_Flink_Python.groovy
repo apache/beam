@@ -143,6 +143,4 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
   loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
-CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Flink_Batch', 'H 16 * * *', this) {
-  loadTest(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
-}
+// TODO(BEAM-9761) Re-enable auto builds after these tests pass.

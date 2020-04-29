@@ -42,7 +42,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.HasDefaultWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.Sizes;
 import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -481,6 +480,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  /**
+   * Parameter annotation for dereferencing input element key in {@link
+   * org.apache.beam.sdk.values.KV} pair.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface Key {}
+
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
@@ -649,10 +657,11 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <ul>
    *   <li>The type of restrictions used by all of these methods must be the same.
    *   <li>It <i>must</i> define a {@link GetInitialRestriction} method.
-   *   <li>It <i>should</i> define a {@link GetSize} method or ensure that the {@link
-   *       RestrictionTracker} implements {@link Sizes.HasSize}. Poor auto-scaling of workers and/or
-   *       splitting may result if neither is defined or if the size is an inaccurate representation
-   *       of work. See {@link GetSize} and {@link Sizes.HasSize} for further details.
+   *   <li>It <i>may</i> define a {@link GetSize} method or ensure that the {@link
+   *       RestrictionTracker} implements {@link RestrictionTracker.HasProgress}. Poor auto-scaling
+   *       of workers and/or splitting may result if size or progress is an inaccurate
+   *       representation of work. See {@link GetSize} and {@link RestrictionTracker.HasProgress}
+   *       for further details.
    *   <li>It <i>should</i> define a {@link SplitRestriction} method. This method enables runners to
    *       perform bulk splitting initially allowing for a rapid increase in parallelism. See {@link
    *       RestrictionTracker#trySplit} for details about splitting when the current element and
@@ -953,23 +962,20 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <p>Returns a double representing the size of the current element and restriction.
    *
-   * <p>Splittable {@link DoFn}s should only provide this method if the default implementation
-   * within the {@link RestrictionTracker} is an inaccurate representation of known work.
+   * <p>Splittable {@link DoFn}s should only provide this method if the default {@link
+   * RestrictionTracker.HasProgress} implementation within the {@link RestrictionTracker} is an
+   * inaccurate representation of known work.
    *
    * <p>It is up to each splittable {@DoFn} to convert between their natural representation of
    * outstanding work and this representation. For example:
    *
    * <ul>
-   *   <li>Block based file source (e.g. Avro): From the end of the current block, the remaining
-   *       number of bytes to the end of the restriction.
+   *   <li>Block based file source (e.g. Avro): The number of bytes that will be read from the file.
    *   <li>Pull based queue based source (e.g. Pubsub): The local/global size available in number of
    *       messages or number of {@code message bytes} that have not been processed.
-   *   <li>Key range based source (e.g. Shuffle, Bigtable, ...): Scale the start key to be one and
-   *       end key to be zero and interpolate the position of the next splittable key as the size.
-   *       If information about the probability density function or cumulative distribution function
-   *       is available, size interpolation can be improved. Alternatively, if the number of encoded
-   *       bytes for the keys and values is known for the key range, the number of remaining bytes
-   *       can be used.
+   *   <li>Key range based source (e.g. Shuffle, Bigtable, ...): Typically {@code 1.0} unless
+   *       additional details such as the number of bytes for keys and values is known for the key
+   *       range.
    * </ul>
    */
   @Documented

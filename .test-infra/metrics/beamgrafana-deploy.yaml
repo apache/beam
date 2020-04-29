@@ -16,13 +16,16 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: beamgrafana
   labels:
     app: beamgrafana
 spec:
+  selector:
+    matchLabels:
+      app: grafana
   strategy:
     type: Recreate
   template:
@@ -34,7 +37,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: beamgrafana
-        image: gcr.io/apache-beam-testing/beamgrafana:beammetrics20190909
+        image: gcr.io/apache-beam-testing/beamgrafana:beammetrics20200421
         securityContext:
           runAsUser: 0
         env:
@@ -47,22 +50,38 @@ spec:
             secretKeyRef:
               name: grafana-admin-pwd
               key: grafana_admin_password
-        - name: DB_HOST
+        - name: PSQL_DB_HOST
           value: 127.0.0.1
-        - name: DB_PORT
+        - name: PSQL_DB_PORT
           value: "5432"
-        - name: DB_DBNAME
+        - name: PSQL_DB_DBNAME
           value: beammetrics
-        - name: DB_DBUSERNAME
+        - name: PSQL_DB_DBUSERNAME
           valueFrom:
             secretKeyRef:
               name: beammetrics-psql-db-credentials
               key: username
-        - name: DB_DBPWD
+        - name: PSQL_DB_DBPWD
           valueFrom:
             secretKeyRef:
               name: beammetrics-psql-db-credentials
               key: password
+        - name: INFLUX_DB_HOST
+          value: influxdb
+        - name: INFLUX_DB_PORT
+          value: "8086"
+        - name: INFLUX_DB_DBNAME
+          value: beam_test_metrics
+        - name: INFLUX_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_USER
+        - name: INFLUX_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: influxdb-creds
+              key: INFLUXDB_USER_PASSWORD
         ports:
         - containerPort: 3000
         resources: {}
@@ -85,7 +104,7 @@ spec:
             mountPath: /secrets/cloudsql
             readOnly: true
       - name: beammetricssyncjenkins
-        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:beammetrics20190909
+        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:beammetrics20200421
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -104,7 +123,7 @@ spec:
                 name: beammetrics-psql-db-credentials
                 key: password
       - name: beammetricssyncjira
-        image: gcr.io/apache-beam-testing/beammetricssyncjira:beammetrics20190909
+        image: gcr.io/apache-beam-testing/beammetricssyncjira:beammetrics20200421
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -123,7 +142,7 @@ spec:
                 name: beammetrics-psql-db-credentials
                 key: password
       - name: beammetricssyncgithub
-        image: gcr.io/apache-beam-testing/beammetricssyncgithub:beammetrics20190909
+        image: gcr.io/apache-beam-testing/beammetricssyncgithub:beammetrics20200421
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -159,4 +178,3 @@ spec:
       - name: beam-grafana-logdata
         persistentVolumeClaim:
           claimName: beam-grafana-logdata
-

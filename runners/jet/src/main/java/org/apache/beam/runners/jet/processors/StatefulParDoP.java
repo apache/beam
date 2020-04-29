@@ -95,6 +95,7 @@ public class StatefulParDoP<OutputT>
     doFnRunner.onTimer(
         timer.getTimerId(),
         timer.getTimerFamilyId(),
+        null,
         window,
         timer.getTimestamp(),
         timer.getOutputTimestamp(),

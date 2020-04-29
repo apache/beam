@@ -46,6 +46,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.FakeBeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
@@ -73,6 +74,8 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -258,6 +261,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -435,6 +439,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -575,6 +580,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -692,6 +698,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -870,6 +877,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -1217,6 +1225,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
         new PTransformFunctionRegistry(
             mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
     List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
+    List<ProgressRequestCallback> progressRequestCallbacks = new ArrayList<>();
     BundleSplitListener.InMemory splitListener = BundleSplitListener.InMemory.create();
 
     new FnApiDoFnRunner.Factory<>()
@@ -1235,6 +1244,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            progressRequestCallbacks::add,
             splitListener,
             null /* bundleFinalizer */);
 
@@ -1248,11 +1258,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertThat(mainInput, instanceOf(HandlesSplits.class));
 
     {
+      // Check that before processing an element we don't report progress
+      assertThat(Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos(), empty());
       mainInput.accept(
           valueInGlobalWindow(
               KV.of(
                   KV.of("5", KV.of(new OffsetRange(5, 10), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                   5.0)));
+      // Check that after processing an element we don't report progress
+      assertThat(Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos(), empty());
+
       // Since the side input upperBound is 8 we will process 5, 6, and 7 then checkpoint.
       // We expect that the watermark advances to MIN + 7 and that the primary represents [5, 8)
       // with
@@ -1296,11 +1311,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
           residualRoot.getRequestedTimeDelay());
       splitListener.clear();
 
+      // Check that before processing an element we don't report progress
+      assertThat(Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos(), empty());
       mainInput.accept(
           valueInGlobalWindow(
               KV.of(
                   KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                   2.0)));
+      // Check that after processing an element we don't report progress
+      assertThat(Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos(), empty());
+
       assertThat(
           mainOutputValues,
           contains(
@@ -1322,17 +1342,52 @@ public class FnApiDoFnRunnerTest implements Serializable {
               () -> {
                 try {
                   doFn.waitForSplitElementToBeProcessed();
+                  // Currently processing "3" out of range [0, 5) elements.
+                  assertEquals(0.6, ((HandlesSplits) mainInput).getProgress(), 0.01);
+
+                  // Check that during progressing of an element we report progress
+                  List<MonitoringInfo> mis =
+                      Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos();
+                  MonitoringInfo.Builder expectedCompleted = MonitoringInfo.newBuilder();
+                  expectedCompleted.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
+                  expectedCompleted.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
+                  expectedCompleted.putLabels(
+                      MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
+                  expectedCompleted.setPayload(
+                      ByteString.copyFrom(
+                          CoderUtils.encodeToByteArray(
+                              IterableCoder.of(DoubleCoder.of()), Collections.singletonList(3.0))));
+                  MonitoringInfo.Builder expectedRemaining = MonitoringInfo.newBuilder();
+                  expectedRemaining.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
+                  expectedRemaining.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
+                  expectedRemaining.putLabels(
+                      MonitoringInfoConstants.Labels.PTRANSFORM, TEST_TRANSFORM_ID);
+                  expectedRemaining.setPayload(
+                      ByteString.copyFrom(
+                          CoderUtils.encodeToByteArray(
+                              IterableCoder.of(DoubleCoder.of()), Collections.singletonList(2.0))));
+                  assertThat(
+                      mis,
+                      containsInAnyOrder(expectedCompleted.build(), expectedRemaining.build()));
+
                   return ((HandlesSplits) mainInput).trySplit(0);
                 } finally {
                   doFn.releaseWaitingProcessElementThread();
                 }
               });
 
+      // Check that before processing an element we don't report progress
+      assertThat(Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos(), empty());
       mainInput.accept(
           valueInGlobalWindow(
               KV.of(
                   KV.of("7", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)),
                   2.0)));
+      HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
+
+      // Check that after processing an element we don't report progress
+      assertThat(Iterables.getOnlyElement(progressRequestCallbacks).getMonitoringInfos(), empty());
+
       // Since the SPLIT_ELEMENT is 3 we will process 0, 1, 2, 3 then be split.
       // We expect that the watermark advances to MIN + 2 since the manual watermark estimator
       // has yet to be invoked for the split element and that the primary represents [0, 4) with
@@ -1345,7 +1400,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
               timestampedValueInGlobalWindow("7:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2)),
               timestampedValueInGlobalWindow("7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3))));
 
-      HandlesSplits.SplitResult trySplitResult = trySplitFuture.get();
       BundleApplication primaryRoot = trySplitResult.getPrimaryRoot();
       DelayedBundleApplication residualRoot = trySplitResult.getResidualRoot();
       assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
@@ -1460,6 +1514,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* bundleSplitListener */,
             null /* bundleFinalizer */);
 
@@ -1553,6 +1608,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* bundleSplitListener */,
             null /* bundleFinalizer */);
 

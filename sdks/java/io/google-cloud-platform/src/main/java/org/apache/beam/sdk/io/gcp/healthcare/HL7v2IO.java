@@ -37,7 +37,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -397,14 +396,17 @@ public class HL7v2IO {
             throws IOException, ParseException, IllegalArgumentException, InterruptedException {
           long startTime = System.currentTimeMillis();
 
-          com.google.api.services.healthcare.v1beta1.model.Message msg =
-              client.getHL7v2Message(msgId);
-
-          if (msg == null) {
-            throw new IOException(String.format("GET request for %s returned null", msgId));
+          try {
+            com.google.api.services.healthcare.v1beta1.model.Message msg =
+                client.getHL7v2Message(msgId);
+            if (msg == null) {
+              throw new IOException(String.format("GET request for %s returned null", msgId));
+            }
+            this.successfulHL7v2MessageGets.inc();
+            return msg;
+          } catch (Exception e) {
+            throw e;
           }
-          this.successfulHL7v2MessageGets.inc();
-          return msg;
         }
       }
     }
@@ -437,6 +439,7 @@ public class HL7v2IO {
           .apply(Create.of(this.hl7v2Stores))
           .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
           .setCoder(new HL7v2MessageCoder())
+          // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
     }
   }
@@ -658,7 +661,6 @@ public class HL7v2IO {
       public void writeMessages(ProcessContext context) {
         HL7v2Message msg = context.element();
         long startTime = System.currentTimeMillis();
-        Sleeper sleeper = Sleeper.DEFAULT;
         switch (writeMethod) {
           case BATCH_IMPORT:
             // TODO once healthcare API exposes batch import API add that functionality here to
