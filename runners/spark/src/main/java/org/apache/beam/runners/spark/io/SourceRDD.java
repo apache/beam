@@ -101,7 +101,9 @@ public class SourceRDD {
         long desiredSizeBytes = (bundleSize > 0) ? bundleSize : DEFAULT_BUNDLE_SIZE;
         if (bundleSize == 0) {
           try {
-            desiredSizeBytes = source.getEstimatedSizeBytes(options.get()) / numPartitions;
+            long estimatedSizeBytes = source.getEstimatedSizeBytes(options.get());
+            LOG.info("Estimated size bytes: {}", estimatedSizeBytes);
+            desiredSizeBytes = estimatedSizeBytes / numPartitions;
           } catch (Exception e) {
             LOG.warn(
                 "Failed to get estimated bundle size for source {}, using default bundle "
@@ -110,6 +112,7 @@ public class SourceRDD {
                 DEFAULT_BUNDLE_SIZE);
           }
         }
+        LOG.info("Desired size bytes is {} with partition {}", desiredSizeBytes, numPartitions);
 
         List<? extends Source<T>> partitionedSources =
             source.split(desiredSizeBytes, options.get());
@@ -117,6 +120,7 @@ public class SourceRDD {
         for (int i = 0; i < partitionedSources.size(); i++) {
           partitions[i] = new SourcePartition<>(id(), i, partitionedSources.get(i));
         }
+        LOG.info("Partition count after split is {}", partitions.length);
         return partitions;
       } catch (Exception e) {
         throw new RuntimeException(
