@@ -262,8 +262,8 @@ class PipelineTest(unittest.TestCase):
 
     visitor = PipelineTest.Visitor(visited=[])
     pipeline.visit(visitor)
-    self.assertEqual(
-        set([pcoll1, pcoll2, pcoll3, pcoll4, pcoll5]), set(visitor.visited))
+    self.assertEqual({pcoll1, pcoll2, pcoll3, pcoll4, pcoll5},
+                     set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite), set(visitor.leave_composite))
     self.assertEqual(2, len(visitor.enter_composite))
     self.assertEqual(visitor.enter_composite[1].transform, transform)
@@ -779,31 +779,31 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEqual(
-      {
+    self.assertEqual({
         'from_dictionary',
         'get_all_options',
         'slices',
         'style',
         'view_as',
         'display_data'
-      },
-      {
-        attr for attr in dir(options)
-        if not attr.startswith('_') and attr != 'next'
-      })
-    self.assertEqual(
-      {
+    },
+                     {
+                         attr
+                         for attr in dir(options)
+                         if not attr.startswith('_') and attr != 'next'
+                     })
+    self.assertEqual({
         'from_dictionary',
         'get_all_options',
         'style',
         'view_as',
         'display_data'
-      },
-      {
-        attr for attr in dir(options.view_as(Eggs))
-        if not attr.startswith('_') and attr != 'next'
-      })
+    },
+                     {
+                         attr
+                         for attr in dir(options.view_as(Eggs))
+                         if not attr.startswith('_') and attr != 'next'
+                     })
 
 
 class RunnerApiTest(unittest.TestCase):
