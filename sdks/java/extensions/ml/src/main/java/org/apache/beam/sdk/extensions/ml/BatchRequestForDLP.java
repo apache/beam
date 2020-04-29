@@ -30,12 +30,15 @@ import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DoFn batching the input PCollection into bigger requests in order to better utilize the Cloud DLP
  * service.
  */
 class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
+  public static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
   private final Integer batchSize;
   public static final Integer DLP_PAYLOAD_LIMIT = 52400;
 
@@ -74,7 +77,7 @@ class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
     if (clearBuffer) {
       KV<String, String> inspectBufferedData = emitResult(elementsBag.read());
       output.output(inspectBufferedData);
-      DLPInspectText.LOG.info(
+      LOG.info(
           "****CLEAR BUFFER Key {} **** Current Content Size {}",
           inspectBufferedData.getKey(),
           inspectBufferedData.getValue().getBytes(UTF_8).length);
@@ -93,7 +96,7 @@ class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
     // Process left over records less than  batch size
     KV<String, String> inspectBufferedData = emitResult(elementsBag.read());
     output.output(inspectBufferedData);
-    DLPInspectText.LOG.info(
+    LOG.info(
         "****Timer Triggered Key {} **** Current Content Size {}",
         inspectBufferedData.getKey(),
         inspectBufferedData.getValue().getBytes(UTF_8).length);
