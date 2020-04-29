@@ -678,7 +678,7 @@ class _CustomBigQuerySource(BoundedSource):
     else:
       project = self.options.view_as(GoogleCloudOptions).project
       if isinstance(project, vp.ValueProvider):
-          return project.get()
+        return project.get()
       else:
         return project
 
