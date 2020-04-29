@@ -27,7 +27,6 @@ from __future__ import division
 from __future__ import print_function
 
 import logging
-import sys
 
 import apache_beam as beam
 from apache_beam import runners
