@@ -579,7 +579,8 @@ Streaming Mode:
             --streaming=true
             --manageResources=false
             --monitorJobs=true
-            --flinkMaster=[local]"
+            --flinkMaster=[local]
+            --shutdownSourcesOnFinalWatermark=true"
 
 ### Running SMOKE suite on the ApexRunner (local)
 
