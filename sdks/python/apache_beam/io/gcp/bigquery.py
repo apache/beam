@@ -656,9 +656,7 @@ class _CustomBigQuerySource(BoundedSource):
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
-      project = self.project
-      if self.project is None:
-        project = self.options.view_as(GoogleCloudOptions).project
+      project = self._get_project()
       job = bq._start_query_job(
           project,
           self.query.get(),
@@ -673,6 +671,16 @@ class _CustomBigQuerySource(BoundedSource):
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
       return None
+
+  def _get_project(self):
+    if self.project:
+      return self.project
+    else:
+      project = self.options.view_as(GoogleCloudOptions).project
+      if isinstance(project, vp.ValueProvider):
+          return project.get()
+      else:
+        return project
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -692,7 +700,7 @@ class _CustomBigQuerySource(BoundedSource):
               self.coder(schema)) for metadata in metadata_list
       ]
       if self.query is not None:
-        bq.clean_up_temporary_dataset(self.project)
+        bq.clean_up_temporary_dataset(self._get_project())
 
     for source in self.split_result:
       yield SourceBundle(0, source, None, None)
@@ -714,13 +722,13 @@ class _CustomBigQuerySource(BoundedSource):
   @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
     location = bq.get_query_location(
-        self.project, self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self.project, location)
+        self._get_project(), self.query.get(), self.use_legacy_sql)
+    bq.create_temporary_dataset(self._get_project(), location)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
     job = bq._start_query_job(
-        self.project,
+        self._get_project(),
         self.query.get(),
         self.use_legacy_sql,
         self.flatten_results,
@@ -728,7 +736,7 @@ class _CustomBigQuerySource(BoundedSource):
         kms_key=self.kms_key)
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref)
-    return bq._get_temp_table(self.project)
+    return bq._get_temp_table(self._get_project())
 
   def _export_files(self, bq):
     """Runs a BigQuery export job.
