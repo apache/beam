@@ -145,9 +145,6 @@ public class Pipeline {
 
   /** Constructs a pipeline from the provided {@link PipelineOptions}. */
   public static Pipeline create(PipelineOptions options) {
-    // TODO: fix runners that mutate PipelineOptions in this method, then remove this line
-    PipelineRunner.fromOptions(options);
-
     Pipeline pipeline = new Pipeline(options);
     LOG.debug("Creating {}", pipeline);
     return pipeline;
