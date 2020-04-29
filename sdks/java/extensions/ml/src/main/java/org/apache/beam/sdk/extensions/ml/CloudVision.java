@@ -25,6 +25,7 @@ import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -40,6 +41,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  *         features, 1));
  * </pre>
  */
+@Experimental
 public class CloudVision {
 
   /**

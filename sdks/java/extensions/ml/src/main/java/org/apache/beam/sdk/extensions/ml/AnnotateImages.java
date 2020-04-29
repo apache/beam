@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -41,7 +42,8 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * @param <T> Type of input PCollection.
  */
-public abstract class AnnotateImages<T>
+@Experimental
+abstract class AnnotateImages<T>
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {
 
   private static final Long MIN_BATCH_SIZE = 1L;
