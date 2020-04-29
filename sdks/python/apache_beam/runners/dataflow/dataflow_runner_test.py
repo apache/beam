@@ -34,6 +34,7 @@ import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
+from apache_beam.coders import BytesCoder
 from apache_beam.coders import coders
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -594,6 +595,25 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn(
         u'CombineValues', set(step[u'kind'] for step in job_dict[u'steps']))
 
+  def expect_correct_override(
+      self, job, step_name, step_kind, expected_output_info):
+    """Expects that a transform was correctly overriden."""
+
+    job_dict = json.loads(str(job))
+    maybe_step = [
+        s for s in job_dict[u'steps']
+        if s[u'properties'][u'user_name'] == step_name
+    ]
+    self.assertTrue(maybe_step, 'Could not find step {}'.format(step_name))
+
+    step = maybe_step[0]
+    self.assertEqual(step[u'kind'], step_kind)
+
+    # The display data here is forwarded because the replace transform is
+    # subclassed from iobase.Read.
+    self.assertGreater(len(step[u'properties']['display_data']), 0)
+    self.assertEqual(step[u'properties']['output_info'], expected_output_info)
+
   def test_read_create_translation(self):
     runner = DataflowRunner()
 
@@ -601,8 +621,6 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
       p | beam.Create([1, 2, 3])
-
-    job_dict = json.loads(str(runner.job))
 
     # If the typing information isn't being forwarded correctly, the component
     # encodings here will be incorrect.
@@ -619,29 +637,16 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "output_name": "out",
         "user_name": "Create/Read.out"
     }]
-    job_dict = json.loads(str(runner.job))
-    read_step = [
-        s for s in job_dict[u'steps']
-        if s[u'properties'][u'user_name'] == u'Create/Read'
-    ][0]
-    self.assertEqual(read_step[u'kind'], u'ParallelRead')
-
-    # The display data here is forwarded because the replace transform is
-    # subclassed from iobase.Read.
-    self.assertGreater(len(read_step[u'properties']['display_data']), 0)
-    self.assertEqual(
-        read_step[u'properties']['output_info'], expected_output_info)
+    self.expect_correct_override(
+        runner.job, u'Create/Read', u'ParallelRead', expected_output_info)
 
   def test_read_bigquery_translation(self):
     runner = DataflowRunner()
 
-    from apache_beam.coders import BytesCoder
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
       p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder()))
-
-    job_dict = json.loads(str(runner.job))
 
     # If the typing information isn't being forwarded correctly, the component
     # encodings here will be incorrect.
@@ -658,18 +663,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "output_name": "out",
         "user_name": "Read.out"
     }]
-    job_dict = json.loads(str(runner.job))
-    read_step = [
-        s for s in job_dict[u'steps']
-        if s[u'properties'][u'user_name'] == u'Read'
-    ][0]
-    self.assertEqual(read_step[u'kind'], u'ParallelRead')
-
-    # The display data here is forwarded because the replace transform is
-    # subclassed from iobase.Read.
-    self.assertGreater(len(read_step[u'properties']['display_data']), 0)
-    self.assertEqual(
-        read_step[u'properties']['output_info'], expected_output_info)
+    self.expect_correct_override(
+        runner.job, u'Read', u'ParallelRead', expected_output_info)
 
   def test_read_pubsub_translation(self):
     runner = DataflowRunner()
@@ -696,18 +691,11 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
         "output_name": "out",
         "user_name": "ReadFromPubSub/Read.out"
     }]
-    job_dict = json.loads(str(runner.job))
-    read_step = [
-        s for s in job_dict[u'steps']
-        if s[u'properties'][u'user_name'] == u'ReadFromPubSub/Read'
-    ][0]
-    self.assertEqual(read_step[u'kind'], u'ParallelRead')
-
-    # The display data here is forwarded because the replace transform is
-    # subclassed from iobase.Read.
-    self.assertGreater(len(read_step[u'properties']['display_data']), 0)
-    self.assertEqual(
-        read_step[u'properties']['output_info'], expected_output_info)
+    self.expect_correct_override(
+        runner.job,
+        u'ReadFromPubSub/Read',
+        u'ParallelRead',
+        expected_output_info)
 
 
 class CustomMergingWindowFn(window.WindowFn):
