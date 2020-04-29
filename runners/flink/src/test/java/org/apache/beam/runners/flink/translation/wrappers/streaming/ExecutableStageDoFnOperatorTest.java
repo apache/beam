@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.runners.flink.translation.wrappers.streaming.StreamRecordStripper.stripStreamRecordFromWindowedValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.instanceOf;
@@ -25,10 +26,8 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.iterableWithSize;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -47,6 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -88,6 +88,7 @@ import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -382,10 +383,7 @@ public class ExecutableStageDoFnOperatorTest {
 
     testHarness.close(); // triggers finish bundle
 
-    assertThat(
-        testHarness.getOutput(),
-        contains(
-            new StreamRecord<>(three), new Watermark(watermark), new Watermark(Long.MAX_VALUE)));
+    assertThat(stripStreamRecordFromWindowedValue(testHarness.getOutput()), contains(three));
 
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput1)),
@@ -394,6 +392,139 @@ public class ExecutableStageDoFnOperatorTest {
     assertThat(
         testHarness.getSideOutput(tagsToOutputTags.get(additionalOutput2)),
         contains(new StreamRecord<>(five)));
+  }
+
+  @Test
+  public void testWatermarkHandling() throws Exception {
+    TupleTag<Integer> mainOutput = new TupleTag<>("main-output");
+    DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory(mainOutput, VoidCoder.of());
+    ExecutableStageDoFnOperator<KV<String, Integer>, Integer> operator =
+        getOperator(
+            mainOutput,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.of(FixedWindows.of(Duration.millis(10))),
+            StringUtf8Coder.of(),
+            WindowedValue.getFullCoder(
+                KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()), IntervalWindow.getCoder()));
+
+    KeyedOneInputStreamOperatorTestHarness<
+            String, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
+        testHarness =
+            new KeyedOneInputStreamOperatorTestHarness<>(
+                operator,
+                val -> val.getValue().getKey(),
+                new CoderTypeInformation<>(StringUtf8Coder.of()));
+    RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
+    when(bundle.getInputReceivers())
+        .thenReturn(
+            ImmutableMap.<String, FnDataReceiver<WindowedValue>>builder()
+                .put("input", Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(bundle.getTimerReceivers())
+        .thenReturn(
+            ImmutableMap.<KV<String, String>, FnDataReceiver<WindowedValue>>builder()
+                .put(KV.of("transform", "timer"), Mockito.mock(FnDataReceiver.class))
+                .put(KV.of("transform", "timer2"), Mockito.mock(FnDataReceiver.class))
+                .put(KV.of("transform", "timer3"), Mockito.mock(FnDataReceiver.class))
+                .build());
+    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
+
+    testHarness.open();
+    assertThat(
+        operator.getCurrentOutputWatermark(), is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+
+    // No bundle has been started, watermark can be freely advanced
+    testHarness.processWatermark(0);
+    assertThat(operator.getCurrentOutputWatermark(), is(0L));
+
+    // Trigger a new bundle
+    IntervalWindow intervalWindow = new IntervalWindow(new Instant(0), new Instant(9));
+    WindowedValue<KV<String, Integer>> windowedValue =
+        WindowedValue.of(KV.of("one", 1), Instant.now(), intervalWindow, PaneInfo.NO_FIRING);
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+
+    // The output watermark should be held back during the bundle
+    testHarness.processWatermark(1);
+    assertThat(operator.getEffectiveInputWatermark(), is(1L));
+    assertThat(operator.getCurrentOutputWatermark(), is(0L));
+
+    // After the bundle has been finished, the watermark should be advanced
+    operator.invokeFinishBundle();
+    assertThat(operator.getCurrentOutputWatermark(), is(1L));
+
+    // Bundle finished, watermark can be freely advanced
+    testHarness.processWatermark(2);
+    assertThat(operator.getEffectiveInputWatermark(), is(2L));
+    assertThat(operator.getCurrentOutputWatermark(), is(2L));
+
+    // Trigger a new bundle
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+    assertThat(testHarness.numEventTimeTimers(), is(1)); // cleanup timer
+
+    // Set at timer
+    Instant timerTarget = new Instant(5);
+    Instant timerTarget2 = new Instant(6);
+    operator.getLockToAcquireForStateAccessDuringBundles().lock();
+
+    BiConsumer<String, Instant> timerConsumer =
+        (timerId, timestamp) ->
+            operator.setTimer(
+                Timer.of(
+                    windowedValue.getValue().getKey(),
+                    "",
+                    windowedValue.getWindows(),
+                    timestamp,
+                    timestamp,
+                    PaneInfo.NO_FIRING),
+                TimerInternals.TimerData.of(
+                    TimerReceiverFactory.encodeToTimerDataTimerId("transform", timerId),
+                    "",
+                    StateNamespaces.window(IntervalWindow.getCoder(), intervalWindow),
+                    timestamp,
+                    timestamp,
+                    TimeDomain.EVENT_TIME));
+
+    timerConsumer.accept("timer", timerTarget);
+    timerConsumer.accept("timer2", timerTarget2);
+    assertThat(testHarness.numEventTimeTimers(), is(3));
+
+    // Advance input watermark past the timer
+    // Check the output watermark is held back
+    long targetWatermark = timerTarget.getMillis() + 100;
+    testHarness.processWatermark(targetWatermark);
+    // Do not yet advance the output watermark because we are still processing a bundle
+    assertThat(testHarness.numEventTimeTimers(), is(3));
+    assertThat(operator.getCurrentOutputWatermark(), is(2L));
+
+    // Check that the timers are fired but the output watermark is advanced no further than
+    // the minimum timer timestamp of the previous bundle because we are still processing a
+    // bundle which might contain more timers.
+    // Timers can create loops if they keep rescheduling themselves when firing
+    // Thus, we advance the watermark asynchronously to allow for checkpointing to run
+    operator.invokeFinishBundle();
+    assertThat(testHarness.numEventTimeTimers(), is(3));
+    testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(operator.getCurrentOutputWatermark(), is(5L));
+
+    // Output watermark is advanced synchronously when the bundle finishes,
+    // no more timers are scheduled
+    operator.invokeFinishBundle();
+    assertThat(operator.getCurrentOutputWatermark(), is(targetWatermark));
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+
+    // Watermark is advanced in a blocking fashion on close, not via a timers
+    // Create a bundle with a pending timer to simulate that
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+    timerConsumer.accept("timer3", new Instant(targetWatermark));
+    assertThat(testHarness.numEventTimeTimers(), is(1));
+
+    // This should be blocking until the watermark reaches Long.MAX_VALUE.
+    testHarness.close();
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(operator.getCurrentOutputWatermark(), is(Long.MAX_VALUE));
   }
 
   @Test
@@ -497,7 +628,7 @@ public class ExecutableStageDoFnOperatorTest {
   }
 
   @Test
-  public void testEnsureStateCleanupWithKeyedInputStateCleaner() {
+  public void testEnsureStateCleanupWithKeyedInputStateCleaner() throws Exception {
     GlobalWindow.Coder windowCoder = GlobalWindow.Coder.INSTANCE;
     InMemoryStateInternals<String> stateInternals = InMemoryStateInternals.forKey("key");
     List<String> userStateNames = ImmutableList.of("state1", "state2");
@@ -519,13 +650,13 @@ public class ExecutableStageDoFnOperatorTest {
     // Test that state is cleaned up correctly
     ExecutableStageDoFnOperator.StateCleaner stateCleaner =
         new ExecutableStageDoFnOperator.StateCleaner(
-            userStateNames, windowCoder, () -> key.getValue());
+            userStateNames, windowCoder, key::getValue, ts -> false, null);
     for (BagState<String> bagState : bagStates) {
       assertThat(Iterables.size(bagState.read()), is(1));
     }
 
     stateCleaner.clearForWindow(GlobalWindow.INSTANCE);
-    stateCleaner.cleanupState(stateInternals, (k) -> key.setValue(k));
+    stateCleaner.cleanupState(stateInternals, key::setValue);
 
     for (BagState<String> bagState : bagStates) {
       assertThat(Iterables.size(bagState.read()), is(0));
@@ -535,6 +666,10 @@ public class ExecutableStageDoFnOperatorTest {
   @Test
   public void testEnsureDeferredStateCleanupTimerFiring() throws Exception {
     testEnsureDeferredStateCleanupTimerFiring(false);
+  }
+
+  @Test
+  public void testEnsureDeferredStateCleanupTimerFiringWithCheckpointing() throws Exception {
     testEnsureDeferredStateCleanupTimerFiring(true);
   }
 
@@ -566,7 +701,7 @@ public class ExecutableStageDoFnOperatorTest {
     AtomicBoolean timerInputReceived = new AtomicBoolean();
     IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(1000));
     IntervalWindow.IntervalWindowCoder windowCoder = IntervalWindow.IntervalWindowCoder.of();
-    WindowedValue<KV<String, Integer>> one =
+    WindowedValue<KV<String, Integer>> windowedValue =
         WindowedValue.of(
             KV.of("one", 1), window.maxTimestamp(), ImmutableList.of(window), PaneInfo.NO_FIRING);
 
@@ -584,36 +719,37 @@ public class ExecutableStageDoFnOperatorTest {
     when(bundle.getTimerReceivers()).thenReturn(ImmutableMap.of(timerInputKey, timerReceiver));
 
     KeyedOneInputStreamOperatorTestHarness<
-            String, WindowedValue<KV<String, Integer>>, WindowedValue<KV<String, Integer>>>
+            ByteBuffer, WindowedValue<KV<String, Integer>>, WindowedValue<Integer>>
         testHarness =
             new KeyedOneInputStreamOperatorTestHarness(
-                operator, val -> val, new CoderTypeInformation<>(keyCoder));
+                operator,
+                operator.keySelector,
+                new CoderTypeInformation<>(FlinkKeyUtils.ByteBufferCoder.of()));
 
     testHarness.open();
 
-    Lock stateBackendLock = (Lock) Whitebox.getInternalState(operator, "stateBackendLock");
+    Lock stateBackendLock = Whitebox.getInternalState(operator, "stateBackendLock");
     stateBackendLock.lock();
 
     KeyedStateBackend<ByteBuffer> keyedStateBackend = operator.getKeyedStateBackend();
-    ByteBuffer key = FlinkKeyUtils.encodeKey(one.getValue().getKey(), keyCoder);
+    ByteBuffer key = FlinkKeyUtils.encodeKey(windowedValue.getValue().getKey(), keyCoder);
     keyedStateBackend.setCurrentKey(key);
 
     DoFnOperator.FlinkTimerInternals timerInternals =
-        (DoFnOperator.FlinkTimerInternals) Whitebox.getInternalState(operator, "timerInternals");
+        Whitebox.getInternalState(operator, "timerInternals");
 
     Object doFnRunner = Whitebox.getInternalState(operator, "doFnRunner");
     Object delegate = Whitebox.getInternalState(doFnRunner, "delegate");
     Object stateCleaner = Whitebox.getInternalState(delegate, "stateCleaner");
-    Collection<?> cleanupTimers =
-        (Collection) Whitebox.getInternalState(stateCleaner, "cleanupQueue");
+    Collection<?> cleanupQueue = Whitebox.getInternalState(stateCleaner, "cleanupQueue");
 
     // create some state which can be cleaned up
     assertThat(testHarness.numKeyedStateEntries(), is(0));
     StateNamespace stateNamespace = StateNamespaces.window(windowCoder, window);
-    BagState<String> state =
+    BagState<ByteString> state = // State from the SDK Harness is stored as ByteStrings
         operator.keyedStateInternals.state(
-            stateNamespace, StateTags.bag(stateId, StringUtf8Coder.of()));
-    state.add("testUserState");
+            stateNamespace, StateTags.bag(stateId, ByteStringCoder.of()));
+    state.add(ByteString.copyFrom("userstate".getBytes(Charsets.UTF_8)));
     assertThat(testHarness.numKeyedStateEntries(), is(1));
 
     // user timer that fires after the end of the window and after state cleanup
@@ -622,51 +758,84 @@ public class ExecutableStageDoFnOperatorTest {
             TimerReceiverFactory.encodeToTimerDataTimerId(
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,
-            window.maxTimestamp().plus(1),
+            window.maxTimestamp(),
             TimeDomain.EVENT_TIME);
     timerInternals.setTimer(userTimer);
 
     // start of bundle
-    testHarness.processElement(new StreamRecord<>(one));
-    verify(receiver).accept(one);
+    testHarness.processElement(new StreamRecord<>(windowedValue));
+    verify(receiver).accept(windowedValue);
 
-    // move watermark past cleanup and user timer while bundle in progress
-    operator.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
+    // move watermark past user timer while bundle is in progress
+    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(1).getMillis()));
 
-    // due to watermark hold the timers won't fire at this point
-    assertFalse("Watermark must be held back until bundle is complete.", timerInputReceived.get());
-    assertThat(cleanupTimers, hasSize(0));
+    // Output watermark is held back and timers do not yet fire (they can still be changed!)
+    assertThat(timerInputReceived.get(), is(false));
+    assertThat(
+        operator.getCurrentOutputWatermark(), is(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+    // The timer fires on bundle finish
+    operator.invokeFinishBundle();
+    assertThat(timerInputReceived.getAndSet(false), is(true));
+
+    // Move watermark past the cleanup timer
+    testHarness.processWatermark(new Watermark(window.maxTimestamp().plus(2).getMillis()));
+    operator.invokeFinishBundle();
+
+    // Cleanup timer has fired and cleanup queue is prepared for bundle finish
+    assertThat(testHarness.numEventTimeTimers(), is(0));
+    assertThat(testHarness.numKeyedStateEntries(), is(1));
+    assertThat(cleanupQueue, hasSize(1));
+
+    // Cleanup timer are rescheduled if a new timer is created during the bundle
+    TimerInternals.TimerData userTimer2 =
+        TimerInternals.TimerData.of(
+            TimerReceiverFactory.encodeToTimerDataTimerId(
+                timerInputKey.getKey(), timerInputKey.getValue()),
+            stateNamespace,
+            window.maxTimestamp(),
+            TimeDomain.EVENT_TIME);
+    operator.setTimer(
+        Timer.of(
+            windowedValue.getValue().getKey(),
+            "",
+            windowedValue.getWindows(),
+            window.maxTimestamp(),
+            window.maxTimestamp(),
+            PaneInfo.NO_FIRING),
+        userTimer2);
+    assertThat(testHarness.numEventTimeTimers(), is(1));
 
     if (withCheckpointing) {
-      // Upon checkpointing, the bundle is finished and the watermark advances;
-      // timers can fire. Note: The bundle is ensured to be finished.
+      // Upon checkpointing, the bundle will be finished.
       testHarness.snapshot(0, 0);
-
-      // The user timer was scheduled to fire after cleanup, but executes first
-      assertTrue("Timer should have been triggered.", timerInputReceived.get());
-      // Cleanup will be executed after the bundle is complete
-      assertThat(cleanupTimers, hasSize(0));
-      verifyNoMoreInteractions(receiver);
     } else {
-      // Upon finishing a bundle, the watermark advances; timers can fire.
-      // Note that this will finish the current bundle, but will also start a new one
-      // when timers fire as part of advancing the watermark
       operator.invokeFinishBundle();
-
-      // The user timer was scheduled to fire after cleanup, but executes first
-      assertTrue("Timer should have been triggered.", timerInputReceived.get());
-      // Cleanup will be executed after the bundle is complete
-      assertThat(cleanupTimers, hasSize(1));
-      verifyNoMoreInteractions(receiver);
-
-      // Finish bundle which has been started by finishing the bundle
-      operator.invokeFinishBundle();
-      assertThat(cleanupTimers, hasSize(0));
     }
 
+    // Cleanup queue has been processed and cleanup timer has been re-added due to pending timers
+    // for the window.
+    assertThat(cleanupQueue, hasSize(0));
+    verifyNoMoreInteractions(receiver);
+    assertThat(testHarness.numKeyedStateEntries(), is(2));
+    assertThat(testHarness.numEventTimeTimers(), is(2));
+
+    // No timer has been fired but bundle should be ended
+    assertThat(timerInputReceived.get(), is(false));
+    assertThat(Whitebox.getInternalState(operator, "bundleStarted"), is(false));
+
+    // Allow user timer and cleanup timer to fire by triggering watermark advancement
+    testHarness.setProcessingTime(testHarness.getProcessingTime() + 1);
+    assertThat(timerInputReceived.getAndSet(false), is(true));
+    assertThat(cleanupQueue, hasSize(1));
+
+    // Cleanup will be executed after the bundle is complete because there are no more pending
+    // timers for the window
+    operator.invokeFinishBundle();
+    assertThat(cleanupQueue, hasSize(0));
     assertThat(testHarness.numKeyedStateEntries(), is(0));
 
     testHarness.close();
+    verifyNoMoreInteractions(receiver);
   }
 
   @Test
@@ -856,7 +1025,8 @@ public class ExecutableStageDoFnOperatorTest {
    * #runtimeContext}. The context factory is mocked to return {@link #stageContext} every time. The
    * behavior of the stage context itself is unchanged.
    */
-  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
+  @SuppressWarnings("rawtypes")
+  private ExecutableStageDoFnOperator getOperator(
       TupleTag<Integer> mainOutput,
       List<TupleTag<?>> additionalOutputs,
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory) {
@@ -869,7 +1039,8 @@ public class ExecutableStageDoFnOperatorTest {
         WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE));
   }
 
-  private ExecutableStageDoFnOperator<Integer, Integer> getOperator(
+  @SuppressWarnings("rawtypes")
+  private ExecutableStageDoFnOperator getOperator(
       TupleTag<Integer> mainOutput,
       List<TupleTag<?>> additionalOutputs,
       DoFnOperator.MultiOutputOutputManagerFactory<Integer> outputManagerFactory,

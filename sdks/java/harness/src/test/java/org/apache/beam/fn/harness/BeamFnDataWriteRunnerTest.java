@@ -150,6 +150,7 @@ public class BeamFnDataWriteRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 

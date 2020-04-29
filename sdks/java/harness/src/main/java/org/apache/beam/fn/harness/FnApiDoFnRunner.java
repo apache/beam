@@ -24,14 +24,17 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.BeamFnTimerClient;
@@ -43,6 +46,7 @@ import org.apache.beam.fn.harness.state.FnApiStateAccessor;
 import org.apache.beam.fn.harness.state.SideInputSpec;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
@@ -55,8 +59,11 @@ import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.Timer;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.DoubleCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
@@ -88,6 +95,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.TimestampObservingWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
@@ -104,6 +113,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -159,6 +169,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             PTransformFunctionRegistry startFunctionRegistry,
             PTransformFunctionRegistry finishFunctionRegistry,
             Consumer<ThrowingRunnable> tearDownFunctions,
+            Consumer<ProgressRequestCallback> addProgressRequestCallback,
             BundleSplitListener splitListener,
             BundleFinalizer bundleFinalizer) {
 
@@ -174,6 +185,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               coders,
               windowingStrategies,
               pCollectionConsumerRegistry,
+              addProgressRequestCallback,
               splitListener,
               bundleFinalizer);
 
@@ -259,7 +271,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
   private final ProcessBundleContext processContext;
-  private final OnTimerContext onTimerContext;
+  private OnTimerContext onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
 
   /**
@@ -333,6 +345,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       Map<String, RunnerApi.Coder> coders,
       Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       PCollectionConsumerRegistry pCollectionConsumerRegistry,
+      Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer) {
     this.pipelineOptions = pipelineOptions;
@@ -560,7 +573,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         throw new IllegalStateException(
             String.format("Unknown URN %s", pTransform.getSpec().getUrn()));
     }
-    this.onTimerContext = new OnTimerContext();
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
 
     switch (pTransform.getSpec().getUrn()) {
@@ -637,6 +649,42 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                       "Unimplemented split conversion handler for %s.",
                       pTransform.getSpec().getUrn()));
             };
+    }
+
+    switch (pTransform.getSpec().getUrn()) {
+      case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+        addProgressRequestCallback.accept(
+            new ProgressRequestCallback() {
+              @Override
+              public List<MonitoringInfo> getMonitoringInfos() throws Exception {
+                Progress progress = getProgress();
+                if (progress == null) {
+                  return Collections.emptyList();
+                }
+                MonitoringInfo.Builder completedBuilder = MonitoringInfo.newBuilder();
+                completedBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_COMPLETED);
+                completedBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
+                completedBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+                completedBuilder.setPayload(encodeProgress(progress.getWorkCompleted()));
+                MonitoringInfo.Builder remainingBuilder = MonitoringInfo.newBuilder();
+                remainingBuilder.setUrn(MonitoringInfoConstants.Urns.WORK_REMAINING);
+                remainingBuilder.setType(MonitoringInfoConstants.TypeUrns.PROGRESS_TYPE);
+                remainingBuilder.putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId);
+                remainingBuilder.setPayload(encodeProgress(progress.getWorkRemaining()));
+                return ImmutableList.of(completedBuilder.build(), remainingBuilder.build());
+              }
+
+              private ByteString encodeProgress(double value) throws IOException {
+                ByteString.Output output = ByteString.newOutput();
+                IterableCoder.of(DoubleCoder.of()).encode(Arrays.asList(value), output);
+                return output.toByteString();
+              }
+            });
+        break;
+      default:
+        // no-op
+
     }
   }
 
@@ -833,13 +881,30 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public double getProgress() {
-      // TODO(BEAM-2939): Implement plumbing progress through for splitting.
+      Progress progress = FnApiDoFnRunner.this.getProgress();
+      if (progress != null) {
+        double totalWork = progress.getWorkCompleted() + progress.getWorkRemaining();
+        if (totalWork > 0) {
+          return progress.getWorkCompleted() / totalWork;
+        }
+      }
       return 0;
     }
   }
 
+  private Progress getProgress() {
+    synchronized (splitLock) {
+      if (currentTracker instanceof RestrictionTracker.HasProgress) {
+        return ((HasProgress) currentTracker).getProgress();
+      }
+    }
+    return null;
+  }
+
   private HandlesSplits.SplitResult trySplitForElementAndRestriction(
       double fractionOfRemainder, Duration resumeDelay) {
+    KV<Instant, WatermarkEstimatorStateT> watermarkAndState;
+    WindowedSplitResult windowedSplitResult;
     synchronized (splitLock) {
       // There is nothing to split if we are between element and restriction processing calls.
       if (currentTracker == null) {
@@ -848,58 +913,59 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       // Make sure to get the output watermark before we split to ensure that the lower bound
       // applies to the residual.
-      KV<Instant, WatermarkEstimatorStateT> watermarkAndState =
-          currentWatermarkEstimator.getWatermarkAndState();
+      watermarkAndState = currentWatermarkEstimator.getWatermarkAndState();
       SplitResult<RestrictionT> result = currentTracker.trySplit(fractionOfRemainder);
       if (result == null) {
         return null;
       }
 
       // We have a successful self split, either runner initiated or via a self checkpoint.
-      WindowedSplitResult windowedSplitResult =
+      windowedSplitResult =
           convertSplitResultToWindowedSplitResult.apply(result, watermarkAndState.getValue());
-      ByteString.Output primaryBytes = ByteString.newOutput();
-      ByteString.Output residualBytes = ByteString.newOutput();
-      try {
-        Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
-        fullInputCoder.encode(windowedSplitResult.getPrimaryRoot(), primaryBytes);
-        fullInputCoder.encode(windowedSplitResult.getResidualRoot(), residualBytes);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-      BundleApplication.Builder primaryApplication =
-          BundleApplication.newBuilder()
-              .setTransformId(pTransformId)
-              .setInputId(mainInputId)
-              .setElement(primaryBytes.toByteString());
-      BundleApplication.Builder residualApplication =
-          BundleApplication.newBuilder()
-              .setTransformId(pTransformId)
-              .setInputId(mainInputId)
-              .setElement(residualBytes.toByteString());
-
-      if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
-        for (String outputId : pTransform.getOutputsMap().keySet()) {
-          residualApplication.putOutputWatermarks(
-              outputId,
-              org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
-                  .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
-                  .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
-                  .build());
-        }
-      }
-      return HandlesSplits.SplitResult.of(
-          primaryApplication.build(),
-          DelayedBundleApplication.newBuilder()
-              .setApplication(residualApplication.build())
-              .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
-              .build());
     }
+
+    ByteString.Output primaryBytes = ByteString.newOutput();
+    ByteString.Output residualBytes = ByteString.newOutput();
+    try {
+      Coder fullInputCoder = WindowedValue.getFullCoder(inputCoder, windowCoder);
+      fullInputCoder.encode(windowedSplitResult.getPrimaryRoot(), primaryBytes);
+      fullInputCoder.encode(windowedSplitResult.getResidualRoot(), residualBytes);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    BundleApplication.Builder primaryApplication =
+        BundleApplication.newBuilder()
+            .setTransformId(pTransformId)
+            .setInputId(mainInputId)
+            .setElement(primaryBytes.toByteString());
+    BundleApplication.Builder residualApplication =
+        BundleApplication.newBuilder()
+            .setTransformId(pTransformId)
+            .setInputId(mainInputId)
+            .setElement(residualBytes.toByteString());
+
+    if (!watermarkAndState.getKey().equals(GlobalWindow.TIMESTAMP_MIN_VALUE)) {
+      for (String outputId : pTransform.getOutputsMap().keySet()) {
+        residualApplication.putOutputWatermarks(
+            outputId,
+            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                .setSeconds(watermarkAndState.getKey().getMillis() / 1000)
+                .setNanos((int) (watermarkAndState.getKey().getMillis() % 1000) * 1000000)
+                .build());
+      }
+    }
+    return HandlesSplits.SplitResult.of(
+        primaryApplication.build(),
+        DelayedBundleApplication.newBuilder()
+            .setApplication(residualApplication.build())
+            .setRequestedTimeDelay(Durations.fromMillis(resumeDelay.getMillis()))
+            .build());
   }
 
   private <K> void processTimer(String timerId, TimeDomain timeDomain, Timer<K> timer) {
     currentTimer = timer;
     currentTimeDomain = timeDomain;
+    onTimerContext = new OnTimerContext<>(timer.getUserKey());
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
@@ -1284,6 +1350,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public Object key() {
+      throw new UnsupportedOperationException(
+          "Cannot access key as parameter outside of @OnTimer method.");
+    }
+
+    @Override
     public Object sideInput(String tagId) {
       return sideInput(sideInputMapping.get(tagId));
     }
@@ -1461,7 +1533,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
-  private class OnTimerContext extends BaseArgumentProvider<InputT, OutputT> {
+  private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
+    private final K key;
+
+    public OnTimerContext(K key) {
+      this.key = key;
+    }
+
     private class Context extends DoFn<InputT, OutputT>.OnTimerContext {
       private Context() {
         doFn.super();
@@ -1557,6 +1635,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
       return currentTimeDomain;
+    }
+
+    @Override
+    public K key() {
+      return key;
     }
 
     @Override

@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
@@ -33,7 +34,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
 public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
-    implements Sizes.HasSize {
+    implements HasProgress {
   private OffsetRange range;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
@@ -112,14 +113,16 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
   }
 
   @Override
-  public double getSize() {
-    // If we have never attempted an offset, we return the length of the entire range.
+  public Progress getProgress() {
+    // If we have never attempted an offset, we return the length of the entire range as work
+    // remaining.
     if (lastAttemptedOffset == null) {
-      return range.getTo() - range.getFrom();
+      return Progress.from(0, range.getTo() - range.getFrom());
     }
 
-    // Otherwise we return the length from where we are to where we are attempting to get to
+    // Compute the amount of work remaining from where we are to where we are attempting to get to
     // with a minimum of zero in case we have claimed beyond the end of the range.
-    return Math.max(range.getTo() - lastAttemptedOffset, 0);
+    long workRemaining = Math.max(range.getTo() - lastAttemptedOffset, 0);
+    return Progress.from(range.getTo() - range.getFrom() - workRemaining, workRemaining);
   }
 }
