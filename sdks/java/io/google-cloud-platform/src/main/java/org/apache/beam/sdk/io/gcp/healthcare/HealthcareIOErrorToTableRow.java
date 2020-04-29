@@ -67,10 +67,11 @@ public class HealthcareIOErrorToTableRow<T>
 
   public static final List<TableFieldSchema> TABLE_FIELD_SCHEMAS =
       Stream.of(
-              Pair.of("data_element", "STRING"),
+              Pair.of("dataElement", "STRING"),
               Pair.of(TIMESTAMP_FIELD_NAME, "TIMESTAMP"),
               Pair.of("message", "STRING"),
-              Pair.of("stacktrace", "STRING"))
+              Pair.of("stacktrace", "STRING"),
+              Pair.of("statusCode", "INTEGER"))
           .map(
               (Pair<String, String> field) -> {
                 TableFieldSchema tfs = new TableFieldSchema();
@@ -84,10 +85,11 @@ public class HealthcareIOErrorToTableRow<T>
   @Override
   public TableRow apply(HealthcareIOError<T> err) {
     TableRow out = new TableRow();
-    out.set("data_element", err.getDataResource().toString());
+    out.set("dataElement", err.getDataResource().toString());
     out.set(TIMESTAMP_FIELD_NAME, err.getObservedTime().toString(DATETIME_FORMATTER));
     out.set("message", err.getErrorMessage());
     out.set("stacktrace", err.getStackTrace());
+    out.set("statusCode", err.getStatusCode());
     return out;
   }
 }

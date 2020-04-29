@@ -39,10 +39,6 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -53,7 +49,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -404,14 +399,17 @@ public class HL7v2IO {
             throws IOException, ParseException, IllegalArgumentException, InterruptedException {
           long startTime = System.currentTimeMillis();
 
-          com.google.api.services.healthcare.v1beta1.model.Message msg =
-              client.getHL7v2Message(msgId);
-
-          if (msg == null) {
-            throw new IOException(String.format("GET request for %s returned null", msgId));
+          try {
+            com.google.api.services.healthcare.v1beta1.model.Message msg =
+                client.getHL7v2Message(msgId);
+            if (msg == null) {
+              throw new IOException(String.format("GET request for %s returned null", msgId));
+            }
+            this.successfulHL7v2MessageGets.inc();
+            return msg;
+          } catch (Exception e) {
+            throw e;
           }
-          this.successfulHL7v2MessageGets.inc();
-          return msg;
         }
       }
     }
@@ -444,20 +442,6 @@ public class HL7v2IO {
           .apply(Create.of(this.hl7v2Stores))
           .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
           .setCoder(new HL7v2MessageCoder())
-          // Listing takes a long time for each input element (HL7v2 store) because it has to
-          // paginate through results in a single thread / ProcessElement call in order to keep
-          // track of page token.
-          // Eagerly emit data on 1 second intervals so downstream processing can get started before
-          // all of the list results have been paginated through.
-          // TODO(BEAM-9847) Verify if triggering allows emitting eager results when processing a single element in HL7v2IO.
-          .apply(
-              Window.<HL7v2Message>into(new GlobalWindows())
-                  .triggering(
-                      AfterWatermark.pastEndOfWindow()
-                          .withEarlyFirings(
-                              AfterProcessingTime.pastFirstElementInPane()
-                                  .plusDelayOf(Duration.standardSeconds(1))))
-                  .discardingFiredPanes())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
     }

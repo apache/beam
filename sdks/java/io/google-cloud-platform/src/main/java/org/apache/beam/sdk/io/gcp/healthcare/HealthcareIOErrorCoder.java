@@ -21,16 +21,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.joda.time.Instant;
 
 public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>> {
   private final Coder<T> originalCoder;
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());
+  private static final NullableCoder<Integer> INTEGER_CODER =
+      NullableCoder.of(TextualIntegerCoder.of());
   private static final NullableCoder<Instant> INSTANT_CODER = NullableCoder.of(InstantCoder.of());
 
   public HealthcareIOErrorCoder(Coder<T> originalCoder) {
@@ -38,22 +40,24 @@ public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>>
   }
 
   @Override
-  public void encode(HealthcareIOError<T> value, OutputStream outStream)
-      throws CoderException, IOException {
+  public void encode(HealthcareIOError<T> value, OutputStream outStream) throws IOException {
 
     originalCoder.encode(value.getDataResource(), outStream);
 
     STRING_CODER.encode(value.getErrorMessage(), outStream);
     STRING_CODER.encode(value.getStackTrace(), outStream);
     INSTANT_CODER.encode(value.getObservedTime(), outStream);
+    INTEGER_CODER.encode(value.getStatusCode(), outStream);
   }
 
   @Override
-  public HealthcareIOError<T> decode(InputStream inStream) throws CoderException, IOException {
+  public HealthcareIOError<T> decode(InputStream inStream) throws IOException {
     T dataResource = originalCoder.decode(inStream);
     String errorMessage = STRING_CODER.decode(inStream);
     String stackTrace = STRING_CODER.decode(inStream);
     Instant observedTime = INSTANT_CODER.decode(inStream);
-    return new HealthcareIOError<>(dataResource, errorMessage, stackTrace, observedTime);
+    Integer statusCode = INTEGER_CODER.decode(inStream);
+    return new HealthcareIOError<>(
+        dataResource, errorMessage, stackTrace, observedTime, statusCode);
   }
 }
