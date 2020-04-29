@@ -23,6 +23,7 @@ import unittest
 
 from apache_beam.dataframe import doctests
 
+
 SAMPLE_DOCTEST = '''
 >>> df = pd.DataFrame({'Animal': ['Falcon', 'Falcon',
 ...                               'Parrot', 'Parrot'],
