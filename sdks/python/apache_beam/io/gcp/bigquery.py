@@ -673,14 +673,14 @@ class _CustomBigQuerySource(BoundedSource):
       return None
 
   def _get_project(self):
-    if self.project:
-      return self.project
-    else:
-      project = self.options.view_as(GoogleCloudOptions).project
-      if isinstance(project, vp.ValueProvider):
-        return project.get()
-      else:
-        return project
+    """Returns the project that queries and exports will be billed to."""
+
+    project = self.options.view_as(GoogleCloudOptions).project
+    if isinstance(project, vp.ValueProvider):
+      project = project.get()
+    if not project:
+      project = self.project
+    return project
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -749,6 +749,7 @@ class _CustomBigQuerySource(BoundedSource):
                                      job_id,
                                      self.table_reference,
                                      bigquery_tools.FileFormat.JSON,
+                                     project=self._get_project(),
                                      include_header=False)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
