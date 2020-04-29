@@ -178,20 +178,26 @@ def run(argv=None, save_main_session=True):
     # 150, 151, 152, 153, 154 in the window [150, 155)
     # or exactly 1 occurrence of any subset of the elements
     # 210, 211, 212, 213, 214 in the window [210, 215).
+    first_window_val = [
+        '150: 1',
+        '151: 1',
+        '152: 1',
+        '153: 1',
+        '154: 1',
+    ]
+    second_window_val = [
+        '210: 1',
+        '211: 1',
+        '212: 1',
+        '213: 1',
+        '214: 1',
+    ]
     expected_window_to_elements = {
         window.IntervalWindow(150, 155): [
-            ('150: 1'),
-            ('151: 1'),
-            ('152: 1'),
-            ('153: 1'),
-            ('154: 1'),
+            x.encode('utf-8') for x in first_window_val
         ],
         window.IntervalWindow(210, 215): [
-            ('210: 1'),
-            ('211: 1'),
-            ('212: 1'),
-            ('213: 1'),
-            ('214: 1'),
+            x.encode('utf-8') for x in second_window_val
         ],
     }
 
