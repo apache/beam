@@ -153,18 +153,22 @@ public class CassandraIOTest implements Serializable {
 
   private static Cluster buildCluster(CassandraEmbeddedServerBuilder builder) {
     int tried = 0;
-    while (tried < 3) {
+    int delay = 5000;
+    while (tried < 5) {
       try {
         return builder.buildNativeCluster();
       } catch (NoHostAvailableException e) {
         tried++;
         try {
-          Thread.sleep(1000L);
+          Thread.sleep(delay);
         } catch (InterruptedException e1) {
         }
       }
     }
-    throw new RuntimeException("Unable to create embedded Cassandra cluster");
+    throw new RuntimeException(
+        String.format(
+            "Unable to create embedded Cassandra cluster: tried %d times with %d delay",
+            tried, delay));
   }
 
   @AfterClass
