@@ -1326,6 +1326,19 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLSelectFromTableOrderLimit() {
+    String sql =
+        "SELECT x, y FROM (SELECT 1 as x, 0 as y UNION ALL SELECT 0, 0 "
+            + "UNION ALL SELECT 1, 0 UNION ALL SELECT 1, 1) ORDER BY x LIMIT 1";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema = Schema.builder().addInt64Field("field1").addInt64Field("field2").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(0L, 0L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableLimitOffset() {
     String sql =
         "SELECT COUNT(a) FROM (\n"
