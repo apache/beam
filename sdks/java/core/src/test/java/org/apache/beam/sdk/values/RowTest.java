@@ -36,6 +36,10 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedLengthString;
+import org.apache.beam.sdk.schemas.logicaltypes.LogicalDecimal;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -761,5 +765,51 @@ public class RowTest {
     byte[] byteArray = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
     Row row = Row.withSchema(schema).withFieldValue("char", byteArray).build();
     assertTrue(Arrays.equals(byteArray, row.getLogicalTypeValue("char", byte[].class)));
+  }
+
+  @Test
+  public void testNullLogicalTypes() {
+
+    String lengthTenString = "length ten";
+    byte[] lengthFiveByteArray = {1, 2, 3, 4, 5};
+    BigDecimal customDecimal = new BigDecimal("12345.12345"); // precision=10, scale=5
+    Schema schema =
+        Schema.builder()
+            .addField("char", FieldType.logicalType(FixedLengthString.of(10)))
+            .addNullableField("nullChar", FieldType.logicalType(FixedLengthString.of(10)))
+            .addField("varchar", FieldType.logicalType(VariableLengthString.of(100)))
+            .addNullableField("nullVarchar", FieldType.logicalType(VariableLengthString.of(100)))
+            .addField("binary", FieldType.logicalType(FixedBytes.of(5)))
+            .addNullableField("nullBinary", FieldType.logicalType(FixedLengthString.of(5)))
+            .addField("varbinary", FieldType.logicalType(VariableLengthBytes.of(100)))
+            .addNullableField("nullVarbinary", FieldType.logicalType(VariableLengthString.of(100)))
+            .addField("customDecimal", FieldType.logicalType(LogicalDecimal.of(10, 5)))
+            .addNullableField("nullCustomDecimal", FieldType.logicalType(LogicalDecimal.of(10, 5)))
+            .build();
+
+    Row row =
+        Row.withSchema(schema)
+            .withFieldValue("char", lengthTenString)
+            .withFieldValue("nullChar", null)
+            .withFieldValue("varchar", lengthTenString)
+            .withFieldValue("nullVarchar", null)
+            .withFieldValue("binary", lengthFiveByteArray)
+            .withFieldValue("nullBinary", null)
+            .withFieldValue("varbinary", lengthFiveByteArray)
+            .withFieldValue("nullVarbinary", null)
+            .withFieldValue("customDecimal", customDecimal)
+            .withFieldValue("nullCustomDecimal", null)
+            .build();
+
+    assertEquals(lengthTenString, row.getLogicalTypeValue("char", String.class));
+    assertEquals(null, row.getLogicalTypeValue("nullChar", String.class));
+    assertEquals(lengthTenString, row.getLogicalTypeValue("varchar", String.class));
+    assertEquals(null, row.getLogicalTypeValue("nullVarchar", String.class));
+    assertEquals(lengthFiveByteArray, row.getLogicalTypeValue("binary", byte[].class));
+    assertEquals(null, row.getLogicalTypeValue("nullBinary", byte[].class));
+    assertEquals(lengthFiveByteArray, row.getLogicalTypeValue("varbinary", byte[].class));
+    assertEquals(null, row.getLogicalTypeValue("nullVarbinary", byte[].class));
+    assertEquals(customDecimal, row.getLogicalTypeValue("customDecimal", byte[].class));
+    assertEquals(null, row.getLogicalTypeValue("nullCustomDecimal", BigDecimal.class));
   }
 }

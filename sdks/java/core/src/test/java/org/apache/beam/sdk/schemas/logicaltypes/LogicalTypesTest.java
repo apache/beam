@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -96,5 +97,26 @@ public class LogicalTypesTest {
     Row row = Row.withSchema(schema).addValues(duration).build();
     assertEquals(duration, row.getLogicalTypeValue(0, NanosDuration.class));
     assertEquals(durationAsRow, row.getBaseValue(0, Row.class));
+  }
+
+  @Test
+  // tests IdenticalBaseTAndInputTypeLogicalType Equals
+  public void testLogicalTypesEquals() {
+    // difference in IDENTIFIER
+    assertNotEquals(FixedBytes.of(10), VariableLengthBytes.of(10));
+    assertNotEquals(FixedLengthString.of(10), VariableLengthString.of(10));
+
+    // difference in argument value
+    assertNotEquals(FixedBytes.of(5), VariableLengthBytes.of(10));
+    assertNotEquals(FixedLengthString.of(5), VariableLengthString.of(10));
+
+    // difference in scale
+    assertNotEquals(LogicalDecimal.of(10, 5), LogicalDecimal.of(10, 2));
+
+    // difference in precision
+    assertNotEquals(LogicalDecimal.of(8, 5), LogicalDecimal.of(10, 5));
+
+    assertEquals(FixedBytes.of(10), FixedBytes.of(10));
+    assertEquals(LogicalDecimal.of(10, 5), LogicalDecimal.of(10, 5));
   }
 }

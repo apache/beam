@@ -20,43 +20,14 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
-import org.apache.beam.sdk.schemas.Schema.LogicalType;
 
-/** A base class for LogicalTypes that use the same Java type as the underlying base type. */
+/** A base class for LogicalTypes that use the same value as the underlying base value. */
 @Experimental(Kind.SCHEMAS)
-public abstract class PassThroughLogicalType<T> implements LogicalType<T, T> {
-  private final String identifier;
-  private final FieldType argumentType;
-  private final Object argument;
-  private final FieldType fieldType;
+public abstract class PassThroughLogicalType<T> extends IdenticalBaseTAndInputTLogicalType<T> {
 
   protected PassThroughLogicalType(
       String identifier, FieldType argumentType, Object argument, FieldType fieldType) {
-    this.identifier = identifier;
-    this.argumentType = argumentType;
-    this.argument = argument;
-    this.fieldType = fieldType;
-  }
-
-  @Override
-  public String getIdentifier() {
-    return identifier;
-  }
-
-  @Override
-  public FieldType getArgumentType() {
-    return argumentType;
-  }
-
-  @Override
-  @SuppressWarnings("TypeParameterUnusedInFormals")
-  public <ArgumentT> ArgumentT getArgument() {
-    return (ArgumentT) argument;
-  }
-
-  @Override
-  public FieldType getBaseType() {
-    return fieldType;
+    super(identifier, argumentType, argument, fieldType);
   }
 
   @Override

@@ -37,6 +37,11 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.sql.Types;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedLengthString;
+import org.apache.beam.sdk.schemas.logicaltypes.LogicalDecimal;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.joda.time.DateTime;
@@ -98,32 +103,32 @@ public class SchemaUtilTest {
         Schema.builder()
             .addArrayField("int_array_col", Schema.FieldType.INT32)
             .addField("bigint_col", Schema.FieldType.INT64)
-            .addField("binary_col", LogicalTypes.fixedLengthBytes(JDBCType.BINARY, 255))
-            .addField("bit_col", LogicalTypes.JDBC_BIT_TYPE)
+            .addField("binary_col", Schema.FieldType.logicalType(FixedBytes.of(255)))
+            .addField("bit_col", Schema.FieldType.BOOLEAN)
             .addField("boolean_col", Schema.FieldType.BOOLEAN)
-            .addField("char_col", LogicalTypes.fixedLengthString(JDBCType.CHAR, 255))
+            .addField("char_col", Schema.FieldType.logicalType(FixedLengthString.of(255)))
             .addField("date_col", LogicalTypes.JDBC_DATE_TYPE)
             .addField("decimal_col", Schema.FieldType.DECIMAL)
             .addField("double_col", Schema.FieldType.DOUBLE)
-            .addField("float_col", LogicalTypes.JDBC_FLOAT_TYPE)
+            .addField("float_col", Schema.FieldType.DOUBLE)
             .addField("integer_col", Schema.FieldType.INT32)
             .addField(
-                "longnvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGNVARCHAR, 1024))
+                "longnvarchar_col", Schema.FieldType.logicalType(VariableLengthString.of(1024)))
             .addField(
-                "longvarchar_col", LogicalTypes.variableLengthString(JDBCType.LONGVARCHAR, 1024))
+                "longvarchar_col", Schema.FieldType.logicalType(VariableLengthString.of(1024)))
             .addField(
-                "longvarbinary_col", LogicalTypes.variableLengthBytes(JDBCType.LONGVARBINARY, 1024))
-            .addField("nchar_col", LogicalTypes.fixedLengthString(JDBCType.NCHAR, 255))
-            .addField("numeric_col", LogicalTypes.numeric(12, 4))
-            .addField("nvarchar_col", LogicalTypes.variableLengthString(JDBCType.NVARCHAR, 255))
+                "longvarbinary_col", Schema.FieldType.logicalType(VariableLengthBytes.of(1024)))
+            .addField("nchar_col", Schema.FieldType.logicalType(FixedLengthString.of(255)))
+            .addField("numeric_col", Schema.FieldType.logicalType(LogicalDecimal.of(12, 4)))
+            .addField("nvarchar_col", Schema.FieldType.logicalType(VariableLengthString.of(255)))
             .addField("real_col", Schema.FieldType.FLOAT)
             .addField("smallint_col", Schema.FieldType.INT16)
             .addField("time_col", LogicalTypes.JDBC_TIME_TYPE)
             .addField("timestamp_col", Schema.FieldType.DATETIME)
             .addField("timestamptz_col", LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE)
             .addField("tinyint_col", Schema.FieldType.BYTE)
-            .addField("varbinary_col", LogicalTypes.variableLengthBytes(JDBCType.VARBINARY, 255))
-            .addField("varchar_col", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255))
+            .addField("varbinary_col", Schema.FieldType.logicalType(VariableLengthBytes.of(255)))
+            .addField("varchar_col", Schema.FieldType.logicalType(VariableLengthString.of(255)))
             .build();
 
     Schema haveBeamSchema = SchemaUtil.toBeamSchema(mockResultSetMetaData);
@@ -326,20 +331,20 @@ public class SchemaUtilTest {
     assertFalse(SchemaUtil.compareSchemaFieldType(Schema.FieldType.STRING, Schema.FieldType.INT16));
     assertTrue(
         SchemaUtil.compareSchemaFieldType(
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+            Schema.FieldType.logicalType(VariableLengthString.of(255)),
+            Schema.FieldType.logicalType(VariableLengthString.of(255))));
     assertFalse(
         SchemaUtil.compareSchemaFieldType(
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255),
-            LogicalTypes.fixedLengthBytes(JDBCType.BIT, 255)));
+            Schema.FieldType.logicalType(VariableLengthString.of(255)),
+            Schema.FieldType.logicalType(FixedBytes.of(255))));
     assertTrue(
         SchemaUtil.compareSchemaFieldType(
-            Schema.FieldType.STRING, LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+            Schema.FieldType.STRING, Schema.FieldType.logicalType(VariableLengthString.of(255))));
     assertFalse(
         SchemaUtil.compareSchemaFieldType(
-            Schema.FieldType.INT16, LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255)));
+            Schema.FieldType.INT16, Schema.FieldType.logicalType(VariableLengthString.of(255))));
     assertTrue(
         SchemaUtil.compareSchemaFieldType(
-            LogicalTypes.variableLengthString(JDBCType.VARCHAR, 255), Schema.FieldType.STRING));
+            Schema.FieldType.logicalType(VariableLengthString.of(255)), Schema.FieldType.STRING));
   }
 }

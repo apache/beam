@@ -24,7 +24,12 @@ import java.util.stream.IntStream;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedLengthString;
+import org.apache.beam.sdk.schemas.logicaltypes.LogicalDecimal;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthString;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableBiMap;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -129,15 +134,10 @@ public class CalciteUtils {
   public static final FieldType VARCHAR = FieldType.STRING;
   public static final FieldType CHAR = FieldType.logicalType(new CharType());
   public static final FieldType DATE = FieldType.logicalType(new DateType());
-  public static final FieldType NULLABLE_DATE =
-      FieldType.logicalType(new DateType()).withNullable(true);
   public static final FieldType TIME = FieldType.logicalType(new TimeType());
-  public static final FieldType NULLABLE_TIME =
-      FieldType.logicalType(new TimeType()).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
-  public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimestampWithLocalTzType());
 
@@ -153,12 +153,7 @@ public class CalciteUtils {
           .put(BOOLEAN, SqlTypeName.BOOLEAN)
           .put(VARBINARY, SqlTypeName.VARBINARY)
           .put(VARCHAR, SqlTypeName.VARCHAR)
-          .put(CHAR, SqlTypeName.CHAR)
-          .put(DATE, SqlTypeName.DATE)
-          .put(TIME, SqlTypeName.TIME)
-          .put(TIME_WITH_LOCAL_TZ, SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE)
           .put(TIMESTAMP, SqlTypeName.TIMESTAMP)
-          .put(TIMESTAMP_WITH_LOCAL_TZ, SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE)
           .build();
 
   private static final ImmutableMap<SqlTypeName, FieldType> CALCITE_TO_BEAM_TYPE_MAPPING =
@@ -203,6 +198,42 @@ public class CalciteUtils {
         return SqlTypeName.ARRAY;
       case MAP:
         return SqlTypeName.MAP;
+      case LOGICAL_TYPE:
+        {
+          String identifier = type.getLogicalType().getIdentifier();
+          // As every logical type should have globally unique identifier, the identifier of a
+          // logical type can be used to determine SqlTypeName.
+          // By using the identifier of a logical type to determine the calcite type, the calcite
+          // SqlTypeName can be determined irrespective of the argument of the logical type. For
+          // example, varchar(10), varchar(100) both map to SqlTypeName.STRING irrespective of the
+          // max length.
+          switch (identifier) {
+            case CharType.IDENTIFIER:
+            case FixedLengthString.IDENTIFIER:
+              return SqlTypeName.CHAR;
+            case DateType.IDENTIFIER:
+              return SqlTypeName.DATE;
+            case TimeType.IDENTIFIER:
+              return SqlTypeName.TIME;
+            case TimeWithLocalTzType.IDENTIFIER:
+              return SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE;
+            case TimestampWithLocalTzType.IDENTIFIER:
+              return SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
+            case FixedBytes.IDENTIFIER:
+              return SqlTypeName.BINARY;
+            case VariableLengthBytes.IDENTIFIER:
+              return SqlTypeName.VARBINARY;
+            case VariableLengthString.IDENTIFIER:
+              return SqlTypeName.VARCHAR;
+            case LogicalDecimal.IDENTIFIER:
+              return SqlTypeName.DECIMAL;
+            default:
+              throw new IllegalArgumentException(
+                  String.format(
+                      "Cannot find a matching Calcite SqlTypeName for Beam logical type: %s",
+                      type));
+          }
+        }
       default:
         SqlTypeName typeName = BEAM_TO_CALCITE_TYPE_MAPPING.get(type.withNullable(false));
         if (typeName != null) {

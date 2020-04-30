@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.Date;
-import java.sql.JDBCType;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Calendar;
@@ -112,37 +111,40 @@ class JdbcUtil {
                         element.getArray(fieldWithIndex.getIndex()).toArray()));
       case LOGICAL_TYPE:
         {
-          String logicalTypeName = fieldType.getLogicalType().getIdentifier();
-          JDBCType jdbcType = JDBCType.valueOf(logicalTypeName);
-          switch (jdbcType) {
-            case DATE:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setDate(
-                      i + 1,
-                      new Date(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
-                              .getTime()
-                              .getTime()));
-            case TIME:
-              return (element, ps, i, fieldWithIndex) ->
-                  ps.setTime(
-                      i + 1,
-                      new Time(
-                          getDateOrTimeOnly(
-                                  element.getDateTime(fieldWithIndex.getIndex()).toDateTime(),
-                                  false)
-                              .getTime()
-                              .getTime()));
-            case TIMESTAMP_WITH_TIMEZONE:
-              return (element, ps, i, fieldWithIndex) -> {
-                Calendar calendar =
-                    withTimestampAndTimezone(
-                        element.getDateTime(fieldWithIndex.getIndex()).toDateTime());
-                ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
-              };
-            default:
-              return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
+          String identifier = fieldType.getLogicalType().getIdentifier();
+          if (LogicalTypes.JDBC_DATE_TYPE.getLogicalType().getIdentifier().equals(identifier)) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setDate(
+                    i + 1,
+                    new Date(
+                        getDateOrTimeOnly(
+                                element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), true)
+                            .getTime()
+                            .getTime()));
+          } else if (LogicalTypes.JDBC_TIME_TYPE
+              .getLogicalType()
+              .getIdentifier()
+              .equals(identifier)) {
+            return (element, ps, i, fieldWithIndex) ->
+                ps.setTime(
+                    i + 1,
+                    new Time(
+                        getDateOrTimeOnly(
+                                element.getDateTime(fieldWithIndex.getIndex()).toDateTime(), false)
+                            .getTime()
+                            .getTime()));
+          } else if (LogicalTypes.JDBC_TIMESTAMP_WITH_TIMEZONE_TYPE
+              .getLogicalType()
+              .getIdentifier()
+              .equals(identifier)) {
+            return (element, ps, i, fieldWithIndex) -> {
+              Calendar calendar =
+                  withTimestampAndTimezone(
+                      element.getDateTime(fieldWithIndex.getIndex()).toDateTime());
+              ps.setTimestamp(i + 1, new Timestamp(calendar.getTime().getTime()), calendar);
+            };
+          } else {
+            return getPreparedStatementSetCaller(fieldType.getLogicalType().getBaseType());
           }
         }
       default:

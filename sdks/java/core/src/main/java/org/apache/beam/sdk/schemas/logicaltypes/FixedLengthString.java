@@ -20,37 +20,36 @@ package org.apache.beam.sdk.schemas.logicaltypes;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.schemas.Schema;
 
-/** A LogicalType representing a fixed-size byte array. */
-@Experimental(Kind.SCHEMAS)
-public class FixedBytes extends IdenticalBaseTAndInputTLogicalType<byte[]> {
-  public static final String IDENTIFIER = "beam:logical_type:fixed_length_bytes:v1";
-  private final int byteArraySize;
+/** A LogicalType representing a fixed-length string. */
+@Experimental(Experimental.Kind.SCHEMAS)
+public class FixedLengthString extends IdenticalBaseTAndInputTLogicalType<String> {
+  public static final String IDENTIFIER = "beam:logical_type:fixed_length_string:v1";
+  private final int length;
 
-  private FixedBytes(int byteArraySize) {
-    super(IDENTIFIER, Schema.FieldType.INT32, byteArraySize, Schema.FieldType.BYTES);
-    this.byteArraySize = byteArraySize;
-  }
-
-  public static FixedBytes of(int byteArraySize) {
-    return new FixedBytes(byteArraySize);
+  private FixedLengthString(int length) {
+    super(IDENTIFIER, Schema.FieldType.INT32, length, Schema.FieldType.STRING);
+    this.length = length;
   }
 
   public int getLength() {
-    return byteArraySize;
+    return length;
+  }
+
+  public static FixedLengthString of(int length) {
+    return new FixedLengthString(length);
   }
 
   @Override
-  public byte[] toBaseType(byte[] input) {
-    checkArgument(input == null || input.length == byteArraySize);
+  public String toBaseType(String input) {
+    checkArgument(input == null || input.length() == length);
     return input;
   }
 
   @Override
-  public byte[] toInputType(byte[] base) {
-    checkArgument(base == null || base.length == byteArraySize);
+  public String toInputType(String base) {
+    checkArgument(base == null || base.length() == length);
     return base;
   }
 }

@@ -37,7 +37,6 @@ import java.nio.charset.Charset;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.Date;
-import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -60,6 +59,7 @@ import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.io.jdbc.JdbcIO.PoolableDataSourceProvider;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthString;
 import org.apache.beam.sdk.schemas.transforms.Select;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -336,7 +336,7 @@ public class JdbcIOTest implements Serializable {
 
     Schema expectedSchema =
         Schema.of(
-            Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
+            Schema.Field.of("NAME", Schema.FieldType.logicalType(VariableLengthString.of(500)))
                 .withNullable(true),
             Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
 
@@ -364,7 +364,7 @@ public class JdbcIOTest implements Serializable {
 
     Schema expectedSchema =
         Schema.of(
-            Schema.Field.of("NAME", LogicalTypes.variableLengthString(JDBCType.VARCHAR, 500))
+            Schema.Field.of("NAME", Schema.FieldType.logicalType(VariableLengthString.of(500)))
                 .withNullable(true),
             Schema.Field.of("ID", Schema.FieldType.INT32).withNullable(true));
 
