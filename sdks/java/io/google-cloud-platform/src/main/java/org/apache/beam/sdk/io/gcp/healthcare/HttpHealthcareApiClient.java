@@ -407,7 +407,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
   }
 
-
   public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
 
     GoogleCredentials credentials;

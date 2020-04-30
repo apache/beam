@@ -49,7 +49,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -335,7 +334,7 @@ public class FhirIO {
         @Setup
         public void instantiateHealthcareClient() throws IOException {
           this.client = new HttpHealthcareApiClient();
-          this.mapper =  new ObjectMapper();
+          this.mapper = new ObjectMapper();
         }
 
         /**

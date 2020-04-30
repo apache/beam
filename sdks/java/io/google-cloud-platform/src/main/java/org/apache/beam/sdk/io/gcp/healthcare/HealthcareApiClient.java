@@ -109,7 +109,6 @@ public interface HealthcareApiClient {
    */
   Message createHL7v2Message(String hl7v2Store, Message msg) throws IOException;
 
-
   Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
 
@@ -132,7 +131,6 @@ public interface HealthcareApiClient {
    * @throws IOException the io exception
    */
   HttpBody readFhirResource(String resourceId) throws IOException;
-
 
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 
