@@ -298,6 +298,132 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
       assert_that(result, equal_to(self.get_expected_data(native=False)))
 
 
+class ReadAllBQTests(BigQueryReadIntegrationTests):
+  TABLE_DATA_1 = [{
+      'number': 1, 'str': 'abc'
+  }, {
+      'number': 2, 'str': 'def'
+  }, {
+      'number': 3, 'str': u'你好'
+  }, {
+      'number': 4, 'str': u'привет'
+  }]
+
+  TABLE_DATA_2 = [{
+      'number': 10, 'str': 'abcd'
+  }, {
+      'number': 20, 'str': 'defg'
+  }, {
+      'number': 30, 'str': u'你好'
+  }, {
+      'number': 40, 'str': u'привет'
+  }]
+
+  TABLE_DATA_3 = [{'number': 10, 'str': 'abcde', 'extra': 3}]
+
+  @classmethod
+  def setUpClass(cls):
+    super(ReadAllBQTests, cls).setUpClass()
+    cls.SCHEMA_BQ = cls.create_bq_schema()
+    cls.SCHEMA_BQ_WITH_EXTRA = cls.create_bq_schema(True)
+
+    cls.table_name1 = 'python_rd_table_1'
+    cls.table_schema1 = cls.create_table(
+        cls.table_name1, cls.TABLE_DATA_1, cls.SCHEMA_BQ)
+    table_id1 = '{}.{}'.format(cls.dataset_id, cls.table_name1)
+    cls.query1 = 'SELECT number, str FROM `%s`' % table_id1
+
+    cls.table_name2 = 'python_rd_table_2'
+    cls.table_schema2 = cls.create_table(
+        cls.table_name2, cls.TABLE_DATA_2, cls.SCHEMA_BQ)
+    table_id2 = '{}.{}'.format(cls.dataset_id, cls.table_name2)
+    cls.query2 = 'SELECT number, str FROM `%s`' % table_id2
+
+    cls.table_name3 = 'python_rd_table_3'
+    cls.table_schema3 = cls.create_table(
+        cls.table_name3, cls.TABLE_DATA_3, cls.SCHEMA_BQ_WITH_EXTRA)
+    table_id3 = '{}.{}'.format(cls.dataset_id, cls.table_name3)
+    cls.query3 = 'SELECT number, str, extra FROM `%s`' % table_id3
+
+  @classmethod
+  def create_table(cls, table_name, data, table_schema):
+    table = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId=cls.project, datasetId=cls.dataset_id,
+            tableId=table_name),
+        schema=table_schema)
+    request = bigquery.BigqueryTablesInsertRequest(
+        projectId=cls.project, datasetId=cls.dataset_id, table=table)
+    cls.bigquery_client.client.tables.Insert(request)
+    cls.bigquery_client.insert_rows(
+        cls.project, cls.dataset_id, table_name, data)
+    return table_schema
+
+  @classmethod
+  def create_bq_schema(cls, with_extra=False):
+    table_schema = bigquery.TableSchema()
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'number'
+    table_field.type = 'INTEGER'
+    table_field.mode = 'NULLABLE'
+    table_schema.fields.append(table_field)
+    table_field = bigquery.TableFieldSchema()
+    table_field.name = 'str'
+    table_field.type = 'STRING'
+    table_field.mode = 'NULLABLE'
+    table_schema.fields.append(table_field)
+    if with_extra:
+      table_field = bigquery.TableFieldSchema()
+      table_field.name = 'extra'
+      table_field.type = 'INTEGER'
+      table_field.mode = 'NULLABLE'
+      table_schema.fields.append(table_field)
+    return table_schema
+
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @attr('IT')
+  def test_read_queries(self):
+    args = self.args + ["--experiments=beam_fn_api"]
+    with beam.Pipeline(argv=args) as p:
+      result = (
+          p
+          | beam.Create([
+              beam.io.ReadAllFromBigQueryRequest(query=self.query1),
+              beam.io.ReadAllFromBigQueryRequest(query=self.query2),
+              beam.io.ReadAllFromBigQueryRequest(query=self.query3)
+          ])
+          | beam.io.ReadAllFromBigQuery(project=self.project))
+      assert_that(
+          result,
+          equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
+
+  @skip(['PortableRunner', 'FlinkRunner'])
+  @attr('IT')
+  def test_read_tables(self):
+    def table_name_of(project, dataset, table):
+      return "{}:{}.{}".format(project, dataset, table)
+
+    args = self.args + ["--experiments=beam_fn_api"]
+    with beam.Pipeline(argv=args) as p:
+      result = (
+          p
+          | beam.Create([
+              beam.io.ReadAllFromBigQueryRequest(
+                  table=table_name_of(
+                      self.project, self.dataset_id, self.table_name1)),
+              beam.io.ReadAllFromBigQueryRequest(
+                  table=table_name_of(
+                      self.project, self.dataset_id, self.table_name2)),
+              beam.io.ReadAllFromBigQueryRequest(
+                  table=table_name_of(
+                      self.project, self.dataset_id, self.table_name3)),
+          ])
+          | beam.io.ReadAllFromBigQuery(project=self.project))
+      assert_that(
+          result,
+          equal_to(self.TABLE_DATA_1 + self.TABLE_DATA_2 + self.TABLE_DATA_3))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

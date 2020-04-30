@@ -259,6 +259,7 @@ from apache_beam.io.gcp.bigquery_io_metadata import create_bigquery_io_metadata
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
+from apache_beam.io.iobase import SDFBoundedSourceReader
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.options import value_provider as vp
@@ -278,6 +279,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'TableRowJsonCoder',
@@ -286,6 +288,8 @@ __all__ = [
     'BigQuerySink',
     'WriteToBigQuery',
     'ReadFromBigQuery',
+    'ReadAllFromBigQueryRequest',
+    'ReadAllFromBigQuery',
     'SCHEMA_AUTODETECT',
 ]
 
@@ -608,6 +612,7 @@ class _JsonToDictCoder(coders.Coder):
 
   def to_type_hint(self):
     return dict
+
 
 
 class _CustomBigQuerySource(BoundedSource):
@@ -1805,3 +1810,293 @@ class ReadFromBigQuery(PTransform):
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))
+
+
+class _ExtractBQData(DoFn):
+  '''
+  PTransform:ReadAllFromBigQueryRequest->TextSource that fetches BQ data into
+  a temporary storage and returns TextSources for created files.
+  '''
+
+  _source_class = TextSource
+
+  def __init__(
+      self,
+      gcs_location_pattern=None,
+      project=None,
+      coder=None,
+      kms_key=None,
+      bq_client=None,
+      min_bundle_size=0,
+      compression_type=CompressionTypes.AUTO,
+      validate=False):
+    self.gcs_location_pattern = gcs_location_pattern
+    self.project = project
+    self.coder = coder or _JsonToDictCoder
+    self.kms_key = kms_key
+    self.split_result = None
+    self.target_schema = None
+    self.bq_client = bq_client
+    self.validate = validate
+
+  def process(self, element):
+    '''
+    :param element(ReadAllFromBigQueryRequest):
+    :return:
+    '''
+    element.validate()
+    if element.table is not None:
+      table_reference = bigquery_tools.parse_table_reference(element.table)
+      query = None
+      use_legacy_sql = True
+    else:
+      query = element.query
+      use_legacy_sql = element.use_legacy_sql
+
+    flatten_results = element.flatten_results
+
+    bq = bigquery_tools.BigQueryWrapper(self.bq_client)
+
+    try:
+      if element.query is not None:
+        self._setup_temporary_dataset(bq, query, use_legacy_sql)
+        table_reference = self._execute_query(
+            bq, query, use_legacy_sql, flatten_results)
+
+      gcs_location = self.gcs_location_pattern.format(uuid.uuid4().hex)
+
+      table_schema = bq.get_table(
+          table_reference.projectId,
+          table_reference.datasetId,
+          table_reference.tableId).schema
+
+      metadata_list = self._export_files(bq, table_reference, gcs_location)
+
+      yield pvalue.TaggedOutput('location_to_cleanup', gcs_location)
+      for metadata in metadata_list:
+        coder = self.coder(table_schema)
+        yield self._source_class(
+            file_pattern=metadata.path,
+            min_bundle_size=0,
+            compression_type=CompressionTypes.UNCOMPRESSED,
+            strip_trailing_newlines=True,
+            coder=coder,
+            validate=self.validate)
+
+    finally:
+      if query is not None:
+        bq.clean_up_temporary_dataset(self.project)
+
+  def _setup_temporary_dataset(self, bq, query, use_legacy_sql):
+    location = bq.get_query_location(self.project, query, use_legacy_sql)
+    bq.create_temporary_dataset(self.project, location)
+
+  def _execute_query(self, bq, query, use_legacy_sql, flatten_results):
+    job = bq._start_query_job(
+        self.project,
+        query,
+        use_legacy_sql,
+        flatten_results,
+        job_id=uuid.uuid4().hex,
+        kms_key=self.kms_key)
+    job_ref = job.jobReference
+    bq.wait_for_bq_job(job_ref)
+    return bq._get_temp_table(self.project)
+
+  def _export_files(self, bq, table_reference, gcs_location):
+    """Runs a BigQuery export job.
+
+    Returns:
+      a list of FileMetadata instances
+    """
+    job_id = uuid.uuid4().hex
+    job_ref = bq.perform_extract_job([gcs_location],
+                                     job_id,
+                                     table_reference,
+                                     bigquery_tools.FileFormat.JSON,
+                                     include_header=False)
+    bq.wait_for_bq_job(job_ref)
+    metadata_list = FileSystems.match([gcs_location])[0].metadata_list
+
+    return metadata_list
+
+
+class _PassThroughThenCleanupWithSI(PTransform):
+  """A PTransform that invokes a DoFn after the input PCollection has been
+    processed.
+
+    DoFn should have arguments (element, side_input, cleanup_signal).
+
+    Utilizes readiness of PCollection to trigger DoFn.
+  """
+  def __init__(self, cleanup_dofn, side_input):
+    self.cleanup_dofn = cleanup_dofn
+    self.side_input = side_input
+
+  def expand(self, input):
+    class PassThrough(beam.DoFn):
+      def process(self, element):
+        yield element
+
+    main_output, cleanup_signal = input | beam.ParDo(
+      PassThrough()).with_outputs(
+      'cleanup_signal', main='main')
+
+    _ = (
+        input.pipeline
+        | beam.Create([None])
+        | beam.ParDo(
+            self.cleanup_dofn,
+            self.side_input,
+            beam.pvalue.AsSingleton(cleanup_signal)))
+
+    return main_output
+
+
+class ReadAllFromBigQueryRequest:
+  '''
+  Class that defines data to read from BQ.
+  '''
+  def __init__(
+      self,
+      query=None,
+      use_legacy_sql=False,
+      table=None,
+      flatten_results=False):
+    '''
+    Only one of query or table should be specified.
+
+    :param query(str): SQL query to fetch data.
+    :param use_legacy_sql(boolean):
+      Specifies whether to use BigQuery's legacy SQL dialect for this query.
+      The default value is :data:`False`. If set to :data:`True`,
+      the query will use BigQuery's updated SQL dialect with improved standards
+      compliance.
+      This parameter is ignored for table inputs.
+    :param table(str):
+      The ID of the table to read. The ID must contain only letters
+      ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. Table should
+      define project and dataset (ex.: ``'PROJECT:DATASET.TABLE'``).
+    :param flatten_results(boolean):
+      Flattens all nested and repeated fields in the query results.
+      The default value is :data:`True`.
+    '''
+    self.flatten_results = flatten_results
+    self.query = query
+    self.use_legacy_sql = use_legacy_sql
+    self.table = table
+    self.validate()
+
+  def validate(self):
+    if self.table is not None and self.query is not None:
+      raise ValueError(
+          'Both a BigQuery table and a query were specified.'
+          ' Please specify only one of these.')
+    elif self.table is None and self.query is None:
+      raise ValueError('A BigQuery table or a query must be specified')
+
+
+@experimental()
+class ReadAllFromBigQuery(PTransform):
+  """Read data from BigQuery.
+
+    PTransform:ReadAllFromBigQueryRequest->Rows
+
+    This PTransform uses a BigQuery export job to take a snapshot of the table
+    on GCS, and then reads from each produced JSON file.
+
+    It is recommended not to use this PTransform for streaming jobs on
+    GlobalWindow, since it will not be able to cleanup snapshots.
+
+  Args:
+    gcs_location (str): The name of the Google Cloud Storage
+      bucket where the extracted table should be written as a string. If
+      :data:`None`, then the temp_location parameter is used.
+    project (str): The ID of the project containing this table.
+    validate (bool): If :data:`True`, various checks will be done when source
+      gets initialized (e.g., is table present?).
+    coder (~apache_beam.coders.coders.Coder): The coder for the table
+      rows. If :data:`None`, then the default coder is
+      _JsonToDictCoder, which will interpret every row as a JSON
+      serialized dictionary.
+    kms_key (str): Experimental. Optional Cloud KMS key name for use when
+      creating new temporary tables.
+   """
+  def __init__(
+      self,
+      gcs_location=None,
+      project=None,
+      validate=False,
+      coder=None,
+      flatten_results=True,
+      kms_key=None):
+    if gcs_location:
+      if not isinstance(gcs_location, (str, unicode, ValueProvider)):
+        raise TypeError(
+            '%s: gcs_location must be of type string'
+            ' or ValueProvider; got %r instead' %
+            (self.__class__.__name__, type(gcs_location)))
+
+    self.gcs_location = gcs_location
+    self.project = project
+    self.validate = validate
+    self.flatten_results = flatten_results
+    self.coder = coder or _JsonToDictCoder
+    self.kms_key = kms_key
+
+  def _get_destination_uri(self, temp_location):
+    """Returns the fully qualified Google Cloud Storage URI pattern where the
+    extracted table should be written to.
+    """
+    file_pattern = '{}/bigquery-table-dump-*.json'
+
+    if self.gcs_location is not None:
+      gcs_base = self.gcs_location
+    elif temp_location is not None:
+      gcs_base = temp_location
+      logging.debug("gcs_location is empty, using temp_location instead")
+    else:
+      raise ValueError(
+          '{} requires a GCS location to be provided'.format(
+              self.__class__.__name__))
+    if self.validate:
+      self._validate_gcs_location(gcs_base)
+
+    job_id = uuid.uuid4().hex
+    return FileSystems.join(gcs_base, job_id, file_pattern)
+
+  @staticmethod
+  def _validate_gcs_location(gcs_location):
+    if not gcs_location.startswith('gs://'):
+      raise ValueError('Invalid GCS location: {}'.format(gcs_location))
+
+  def expand(self, pcoll):
+    class RemoveJsonFiles(beam.DoFn):
+      def process(self, unused_element, gcs_locations, cleanup_signal):
+        for location in gcs_locations:
+          match_result = FileSystems.match([location])[0].metadata_list
+          logging.debug(
+              "%s: matched %s files",
+              self.__class__.__name__,
+              len(match_result))
+          paths = [x.path for x in match_result]
+          FileSystems.delete(paths)
+
+    temp_location = pcoll.pipeline.options.view_as(
+        GoogleCloudOptions).temp_location
+    dump_location_pattern = self._get_destination_uri(temp_location)
+
+    sources_to_read, cleanup_locations = (
+        pcoll
+        | beam.ParDo(
+      _ExtractBQData(dump_location_pattern, self.project, self.coder,
+                     self.kms_key)).with_outputs(
+      "location_to_cleanup", main="files_to_read")
+    )
+
+    return (
+        sources_to_read
+        | SDFBoundedSourceReader()
+        | _PassThroughThenCleanupWithSI(
+            RemoveJsonFiles(),
+            side_input=beam.pvalue.AsIter(cleanup_locations)))
