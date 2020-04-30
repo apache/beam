@@ -43,12 +43,12 @@ import org.joda.time.format.ISODateTimeFormat;
  * TableSchema deadLetterSchema = new TableSchema();
  * deadLetterSchema.setFields(HealthcareIOErrorToTableRow.TABLE_FIELD_SCHEMAS);
  * TimePartitioning deadLetterPartitioning = new TimeParitioning();
- * deaLetterPartitioning.setField(HealthcareIOErrorToTableRow.TIMESTAMP_FIELD_NAME);
+ * deadLetterPartitioning.setField(HealthcareIOErrorToTableRow.TIMESTAMP_FIELD_NAME);
  *
  * errors.apply(
  *    BigQueryIO.write()
  *      .to(options.getDeadLetterTable())
- *      .withFormatFunction(new HealthcareIOErrorToTableRow<String>())
+ *      .withFormatFunction(new HealthcareIOErrorToTableRow())
  *      .withSchema(deadLetterSchema)
  *      .withTimePartitioning(deadLetterPartitioning)
  * );
@@ -60,15 +60,18 @@ import org.joda.time.format.ISODateTimeFormat;
 public class HealthcareIOErrorToTableRow<T>
     implements SerializableFunction<HealthcareIOError<T>, TableRow> {
 
+  public HealthcareIOErrorToTableRow() {}
+
   private static final DateTimeFormatter DATETIME_FORMATTER = ISODateTimeFormat.dateTime();
   public static final String TIMESTAMP_FIELD_NAME = "observed_time";
 
   public static final List<TableFieldSchema> TABLE_FIELD_SCHEMAS =
       Stream.of(
-              Pair.of("data_element", "STRING"),
+              Pair.of("dataElement", "STRING"),
               Pair.of(TIMESTAMP_FIELD_NAME, "TIMESTAMP"),
               Pair.of("message", "STRING"),
-              Pair.of("stacktrace", "STRING"))
+              Pair.of("stacktrace", "STRING"),
+              Pair.of("statusCode", "INTEGER"))
           .map(
               (Pair<String, String> field) -> {
                 TableFieldSchema tfs = new TableFieldSchema();
@@ -82,10 +85,11 @@ public class HealthcareIOErrorToTableRow<T>
   @Override
   public TableRow apply(HealthcareIOError<T> err) {
     TableRow out = new TableRow();
-    out.set("data_element", err.getDataResource().toString());
+    out.set("dataElement", err.getDataResource().toString());
     out.set(TIMESTAMP_FIELD_NAME, err.getObservedTime().toString(DATETIME_FORMATTER));
     out.set("message", err.getErrorMessage());
     out.set("stacktrace", err.getStackTrace());
+    out.set("statusCode", err.getStatusCode());
     return out;
   }
 }
