@@ -29,53 +29,20 @@ def runScriptsDir = "${rootDir}/sdks/python/scripts"
 addPortableWordCountTasks()
 
 task preCommitPy2() {
-  dependsOn ':runners:flink:1.10:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
-  dependsOn portableWordCountBatch
-  dependsOn portableWordCountStreaming
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
+  dependsOn portableWordCountFlinkRunnerBatch
+  dependsOn portableWordCountFlinkRunnerStreaming
 }
 
 task postCommitPy2() {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.10:job-server:shadowJar'
-  dependsOn portableWordCountFlinkRunnerBatch
-  dependsOn portableWordCountFlinkRunnerStreaming
   dependsOn 'postCommitPy2IT'
   dependsOn ':runners:spark:job-server:shadowJar'
   dependsOn portableWordCountSparkRunnerBatch
 }
 
 // TODO: Move the rest of this file into ../common.gradle.
-
-// Before running this, you need to:
-//
-// 1. Build the SDK container:
-//
-//    ./gradlew -p sdks/python/container buildAll
-//
-// 2. Either a) or b)
-//  a) If you want the Job Server to run in a Docker container:
-//
-//    ./gradlew :runners:flink:1.10:job-server-container:docker
-//
-//  b) Otherwise, start a local JobService, for example, the Portable Flink runner
-//    (in a separate shell since it continues to run):
-//
-//    ./gradlew :runners:flink:1.10:job-server:runShadow
-//
-// Then you can run this example:
-//
-//  Docker (2a):
-//
-//    ./gradlew :sdks:python:test-suites:portable:py2:portableWordCount
-//
-//  Local JobService (2b):
-//
-//    ./gradlew :sdks:python:test-suites:portable:py2:portableWordCount -PjobEndpoint=localhost:8099
-//
-task portableWordCount {
-  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
-}
 
 /*************************************************************************************************/
 
