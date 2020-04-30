@@ -102,7 +102,8 @@ class StreamingWordcountDebugging(unittest.TestCase):
         'projects/fake-beam-test-project/topic/intopic',
         '--output_topic',
         'projects/fake-beam-test-project/topic/outtopic'
-    ])
+    ],
+                                      save_main_session=False)
 
 
 if __name__ == '__main__':
