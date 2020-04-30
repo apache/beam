@@ -9,19 +9,7 @@
  See the License for the specific language governing permissions and
  limitations under the License. See accompanying LICENSE file.
 */}}
-
-{{ $tag := .Get 1 }}
-{{ $path := replaceRE "/blob/" "/" (.Get 0) }}
-{{ $path := printf "github_samples/%s" (replaceRE "/" "_" $path) }}
-{{ $data := readFile $path }}
-{{ $matchRegex := printf "%s%s%s%s%s" "\\[START " $tag "]\n[\\s\\S]*?\n.*\\[END " $tag "]" }}
-{{ $match := index (findRE $matchRegex $data) 0 }}
-{{ $lines := split $match "\n" }}
-{{ $lineCount := len $lines }}
-{{ $cleanedLines := $lines | first (sub $lineCount 1) | last (sub $lineCount 2) }}
-{{ $firstLine := index $cleanedLines 0 }}
-{{ $numberOfWhitespaces := index (findRE "^\\s*" $firstLine) 0 | len }}
-{{ $unindentRegex := printf "%s%d%s" "^\\s{" $numberOfWhitespaces "}" }}
-{{ $unindentedLines := apply $cleanedLines "replaceRE" $unindentRegex "" "." }}
-{{ $result := delimit $unindentedLines "\n" }}
-{{ print $result }}
+{{/*
+  This shortcode is used to fetch a piece of code with tags from GitHub.
+  There should be no breaklines here to make sure the string results do not get impacts of newlines.
+*/}}{{ $tag := .Get 1 }}{{ $path := replaceRE "/blob/" "/" (.Get 0) }}{{ $path := printf "github_samples/%s" (replaceRE "/" "_" $path) }}{{ $data := readFile $path }}{{ $matchRegex := printf "%s%s%s%s%s" "\\[START " $tag "]\n[\\s\\S]*?\n.*\\[END " $tag "]" }}{{ $match := index (findRE $matchRegex $data) 0 }}{{ $lines := split $match "\n" }}{{ $lineCount := len $lines }}{{ $cleanedLines := $lines | first (sub $lineCount 1) | last (sub $lineCount 2) }}{{ $firstLine := index $cleanedLines 0 }}{{ $numberOfWhitespaces := index (findRE "^\\s*" $firstLine) 0 | len }}{{ $unindentRegex := printf "%s%d%s" "^\\s{" $numberOfWhitespaces "}" }}{{ $unindentedLines := apply $cleanedLines "replaceRE" $unindentRegex "" "." }}{{ $result := delimit $unindentedLines "\n" }}{{ print $result }}
