@@ -17,19 +17,14 @@
  */
 package org.apache.beam.sdk.io.snowflake.test;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
 import javax.sql.DataSource;
+import org.apache.beam.sdk.io.snowflake.SnowflakeCloudProvider;
 import org.apache.beam.sdk.io.snowflake.SnowflakeService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
@@ -45,16 +40,17 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService {
       String table,
       String integrationName,
       String stagingBucketName,
-      String tmpDirName)
+      String tmpDirName,
+      SnowflakeCloudProvider cloudProvider)
       throws SQLException {
 
-    writeToFile(stagingBucketName, tmpDirName, FakeSnowflakeDatabase.getElements(table));
+    writeToFile(stagingBucketName, FakeSnowflakeDatabase.getElements(table));
 
-    return String.format("./%s/%s/*", stagingBucketName, tmpDirName);
+    return String.format("./%s/*", stagingBucketName);
   }
 
-  private void writeToFile(String stagingBucketName, String tmpDirName, List<String> rows) {
-    Path filePath = Paths.get(String.format("./%s/%s/table.csv.gz", stagingBucketName, tmpDirName));
+  private void writeToFile(String stagingBucketNameTmp, List<String> rows) {
+    Path filePath = Paths.get(String.format("./%s/table.csv.gz", stagingBucketNameTmp));
     try {
       Files.createDirectories(filePath.getParent());
       Files.createFile(filePath);
@@ -62,22 +58,5 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService {
     } catch (IOException e) {
       throw new RuntimeException("Failed to create files", e);
     }
-  }
-
-  private List<String> readGZIPFile(String file) {
-    List<String> lines = new ArrayList<>();
-    try {
-      GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file));
-      BufferedReader br = new BufferedReader(new InputStreamReader(gzip, Charset.defaultCharset()));
-
-      String line;
-      while ((line = br.readLine()) != null) {
-        lines.add(line);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to read file", e);
-    }
-
-    return lines;
   }
 }

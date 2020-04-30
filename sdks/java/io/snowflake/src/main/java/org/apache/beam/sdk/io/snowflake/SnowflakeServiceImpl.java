@@ -37,7 +37,8 @@ public class SnowflakeServiceImpl implements SnowflakeService {
       String table,
       String integrationName,
       String stagingBucketName,
-      String tmpDirName)
+      String tmpDirName,
+      SnowflakeCloudProvider cloudProvider)
       throws SQLException {
 
     String from;
@@ -48,15 +49,14 @@ public class SnowflakeServiceImpl implements SnowflakeService {
       from = table;
     }
 
-    String externalLocation = String.format("gcs://%s/%s/", stagingBucketName, tmpDirName);
     String copyQuery =
         String.format(
             "COPY INTO '%s' FROM %s STORAGE_INTEGRATION=%s FILE_FORMAT=(TYPE=CSV COMPRESSION=GZIP FIELD_OPTIONALLY_ENCLOSED_BY='%s');",
-            externalLocation, from, integrationName, CSV_QUOTE_CHAR_FOR_COPY);
+            stagingBucketName, from, integrationName, CSV_QUOTE_CHAR_FOR_COPY);
 
     runStatement(copyQuery, getConnection(dataSourceProviderFn), null);
 
-    return String.format("gs://%s/%s/*", stagingBucketName, tmpDirName);
+    return cloudProvider.transformCloudPathToSnowflakePath(stagingBucketName).concat("*");
   }
 
   private static void runStatement(String query, Connection connection, Consumer resultSetMethod)

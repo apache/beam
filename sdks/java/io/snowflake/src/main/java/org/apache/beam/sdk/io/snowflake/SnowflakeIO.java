@@ -279,7 +279,8 @@ public class SnowflakeIO {
                           getIntegrationName(),
                           getStagingBucketName(),
                           gcpTmpDirName,
-                          getSnowflakeService())))
+                          getSnowflakeService(),
+                          getSnowflakeCloudProvider())))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches())
               .apply(readFiles())
@@ -314,6 +315,7 @@ public class SnowflakeIO {
       private final String stagingBucketName;
       private final String tmpDirName;
       private final SnowflakeService snowflakeService;
+      private final SnowflakeCloudProvider cloudProvider;
 
       private CopyIntoStageFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn,
@@ -322,7 +324,8 @@ public class SnowflakeIO {
           String integrationName,
           String stagingBucketName,
           String tmpDirName,
-          SnowflakeService snowflakeService) {
+          SnowflakeService snowflakeService,
+          SnowflakeCloudProvider cloudProvider) {
         this.dataSourceProviderFn = dataSourceProviderFn;
         this.query = query;
         this.table = table;
@@ -330,13 +333,21 @@ public class SnowflakeIO {
         this.stagingBucketName = stagingBucketName;
         this.tmpDirName = tmpDirName;
         this.snowflakeService = snowflakeService;
+        this.cloudProvider = cloudProvider;
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
+        String stagingBucketDir = this.cloudProvider.formatCloudPath(stagingBucketName, tmpDirName);
         String output =
             snowflakeService.copyIntoStage(
-                dataSourceProviderFn, query, table, integrationName, stagingBucketName, tmpDirName);
+                dataSourceProviderFn,
+                query,
+                table,
+                integrationName,
+                stagingBucketDir,
+                tmpDirName,
+                this.cloudProvider);
 
         context.output(output);
       }

@@ -23,14 +23,37 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import java.io.Serializable;
 
+/**
+ * Implemenation of {@link org.apache.beam.sdk.io.snowflake.SnowflakeCloudProvider} used in
+ * production.
+ */
 public class GCSProvider implements SnowflakeCloudProvider, Serializable {
+  private static final String GCS_PREFIX = "gcs://";
+  private static final String SF_PREFIX = "gs://";
 
   @Override
-  public void removeFiles(String bucketName, String pathOnBucket) {
+  public void removeFiles(String stagingBucketName, String pathOnBucket) {
     Storage storage = StorageOptions.getDefaultInstance().getService();
-    Page<Blob> blobs = storage.list(bucketName, Storage.BlobListOption.prefix(pathOnBucket));
+    Page<Blob> blobs = storage.list(stagingBucketName, Storage.BlobListOption.prefix(pathOnBucket));
     for (Blob blob : blobs.iterateAll()) {
       storage.delete(blob.getBlobId());
     }
+  }
+
+  @Override
+  public String formatCloudPath(String... pathSteps) {
+    StringBuilder builder = new StringBuilder();
+    builder.append(GCS_PREFIX);
+
+    for (String step : pathSteps) {
+      builder.append(String.format("%s/", step));
+    }
+
+    return builder.toString();
+  }
+
+  @Override
+  public String transformCloudPathToSnowflakePath(String path) {
+    return path.replace(GCS_PREFIX, SF_PREFIX);
   }
 }
