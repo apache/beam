@@ -111,6 +111,13 @@ public interface FlinkPipelineOptions
   void setMinPauseBetweenCheckpoints(Long minPauseInterval);
 
   @Description(
+      "The maximum number of concurrent checkpoints. Defaults to 1 (=no concurrent checkpoints).")
+  @Default.Integer(1)
+  int getNumConcurrentCheckpoints();
+
+  void setNumConcurrentCheckpoints(int maxConcurrentCheckpoints);
+
+  @Description(
       "Sets the expected behaviour for tasks in case that they encounter an error in their "
           + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
           + "If this is set to false, the task will only decline a the checkpoint and continue running. ")

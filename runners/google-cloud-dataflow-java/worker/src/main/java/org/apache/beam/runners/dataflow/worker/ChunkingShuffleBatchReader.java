@@ -59,18 +59,14 @@ final class ChunkingShuffleBatchReader implements ShuffleBatchReader {
     }
     DataInputStream input = new DataInputStream(new ByteArrayInputStream(result.chunk));
     ArrayList<ShuffleEntry> entries = new ArrayList<>();
-    long batchSize = 0;
     while (input.available() > 0) {
-      ShuffleEntry entry = getShuffleEntry(input);
-      batchSize += entry.length();
-      entries.add(entry);
+      entries.add(getShuffleEntry(input));
     }
     return new Batch(
         entries,
         result.nextStartPosition == null
             ? null
-            : ByteArrayShufflePosition.of(result.nextStartPosition),
-        batchSize);
+            : ByteArrayShufflePosition.of(result.nextStartPosition));
   }
 
   /**
