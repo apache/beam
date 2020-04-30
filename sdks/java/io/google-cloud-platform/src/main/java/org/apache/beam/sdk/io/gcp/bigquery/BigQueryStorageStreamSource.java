@@ -288,6 +288,11 @@ public class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
           source.stream.getName(),
           fraction);
 
+      if (fraction <= 0.0 || fraction >= 1.0) {
+        LOG.info("BigQuery Storage API does not support splitting at fraction {}", fraction);
+        return null;
+      }
+
       SplitReadStreamRequest splitRequest =
           SplitReadStreamRequest.newBuilder()
               .setOriginalStream(source.stream)
