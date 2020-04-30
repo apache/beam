@@ -31,7 +31,7 @@ import yaml
 
 from bs4 import BeautifulSoup
 from datetime import datetime
-
+from multiprocessing.pool import ThreadPool
 from queue import Queue
 from tenacity import retry
 from tenacity import stop_after_attempt
@@ -43,20 +43,6 @@ RETRY_NUM = 3
 THREADS = 16
 
 
-class Worker(threading.Thread):
-    def __init__(self, queue):
-        threading.Thread.__init__(self)
-        self.queue = queue
-
-    def run(self):
-        while True:
-            dep = self.queue.get()
-            try:
-                execute(dep)
-            finally:
-                self.queue.task_done()
-
-
 @retry(reraise=True,
        wait=wait_exponential(multiplier=2),
        stop=stop_after_attempt(RETRY_NUM))
@@ -64,19 +50,12 @@ def pull_from_url(file_name, url, dep, no_list):
     if url == 'skip':
         return
     try:
-        if pull_licenses:
-            url_read = urlopen(url)
-            with open(file_name, 'wb') as temp_write:
-                shutil.copyfileobj(url_read, temp_write)
-            logging.debug(
-                'Successfully pulled {file_name} from {url} for {dep}'.format(
-                    url=url, file_name=file_name, dep=dep))
-        else:
-            code = urlopen(url).getcode()
-            assert code == 200
-            logging.debug(
-                'Confirmed that {url} for {dep} is accessable.'.format(
-                    url=url, dep=dep))
+        url_read = urlopen(url)
+        with open(file_name, 'wb') as temp_write:
+            shutil.copyfileobj(url_read, temp_write)
+        logging.debug(
+            'Successfully pulled {file_name} from {url} for {dep}'.format(
+                url=url, file_name=file_name, dep=dep))
     except URLError as e:
         traceback.print_exc()
         if pull_from_url.retry.statistics["attempt_number"] < RETRY_NUM:
@@ -240,12 +219,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--license_dir', required=True)
     parser.add_argument('--dep_url_yaml', required=True)
-    parser.add_argument('--pull_licenses', default=False, action='store_true')
 
     args = parser.parse_args()
     license_dir = args.license_dir
     dep_url_yaml = args.dep_url_yaml
-    pull_licenses = args.pull_licenses
 
     logging.getLogger().setLevel(logging.INFO)
 
@@ -268,17 +245,10 @@ if __name__ == "__main__":
         .format(num_deps=len(dependencies['dependencies']),
                 num_threads=THREADS))
     thread_lock = threading.Lock()
-    queue = Queue()
-    for x in range(THREADS):
-        worker = Worker(queue)
-        worker.daemon = True
-        worker.start()
-    for dep in dependencies['dependencies']:
-        queue.put(dep)
-    queue.join()
+    pool = ThreadPool(THREADS)
+    pool.map(execute, dependencies['dependencies'])
 
-    if pull_licenses:
-        write_to_csv(csv_list)
+    write_to_csv(csv_list)
 
     error_msg = []
     run_status = 'succeed'
@@ -290,7 +260,7 @@ if __name__ == "__main__":
                  'code of the dependencies on the internet and add "license" ' \
                  'and "notice" (if available) field to {yaml_file} for each ' \
                  'missing license. Dependency List: [{dep_list}]'.format(
-            dep_list=','.join(sorted(no_licenses)), yaml_file=yaml_file)
+            dep_list=','.join(sorted(no_licenses)), yaml_file=dep_url_yaml)
         error_msg.append(how_to)
         run_status = 'failed'
 
@@ -301,7 +271,7 @@ if __name__ == "__main__":
                  'source code of the dependency should be pulled or not. ' \
                  'Please add "type" field to {yaml_file} for each dependency. ' \
                  'Dependency List: [{dep_list}]'.format(
-            dep_list=','.join(sorted(no_license_type)), yaml_file=yaml_file)
+            dep_list=','.join(sorted(no_license_type)), yaml_file=dep_url_yaml)
         error_msg.append(how_to)
         run_status = 'failed'
 
@@ -312,7 +282,7 @@ if __name__ == "__main__":
                  '"source" field to {yaml_file} for each dependency. ' \
                  'Dependency List: [{dep_list}]'.format(
             dep_list=','.join(sorted(incorrect_source_url)),
-            yaml_file=yaml_file)
+            yaml_file=dep_url_yaml)
         error_msg.append(how_to)
         run_status = 'failed'
 

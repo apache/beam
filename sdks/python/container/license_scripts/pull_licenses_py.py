@@ -20,6 +20,7 @@ A script to pull licenses for Python.
 The script is executed within Docker.
 """
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -56,12 +57,12 @@ def copy_license_files(dep):
   try:
     os.mkdir(dest_dir)
     shutil.copy(source_license_file, dest_dir + '/LICENSE')
-    print(
+    logging.debug(
         'Successfully pulled license for {dep} with pip-licenses.'.format(
             dep=name))
     return True
   except Exception as e:
-    print(
+    logging.error(
         'Failed to copy from {source} to {dest}'.format(
             source=source_license_file, dest=dest_dir + '/LICENSE'))
     traceback.print_exc()
@@ -93,7 +94,7 @@ def pull_from_url(dep, configs):
         url_read = urlopen(config['license'])
         with open(cur_temp_dir + '/LICENSE', 'wb') as temp_write:
           shutil.copyfileobj(url_read, temp_write)
-        print(
+        logging.debug(
             'Successfully pulled license for {dep} from {url}.'.format(
                 dep=dep, url=config['license']))
 
@@ -106,7 +107,7 @@ def pull_from_url(dep, configs):
       shutil.copytree(cur_temp_dir, dest_dir)
       return True
     except Exception as e:
-      print(
+      logging.error(
           'Error occurred when pull license for {dep} from {url}.'.format(
               dep=dep, url=config))
       traceback.print_exc()
@@ -117,6 +118,7 @@ def pull_from_url(dep, configs):
 if __name__ == "__main__":
   os.makedirs(LICENSE_DIR)
   no_licenses = []
+  logging.getLogger().setLevel(logging.INFO)
 
   with open('/tmp/license_scripts/dep_urls_py.yaml') as file:
     dep_config = yaml.full_load(file)
@@ -144,4 +146,6 @@ if __name__ == "__main__":
     raise RuntimeError(
         'Could not retrieve licences for packages [{license_list}] in '
         'Python{py_ver} environment. \n {how_to}'.format(
-            py_ver=py_ver, license_list=','.join(no_licenses), how_to=how_to))
+            py_ver=py_ver, license_list=sorted(','.join(no_licenses)), how_to=how_to))
+  else:
+    logging.info('Successfully pulled licenses for {n} dependencies'.format(n=len(dependencies)))
