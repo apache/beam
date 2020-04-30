@@ -24,7 +24,6 @@ from __future__ import absolute_import
 import logging
 import unittest
 import uuid
-from builtins import range
 
 from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
@@ -41,7 +40,21 @@ OUTPUT_TOPIC = 'wc_topic_output'
 INPUT_SUB = 'wc_subscription_input'
 OUTPUT_SUB = 'wc_subscription_output'
 
-DEFAULT_INPUT_NUMBERS = 100
+SAMPLE_MESSAGES = [
+    '150', '151', '152', '153', '154', '210', '211', '212', '213', '214'
+]
+EXPECTED_MESSAGE = [
+    '150: 1',
+    '151: 1',
+    '152: 1',
+    '153: 1',
+    '154: 1',
+    '210: 1',
+    '211: 1',
+    '212: 1',
+    '213: 1',
+    '214: 1'
+]
 WAIT_UNTIL_FINISH_DURATION = 6 * 60 * 1000  # in milliseconds
 
 
@@ -71,10 +84,10 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
         self.output_topic.name,
         ack_deadline_seconds=60)
 
-  def _inject_numbers(self, topic, num_messages):
+  def _inject_data(self, topic, data):
     """Inject numbers as test data to PubSub."""
-    logging.debug('Injecting %d numbers to topic %s', num_messages, topic.name)
-    for n in range(num_messages):
+    logging.debug('Injecting test data to topic %s', topic.name)
+    for n in data:
       self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
 
   def tearDown(self):
@@ -84,16 +97,14 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
         self.pub_client, [self.input_topic, self.output_topic])
 
   @attr('IT')
-  @unittest.skip('TODO(BEAM-8078): This test is failing')
+  @unittest.skip(
+      "Skipped due to [BEAM-3377]: assert_that not working for streaming")
   def test_streaming_wordcount_debugging_it(self):
-    # Build expected dataset.
-    expected_msg = [('%d: 1' % num).encode('utf-8')
-                    for num in range(DEFAULT_INPUT_NUMBERS)]
 
     # Set extra options to the pipeline for test purpose
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
     pubsub_msg_verifier = PubSubMessageMatcher(
-        self.project, self.output_sub.name, expected_msg, timeout=400)
+        self.project, self.output_sub.name, EXPECTED_MESSAGE, timeout=400)
     extra_opts = {
         'input_subscription': self.input_sub.name,
         'output_topic': self.output_topic.name,
@@ -102,7 +113,7 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
     }
 
     # Generate input data and inject to PubSub.
-    self._inject_numbers(self.input_topic, DEFAULT_INPUT_NUMBERS)
+    self._inject_data(self.input_topic, SAMPLE_MESSAGES)
 
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
