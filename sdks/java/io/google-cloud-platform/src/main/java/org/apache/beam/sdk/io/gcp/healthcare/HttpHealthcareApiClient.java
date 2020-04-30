@@ -39,7 +39,6 @@ import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.NotificationConfig;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
-import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import com.google.api.services.storage.StorageScopes;
 import com.google.auth.oauth2.GoogleCredentials;
 import java.io.IOException;
@@ -283,18 +282,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException {
-    return client
-        .projects()
-        .locations()
-        .datasets()
-        .fhirStores()
-        .fhir()
-        .search(fhirStore, query)
-        .execute();
-  }
-
-  @Override
   public Message createHL7v2Message(String hl7v2Store, Message msg) throws IOException {
     CreateMessageRequest createMessageRequest = new CreateMessageRequest();
     createMessageRequest.setMessage(msg);
@@ -305,19 +292,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         .hl7V2Stores()
         .messages()
         .create(hl7v2Store, createMessageRequest)
-        .execute();
-  }
-
-  @Override
-  public HttpBody createFhirResource(String fhirStore, String type, HttpBody body)
-      throws IOException {
-    return client
-        .projects()
-        .locations()
-        .datasets()
-        .fhirStores()
-        .fhir()
-        .create(fhirStore, type, body)
         .execute();
   }
 
@@ -407,7 +381,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       if (statusCode / 100 == 2) {
         throw new IllegalArgumentException(
             String.format(
-                "2xx codes should not be exceptions. Got status code: %s with body:",
+                "2xx codes should not be exceptions. Got status code: %s with body: %s",
                 statusCode, message));
       }
     }
@@ -433,17 +407,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     return client.projects().locations().datasets().fhirStores().fhir().read(resourceId).execute();
   }
 
-  @Override
-  public HttpBody deleteFhirResource(String resourceId) throws IOException {
-    return client
-        .projects()
-        .locations()
-        .datasets()
-        .fhirStores()
-        .fhir()
-        .delete(resourceId)
-        .execute();
-  }
 
   public static class AuthenticatedRetryInitializer extends RetryHttpRequestInitializer {
 

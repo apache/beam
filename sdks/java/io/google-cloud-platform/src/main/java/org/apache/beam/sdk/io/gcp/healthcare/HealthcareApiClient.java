@@ -25,7 +25,6 @@ import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
-import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.stream.Stream;
@@ -110,18 +109,6 @@ public interface HealthcareApiClient {
    */
   Message createHL7v2Message(String hl7v2Store, Message msg) throws IOException;
 
-  /**
-   * Create fhir resource http body.
-   *
-   * @param fhirStore the fhir store
-   * @param type the type
-   * @param body the body
-   * @return the http body
-   * @throws IOException the io exception
-   */
-  HttpBody createFhirResource(String fhirStore, String type, HttpBody body) throws IOException;
-
-  HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException;
 
   Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
@@ -146,7 +133,6 @@ public interface HealthcareApiClient {
    */
   HttpBody readFhirResource(String resourceId) throws IOException;
 
-  HttpBody deleteFhirResource(String resourceId) throws IOException;
 
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 

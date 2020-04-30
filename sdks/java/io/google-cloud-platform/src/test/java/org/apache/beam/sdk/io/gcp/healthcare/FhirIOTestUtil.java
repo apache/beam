@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 
 class FhirIOTestUtil {
   public static final String TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
@@ -82,7 +83,7 @@ class FhirIOTestUtil {
 
   /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
   static void executeFhirBundles(HealthcareApiClient client, String fhirStore, List<String> bundles)
-      throws IOException {
+      throws IOException, HealthcareHttpException {
     for (String bundle : bundles) {
       client.executeFhirBundle(fhirStore, bundle);
     }

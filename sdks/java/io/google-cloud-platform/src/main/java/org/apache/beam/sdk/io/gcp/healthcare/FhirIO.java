@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -320,6 +322,7 @@ public class FhirIO {
             Metrics.counter(
                 FhirIO.Read.FetchString.StringGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
+        private ObjectMapper mapper;
 
         /** Instantiates a new Hl 7 v 2 message get fn. */
         StringGetFn() {}
@@ -332,6 +335,7 @@ public class FhirIO {
         @Setup
         public void instantiateHealthcareClient() throws IOException {
           this.client = new HttpHealthcareApiClient();
+          this.mapper =  new ObjectMapper();
         }
 
         /**
@@ -358,16 +362,14 @@ public class FhirIO {
         private String fetchResource(HealthcareApiClient client, String resourceId)
             throws IOException, IllegalArgumentException {
           long startTime = System.currentTimeMillis();
-          Sleeper sleeper = Sleeper.DEFAULT;
 
-          com.google.api.services.healthcare.v1beta1.model.HttpBody resource =
-              client.readFhirResource(resourceId);
+          HttpBody resource = client.readFhirResource(resourceId);
 
           if (resource == null) {
             throw new IOException(String.format("GET request for %s returned null", resourceId));
           }
           this.successfulStringGets.inc();
-          return resource.getData();
+          return mapper.writeValueAsString(resource);
         }
       }
     }
@@ -966,7 +968,7 @@ public class FhirIO {
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
           client.executeFhirBundle(fhirStore, body);
-        } catch (IOException e) {
+        } catch (IOException | HealthcareHttpException e) {
           failedBundles.inc();
           context.output(HealthcareIOError.of(body, e));
         }

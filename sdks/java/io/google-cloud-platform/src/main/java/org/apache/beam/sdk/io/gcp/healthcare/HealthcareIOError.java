@@ -40,7 +40,9 @@ public class HealthcareIOError<T> {
     this.dataResource = dataResource;
     this.errorMessage = errorMessage;
     this.stackTrace = stackTrace;
-    this.statusCode = statusCode;
+    if (statusCode != null) {
+      this.statusCode = statusCode;
+    }
     if (observedTime != null) {
       this.observedTime = observedTime;
     } else {
