@@ -83,14 +83,6 @@ licenseReport {
   renderers = [new JsonReportRenderer()]
 }
 
-task copyThirdPartyLicenses(type: Copy) {
-  from ("third_party_licenses")
-  into "build/target/third_party_licenses"
-  doLast {
-    file('third_party_licenses').deleteDir()
-  }
-}
-
 docker {
   name containerImageName(
           name: project.docker_image_default_repo_prefix + "java_sdk",
@@ -103,14 +95,24 @@ docker {
   files "./build/"
 }
 
-task pullLicenses(type: Exec) {
-  workingDir project.rootProject.projectDir
-  commandLine './sdks/java/container/license_scripts/license_script.sh'
-  args = [project.rootProject.hasProperty(["docker-pull-licenses"])]
+if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+  task pullLicenses(type: Exec) {
+    workingDir project.rootProject.projectDir
+    commandLine './sdks/java/container/license_scripts/license_script.sh'
+    doLast {
+      file('third_party_licenses').deleteDir()
+      file('java_third_party_licenses').deleteDir()
+    }
+  }
+  dockerPrepare.dependsOn pullLicenses
+} else {
+  task createFile(type: Exec) {
+    commandLine 'mkdir', '-p', 'build/target/third_party_licenses'
+    commandLine 'touch', 'build/target/third_party_licenses/skip'
+  }
+  dockerPrepare.dependsOn createFile
 }
 
 // Ensure that we build the required resources and copy and file dependencies from related projects
 dockerPrepare.dependsOn goBuild
-copyThirdPartyLicenses.dependsOn pullLicenses
 dockerPrepare.dependsOn copyDockerfileDependencies
-dockerPrepare.dependsOn copyThirdPartyLicenses
