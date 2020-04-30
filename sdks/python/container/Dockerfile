@@ -20,6 +20,8 @@ ARG py_version
 FROM python:"${py_version}"-stretch
 MAINTAINER "Apache Beam <dev@beam.apache.org>"
 
+ARG pull_licenses
+
 # Install native bindings required for dependencies.
 RUN apt-get update && \
     apt-get install -y \
@@ -51,14 +53,17 @@ RUN ln -s /usr/bin/ccache /usr/local/bin/gcc
 RUN ccache --set-config=sloppiness=file_macro && ccache --set-config=hash_dir=false
 
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
+RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
+
 COPY target/license_scripts /tmp/license_scripts/
-RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp] && \
+RUN if [ "$pull_licenses" = "true" ] ; then \
     pip install 'pip-licenses<3.0.0;python_version>="3.5"' && \
     pip install 'pip-licenses==1.18.0;python_version<="2.7"' && \
     python /tmp/license_scripts/pull_licenses_py.py && \
     pip uninstall -y pip-licenses && \
     # Remove pip cache.
-    rm -rf /root/.cache/pip
+    rm -rf /root/.cache/pip ; \
+   fi
 
 # Log complete list of what exact packages and versions are installed.
 RUN pip freeze --all

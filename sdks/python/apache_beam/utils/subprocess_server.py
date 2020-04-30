@@ -19,8 +19,10 @@
 
 from __future__ import absolute_import
 
+import contextlib
 import logging
 import os
+import re
 import shutil
 import signal
 import socket
@@ -72,6 +74,32 @@ class SubprocessServer(object):
     self.stop()
 
   def start(self):
+    try:
+      endpoint = self.start_process()
+      wait_secs = .1
+      channel = grpc.insecure_channel(endpoint)
+      channel_ready = grpc.channel_ready_future(channel)
+      while True:
+        if self._process is not None and self._process.poll() is not None:
+          _LOGGER.error("Starting job service with %s", self._process.args)
+          raise RuntimeError(
+              'Service failed to start up with error %s' % self._process.poll())
+        try:
+          channel_ready.result(timeout=wait_secs)
+          break
+        except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
+          wait_secs *= 1.2
+          logging.log(
+              logging.WARNING if wait_secs > 1 else logging.DEBUG,
+              'Waiting for grpc channel to be ready at %s.',
+              endpoint)
+      return self._stub_class(channel)
+    except:  # pylint: disable=bare-except
+      _LOGGER.exception("Error bringing up service")
+      self.stop()
+      raise
+
+  def start_process(self):
     with self._process_lock:
       if self._process:
         self.stop()
@@ -83,45 +111,26 @@ class SubprocessServer(object):
         cmd = [arg.replace('{{PORT}}', str(port)) for arg in self._cmd]
       endpoint = 'localhost:%s' % port
       _LOGGER.info("Starting service with %s", str(cmd).replace("',", "'"))
-      try:
-        self._process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+      self._process = subprocess.Popen(
+          cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
-        # Emit the output of this command as info level logging.
-        def log_stdout():
+      # Emit the output of this command as info level logging.
+      def log_stdout():
+        line = self._process.stdout.readline()
+        while line:
+          # Remove newline via rstrip() to not print an empty line
+          _LOGGER.info(line.rstrip())
           line = self._process.stdout.readline()
-          while line:
-            _LOGGER.info(line)
-            line = self._process.stdout.readline()
 
-        t = threading.Thread(target=log_stdout)
-        t.daemon = True
-        t.start()
-        wait_secs = .1
-        channel = grpc.insecure_channel(endpoint)
-        channel_ready = grpc.channel_ready_future(channel)
-        while True:
-          if self._process.poll() is not None:
-            _LOGGER.error("Starting job service with %s", cmd)
-            raise RuntimeError(
-                'Service failed to start up with error %s' %
-                self._process.poll())
-          try:
-            channel_ready.result(timeout=wait_secs)
-            break
-          except (grpc.FutureTimeoutError, grpc._channel._Rendezvous):
-            wait_secs *= 1.2
-            logging.log(
-                logging.WARNING if wait_secs > 1 else logging.DEBUG,
-                'Waiting for grpc channel to be ready at %s.',
-                endpoint)
-        return self._stub_class(channel)
-      except:  # pylint: disable=bare-except
-        _LOGGER.exception("Error bringing up service")
-        self.stop()
-        raise
+      t = threading.Thread(target=log_stdout)
+      t.daemon = True
+      t.start()
+      return endpoint
 
   def stop(self):
+    self.stop_process()
+
+  def stop_process(self):
     with self._process_lock:
       if not self._process:
         return
@@ -145,9 +154,26 @@ class JavaJarServer(SubprocessServer):
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
+  _BEAM_SERVICES = threading.local()
+  _BEAM_SERVICES.replacements = {}
+
   def __init__(self, stub_class, path_to_jar, java_arguments):
     super(JavaJarServer, self).__init__(
         stub_class, ['java', '-jar', path_to_jar] + list(java_arguments))
+    self._existing_service = path_to_jar if _is_service_endpoint(
+        path_to_jar) else None
+
+  def start_process(self):
+    if self._existing_service:
+      return self._existing_service
+    else:
+      return super(JavaJarServer, self).start_process()
+
+  def stop_process(self):
+    if self._existing_service:
+      pass
+    else:
+      return super(JavaJarServer, self).stop_process()
 
   @classmethod
   def jar_name(cls, artifact_id, version, classifier=None, appendix=None):
@@ -173,6 +199,9 @@ class JavaJarServer(SubprocessServer):
 
   @classmethod
   def path_to_beam_jar(cls, gradle_target, appendix=None, version=beam_version):
+    if gradle_target in cls._BEAM_SERVICES.replacements:
+      return cls._BEAM_SERVICES.replacements[gradle_target]
+
     gradle_package = gradle_target.strip(':').rsplit(':', 1)[0]
     artifact_id = 'beam-' + gradle_package.replace(':', '-')
     project_root = os.path.sep.join(
@@ -210,7 +239,9 @@ class JavaJarServer(SubprocessServer):
     if cache_dir is None:
       cache_dir = cls.JAR_CACHE
     # TODO: Verify checksum?
-    if os.path.exists(url):
+    if _is_service_endpoint(url):
+      return url
+    elif os.path.exists(url):
       return url
     else:
       cached_jar = os.path.join(cache_dir, os.path.basename(url))
@@ -230,6 +261,20 @@ class JavaJarServer(SubprocessServer):
           raise RuntimeError(
               'Unable to fetch remote job server jar at %s: %s' % (url, e))
       return cached_jar
+
+  @classmethod
+  @contextlib.contextmanager
+  def beam_services(cls, replacements):
+    try:
+      old = cls._BEAM_SERVICES.replacements
+      cls._BEAM_SERVICES.replacements = dict(old, **replacements)
+      yield
+    finally:
+      cls._BEAM_SERVICES.replacements = old
+
+
+def _is_service_endpoint(path):
+  return re.match(r'^[a-zA-Z0-9.-]+:\d+$', path)
 
 
 def pick_port(*ports):

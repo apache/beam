@@ -52,22 +52,20 @@ public class AnnotateVideoTest {
         .thenReturn(Collections.singletonList(VideoAnnotationResults.newBuilder().build()));
     when(future.get()).thenReturn(response);
     when(serviceClient.annotateVideoAsync(any())).thenReturn(future);
-    VideoIntelligence.AnnotateVideoFromBytes annotateVideoFromBytes =
-        VideoIntelligence.annotateFromBytes(
-            null, Collections.singletonList(Feature.LABEL_DETECTION));
+    AnnotateVideoFromBytesFn annotateVideoFromBytesFn =
+        new AnnotateVideoFromBytesFn(null, Collections.singletonList(Feature.LABEL_DETECTION));
 
-    annotateVideoFromBytes.videoIntelligenceServiceClient = serviceClient;
+    annotateVideoFromBytesFn.videoIntelligenceServiceClient = serviceClient;
     List<VideoAnnotationResults> videoAnnotationResults =
-        annotateVideoFromBytes.getVideoAnnotationResults(TEST_URI, null, null);
+        annotateVideoFromBytesFn.getVideoAnnotationResults(TEST_URI, null, null);
     assertEquals(1, videoAnnotationResults.size());
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldThrowErrorWhenBothInputTypesNull()
       throws ExecutionException, InterruptedException {
-    VideoIntelligence.AnnotateVideoFromBytes annotateVideoFromBytes =
-        VideoIntelligence.annotateFromBytes(
-            null, Collections.singletonList(Feature.LABEL_DETECTION));
-    annotateVideoFromBytes.getVideoAnnotationResults(null, null, null);
+    AnnotateVideoFromBytesFn annotateVideoFromBytesFn =
+        new AnnotateVideoFromBytesFn(null, Collections.singletonList(Feature.LABEL_DETECTION));
+    annotateVideoFromBytesFn.getVideoAnnotationResults(null, null, null);
   }
 }

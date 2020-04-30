@@ -54,7 +54,12 @@ class ArrayScanToUncollectConverter extends RelConverter<ResolvedArrayScan> {
             Collections.singletonList(arrayLiteralExpression),
             ImmutableList.of(fieldName));
 
-    // TODO: how to handle ordinarily.
-    return Uncollect.create(projectNode.getTraitSet(), projectNode, false);
+    boolean ordinality = (zetaNode.getArrayOffsetColumn() != null);
+
+    // These asserts guaranteed by the parser code, but not the data structure.
+    // If they aren't true we need to add a Project to reorder columns.
+    assert zetaNode.getElementColumn().getId() == 1;
+    assert !ordinality || zetaNode.getArrayOffsetColumn().getColumn().getId() == 2;
+    return Uncollect.create(projectNode.getTraitSet(), projectNode, ordinality);
   }
 }

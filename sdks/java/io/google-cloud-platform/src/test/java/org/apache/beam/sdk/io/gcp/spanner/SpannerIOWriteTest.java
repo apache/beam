@@ -50,9 +50,11 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
@@ -439,6 +441,151 @@ public class SpannerIOWriteTest implements Serializable {
     //      1 batch attempt, numSleeps/2 batch retries,
     // then 1 individual attempt + numSleeps/2 individual retries
     verify(serviceFactory.mockDatabaseClient(), times(numSleeps + 2)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryOnSchemaChangeException() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with 2 timeouts and a success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // all success, so veryify no errors
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 0 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+    // 3 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryMaxOnSchemaChangeException() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // Respond with Aborted transaction
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString));
+
+    // When spanner aborts transaction for more than 5 time, pipeline execution stops with
+    // PipelineExecutionException
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage(errString);
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // One error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(1, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 0 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+    // 5 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(5)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryOnAbortedAndDeadlineExceeded() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
+    // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // Zero error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 2 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
+    // 8 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(8)).writeAtLeastOnce(any());
   }
 
   @Test

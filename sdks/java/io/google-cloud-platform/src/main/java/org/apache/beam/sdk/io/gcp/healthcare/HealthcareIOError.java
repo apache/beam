@@ -80,7 +80,6 @@ public class HealthcareIOError<T> {
     } else if (error instanceof HealthcareHttpException) {
       statusCode = ((HealthcareHttpException) error).getStatusCode();
     }
-
     return new HealthcareIOError<>(dataResource, msg, stackTrace, null, statusCode);
   }
 }
