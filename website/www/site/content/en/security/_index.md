@@ -1,8 +1,6 @@
 ---
-layout: section
 title: "Beam Security"
-permalink: security/
-section_menu: section-menu/get-started.html
+aliases: /security/CVE-2020-1929/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

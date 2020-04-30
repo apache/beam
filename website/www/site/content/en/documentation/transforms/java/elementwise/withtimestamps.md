@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "WithTimestamps"
-permalink: /documentation/transforms/java/elementwise/withtimestamps/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,11 +23,12 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Assigns timestamps to all the elements of a collection.
 
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
-* [Reify]({{ site.baseurl }}/documentation/transforms/java/elementwise/reify)
+* [Reify](/documentation/transforms/java/elementwise/reify)

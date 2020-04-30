@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Sample"
-permalink: /documentation/transforms/python/aggregation/sample/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,9 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Transforms for taking samples of the elements in a collection, or
 samples of the values associated with each key in a collection of 
 key-value pairs.
@@ -35,4 +34,4 @@ key-value pairs.
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
-* [Top]({{ site.baseurl }}/documentation/transforms/python/aggregation/top) finds the largest or smallest element.
+* [Top](/documentation/transforms/python/aggregation/top) finds the largest or smallest element.

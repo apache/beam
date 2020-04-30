@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "PAssert"
-permalink: /documentation/transforms/python/other/passert/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

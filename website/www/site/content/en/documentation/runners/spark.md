@@ -1,9 +1,7 @@
 ---
-layout: section
+type: runners
 title: "Apache Spark Runner"
-section_menu: section-menu/runners.html
-permalink: /documentation/runners/spark/
-redirect_from: /learn/runners/spark/
+aliases: /learn/runners/spark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +29,7 @@ The Spark Runner executes Beam pipelines on top of Apache Spark, providing:
 * Built-in metrics reporting using Spark's metrics system, which reports Beam Aggregators as well.
 * Native support for Beam side-inputs via spark's Broadcast variables.
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Spark Runner.
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Spark Runner.
 
 ## Three flavors of the Spark runner
 The Spark runner comes in three flavors:
@@ -55,7 +53,7 @@ pipelines written in other languages.
 If your applications only use Java, then you should currently go with one of the java based runners.
 If you want to run Python or Go pipelines with Beam on Spark, you need to use
 the portable Runner. For more information on portability, please visit the
-[Portability page]({{site.baseurl }}/roadmap/portability/).
+[Portability page](/roadmap/portability/).
 
 
 <nav class="language-switcher">
@@ -71,25 +69,25 @@ the portable Runner. For more information on portability, please visit the
 
 The Spark runner currently supports Spark's 2.x branch, and more specifically any version greater than 2.4.0.
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 You can add a dependency on the latest version of the Spark runner by adding to your pom.xml the following:
-</span>
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-spark</artifactId>
-  <version>{{ site.release_latest }}</version>
+  <version>{{< param release_latest >}}</version>
 </dependency>
-```
+{{< /highlight >}}
 
 ### Deploying Spark with your application
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 In some cases, such as running in local mode/Standalone, your (self-contained) application would be required to pack Spark by explicitly adding the following dependencies in your pom.xml:
-</span>
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.spark</groupId>
   <artifactId>spark-core_2.11</artifactId>
@@ -101,13 +99,13 @@ In some cases, such as running in local mode/Standalone, your (self-contained) a
   <artifactId>spark-streaming_2.11</artifactId>
   <version>${spark.version}</version>
 </dependency>
-```
+{{< /highlight >}}
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 And shading the application jar using the maven shade plugin:
-</span>
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>
@@ -141,66 +139,65 @@ And shading the application jar using the maven shade plugin:
     </execution>
   </executions>
 </plugin>
-```
+{{< /highlight >}}
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is `1.0.0`):
-</span>
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 beam-examples-1.0.0-shaded.jar
-```
+{{< /highlight >}}
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 To run against a Standalone cluster simply run:
-</span>
+{{< /paragraph >}}
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 <br><b>For RDD/DStream based runner:</b><br>
-</span>
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkRunner
-```
+{{< /highlight >}}
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 <br><b>For Structured Streaming based runner:</b><br>
-</span>
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 spark-submit --class com.beam.examples.BeamPipeline --master spark://HOST:PORT target/beam-examples-1.0.0-shaded.jar --runner=SparkStructuredStreamingRunner
-```
+{{< /highlight >}}
 
-<span class="language-py">
+{{< paragraph class="language-py" >}}
 You will need Docker to be installed in your execution environment. To develop
 Apache Beam with Python you have to install the Apache Beam Python SDK: `pip
-install apache_beam`. Please refer to the [Python documentation]({{ site.baseurl }}/documentation/sdks/python/)
+install apache_beam`. Please refer to the [Python documentation](/documentation/sdks/python/)
 on how to create a Python pipeline.
-</span>
+{{< /paragraph >}}
 
-```python
+{{< highlight py >}}
 pip install apache_beam
-```
+{{< /highlight >}}
 
-<span class="language-py">
+{{< paragraph class="language-py" >}}
 As of now you will need a copy of Apache Beam's source code. You can
-download it on the [Downloads page]({{ site.baseurl
-}}/get-started/downloads/). In the future there will be pre-built Docker images
+download it on the [Downloads page](/get-started/downloads/). In the future there will be pre-built Docker images
 available.
-</span>
+{{< /paragraph >}}
 
-<span class="language-py">1. Start the JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`</span>
+{{< paragraph class="language-py" >}}1. Start the JobService endpoint: `./gradlew :runners:spark:job-server:runShadow`{{< /paragraph >}}
 
-<span class="language-py">
+{{< paragraph class="language-py" >}}
 The JobService is the central instance where you submit your Beam pipeline.
 The JobService will create a Spark job for the pipeline and execute the
 job. To execute the job on a Spark cluster, the Beam JobService needs to be
 provided with the Spark master address.
-</span>
+{{< /paragraph >}}
 
-<span class="language-py">2. Submit the Python pipeline to the above endpoint by using the `PortableRunner`, `job_endpoint` set to `localhost:8099` (this is the default address of the JobService), and `environment_type` set to `LOOPBACK`. For example:</span>
+{{< paragraph class="language-py" >}}2. Submit the Python pipeline to the above endpoint by using the `PortableRunner`, `job_endpoint` set to `localhost:8099` (this is the default address of the JobService), and `environment_type` set to `LOOPBACK`. For example:{{< /paragraph >}}
 
-```py
+{{< highlight py >}}
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
 
@@ -211,32 +208,33 @@ options = PipelineOptions([
 ])
 with beam.Pipeline(options) as p:
     ...
-```
+{{< /highlight >}}
 
 ### Running on a pre-deployed Spark cluster
 
 Deploying your Beam pipeline on a cluster that already has a Spark deployment (Spark classes are available in container classpath) does not require any additional dependencies.
-For more details on the different deployment modes see: [Standalone](https://spark.apache.org/docs/latest/spark-standalone.html), [YARN](https://spark.apache.org/docs/latest/running-on-yarn.html), or [Mesos](http://spark.apache.org/docs/latest/running-on-mesos.html).
+For more details on the different deployment modes see: [Standalone](https://spark.apache.org/docs/latest/spark-standalone.html), [YARN](https://spark.apache.org/docs/latest/running-on-yarn.html), or [Mesos](https://spark.apache.org/docs/latest/running-on-mesos.html).
 
-<span class="language-py">1. Start a Spark cluster which exposes the master on port 7077 by default.</span>
+{{< paragraph class="language-py" >}}1. Start a Spark cluster which exposes the master on port 7077 by default.{{< /paragraph >}}
 
-<span class="language-py">2. Start JobService that will connect with the Spark master: `./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`.</span>
+{{< paragraph class="language-py" >}}2. Start JobService that will connect with the Spark master: `./gradlew :runners:spark:job-server:runShadow -PsparkMasterUrl=spark://localhost:7077`.{{< /paragraph >}}
 
-<span class="language-py">3. Submit the pipeline as above.
+{{< paragraph class="language-py" >}}3. Submit the pipeline as above.
 Note however that `environment_type=LOOPBACK` is only intended for local testing.
+See [here](/roadmap/portability/#sdk-harness-config) for details.{{< /paragraph >}}
 
-<span class="language-py">
-Depending on your cluster setup, you may need to change the `environment_type` option.
-See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for details.
-</span>
+{{< paragraph class="language-py" >}}
+(Note that, depending on your cluster setup, you may need to change the `environment_type` option.
+See [here](/roadmap/portability/#sdk-harness-config) for details.)
+{{< /paragraph >}}
 
 ## Pipeline options for the Spark Runner
 
 When executing your pipeline with the Spark Runner, you should consider the following pipeline options.
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 <br><b>For RDD/DStream based runner:</b><br>
-</span>
+{{< /paragraph >}}
 
 <table class="language-java table table-bordered">
 <tr>
@@ -276,9 +274,9 @@ When executing your pipeline with the Spark Runner, you should consider the foll
 </tr>
 </table>
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 <br><b>For Structured Streaming based runner:</b><br>
-</span>
+{{< /paragraph >}}
 
 <table class="language-java table table-bordered">
 <tr>
@@ -354,37 +352,37 @@ For more on how to generally use <code>spark-submit</code> checkout Spark [docum
 
 You can monitor a running Spark job using the Spark [Web Interfaces](https://spark.apache.org/docs/latest/monitoring.html#web-interfaces). By default, this is available at port `4040` on the driver node. If you run Spark on your local machine that would be `http://localhost:4040`.
 Spark also has a history server to [view after the fact](https://spark.apache.org/docs/latest/monitoring.html#viewing-after-the-fact).
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 Metrics are also available via [REST API](https://spark.apache.org/docs/latest/monitoring.html#rest-api).
 Spark provides a [metrics system](https://spark.apache.org/docs/latest/monitoring.html#metrics) that allows reporting Spark metrics to a variety of Sinks. The Spark runner reports user-defined Beam Aggregators using this same metrics system and currently supports <code>GraphiteSink</code> and <code>CSVSink</code>, and providing support for additional Sinks supported by Spark is easy and straight-forward.
-</span>
-<span class="language-py">Spark metrics are not yet supported on the portable runner.</span>
+{{< /paragraph >}}
+{{< paragraph class="language-py" >}}Spark metrics are not yet supported on the portable runner.{{< /paragraph >}}
 
 ### Streaming Execution
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 <br><b>For RDD/DStream based runner:</b><br>
 If your pipeline uses an <code>UnboundedSource</code> the Spark Runner will automatically set streaming mode. Forcing streaming mode is mostly used for testing and is not recommended.
 <br>
 <br><b>For Structured Streaming based runner:</b><br>
 Streaming mode is not implemented yet in the Spark Structured Streaming runner.
-</span>
+{{< /paragraph >}}
 
-<span class="language-py">
+{{< paragraph class="language-py" >}}
 Streaming is not yet supported on the Spark portable runner.
-</span>
+{{< /paragraph >}}
 
 ### Using a provided SparkContext and StreamingListeners
 
-<span class="language-java">
+{{< paragraph class="language-java" >}}
 <br><b>For RDD/DStream based runner:</b><br>
 If you would like to execute your Spark job with a provided <code>SparkContext</code>, such as when using the [spark-jobserver](https://github.com/spark-jobserver/spark-jobserver), or use <code>StreamingListeners</code>, you can't use <code>SparkPipelineOptions</code> (the context or a listener cannot be passed as a command-line argument anyway).
 Instead, you should use <code>SparkContextOptions</code> which can only be used programmatically and is not a common <code>PipelineOptions</code> implementation.
 <br>
 <br><b>For Structured Streaming based runner:</b><br>
 Provided SparkSession and StreamingListeners are not supported on the Spark Structured Streaming runner
-</span>
+{{< /paragraph >}}
 
-<span class="language-py">
+{{< paragraph class="language-py" >}}
 Provided SparkContext and StreamingListeners are not supported on the Spark portable runner.
-</span>
+{{< /paragraph >}}

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Reify"
-permalink: /documentation/transforms/python/elementwise/reify/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,4 +22,4 @@ Transforms for converting between explicit and implicit form of various Beam val
 See [BEAM-7389](https://issues.apache.org/jira/browse/BEAM-7389) for updates. 
 
 ## Related transforms 
-* [WithTimestamps]({{ site.baseurl }}/documentation/transforms/python/elementwise/withtimestamps) assigns timestamps to all the elements of a collection.
+* [WithTimestamps](/documentation/transforms/python/elementwise/withtimestamps) assigns timestamps to all the elements of a collection.

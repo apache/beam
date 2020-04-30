@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL conversion rules"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/conversion-rules/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +27,7 @@ Conversion includes, but is not limited to, casting and coercion:
 
 The table below summarizes all possible `CAST`s and coercions. "Coercion To" applies to all *expressions* of a given data type (e.g. a column).
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -97,7 +96,7 @@ The table below summarizes all possible `CAST`s and coercions. "Coercion To" app
 
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Casting
 
@@ -128,6 +127,7 @@ byte sequence is not valid UTF-8 results in a runtime error.
 
 When casting an expression `x` of the following types, these rules apply:
 
+{{< table >}}
 <table>
 <tr>
 <th>From</th>
@@ -184,7 +184,7 @@ target STRUCT field types (as defined by field order, not field name).</li>
 </tr>
 
 </table>
-{:.table}
+{{< /table >}}
 
 
 ## Coercion

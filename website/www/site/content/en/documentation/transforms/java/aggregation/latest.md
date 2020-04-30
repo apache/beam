@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Latest"
-permalink: /documentation/transforms/java/aggregation/latest/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 A transform and `Combine.CombineFn` for computing the latest element in a collection.
 
 * `Latest.globally()` takes a collection of values and produces the collection
@@ -38,15 +36,15 @@ For elements with the same timestamp, the output element is arbitrarily selected
 
 ## Examples
 **Example**: compute the latest value for each session
-```java
+{{< highlight java >}}
  PCollection input = ...;
  PCollection sessioned = input
     .apply(Window.into(Sessions.withGapDuration(Duration.standardMinutes(5)));
  PCollection latestValues = sessioned.apply(Latest.globally());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Reify]({{ site.baseurl }}/documentation/transforms/java/elementwise/reify)
+* [Reify](/documentation/transforms/java/elementwise/reify)
   converts between explicit and implicit form of various Beam values
-* [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
+* [WithTimestamps](/documentation/transforms/java/elementwise/withtimestamps)
   assigns timestamps to all the elements of a collection

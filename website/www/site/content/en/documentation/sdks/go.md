@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam Go SDK"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/go/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +22,7 @@ The Go SDK for Apache Beam provides a simple, powerful API for building both bat
 
 ## Get Started with the Go SDK
 
-Get started with the [Beam Go SDK quickstart]({{ site.baseurl }}/get-started/quickstart-go) to set up your development environment and run an example pipeline. Then, read through the [Beam programming guide]({{ site.baseurl }}/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
+Get started with the [Beam Go SDK quickstart](/get-started/quickstart-go) to set up your development environment and run an example pipeline. Then, read through the [Beam programming guide](/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
 
 See the [godoc](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam) for more detailed information.
 

@@ -1,9 +1,7 @@
 ---
-layout: section
+type: runners
 title: "Cloud Dataflow Runner"
-permalink: /documentation/runners/dataflow/
-section_menu: section-menu/runners.html
-redirect_from: /learn/runners/dataflow/
+aliases: /learn/runners/dataflow/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,13 +18,7 @@ limitations under the License.
 -->
 # Using the Google Cloud Dataflow Runner
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+{{< language-switcher java py >}}
 
 The Google Cloud Dataflow Runner uses the [Cloud Dataflow managed service](https://cloud.google.com/dataflow/service/dataflow-service-desc). When you run your pipeline with the Cloud Dataflow service, the runner uploads your executable code and dependencies to a Google Cloud Storage bucket and creates a Cloud Dataflow job, which executes your pipeline on managed resources in Google Cloud Platform.
 
@@ -36,7 +28,7 @@ The Cloud Dataflow Runner and service are suitable for large scale, continuous j
 * [autoscaling](https://cloud.google.com/dataflow/service/dataflow-service-desc#autoscaling) of the number of workers throughout the lifetime of the job
 * [dynamic work rebalancing](https://cloud.google.com/blog/big-data/2016/05/no-shard-left-behind-dynamic-work-rebalancing-in-google-cloud-dataflow)
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the supported capabilities of the Cloud Dataflow Runner.
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the supported capabilities of the Cloud Dataflow Runner.
 
 ## Cloud Dataflow Runner prerequisites and setup {#setup}
 
@@ -57,38 +49,41 @@ for your chosen language.
 ### Specify your dependency {#dependency}
 
 <span class="language-java">When using Java, you must specify your dependency on the Cloud Dataflow Runner in your `pom.xml`.</span>
-```java
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-  <version>{{ site.release_latest }}</version>
+  <version>{{< param release_latest >}}</version>
   <scope>runtime</scope>
 </dependency>
-```
+{{< /highlight >}}
 
 <span class="language-py">This section is not applicable to the Beam SDK for Python.</span>
 
 ### Self executing JAR {#self-executing-jar}
 
-{:.language-py}
+{{< paragraph class="language-py" >}}
 This section is not applicable to the Beam SDK for Python.
+{{< /paragraph >}}
 
-{:.language-java}
+{{< paragraph class="language-java" >}}
 In some cases, such as starting a pipeline using a scheduler such as [Apache AirFlow](https://airflow.apache.org), you must have a self-contained application. You can pack a self-executing JAR by explicitly adding the following dependency on the Project section of your pom.xml, in addition to the adding existing dependency shown in the previous section.
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 <dependency>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
     <version>${beam.version}</version>
     <scope>runtime</scope>
 </dependency>
-```
+{{< /highlight >}}
 
-{:.language-java}
+{{< paragraph class="language-java" >}}
 Then, add the mainClass name in the Maven JAR plugin.
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-jar-plugin</artifactId>
@@ -103,25 +98,27 @@ Then, add the mainClass name in the Maven JAR plugin.
     </archive>
   </configuration>
 </plugin>
-```
+{{< /highlight >}}
 
-{:.language-java}
+{{< paragraph class="language-java" >}}
 After running <code>mvn package</code>, run <code>ls target</code> and you should see (assuming your artifactId is `beam-examples` and the version is 1.0.0) the following output.
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 beam-examples-bundled-1.0.0.jar
-```
+{{< /highlight >}}
 
-{:.language-java}
+{{< paragraph class="language-java" >}}
 To run the self-executing JAR on Cloud Dataflow, use the following command.
+{{< /paragraph >}}
 
-```java
+{{< highlight java >}}
 java -jar target/beam-examples-bundled-1.0.0.jar \
   --runner=DataflowRunner \
   --project=<YOUR_GCP_PROJECT_ID> \
   --region=<GCP_REGION> \
   --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
-```
+{{< /highlight >}}
 
 ## Pipeline options for the Cloud Dataflow Runner {#pipeline-options}
 
@@ -210,8 +207,8 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
 </table>
 
 See the reference documentation for the
-<span class="language-java">[DataflowPipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html)</span>
-<span class="language-py">[`PipelineOptions`](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions)</span>
+<span class="language-java">[DataflowPipelineOptions](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/runners/dataflow/options/DataflowPipelineOptions.html)</span>
+<span class="language-py">[`PipelineOptions`](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.PipelineOptions)</span>
 interface (and any subinterfaces) for additional pipeline configuration options.
 
 ## Additional information and caveats {#additional-info}

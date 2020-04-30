@@ -1,11 +1,12 @@
 ---
-layout: post
 title:  "Adding new Data Sources to Beam SQL CLI"
 date:   2019-06-04 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2019/06/04/adding-data-sources-to-sql.html
 authors:
-        - pabloem
+  - pabloem
 
 ---
 <!--
@@ -29,7 +30,7 @@ in Java pipelines.
 
 Beam also has a fancy new SQL command line that you can use to query your
 data interactively, be it Batch or Streaming. If you haven't tried it, check out
-[https://bit.ly/ExploreBeamSQL](https://bit.ly/ExploreBeamSQL).
+[http://bit.ly/ExploreBeamSQL](https://bit.ly/ExploreBeamSQL).
 
 A nice feature of the SQL CLI is that you can use `CREATE EXTERNAL TABLE`
 commands to *add* data sources to be accessed in the CLI. Currently, the CLI
@@ -80,7 +81,7 @@ The `TableProvider` classes are under
 
 Our table provider looks like this:
 
-```java
+{{< highlight java >}}
 @AutoService(TableProvider.class)
 public class GenerateSequenceTableProvider extends InMemoryMetaTableProvider {
 
@@ -94,7 +95,7 @@ public class GenerateSequenceTableProvider extends InMemoryMetaTableProvider {
     return new GenerateSequenceTable(table);
   }
 }
-```
+{{< /highlight >}}
 
 All it does is give a type to the table - and it implements the
 `buildBeamSqlTable` method, which simply returns a `BeamSqlTable` defined by
@@ -107,7 +108,7 @@ allow users to define the number of elements to be emitted per second. We will
 define a simple table that emits sequential integers in a streaming fashion.
 This looks like so:
 
-```java
+{{< highlight java >}}
 class GenerateSequenceTable extends BaseBeamTable implements Serializable {
   public static final Schema TABLE_SCHEMA =
       Schema.of(Field.of("sequence", FieldType.INT64), Field.of("event_time", FieldType.DATETIME));
@@ -141,9 +142,7 @@ class GenerateSequenceTable extends BaseBeamTable implements Serializable {
     throw new UnsupportedOperationException("buildIOWriter unsupported!");
   }
 }
-```
-
-
+{{< /highlight >}}
 
 ## The real fun
 

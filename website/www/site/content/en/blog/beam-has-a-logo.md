@@ -1,11 +1,14 @@
 ---
-layout: post
 title:  "Apache Beam has a logo!"
 date:   2016-02-22 10:21:48 -0800
-excerpt_separator: <!--more-->
-categories: beam update website
+categories: 
+  - beam
+  - update
+  - website
+aliases:
+  - /beam/update/website/2016/02/22/beam-has-a-logo.html
 authors:
-- jamesmalone
+  - jamesmalone
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +34,7 @@ now has a logo.
 
 *drum roll* - **Presenting, the Apache Beam Logo!**
 
-<img src="{{ "/images/beam_logo_s.png" | prepend: site.baseurl }}" alt="Apache Beam Logo">
+<img src="/images/beam_logo_s.png" alt="Apache Beam Logo">
 
 We are excited about this logo because it is **simple**, **bright**, and shows the
 unification of bath and streaming, as beams of light, within the 'B'. We will base

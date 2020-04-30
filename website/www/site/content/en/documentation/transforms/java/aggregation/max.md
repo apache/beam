@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Max"
-permalink: /documentation/transforms/java/aggregation/max/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,31 +23,32 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Provides a variety of different transforms for computing the maximum
 values in a collection, either globally or for each key.
 
 ## Examples
 **Example 1**: get the maximum of a `PCollection` of `Doubles`.
 
-```java
+{{< highlight java >}}
 PCollection<Double> input = ...;
 PCollection<Double> max = input.apply(Max.doublesGlobally());
-```
+{{< /highlight >}}
 
 **Example 2**: calculate the maximum of the `Integers` associated
 with each unique key (which is of type `String`).
 
-```java
+{{< highlight java >}}
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> maxPerKey = input
      .apply(Max.integersPerKey());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Min]({{ site.baseurl }}/documentation/transforms/java/aggregation/min)
+* [Min](/documentation/transforms/java/aggregation/min)
   for computing minimum values in a collection
-* [Mean]({{ site.baseurl }}/documentation/transforms/java/aggregation/mean)
+* [Mean](/documentation/transforms/java/aggregation/mean)
   for computing the arithmetic mean of the elements in a collection
-* [Combine]({{ site.baseurl }}/documentation/transforms/java/aggregation/combine)
+* [Combine](/documentation/transforms/java/aggregation/combine)
   for combining all values associated with a key to a single result

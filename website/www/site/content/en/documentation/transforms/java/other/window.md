@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Window"
-permalink: /documentation/transforms/java/other/window/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 
@@ -34,7 +32,7 @@ windows according to a function.
 See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates.
 
 ## Related transforms 
-* [Reify]({{ site.baseurl }}/documentation/transforms/java/elementwise/reify)
+* [Reify](/documentation/transforms/java/elementwise/reify)
   converts between explicit and implicit form of various Beam values.
-* [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
+* [WithTimestamps](/documentation/transforms/java/elementwise/withtimestamps)
   applies a function to determine a timestamp to each element in the output collection.

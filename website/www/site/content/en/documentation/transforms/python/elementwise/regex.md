@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Regex"
-permalink: /documentation/transforms/python/elementwise/regex/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +17,9 @@ limitations under the License.
 
 # Regex
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
-{% include button-pydoc.md path="apache_beam.transforms.util" class="Regex" %}
+{{< button-pydoc path="apache_beam.transforms.util" class="Regex" >}}
 
 Filters input string elements based on a regex. May also transform them based on the matching groups.
 
@@ -66,20 +61,21 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 To start matching at any point instead of the beginning of the string, use
 [`Regex.find(regex)`](#example-4-regex-find).
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_matches %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_matches >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.matches`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_matches >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 2: Regex match with all groups
 
@@ -94,20 +90,21 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 To start matching at any point instead of the beginning of the string, use
 [`Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)`](#example-5-regex-find-all).
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_all_matches %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_all_matches >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.all_matches`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_all_matches %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_all_matches >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 3: Regex match into key-value pairs
 
@@ -123,20 +120,21 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 To start matching at any point instead of the beginning of the string, use
 [`Regex.find_kv(regex, keyGroup)`](#example-6-regex-find-as-key-value-pairs).
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_matches_kv %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_matches_kv >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.matches_kv`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches_kv %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_matches_kv >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 4: Regex find
 
@@ -152,20 +150,21 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 If you need to match from the start only, consider using
 [`Regex.matches(regex)`](#example-1-regex-match).
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_find >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.find`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_matches %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_matches >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 5: Regex find all
 
@@ -181,20 +180,21 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 If you need to match all groups from the start only, consider using
 [`Regex.all_matches(regex)`](#example-2-regex-match-with-all-groups).
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find_all %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_find_all >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.find_all`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_find_all %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_find_all >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 6: Regex find as key-value pairs
 
@@ -211,20 +211,21 @@ To match until the end of the string, add `'$'` at the end of the regular expres
 If you need to match as key-value pairs from the start only, consider using
 [`Regex.matches_kv(regex)`](#example-3-regex-match-into-key-value-pairs).
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_find_kv %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_find_kv >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.find_kv`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_find_kv %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_find_kv >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 7: Regex replace all
 
@@ -233,20 +234,21 @@ You can also use
 [backreferences](https://docs.python.org/3/library/re.html?highlight=backreference#re.sub)
 on the `replacement`.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_replace_all %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_replace_all >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.replace_all`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_replace_all %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_replace_all >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 8: Regex replace first
 
@@ -255,45 +257,47 @@ You can also use
 [backreferences](https://docs.python.org/3/library/re.html?highlight=backreference#re.sub)
 on the `replacement`.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_replace_first %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_replace_first >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.replace_first`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_replace_first %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_replace_first >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 9: Regex split
 
 `Regex.split` returns the list of strings that were delimited by the specified regular expression.
 The argument `outputEmpty` is set to `False` by default, but can be set to `True` to keep empty items in the output list.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py tag:regex_split %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py" regex_split >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `Regex.split`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py tag:plants_split %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex_test.py" plants_split >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ## Related transforms
 
-* [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
+* [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
   each input it may produce zero or more outputs.
-* [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
+* [Map](/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
 
-{% include button-pydoc.md path="apache_beam.transforms.util" class="Regex" %}
+{{< button-pydoc path="apache_beam.transforms.util" class="Regex" >}}

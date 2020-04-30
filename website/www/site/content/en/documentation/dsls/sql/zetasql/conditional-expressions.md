@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL conditional expressions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/conditional-expressions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +20,7 @@ limitations under the License.
 
 This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -113,4 +112,4 @@ supertype; equality comparison is done on coerced values.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}

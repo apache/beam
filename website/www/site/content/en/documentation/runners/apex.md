@@ -1,8 +1,6 @@
 ---
-layout: section
+type: runners
 title: "Apache Apex Runner"
-section_menu: section-menu/runners.html
-permalink: /documentation/runners/apex/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,12 +17,12 @@ limitations under the License.
 -->
 # Using the Apache Apex Runner
 
-The Apex Runner executes Apache Beam pipelines using [Apache Apex](https://apex.apache.org/) as an underlying engine. The runner has broad support for the [Beam model and supports streaming and batch pipelines]({{ site.baseurl }}/documentation/runners/capability-matrix/).
+The Apex Runner executes Apache Beam pipelines using [Apache Apex](https://apex.apache.org/) as an underlying engine. The runner has broad support for the [Beam model and supports streaming and batch pipelines](/documentation/runners/capability-matrix/).
 
 [Apache Apex](https://apex.apache.org/) is a stream processing platform and framework for low-latency, high-throughput and fault-tolerant analytics applications on Apache Hadoop. Apex has a unified streaming architecture and can be used for real-time and batch processing.
 
 The following instructions are for running Beam pipelines with Apex on a YARN cluster.
-They are not required for Apex in embedded mode (see [quickstart]({{ site.baseurl }}/get-started/quickstart-java/)).
+They are not required for Apex in embedded mode (see [quickstart](/get-started/quickstart-java/)).
 
 ## Apex Runner prerequisites
 

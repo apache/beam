@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "HllCount"
-permalink: /documentation/transforms/java/aggregation/hllcount/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 
 Estimates the number of distinct elements in a data stream using the
 [HyperLogLog++ algorithm](https://static.googleusercontent.com/media/research.google.com/en/us/pubs/archive/40671.pdf).
@@ -40,38 +38,38 @@ You can read more about what a sketch is at https://github.com/google/zetasketch
 
 ## Examples
 **Example 1**: creates a long-type sketch for a `PCollection<Long>` with a custom precision:
-```java
+{{< highlight java >}}
  PCollection<Long> input = ...;
  int p = ...;
  PCollection<byte[]> sketch = input.apply(HllCount.Init.forLongs().withPrecision(p).globally());
-```
+{{< /highlight >}}
 
 **Example 2**: creates a bytes-type sketch for a `PCollection<KV<String, byte[]>>`:
-```java
+{{< highlight java >}}
  PCollection<KV<String, byte[]>> input = ...;
  PCollection<KV<String, byte[]>> sketch = input.apply(HllCount.Init.forBytes().perKey());
-```
+{{< /highlight >}}
 
 **Example 3**: merges existing sketches in a `PCollection<byte[]>` into a new sketch,
 which summarizes the union of the inputs that were aggregated in the merged sketches:
-```java
+{{< highlight java >}}
  PCollection<byte[]> sketches = ...;
  PCollection<byte[]> mergedSketch = sketches.apply(HllCount.MergePartial.globally());
-```
+{{< /highlight >}}
 
 **Example 4**: estimates the count of distinct elements in a `PCollection<String>`:
-```java
+{{< highlight java >}}
  PCollection<String> input = ...;
  PCollection<Long> countDistinct =
      input.apply(HllCount.Init.forStrings().globally()).apply(HllCount.Extract.globally());
-```
+{{< /highlight >}}
 
 **Example 5**: extracts the count distinct estimate from an existing sketch:
-```java
+{{< highlight java >}}
  PCollection<byte[]> sketch = ...;
  PCollection<Long> countDistinct = sketch.apply(HllCount.Extract.globally());
-```
+{{< /highlight >}}
 
 ## Related transforms
-* [ApproximateUnique]({{ site.baseurl }}/documentation/transforms/java/aggregation/approximateunique)
+* [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements or values in key-value pairs (but does not expose sketches; also less accurate than `HllCount`).

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Go SDK Roadmap"
-permalink: /roadmap/go-sdk/
-section_menu: section-menu/roadmap.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +29,7 @@ To do so, there are a few blocking changes:
   * Scalable IOs
   * Portability Proto stability
   * Go Ecosystem integration improvements
-  
+
 Interoperability while not a blocking feature in itself, requires Beam Schema support, which
 the SDK could then use as it's default coder. Batch Splittable DoFns are nearly ready for
 playing with on Flink, and the Python Direct Runner, answering the scalable batch IO question.

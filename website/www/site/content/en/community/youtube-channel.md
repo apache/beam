@@ -1,8 +1,5 @@
 ---
-layout: section
 title: 'Beam YouTube channel'
-section_menu: section-menu/community.html
-permalink: /community/youtube-channel/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,7 +35,7 @@ When recording a session, make sure you have the following:
 - Check with local laws if any extra agreements need to be in place to allow to record and share the session.
 
 When you want to add your recording to the channel, do the following:
-- Send an e-mail to [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us) mailing list with:
+- Send an e-mail to [dev@beam.apache.org](/community/contact-us) mailing list with:
   - Subject: "[Youtube channel] Add video: your video title".
   - The video or link to the video.
   - The above agreements.

@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Videos and Podcasts"
-permalink: /documentation/resources/videos-and-podcasts/
-section_menu: section-menu/documentation.html
-redirect_from:
+aliases:
   - /learn/resources/
   - /documentation/resources/
 ---
@@ -24,8 +21,7 @@ limitations under the License.
 
 This page provides links to some of our favorite videos and podcasts that will help you get started and learn more about Apache Beam.
 
-* TOC
-{:toc}
+{{< toc >}}
 
 ## General
 
@@ -62,7 +58,7 @@ Presented by Dan Halperin, *Apache Beam PPMC member*
 
 Presented by Frances Perry, *Apache Beam PPMC member*
 
-<a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text]({{ site.baseurl }}/images/resources/se-radio-podcast.png)</a>
+<a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text](/images/resources/se-radio-podcast.png)</a>
 <br>
 
 ## Beam & Friends
@@ -133,4 +129,4 @@ Your browser does not support the audio element.
 
 ## Next Steps
 
-* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).

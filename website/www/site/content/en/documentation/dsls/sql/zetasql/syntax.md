@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL function call rules"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/syntax/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,9 +1,10 @@
 ---
-layout: post
 title:  "Apache Beam is applying to Season of Docs"
 date:   2019-04-19 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2019/04/19/season-of-docs.html
 authors:
         - aizhamal
 
@@ -27,7 +28,7 @@ The Apache Beam community is thrilled to announce its application to the first e
 
 <!--more-->
 
-<img src="{{ "/images/blog/SoD.png" | prepend: site.baseurl }}" alt="Season of Docs 2019 flyer" height="455" width="640" >
+<img src="/images/blog/SoD.png" alt="Season of Docs 2019 flyer" height="455" width="640" >
 
 [Season of Docs](https://developers.google.com/season-of-docs/) is a unique program that pairs technical writers with open source mentors to contribute to open source. This creates an opportunity to introduce the technical writer to an open source community and provide guidance while the writer works on a real world open source project. We, in the Apache Beam community, would love to take this chance and invite technical writers to collaborate with us, and help us improve our documentation in many ways.
 

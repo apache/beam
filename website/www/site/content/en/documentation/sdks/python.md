@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Apache Beam Python SDK"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/python/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,28 +21,28 @@ The Python SDK for Apache Beam provides a simple, powerful API for building batc
 
 ## Get started with the Python SDK
 
-Get started with the [Beam Python SDK quickstart]({{ site.baseurl }}/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline. Then, read through the [Beam programming guide]({{ site.baseurl }}/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
+Get started with the [Beam Python SDK quickstart](/get-started/quickstart-py) to set up your Python development environment, get the Beam SDK for Python, and run an example pipeline. Then, read through the [Beam programming guide](/documentation/programming-guide) to learn the basic concepts that apply to all SDKs in Beam.
 
 See the [Python API reference](https://beam.apache.org/releases/pydoc/) for more information on individual APIs.
 
 ## Python streaming pipelines
 
-Python [streaming pipeline execution]({{ site.baseurl }}/documentation/sdks/python-streaming)
-is experimentally available (with some [limitations]({{ site.baseurl }}/documentation/sdks/python-streaming/#unsupported-features))
+Python [streaming pipeline execution](/documentation/sdks/python-streaming)
+is experimentally available (with some [limitations](/documentation/sdks/python-streaming/#unsupported-features))
 starting with Beam SDK version 2.5.0.
 
 ## Python type safety
 
-Python is a dynamically-typed language with no static type checking. The Beam SDK for Python uses type hints during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. [Ensuring Python Type Safety]({{ site.baseurl }}/documentation/sdks/python-type-safety) walks through how to use type hints, which help you to catch potential bugs up front with the [Direct Runner]({{ site.baseurl }}/documentation/runners/direct/).
+Python is a dynamically-typed language with no static type checking. The Beam SDK for Python uses type hints during pipeline construction and runtime to try to emulate the correctness guarantees achieved by true static typing. [Ensuring Python Type Safety](/documentation/sdks/python-type-safety) walks through how to use type hints, which help you to catch potential bugs up front with the [Direct Runner](/documentation/runners/direct/).
 
 ## Managing Python pipeline dependencies
 
-When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. [Managing Python Pipeline Dependencies]({{ site.baseurl }}/documentation/sdks/python-pipeline-dependencies) shows you how to make your dependencies available to the remote workers.
+When you run your pipeline locally, the packages that your pipeline depends on are available because they are installed on your local machine. However, when you want to run your pipeline remotely, you must make sure these dependencies are available on the remote machines. [Managing Python Pipeline Dependencies](/documentation/sdks/python-pipeline-dependencies) shows you how to make your dependencies available to the remote workers.
 
 ## Developing new I/O connectors for Python
 
 The Beam SDK for Python provides an extensible API that you can use to create
-new I/O connectors. See the [Developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview)
+new I/O connectors. See the [Developing I/O connectors overview](/documentation/io/developing-io-overview)
 for information about developing new I/O connectors and links to
 language-specific implementation guidance.
 

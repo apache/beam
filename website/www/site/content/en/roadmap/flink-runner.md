@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Flink Runner Roadmap"
-permalink: /roadmap/flink-runner/
-section_menu: section-menu/roadmap.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,5 +19,5 @@ limitations under the License.
 
 This roadmap is in progress. In the meantime, here are available resources:
 
- - [Runner documentation]({{site.baseurl}}/documentation/runners/flink)
+ - [Runner documentation](/documentation/runners/flink)
  - JIRA: [runner-flink](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-flink)

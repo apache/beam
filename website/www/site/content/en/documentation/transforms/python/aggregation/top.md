@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Top"
-permalink: /documentation/transforms/python/aggregation/top/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,9 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Transforms for finding the largest (or smallest) set of elements in
 a collection, or the largest (or smallest) set of values associated
 with each key in a collection of key-value pairs.
@@ -35,4 +34,4 @@ with each key in a collection of key-value pairs.
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
-* [Sample]({{ site.baseurl }}/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.
+* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.

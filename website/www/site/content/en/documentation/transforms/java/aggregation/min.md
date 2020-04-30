@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Min"
-permalink: /documentation/transforms/java/aggregation/min/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Provides a variety of different transforms for computing the minimum
 values in a collection, either globally or for each key.
 
@@ -34,9 +32,9 @@ values in a collection, either globally or for each key.
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [Max]({{ site.baseurl }}/documentation/transforms/java/aggregation/max)
+* [Max](/documentation/transforms/java/aggregation/max)
   for computing maximum values in a collection
-* [Mean]({{ site.baseurl }}/documentation/transforms/java/aggregation/mean)
+* [Mean](/documentation/transforms/java/aggregation/mean)
   for computing the arithmetic mean of the elements in a collection
-* [Combine]({{ site.baseurl }}/documentation/transforms/java/aggregation/combine)
+* [Combine](/documentation/transforms/java/aggregation/combine)
   for combining all values associated with a key to a single result

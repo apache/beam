@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Values"
-permalink: /documentation/transforms/java/elementwise/values/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,19 +23,20 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 The `Values` transform takes a collection of key-value pairs, and
 returns the value of each element.
 
 ## Examples
 **Example**
 
-```java
+{{< highlight java >}}
 PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
 PCollection<Integer> values = keyValuePairs.apply(Values.create());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Keys]({{ site.baseurl }}/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
-* [KvSwap]({{ site.baseurl }}/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
-* [WithKeys]({{ site.baseurl }}/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
+* [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
+* [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

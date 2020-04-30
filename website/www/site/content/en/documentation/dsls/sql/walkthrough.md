@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam SQL: Walkthrough"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/walkthrough/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,12 +25,10 @@ This page illustrates the usage of Beam SQL with example code.
 Before applying a SQL query to a `PCollection`, the data in the collection must
 be in `Row` format. A `Row` represents a single, immutable record in a Beam SQL
 `PCollection`. The names and types of the fields/columns in the row are defined
-by its associated [Schema](https://beam.apache.org/releases/javadoc/{{
-site.release_latest }}/index.html?org/apache/beam/sdk/schemas/Schema.html).
-You can use the [Schema.builder()](https://beam.apache.org/releases/javadoc/{{ site.release_latest
-}}/index.html?org/apache/beam/sdk/schemas/Schema.html) to create
+by its associated [Schema](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/schemas/Schema.html).
+You can use the [Schema.builder()](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/schemas/Schema.html) to create
 `Schemas`. See [Data
-Types]({{ site.baseurl }}/documentation/dsls/sql/data-types) for more details on supported primitive data types.
+Types](/documentation/dsls/sql/data-types) for more details on supported primitive data types.
 
 
 A `PCollection<Row>` can be obtained multiple ways, for example:
@@ -41,7 +37,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
 
     **Note:** you have to explicitly specify the `Row` coder. In this example we're doing it by calling `Create.of(..)`:
 
-    ```java
+    {{< highlight java >}}
     // Define the schema for the records.
     Schema appSchema = 
         Schema
@@ -65,9 +61,9 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
           .apply(Create
                     .of(row)
                     .withCoder(RowCoder.of(appSchema)));
-    ```
+    {{< /highlight >}}
   - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format:
-    ```java
+    {{< highlight java >}}
     // An example POJO class.
     class AppPojo {
       Integer appId;
@@ -102,7 +98,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               c.output(appRow);
             }
           }));
-    ```
+    {{< /highlight >}}
 
   - **As an output of another `SqlTransform`**. Details in the next section.
 
@@ -110,23 +106,23 @@ Once you have a `PCollection<Row>` in hand, you may use `SqlTransform` to apply 
 
 ## SqlTransform
 
-[`SqlTransform.query(queryString)`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html) method is the only API to create a `PTransform`
+[`SqlTransform.query(queryString)`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html) method is the only API to create a `PTransform`
 from a string representation of the SQL query. You can apply this `PTransform`
 to either a single `PCollection` or a `PCollectionTuple` which holds multiple
 `PCollections`:
 
   - when applying to a single `PCollection` it can be referenced via the table name `PCOLLECTION` in the query:
-    ```java
+    {{< highlight java >}}
     PCollection<Row> filteredNames = testApps.apply(
         SqlTransform.query(
           "SELECT appId, description, rowtime "
             + "FROM PCOLLECTION "
             + "WHERE id=1"));
-    ```
+    {{< /highlight >}}
   - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.  
 
     For example, you can join two `PCollections`:  
-    ```java
+    {{< highlight java >}}
     // Create the schema for reviews
     Schema reviewSchema = 
         Schema
@@ -153,7 +149,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
         SqlTransform.query(
             "SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)"
                 + "FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"));
-    ```
+    {{< /highlight >}}
 
 [BeamSqlExample](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java)
 in the code repository shows basic usage of both APIs.

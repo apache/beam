@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam Java SDK"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/feature-comparison/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

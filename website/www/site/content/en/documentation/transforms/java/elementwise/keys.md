@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Keys"
-permalink: /documentation/transforms/java/elementwise/keys/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,18 +23,19 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Takes a collection of key-value pairs, and returns the key of each element.
 
 ## Examples
 **Example**
 
-```java
+{{< highlight java >}}
 PCollection<KV<String, Integer>> keyValuePairs = /* ... */;
 PCollection<String> keys = keyValuePairs.apply(Keys.create());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [KvSwap]({{ site.baseurl }}/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
-* [Values]({{ site.baseurl }}/documentation/transforms/java/elementwise/values) for extracting the value of each element.
-* [WithKeys]({{ site.baseurl }}/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
+* [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
+* [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "GroupByKey"
-permalink: /documentation/transforms/java/aggregation/groupbykey/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Takes a keyed collection of elements and produces a collection where
 each element consists of a key and an `Iterable` of all values
 associated with that key.
@@ -35,7 +33,7 @@ The results can be combined with windowing to subdivide each key
 based on time or triggering to produce partial aggregations. Either
 windowing or triggering is necessary when processing unbounded collections.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#groupbykey).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#groupbykey).
 
 ## Examples
 **Example 1**: (a, 1), (b, 2), (a, 3) will result into (a, [1, 3]), (b, [2]).
@@ -44,7 +42,7 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
 you could use `GroupByKey` to get the collection of all orders in each postal code.
 
 ## Related transforms 
-* [CoGroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/cogroupbykey)
+* [CoGroupByKey](/documentation/transforms/java/aggregation/cogroupbykey)
   for multiple input collections
-* [Combine]({{ site.baseurl }}/documentation/transforms/java/aggregation/combine)
+* [Combine](/documentation/transforms/java/aggregation/combine)
   for combining all values associated with a key to a single result

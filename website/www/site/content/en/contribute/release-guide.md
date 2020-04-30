@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam Release Guide"
-section_menu: section-menu/contribute.html
-permalink: /contribute/release-guide/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,8 +17,7 @@ limitations under the License.
 
 # Apache Beam Release Guide
 
-* TOC
-{:toc}
+{{< toc >}}
 
 ## Introduction
 
@@ -29,13 +25,13 @@ The Apache Beam project periodically declares and publishes releases. A release 
 
 The Beam community treats releases with great importance. They are a public face of the project and most users interact with the project only through the releases. Releases are signed off by the entire Beam community in a public vote.
 
-Each release is executed by a *Release Manager*, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the [dev@ mailing list]({{ site.baseurl }}/get-started/support/).
+Each release is executed by a *Release Manager*, who is selected among the Beam committers. This document describes the process that the Release Manager follows to perform a release. Any changes to this process should be discussed and adopted on the [dev@ mailing list](/get-started/support/).
 
 Please remember that publishing software has legal consequences. This guide complements the foundation-wide [Product Release Policy](http://www.apache.org/dev/release.html) and [Release Distribution Policy](http://www.apache.org/dev/release-distribution).
 
 ### Overview
 
-![Alt text]({{ "/images/release-guide-1.png" | prepend: site.baseurl }} "Release Process"){:width="100%"}
+<img src="/images/release-guide-1.png" alt="Alt text" width="100%">
 
 The release process consists of several steps:
 
@@ -646,8 +642,8 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 1. Download source zip from GitHub:
 
-    wget https://github.com/apache/beam/archive/release-${RELEASE}.zip \
-         -O apache-beam-${RELEASE}-source-release.zip
+        wget https://github.com/apache/beam/archive/release-${RELEASE}.zip \
+            -O apache-beam-${RELEASE}-source-release.zip
 
 1. Create hashes and sign the source distribution:
 
@@ -729,7 +725,6 @@ for ver in "${FLINK_VER[@]}"; do
    docker rmi -f "apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
 done
 docker rmi -f "apache/beam_spark_job_server:${RELEASE}_rc${RC_NUM}"
-
 ```
 
 How to find images:
@@ -839,7 +834,7 @@ Template:
 
 ```
     We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
-    See the [download page]({{ site.baseurl }}/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.<!--more-->
+    See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.<!--more-->
     For more information on changes in {$RELEASE_VERSION}, check out the
     [detailed release notes]({$JIRA_RELEASE_NOTES}).
 
@@ -891,7 +886,7 @@ Template:
 
 1. Maven artifacts deployed to the staging repository of [repository.apache.org](https://repository.apache.org/content/repositories/)
 1. Source distribution deployed to the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-1. Website pull request proposed to list the [release]({{ site.baseurl }}/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
+1. Website pull request proposed to list the [release](/get-started/downloads/), publish the [Java API reference manual](https://beam.apache.org/releases/javadoc/), and publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/).
 1. Docker images are published to [DockerHub](https://hub.docker.com/search?q=apache%2Fbeam&type=image) with tags: {RELEASE}_rc{RC_NUM}.
 
 You can (optionally) also do additional verification by:
@@ -1208,7 +1203,7 @@ _Note_: -Prepourl and -Pver can be found in the RC vote email sent by Release Ma
   * Run GameStats with Dataflow Runner
     ```
     python -m apache_beam.examples.complete.game.game_stats \ 
-    --project=${YOUR_PROJECT} \ 
+    --project=${YOUR_PROJECT} \
     --region=${GCE_REGION} \
     --topic projects/${YOUR_PROJECT}/topics/${YOUR_PUBSUB_TOPIC} \ 
     --dataset ${USER}_test \ 
@@ -1293,7 +1288,7 @@ Create and push a new signed tag for the released version by copying the tag for
 
 ### Merge website pull request
 
-Merge the website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/), publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/), the [Java API reference manual](https://beam.apache.org/releases/javadoc/) and Blogpost created earlier.
+Merge the website pull request to [list the release](/get-started/downloads/), publish the [Python API reference manual](https://beam.apache.org/releases/pydoc/), the [Java API reference manual](https://beam.apache.org/releases/javadoc/) and Blogpost created earlier.
 
 ### Mark the version as released in JIRA
 
@@ -1312,7 +1307,7 @@ __NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@bea
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
 * Source distribution available in the release repository of [dist.apache.org](https://dist.apache.org/repos/dist/release/beam/)
 * Source distribution removed from the dev repository of [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/)
-* Website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
+* Website pull request to [list the release](/get-started/downloads/) and publish the [API reference manual](https://beam.apache.org/releases/javadoc/) merged
 * Release tagged in the source code repository
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
 * Release version is listed at reporter.apache.org

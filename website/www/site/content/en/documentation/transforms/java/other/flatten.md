@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Flatten"
-permalink: /documentation/transforms/java/other/flatten/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,9 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Merges multiple `PCollection` objects into a single logical `PCollection`.
 
 By default, the coder for the output `PCollection` is the same as the coder
@@ -44,12 +43,12 @@ If your pipeline attempts to use `Flatten` to merge `PCollection` objects
 with incompatible windows, Beam generates an `IllegalStateException` error
 when your pipeline is constructed
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#flatten).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#flatten).
 
 ## Examples
 **Example**: Apply a `Flatten` transform to merge multiple `PCollection` objects
 
-```java
+{{< highlight java >}}
 // Flatten takes a PCollectionList of PCollection objects of a given type.
 // Returns a single PCollection that contains all of the elements in the PCollection objects in that list.
 PCollection<String> pc1 = Create.of("Hello");
@@ -58,10 +57,10 @@ PCollection<String> pc3 = Create.of("Is", "Fun");
 PCollectionList<String> collections = PCollectionList.of(pc1).and(pc2).and(pc3);
 
 PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
-```
+{{< /highlight >}}
 The resulting collection now has all the elements: "Hello", "World",
 "Beam", "Is", and "Fun".
 
 ## Related transforms 
-* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo)
-* [Partition]({{ site.baseurl }}/documentation/transforms/java/elementwise/partition)
+* [ParDo](/documentation/transforms/java/elementwise/pardo)
+* [Partition](/documentation/transforms/java/elementwise/partition)

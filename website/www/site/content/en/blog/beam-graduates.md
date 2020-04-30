@@ -1,9 +1,10 @@
 ---
-layout: post
 title:  "Apache Beam established as a new top-level project"
 date:   2017-01-10 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2017/01/10/beam-graduates.html
 authors:
   - davor
 ---
@@ -73,6 +74,6 @@ and a member of the project management committee.
 Please consider joining us, whether as a user or a contributor, as we work
 towards our first release with API stability. If you’d like to try out Apache
 Beam today, check out the latest
-[0.4.0 release]({{ site.baseurl }}/get-started/downloads/). We welcome
+[0.4.0 release](/get-started/downloads/). We welcome
 contribution and participation from anyone through our mailing lists, issue
 tracker, pull requests, and events.

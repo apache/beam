@@ -1,9 +1,7 @@
 ---
-layout: section
+type: languages
 title: "Beam DSLs: SQL"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/extensions/windowing-and-triggering/
-redirect_from: /documentation/dsls/sql/windowing-and-triggering/
+aliases: /documentation/dsls/sql/windowing-and-triggering/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

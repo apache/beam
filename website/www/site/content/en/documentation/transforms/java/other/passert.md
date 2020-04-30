@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "PAssert"
-permalink: /documentation/transforms/java/other/passert/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,14 +23,15 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 `PAssert` is a class included in the Beam Java SDK that is an 
 assertion on the contents of a `PCollection`. You can use `PAssert` to verify
 that a `PCollection` contains a specific set of expected elements.
 
 ## Examples
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:
-```java
+{{< highlight java >}}
 PCollection<String> output = ...;
 
 // Check whether a PCollection contains some elements in any order.
@@ -42,20 +40,20 @@ PAssert.that(output)
   "elem1",
   "elem3",
   "elem2");
-```
+{{< /highlight >}}
 
 Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`.
 If you're using Maven, you can link in `Hamcrest` by adding the
 following dependency to your project's pom.xml file:
 
-```java
+{{< highlight java >}}
 <dependency>
     <groupId>org.hamcrest</groupId>
     <artifactId>hamcrest-all</artifactId>
     <version>1.3</version>
     <scope>test</scope>
 </dependency>
-```
+{{< /highlight >}}
 
 ## Related transforms 
 * TestStream

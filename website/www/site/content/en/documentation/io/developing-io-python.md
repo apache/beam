@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Apache Beam: Developing I/O connectors for Python"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/developing-io-python/
-redirect_from:
+aliases:
   - /documentation/io/authoring-python/
   - /documentation/sdks/python-custom-io/
 ---
@@ -26,13 +23,13 @@ To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
 the implementation of your custom I/O depends on your use case. Before you
-start, read the [new I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+start, read the [new I/O connector overview](/documentation/io/developing-io-overview/)
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.
 
-This guide covers using the [Source and FileBasedSink interfaces](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html)
+This guide covers using the [Source and FileBasedSink interfaces](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.iobase.html)
 for Python. The Java SDK offers the same functionality, but uses a slightly
-different API. See [Developing I/O connectors for Java]({{ site.baseurl }}/documentation/io/developing-io-java/)
+different API. See [Developing I/O connectors for Java](/documentation/io/developing-io-java/)
 for information specific to the Java SDK.
 
 ## Basic code requirements {#basic-code-reqs}
@@ -62,7 +59,7 @@ multiple worker instances in parallel. As such, the code you provide for
      methods available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py)
      to develop tests for your source.
 
-In addition, see the [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
+In addition, see the [PTransform style guide](/contribute/ptransform-style-guide/)
 for Beam's transform style guidance.
 
 ## Implementing the Source interface
@@ -83,7 +80,7 @@ Supply the logic for your new source by creating the following classes:
     a wrapper.
 
 You can find these classes in the
-[apache_beam.io.iobase module](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.iobase.html).
+[apache_beam.io.iobase module](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.iobase.html).
 
 ### Implementing the BoundedSource subclass
 
@@ -185,13 +182,15 @@ See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_b
 
 The following example, `CountingSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_source %}```
+{{< highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_new_source >}}
+{{< /highlight >}}
 
 To read data from the source in your pipeline, use the `Read` transform:
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_use_new_source %}```
+{{< highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_use_new_source >}}
+{{< /highlight >}}
 
 **Note:** When you create a source that end-users are going to use, we
 recommended that you do not expose the code for the source itself as
@@ -202,10 +201,10 @@ exposing your sources, and walks through how to create a wrapper.
 
 ## Using the FileBasedSink abstraction
 
-If your data source uses files, you can implement the [FileBasedSink](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.io.filebasedsink.html)
+If your data source uses files, you can implement the [FileBasedSink](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.filebasedsink.html)
 abstraction to create a file-based sink. For other sinks, use `ParDo`,
 `GroupByKey`, and other transforms offered by the Beam SDK for Python. See the
-[developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+[developing I/O connectors overview](/documentation/io/developing-io-overview/)
 for more details.
 
 When using the `FileBasedSink` interface, you must provide the format-specific
@@ -254,7 +253,7 @@ users would need to add the reshard themselves (using the `GroupByKey`
 transform). To solve this, we recommended that you expose the source as a
 composite `PTransform` that performs both the read operation and the reshard.
 
-See Beam’s [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
+See Beam’s [PTransform style guide](/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
 for additional information about wrapping with a `PTransform`.
 
 The following examples change the source and sink from the above sections so
@@ -262,20 +261,24 @@ that they are not exposed to end-users. For the source, rename `CountingSource`
 to `_CountingSource`. Then, create the wrapper `PTransform`, called
 `ReadFromCountingSource`:
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_new_ptransform %}```
+{{< highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_new_ptransform >}}
+{{< /highlight >}}
 
 Finally, read from the source:
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_source_use_ptransform %}```
+{{< highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_source_use_ptransform >}}
+{{< /highlight >}}
 
 For the sink, rename `SimpleKVSink` to `_SimpleKVSink`. Then, create the wrapper `PTransform`, called `WriteToKVSink`:
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_sink_new_ptransform %}```
+{{< highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_sink_new_ptransform >}}
+{{< /highlight >}}
 
 Finally, write to the sink:
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_sink_use_ptransform %}```
+{{< highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_custom_sink_use_ptransform >}}
+{{< /highlight >}}

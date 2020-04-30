@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Contact Us"
-permalink: /community/in-person/
-section_menu: section-menu/community.html
-redirect_from:
+aliases:
   - /use/issue-tracking/
   - /use/mailing-lists/
   - /get-started/support/
@@ -30,6 +27,7 @@ While the official communication happens on the mailing list, and you can find u
 
 We occasionally meet up in various locations around the globe. Active or to-be-started meetups include:
 
+{{< table >}}
 | Meetup City | Name |
 | ----------------- | ---------------|
 | Stockholm | [Apache Beam Stockholm](https://www.meetup.com/Apache-Beam-Stockholm/) |
@@ -42,7 +40,7 @@ We occasionally meet up in various locations around the globe. Active or to-be-s
 | Austin, TX | [Austin Apache Beam Meetup](https://www.meetup.com/Austin-Beam-Meetup/) |
 | Bangalore | [Bangalore Apache Beam Meetup](https://www.meetup.com/Bangalore-Apache-Beam/) |
 | Paris | [Paris Apache Beam](https://www.meetup.com/Paris-Apache-Beam-Meetup/) |:
-{:.table}
+{{< /table >}}
 
 The above are the meetups that are already known to the community (please add if you are organizing one!). For Meetups that are tagged with 'Apache Beam', see the [list](https://www.meetup.com/topics/apache-beam/).
 

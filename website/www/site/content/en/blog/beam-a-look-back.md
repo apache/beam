@@ -1,9 +1,10 @@
 ---
-layout: post
 title:  "Apache Beam: A Look Back at 2017"
 date:   2018-01-09 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2018/01/09/beam-a-look-back.html
 authors:
   - ianand
   - jbonofre
@@ -22,7 +23,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-On January 10, 2017, Apache Beam got [promoted]({{ site.baseurl }}/blog/2017/01/10/beam-graduates.html)
+On January 10, 2017, Apache Beam got [promoted](/blog/2017/01/10/beam-graduates.html)
 as a Top-Level Apache Software Foundation project. It was an important milestone
 that validated the value of the project, legitimacy of its community, and
 heralded its growing adoption. In the past year, Apache Beam has been on a
@@ -39,7 +40,7 @@ of diverse use cases. Here are some use cases that exemplify the versatility of
 Beam.
 
 <img class="center-block"
-     src="{{ site.baseurl }}/images/blog/2017-look-back/timeline.png"
+     src="/images/blog/2017-look-back/timeline.png"
      alt="Use Cases"
      width="600">
 
@@ -52,7 +53,7 @@ new features and fixes.
 
 The most obvious and encouraging sign of the growth of Apache Beam’s community,
 and validation of its core value proposition of portability, is the addition of
-significant new [runners]({{ site.baseurl }}/documentation/runners/capability-matrix/)
+significant new [runners](/documentation/runners/capability-matrix/)
 (i.e. execution engines). We entered 2017 with Apache Flink, Apache Spark 1.x,
 Google Cloud Dataflow, Apache Apex, and Apache Gearpump. In 2017, the following
 new and updated runners were developed:

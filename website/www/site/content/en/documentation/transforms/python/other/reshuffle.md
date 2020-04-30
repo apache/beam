@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Reshuffle"
-permalink: /documentation/transforms/python/other/reshuffle/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +24,9 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
  Adds a temporary random key to each element in a collection, reshuffles
  these keys, and removes the temporary key. This redistributes the
  elements between workers and returns a collection equivalent to its

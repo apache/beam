@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Pre-commit Slowness Triage Guide"
-permalink: /contribute/precommit-triage-guide/
-section_menu: section-menu/contribute.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

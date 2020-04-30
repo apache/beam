@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Apache Beam: Developing I/O connectors for Java"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/developing-io-java/
-redirect_from: /documentation/io/authoring-java/
+aliases: /documentation/io/authoring-java/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,13 +22,13 @@ connectors, you must create a custom I/O connector that usually consist of a
 source and a sink. All Beam sources and sinks are composite transforms; however,
 the implementation of your custom I/O depends on your use case. Before you
 start, read the
-[new I/O connector overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+[new I/O connector overview](/documentation/io/developing-io-overview/)
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.
 
 This guide covers using the `Source` and `FileBasedSink` interfaces using Java.
 The Python SDK offers the same functionality, but uses a slightly different API.
-See [Developing I/O connectors for Python]({{ site.baseurl }}/documentation/io/developing-io-python/)
+See [Developing I/O connectors for Python](/documentation/io/developing-io-python/)
 for information specific to the Python SDK.
 
 ## Basic code requirements {#basic-code-reqs}
@@ -79,7 +76,7 @@ multiple worker instances in parallel. As such, the code you provide for
      [TextIOReadTest](https://github.com/apache/beam/blob/master/sdks/java/core/src/test/java/org/apache/beam/sdk/io/TextIOReadTest.java)
      source code.
 
-In addition, see the [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
+In addition, see the [PTransform style guide](/contribute/ptransform-style-guide/)
 for Beam's transform style guidance.
 
 ## Implementing the Source interface
@@ -312,7 +309,7 @@ Beam sources that interact with files, including:
 If your data source uses files, you can implement the `FileBasedSink`
 abstraction to create a file-based sink. For other sinks, use `ParDo`,
 `GroupByKey`, and other transforms offered by the Beam SDK for Java. See the
-[developing I/O connectors overview]({{ site.baseurl }}/documentation/io/developing-io-overview/)
+[developing I/O connectors overview](/documentation/io/developing-io-overview/)
 for more details.
 
 When using the `FileBasedSink` interface, you must provide the format-specific
@@ -363,6 +360,6 @@ users would need to add the reshard themselves (using the `GroupByKey`
 transform). To solve this, we recommended that you expose the source as a
 composite `PTransform` that performs both the read operation and the reshard.
 
-See Beam’s [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
+See Beam’s [PTransform style guide](/contribute/ptransform-style-guide/#exposing-a-ptransform-vs-something-else)
 for additional information about wrapping with a `PTransform`.
 

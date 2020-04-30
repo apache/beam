@@ -1,9 +1,10 @@
 ---
-layout: post
 title:  "Apache Beam + Kotlin = ❤️"
 date:   2019-04-25 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2019/04/25/beam-kotlin.html
 authors:
         - harshithdwivedi
 
@@ -27,7 +28,7 @@ Apache Beam samples are now available in Kotlin!
 
 <!--more-->
 
-<img src="{{ "/images/blog/kotlin.png" | prepend: site.baseurl }}" alt="Kotlin" height="320" width="800" >
+<img src="/images/blog/kotlin.png" alt="Kotlin" height="320" width="800" >
 
 If you are someone who's been working with Java in your professional career; there's a good chance that you've also heard of [Kotlin](https://kotlinlang.org/), which is an Open Sourced, statically typed language for JVM and is mostly being favoured by Android Developers due to the many myriad features which enable more concise and cleaner code than Java without sacrificing performance or safety.
 
@@ -41,68 +42,68 @@ Here are few brief snippets of code that show how the Kotlin Samples compare to 
 
 ### Java
 
-```java
+{{< highlight java >}}
  String filename = String.format(
                     "%s-%s-of-%s%s",
                     filenamePrefixForWindow(intervalWindow),
                     shardNumber,
                     numShards,
                     outputFileHints.suggestedFilenameSuffix);
-```
+{{< /highlight >}}
 
 ### Kotlin
 
-```java
+{{< highlight java >}}
  // String templating
  val filename = "$filenamePrefixForWindow(intervalWindow)-$shardNumber-of-$numShards${outputFileHints.suggestedFilenameSuffix)"  
-```
+{{< /highlight >}}
 
 ### Java 
 
-```java
+{{< highlight java >}}
 public static class FormatAsTextFn extends SimpleFunction<KV<String, Long>, String> {
     @Override
     public String apply(KV<String, Long> input) {
         return input.getKey() + ": " + input.getValue();
     }
 }
-```
+{{< /highlight >}}
 
 ## Kotlin
 
-```java
+{{< highlight java >}}
 public class FormatAsTextFn : SimpleFunction<KV<String, Long>, String>() {
     override fun apply(input: KV<String, Long>) = "${input.key} : ${input.value}"  //Single line functions
 }
-```
+{{< /highlight >}}
 
 ### Java
 
-```java
+{{< highlight java >}}
 if(tableRow != null){
     formatAndInsert(tableRow);
 }
-```
+{{< /highlight >}}
 
 ### Kotlin
 
-```java
+{{< highlight java >}}
 tableRow?.let{
     formatAndInsert(it)  // No need for null checks
 }
-```
+{{< /highlight >}}
 
 ### Java
 
-```java
+{{< highlight java >}}
 String tableName = "testTable";
-```
+{{< /highlight >}}
 
 ### Kotlin
 
-```java
+{{< highlight java >}}
 val tableName = "testTable"  // Type inferencing
-```
+{{< /highlight >}}
 
 ## Contributors Welcomed!
 

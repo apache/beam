@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Managing Python Pipeline Dependencies"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/python-pipeline-dependencies/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Latest"
-permalink: /documentation/transforms/python/aggregation/latest/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,4 +20,4 @@ limitations under the License.
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
-* [Sample]({{ site.baseurl }}/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.
+* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.

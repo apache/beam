@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Execution model"
-section_menu: section-menu/documentation.html
-permalink: /documentation/runtime/model/
-redirect_from:
+aliases:
   - /documentation/execution-model/
 ---
 <!--
@@ -90,17 +87,14 @@ in parallel, and how transforms are retried when failures occur.
 When executing a single `ParDo`, a runner might divide an example input
 collection of nine elements into two bundles as shown in figure 1.
 
-![Bundle A contains five elements. Bundle B contains four elements.](
-  {{ "/images/execution_model_bundling.svg" | prepend: site.baseurl }})
+![Bundle A contains five elements. Bundle B contains four elements.](/images/execution_model_bundling.svg)
 
 *Figure 1: A runner divides an input collection into two bundles.*
 
 When the `ParDo` executes, workers may process the two bundles in parallel as
 shown in figure 2.
 
-![Two workers process the two bundles in parallel. Worker one processes bundle
-  A. Worker two processes bundle B.](
-  {{ "/images/execution_model_bundling_gantt.svg" | prepend: site.baseurl }})
+![Two workers process the two bundles in parallel. Worker one processes bundle A. Worker two processes bundle B.](/images/execution_model_bundling_gantt.svg)
 
 *Figure 2: Two workers process the two bundles in parallel.*
 
@@ -108,8 +102,7 @@ Since elements cannot be split, the maximum parallelism for a transform depends
 on the number of elements in the collection. In figure 3, the input collection
 has nine elements, so the maximum parallelism is nine.
 
-![Nine workers process a nine element input collection in parallel.](
-  {{ "/images/execution_model_bundling_gantt_max.svg" | prepend: site.baseurl }})
+![Nine workers process a nine element input collection in parallel.](/images/execution_model_bundling_gantt_max.svg)
 
 *Figure 3: Nine workers process a nine element input collection in parallel.*
 
@@ -124,9 +117,7 @@ output elements without altering the bundling. In figure 4, `ParDo1` and
 `ParDo2` are _dependently parallel_ if the output of `ParDo1` for a given
 element must be processed on the same worker.
 
-![ParDo1 processes an input collection that contains bundles A and B. ParDo2 then
-  processes the output collection from ParDo1, which contains bundles C and D.](
-  {{ "/images/execution_model_bundling_multi.svg" | prepend: site.baseurl }})
+![ParDo1 processes an input collection that contains bundles A and B. ParDo2 then processes the output collection from ParDo1, which contains bundles C and D.](/images/execution_model_bundling_multi.svg)
 
 *Figure 4: Two transforms in sequence and their corresponding input collections.*
 
@@ -136,9 +127,7 @@ bundle C), and then executes `ParDo2` on the elements in bundle C. Similarly,
 the second worker executes `ParDo1` on the elements in bundle B (which results
 in bundle D), and then executes `ParDo2` on the elements in bundle D.
 
-![Worker one executes ParDo1 on bundle A and Pardo2 on bundle C. Worker two
-  executes ParDo1 on bundle B and ParDo2 on bundle D.](
-  {{ "/images/execution_model_bundling_multi_gantt.svg" | prepend: site.baseurl }})
+![Worker one executes ParDo1 on bundle A and Pardo2 on bundle C. Worker two executes ParDo1 on bundle B and ParDo2 on bundle D.](/images/execution_model_bundling_multi_gantt.svg)
 
 *Figure 5: Two workers execute dependently parallel ParDo transforms.*
 
@@ -166,9 +155,7 @@ completes successfully the second time. Note that the retry does not necessarily
 happen on the same worker as the original processing attempt, as shown in the
 figure.
 
-![Worker two fails to process an element in bundle B. Worker one finishes
-  processing bundle A and then successfully retries to execute bundle B.](
-  {{ "/images/execution_model_failure_retry.svg" | prepend: site.baseurl }})
+![Worker two fails to process an element in bundle B. Worker one finishes processing bundle A and then successfully retries to execute bundle B.](/images/execution_model_failure_retry.svg)
 
 *Figure 6: The processing of an element within bundle B fails, and another worker
 retries the entire bundle.*
@@ -195,9 +182,7 @@ the output of `ParDo2`. Because the runner was executing `ParDo1` and `ParDo2`
 together, the output bundle from `ParDo1` must also be thrown away, and all
 elements in the input bundle must be retried. These two `ParDo`s are co-failing.
 
-![Worker two fails to process en element in bundle D, so all elements in both
-  bundle B and bundle D must be retried.](
-  {{ "/images/execution_model_bundling_coupled_failure.svg" | prepend: site.baseurl }})
+![Worker two fails to process en element in bundle D, so all elements in both bundle B and bundle D must be retried.](/images/execution_model_bundling_coupled_failure.svg)
 
 *Figure 7: Processing of an element within bundle D fails, so all elements in
 the input bundle are retried.*

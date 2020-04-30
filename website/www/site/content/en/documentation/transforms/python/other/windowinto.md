@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "WindowInto"
-permalink: /documentation/transforms/python/other/windowinto/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,9 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 
@@ -34,8 +33,8 @@ windows according to a function.
 See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
 
 ## Related transforms
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/groupbykey)
+* [GroupByKey](/documentation/transforms/python/aggregation/groupbykey)
   produces a collection where each element consists of a key and all values associated
   with that key.
-* [Timestamp]({{ site.baseurl }}/documentation/transforms/python/elementwise/withtimestamps)
+* [Timestamp](/documentation/transforms/python/elementwise/withtimestamps)
   applies a function to determine a timestamp to each element in the output collection.

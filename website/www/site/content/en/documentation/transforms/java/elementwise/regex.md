@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Regex"
-permalink: /documentation/transforms/java/elementwise/regex/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,11 +23,12 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Provides a variety of functionality based on regular expressions.
 
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
-* [MapElements]({{ site.baseurl }}/documentation/transforms/java/elementwise/mapelements)
+* [MapElements](/documentation/transforms/java/elementwise/mapelements)

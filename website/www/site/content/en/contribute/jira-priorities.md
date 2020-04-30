@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Jira Priorities"
-permalink: /contribute/jira-priorities/
-section_menu: section-menu/contribute.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

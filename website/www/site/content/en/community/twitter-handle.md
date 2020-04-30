@@ -1,8 +1,5 @@
 ---
-layout: section
 title: 'Beam Twitter handle'
-section_menu: section-menu/community.html
-permalink: /community/twitter-handle/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

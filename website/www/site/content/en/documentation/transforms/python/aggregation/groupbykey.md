@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "GroupByKey"
-permalink: /documentation/transforms/python/aggregation/groupbykey/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,15 +24,17 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Takes a keyed collection of elements and produces a collection
 where each element consists of a key and all values associated with that key.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#groupbykey).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#groupbykey).
 
 ## Examples
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
-* [CombineGlobally]({{ site.baseurl }}/documentation/transforms/python/aggregation/combineglobally) for combining all values associated with a key to a single result.
-* [CoGroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/cogroupbykey) for multiple input collections.
+* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) for combining all values associated with a key to a single result.
+* [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey) for multiple input collections.

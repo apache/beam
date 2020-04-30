@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam Quickstart for Python"
-permalink: /get-started/quickstart-py/
-section_menu: section-menu/get-started.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,10 +19,9 @@ limitations under the License.
 
 This guide shows you how to set up your Python development environment, get the Apache Beam SDK for Python, and run an example pipeline.
 
-If you're interested in contributing to the Apache Beam Python codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+If you're interested in contributing to the Apache Beam Python codebase, see the [Contribution Guide](/contribute).
 
-* TOC
-{:toc}
+{{< toc >}}
 
 The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases will stop supporting Python 2.7 in 2020 ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)). For best results, use Beam with Python 3.
 
@@ -35,30 +31,28 @@ The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases w
 
 The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
 
-```
+{{< highlight >}}
 python --version
-```
+{{< /highlight >}}
 
 ### Install pip
 
 Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer by running:
 
-```
+{{< highlight >}}
 pip --version
-```
+{{< /highlight >}}
 
 If you do not have `pip` version 7.0.0 or newer, run the following command to
 install it. This command might require administrative privileges.
 
-{:.shell-unix}
-```
+{{< highlight class="shell-unix" >}}
 pip install --upgrade pip
-```
+{{< /highlight >}}
 
-{:.shell-PowerShell}
-```
+{{< highlight class="shell-PowerShell" >}}
 PS> python -m pip install --upgrade pip
-```
+{{< /highlight >}}
 
 
 ### Install Python virtual environment
@@ -68,29 +62,25 @@ for initial experiments. If you do not have `virtualenv` version 13.1.0 or
 newer, run the following command to install it. This command might require
 administrative privileges.
 
-{:.shell-unix}
-```
+{{< highlight class="shell-unix" >}}
 pip install --upgrade virtualenv
-```
+{{< /highlight >}}
 
-{:.shell-PowerShell}
-```
+{{< highlight class="shell-PowerShell" >}}
 PS> python -m pip install --upgrade virtualenv
-```
+{{< /highlight >}}
 
 If you do not want to use a Python virtual environment (not recommended), ensure
 `setuptools` is installed on your machine. If you do not have `setuptools`
 version 17.1 or newer, run the following command to install it.
 
-{:.shell-unix}
-```
+{{< highlight class="shell-unix" >}}
 pip install --upgrade setuptools
-```
+{{< /highlight >}}
 
-{:.shell-PowerShell}
-```
+{{< highlight class="shell-PowerShell" >}}
 PS> python -m pip install --upgrade setuptools
-```
+{{< /highlight >}}
 
 ## Get Apache Beam
 
@@ -98,15 +88,13 @@ PS> python -m pip install --upgrade setuptools
 
 A virtual environment is a directory tree containing its own Python distribution. To create a virtual environment, create a directory and run:
 
-{:.shell-unix}
-```
+{{< highlight class="shell-unix" >}}
 virtualenv /path/to/directory
-```
+{{< /highlight >}}
 
-{:.shell-PowerShell}
-```
+{{< highlight class="shell-PowerShell" >}}
 PS> virtualenv C:\path\to\directory
-```
+{{< /highlight >}}
 
 A virtual environment needs to be activated for each shell that is to use it.
 Activating it sets some environment variables that point to the virtual
@@ -114,15 +102,13 @@ environment's directories.
 
 To activate a virtual environment in Bash, run:
 
-{:.shell-unix}
-```
+{{< highlight class="shell-unix" >}}
 . /path/to/directory/bin/activate
-```
+{{< /highlight >}}
 
-{:.shell-PowerShell}
-```
+{{< highlight class="shell-PowerShell" >}}
 PS> C:\path\to\directory\Scripts\activate.ps1
-```
+{{< /highlight >}}
 
 That is, execute the `activate` script under the virtual environment directory you created.
 
@@ -132,15 +118,13 @@ For instructions using other shells, see the [virtualenv documentation](https://
 
 Install the latest Python SDK from PyPI:
 
-{:.shell-unix}
-```
+{{< highlight class="shell-unix" >}}
 pip install apache-beam
-```
+{{< /highlight >}}
 
-{:.shell-PowerShell}
-```
+{{< highlight class="shell-PowerShell" >}}
 PS> python -m pip install apache-beam
-```
+{{< /highlight >}}
 
 #### Extra requirements
 
@@ -166,38 +150,32 @@ The Apache Beam [examples](https://github.com/apache/beam/tree/master/sdks/pytho
 
 For example, run `wordcount.py` with the following command:
 
-{:.runner-direct}
-```
+{{< highlight class="runner-direct" >}}
 python -m apache_beam.examples.wordcount --input /path/to/inputfile --output /path/to/write/counts
-```
+{{< /highlight >}}
 
-{:.runner-apex}
-```
+{{< highlight class="runner-apex" >}}
 This runner is not yet available for the Python SDK.
-```
+{{< /highlight >}}
 
-{:.runner-flink-local}
-```
+{{< highlight class="runner-flink-local" >}}
 Currently, running wordcount.py on Flink requires a full download of the Beam source code.
 See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
-```
+{{< /highlight >}}
 
-{:.runner-flink-cluster}
-```
+{{< highlight class="runner-flink-cluster" >}}
 Currently, running wordcount.py on Flink requires a full download of the Beam source code.
 See https://beam.apache.org/documentation/runners/flink/ for more information.
-```
+{{< /highlight >}}
 
-{:.runner-spark}
-```
+{{< highlight class="runner-spark" >}}
 Currently, running wordcount.py on Spark requires a full download of the Beam source code.
 See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
-```
+{{< /highlight >}}
 
-{:.runner-dataflow}
-```
+{{< highlight class="runner-dataflow" >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components. Make sure you
-# complete the setup steps at {{ site.baseurl }}/documentation/runners/dataflow/#setup
+# complete the setup steps at /documentation/runners/dataflow/#setup
 pip install apache-beam[gcp]
 python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                                          --output gs://<your-gcs-bucket>/counts \
@@ -205,12 +183,11 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --project your-gcp-project \
                                          --region your-gcp-region \
                                          --temp_location gs://<your-gcs-bucket>/tmp/
-```
+{{< /highlight >}}
 
-{:.runner-nemo}
-```
+{{< highlight class="runner-nemo" >}}
 This runner is not yet available for the Python SDK.
-```
+{{< /highlight >}}
 
 After the pipeline completes, you can view the output files at your specified
 output path. For example, if you specify `/dir1/counts` for the `--output`
@@ -219,11 +196,11 @@ sequentially in the format `counts-0000-of-0001`.
 
 ## Next Steps
 
-* Learn more about the [Beam SDK for Python]({{ site.baseurl }}/documentation/sdks/python/)
+* Learn more about the [Beam SDK for Python](/documentation/sdks/python/)
   and look through the [Python SDK API reference](https://beam.apache.org/releases/pydoc).
-* Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
-* Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
+* Walk through these WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
+* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Join the Beam [users@](/community/contact-us) mailing list.
 
-Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

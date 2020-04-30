@@ -1,9 +1,9 @@
 ---
-layout: section
+type: languages
 title: "Beam Calcite SQL lexical structure"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/lexical/
-redirect_from: /documentation/dsls/sql/lexical/
+aliases: 
+  - /documentation/dsls/sql/lexical/
+  - /documentation/dsls/sql/calcite/lexical/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

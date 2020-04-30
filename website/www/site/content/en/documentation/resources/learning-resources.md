@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Learning Resources"
-section_menu: section-menu/documentation.html
-permalink: /documentation/resources/learning-resources/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,8 +21,7 @@ Welcome to our learning resources. This page contains a collection of resources 
 
 If you have additional material that you would like to see here, please let us know at [user@beam.apache.org](mailto:user@beam.apache.org)!
 
-* TOC
-{:toc}
+{{< toc >}}
 
 ## Getting Started {#getting-started}
 

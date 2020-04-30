@@ -1,10 +1,9 @@
 ---
-layout: section
+type: languages
 title: "Beam Calcite SQL query syntax"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/query-syntax/
-redirect_from: /documentation/dsls/sql/statements/select/
-               /documentation/dsls/sql/select/
+aliases:
+    - /documentation/dsls/sql/statements/select/
+    - /documentation/dsls/sql/select/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,8 +28,8 @@ Generally, the semantics of queries is standard. See the following
 sections to learn about extensions for supporting Beam's unified
 batch/streaming model:
 
- - [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins)
- - [Windowing & Triggering]({{ site.baseurl}}/documentation/dsls/sql/windowing-and-triggering/)
+ - [Joins](/documentation/dsls/sql/extensions/joins)
+ - [Windowing & Triggering](/documentation/dsls/sql/windowing-and-triggering/)
 
 The main functionality of Beam SQL is the `SELECT` statement. This is how you
 query and join data. The operations supported are a subset of
@@ -195,7 +194,7 @@ The name (optionally qualified) of an existing table.
 
 #### join
 
-See [JOIN Types](#join-types) below and [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins).
+See [JOIN Types](#join-types) below and [Joins](/documentation/dsls/sql/extensions/joins).
 
 #### select {#select_1}
 
@@ -260,7 +259,7 @@ See [Aliases](#aliases_2) for information on syntax and visibility for
 
 ## JOIN types
 
-Also see [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins).
+Also see [Joins](/documentation/dsls/sql/extensions/joins).
 
 ### Syntax {#syntax_1}
 
@@ -310,7 +309,7 @@ if there's non-global window applied.
 row in the other `from_item`, the row will return with NULLs for all columns
 from the other `from_item`.
 
-Also see [Joins]({{ site.baseurl}}/documentation/dsls/sql/extensions/joins).
+Also see [Joins](/documentation/dsls/sql/extensions/joins).
 
 ### LEFT \[OUTER\] JOIN
 
@@ -451,7 +450,7 @@ WHERE Roster.SchoolID = TeamMascot.SchoolID;
 
 ## GROUP BY clause
 
-Also see [Windowing & Triggering]({{ site.baseurl}}/documentation/dsls/sql/windowing-and-triggering/)
+Also see [Windowing & Triggering](/documentation/dsls/sql/windowing-and-triggering/)
 
 ### Syntax {#syntax_3}
 

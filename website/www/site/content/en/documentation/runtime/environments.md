@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Container environments"
-section_menu: section-menu/documentation.html
-permalink: /documentation/runtime/environments/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -58,20 +55,16 @@ git clone https://github.com/apache/beam.git
 
 To test a customized image locally, run a pipeline with PortableRunner and set the `--environment_config` flag to the image path:
 
-{:.runner-direct}
-
-```
+{{< highlight class="runner-direct" >}}
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output /path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=embed \
 --environment_config=path/to/container/image
-```
+{{< /highlight >}}
 
-{:.runner-flink-local}
-
-```
+{{< highlight class="runner-flink-local" >}}
 # Start a Flink job server on localhost:8099
 ./gradlew :runners:flink:1.8:job-server:runShadow
 
@@ -82,11 +75,9 @@ python -m apache_beam.examples.wordcount \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
 --environment_config=path/to/container/image
-```
+{{< /highlight >}}
 
-{:.runner-spark-local}
-
-```
+{{< highlight class="runner-spark-local" >}}
 # Start a Spark job server on localhost:8099
 ./gradlew :runners:spark:job-server:runShadow
 
@@ -97,7 +88,7 @@ python -m apache_beam.examples.wordcount \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
 --environment_config=path/to/container/image
-```
+{{< /highlight >}}
 
 ## Building container images
 

@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Overview: Developing a new I/O connector"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/developing-io-overview/
-redirect_from:
+aliases:
   - /documentation/io/authoring-overview/
   - /documentation/io/io-toc/
 ---
@@ -24,7 +21,7 @@ limitations under the License.
 # Overview: Developing a new I/O connector
 
 _A guide for users who need to connect to a data store that isn't supported by
-the [Built-in I/O connectors]({{site.baseurl }}/documentation/io/built-in/)_
+the [Built-in I/O connectors](/documentation/io/built-in/)_
 
 To connect to a data store that isn’t supported by Beam’s existing I/O
 connectors, you must create a custom I/O connector. A connector usually consists
@@ -33,14 +30,14 @@ however, the implementation of your custom I/O depends on your use case. Here
 are the recommended steps to get started:
 
 1. Read this overview and choose your implementation. You can email the
-   [Beam dev mailing list]({{ site.baseurl }}/get-started/support) with any
+   [Beam dev mailing list](/get-started/support) with any
    questions you might have. In addition, you can check if anyone else is
    working on the same I/O connector.  
 
 1. If you plan to contribute your I/O connector to the Beam community, see the
-   [Apache Beam contribution guide]({{ site.baseurl }}/contribute/contribution-guide/).  
+   [Apache Beam contribution guide](/contribute/contribution-guide/).  
 
-1. Read the [PTransform style guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
+1. Read the [PTransform style guide](/contribute/ptransform-style-guide/)
    for additional style guide recommendations.
 
 
@@ -56,7 +53,7 @@ Beam source:
 `ParDo` is the recommended option, as implementing a `Source` can be tricky. See
 [When to use the Source interface](#when-to-use-source) for a list of some use
 cases where you might want to use a `Source` (such as
-[dynamic work rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)).
+[dynamic work rebalancing](/blog/2016/05/18/splitAtFraction-method.html)).
 
 (Java only) For **unbounded (streaming) sources**, you must use the `Source`
 interface and extend the `UnboundedSource` abstract subclass. `UnboundedSource`
@@ -66,12 +63,12 @@ checkpointing.
 Splittable DoFn is a new sources framework that is under development and will
 replace the other options for developing bounded and unbounded sources. For more
 information, see the
-[roadmap for multi-SDK connector efforts]({{ site.baseurl }}/roadmap/connectors-multi-sdk/).
+[roadmap for multi-SDK connector efforts](/roadmap/connectors-multi-sdk/).
 
 ### When to use the Source interface {#when-to-use-source}
 
 If you are not sure whether to use `Source`, feel free to email the [Beam dev
-mailing list]({{ site.baseurl }}/get-started/support) and we can discuss the
+mailing list](/get-started/support) and we can discuss the
 specific pros and cons of your case.
 
 In some cases, implementing a `Source` might be necessary or result in better
@@ -108,8 +105,7 @@ Here is a sequence diagram that shows the lifecycle of the Source during
  apply to the objects or particular cases such as streaming mode.
  
  <!-- The source for the sequence diagram can be found in the the SVG resource. -->
-![This is a sequence diagram that shows the lifecycle of the Source](
-    {{ "/images/source-sequence-diagram.svg" | prepend: site.baseurl }})
+![This is a sequence diagram that shows the lifecycle of the Source](/images/source-sequence-diagram.svg)
 
 ### Using ParDo and GroupByKey
 
@@ -173,8 +169,8 @@ For **file-based sinks**, you can use the `FileBasedSink` abstraction that is
 provided by both the Java and Python SDKs. See our language specific
 implementation guides for more details:
 
-* [Developing I/O connectors for Java]({{ site.baseurl }}/documentation/io/developing-io-java/)
-* [Developing I/O connectors for Python]({{ site.baseurl }}/documentation/io/developing-io-python/)
+* [Developing I/O connectors for Java](/documentation/io/developing-io-java/)
+* [Developing I/O connectors for Python](/documentation/io/developing-io-python/)
 
 
 

@@ -1,8 +1,6 @@
 ---
-layout: section
+type: runners
 title: "JStorm Runner"
-section_menu: section-menu/documentation.html
-permalink: /documentation/runners/jstorm/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,20 +24,21 @@ The JStorm Runner can be used to execute Beam pipelines using [JStorm](http://js
 
 Like a native JStorm topology, users can execute Beam topology with local mode, standalone cluster or jstorm-on-yarn cluster.
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the JStorm Runner.
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the JStorm Runner.
 
 ## JStorm Runner prerequisites and setup
 
 The JStorm runner currently supports JStorm version 2.5.0-SNAPSHOT.
 
 You can add a dependency on the latest version of the JStorm runner by adding the following to your pom.xml:
-```java
+
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-jstorm</artifactId>
-  <version>{{ site.release_latest }}</version>
+  <version>{{< param release_latest >}}</version>
 </dependency>
-```
+{{< /highlight >}}
 
 ### Deploying JStorm with your application
 

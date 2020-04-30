@@ -68,6 +68,10 @@ $(document).ready(function () {
                 });
             },
 
+            "addClassToTableOfContents": function () {
+                $("#TableOfContents").children().addClass("nav");
+            },
+
             "setActiveItemClassEvent": function () {
                 $("." + idSectionNav + " a").click(function (e) {
                     var currentItem = document.querySelector(classNavActiveItem);
@@ -135,6 +139,7 @@ $(document).ready(function () {
                     }
                 });
 
+                this.addClassToTableOfContents();
                 this.setCollapsibleBehaviourItems();
                 this.setActiveItemClassEvent();
                 setTimeout(function () {

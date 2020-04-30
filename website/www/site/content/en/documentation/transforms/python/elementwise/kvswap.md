@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "KvSwap"
-permalink: /documentation/transforms/python/elementwise/kvswap/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,11 +17,9 @@ limitations under the License.
 
 # Kvswap
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
-{% include button-pydoc.md path="apache_beam.transforms.util" class="KvSwap" %}
+{{< button-pydoc path="apache_beam.transforms.util" class="KvSwap" >}}
 
 Takes a collection of key-value pairs and returns a collection of key-value pairs
 which has each key and value swapped.
@@ -34,24 +29,25 @@ which has each key and value swapped.
 In the following example, we create a pipeline with a `PCollection` of key-value pairs.
 Then, we apply `KvSwap` to swap the keys and values.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py tag:kvswap %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py" kvswap >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `KvSwap`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap_test.py tag:plants %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap_test.py" plants >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/kvswap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/kvswap"
-%}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/kvswap" >}}
 
 ## Related transforms
 
-* [Keys]({{ site.baseurl }}/documentation/transforms/python/elementwise/keys) for extracting the key of each component.
-* [Values]({{ site.baseurl }}/documentation/transforms/python/elementwise/values) for extracting the value of each element.
+* [Keys](/documentation/transforms/python/elementwise/keys) for extracting the key of each component.
+* [Values](/documentation/transforms/python/elementwise/values) for extracting the value of each element.
 
-{% include button-pydoc.md path="apache_beam.transforms.util" class="KvSwap" %}
+{{< button-pydoc path="apache_beam.transforms.util" class="KvSwap" >}}

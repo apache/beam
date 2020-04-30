@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Partition"
-permalink: /documentation/transforms/java/elementwise/partition/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,17 +23,18 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Separates elements in a collection into multiple output collections. The partitioning function contains the logic that determines how to separate the elements of the input collection into each resulting partition output collection.
 
 The number of partitions must be determined at graph construction time. You cannot determine the number of partitions in mid-pipeline.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#partition).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#partition).
 
 ## Examples
 **Example**: dividing a `PCollection` into percentile groups
 
-```java
+{{< highlight java >}}
 // Provide an int value with the desired number of result partitions, and a PartitionFn that represents the
 // partitioning function. In this example, we define the PartitionFn in-line. Returns a PCollectionList
 // containing each of the resulting partitions as individual PCollection objects.
@@ -51,12 +49,12 @@ PCollectionList<Student> studentsByPercentile =
 
 // You can extract each partition from the PCollectionList using the get method, as follows:
 PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Filter]({{ site.baseurl }}/documentation/transforms/java/elementwise/filter) is useful if the function is just 
+* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just 
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
+* [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs. 
-* [CoGroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/cogroupbykey)
+* [CoGroupByKey](/documentation/transforms/java/aggregation/cogroupbykey)
   performs a per-key equijoin. 

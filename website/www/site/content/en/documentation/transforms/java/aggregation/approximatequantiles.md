@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "ApproximateQuantiles"
-permalink: /documentation/transforms/java/aggregation/approximatequantiles/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Takes a comparison function and the desired number of quantiles *n*, either
 globally or per-key. Using an approximation algorithm, it returns the
 minimum value, *n-2* intermediate values, and the maximum value.
@@ -38,6 +36,6 @@ containing 5 values: the minimum value, Quartile 1 value, Quartile 2
 value, Quartile 3 value, and the maximum value.
 
 ## Related transforms 
-* [ApproximateUnique]({{ site.baseurl }}/documentation/transforms/java/aggregation/approximateunique)
+* [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements or distinct values in key-value pairs
-* [Combine]({{ site.baseurl }}/documentation/transforms/java/aggregation/combine)
+* [Combine](/documentation/transforms/java/aggregation/combine)

@@ -1,11 +1,10 @@
 ---
-layout: post
 title:  "Apache Beam 2.15.0"
 date:   2019-08-22 00:00:01 -0800
-# Date above corrected but keep the old URL:
-permalink: /blog/2019/08/22/beam-2.15.0.html
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2019/08/22/beam-2.15.0.html
 authors:
         - yifanzou
 
@@ -25,7 +24,7 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.15.0 release of Beam. This release includes both improvements and new functionality.
-See the [download page]({{ site.baseurl }}/get-started/downloads/#2150-2019-08-22) for this release.<!--more-->
+See the [download page](/get-started/downloads/#2150-2019-08-22) for this release.<!--more-->
 For more information on changes in 2.15.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12345489).
 

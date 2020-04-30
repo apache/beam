@@ -1,8 +1,6 @@
 ---
-layout: section
+type: runners
 title: "Apache Hadoop MapReduce Runner"
-section_menu: section-menu/runners.html
-permalink: /documentation/runners/mapreduce/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +19,7 @@ limitations under the License.
 
 The Apache Hadoop MapReduce Runner can be used to execute Beam pipelines using [Apache Hadoop](https://hadoop.apache.org/).
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Apache Hadoop MapReduce Runner.
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Apache Hadoop MapReduce Runner.
 
 ## Apache Hadoop MapReduce Runner prerequisites and setup
 You need to have an Apache Hadoop environment with either [Single Node Setup](https://hadoop.apache.org/docs/r1.2.1/single_node_setup.html) or [Cluster Setup](https://hadoop.apache.org/docs/r1.2.1/cluster_setup.html)
@@ -33,7 +31,7 @@ You can add a dependency on the latest version of the Apache Hadoop MapReduce ru
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-mapreduce</artifactId>
-  <version>{{ site.release_latest }}</version>
+  <version>{{< param release_latest >}}</version>
 </dependency>
 ```
 
@@ -50,7 +48,7 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 
 To execute in a Hadoop cluster, package your program along with all dependencies in a fat jar.
 
-If you are following through the [Beam Java SDK Quickstart]({{ site.baseurl }}/get-started/quickstart-java/), you can run this command:
+If you are following through the [Beam Java SDK Quickstart](/get-started/quickstart-java/), you can run this command:
 ```
 $ mvn package -Pflink-runner
 ```

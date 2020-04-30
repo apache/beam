@@ -1,9 +1,7 @@
 ---
-layout: section
+type: languages
 title: "Beam Calcite SQL scalar functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/scalar-functions/
-redirect_from: /documentation/dsls/sql/scalar-functions/
+aliases: /documentation/dsls/sql/scalar-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +23,7 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 
 ## Comparison functions and operators
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | value1 = value2 | Equals |
@@ -35,19 +34,21 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 | value1 <= value2 | Less than or equal |
 | value IS NULL | Whether value is null |
 | value IS NOT NULL | Whether value is not null |
-{:.table}
+{{< /table >}}
 
 ## Logical functions and operators
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | boolean1 OR boolean2 | Whether boolean1 is TRUE or boolean2 is TRUE |
 | boolean1 AND boolean2 | Whether boolean1 and boolean2 are both TRUE |
 | NOT boolean | Whether boolean is not TRUE; returns UNKNOWN if boolean is UNKNOWN |
-{:.table}
+{{< /table >}}
 
 ## Arithmetic expressions
 
+{{< table >}}
 | Operator syntax | Description|
 | ---- | ---- |
 | numeric1 + numeric2 | Returns numeric1 plus numeric2|
@@ -55,10 +56,11 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 | numeric1 * numeric2 | Returns numeric1 multiplied by numeric2|
 | numeric1 / numeric2 | Returns numeric1 divided by numeric2|
 | MOD(numeric, numeric) | Returns the remainder (modulus) of numeric1 divided by numeric2. The result is negative only if numeric1 is negative|
-{:.table}
+{{< /table >}}
 
 ## Math functions
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | ABS(numeric) | Returns the absolute value of numeric |
@@ -76,10 +78,11 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 | SIN(numeric) | Returns the sine of numeric |
 | TAN(numeric) | Returns the tangent of numeric |
 | ROUND(numeric1, numeric2) | Rounds numeric1 to numeric2 places right to the decimal point |
-{:.table}
+{{< /table >}}
 
 ## Date functions
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | LOCALTIME | Returns the current date and time in the session time zone in a value of datatype TIME |
@@ -102,10 +105,11 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 | HOUR(date) | Equivalent to EXTRACT(HOUR FROM date). Returns an integer between 0 and 23. |
 | MINUTE(date) | Equivalent to EXTRACT(MINUTE FROM date). Returns an integer between 0 and 59. |
 | SECOND(date) | Equivalent to EXTRACT(SECOND FROM date). Returns an integer between 0 and 59. |
-{:.table}
+{{< /table >}}
 
 ## String functions
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | string \|\| string | Concatenates two character strings |
@@ -120,14 +124,15 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 | SUBSTRING(string FROM integer) | Returns a substring of a character string starting at a given point |
 | SUBSTRING(string FROM integer FOR integer) | Returns a substring of a character string starting at a given point with a given length |
 | INITCAP(string) | Returns string with the first letter of each word converter to upper case and the rest to lower case. Words are sequences of alphanumeric characters separated by non-alphanumeric characters. |
-{:.table}
+{{< /table >}}
 
 ## Conditional functions
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | CASE value <br>WHEN value1 [, value11 ]* THEN result1 <br>[ WHEN valueN [, valueN1 ]* THEN resultN ]* <br>[ ELSE resultZ ] <br>END | Simple case |
 | CASE <br>WHEN condition1 THEN result1 <br>[ WHEN conditionN THEN resultN ]* <br>[ ELSE resultZ ] <br>END | Searched case |
 | NULLIF(value, value) | Returns NULL if the values are the same. For example, NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5. |
 | COALESCE(value, value [, value ]*) | Provides a value if the first value is null. For example, COALESCE(NULL, 5) returns 5. |
-{:.table}
+{{< /table >}}

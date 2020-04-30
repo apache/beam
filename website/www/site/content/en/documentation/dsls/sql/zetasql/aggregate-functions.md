@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL aggregate functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/aggregate-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,6 +20,7 @@ limitations under the License.
 
 This page documents the ZetaSQL aggregate functions supported by Beam ZetaSQL.
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | [COUNT(*)](#count) | Returns the number of input rows |
@@ -29,7 +28,7 @@ This page documents the ZetaSQL aggregate functions supported by Beam ZetaSQL.
 | [SUM(numeric)](#sum) | Returns the sum of non-`NULL` values |
 | [MAX(value)](#max) | Returns the maximum non-`NULL` value |
 | [MIN(value)](#min) | Returns the minimum non-`NULL` value |
-{:.table}
+{{< /table >}}
 
 ## AVG
 

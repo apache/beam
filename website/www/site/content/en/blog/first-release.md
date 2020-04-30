@@ -1,9 +1,11 @@
 ---
-layout: post
 title:  "The first release of Apache Beam!"
 date:   2016-06-15 00:00:01 -0700
-excerpt_separator: <!--more-->
-categories: beam release
+categories: 
+  - beam 
+  - release
+aliases:
+  - /beam/release/2016/06/15/first-release.html
 authors:
   - davor
 ---
@@ -33,7 +35,7 @@ making them readily available for our users. The initial release includes the
 SDK for Java, along with three runners: Apache Flink, Apache Spark and Google
 Cloud Dataflow, a fully-managed cloud service. The release is available both
 in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22),
-as well as a download from the [project’s website]({{ site.baseurl }}/get-started/downloads/).
+as well as a download from the [project’s website](/get-started/downloads/).
 
 The goal of this release was process-oriented. In particular, the Beam
 community wanted to release existing functionality to our users, build and
@@ -48,5 +50,5 @@ anticipated, perhaps one every 1-2 months.
 As always, the Beam community welcomes feedback. Stabilization, usability and
 the developer experience will be our focus for the next several months. If you
 have any comments or discover any issues, I’d like to invite you to reach out
-to us via [user’s mailing list]({{ site.baseurl }}/get-started/support/) or the
+to us via [user’s mailing list](/get-started/support/) or the
 [Apache JIRA issue tracker](https://issues.apache.org/jira/browse/BEAM/).

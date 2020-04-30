@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "CoGroupByKey"
-permalink: /documentation/transforms/python/aggregation/cogroupbykey/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +24,9 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Aggregates all input elements by their key and allows downstream processing
 to consume all values associated with the key. While `GroupByKey` performs
 this operation over a single input collection and thus a single type of input
@@ -35,11 +34,11 @@ values, `CoGroupByKey` operates over multiple input collections. As a result,
 the result for each key is a tuple of the values associated with that key in
 each input collection.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#cogroupbykey).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#cogroupbykey).
 
 ## Examples
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms
-* [CombineGlobally]({{ site.baseurl }}/documentation/transforms/python/aggregation/combineglobally) to combine elements.
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/groupbykey) takes one input collection.
+* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) to combine elements.
+* [GroupByKey](/documentation/transforms/python/aggregation/groupbykey) takes one input collection.

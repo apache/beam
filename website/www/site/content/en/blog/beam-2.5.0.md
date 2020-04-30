@@ -1,9 +1,10 @@
 ---
-layout: post
 title:  "Apache Beam 2.5.0"
 date:   2018-06-26 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
+aliases:
+  - /blog/2018/06/26/beam-2.5.0.html
 authors:
   - aromanenko
 ---
@@ -28,7 +29,7 @@ please check the detailed release notes.
 # New Features / Improvements
 
 ## Go SDK support
-The Go SDK has been officially accepted into the project, after an incubation period and community effort. Go pipelines run on Dataflow runner. More details are [here]({{ site.baseurl }}/documentation/sdks/go/).
+The Go SDK has been officially accepted into the project, after an incubation period and community effort. Go pipelines run on Dataflow runner. More details are [here](/documentation/sdks/go/).
 
 ## Parquet support
 Support for Apache Parquet format was added. It uses Parquet 1.10 release which, thanks to AvroParquerWriter's API changes, allows FileIO.Sink implementation.

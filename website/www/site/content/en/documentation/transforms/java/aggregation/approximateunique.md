@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "ApproximateUnique"
-permalink: /documentation/transforms/java/aggregation/approximateunique/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Transforms for estimating the number of distinct elements in a collection
 or the number of distinct values associated with each key in a collection
 of key-value pairs.
@@ -35,8 +33,8 @@ of key-value pairs.
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [HllCount]({{ site.baseurl }}/documentation/transforms/java/aggregation/hllcount)
+* [HllCount](/documentation/transforms/java/aggregation/hllcount)
   estimates the number of distinct elements and creates re-aggregatable sketches using the HyperLogLog++ algorithm.
-* [Count]({{ site.baseurl }}/documentation/transforms/java/aggregation/count)
+* [Count](/documentation/transforms/java/aggregation/count)
   counts the number of elements within each aggregation.
-* [Distinct]({{ site.baseurl }}/documentation/transforms/java/aggregation/distinct)
+* [Distinct](/documentation/transforms/java/aggregation/distinct)

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Combine"
-permalink: /documentation/transforms/java/aggregation/combine/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 A user-defined `CombineFn` may be applied to combine all elements in a
 `PCollection` (global combine) or to combine all elements associated
 with each key. 
@@ -41,7 +39,7 @@ processed by a single worker. This introduces a lot of communication overhead.
 Using a `CombineFn` requires the code be structured as an associative and
 commumative operation. But, it allows the use of partial sums to be precomputed.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#combine).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#combine).
 
 ## Examples
 **Example 1**: Global combine
@@ -50,20 +48,20 @@ into a single value, represented in your pipeline as a new `PCollection` contain
 one element. The following example code shows how to apply the Beam-provided
 sum combine function to produce a single sum value for a `PCollection` of integers.
 
-```java
+{{< highlight java >}}
 // Sum.SumIntegerFn() combines the elements in the input PCollection. The resulting PCollection, called sum,
 // contains one value: the sum of all the elements in the input PCollection.
 PCollection<Integer> pc = ...;
 PCollection<Integer> sum = pc.apply(
    Combine.globally(new Sum.SumIntegerFn()));
-```
+{{< /highlight >}}
 
 **Example 2**: Keyed combine
 Use a keyed combine to to combine all of the values associated with each key
 into a single output value for each key. As with the global combine, the
 function passed to a keyed combine must be associative and commutative.
 
-```java
+{{< highlight java >}}
 // PCollection is grouped by key and the Double values associated with each key are combined into a Double.
 PCollection<KV<String, Double>> salesRecords = ...;
 PCollection<KV<String, Double>> totalSalesPerPerson =
@@ -75,8 +73,8 @@ PCollection<KV<String, Integer>> playerAccuracy = ...;
 PCollection<KV<String, Double>> avgAccuracyPerPlayer =
   playerAccuracy.apply(Combine.<String, Integer, Double>perKey(
     new MeanInts())));
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [CombineWithContext]({{ site.baseurl }}/documentation/transforms/java/aggregation/combinewithcontext)
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey) 
+* [CombineWithContext](/documentation/transforms/java/aggregation/combinewithcontext)
+* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) 

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "View"
-permalink: /documentation/transforms/java/other/view/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,12 +23,13 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Operations for turning a collection into view that may be used as a side-input to a `ParDo`.
 
 ## Examples
 See [BEAM-7704](https://issues.apache.org/jira/browse/BEAM-7704) for updates. 
 
 ## Related transforms 
-* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo)
-* [CombineWithContext]({{ site.baseurl }}/documentation/transforms/java/aggregation/combinewithcontext)
+* [ParDo](/documentation/transforms/java/elementwise/pardo)
+* [CombineWithContext](/documentation/transforms/java/aggregation/combinewithcontext)

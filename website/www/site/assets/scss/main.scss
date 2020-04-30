@@ -1,5 +1,3 @@
----
----
 /**
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -13,6 +11,7 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+
 // Legacy.
 @import "bootstrap";
 @import "capability-matrix";
@@ -40,3 +39,4 @@
 @import "_pillars.sass";
 @import "_section-nav.sass";
 @import "_page-nav.sass";
+@import "_table-wrapper.sass";

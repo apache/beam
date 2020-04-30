@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL string functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/string-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +23,7 @@ This page documents the ZetaSQL string functions supported by Beam ZetaSQL.
 These string functions work on STRING data. STRING values must be well-formed UTF-8. All string comparisons are done byte-by-byte, without regard to Unicode
 canonical equivalence.
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | [CHAR_LENGTH(value)](#char_length) | Returns the length of the string in characters |
@@ -38,7 +37,7 @@ canonical equivalence.
 | [STARTS_WITH(value1, value2)](#starts_with) | Returns TRUE if the second value is a prefix of the first. |
 | [SUBSTR(value, position[, length])](#substr) | Returns a substring of the supplied value |
 | [TRIM(value1[, value2])](#trim) | Removes all leading and trailing characters that match `value2` |
-{:.table}
+{{< /table >}}
 
 ## CHAR_LENGTH
 

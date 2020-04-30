@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Create"
-permalink: /documentation/transforms/java/other/create/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Creates a collection containing a specified set of elements. This is useful
 for testing, as well as creating an initial input to process in parallel.
 For example, a single element to execute a one-time `ParDo` or a list of filenames to be read.

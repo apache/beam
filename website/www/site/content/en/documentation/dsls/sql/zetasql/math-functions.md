@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL mathematical functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/math-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,13 +22,14 @@ This page documents ZetaSQL scalar functions supported by Beam ZetaSQL.
 
 All mathematical functions return `NULL` if any of the input parameters is `NULL`.
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | MOD(X, Y) | Returns the remainder of the division of X by Y |
 | CEIL(X) | Returns the smallest integral value (with FLOAT64 type) that is not less than X |
 | CEILING(X) | Synonym of CEIL(X) |
 | FLOOR(X) | Returns the largest integral value (with FLOAT64 type) that is not greater than X |
-{:.table}
+{{< /table >}}
 
 ## MOD
 
@@ -78,6 +77,7 @@ type) that is not greater than X.
 ### Example rounding function behavior
 Example behavior of Cloud Dataflow SQL rounding functions:
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -129,4 +129,4 @@ Example behavior of Cloud Dataflow SQL rounding functions:
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}

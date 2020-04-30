@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Distinct"
-permalink: /documentation/transforms/python/aggregation/distinct/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,11 +24,13 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Produces a collection containing distinct elements of the input collection.
 
 ## Examples
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms
-* [Count]({{ site.baseurl }}/documentation/transforms/python/aggregation/count) counts the number of elements within each aggregation.
+* [Count](/documentation/transforms/python/aggregation/count) counts the number of elements within each aggregation.

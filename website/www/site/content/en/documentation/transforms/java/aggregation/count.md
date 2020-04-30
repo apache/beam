@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Count"
-permalink: /documentation/transforms/java/aggregation/count/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Counts the number of elements within each aggregation. The `Count`
 transform has three varieties:
 
@@ -44,7 +42,7 @@ transform has three varieties:
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [ApproximateUnique]({{ site.baseurl }}/documentation/transforms/java/aggregation/approximateunique)
+* [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements or distinct values in key-value pairs
-* [Sum]({{ site.baseurl }}/documentation/transforms/java/aggregation/sum) computes
+* [Sum](/documentation/transforms/java/aggregation/sum) computes
   the sum of elements in a collection

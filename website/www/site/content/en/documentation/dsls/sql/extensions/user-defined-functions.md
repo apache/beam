@@ -1,9 +1,7 @@
 ---
-layout: section
+type: languages
 title: "Beam SQL extensions: User-defined functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/extensions/user-defined-functions/
-redirect_from: /documentation/dsls/sql/user-defined-functions/
+aliases: /documentation/dsls/sql/user-defined-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,7 +32,7 @@ A UDF can be the following:
 
 Below is an example of UDF and how to use it in DSL:
 
-```java
+{{< highlight java >}}
 /**
  * A example UDF for test.
  */
@@ -71,14 +69,14 @@ PCollection<Row> result =
             .query(sql)
             .registerUdf("cubic1", CubicInteger.class)
             .registerUdf("cubic2", new CubicIntegerFn())
-```
+{{< /highlight >}}
 
 ## Create and specify a User Defined Aggregate Function (UDAF)
 
 Beam SQL can accept a `CombineFn` as UDAF. Registration is similar to the UDF
 example above:
 
-```java
+{{< highlight java >}}
 /**
  * UDAF(CombineFn) for test, which returns the sum of square.
  */
@@ -124,5 +122,5 @@ PCollection<Row> result =
         SqlTransform
             .query(sql)
             .registerUdaf("squaresum", new SquareSum()));
-```
+{{< /highlight >}}
 

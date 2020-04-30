@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Distinct"
-permalink: /documentation/transforms/java/aggregation/distinct/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Produces a collection containing distinct elements of the input collection.
 
 On some data sets, it might be more efficient to compute an approximate
@@ -37,7 +35,7 @@ values for each key.
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [Count]({{ site.baseurl }}/documentation/transforms/java/aggregation/count)
+* [Count](/documentation/transforms/java/aggregation/count)
   counts the number of elements within each aggregation.
-* [ApproximateUnique]({{ site.baseurl }}/documentation/transforms/java/aggregation/approximateunique)
+* [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements in a collection.

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: 'Post-commit tests processes guides'
-permalink: /contribute/postcommits-guides/
-section_menu: section-menu/contribute.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,14 +1,14 @@
 ---
-layout: post
 title:  "Apache Beam 2.20.0"
 date:   2020-04-15 00:00:01 -0800
 # Date above corrected but keep the old URL:
-permalink: /blog/2020/04/15/beam-2.20.0.html
-excerpt_separator: <!--more-->
-categories: blog
+aliases: 
+  - /blog/2020/03/01/beam-2.20.0.html
+  - /blog/2020/04/15/beam-2.20.0.html
+categories: 
+  - blog
 authors:
   - amaliujia
-
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +23,7 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.20.0 release of Beam. This release includes both improvements and new functionality.
-See the [download page]({{ site.baseurl }}/get-started/downloads/#2190-2020-02-04) for this release.<!--more-->
+See the [download page](/get-started/downloads/#2190-2020-02-04) for this release.<!--more-->
 For more information on changes in 2.20.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12346780).
 

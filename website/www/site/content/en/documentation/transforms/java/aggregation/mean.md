@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Mean"
-permalink: /documentation/transforms/java/aggregation/mean/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Transforms for computing the arithmetic mean of the elements in a collection,
 or the mean of the values associated with each key in a collection of key-value pairs.
 
@@ -36,23 +34,23 @@ or the mean of the values associated with each key in a collection of key-value 
 ## Examples
 **Example 1**: get the mean of a `PCollection` of `Longs`.
 
-```java
+{{< highlight java >}}
 PCollection<Double> input = ...;
 PCollection<Double> mean = input.apply(Mean.globally());
-```
+{{< /highlight >}}
 
 **Example 2**: calculate the mean of the `Integers` associated with each unique key (which is of type `String`).
 
-```java
+{{< highlight java >}}
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> meanPerKey =
      input.apply(Mean.perKey());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Max]({{ site.baseurl }}/documentation/transforms/java/aggregation/max)
+* [Max](/documentation/transforms/java/aggregation/max)
   for computing maximum values in a collection
-* [Min]({{ site.baseurl }}/documentation/transforms/java/aggregation/min)
+* [Min](/documentation/transforms/java/aggregation/min)
   for computing maximum values in a collection
-* [Combine]({{ site.baseurl }}/documentation/transforms/java/aggregation/combine)
+* [Combine](/documentation/transforms/java/aggregation/combine)
   for combining all values associated with a key to a single result

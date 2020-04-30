@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Sample"
-permalink: /documentation/transforms/java/aggregation/sample/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Transforms for taking samples of the elements in a collection, or
 samples of the values associated with each key in a collection of key-value pairs.
 
@@ -34,7 +32,7 @@ samples of the values associated with each key in a collection of key-value pair
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [Top]({{ site.baseurl }}/documentation/transforms/java/aggregation/top)
+* [Top](/documentation/transforms/java/aggregation/top)
   finds the largest (or smallest) set of elements in a collection
-* [Latest]({{ site.baseurl }}/documentation/transforms/java/aggregation/latest)
+* [Latest](/documentation/transforms/java/aggregation/latest)
   computes the latest element in a collection

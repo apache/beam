@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "KvSwap"
-permalink: /documentation/transforms/java/elementwise/kvswap/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,18 +23,19 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Takes a collection of key-value pairs and returns a collection of key-value pairs which has each key and value swapped.
 
 ## Examples
 **Example**:
 
-```java
+{{< highlight java >}}
 PCollection<KV<String, Integer>> strIntPairs = /* ... */;
 PCollection<KV<Integer, String>> intStrPairs = strIntPairs.apply(KvSwap.create());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Keys]({{ site.baseurl }}/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
-* [Values]({{ site.baseurl }}/documentation/transforms/java/elementwise/values) for extracting the value of each element.
-* [WithKeys]({{ site.baseurl }}/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
+* [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
+* [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

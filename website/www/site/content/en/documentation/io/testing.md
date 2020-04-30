@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Testing I/O Transforms"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/testing/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +19,7 @@ limitations under the License.
 
 *Examples and design patterns for testing Apache Beam I/O transforms*
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+{{< language-switcher java py >}}
 
 > Note: This guide is still in progress. There is an open issue to finish the guide: [BEAM-1025](https://issues.apache.org/jira/browse/BEAM-1025).
 
@@ -94,7 +85,7 @@ Python:
 
 ### Implementing unit tests {#implementing-unit-tests}
 
-A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
+A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide](/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
 
 If you are using the `Source` API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java">`SourceTestUtils`</span><span class="language-py">`source_test_utils`</span> - it is a key piece of testing `Source` implementations.
 
@@ -428,5 +419,5 @@ An example of this is [HadoopFormatIO](https://github.com/apache/beam/tree/maste
 
 If you have a well tested I/O transform, why not contribute it to Apache Beam? Read all about it:
 
-[Contributing I/O Transforms]({{site.baseurl }}/documentation/io/contributing/)
+[Contributing I/O Transforms](/documentation/io/contributing/)
 -->

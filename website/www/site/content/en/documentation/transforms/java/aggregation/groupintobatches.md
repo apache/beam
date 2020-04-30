@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "GroupIntoBatches"
-permalink: /documentation/transforms/java/aggregation/groupintobatches/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Batches inputs to a desired batch size.
 
 Batches contain only elements of a single key. Elements are buffered until
@@ -39,4 +37,4 @@ Batches contain elements from the same window, so windows are preserved. Batches
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey) takes one input collection.
+* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) takes one input collection.

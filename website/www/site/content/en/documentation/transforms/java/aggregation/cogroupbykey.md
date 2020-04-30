@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "CoGroupByKey"
-permalink: /documentation/transforms/java/aggregation/cogroupbykey/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Aggregates all input elements by their key and allows downstream processing
 to consume all values associated with the key. While `GroupByKey` performs
 this operation over a single input collection and thus a single type of
@@ -34,7 +32,7 @@ input values, `CoGroupByKey` operates over multiple input collections. As
 a result, the result for each key is a tuple of the values associated with
 that key in each input collection.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#cogroupbykey).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#cogroupbykey).
 
 ## Examples
 **Example**: Say you have two different files with user data; one file has
@@ -45,7 +43,7 @@ other data as the associated values. After the join, you have one data set
 that contains all of the information (email addresses and phone numbers)
 associated with each name.
 
-```java
+{{< highlight java >}}
 PCollection<KV<UID, Integer>> pt1 = /* ... */;
 PCollection<KV<UID, String>> pt2 = /* ... */;
 
@@ -66,8 +64,8 @@ result.apply(ParDo.of(new DoFn<KV<K, CoGbkResult>, /* some result */>() {
     String string = e.getOnly(t2);
     ...
 }));
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [GroupByKey]({{ site.baseurl }}/documentation/transforms/java/aggregation/groupbykey)
+* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey)
   takes one input collection.

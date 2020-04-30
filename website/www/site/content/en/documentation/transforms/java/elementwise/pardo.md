@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "ParDo"
-permalink: /documentation/transforms/java/elementwise/pardo/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,18 +23,19 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 A transform for generic parallel processing. A `ParDo` transform considers each
 element in the input `PCollection`, performs some processing function
 (your user code) on that element, and emits zero or more elements to
 an output PCollection.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#pardo).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#pardo).
 
 ## Examples
 **Example 1**: Passing side inputs
 
-```java
+{{< highlight java >}}
   // Pass side inputs to your ParDo transform by invoking .withSideInputs.
   // Inside your DoFn, access the side input by using the method DoFn.ProcessContext.sideInput.
 
@@ -66,11 +64,11 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
           }
       }).withSideInputs(maxWordLengthCutOffView)
   );
-```
+{{< /highlight >}}
 
 **Example 2**: Emitting to multiple outputs in your `DoFn`
 
-```java
+{{< highlight java >}}
 // To emit elements to multiple output PCollections, create a TupleTag object to identify each collection
 // that your ParDo produces. For example, if your ParDo produces three output PCollections (the main output
 // and two additional outputs), you must create three TupleTags. The following example code shows how to
@@ -116,11 +114,11 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
           // Specify the tags for the two additional outputs as a TupleTagList.
                           TupleTagList.of(wordLengthsAboveCutOffTag)
                                       .and(markedWordsTag)));
-```
+{{< /highlight >}}
 
 **Example 3**: Tags for multiple outputs
 
-```java
+{{< highlight java >}}
 // Inside your ParDo's DoFn, you can emit an element to a specific output PCollection by passing in the
 // appropriate TupleTag when you call ProcessContext.output.
 // After your ParDo, extract the resulting output PCollections from the returned PCollectionTuple.
@@ -142,11 +140,11 @@ See more information in the [Beam Programming Guide]({{ site.baseurl }}/document
          c.output(markedWordsTag, word);
        }
      }}));
-```
+{{< /highlight >}}
 
 
 ## Related transforms 
-* [MapElements]({{ site.baseurl }}/documentation/transforms/java/elementwise/mapelements)
+* [MapElements](/documentation/transforms/java/elementwise/mapelements)
   applies a simple 1-to-1 mapping function over each element in the collection.
-* [Filter]({{ site.baseurl }}/documentation/transforms/java/elementwise/filter)
+* [Filter](/documentation/transforms/java/elementwise/filter)
   is useful if the function is just deciding whether to output an element or not.

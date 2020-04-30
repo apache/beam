@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam ZetaSQL operators"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/operators/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,6 +30,7 @@ Common conventions:
 The following table lists all supported operators from highest to
 lowest precedence. Precedence determines the order in which operators will be evaluated within a statement.
 
+{{< table >}}
 <table>
   <thead>
     <tr>
@@ -96,8 +95,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>5 (Comparison Operators)</td>
       <td>=</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Equal</td>
       <td>Binary</td>
@@ -106,8 +104,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&lt;</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Less than</td>
       <td>Binary</td>
@@ -116,8 +113,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&gt;</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Greater than</td>
       <td>Binary</td>
@@ -126,8 +122,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&lt;=</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Less than or equal to</td>
       <td>Binary</td>
@@ -136,8 +131,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&gt;=</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Greater than or equal to</td>
       <td>Binary</td>
@@ -146,8 +140,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>!=, &lt;&gt;</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Not equal</td>
       <td>Binary</td>
@@ -217,7 +210,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
     </tr>
   </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Operators with the same precedence are left associative. This means that those
 operators are grouped together starting from the left and moving right. For
@@ -254,6 +247,7 @@ is recommended over:
 
 ## Element access operators
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -282,13 +276,14 @@ e.g.expression.fieldname1.fieldname2...</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Arithmetic operators
 
 All arithmetic operators accept input of numeric type T, and the result type
 has type T unless otherwise indicated in the description below:
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -319,40 +314,44 @@ has type T unless otherwise indicated in the description below:
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Addition and Multiplication:
 
+{{< table >}}
 <table>
 <thead>
 <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
 <tbody><tr><td>INT64</td><td>INT64</td><td>FLOAT64</td></tr><tr><td>FLOAT64</td><td>FLOAT64</td><td>FLOAT64</td></tr></tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Subtraction:
 
+{{< table >}}
 <table>
 <thead>
 <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
 <tbody><tr><td>INT64</td><td>INT64</td><td>FLOAT64</td></tr><tr><td>FLOAT64</td><td>FLOAT64</td><td>FLOAT64</td></tr></tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Division:
 
+{{< table >}}
 <table>
 <thead>
   <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
 <tbody><tr><td>INT64</td><td>FLOAT64</td><td>FLOAT64</td></tr><tr><td>FLOAT64</td><td>FLOAT64</td><td>FLOAT64</td></tr></tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Unary Minus:
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -374,12 +373,13 @@ Result types for Unary Minus:
 
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Logical operators
 
 All logical operators allow only BOOL input.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -409,7 +409,7 @@ is TRUE. Returns <code>NULL</code> otherwise.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Comparison operators
 
@@ -418,11 +418,9 @@ require both operands to be of the same type. If operands are of different
 types, and if Cloud Dataflow SQL can convert the values of those types to a
 common type without loss of precision, Cloud Dataflow SQL will generally coerce
 them to that common type for the comparison; Cloud Dataflow SQL will generally
-[coerce literals to the type of non-literals]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/conversion-rules/#coercion), where
+[coerce literals to the type of non-literals](/documentation/dsls/sql/zetasql/conversion-rules/#coercion), where
 present. Comparable data types are defined in
-[Data Types]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types).
+[Data Types](/documentation/dsls/sql/zetasql/data-types).
 
 
 
@@ -442,6 +440,7 @@ The following rules apply when comparing these data types:
 +  `NULL`: The convention holds here: any operation with a `NULL` input returns
    `NULL`.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -514,7 +513,7 @@ most common. X is evaluated only once.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 When testing values that have a STRUCT data type for
 equality, it's possible that one or more fields are `NULL`. In such cases:
@@ -525,6 +524,7 @@ equality, it's possible that one or more fields are `NULL`. In such cases:
 The following table demonstrates how STRUCT data
 types are compared when they have fields that are `NULL` valued.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -551,7 +551,7 @@ types are compared when they have fields that are `NULL` valued.
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 
 
@@ -561,6 +561,7 @@ IS operators return TRUE or FALSE for the condition they are testing. They never
 return `NULL`, even for `NULL` inputs. If NOT is present, the output BOOL value
 is inverted.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -594,4 +595,4 @@ otherwise.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}

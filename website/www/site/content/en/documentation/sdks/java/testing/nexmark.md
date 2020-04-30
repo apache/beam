@@ -1,9 +1,7 @@
 ---
-layout: section
+type: languages
 title: "Nexmark benchmark suite"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/java/testing/nexmark/
-redirect_from: /documentation/sdks/java/nexmark/
+aliases: /documentation/sdks/java/nexmark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -205,13 +203,12 @@ Available suites are:
     --manageResources=false --monitorJobs=true \
     --enforceEncodability=false --enforceImmutability=false
     --project=<your project> \
-    --region=<your region> \
     --zone=<your zone> \
     --workerMachineType=n1-highmem-8 \
     --stagingLocation=gs://<a gs path for staging> \
     --runner=DataflowRunner \
     --tempLocation=gs://<a gs path for temporary files> \
-    --filesToStage=target/beam-sdks-java-nexmark-{{ site.release_latest }}.jar
+    --filesToStage=target/beam-sdks-java-nexmark-{{< param release_latest >}}.jar
 
 ### Direct runner specific configuration
 
@@ -558,7 +555,7 @@ Streaming Mode:
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.10" \
+        -Pnexmark.runner=":runners:flink:1.9" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -571,7 +568,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.10" \
+        -Pnexmark.runner=":runners:flink:1.9" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -628,7 +625,6 @@ Launch:
             --manageResources=false
             --monitorJobs=true
             --project=${PROJECT}
-            --region=${REGION}
             --zone=${ZONE}
             --workerMachineType=n1-highmem-8
             --stagingLocation=${STAGING_LOCATION}
@@ -668,7 +664,7 @@ Submit to the cluster:
         --driver-memory 512m \
         --executor-memory 512m \
         --executor-cores 1 \
-        sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-{{ site.release_latest }}-spark.jar \
+        sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-{{< param release_latest >}}-spark.jar \
             --runner=SparkRunner \
             --query=0 \
             --streamTimeout=60 \

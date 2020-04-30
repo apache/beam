@@ -1,9 +1,7 @@
 ---
-layout: section
 title: "Portability Framework Roadmap"
-permalink: /roadmap/portability/
-section_menu: section-menu/roadmap.html
-redirect_from: /contribute/portability/
+aliases:
+    - /contribute/portability/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,7 +39,7 @@ vice versa.  The framework introduces a new runner, the _Universal
 Local Runner (ULR)_, as a practical reference implementation that
 complements the direct runners. Finally, it enables cross-language
 pipelines (sharing I/O or transformations across SDKs) and
-user-customized [execution environments]({{ site.baseurl }}/documentation/runtime/environments/)
+user-customized [execution environments](/documentation/runtime/environments/)
 ("custom containers").
 
 The portability API consists of a set of smaller contracts that
@@ -139,7 +137,7 @@ common pattern for new portability features is that the overall
 feature is in "beam-model" with subtasks for each SDK and runner in
 their respective components.
 
-**JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project %3D BEAM AND resolution %3D Unresolved AND labels %3D portability order by priority DESC%2Cupdated DESC)
+**JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC)
 
 ## Status
 
@@ -155,17 +153,17 @@ Prerequisites: [Docker](https://docs.docker.com/compose/install/), [Python](http
 ### Running Python wordcount on Flink {#python-on-flink}
 
 The Beam Flink runner can run Python pipelines in batch and streaming modes.
-Please see the [Flink Runner page]({{ site.baseurl }}/documentation/runners/flink/) for more information on
+Please see the [Flink Runner page](/documentation/runners/flink/) for more information on
 how to run portable pipelines on top of Flink.
 
 ### Running Python wordcount on Spark {#python-on-spark}
 
 The Beam Spark runner can run Python pipelines in batch mode.
-Please see the [Spark Runner page]({{ site.baseurl }}/documentation/runners/spark/) for more information on
+Please see the [Spark Runner page](/documentation/runners/spark/) for more information on
 how to run portable pipelines on top of Spark.
 
 Python streaming mode is not yet supported on Spark.
 
 ## SDK Harness Configuration {#sdk-harness-config}
 
-See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options.
+See [here](/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options.

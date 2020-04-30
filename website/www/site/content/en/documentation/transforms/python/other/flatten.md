@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Flatten"
-permalink: /documentation/transforms/python/other/flatten/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,17 +24,20 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
+
 Merges multiple `PCollection` objects into a single logical
 `PCollection`. A transform for `PCollection` objects
 that store the same data type. 
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#flatten).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#flatten).
 
 ## Examples
 See [BEAM-7391](https://issues.apache.org/jira/browse/BEAM-7391) for updates. 
 
 ## Related transforms
-* [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) applies a simple 1-to-many mapping
+* [FlatMap](/documentation/transforms/python/elementwise/flatmap) applies a simple 1-to-many mapping
   function over each element in the collection. This transform might produce zero
   or more outputs.

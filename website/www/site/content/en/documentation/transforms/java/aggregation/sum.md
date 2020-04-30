@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Sum"
-permalink: /documentation/transforms/java/aggregation/sum/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,26 +23,27 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Transforms for computing the sum of the elements in a collection, or the sum of the
 values associated with each key in a collection of key-value pairs.
 
 ## Examples
 **Example 1**: get the sum of a `PCollection` of `Doubles`.
 
-```java
+{{< highlight java >}}
 PCollection<Double> input = ...;
 PCollection<Double> sum = input.apply(Sum.doublesGlobally());
-```
+{{< /highlight >}}
 
 Example 2: calculate the sum of the `Integers` associated with each unique key (which is of type `String`).
 
-```java
+{{< highlight java >}}
 PCollection<KV<String, Integer>> input = ...;
 PCollection<KV<String, Integer>> sumPerKey = input
      .apply(Sum.integersPerKey());
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [Count]({{ site.baseurl }}/documentation/transforms/java/aggregation/count)
+* [Count](/documentation/transforms/java/aggregation/count)
   counts the number of elements within each aggregation

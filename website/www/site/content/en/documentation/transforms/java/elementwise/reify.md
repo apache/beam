@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Reify"
-permalink: /documentation/transforms/java/elementwise/reify/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,14 +23,15 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Transforms for converting between explicit and implicit form of various Beam values.
 
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
-* [WithTimestamps]({{ site.baseurl }}/documentation/transforms/java/elementwise/withtimestamps)
+* [WithTimestamps](/documentation/transforms/java/elementwise/withtimestamps)
   assigns timestamps to all the elements of a collection
-* [Window]({{ site.baseurl }}/documentation/transforms/java/other/window/) divides up or
+* [Window](/documentation/transforms/java/other/window/) divides up or
   groups the elements of a collection into finite windows

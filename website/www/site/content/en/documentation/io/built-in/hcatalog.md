@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Apache HCatalog I/O connector"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/built-in/hcatalog/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +24,8 @@ An `HCatalogIO` is a transform for reading and writing data to an HCatalog manag
 To configure an HCatalog source, you must specify a metastore URI and a table name. Other optional parameters are database and filter.
 
 For example:
-```java
+
+{{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port"); 
 pipeline
@@ -36,10 +34,11 @@ pipeline
   .withDatabase("default") //optional, assumes default if none specified
   .withTable("employee")
   .withFilter(filterString)) //optional, may be specified if the table is partitioned
-```
-```py
+{{< /highlight >}}
+
+{{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
-```
+{{< /highlight >}}
 
 ### Writing using HCatalogIO
 
@@ -48,7 +47,7 @@ optional parameters are database, partition and batchsize.
 The destination table should exist beforehand as the transform will not create a new table if missing.
 
 For example:
-```java
+{{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
 
@@ -60,10 +59,11 @@ pipeline
     .withTable("employee")
     .withPartition(partitionValues) //optional, may be specified if the table is partitioned
     .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
-```
-```py
+{{< /highlight >}}
+
+{{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
-```
+{{< /highlight >}}
 
 ### Using older versions of HCatalog (1.x)
 

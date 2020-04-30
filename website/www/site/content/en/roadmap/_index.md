@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Apache Beam Roadmap Highlights"
-permalink: /roadmap/
-section_menu: section-menu/roadmap.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,22 +32,22 @@ Below are some highlights for the project as a whole.
 Portability is the primary Beam vision: running pipelines authored with _any SDK_
 on _any runner_. This is a cross-cutting effort across Java, Python, and Go, 
 and every Beam runner. Portability is currently supported on the
-[Flink]({{site.baseurl}}/documentation/runners/flink/)
-and [Spark]({{site.baseurl}}/documentation/runners/spark/) runners.
+[Flink](/documentation/runners/flink/)
+and [Spark](/documentation/runners/spark/) runners.
 
-See the details on the [Portability Roadmap]({{site.baseurl}}/roadmap/portability/)
+See the details on the [Portability Roadmap](/roadmap/portability/)
 
 ## Cross-language transforms
 
 As a benefit of the portability effort, we are able to utilize Beam transforms across SDKs.
 Examples include using Java connectors and Beam SQL from Python or Go pipelines
 or Beam TFX transforms from Java and Go.
-For details see [Roadmap for multi-SDK efforts]({{ site.baseurl }}/roadmap/connectors-multi-sdk/).
+For details see [Roadmap for multi-SDK efforts](/roadmap/connectors-multi-sdk/).
 
 ## Go SDK
 
 The Go SDK is the newest SDK, and is the first SDK built entirely on the
-portability framework. See the [Go SDK's Roadmap]({{site.baseurl}}/roadmap/go-sdk) if this piques your
+portability framework. See the [Go SDK's Roadmap](/roadmap/go-sdk) if this piques your
 interest.
 
 ## Python 3 support
@@ -58,20 +55,20 @@ interest.
 Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and plan to phase out Python 2 support ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)):
 
 See details on 
-the [Python SDK's Roadmap]({{site.baseurl}}/roadmap/python-sdk/#python-3-support).
+the [Python SDK's Roadmap](/roadmap/python-sdk/#python-3-support).
 
 ## Java 11 support
 
 The Java SDK is eager to add support for Java's first new LTS (Long Term Support)
 version. See details on 
-the [Java SDK's Roadmap]({{site.baseurl}}/roadmap/java-sdk).
+the [Java SDK's Roadmap](/roadmap/java-sdk).
 
 ## SQL
 
 Beam's SQL module is rapidly maturing to allow users to author batch and
 streaming pipelines using only SQL, but also to allow Beam Java developers
 to use SQL in components of their pipeline for added efficiency. See the 
-[Beam SQL Roadmap]({{site.baseurl}}/roadmap/sql/)
+[Beam SQL Roadmap](/roadmap/sql/)
 
 ## Portable schemas
 
@@ -85,5 +82,5 @@ Learn more about portable schemas from this [presentation](https://s.apache.org/
 ## Euphoria
 
 Euphoria is Beam's newest API, offering a high-level, fluent style for
-Beam Java developers. See the [Euphoria API Roadmap]({{site.baseurl}}/roadmap/euphoria).
+Beam Java developers. See the [Euphoria API Roadmap](/roadmap/euphoria).
 

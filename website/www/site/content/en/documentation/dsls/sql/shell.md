@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Beam SQL: Shell"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/shell/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +22,7 @@ limitations under the License.
 
 Starting with version 2.6.0, Beam SQL includes an interactive shell, called the Beam SQL shell. The shell allows you to write pipelines as SQL queries without needing the Java SDK. By default, Beam uses the `DirectRunner` to execute the queries as Beam pipelines.
 
-This page describes how to work with the shell, but does not focus on specific features of Beam SQL. For a more thorough overview of the features used in the examples on this page, see the corresponding sections in the [Beam SQL documentation]({{ site.baseurl }}/documentation/dsls/sql/overview/).
+This page describes how to work with the shell, but does not focus on specific features of Beam SQL. For a more thorough overview of the features used in the examples on this page, see the corresponding sections in the [Beam SQL documentation](/documentation/dsls/sql/overview/).
 
 ## Quickstart
 
@@ -69,7 +67,7 @@ No rows affected (0.042 seconds)
 
 The `CREATE EXTERNAL TABLE` statement registers the CSV file as a table in Beam SQL and specifies the table's schema. This statement does not directly create a persistent physical table; it only describes the source/sink to Beam SQL so that you can use the table in the queries that read data and write data.
 
-_For more information about `CREATE EXTERNAL TABLE` syntax and supported table types, see the [CREATE EXTERNAL TABLE reference page]({{ site.baseurl }}/documentation/dsls/sql/create-external-table/)._
+_For more information about `CREATE EXTERNAL TABLE` syntax and supported table types, see the [CREATE EXTERNAL TABLE reference page](/documentation/dsls/sql/create-external-table/)._
 
 ## Reading and Writing Data
 
@@ -88,7 +86,7 @@ To read data from the local CSV file that you declared in the previous section, 
 +--------+
 ```
 
-_For more information about `SELECT` syntax, see the [Query syntax page]({{ site.baseurl }}/documentation/dsls/sql/calcite/query-syntax/)._
+_For more information about `SELECT` syntax, see the [Query syntax page](/documentation/dsls/sql/calcite/query-syntax/)._
 
 To write data to the CSV file, use the `INSERT INTO … SELECT ...` statement:
 
@@ -124,7 +122,7 @@ By default, Beam uses the `DirectRunner` to run the pipeline on the machine wher
 
     _Note: You can bundle multiple runners (using a comma-separated list) or other additional components in the same manner. For example, you can add support for more I/Os._
 
-1.  Then, specify the runner using the `SET` command ([reference page]({{ site.baseurl }}/documentation/dsls/sql/set/)):
+1.  Then, specify the runner using the `SET` command ([reference page](/documentation/dsls/sql/set/)):
 
     ```
     0: BeamSQL> SET runner='FlinkRunner';
@@ -134,7 +132,7 @@ Beam will submit all future `INSERT` statements as pipelines to the specified ru
 
 ## Specifying the PipelineOptions
 
-To configure the runner, you must specify `PipelineOptions` by using the `SET` command ([details]({{ site.baseurl }}/documentation/dsls/sql/set/)):
+To configure the runner, you must specify `PipelineOptions` by using the `SET` command ([details](/documentation/dsls/sql/set/)):
 
 ```
 0: BeamSQL> SET projectId='gcpProjectId';

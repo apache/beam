@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Top"
-permalink: /documentation/transforms/java/aggregation/top/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,8 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
 Transforms for finding the largest (or smallest) set of elements in
 a collection, or the largest (or smallest) set of values associated
 with each key in a collection of key-value pairs.
@@ -35,5 +33,5 @@ with each key in a collection of key-value pairs.
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [Sample]({{ site.baseurl }}/documentation/transforms/java/aggregation/sample)
+* [Sample](/documentation/transforms/java/aggregation/sample)
   takes samples of collection

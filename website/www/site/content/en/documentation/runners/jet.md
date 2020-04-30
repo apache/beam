@@ -1,10 +1,9 @@
 ---
-layout: section
+type: runners
 title: "Hazelcast Jet Runner"
-section_menu: section-menu/runners.html
-permalink: /documentation/runners/jet/
-redirect_from: /learn/runners/jet/
+aliases: /learn/runners/jet/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -36,16 +35,19 @@ the capabilities present in Jet:
 * Internal performance of Jet is extremely high. 
 The Runner can't match it as of now because Beam pipeline optimization/surgery has not been fully implemented.
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
 supported capabilities of the Jet Runner.
 
 ## Running WordCount with the Hazelcast Jet Runner
 
-### Generating the Beam examples project ##
-Just follow the instruction from the [Java Quickstart page]({{ site.baseurl }}/get-started/quickstart-java/#get-the-wordcount-code)
+### Generating the Beam examples project
 
-### Running WordCount on a Local Jet Cluster ##
+Just follow the instruction from the [Java Quickstart page](/get-started/quickstart-java/#get-the-wordcount-code)
+
+### Running WordCount on a Local Jet Cluster
+
 Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.
+
 ```
     $ mvn package exec:java \
         -DskipTests \
@@ -58,7 +60,8 @@ Issue following command in the Beam examples project to start new Jet cluster an
         -Pjet-runner
 ```
 
-### Running WordCount on a Remote Jet Cluster ##
+### Running WordCount on a Remote Jet Cluster
+
 The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that's what
 the `archetypeVersion` property is about). Each Beam version that contains the Jet Runner (ie. from 2.14.0 onwards)
 uses a certain version of Jet. Because of this, when we start a stand-alone Jet cluster and try to run Beam examples on
@@ -105,36 +108,31 @@ members using the `jet-start` script that comes with the downloaded Jet distribu
 </span>
 to form a cluster. Let's start up a cluster formed by two members:
 
-{:.version-jet3}
-```
+{{< highlight class="version-jet3" >}}
 $ cd hazelcast-jet
 $ bin/jet-start.sh &
 $ bin/jet-start.sh &
-```
+{{< /highlight >}}
 
-{:.version-jet4}
-```
+{{< highlight class="version-jet4" >}}
 $ cd hazelcast-jet
 $ bin/jet-start &
 $ bin/jet-start &
-```
+{{< /highlight >}}
 
 Check the cluster is up and running:
 
-{:.version-jet3}
-```
+{{< highlight class="version-jet3" >}}
 $ bin/jet.sh cluster
-```
+{{< /highlight >}}
 
-{:.version-jet4}
-```
+{{< highlight class="version-jet4" >}}
 $ bin/jet cluster
-```
+{{< /highlight >}}
 
 You should see something like:
 
-{:.version-jet3}
-```
+{{< highlight class="version-jet3" >}}
 State: ACTIVE
 Version: 3.0
 Size: 2
@@ -142,10 +140,9 @@ Size: 2
 ADDRESS                  UUID               
 [192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
 [192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86
-```
+{{< /highlight >}}
 
-{:.version-jet4}
-```
+{{< highlight class="version-jet4" >}}
 State: ACTIVE
 Version: 4.0
 Size: 2
@@ -153,7 +150,7 @@ Size: 2
 ADDRESS                  UUID               
 [192.168.0.117]:5701     b9937bba-32aa-48ba-8e32-423aafed763b
 [192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937
-```
+{{< /highlight >}}
 
 Change directory to the Beam Examples project and issue following command to submit and execute your 
 Pipeline on the remote Jet cluster.
@@ -187,7 +184,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td>Set to <code>JetRunner</code> to run using Jet.</td>
 </tr>
 <tr>
-    <td><code><span class="version-jet3">jetGroupName</span><span class="version-jet4">jetClusterName</span></code></td>
+  <td><code><span class="version-jet3">jetGroupName</span><span class="version-jet4">jetClusterName</span></code></td>
     <td>
         <span class="version-jet3">The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that
         will be used by the Runner. With groups it is possible to create multiple clusters where each cluster has its

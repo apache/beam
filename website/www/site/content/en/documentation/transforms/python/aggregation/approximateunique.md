@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "ApproximateUnique"
-permalink: /documentation/transforms/python/aggregation/approximateunique/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

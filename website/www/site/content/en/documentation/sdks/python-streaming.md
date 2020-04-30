@@ -1,8 +1,6 @@
 ---
-layout: section
+type: languages
 title: "Apache Beam Python Streaming Pipelines"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/python-streaming/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,7 +28,7 @@ Beam creates an unbounded PCollection if your pipeline reads from a streaming or
 continously-updating data source (such as Cloud Pub/Sub). A runner must
 process an unbounded PCollection using a streaming job that runs continuously,
 as the entire collection is never available for processing at any one time.
-[Size and boundedness]({{ site.baseurl }}/documentation/programming-guide/#size-and-boundedness)
+[Size and boundedness](/documentation/programming-guide/#size-and-boundedness)
 has more information about bounded and unbounded collections.
 
 
@@ -41,7 +39,7 @@ code changes:
 
 * Use an I/O connector that supports reading from an unbounded source.
 * Use an I/O connector that supports writing to an unbounded source.
-* Choose a [windowing strategy]({{ site.baseurl }}/documentation/programming-guide/index.html#windowing).
+* Choose a [windowing strategy](/documentation/programming-guide/index.html#windowing).
 
 The Beam SDK for Python includes two I/O connectors that support unbounded
 PCollections: Google Cloud Pub/Sub (reading and writing) and Google BigQuery
@@ -120,37 +118,31 @@ The following commands run the
 example streaming pipeline. Specify your Cloud Pub/Sub project and input topic
 (`--input_topic`), output Cloud Pub/Sub project and topic (`--output_topic`).
 
-{:.runner-direct}
-```
+{{< highlight class="runner-direct" >}}
 # DirectRunner requires the --streaming option
 python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-```
+{{< /highlight >}}
 
-{:.runner-apex}
-```
+{{< highlight class="runner-apex" >}}
 This runner is not yet available for the Python SDK.
-```
+{{< /highlight >}}
 
-{:.runner-flink-local}
-```
+{{< highlight class="runner-flink-local" >}}
 See https://beam.apache.org/roadmap/portability/#python-on-flink for more information.
-```
+{{< /highlight >}}
 
-{:.runner-flink-cluster}
-```
+{{< highlight class="runner-flink-cluster" >}}
 See https://beam.apache.org/documentation/runners/flink/ for more information.
-```
+{{< /highlight >}}
 
-{:.runner-spark}
-```
+{{< highlight class="runner-spark" >}}
 See https://beam.apache.org/roadmap/portability/#python-on-spark for more information.
-```
+{{< /highlight >}}
 
-{:.runner-dataflow}
-```
+{{< highlight class="runner-dataflow" >}}
 # As part of the initial setup, install Google Cloud Platform specific extra components.
 pip install apache-beam[gcp]
 
@@ -163,13 +155,13 @@ python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-```
+{{< /highlight >}}
 
 Check your runner's documentation for any additional runner-specific information
 about executing streaming pipelines:
 
-- [DirectRunner streaming execution]({{ site.baseurl }}/documentation/runners/direct/#streaming-execution)
-- [DataflowRunner streaming execution]({{ site.baseurl }}/documentation/runners/dataflow/#streaming-execution)
+- [DirectRunner streaming execution](/documentation/runners/direct/#streaming-execution)
+- [DataflowRunner streaming execution](/documentation/runners/dataflow/#streaming-execution)
 
 
 ## Unsupported features

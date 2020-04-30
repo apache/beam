@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Beam Contribution Guide"
-permalink: /contribute/
-section_menu: section-menu/contribute.html
-redirect_from:
+aliases:
  - /contribution-guide/
  - /contribute/contribution-guide/
  - /docs/contribute/
@@ -28,15 +25,13 @@ limitations under the License.
 
 The Apache Beam community welcomes contributions from anyone!
 
-If you have questions, please [reach out to the Beam community]({{ site.baseurl }}/contribute/get-help).
+If you have questions, please [reach out to the Beam community](/contribute/get-help).
 
 There are lots of opportunities to contribute:
 
- - ask or answer questions on [user@beam.apache.org]({{ site.baseurl
-}}/community/contact-us/) or
+ - ask or answer questions on [user@beam.apache.org](/community/contact-us/) or
 [stackoverflow](https://stackoverflow.com/questions/tagged/apache-beam)
- - review proposed design ideas on [dev@beam.apache.org]({{ site.baseurl
-}}/community/contact-us/)
+ - review proposed design ideas on [dev@beam.apache.org](/community/contact-us/)
  - improve the documentation
  - file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
  - test releases
@@ -101,10 +96,10 @@ gLinux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
 
-1. Consider subscribing to the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/), especially
+1. Consider subscribing to the [dev@ mailing list](/community/contact-us/), especially
    if you plan to make more than one change or the change will be large. All decisions happen on the
    public dev list.
-1. (Optionally) Join the [#beam channel of the ASF slack]({{ site.baseurl}}/community/contact-us/).
+1. (Optionally) Join the [#beam channel of the ASF slack](/community/contact-us/).
 1. Create an account on [Beam issue tracker (JIRA)](https://issues.apache.org/jira/projects/BEAM/issues)
    (anyone can do this).
 
@@ -116,15 +111,15 @@ gLinux users should configure their machines for sudoless Docker.
 1. If you want to get involved but don't have a project in mind, check our list of open starter tasks,
    [https://s.apache.org/beam-starter-tasks](https://s.apache.org/beam-starter-tasks).
 1. Assign the issue to yourself. To get the permission to do so, email
-   the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
+   the [dev@ mailing list](/community/contact-us)
    to introduce yourself and to be added as a contributor in the Beam issue tracker including your
    ASF Jira Username. For example [this welcome email](
    https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E).
 1. If your change is large or it is your first change, it is a good idea to
-   [discuss it on the dev@ mailing list]({{ site.baseurl }}/community/contact-us/).
+   [discuss it on the dev@ mailing list](/community/contact-us/).
 1. For large changes create a design doc
    ([template](https://s.apache.org/beam-design-doc-template),
-   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list]({{ site.baseurl }}/community/contact-us).
+   [examples](https://s.apache.org/beam-design-docs)) and email it to the [dev@ mailing list](/community/contact-us).
 
 ### Development Setup
 
@@ -195,15 +190,15 @@ gLinux users should configure their machines for sudoless Docker.
    that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
 
 1. Pull requests can only be merged by a
-   [Beam committer]({{ site.baseurl }}/contribute/team/).
+   [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
    To find a committer for your area, either:
     - look in the OWNERS file of the directory where you changed files, or
     - look for similar code merges, or
-    - ask on [dev@beam.apache.org]({{ site.baseurl }}/community/contact-us/)
+    - ask on [dev@beam.apache.org](/community/contact-us/)
 
    Use `R: @username` in the pull request to notify a reviewer.
 
-1. If you don't get any response in 3 business days, email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us) to ask for someone to look at your pull
+1. If you don't get any response in 3 business days, email the [dev@ mailing list](/community/contact-us) to ask for someone to look at your pull
    request.
 
 ### Make the reviewer's job easier
@@ -245,52 +240,46 @@ unassigned from the author but will stay open.
   Anyone can access it and browse issues. Anyone can register an account and login
   to create issues or add comments. Only contributors can be assigned issues. If
   you want to be assigned issues, a PMC member can add you to the project contributor
-  group.  Email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us)
+  group.  Email the [dev@ mailing list](/community/contact-us)
   to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.
 
 - [Beam Wiki Space](https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam):
   Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
-  [dev@ mailing list]({{ site.baseurl }}/community/contact-us) (include your Wiki account user ID).
+  [dev@ mailing list](/community/contact-us) (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
-  [Beam committer]({{ site.baseurl }}/contribute/team/).
+  [Beam committer](https://home.apache.org/phonebook.html?pmc=beam).
 
 - [Voting on a release](https://www.apache.org/foundation/voting.html): Everyone can vote. Only
-  [Beam PMC]({{ site.baseurl }}/contribute/team/) members should mark their votes as binding.
+  [Beam PMC](https://home.apache.org/phonebook.html?pmc=beam) members should mark their votes as binding.
 
 ## Communication
 
 All communication is expected to align with the [Code of Conduct](https://www.apache.org/foundation/policies/conduct).
 
-Discussion about contributing code to Beam happens on the [dev@ mailing list]({{ site.baseurl
-}}/community/contact-us/). Introduce yourself!
+Discussion about contributing code to Beam happens on the [dev@ mailing list](/community/contact-us/). Introduce yourself!
 
-Questions can be asked on the [#beam channel of the ASF slack]({{ site.baseurl
-}}/community/contact-us/). Introduce yourself!
+Questions can be asked on the [#beam channel of the ASF slack](/community/contact-us/). Introduce yourself!
 
 ## Additional resources
 
 If you are contributing a `PTransform` to Beam, we have an extensive
-[PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide).
+[PTransform Style Guide](/contribute/ptransform-style-guide).
 
 If you are contributing a Runner to Beam, refer to the
-[Runner authoring guide]({{ site.baseurl }}/contribute/runner-guide/)
+[Runner authoring guide](/contribute/runner-guide/)
 
 Review [design documents](https://s.apache.org/beam-design-docs).
 
 A great way to contribute is to join an existing effort. For the most
-intensive efforts, check out the [roadmap]({{site.baseurl}}/roadmap/).
+intensive efforts, check out the [roadmap](/roadmap/).
 
 You can also find a more exhaustive list on the [Beam developers' wiki](
 https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam)
 
 ## Troubleshooting
 
-If you run into any issues, check out the [contribution FAQ](
-https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on
-on the [dev@ mailing list]({{ site.baseurl}}/community/contact-us/) or
-[#beam channel of the ASF slack]({{ site.baseurl}}/community/contact-us/).
-----
+If you run into any issues, check out the [contribution FAQ](https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ) or ask on the [dev@ mailing list](/community/contact-us/) or [#beam channel of the ASF slack](/community/contact-us/).
 
 If you didn't find the information you were looking for in this guide, please
-[reach out to the Beam community]({{ site.baseurl }}/community/contact-us).
+[reach out to the Beam community](/community/contact-us).
