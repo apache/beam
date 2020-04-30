@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Apache Beam Python SDK"
 ---
 <!--

@@ -1,5 +1,5 @@
-{:.table}
 ---
+type: languages
 title: "Beam Calcite SQL overview"
 ---
 <!--
@@ -64,3 +64,4 @@ The following table summarizes the Apache Calcite functions and operators suppor
 <td>See Beam SQL extension <a href="/documentation/dsls/sql/user-defined-functions/">user-defined functions</a>. You cannot call functions with <a href="https://calcite.apache.org/docs/reference.html#calling-functions-with-named-and-optional-parameters">named and optional parameters</a>.</td></tr>
 <tr><td><a href="https://calcite.apache.org/docs/reference.html#match_recognize">MATCH_RECOGNIZE</a></td><td>No</td></tr>
 <tr><td><a href="https://calcite.apache.org/docs/reference.html#ddl-extensions">DDL Extensions</a></td><td>See Beam SQL extension <a href="/documentation/dsls/sql/create-external-table/">CREATE EXTERNAL TABLE</a></td></tr>
+</table>

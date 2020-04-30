@@ -3,6 +3,8 @@ title:  "Apache Beam is applying to Season of Docs"
 date:   2019-04-19 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2019/04/19/season-of-docs.html
 authors:
         - aizhamal
 

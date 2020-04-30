@@ -1,9 +1,11 @@
 ---
 title:  "Apache Beam 2.18.0"
 date:   2020-01-23 00:00:01 -0800
-# Date above corrected but keep the old URL:
 categories:
   - blog
+# Date above corrected but keep the old URL:
+aliases:
+  - /blog/2020/01/13/beam-2.18.0.html
 authors:
   - udim
   - altay

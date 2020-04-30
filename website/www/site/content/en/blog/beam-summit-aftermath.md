@@ -3,6 +3,8 @@ title:  "Inaugural edition of the Beam Summit Europe 2018 - aftermath"
 date:   2018-10-31 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2018/10/31/beam-summit-aftermath.html
 authors:
   - mbaetens
 ---

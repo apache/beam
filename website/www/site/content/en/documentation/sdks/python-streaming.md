@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Apache Beam Python Streaming Pipelines"
 ---
 <!--
@@ -52,7 +53,7 @@ These batch WordCount snippets are from
 This code uses the TextIO I/O connector to read from and write to a bounded
 collection.
 
-{{< /highlight >}}
+```
   lines = p | 'read' >> ReadFromText(known_args.input)
   ...
 
@@ -68,14 +69,14 @@ collection.
 
   # Write the output using a "Write" transform that has side effects.
   output | 'write' >> WriteToText(known_args.output)
-{{< /highlight >}}
+```
 
 These streaming WordCount snippets are from
 [streaming_wordcount.py](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/streaming_wordcount.py).
 This code uses an I/O connector that reads from and writes to an unbounded
 source (Cloud Pub/Sub) and specifies a fixed windowing strategy.
 
-{{< /highlight >}}
+```
   lines = p | beam.io.ReadFromPubSub(topic=known_args.input_topic)
   ...
 
@@ -93,7 +94,7 @@ source (Cloud Pub/Sub) and specifies a fixed windowing strategy.
 
   # Write to Pub/Sub
   output | beam.io.WriteStringsToPubSub(known_args.output_topic)
-{{< /highlight >}}
+```
 
 ## Running a streaming pipeline
 
@@ -104,9 +105,9 @@ testing purposes, you can use the commands in the [Cloud Pub/Sub quickstart](htt
 The following simple bash script feeds lines of an input text file to your input
 topic:
 
-{{< /highlight >}}
+```
 cat <YOUR_LOCAL_TEXT_FILE> | while read line; do gcloud pubsub topics publish <YOUR_INPUT_TOPIC_NAME> --message "$line"; done
-{{< /highlight >}}
+```
 
 Alternately, you can read from a publicly available Cloud Pub/Sub stream, such
 as `projects/pubsub-public-data/topics/taxirides-realtime`. However, you must

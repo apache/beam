@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 A transform and `Combine.CombineFn` for computing the latest element in a collection.
 
 * `Latest.globally()` takes a collection of values and produces the collection

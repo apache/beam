@@ -44,6 +44,7 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 No sample present.
 {{< /highlight >}}
@@ -71,6 +72,7 @@ PCollection element.
 {{< highlight java >}}
 No sample present.
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" SideInputSlowUpdateSnip1 >}}
 {{< /highlight >}}

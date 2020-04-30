@@ -4,6 +4,8 @@ date:   2016-03-17 11:00:00 -0700
 categories:
   - beam
   - capability
+aliases:
+  - /beam/capability/2016/03/17/capability-matrix.html
 authors:
   - fjp
   - takidau
@@ -550,7 +552,7 @@ capability-matrix-snapshot:
               l2: ''
               l3: ''
               
-        - name: 'Accumulating &amp; Retracting'
+        - name: 'Accumulating & Retracting'
           values:
             - class: model
               jira: BEAM-91
@@ -599,13 +601,4 @@ Included below is a summary snapshot of our current understanding of the capabil
 In the meantime, these tables should help clarify where we expect to be in the very near term, and help guide expectations about what existing runners are capable of, and what features runner implementers will be tackling next.
 
 {{< capability-matrix-common >}}
-{% assign cap-data=page.capability-matrix-snapshot >}}
-
-<!-- Summary table -->
-{% assign cap-style='cap-summary' >}}
-{% assign cap-view='blog' >}}
-{% assign cap-other-view='full' >}}
-{% assign cap-toggle-details=1 >}}
-{% assign cap-display='block' >}}
-
-{{< capability-matrix >}}
+{{< capability-matrix cap-data="capability-matrix-snapshot" cap-style="cap-summary" cap-view="blog" cap-other-view="full" cap-toggle-details=1 cap-display="block" >}}

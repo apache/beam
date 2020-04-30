@@ -1,4 +1,3 @@
-* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) takes one input collection.
 ---
 title: "HllCount"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 
 Estimates the number of distinct elements in a data stream using the

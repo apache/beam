@@ -1,6 +1,5 @@
-* [Reify](/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.
 ---
-title: "ParDo"
+title: "Partition"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,156 +15,128 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# ParDo
+# Partition
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}
 
-A transform for generic parallel processing.
-A `ParDo` transform considers each element in the input `PCollection`,
-performs some processing function (your user code) on that element,
-and emits zero or more elements to an output `PCollection`.
+Separates elements in a collection into multiple output
+collections. The partitioning function contains the logic that determines how
+to separate the elements of the input collection into each resulting
+partition output collection.
 
-See more information in the
-[Beam Programming Guide](/documentation/programming-guide/#pardo).
+The number of partitions must be determined at graph construction time.
+You cannot determine the number of partitions in mid-pipeline
+
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#partition).
 
 ## Examples
 
-In the following examples, we explore how to create custom `DoFn`s and access
-the timestamp and windowing information.
+In the following examples, we create a pipeline with a `PCollection` of produce with their icon, name, and duration.
+Then, we apply `Partition` in multiple ways to split the `PCollection` into multiple `PCollections`.
 
-### Example 1: ParDo with a simple DoFn
+`Partition` accepts a function that receives the number of partitions,
+and returns the index of the desired partition for the element.
+The number of partitions passed must be a positive integer,
+and it must return an integer in the range `0` to `num_partitions-1`.
 
-The following example defines a simple `DoFn` class called `SplitWords`
-which stores the `delimiter` as an object field.
-The `process` method is called once per element,
-and it can yield zero or more output elements.
+### Example 1: Partition with a function
+
+In the following example, we have a known list of durations.
+We partition the `PCollection` into one `PCollection` for every duration type.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `ParDo`:
+Output `PCollection`s:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
->}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
-### Example 2: ParDo with timestamp and window information
+### Example 2: Partition with a lambda function
 
-In this example, we add new parameters to the `process` method to bind parameter values at runtime.
-
-* [`beam.DoFn.TimestampParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam)
-  binds the timestamp information as an
-  [`apache_beam.utils.timestamp.Timestamp`](https://beam.apache.org/releases/pydoc/current/apache_beam.utils.timestamp.html#apache_beam.utils.timestamp.Timestamp)
-  object.
-* [`beam.DoFn.WindowParam`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.WindowParam)
-  binds the window information as the appropriate
-  [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
-  object.
+We can also use lambda functions to simplify **Example 1**.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-`stdout` output:
+Output `PCollection`s:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
->}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
-### Example 3: ParDo with DoFn methods
+### Example 3: Partition with multiple arguments
 
-A [`DoFn`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn)
-can be customized with a number of methods that can help create more complex behaviors.
-You can customize what a worker does when it starts and shuts down with `setup` and `teardown`.
-You can also customize what to do when a
-[*bundle of elements*](https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence)
-starts and finishes with `start_bundle` and `finish_bundle`.
+You can pass functions with multiple arguments to `Partition`.
+They are passed as additional positional arguments or keyword arguments to the function.
 
-* [`DoFn.setup()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup):
-  Called *once per `DoFn` instance* when the `DoFn` instance is initialized.
-  `setup` need not to be cached, so it could be called more than once per worker.
-  This is a good place to connect to database instances, open network connections or other resources.
+In machine learning, it is a common task to split data into
+[training and a testing datasets](https://en.wikipedia.org/wiki/Training,_validation,_and_test_sets).
+Typically, 80% of the data is used for training a model and 20% is used for testing.
 
-* [`DoFn.start_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle):
-  Called *once per bundle of elements* before calling `process` on the first element of the bundle.
-  This is a good place to start keeping track of the bundle elements.
+In this example, we split a `PCollection` dataset into training and testing datasets.
+We define `split_dataset`, which takes the `plant` element, `num_partitions`,
+and an additional argument `ratio`.
+The `ratio` is a list of numbers which represents the ratio of how many items will go into each partition.
+`num_partitions` is used by `Partitions` as a positional argument,
+while `plant` and `ratio` are passed to `split_dataset`.
 
-* [**`DoFn.process(element, *args, **kwargs)`**](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process):
-  Called *once per element*, can *yield zero or more elements*.
-  Additional `*args` or `**kwargs` can be passed through
-  [`beam.ParDo()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo).
-  **[required]**
+If we want an 80%/20% split, we can specify a ratio of `[8, 2]`, which means that for every 10 elements,
+8 go into the first partition and 2 go into the second.
+In order to determine which partition to send each element, we have different buckets.
+For our case `[8, 2]` has **10** buckets,
+where the first 8 buckets represent the first partition and the last 2 buckets represent the second partition.
 
-* [`DoFn.finish_bundle()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.finish_bundle):
-  Called *once per bundle of elements* after calling `process` after the last element of the bundle,
-  can *yield zero or more elements*. This is a good place to do batch calls on a bundle of elements,
-  such as running a database query.
+First, we check that the ratio list's length corresponds to the `num_partitions` we pass.
+We then get a bucket index for each element, in the range from 0 to 9 (`num_buckets-1`).
+We could do `hash(element) % len(ratio)`, but instead we sum all the ASCII characters of the
+JSON representation to make it deterministic.
+Finally, we loop through all the elements in the ratio and have a running total to
+identify the partition index to which that bucket corresponds.
 
-  For example, you can initialize a batch in `start_bundle`,
-  add elements to the batch in `process` instead of yielding them,
-  then running a batch query on those elements on `finish_bundle`, and yielding all the results.
-
-  Note that yielded elements from `finish_bundle` must be of the type
-  [`apache_beam.utils.windowed_value.WindowedValue`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/windowed_value.py).
-  You need to provide a timestamp as a unix timestamp, which you can get from the last processed element.
-  You also need to provide a window, which you can get from the last processed element like in the example below.
-
-* [`DoFn.teardown()`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown):
-  Called *once (as a best effort) per `DoFn` instance* when the `DoFn` instance is shutting down.
-  This is a good place to close database instances, close network connections or other resources.
-
-  Note that `teardown` is called as a *best effort* and is *not guaranteed*.
-  For example, if the worker crashes, `teardown` might not be called.
+This `split_dataset` function is generic enough to support any number of partitions by any ratio.
+You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-`stdout` output:
+Output `PCollection`s:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" train_test >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
->}}
-
-> *Known issues:*
->
-> * [[BEAM-7885]](https://issues.apache.org/jira/browse/BEAM-7885)
->   `DoFn.setup()` doesn't run for streaming jobs running in the `DirectRunner`.
-> * [[BEAM-7340]](https://issues.apache.org/jira/browse/BEAM-7340)
->   `DoFn.teardown()` metrics are lost.
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ## Related transforms
 
-* [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
-* [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`,
-  but for each input it may produce zero or more outputs.
 * [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
+* [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
+  operation, and includes other abilities such as multiple output collections and side-inputs.
+* [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey)
+performs a per-key equijoin.
 
-{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}

@@ -1,5 +1,5 @@
-In addition several [3rd party Java libraries](/documentation/sdks/java-thirdparty/) exist.
 ---
+type: languages
 title: "Python SDK dependencies"
 ---
 <!--
@@ -28,13 +28,11 @@ Dependencies for your Beam SDK version are listed in `setup.py` in the Beam repo
 
 1. Open `setup.py`.
 
-    
-{{< /highlight >}}
+    ```
     https://raw.githubusercontent.com/apache/beam/v<VERSION_NUMBER>/sdks/python/setup.py
+    ```
     
-{{< /highlight >}}
-    
-    Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py>{:target="_blank"} will provide the dependencies for the {{< param release_latest >}} release.
+    Replace `<VERSION_NUMBER>` with the major.minor.patch version of the SDK. For example, <a href="ttps://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py" target="_blank">https://raw.githubusercontent.com/apache/beam/v{{< param release_latest >}}/sdks/python/setup.py</a> will provide the dependencies for the {{< param release_latest >}} release.
     
     
 2. Review the core dependency list under `REQUIRED_PACKAGES`.
@@ -47,26 +45,20 @@ You can also retrieve the dependency list from the command line using the follow
 
     Python 3:
 
-    
-{{< /highlight >}}
+    ```
     $ python3 -m venv env && source env/bin/activate
-    
-{{< /highlight >}}
+    ```
     
     Python 2: 
 
-    
-{{< /highlight >}}
+    ```
     $ pip install virtualenv && virtualenv env && source env/bin/activate
-    
-{{< /highlight >}}
+    ```
 
 2. [Install the Beam Python SDK](/get-started/quickstart-py/#download-and-install).
 
 3. Retrieve the list of dependencies.
 
-    
-{{< /highlight >}}
+    ```
     $ pip install pipdeptree && pipdeptree -p apache-beam
-    
-{{< /highlight >}}
+    ```

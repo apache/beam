@@ -1,4 +1,3 @@
-* [Top](/documentation/transforms/python/aggregation/top) finds the largest or smallest element.
 ---
 title: "ApproximateUnique"
 ---

@@ -21,4 +21,3 @@ This roadmap is in progress. In the meantime, here are available resources:
 
  - [Runner documentation](/documentation/runners/nemo)
  - JIRA: [runner-nemo](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-nemo) / [nemo-jira](https://issues.apache.org/jira/projects/NEMO/issues/filter=allopenissues)
- 

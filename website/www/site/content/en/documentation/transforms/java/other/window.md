@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Logically divides up or groups the elements of a collection into finite
 windows according to a function.
 

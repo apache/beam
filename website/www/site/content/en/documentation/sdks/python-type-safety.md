@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Ensuring Python Type Safety"
 ---
 <!--
@@ -14,6 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
 #  Ensuring Python Type Safety
 
 Python is a dynamically-typed language with no static type checking. Because of the way Python's type checking works, as well as the deferred nature of runner execution, developer productivity can easily become bottle-necked by time spent investigating type-related errors.

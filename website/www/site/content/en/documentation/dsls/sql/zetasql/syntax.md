@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL function call rules"
 ---
 <!--

@@ -25,10 +25,10 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Provides a variety of functionality based on regular expressions.
 
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
+* [MapElements](/documentation/transforms/java/elementwise/mapelements)

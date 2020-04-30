@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Managing Python Pipeline Dependencies"
 ---
 <!--

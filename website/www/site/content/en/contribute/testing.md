@@ -1,5 +1,8 @@
 ---
+layout: section
 title: 'Beam Testing'
+section_menu: section-menu/contribute.html
+permalink: /contribute/testing/
 redirect_to: https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide
 ---
 <!--
@@ -12,4 +15,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+-->
+
+<!--
+This page is redirected to https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide
 -->

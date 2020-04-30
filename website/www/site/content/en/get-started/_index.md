@@ -1,9 +1,10 @@
 ---
 title: "Use Beam"
-redirect_from:
+aliases:
   - /use/
   - /docs/use/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,6 +20,7 @@ limitations under the License.
 -->
 
 # Get Started with Apache Beam
+
 Learn to use Beam to create data processing pipelines that run on supported processing back-ends:
 
 #### [Beam Overview](/get-started/beam-overview)
@@ -33,8 +35,8 @@ Learn how to set up a Beam project and run a simple example Beam pipeline on you
 
 See detailed walkthroughs of complete Beam pipelines.
 
-* [WordCount](/get-started/wordcount-example): Simple example pipelines that demonstrate basic Beam programming, including debugging and testing
-* [Mobile Gaming](/get-started/mobile-gaming-example): A series of more advanced pipelines that demonstrate use cases in the mobile gaming domain
+- [WordCount](/get-started/wordcount-example): Simple example pipelines that demonstrate basic Beam programming, including debugging and testing
+- [Mobile Gaming](/get-started/mobile-gaming-example): A series of more advanced pipelines that demonstrate use cases in the mobile gaming domain
 
 #### [Downloads and Releases](/get-started/downloads)
 

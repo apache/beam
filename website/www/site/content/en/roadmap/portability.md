@@ -1,6 +1,7 @@
 ---
 title: "Portability Framework Roadmap"
-aliases: /contribute/portability/
+aliases:
+    - /contribute/portability/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -136,7 +137,7 @@ common pattern for new portability features is that the overall
 feature is in "beam-model" with subtasks for each SDK and runner in
 their respective components.
 
-**JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project %3D BEAM AND resolution %3D Unresolved AND labels %3D portability order by priority DESC%2Cupdated DESC)
+**JIRA:** [query](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC)
 
 ## Status
 
@@ -165,3 +166,4 @@ Python streaming mode is not yet supported on Spark.
 
 ## SDK Harness Configuration {#sdk-harness-config}
 
+See [here](/documentation/runtime/sdk-harness-config/) for more information on SDK harness deployment options.

@@ -1,4 +1,3 @@
-* [Distinct](/documentation/transforms/java/aggregation/distinct)
 ---
 title: "Mean"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 Transforms for computing the arithmetic mean of the elements in a collection,
 or the mean of the values associated with each key in a collection of key-value pairs.

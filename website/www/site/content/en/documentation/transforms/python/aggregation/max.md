@@ -1,4 +1,3 @@
-* [Count](/documentation/transforms/python/aggregation/count) counts the number of elements within each aggregation.
 ---
 title: "Max"
 ---

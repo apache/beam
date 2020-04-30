@@ -1,5 +1,5 @@
-</table>
 ---
+type: languages
 title: "Beam Calcite SQL aggregate functions"
 aliases: /documentation/dsls/sql/aggregate-functions/
 ---
@@ -21,6 +21,7 @@ limitations under the License.
 
 This page documents Apache Calcite aggregate functions supported by Beam Calcite SQL.
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | COUNT(*) | Returns the number of input rows |
@@ -28,3 +29,4 @@ This page documents Apache Calcite aggregate functions supported by Beam Calcite
 | SUM(numeric) | Returns the sum of numeric across all input values |
 | MAX(value) | Returns the maximum value of value across all input values |
 | MIN(value) | Returns the minimum value of value across all input values |
+{{< /table >}}

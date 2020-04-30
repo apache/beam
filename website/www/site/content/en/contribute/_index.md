@@ -1,6 +1,6 @@
 ---
 title: "Beam Contribution Guide"
-redirect_from:
+aliases:
  - /contribution-guide/
  - /contribute/contribution-guide/
  - /docs/contribute/
@@ -73,7 +73,7 @@ To contribute code, you need
 
 To install these in a Debian-based distribution:
 
-{{< /highlight >}}
+```
 sudo apt-get install \
    openjdk-8-jdk \
    python-setuptools \
@@ -81,16 +81,16 @@ sudo apt-get install \
    virtualenv \
    tox \
    docker-ce
-{{< /highlight >}}
+```
 
 You also need to [install Go](https://golang.org/doc/install).
 
 Once Go is installed, install goavro:
 
-{{< /highlight >}}
+```
 $ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
-{{< /highlight >}}
+```
 
 gLinux users should configure their machines for sudoless Docker.
 
@@ -190,7 +190,7 @@ gLinux users should configure their machines for sudoless Docker.
    that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.
 
 1. Pull requests can only be merged by a
-   [Beam committer](/contribute/team/).
+   [Beam committer](/contribute/team).
    To find a committer for your area, either:
     - look in the OWNERS file of the directory where you changed files, or
     - look for similar code merges, or
@@ -248,10 +248,10 @@ unassigned from the author but will stay open.
   [dev@ mailing list](/community/contact-us) (include your Wiki account user ID).
 
 - Pull requests can only be merged by a
-  [Beam committer](/contribute/team/).
+  [Beam committer](/contribute/team).
 
 - [Voting on a release](https://www.apache.org/foundation/voting.html): Everyone can vote. Only
-  [Beam PMC](/contribute/team/) members should mark their votes as binding.
+  [Beam PMC](/contribute/team) members should mark their votes as binding.
 
 ## Communication
 
@@ -286,3 +286,4 @@ on the [dev@ mailing list](/community/contact-us/) or
 ----
 
 If you didn't find the information you were looking for in this guide, please
+[reach out to the Beam community](/community/contact-us).

@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam Java SDK"
 aliases: /learn/sdks/java/
 ---
@@ -45,3 +46,4 @@ The Java SDK has the following extensions:
 - [Nexmark](/documentation/sdks/java/testing/nexmark) is a benchmark suite that runs in batch and streaming modes.
 - [euphoria](/documentation/sdks/java/euphoria) is easy to use Java 8 DSL for BEAM.
 
+In addition several [3rd party Java libraries](/documentation/sdks/java-thirdparty/) exist.

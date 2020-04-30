@@ -1,4 +1,3 @@
-[reach out to the Beam community](/community/contact-us).
 ---
 title: "Become A Committer"
 ---

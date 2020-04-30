@@ -1,5 +1,5 @@
-</table>
 ---
+type: runners
 title: "Apache Gearpump (incubating) Runner"
 ---
 <!--
@@ -34,6 +34,7 @@ To use the Gearpump Runner in a distributed mode, you have to setup a Gearpump c
 
 Suppose you are writing a Beam pipeline, you can add a dependency on the latest version of the Gearpump runner by adding to your pom.xml to enable Gearpump runner.
 And your Beam application should also pack Beam SDK explicitly and here is a snippet of example pom.xml:
+
 {{< highlight java >}}
 <dependencies>
   <dependency>
@@ -99,15 +100,15 @@ And your Beam application should also pack Beam SDK explicitly and here is a sni
 {{< /highlight >}}
 
 After running <code>mvn package</code>, run <code>ls target</code> and you should see your application jar like:
-{{< /highlight >}}
+```
 {your_application}-{version}-shaded.jar
-{{< /highlight >}}
+```
 
 ## Executing the pipeline on a Gearpump cluster
 To run against a Gearpump cluster simply run:
-{{< /highlight >}}
+```
 gear app -jar /path/to/{your_application}-{version}-shaded.jar com.beam.examples.BeamPipeline --runner=GearpumpRunner ...
-{{< /highlight >}}
+```
 
 ## Monitoring your application
 You can monitor a running Gearpump application using Gearpump's Dashboard. Please follow the Gearpump [Start UI](https://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html#start-ui) to start the dashboard.
@@ -137,3 +138,4 @@ When executing your pipeline with the Gearpump Runner, you should consider the f
   <td>The application name for Gearpump runner.</td>
   <td><code>beam_gearpump_app</code></td>
 </tr>
+</table>

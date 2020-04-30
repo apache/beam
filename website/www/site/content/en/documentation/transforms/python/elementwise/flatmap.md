@@ -17,9 +17,7 @@ limitations under the License.
 
 # FlatMap
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.core" class="FlatMap" >}}
 
@@ -53,8 +51,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 2: FlatMap with a function
 
@@ -72,10 +69,10 @@ Output `PCollection` after `FlatMap`:
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap_test.py" plants >}}
 {{< /highlight >}}
 
+
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 3: FlatMap with a lambda function
 
@@ -97,8 +94,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 4: FlatMap with a generator
 
@@ -120,8 +116,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 5: FlatMapTuple for key-value pairs
 
@@ -142,8 +137,7 @@ Output `PCollection` after `FlatMapTuple`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 6: FlatMap with multiple arguments
 
@@ -166,8 +160,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 7: FlatMap with side inputs as singletons
 
@@ -191,8 +184,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ### Example 8: FlatMap with side inputs as iterators
 
@@ -214,8 +206,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
@@ -241,8 +232,7 @@ Output `PCollection` after `FlatMap`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/flatmap.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/flatmap" >}}
 
 ## Related transforms
 

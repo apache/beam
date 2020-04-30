@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Aggregates all input elements by their key and allows downstream processing
 to consume all values associated with the key. While `GroupByKey` performs
 this operation over a single input collection and thus a single type of

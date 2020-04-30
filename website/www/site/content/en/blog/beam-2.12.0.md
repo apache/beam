@@ -3,6 +3,8 @@ title:  "Apache Beam 2.12.0"
 date:   2019-04-25 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2018/04/25/beam-2.12.0.html
 authors:
         - apilloud
 

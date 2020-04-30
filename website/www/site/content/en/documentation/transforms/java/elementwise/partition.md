@@ -1,4 +1,3 @@
-* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
 ---
 title: "Partition"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 Separates elements in a collection into multiple output collections. The partitioning function contains the logic that determines how to separate the elements of the input collection into each resulting partition output collection.
 

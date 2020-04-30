@@ -1,4 +1,3 @@
-* [MapElements](/documentation/transforms/java/elementwise/mapelements)
 ---
 title: "Values"
 ---
@@ -26,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 The `Values` transform takes a collection of key-value pairs, and
 returns the value of each element.
 
@@ -41,3 +39,4 @@ PCollection<Integer> values = keyValuePairs.apply(Values.create());
 ## Related transforms 
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
 * [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

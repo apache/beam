@@ -1,5 +1,5 @@
-{{< capability-matrix cap-data="capability-matrix" cap-style="cap" cap-view="full" cap-other-view="summary" cap-toggle-details=0 cap-display="none" >}}
 ---
+type: runners
 title: "Apache Samza Runner"
 aliases: /learn/runners/Samza/
 ---
@@ -86,24 +86,24 @@ The Samza Runner is built on Samza version greater than 1.0.
 
 If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:
 
-{{< /highlight >}}
+```
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Psamza-runner \
     -Dexec.args="--runner=SamzaRunner \
       --inputFile=/path/to/input \
       --output=/path/to/counts"
-{{< /highlight >}}
+```
 
 To deploy your pipeline to a YARN cluster, here is the [instructions](https://samza.apache.org/startup/hello-samza/latest/) of deploying a sample Samza job. First you need to package your application jars and resource files into a `.tgz` archive file, and make it available to download for Yarn containers. In your config, you need to specify the URI of this TGZ file location:
 
-{{< /highlight >}}
+```
 yarn.package.path=${your_job_tgz_URI}
 
 job.name=${your_job_name}
 job.factory.class=org.apache.samza.job.yarn.YarnJobFactory
 job.coordinator.system=${job_coordinator_system}
 job.default.system=${job_default_system}
-{{< /highlight >}}
+```
 
 For more details on the configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
 

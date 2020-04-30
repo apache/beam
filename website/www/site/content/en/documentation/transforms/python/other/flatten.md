@@ -27,6 +27,7 @@ limitations under the License.
 <br><br>
 
 
+
 Merges multiple `PCollection` objects into a single logical
 `PCollection`. A transform for `PCollection` objects
 that store the same data type. 

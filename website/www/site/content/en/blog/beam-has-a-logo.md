@@ -1,12 +1,14 @@
 ---
 title:  "Apache Beam has a logo!"
 date:   2016-02-22 10:21:48 -0800
-categories:
+categories: 
   - beam
   - update
   - website
+aliases:
+  - /beam/update/website/2016/02/22/beam-has-a-logo.html
 authors:
-- jamesmalone
+  - jamesmalone
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

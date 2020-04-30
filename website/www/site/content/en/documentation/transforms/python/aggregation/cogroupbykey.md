@@ -1,4 +1,3 @@
-* [Sample](/documentation/transforms/python/aggregation/sample) to combine elements. takes samples of the elements in a collection.
 ---
 title: "CoGroupByKey"
 ---

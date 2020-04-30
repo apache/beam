@@ -17,9 +17,7 @@ limitations under the License.
 
 # Partition
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}
 
@@ -62,8 +60,7 @@ Output `PCollection`s:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ### Example 2: Partition with a lambda function
 
@@ -83,8 +80,7 @@ Output `PCollection`s:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ### Example 3: Partition with multiple arguments
 
@@ -132,8 +128,7 @@ Output `PCollection`s:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ## Related transforms
 

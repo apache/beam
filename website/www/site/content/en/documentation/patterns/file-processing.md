@@ -53,8 +53,8 @@ Some runners may retain file lists during updates, but file lists don’t persis
 
 {{< paragraph class="language-java" >}}
 * Storing processed filenames in an external file and deduplicating the lists at the next transform
-{{< /paragraph >}}
 * Adding timestamps to filenames, writing a glob pattern to pull in only new files, and matching the pattern when the pipeline restarts
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 The continuous-read option is not available for Python.
@@ -85,8 +85,8 @@ To access filenames:
 
 {{< paragraph class="language-java" >}}
 1. Create a `ReadableFile` instance with `FileIO`. `FileIO` returns a `PCollection<ReadableFile>` object. The `ReadableFile` class contains the filename.
-{{< /paragraph >}}
 1. Call the `readFullyAsUTF8String()` method to read the file into memory and return the filename as a `String` object. If memory is limited, you can use utility classes like [`FileSystems`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html) to work directly with the file.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 To read filenames in a pipeline job:
@@ -94,12 +94,13 @@ To read filenames in a pipeline job:
 
 {{< paragraph class="language-py" >}}
 1. Collect the list of file URIs. You can use the [`FileSystems`](https://beam.apache.org/releases/pydoc/current/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems) module to get a list of files that match a glob pattern.
-{{< /paragraph >}}
 1. Pass the file URIs to a `PCollection`.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" FileProcessPatternAccessMetadataSnip1 >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" FileProcessPatternAccessMetadataSnip1 >}}
 {{< /highlight >}}

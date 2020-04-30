@@ -3,8 +3,10 @@ title:  "Testing Unbounded Pipelines in Apache Beam"
 date:   2016-10-20 10:00:00 -0800
 categories:
   - blog
+aliases:
+  - /blog/2016/10/20/test-stream.html
 authors:
-- tgroh
+  - tgroh
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -318,3 +320,4 @@ The addition of TestStream alongside window and pane-specific matchers in PAsser
 has enabled the testing of Pipelines which produce speculative and late panes.
 This permits tests for all styles of pipeline to be expressed directly within the
 Java SDK. If you have questions or comments, we’d love to hear them on the
+[mailing lists](/get-started/support/).

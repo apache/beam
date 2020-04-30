@@ -3,6 +3,8 @@ title:  "Apache Beam 2.7.0"
 date:   2018-10-03 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2018/10/03/beam-2.7.0.html
 authors:
         - ccy
 
@@ -43,8 +45,7 @@ For more information on changes in 2.7.0, check out the
 ### Portability
 
 * Experimental support for Python on local Flink runner for simple
-examples, see latest information here:
-/contribute/portability/#status.
+examples, see latest information [here](/contribute/portability/#status).
 
 ## Miscellaneous Fixes
 

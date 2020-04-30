@@ -1,4 +1,3 @@
-* [Combine](/documentation/transforms/java/aggregation/combine)
 ---
 title: "CombineWithContext"
 ---
@@ -18,14 +17,13 @@ limitations under the License.
 # CombineWithContext
 <table align="left">
     <a target="_blank" class="button"
-        href="https://beam.apache.org/releases/javadoc/curent/index.html?org/apache/beam/sdk/transforms/CombineWithContext.html">
+        href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/CombineWithContext.html">
       <img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
            alt="Javadoc" />
      Javadoc
     </a>
 </table>
 <br><br>
-
 
 A class of transforms that contains combine functions that have access to `PipelineOptions` and side inputs through `CombineWithContext.Context`.
 

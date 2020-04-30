@@ -1,7 +1,6 @@
-Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
 title: "Beam Quickstart for Java"
-redirect_from:
+aliases:
   - /get-started/quickstart/
   - /use/quickstart/
   - /getting-started/
@@ -27,7 +26,6 @@ This Quickstart will walk you through executing your first Beam pipeline to run 
 If you're interested in contributing to the Apache Beam Java codebase, see the [Contribution Guide](/contribute).
 
 {{< toc >}}
-
 
 ## Set up your Development Environment
 
@@ -63,7 +61,6 @@ PS> mvn archetype:generate `
  -D package=org.apache.beam.examples `
  -D interactiveMode=false
 {{< /highlight >}}
-
 
 This will create a directory `word-count-beam` that contains a simple `pom.xml` and a series of example pipelines that count words in text files.
 
@@ -131,6 +128,7 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
 {{< /highlight >}}
+
 
 {{< highlight class="runner-flink-local" >}}
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -336,6 +334,7 @@ profile: 10
 ...
 {{< /highlight >}}
 
+
 {{< highlight class="runner-dataflow" >}}
 $ gsutil cat gs://<your-gcs-bucket>/counts*
 feature: 15
@@ -398,3 +397,4 @@ YARN: 1
 * Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

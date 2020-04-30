@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL query syntax"
 ---
 <!--
@@ -48,8 +49,7 @@ limitations under the License.
     <span class="var"><a href="#with_query_name">with_query_name</a></span> [ [ AS ] <span class="var">alias</span> ]
 }
 <span class="var">table_name</span>:
-    <a href="/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> [ . <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> ...]
+    <a href="/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> [ . <a href="/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> ...]
 
 <span class="var">join</span>:
     <span class="var">from_item</span> [ <span class="var">join_type</span> ] <a href="#join-types">JOIN</a> <span class="var">from_item</span>
@@ -757,6 +757,8 @@ underlying column, <code>Singers.BirthYear</code>.</p>
 and the points they score during the season. These tables will be used to
 illustrate the behavior of different query clauses.</p>
 <p>Table Roster:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -787,10 +789,13 @@ illustrate the behavior of different query clauses.</p>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>The Roster table includes a list of player names (LastName) and the unique ID
 assigned to their school (SchoolID).</p>
 <p>Table PlayerStats:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -827,11 +832,14 @@ assigned to their school (SchoolID).</p>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>The PlayerStats table includes a list of player names (LastName) and the unique
 ID assigned to the opponent they played in a given game (OpponentID) and the
 number of points scored by the athlete in that game (PointsScored).</p>
 <p>Table TeamMascot:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -858,7 +866,8 @@ number of points scored by the athlete in that game (PointsScored).</p>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>The TeamMascot table includes a list of unique school IDs (SchoolID) and the
 mascot for that school (Mascot).</p>
 <p><a id="join_types_examples"></a></p>
@@ -868,6 +877,8 @@ mascot for that school (Mascot).</p>
 <pre class="codehilite"><code>SELECT * FROM Roster JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 <p>Results:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -904,11 +915,14 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>2) FULL [OUTER] JOIN</p>
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT * FROM Roster FULL JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -957,12 +971,15 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>3) LEFT [OUTER] JOIN</p>
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT * FROM Roster LEFT JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 <p>Results:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -1005,12 +1022,15 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>4) RIGHT [OUTER] JOIN</p>
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT * FROM Roster RIGHT JOIN TeamMascot
 ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 <p>Results:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -1053,12 +1073,15 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <h3 id="group-by-clause_1">GROUP BY clause</h3>
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT LastName, SUM(PointsScored)
 FROM PlayerStats
 GROUP BY LastName;</code></pre>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -1081,7 +1104,8 @@ GROUP BY LastName;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p><a id="set_operators"></a></p>
 <h3 id="set-operators">Set operators</h3>
 <p><a id="union"></a></p>
@@ -1096,6 +1120,8 @@ UNION ALL
 SELECT LastName, PointsScored
 FROM PlayerStats;</code></pre>
 <p>Results:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -1142,7 +1168,8 @@ FROM PlayerStats;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p><a id="intersect"></a></p>
 <h4 id="intersect_1">INTERSECT</h4>
 <p>This query returns the last names that are present in both Roster and
@@ -1153,6 +1180,8 @@ INTERSECT ALL
 SELECT LastName
 FROM PlayerStats;</code></pre>
 <p>Results:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -1171,7 +1200,8 @@ FROM PlayerStats;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p><a id="except"></a></p>
 <h4 id="except_1">EXCEPT</h4>
 <p>The query below returns last names in Roster that are <strong>not </strong>present in
@@ -1182,6 +1212,8 @@ EXCEPT DISTINCT
 SELECT LastName
 FROM PlayerStats;</code></pre>
 <p>Results:</p>
+
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -1197,7 +1229,8 @@ FROM PlayerStats;</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
+
 <p>Reversing the order of the <code>SELECT</code> statements will return last names in
 PlayerStats that are <strong>not</strong> present in Roster:</p>
 <pre class="codehilite"><code>SELECT LastName

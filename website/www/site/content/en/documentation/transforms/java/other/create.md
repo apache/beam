@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Creates a collection containing a specified set of elements. This is useful
 for testing, as well as creating an initial input to process in parallel.
 For example, a single element to execute a one-time `ParDo` or a list of filenames to be read.

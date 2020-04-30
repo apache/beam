@@ -1,4 +1,3 @@
-* [Reify](/documentation/transforms/java/elementwise/reify)
 ---
 title: "ParDo"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 A transform for generic parallel processing. A `ParDo` transform considers each
 element in the input `PCollection`, performs some processing function

@@ -3,6 +3,8 @@ title:  "Looping timers in Apache Beam"
 date:   2019-06-11 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2019/06/11/looping-timers.html
 authors:
        - rez
        - klk
@@ -45,7 +47,7 @@ event, there is nothing to count!
 
 Let's build a simple pipeline to work with:
 
-{{< /highlight >}}
+```
   // We will start our timer at 1 sec from the fixed upper boundary of our
   // minute window
   Instant now = Instant.parse("2000-01-01T00:00:59Z");
@@ -86,15 +88,15 @@ FixedWindows.<Integer>of(Duration.standardMinutes(1))))
        }));
 
   p.run();
-{{< /highlight >}}
+```
 
 Running that pipeline will result in the following output:
 
-{{< /highlight >}}
+```
 INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-{{< /highlight >}}
+```
 
 > Note: The lack of order in the output should be expected, however the
 > key-window tuple is correctly computed.
@@ -129,10 +131,10 @@ Beam pipeline.
 
 We can use a generating source to emit the value using this code snippet:
 
-{{< /highlight >}}
+```
 pipeline.apply(GenerateSequence.
             from(0).withRate(1,Duration.standardSeconds(1L)))
-{{< /highlight >}}
+```
 
 We can then:
 
@@ -317,7 +319,7 @@ interval. This can reduce the number of reads of the State API during the
 
 Here is the logging output of running our modified pipeline:
 
-{{< /highlight >}}
+```
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:02:59.999Z fired
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:03:59.999Z fired
@@ -326,7 +328,7 @@ INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999
 INFO  LoopingTimer  - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-{{< /highlight >}}
+```
 
 Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
 though the source dataset has no elements in that interval.

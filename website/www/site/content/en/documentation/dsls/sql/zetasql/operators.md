@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL operators"
 ---
 <!--
@@ -29,6 +30,7 @@ Common conventions:
 The following table lists all supported operators from highest to
 lowest precedence. Precedence determines the order in which operators will be evaluated within a statement.
 
+{{< table >}}
 <table>
   <thead>
     <tr>
@@ -208,7 +210,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
     </tr>
   </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Operators with the same precedence are left associative. This means that those
 operators are grouped together starting from the left and moving right. For
@@ -222,15 +224,15 @@ is interpreted as
 
 The expression:
 
-{{< /highlight >}}
+```
 x * y / z
-{{< /highlight >}}
+```
 
 is interpreted as:
 
-{{< /highlight >}}
+```
 ( ( x * y ) / z )
-{{< /highlight >}}
+```
 
 All comparison operators have the same priority and are grouped using left
 associativity. However, comparison operators are not associative. As a result,
@@ -245,6 +247,7 @@ is recommended over:
 
 ## Element access operators
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -273,13 +276,14 @@ e.g.expression.fieldname1.fieldname2...</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Arithmetic operators
 
 All arithmetic operators accept input of numeric type T, and the result type
 has type T unless otherwise indicated in the description below:
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -310,40 +314,44 @@ has type T unless otherwise indicated in the description below:
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Addition and Multiplication:
 
+{{< table >}}
 <table>
 <thead>
 <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
 <tbody><tr><td>INT64</td><td>INT64</td><td>FLOAT64</td></tr><tr><td>FLOAT64</td><td>FLOAT64</td><td>FLOAT64</td></tr></tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Subtraction:
 
+{{< table >}}
 <table>
 <thead>
 <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
 <tbody><tr><td>INT64</td><td>INT64</td><td>FLOAT64</td></tr><tr><td>FLOAT64</td><td>FLOAT64</td><td>FLOAT64</td></tr></tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Division:
 
+{{< table >}}
 <table>
 <thead>
   <tr><th>&nbsp;</th><th>INT64</th><th>FLOAT64</th></tr>
 </thead>
 <tbody><tr><td>INT64</td><td>FLOAT64</td><td>FLOAT64</td></tr><tr><td>FLOAT64</td><td>FLOAT64</td><td>FLOAT64</td></tr></tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 Result types for Unary Minus:
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -365,12 +373,13 @@ Result types for Unary Minus:
 
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Logical operators
 
 All logical operators allow only BOOL input.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -400,7 +409,7 @@ is TRUE. Returns <code>NULL</code> otherwise.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Comparison operators
 
@@ -431,6 +440,7 @@ The following rules apply when comparing these data types:
 +  `NULL`: The convention holds here: any operation with a `NULL` input returns
    `NULL`.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -503,7 +513,7 @@ most common. X is evaluated only once.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 When testing values that have a STRUCT data type for
 equality, it's possible that one or more fields are `NULL`. In such cases:
@@ -514,6 +524,7 @@ equality, it's possible that one or more fields are `NULL`. In such cases:
 The following table demonstrates how STRUCT data
 types are compared when they have fields that are `NULL` valued.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -540,7 +551,7 @@ types are compared when they have fields that are `NULL` valued.
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 
 
@@ -550,6 +561,7 @@ IS operators return TRUE or FALSE for the condition they are testing. They never
 return `NULL`, even for `NULL` inputs. If NOT is present, the output BOOL value
 is inverted.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -583,4 +595,4 @@ otherwise.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}

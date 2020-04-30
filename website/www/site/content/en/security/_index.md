@@ -1,5 +1,6 @@
 ---
 title: "Beam Security"
+aliases: /security/CVE-2020-1929/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

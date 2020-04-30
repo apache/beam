@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Transforms for finding the largest (or smallest) set of elements in
 a collection, or the largest (or smallest) set of values associated
 with each key in a collection of key-value pairs.

@@ -1,4 +1,3 @@
-* [CombineGlobally](/documentation/transforms/python/aggregation/combineglobally) to combine elements.
 ---
 title: "Min"
 ---

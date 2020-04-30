@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Takes a `PCollection<V>` and produces a `PCollection<KV<K, V>>` by associating
 each input element with a key.
 
@@ -51,3 +50,4 @@ PCollection<KV<Integer, String>> lengthAndWord =
 ## Related transforms 
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
 * [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
+* [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.

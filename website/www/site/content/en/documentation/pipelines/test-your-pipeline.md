@@ -26,11 +26,6 @@ You can use [DirectRunner](/documentation/runners/direct), a local runner helpfu
 
 After you test your pipeline using the `DirectRunner`, you can use the runner of your choice to test on a small scale. For example, use the Flink runner with a local or remote Flink cluster.
 
-
-
-
-
-
 The Beam SDKs provide a number of ways to unit test your pipeline code, from the lowest to the highest levels. From the lowest to the highest level, these are:
 
 *   You can test the individual function objects, such as [DoFn](/documentation/programming-guide/#pardo)s, inside your pipeline's core transforms.
@@ -170,6 +165,7 @@ Pipeline p = TestPipeline.create();
 You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java `List`. See [Creating a PCollection](/documentation/programming-guide/#creating-a-pcollection) for more information.
 
 ### PAssert
+
 [PAssert](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/testing/PAssert.html) is a class included in the Beam Java SDK  that is an assertion on the contents of a `PCollection`. You can use `PAssert`to verify that a `PCollection` contains a specific set of expected elements.
 
 For a given `PCollection`, you can use `PAssert` to verify the contents as follows:

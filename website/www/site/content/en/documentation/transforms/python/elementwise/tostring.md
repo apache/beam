@@ -17,9 +17,7 @@ limitations under the License.
 
 # ToString
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.util" class="ToString" >}}
 
@@ -51,8 +49,7 @@ Output `PCollection` after `ToString`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 
 ### Example 2: Elements to string
 
@@ -73,8 +70,7 @@ Output `PCollection` after `ToString`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 
 ### Example 3: Iterables to string
 
@@ -97,8 +93,7 @@ Output `PCollection` after `ToString`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring" >}}
 
 ## Related transforms
 

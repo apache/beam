@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Applies a simple 1-to-many mapping function over each element in the
 collection. The many elements are flattened into the resulting collection.
 

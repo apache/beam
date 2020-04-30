@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL conversion rules"
 ---
 <!--
@@ -26,6 +27,7 @@ Conversion includes, but is not limited to, casting and coercion:
 
 The table below summarizes all possible `CAST`s and coercions. "Coercion To" applies to all *expressions* of a given data type (e.g. a column).
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -94,24 +96,24 @@ The table below summarizes all possible `CAST`s and coercions. "Coercion To" app
 
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 ## Casting
 
 Syntax:
 
-{{< /highlight >}}
+```
 CAST(expr AS typename)
-{{< /highlight >}}
+```
 
 Cast syntax is used in a query to indicate that the result type of an
 expression should be converted to some other type.
 
 Example:
 
-{{< /highlight >}}
+```
 CAST(x=1 AS STRING)
-{{< /highlight >}}
+```
 
 This results in `"true"` if `x` is `1`, `"false"` for any other non-`NULL`
 value, and `NULL` if `x` is `NULL`.
@@ -125,6 +127,7 @@ byte sequence is not valid UTF-8 results in a runtime error.
 
 When casting an expression `x` of the following types, these rules apply:
 
+{{< table >}}
 <table>
 <tr>
 <th>From</th>
@@ -181,7 +184,7 @@ target STRUCT field types (as defined by field order, not field name).</li>
 </tr>
 
 </table>
-{:.table}
+{{< /table >}}
 
 
 ## Coercion

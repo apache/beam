@@ -1,9 +1,10 @@
-As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the [Apache Beam presentation materials](/contribute/presentation-materials/) page or email the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list with your ideas or questions.
 ---
 title:  "Apache Beam established as a new top-level project"
 date:   2017-01-10 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2017/01/10/beam-graduates.html
 authors:
   - davor
 ---

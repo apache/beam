@@ -1,6 +1,6 @@
 ---
 title: "Learn about Beam"
-redirect_from:
+aliases:
   - /learn/
   - /docs/learn/
 ---
@@ -64,3 +64,4 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 
 Beam is designed to enable pipelines to be portable across different runners. However, given every runner has different capabilities, they also have different abilities to implement the core concepts in the Beam model. The [Capability Matrix](/documentation/runners/capability-matrix/) provides a detailed comparison of runner functionality.
 
+Once you have chosen which runner to use, see that runner's page for more information about any initial runner-specific setup as well as any required or optional `PipelineOptions` for configuring its execution. You may also want to refer back to the Quickstart for [Java](/get-started/quickstart-java), [Python](/get-started/quickstart-py) or [Go](/get-started/quickstart-go) for instructions on executing the sample WordCount pipeline.

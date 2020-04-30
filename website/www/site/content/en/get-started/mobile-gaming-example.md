@@ -1,4 +1,3 @@
-Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
 title: "Beam Mobile Gaming Example"
 aliases: /use/mobile-gaming-example/
@@ -47,8 +46,7 @@ When the user completes an instance of the game, their phone sends the data even
 
 The following diagram shows the ideal situation (events are processed as they occur) vs. reality (there is often a time delay before processing).
 
-![There is often a time delay before processing events.](
-  /images/gaming-example-basic.png)
+![There is often a time delay before processing events.](/images/gaming-example-basic.png)
 
 *Figure 1: The X-axis represents event time: the actual time a game event
 occurred. The Y-axis represents processing time: the time at which a game event
@@ -94,8 +92,7 @@ As the pipeline processes each event, the event score gets added to the sum tota
 
 The following diagram shows score data for several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair.
 
-![A pipeline processes score data for three users.](
-  /images/gaming-example.gif){: width="850px"}
+<img src="/images/gaming-example.gif" alt="A pipeline processes score data for three users." width="850px">
 
 *Figure 2: Score data for three users.*
 
@@ -106,6 +103,7 @@ After reading the score events from the input file, the pipeline groups all of t
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/UserScore.java" DocInclude_USExtractXform >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/user_score.py" extract_and_sum_score >}}
 {{< /highlight >}}
@@ -117,6 +115,7 @@ Here's the main method of `UserScore`, showing how we apply all three steps of t
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/UserScore.java" DocInclude_USMain >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/user_score.py" main >}}
 {{< /highlight >}}
@@ -165,8 +164,7 @@ Using fixed-time windowing lets the pipeline provide better information on how e
 
 The following diagram shows how the pipeline processes a day's worth of a single team's scoring data after applying fixed-time windowing:
 
-![A pipeline processes score data for two teams.](
-  /images/gaming-example-team-scores-narrow.gif){: width="800px"}
+<img src="/images/gaming-example-team-scores-narrow.gif" alt="A pipeline processes score data for two teams." width="800px">
 
 *Figure 3: Score data for two teams. Each team's scores are divided into
 logical windows based on when those scores occurred in event time.*
@@ -190,6 +188,7 @@ The following code shows this:
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java" DocInclude_HTSAddTsAndWindow >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/hourly_team_score.py" add_timestamp_and_window >}}
 {{< /highlight >}}
@@ -209,6 +208,7 @@ The following code shows how `HourlyTeamScore` uses the `Filter` transform to fi
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java" DocInclude_HTSFilters >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/hourly_team_score.py" filter_by_time_range >}}
 {{< /highlight >}}
@@ -220,6 +220,7 @@ The following code shows how `HourlyTeamScore` uses the `Filter` transform to fi
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/HourlyTeamScore.java" DocInclude_HTSMain >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/hourly_team_score.py" main >}}
 {{< /highlight >}}
@@ -266,8 +267,8 @@ Because we want all the data that has arrived in the pipeline every time we upda
 
 When we specify a ten-minute processing time trigger for the single global window, the pipeline effectively takes a "snapshot" of the contents of the window every time the trigger fires. This snapshot happens after ten minutes have passed since data was received. If no data has arrived, the pipeline takes its next "snapshot" 10 minutes after an element arrives. Since we're using a single global window, each snapshot contains all the data collected _to that point in time_. The following diagram shows the effects of using a processing time trigger on the single global window:
 
-![A pipeline processes score data for three users.](
-  /images/gaming-example-proc-time-narrow.gif){: width="850px"}
+<img src="/images/gaming-example-proc-time-narrow.gif" alt="A pipeline processes score data for three users." width="850px">
+
 
 *Figure 4: Score data for three users. Each user's scores are grouped together
 in a single global window, with a trigger that generates a snapshot for output
@@ -280,6 +281,7 @@ The following code example shows how `LeaderBoard` sets the processing time trig
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java" DocInclude_ProcTimeTrigger >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/leader_board.py" processing_time_trigger >}}
 {{< /highlight >}}
@@ -298,8 +300,7 @@ In an ideal world, all data would be processed immediately when it occurs, so th
 
 The following diagram shows the relationship between ongoing processing time and each score's event time for two teams:
 
-![A pipeline processes score data by team, windowed by event time.](
-  /images/gaming-example-event-time-narrow.gif){: width="800px"}
+<img src="/images/gaming-example-event-time-narrow.gif" alt="A pipeline processes score data by team, windowed by event time." width="800px">
 
 *Figure 5: Score data by team, windowed by event time. A trigger based on
 processing time causes the window to emit speculative early results and include
@@ -314,6 +315,7 @@ The following code example shows how `LeaderBoard` applies fixed-time windowing 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/LeaderBoard.java" DocInclude_WindowAndTrigger >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/leader_board.py" window_and_trigger >}}
 {{< /highlight >}}
@@ -356,6 +358,7 @@ The following code example shows the composite transform that handles abuse dete
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_AbuseDetect >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/game_stats.py" abuse_detect >}}
 {{< /highlight >}}
@@ -365,6 +368,7 @@ The abuse-detection transform generates a view of users supected to be spambots.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_FilterAndCalc >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/game_stats.py" filter_and_calc >}}
 {{< /highlight >}}
@@ -377,8 +381,7 @@ When you set session windowing, you specify a _minimum gap duration_ between eve
 
 The following diagram shows how data might look when grouped into session windows. Unlike fixed windows, session windows are _different for each user_ and is dependent on each individual user's play pattern:
 
-![User sessions with a minimum gap duration.](
-  /images/gaming-example-session-windows.png)
+![User sessions with a minimum gap duration.](/images/gaming-example-session-windows.png)
 
 *Figure 6: User sessions with a minimum gap duration. Each user has different
 sessions, according to how many instances they play and how long their breaks
@@ -389,6 +392,7 @@ We can use the session-windowed data to determine the average length of uninterr
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_SessionCalc >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/game_stats.py" session_calc >}}
 {{< /highlight >}}
@@ -398,6 +402,7 @@ This gives us a set of user sessions, each with an attached duration. We can the
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/complete/game/GameStats.java" DocInclude_Rewindow >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/complete/game/game_stats.py" rewindow >}}
 {{< /highlight >}}
@@ -410,3 +415,4 @@ We can use the resulting information to find, for example, what times of day our
 * Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

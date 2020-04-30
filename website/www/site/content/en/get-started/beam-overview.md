@@ -1,10 +1,10 @@
-Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
 title: "Beam Overview"
-redirect_from:
+aliases:
   - /use/beam-overview/
   - /docs/use/beam-overview/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ limitations under the License.
 
 # Apache Beam Overview
 
-Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam's supported **distributed processing back-ends**, which include [Apache Apex](https://apex.apache.org), [Apache Flink](https://flink.apache.org), [Apache Spark](https://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
+Apache Beam is an open source, unified model for defining both batch and streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program that defines the pipeline. The pipeline is then executed by one of Beam's supported **distributed processing back-ends**, which include [Apache Apex](https://apex.apache.org), [Apache Flink](https://flink.apache.org), [Apache Spark](http://spark.apache.org), and [Google Cloud Dataflow](https://cloud.google.com/dataflow).
 
 Beam is particularly useful for [Embarrassingly Parallel](https://en.wikipedia.org/wiki/Embarassingly_parallel) data processing tasks, in which the problem can be decomposed into many smaller bundles of data that can be processed independently and in parallel. You can also use Beam for Extract, Transform, and Load (ETL) tasks and pure data integration. These tasks are useful for moving data between different storage media and data sources, transforming data into a more desirable format, or loading data onto a new system.
 
@@ -31,11 +31,11 @@ The Beam SDKs provide a unified programming model that can represent and transfo
 
 Beam currently supports the following language-specific SDKs:
 
-* Java ![Java logo](/images/logos/sdks/java.png)
-* Python ![Python logo](/images/logos/sdks/python.png)
-* Go ![Go logo](/images/logos/sdks/go.png){: height="45px"}
+- Java ![Java logo](/images/logos/sdks/java.png)
+- Python ![Python logo](/images/logos/sdks/python.png)
+- Go <img src="/images/logos/sdks/go.png" height="45px" alt="Go logo">
 
-A Scala ![Scala logo](/images/logos/sdks/scala.png){: height="45px"} interface is also available as [Scio](https://github.com/spotify/scio).
+A Scala <img src="/images/logos/sdks/scala.png" height="45px" alt="Scala logo"> interface is also available as [Scio](https://github.com/spotify/scio).
 
 ## Apache Beam Pipeline Runners
 
@@ -43,13 +43,13 @@ The Beam Pipeline Runners translate the data processing pipeline you define with
 
 Beam currently supports Runners that work with the following distributed processing back-ends:
 
-* Apache Apex  ![Apache Apex logo](/images/logos/runners/apex.png)
-* Apache Flink ![Apache Flink logo](/images/logos/runners/flink.png)
-* Apache Gearpump (incubating) ![Apache Gearpump logo](/images/logos/runners/gearpump.png)
-* Apache Samza ![Apache Samza logo](/images/logos/runners/samza.png){:height="20px" width="50"}
-* Apache Spark ![Apache Spark logo](/images/logos/runners/spark.png)
-* Google Cloud Dataflow ![Google Cloud Dataflow logo](/images/logos/runners/dataflow.png)
-* Hazelcast Jet ![Hazelcast Jet logo](/images/logos/runners/jet.png)
+- Apache Apex ![Apache Apex logo](/images/logos/runners/apex.png)
+- Apache Flink ![Apache Flink logo](/images/logos/runners/flink.png)
+- Apache Gearpump (incubating) ![Apache Gearpump logo](/images/logos/runners/gearpump.png)
+- Apache Samza <img src="/images/logos/runners/samza.png" height="20px" alt="Apache Samza logo">
+- Apache Spark ![Apache Spark logo](/images/logos/runners/spark.png)
+- Google Cloud Dataflow ![Google Cloud Dataflow logo](/images/logos/runners/dataflow.png)
+- Hazelcast Jet ![Hazelcast Jet logo](/images/logos/runners/jet.png)
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
 
@@ -57,7 +57,7 @@ Beam currently supports Runners that work with the following distributed process
 
 Get started using Beam for your data processing tasks.
 
-1. [Try Apache Beam]({{ stie.baseurl }}/get-started/try-apache-beam) in an online interactive environment.
+1. [Try Apache Beam](/get-started/try-apache-beam) in an online interactive environment.
 
 1. Follow the Quickstart for the [Java SDK](/get-started/quickstart-java), the [Python SDK](/get-started/quickstart-py) or the [Go SDK](/get-started/quickstart-go).
 
@@ -69,3 +69,4 @@ Get started using Beam for your data processing tasks.
 
 ## Contribute
 
+Beam is an <a href="http://www.apache.org" target="_blank">Apache Software Foundation</a> project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute](/contribute/) section.

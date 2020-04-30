@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 `PAssert` is a class included in the Beam Java SDK that is an 
 assertion on the contents of a `PCollection`. You can use `PAssert` to verify
 that a `PCollection` contains a specific set of expected elements.

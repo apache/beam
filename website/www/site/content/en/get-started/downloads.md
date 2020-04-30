@@ -1,7 +1,6 @@
-Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
 title: "Beam Releases"
-redirect_from:
+aliases:
   - /get-started/releases/
   - /use/releases/
   - /releases/

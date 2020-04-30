@@ -29,7 +29,7 @@ To do so, there are a few blocking changes:
   * Scalable IOs
   * Portability Proto stability
   * Go Ecosystem integration improvements
-  
+
 Interoperability while not a blocking feature in itself, requires Beam Schema support, which
 the SDK could then use as it's default coder. Batch Splittable DoFns are nearly ready for
 playing with on Flink, and the Python Direct Runner, answering the scalable batch IO question.
@@ -71,5 +71,5 @@ Otherwise, improving examples and documentation for devs and users alike is ongo
 Contributions are welcome. Please contact the [dev list](mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F)
 for assistance in finding a place to help out.
 
- - JIRA: [sdk-go](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go)
- - Contact: Robert Burke (@lostluck) [Email](mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D) - Please also cc the dev@beam.apache.org list. I strongly prefer public discussion of Go SDK matters. 
+ - JIRA: [sdk-go](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20sdk-go) / [BEAM-2083](https://issues.apache.org/jira/browse/BEAM-2083)
+ - Contact: Robert Burke (@lostluck) [Email](mailto:rebo@google.com,dev@beam.apache.org?subject=%5BGo%20SDK%5D)

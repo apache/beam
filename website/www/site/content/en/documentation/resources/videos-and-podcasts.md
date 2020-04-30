@@ -1,6 +1,6 @@
 ---
 title: "Videos and Podcasts"
-redirect_from:
+aliases:
   - /learn/resources/
   - /documentation/resources/
 ---
@@ -129,3 +129,4 @@ Your browser does not support the audio element.
 
 ## Next Steps
 
+* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).

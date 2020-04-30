@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Nexmark benchmark suite"
 aliases: /documentation/sdks/java/nexmark/
 ---
@@ -146,7 +147,7 @@ When running via Gradle, the following two parameters control the execution:
 
     -P nexmark.runner
 	The Gradle project name of the runner, such as ":runners:direct-java" or
-	":runners:flink:1.10. The project names can be found in the root
+	":runners:flink:1.9. The project names can be found in the root
         `settings.gradle`.
 
 Test data is deterministically synthesized on demand. The test
@@ -202,7 +203,6 @@ Available suites are:
     --manageResources=false --monitorJobs=true \
     --enforceEncodability=false --enforceImmutability=false
     --project=<your project> \
-    --region=<your region> \
     --zone=<your zone> \
     --workerMachineType=n1-highmem-8 \
     --stagingLocation=gs://<a gs path for staging> \
@@ -555,7 +555,7 @@ Streaming Mode:
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.10" \
+        -Pnexmark.runner=":runners:flink:1.9" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -568,7 +568,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.10" \
+        -Pnexmark.runner=":runners:flink:1.9" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -625,7 +625,6 @@ Launch:
             --manageResources=false
             --monitorJobs=true
             --project=${PROJECT}
-            --region=${REGION}
             --zone=${ZONE}
             --workerMachineType=n1-highmem-8
             --stagingLocation=${STAGING_LOCATION}

@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Transforms for converting between explicit and implicit form of various Beam values.
 
 ## Examples

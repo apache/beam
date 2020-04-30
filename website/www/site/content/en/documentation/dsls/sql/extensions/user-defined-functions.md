@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam SQL extensions: User-defined functions"
 aliases: /documentation/dsls/sql/user-defined-functions/
 ---

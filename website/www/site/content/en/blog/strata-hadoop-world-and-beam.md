@@ -4,8 +4,10 @@ date:   2016-10-11 09:00:00 -0800
 categories:
   - beam
   - update
+aliases:
+  - /beam/update/2016/10/11/strata-hadoop-world-and-beam.html
 authors:
-- jesseanderson
+  - jesseanderson
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

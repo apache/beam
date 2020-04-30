@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam DSLs: SQL"
 aliases: /documentation/dsls/sql/windowing-and-triggering/
 ---
@@ -42,23 +43,23 @@ Supported windowing functions:
     GROUP BY 
       f_int,
       TUMBLE(f_timestamp, INTERVAL '1' HOUR)
-{{< /highlight >}}
+```
 * `HOP`, or sliding windows. Example of how to define a sliding windows for every 30 minutes with 1 hour duration:
-{{< /highlight >}}
+```
     SELECT f_int, COUNT(*)
     FROM PCOLLECTION 
     GROUP BY 
       f_int, 
       HOP(f_timestamp, INTERVAL '30' MINUTE, INTERVAL '1' HOUR)
-{{< /highlight >}}
+```
 * `SESSION`, session windows. Example of how to define a session window with 5 minutes gap duration:
-{{< /highlight >}}
+```
     SELECT f_int, COUNT(*) 
     FROM PCOLLECTION 
     GROUP BY 
       f_int, 
       SESSION(f_timestamp, INTERVAL '5' MINUTE)
-{{< /highlight >}}
+```
 
 **Note:** When no windowing function is specified in the query, then windowing strategy of the input `PCollections` is unchanged by the SQL query. If windowing function is specified in the query, then the windowing function of the `PCollection` is updated accordingly, but trigger stays unchanged.
 

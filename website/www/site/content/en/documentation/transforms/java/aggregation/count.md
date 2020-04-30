@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Counts the number of elements within each aggregation. The `Count`
 transform has three varieties:
 

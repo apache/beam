@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL overview"
 ---
 <!--
@@ -20,8 +21,7 @@ Beam SQL supports a varient of the [ZetaSQL](https://github.com/google/zetasql) 
 Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects, including Beam ZetaSQL.
 
 ## Query syntax
-Query statements scan tables or expressions and return the computed result rows. For more information about query statements in Beam ZetaSQL, see the [Query syntax](/documentation/dsls/sql/zetasql/query-syntax) reference and [Function call rules]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/syntax).
+Query statements scan tables or expressions and return the computed result rows. For more information about query statements in Beam ZetaSQL, see the [Query syntax](/documentation/dsls/sql/zetasql/query-syntax) reference and [Function call rules](/documentation/dsls/sql/zetasql/syntax).
 
 ## Lexical structure 
 A Beam SQL statement comprises a series of tokens. For more information about tokens in Beam ZetaSQL, see the [Lexical structure](/documentation/dsls/sql/zetasql/lexical) reference.
@@ -59,3 +59,4 @@ The following table summarizes the [ZetaSQL functions and operators](https://git
   <tr><td><a href="">Conditional expressions</a></td><td>See <a href="/documentation/dsls/sql/zetasql/conditional-expressions">conditional expressions</a></td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/expression_subqueries.md">Expression subqueries</a></td><td>No</td></tr>
   <tr><td><a href="https://github.com/google/zetasql/blob/master/docs/debugging_functions.md">Debugging functions</a></td><td>No</td></tr>
+</table>

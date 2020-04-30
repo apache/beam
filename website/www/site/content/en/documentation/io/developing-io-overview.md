@@ -1,6 +1,6 @@
 ---
 title: "Overview: Developing a new I/O connector"
-redirect_from:
+aliases:
   - /documentation/io/authoring-overview/
   - /documentation/io/io-toc/
 ---
@@ -105,8 +105,7 @@ Here is a sequence diagram that shows the lifecycle of the Source during
  apply to the objects or particular cases such as streaming mode.
  
  <!-- The source for the sequence diagram can be found in the the SVG resource. -->
-![This is a sequence diagram that shows the lifecycle of the Source](
-    /images/source-sequence-diagram.svg)
+![This is a sequence diagram that shows the lifecycle of the Source](/images/source-sequence-diagram.svg)
 
 ### Using ParDo and GroupByKey
 

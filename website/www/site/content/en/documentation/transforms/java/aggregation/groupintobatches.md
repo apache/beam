@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Batches inputs to a desired batch size.
 
 Batches contain only elements of a single key. Elements are buffered until
@@ -38,3 +37,4 @@ Batches contain elements from the same window, so windows are preserved. Batches
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
+* [GroupByKey](/documentation/transforms/java/aggregation/groupbykey) takes one input collection.

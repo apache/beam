@@ -17,9 +17,7 @@ limitations under the License.
 
 # Filter
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.core" class="Filter" >}}
 
@@ -52,8 +50,7 @@ Output `PCollection` after `Filter`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 
 ### Example 2: Filtering with a lambda function
 
@@ -73,8 +70,7 @@ Output `PCollection` after `Filter`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 
 ### Example 3: Filtering with multiple arguments
 
@@ -97,8 +93,7 @@ Output `PCollection` after `Filter`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 
 ### Example 4: Filtering with side inputs as singletons
 
@@ -122,8 +117,7 @@ Output `PCollection` after `Filter`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 
 ### Example 5: Filtering with side inputs as iterators
 
@@ -145,8 +139,7 @@ Output `PCollection` after `Filter`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 
 > **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
 > but this requires that all the elements fit into memory.
@@ -172,8 +165,7 @@ Output `PCollection` after `Filter`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/filter.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/filter" >}}
 
 ## Related transforms
 

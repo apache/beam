@@ -1,11 +1,13 @@
 ---
 title:  "Google Summer of Code '19"
 date:   2019-09-04 00:00:01 -0800
-categories:
-  - blog
+categories: 
+  - blog 
   - gsoc
+aliases:
+  - /blog/2019/09/04/gsoc-19.html
 authors:
-- ttanay
+  - ttanay
 
 ---
 <!--
@@ -74,6 +76,8 @@ This period was marked by a few exciting events:
  - My first ever PR Review on an open source project.
 
 ![Weird flex but ok](https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&name=small)
+
+<img src="https://pbs.twimg.com/media/D_XNSC-UIAUmswG?format=png&name=small" />
 
 ### Coding Period III
 This was the final coding period before the program ended. Since my project was merged earlier than expected, my mentor suggested another issue([BEAM-7742](https://issues.apache.org/jira/browse/BEAM-7742)) in the same area - BigQueryIO, that I found interesting. So, I worked on partitioning written files in BigQuery to ensure that all load jobs triggered adhere to the load job size limitations specified for BigQuery.

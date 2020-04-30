@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Takes a comparison function and the desired number of quantiles *n*, either
 globally or per-key. Using an approximation algorithm, it returns the
 minimum value, *n-2* intermediate values, and the maximum value.
@@ -39,3 +38,4 @@ value, Quartile 3 value, and the maximum value.
 ## Related transforms 
 * [ApproximateUnique](/documentation/transforms/java/aggregation/approximateunique)
   estimates the number of distinct elements or distinct values in key-value pairs
+* [Combine](/documentation/transforms/java/aggregation/combine)

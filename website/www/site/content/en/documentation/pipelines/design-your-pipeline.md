@@ -36,8 +36,7 @@ When designing your Beam pipeline, consider a few basic questions:
 The simplest pipelines represent a linear flow of operations, as shown in figure 1.
 
 ![A linear pipeline starts with one input collection, sequentially applies
-  three transforms, and ends with one output collection.](
-  /images/design-your-pipeline-linear.svg)
+  three transforms, and ends with one output collection.](/images/design-your-pipeline-linear.svg)
 
 *Figure 1: A linear pipeline.*
 
@@ -54,8 +53,7 @@ You can use the same `PCollection` as input for multiple transforms without cons
 The pipeline in figure 2 is a branching pipeline. The pipeline reads its input (first names represented as strings) from a database table and creates a `PCollection` of table rows. Then, the pipeline applies multiple transforms to the **same** `PCollection`. Transform A extracts all the names in that `PCollection` that start with the letter 'A', and Transform B extracts all the names in that `PCollection` that start with the letter 'B'. Both transforms A and B have the same input `PCollection`.
 
 ![The pipeline applies two transforms to a single input collection. Each
-  transform produces an output collection.](
-  /images/design-your-pipeline-multiple-pcollections.svg)
+  transform produces an output collection.](/images/design-your-pipeline-multiple-pcollections.svg)
 
 *Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.*
@@ -90,8 +88,7 @@ Another way to branch a pipeline is to have a **single** transform output to mul
 
 Figure 3 illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with 'A' are added to the main output `PCollection`, and names that start with 'B' are added to an additional output `PCollection`.
 
-![The pipeline applies one transform that produces multiple output collections.](
-  /images/design-your-pipeline-additional-outputs.svg)
+![The pipeline applies one transform that produces multiple output collections.](/images/design-your-pipeline-additional-outputs.svg)
 
 *Figure 3: A pipeline with a transform that outputs multiple PCollections.*
 
@@ -166,8 +163,7 @@ single `PCollection` that now contains all names that begin with either 'A' or
 'B'. Here, it makes sense to use `Flatten` because the `PCollection`s being
 merged both contain the same type.
 
-![The pipeline merges two collections into one collection with the Flatten transform.](
-  /images/design-your-pipeline-flatten.svg)
+![The pipeline merges two collections into one collection with the Flatten transform.](/images/design-your-pipeline-flatten.svg)
 
 *Figure 4: A pipeline that merges two collections into one collection with the Flatten transform.*
 
@@ -187,8 +183,7 @@ mergedCollectionWithFlatten.apply(...);
 
 Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses `CoGroupByKey` to join this information, where the key is the name; the resulting `PCollection` contains all the combinations of names, addresses, and orders.
 
-![The pipeline joins two input collections into one collection with the Join transform.](
-  /images/design-your-pipeline-join.svg)
+![The pipeline joins two input collections into one collection with the Join transform.](/images/design-your-pipeline-join.svg)
 
 *Figure 5: A pipeline that does a relational join of two input collections.*
 

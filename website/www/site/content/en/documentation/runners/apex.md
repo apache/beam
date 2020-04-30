@@ -1,4 +1,5 @@
 ---
+type: runners
 title: "Apache Apex Runner"
 ---
 <!--
@@ -34,19 +35,19 @@ For more download options see [distribution information on the Apache Apex websi
 ## Running wordcount with Apex
 
 Typically the build environment is separate from the target YARN cluster. In such case, it is necessary to build a fat jar that will include all dependencies. Ensure that `hadoop.version` in `pom.xml` matches the version of your YARN cluster and then build the jar file:
-{{< /highlight >}}
+```
 mvn package -Papex-runner
-{{< /highlight >}}
+```
 
 Copy the resulting `target/word-count-beam-bundled-0.1.jar` to the cluster and submit the application using:
-{{< /highlight >}}
+```
 java -cp word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount --inputFile=/etc/profile --output=/tmp/counts --embeddedExecution=false --configFile=beam-runners-apex.properties --runner=ApexRunner
-{{< /highlight >}}
+```
 
 If the build environment is setup as cluster client, it is possible to run the example directly:
-{{< /highlight >}}
+```
 mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount -Dexec.args="--inputFile=/etc/profile --output=/tmp/counts --runner=ApexRunner --embeddedExecution=false --configFile=beam-runners-apex.properties" -Papex-runner
-{{< /highlight >}}
+```
 
 The application will run asynchronously. Check status with `yarn application -list -appStates ALL`
 
@@ -54,11 +55,11 @@ The configuration file is optional, it can be used to influence how Apex operato
 The following example will reduce the number of required containers by collocating the operators into the same container
 and lower the heap memory per operator - suitable for execution in a single node Hadoop sandbox.
 
-{{< /highlight >}}
+```
 apex.application.*.operator.*.attr.MEMORY_MB=64
 apex.stream.*.prop.locality=CONTAINER_LOCAL
 apex.application.*.operator.*.attr.TIMEOUT_WINDOW_COUNT=1200
-{{< /highlight >}}
+```
 
 This example uses local files. To use a distributed file system (HDFS, S3 etc.),
 it is necessary to augment the build to include the respective file system provider.
@@ -71,6 +72,6 @@ Depending on your installation, you may be able to monitor the progress of your 
 * Apex command-line interface: [Using the Apex CLI to get running application information](https://apex.apache.org/docs/apex/apex_cli/#apex-cli-commands).
 
 Check the output of the pipeline:
-{{< /highlight >}}
+```
 ls /tmp/counts*
-{{< /highlight >}}
+```

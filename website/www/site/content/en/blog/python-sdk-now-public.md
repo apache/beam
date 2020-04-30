@@ -5,8 +5,10 @@ categories:
   - beam
   - python
   - sdk
+aliases:
+  - /beam/python/sdk/2016/02/25/python-sdk-now-public.html
 authors:
-- jamesmalone
+  - jamesmalone
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

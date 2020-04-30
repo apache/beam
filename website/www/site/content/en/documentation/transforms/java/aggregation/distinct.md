@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Produces a collection containing distinct elements of the input collection.
 
 On some data sets, it might be more efficient to compute an approximate

@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam SQL: Walkthrough"
 ---
 <!--
@@ -60,8 +61,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
           .apply(Create
                     .of(row)
                     .withCoder(RowCoder.of(appSchema)));
-    
-{{< /highlight >}}
+    {{< /highlight >}}
   - **From a `PCollection<T>` of records of some other type**  (i.e.  `T` is not already a `Row`), by applying a `ParDo` that converts input records to `Row` format:
     {{< highlight java >}}
     // An example POJO class.
@@ -98,8 +98,7 @@ A `PCollection<Row>` can be obtained multiple ways, for example:
               c.output(appRow);
             }
           }));
-    
-{{< /highlight >}}
+    {{< /highlight >}}
 
   - **As an output of another `SqlTransform`**. Details in the next section.
 
@@ -119,8 +118,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
           "SELECT appId, description, rowtime "
             + "FROM PCOLLECTION "
             + "WHERE id=1"));
-    
-{{< /highlight >}}
+    {{< /highlight >}}
   - when applying to a `PCollectionTuple`, the tuple tag for each `PCollection` in the tuple defines the table name that may be used to query it. Note that table names are bound to the specific `PCollectionTuple`, and thus are only valid in the context of queries applied to it.  
 
     For example, you can join two `PCollections`:  
@@ -151,8 +149,7 @@ to either a single `PCollection` or a `PCollectionTuple` which holds multiple
         SqlTransform.query(
             "SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)"
                 + "FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"));
-    
-{{< /highlight >}}
+    {{< /highlight >}}
 
 [BeamSqlExample](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java)
 in the code repository shows basic usage of both APIs.

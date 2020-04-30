@@ -235,7 +235,7 @@ public class MyTransform extends PTransform<..., PCollectionTuple> {
   private final TupleTag<Moo> mooTag = new TupleTag<Moo>() {};
   private final TupleTag<Blah> blahTag = new TupleTag<Blah>() {};
   ...
-  PCollectionTuple expand(... input) {
+  PCollectionTuple apply(... input) {
     ...
     PCollection<Moo> moo = ...;
     PCollection<Blah> blah = ...;

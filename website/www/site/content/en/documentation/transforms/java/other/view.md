@@ -1,4 +1,3 @@
-</table>
 ---
 title: "View"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 Operations for turning a collection into view that may be used as a side-input to a `ParDo`.
 

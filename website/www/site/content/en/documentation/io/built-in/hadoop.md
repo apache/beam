@@ -384,7 +384,7 @@ myHadoopConfiguration.setInt("mapreduce.job.reduces", 2);
 
 You will need to set `OutputFormat` key and value class (i.e. "mapreduce.job.output.key.class" and "mapreduce.job.output.value.class") in Hadoop `Configuration` which are equal to `KeyT` and `ValueT`. If you set different `OutputFormat` key or value class than `OutputFormat`'s actual key or value class then, it will throw `IllegalArgumentException`.
 
-#### Batch writing
+#### Batch writing ####
 
 {{< highlight java >}}
 // Data which will we want to write
@@ -408,7 +408,7 @@ boundedWordsCount.apply(
   # The Beam SDK for Python does not support Hadoop Input/Output Format IO.
 {{< /highlight >}}
 
-#### Stream writing
+#### Stream writing ####
 
 {{< highlight java >}}
 // Data which will we want to write

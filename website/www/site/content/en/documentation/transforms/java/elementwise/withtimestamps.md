@@ -25,10 +25,10 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Assigns timestamps to all the elements of a collection.
 
 ## Examples
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
+* [Reify](/documentation/transforms/java/elementwise/reify)

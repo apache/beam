@@ -1,4 +1,3 @@
-* [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
 ---
 title: "Filter"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 Given a predicate, filter out all elements that don't satisfy that predicate.
 May also be used to filter based on an inequality with a given value based

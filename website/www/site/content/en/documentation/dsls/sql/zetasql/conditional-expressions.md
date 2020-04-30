@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL conditional expressions"
 ---
 <!--
@@ -19,6 +20,7 @@ limitations under the License.
 
 This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -110,4 +112,4 @@ supertype; equality comparison is done on coerced values.</td>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}

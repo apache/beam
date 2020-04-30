@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Takes a keyed collection of elements and produces a collection where
 each element consists of a key and an `Iterable` of all values
 associated with that key.

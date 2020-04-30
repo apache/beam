@@ -1,4 +1,3 @@
-Beam is an [Apache Software Foundation](http://www.apache.org){:target="_blank"} project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute](/contribute/) section.
 ---
 title: "Beam Quickstart for Python"
 ---
@@ -32,7 +31,7 @@ The Python SDK supports Python 2.7, 3.5, 3.6, and 3.7. New Python SDK releases w
 
 The Beam SDK requires Python 2 users to use Python 2.7 and Python 3 users to use Python 3.5 or higher. Check your version by running:
 
-{{< /highlight >}}
+{{< highlight >}}
 python --version
 {{< /highlight >}}
 
@@ -40,7 +39,7 @@ python --version
 
 Install [pip](https://pip.pypa.io/en/stable/installing/), Python's package manager. Check that you have version 7.0.0 or newer by running:
 
-{{< /highlight >}}
+{{< highlight >}}
 pip --version
 {{< /highlight >}}
 
@@ -204,3 +203,4 @@ sequentially in the format `counts-0000-of-0001`.
 * Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

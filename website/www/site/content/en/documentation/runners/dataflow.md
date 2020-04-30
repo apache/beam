@@ -1,4 +1,5 @@
 ---
+type: runners
 title: "Cloud Dataflow Runner"
 aliases: /learn/runners/dataflow/
 ---

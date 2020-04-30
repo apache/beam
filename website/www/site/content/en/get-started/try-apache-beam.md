@@ -1,4 +1,3 @@
-Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
 title: "Try Apache Beam"
 ---
@@ -20,7 +19,7 @@ limitations under the License.
 
 You can try Apache Beam using our interactive notebooks, which are hosted in [Colab](https://colab.research.google.com). The notebooks allow you to interactively play with the code and see how your changes affect the pipeline. You don't need to install anything or modify your computer in any way to use these notebooks.
 
-{{< language-switcher py go >}}
+{{< language-switcher java py go >}}
 
 ## Interactive WordCount in Colab
 
@@ -66,17 +65,17 @@ public class WordCount {
 
 {{< paragraph class="language-java" >}}
 <a class="button button--primary" target="_blank"
-{{< /paragraph >}}
-  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-java.ipynb">
+  href="https://colab.sandbox.google.com/github/{{< param branch_repo >}}/examples/notebooks/get-started/try-apache-beam-java.ipynb">
   Run in Colab
 </a>
 <a class="button button--primary" target="_blank"
-  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-java.ipynb">
+  href="https://github.com/{{< param branch_repo >}}/examples/notebooks/get-started/try-apache-beam-java.ipynb">
   View on GitHub
 </a>
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
-To learn how to install and run the Apache Beam Java SDK on your own computer, follow the instructions in the [Java Quickstart]({{ site.baseurl }}/get-started/quickstart-java).
+To learn how to install and run the Apache Beam Java SDK on your own computer, follow the instructions in the <a href="/get-started/quickstart-java">Java Quickstart</a>.
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -100,17 +99,17 @@ with beam.Pipeline() as pipeline:
 
 {{< paragraph class="language-py" >}}
 <a class="button button--primary" target="_blank"
-{{< /paragraph >}}
-  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-py.ipynb">
+  href="https://colab.sandbox.google.com/github/{{< param branch_repo >}}/examples/notebooks/get-started/try-apache-beam-py.ipynb">
   Run in Colab
 </a>
 <a class="button button--primary" target="_blank"
-  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-py.ipynb">
+  href="https://github.com/{{< param branch_repo >}}/examples/notebooks/get-started/try-apache-beam-py.ipynb">
   View on GitHub
 </a>
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-To learn how to install and run the Apache Beam Python SDK on your own computer, follow the instructions in the [Python Quickstart]({{ site.baseurl }}/get-started/quickstart-py).
+To learn how to install and run the Apache Beam Python SDK on your own computer, follow the instructions in the <a href="/get-started/quickstart-py">Python Quickstart</a>.
 {{< /paragraph >}}
 
 {{< highlight go >}}
@@ -163,17 +162,17 @@ func main() {
 
 {{< paragraph class="language-go" >}}
 <a class="button button--primary" target="_blank"
-{{< /paragraph >}}
-  href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-go.ipynb">
+  href="https://colab.sandbox.google.com/github/{{< param branch_repo >}}/examples/notebooks/get-started/try-apache-beam-go.ipynb">
   Run in Colab
 </a>
 <a class="button button--primary" target="_blank"
-  href="https://github.com/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-go.ipynb">
+  href="https://github.com/{{< param branch_repo >}}/examples/notebooks/get-started/try-apache-beam-go.ipynb">
   View on GitHub
 </a>
+{{< /paragraph >}}
 
 {{< paragraph class="language-go" >}}
-To learn how to install and run the Apache Beam Go SDK on your own computer, follow the instructions in the [Go Quickstart]({{ site.baseurl }}/get-started/quickstart-go).
+To learn how to install and run the Apache Beam Go SDK on your own computer, follow the instructions in the <a href="/get-started/quickstart-go">Go Quickstart</a>.
 {{< /paragraph >}}
 
 For a more detailed explanation about how WordCount works, see the [WordCount Example Walkthrough](/get-started/wordcount-example).
@@ -186,3 +185,4 @@ For a more detailed explanation about how WordCount works, see the [WordCount Ex
 * Join the Beam [users@](/community/contact-us) mailing list.
 * If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide](/contribute).
 
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

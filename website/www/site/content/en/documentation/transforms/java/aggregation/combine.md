@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 A user-defined `CombineFn` may be applied to combine all elements in a
 `PCollection` (global combine) or to combine all elements associated
 with each key. 

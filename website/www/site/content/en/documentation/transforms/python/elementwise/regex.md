@@ -17,9 +17,7 @@ limitations under the License.
 
 # Regex
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.util" class="Regex" >}}
 
@@ -77,8 +75,7 @@ Output `PCollection` after `Regex.matches`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 2: Regex match with all groups
 
@@ -107,8 +104,7 @@ Output `PCollection` after `Regex.all_matches`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 3: Regex match into key-value pairs
 
@@ -138,8 +134,7 @@ Output `PCollection` after `Regex.matches_kv`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 4: Regex find
 
@@ -169,8 +164,7 @@ Output `PCollection` after `Regex.find`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 5: Regex find all
 
@@ -200,8 +194,7 @@ Output `PCollection` after `Regex.find_all`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 6: Regex find as key-value pairs
 
@@ -232,8 +225,7 @@ Output `PCollection` after `Regex.find_kv`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 7: Regex replace all
 
@@ -256,8 +248,7 @@ Output `PCollection` after `Regex.replace_all`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 8: Regex replace first
 
@@ -280,8 +271,7 @@ Output `PCollection` after `Regex.replace_first`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ### Example 9: Regex split
 
@@ -302,8 +292,7 @@ Output `PCollection` after `Regex.split`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/regex" >}}
 
 ## Related transforms
 

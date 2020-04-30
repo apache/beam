@@ -44,29 +44,29 @@ To use BigQueryIO, add the Maven artifact dependency to your `pom.xml` file.
 Additional resources:
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
+{{< paragraph class="language-java" wrap="span" >}}
 * [BigQueryIO source code](https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery)
-{{< /paragraph >}}
 * [BigQueryIO Javadoc](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html)
 * [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
+{{< /paragraph >}}
 
 
 <!-- Python specific -->
 
 {{< paragraph class="language-py" >}}
 To use BigQueryIO, you must install the Google Cloud Platform dependencies by
-{{< /paragraph >}}
 running `pip install apache-beam[gcp]`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 Additional resources:
 {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
+{{< paragraph class="language-py" wrap="span" >}}
 * [BigQueryIO source code](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py)
-{{< /paragraph >}}
 * [BigQueryIO Pydoc](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.gcp.bigquery.html)
 * [Google BigQuery documentation](https://cloud.google.com/bigquery/docs)
+{{< /paragraph >}}
 
 
 ## BigQuery basics
@@ -105,6 +105,7 @@ table name.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec >}}
 {{< /highlight >}}
@@ -121,6 +122,7 @@ you omit the project ID, Beam uses the default project ID from your
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecWithoutProject >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_without_project >}}
 {{< /highlight >}}
@@ -133,6 +135,7 @@ the three parts of the BigQuery table name.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecObject >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_object >}}
 {{< /highlight >}}
@@ -140,13 +143,12 @@ the three parts of the BigQuery table name.
 <!-- Java specific -->
 
 {{< paragraph class="language-java" >}}
-The Beam SDK for Java also provides the [`parseTableSpec`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html)
-{{< /paragraph >}}
+The Beam SDK for Java also provides the [`parseTableSpec`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html)
 helper method, which constructs a `TableReference` object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
 construct a `TableReference` object for you.
-
+{{< /paragraph >}}
 
 ### Table rows
 
@@ -173,6 +175,7 @@ BigQuery:
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryDataTypes >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_data_types >}}
 {{< /highlight >}}
@@ -181,25 +184,25 @@ BigQuery:
 
 {{< paragraph class="language-java" >}}
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
-{{< /paragraph >}}
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
 The GEOGRAPHY data type works with Well-Known Text (See [https://en.wikipedia.org/wiki/Well-known_text](https://en.wikipedia.org/wiki/Well-known_text)
 format for reading and writing to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
 encoding when writing to BigQuery. When bytes are read from BigQuery they are
 returned as base64-encoded strings.
+{{< /paragraph >}}
 
 <!-- Python specific -->
 
 {{< paragraph class="language-py" >}}
 As of Beam 2.7.0, the NUMERIC data type is supported. This data type supports
-{{< /paragraph >}}
 high-precision decimal numbers (precision of 38 digits, scale of 9 digits).
 The GEOGRAPHY data type works with Well-Known Text (See [https://en.wikipedia.org/wiki/Well-known_text](https://en.wikipedia.org/wiki/Well-known_text)
 format for reading and writing to BigQuery.
 BigQuery IO requires values of BYTES datatype to be encoded using base64
 encoding when writing to BigQuery. When bytes are read from BigQuery they are
 returned as base64-encoded bytes.
+{{< /paragraph >}}
 
 ## Reading from BigQuery
 
@@ -220,12 +223,11 @@ list of limitations.
 
 {{< paragraph class="language-java" >}}
 The Beam SDK for Java has two BigQueryIO read methods. Both of these methods
-{{< /paragraph >}}
 allow you to read from a table, or read fields using a query string.
-
-{{< paragraph class="language-java" >}}
-1. `read(SerializableFunction)` reads Avro-formatted records and uses a
 {{< /paragraph >}}
+
+{{< paragraph class="language-java" wrap="span" >}}
+1. `read(SerializableFunction)` reads Avro-formatted records and uses a
    specified parsing function to parse them into a `PCollection` of custom typed
    objects. Each element in the `PCollection` represents a single row in the
    table. The [example code](#reading-with-a-query-string) for reading with a
@@ -238,36 +240,37 @@ allow you to read from a table, or read fields using a query string.
    2-3 times slower in performance compared to `read(SerializableFunction)`. The
    [example code](#reading-from-a-table) for reading from a table shows how to
    use `readTableRows`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 ***Note:*** `BigQueryIO.read()` is deprecated as of Beam SDK 2.2.0. Instead, use
-{{< /paragraph >}}
 `read(SerializableFunction<SchemaAndRecord, T>)` to parse BigQuery rows from
 Avro `GenericRecord` into your custom type, or use `readTableRows()` to parse
 them into JSON `TableRow` objects.
+{{< /paragraph >}}
 
 <!-- Python specific -->
 
 {{< paragraph class="language-py" >}}
 To read from a BigQuery table using the Beam SDK for Python, apply a `Read`
-{{< /paragraph >}}
 transform on a `BigQuerySource`. Read returns a `PCollection` of dictionaries,
 where each element in the `PCollection` represents a single row in the table.
 Integer values in the `TableRow` objects are encoded as strings to match
 BigQuery's exported JSON format.
+{{< /paragraph >}}
 
 
 ### Reading from a table
 
 {{< paragraph class="language-java" >}}
 To read an entire BigQuery table, use the `from` method with a BigQuery table
-{{< /paragraph >}}
 name. This example uses `readTableRows`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 To read an entire BigQuery table, use the `table` parameter with the BigQuery
-{{< /paragraph >}}
 table name.
+{{< /paragraph >}}
 
 The following code reads an entire table that contains weather station data and
 then extracts the `max_temperature` column.
@@ -275,6 +278,7 @@ then extracts the `max_temperature` column.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadTable >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table >}}
 {{< /highlight >}}
@@ -284,20 +288,21 @@ then extracts the `max_temperature` column.
 
 {{< paragraph class="language-java" >}}
 If you don't want to read an entire table, you can supply a query string with
-{{< /paragraph >}}
 the `fromQuery` method. This example uses
 `read(SerializableFunction)`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 If you don't want to read an entire table, you can supply a query string to
-{{< /paragraph >}}
 `BigQuerySource` by specifying the `query` parameter.
+{{< /paragraph >}}
 
 The following code uses a SQL query to only read the `max_temperature` column.
 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQuery >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query >}}
 {{< /highlight >}}
@@ -308,6 +313,7 @@ in the following example:
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQueryStdSQL >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
 {{< /highlight >}}
@@ -353,6 +359,7 @@ GitHub](https://github.com/apache/beam/blob/master/examples/java/src/main/java/o
                .withMethod(Method.DIRECT_READ)
                .withSelectedFields(Lists.newArrayList("month", "tornado"));
 {{< /highlight >}}
+
 {{< highlight py >}}
 # The SDK for Python does not support the BigQuery Storage API.
 {{< /highlight >}}
@@ -362,6 +369,7 @@ The following code snippet reads with a query string.
 {{< highlight java >}}
 // Snippet not yet available (BEAM-7034).
 {{< /highlight >}}
+
 {{< highlight py >}}
 # The SDK for Python does not support the BigQuery Storage API.
 {{< /highlight >}}
@@ -399,12 +407,11 @@ should create a table if the destination table does not exist.
 
 {{< paragraph class="language-java" >}}
 Use `.withCreateDisposition` to specify the create disposition. Valid enum
-{{< /paragraph >}}
 values are:
-
-{{< paragraph class="language-java" >}}
- * `Write.CreateDisposition.CREATE_IF_NEEDED`: Specifies that the
 {{< /paragraph >}}
+
+{{< paragraph class="language-java" wrap="span" >}}
+ * `Write.CreateDisposition.CREATE_IF_NEEDED`: Specifies that the
    write operation should create a new table if one does not exist. If you use
    this value, you must provide a table schema with the `withSchema` method.
    `CREATE_IF_NEEDED` is the default behavior.
@@ -412,23 +419,23 @@ values are:
  * `Write.CreateDisposition.CREATE_NEVER`: Specifies that a table
    should never be created. If the destination table does not exist, the write
    operation fails.
+{{< /paragraph >}}
 
 <!-- Python specific -->
 
 {{< paragraph class="language-py" >}}
 Use the `create_disposition` parameter to specify the create disposition. Valid
-{{< /paragraph >}}
 enum values are:
-
-{{< paragraph class="language-py" >}}
- * `BigQueryDisposition.CREATE_IF_NEEDED`: Specifies that the write operation
 {{< /paragraph >}}
+
+{{< paragraph class="language-py" wrap="span" >}}
+ * `BigQueryDisposition.CREATE_IF_NEEDED`: Specifies that the write operation
    should create a new table if one does not exist. If you use this value, you
    must provide a table schema. `CREATE_IF_NEEDED` is the default behavior.
 
  * `BigQueryDisposition.CREATE_NEVER`: Specifies that a table should never be
    created. If the destination table does not exist, the write operation fails.
-
+{{< /paragraph >}}
 
 If you specify `CREATE_IF_NEEDED` as the create disposition and you don't supply
 a table schema, the transform might fail at runtime if the destination table does
@@ -444,12 +451,11 @@ existing table.
 
 {{< paragraph class="language-java" >}}
 Use `.withWriteDisposition` to specify the write disposition. Valid enum values
-{{< /paragraph >}}
 are:
-
-{{< paragraph class="language-java" >}}
- * `Write.WriteDisposition.WRITE_EMPTY`: Specifies that the write
 {{< /paragraph >}}
+
+{{< paragraph class="language-java" wrap="span" >}}
+ * `Write.WriteDisposition.WRITE_EMPTY`: Specifies that the write
    operation should fail at runtime if the destination table is not empty.
    `WRITE_EMPTY` is the default behavior.
 
@@ -459,17 +465,17 @@ are:
 
  * `Write.WriteDisposition.WRITE_APPEND`: Specifies that the write
    operation should append the rows to the end of the existing table.
+{{< /paragraph >}}
 
 <!-- Python specific -->
 
 {{< paragraph class="language-py" >}}
 Use the `write_disposition` parameter to specify the write disposition. Valid
-{{< /paragraph >}}
 enum values are:
-
-{{< paragraph class="language-py" >}}
- * `BigQueryDisposition.WRITE_EMPTY`: Specifies that the write operation should
 {{< /paragraph >}}
+
+{{< paragraph class="language-py" wrap="span" >}}
+ * `BigQueryDisposition.WRITE_EMPTY`: Specifies that the write operation should
    fail at runtime if the destination table is not empty. `WRITE_EMPTY` is the
    default behavior.
 
@@ -479,7 +485,7 @@ enum values are:
 
  * `BigQueryDisposition.WRITE_APPEND`: Specifies that the write operation should
    append the rows to the end of the existing table.
-
+{{< /paragraph >}}
 
 When you use `WRITE_EMPTY`, the check for whether or not the destination table
 is empty can occur before the actual write operation. This check doesn't
@@ -496,16 +502,15 @@ information. The schema contains information about each field in the table.
 
 {{< paragraph class="language-java" >}}
 To create a table schema in Java, you can either use a `TableSchema` object, or
-{{< /paragraph >}}
 use a string that contains a JSON-serialized `TableSchema` object.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 To create a table schema in Python, you can either use a `TableSchema` object,
-{{< /paragraph >}}
 or use a string that defines a list of fields. Single string based schemas do
 not support nested fields, repeated fields, or specifying a BigQuery mode for
 fields (the mode will always be set to `NULLABLE`).
-
+{{< /paragraph >}}
 
 #### Using a TableSchema
 
@@ -513,9 +518,8 @@ To create and use a table schema as a `TableSchema` object, follow these steps.
 
 <!-- Java specific - TableSchema -->
 
-{{< paragraph class="language-java" >}}
+{{< paragraph class="language-java" wrap="span" >}}
 1. Create a list of `TableFieldSchema` objects. Each `TableFieldSchema` object
-{{< /paragraph >}}
    represents a field in the table.
 
 2. Create a `TableSchema` object and use the `setFields` method to specify your
@@ -523,19 +527,18 @@ To create and use a table schema as a `TableSchema` object, follow these steps.
 
 3. Use the `withSchema` method to provide your table schema when you apply a
    write transform.
-
+{{< /paragraph >}}
 
 <!-- Python specific - TableSchema -->
 
-{{< paragraph class="language-py" >}}
+{{< paragraph class="language-py" wrap="span" >}}
 1. Create a `TableSchema` object.
-{{< /paragraph >}}
 
 2. Create and append a `TableFieldSchema` object for each field in your table.
 
 3. Next, use the `schema` parameter to provide your table schema when you apply
    a write transform. Set the parameter’s value to the `TableSchema` object.
-
+{{< /paragraph >}}
 
 <!-- Common -->
 
@@ -545,6 +548,7 @@ two fields (source and quote) of type string.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaObject >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema_object >}}
 {{< /highlight >}}
@@ -556,16 +560,15 @@ two fields (source and quote) of type string.
 
 {{< paragraph class="language-java" >}}
 To create and use a table schema as a string that contains JSON-serialized
-{{< /paragraph >}}
 `TableSchema` object, follow these steps.
-
-{{< paragraph class="language-java" >}}
-1. Create a string that contains a JSON-serialized `TableSchema` object.
 {{< /paragraph >}}
+
+{{< paragraph class="language-java" wrap="span" >}}
+1. Create a string that contains a JSON-serialized `TableSchema` object.
 
 2. Use the `withJsonSchema` method to provide your table schema when you apply a
    write transform.
-
+{{< /paragraph >}}
 
 <!-- Python specific - string -->
 
@@ -573,15 +576,14 @@ To create and use a table schema as a string that contains JSON-serialized
 To create and use a table schema as a string, follow these steps.
 {{< /paragraph >}}
 
-{{< paragraph class="language-py" >}}
+{{< paragraph class="language-py" wrap="span" >}}
 1. Create a single comma separated string of the form
-{{< /paragraph >}}
    "field1:type1,field2:type2,field3:type3" that defines a list of fields. The
    type should specify the field’s BigQuery type.
 
 2. Use the `schema` parameter to provide your table schema when you apply a
    write transform. Set the parameter’s value to the string.
-
+{{< /paragraph >}}
 
 <!-- Common -->
 
@@ -591,6 +593,7 @@ as the previous example.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaJson >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema >}}
 {{< /highlight >}}
@@ -600,8 +603,8 @@ as the previous example.
 
 {{< paragraph class="language-py" >}}
 > The Beam SDK for Python does not currently support specifying the insertion
-{{< /paragraph >}}
 method.
+{{< /paragraph >}}
 
 BigQueryIO supports two methods of inserting data into BigQuery: load jobs and
 streaming inserts. Each insertion method provides different tradeoffs of cost,
@@ -614,72 +617,72 @@ BigQueryIO chooses a default insertion method based on the input `PCollection`.
 
 {{< paragraph class="language-py" >}}
 BigQueryIO uses load jobs when you apply a BigQueryIO write transform to a
-{{< /paragraph >}}
 bounded `PCollection`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 BigQueryIO uses load jobs in the following situations:
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
+{{< paragraph class="language-java" wrap="span" >}}
 * When you apply a BigQueryIO write transform to a bounded `PCollection`.
-{{< /paragraph >}}
 * When you apply a BigQueryIO write transform to an unbounded `PCollection` and
   use `BigQueryIO.write().withTriggeringFrequency()` to set the triggering
   frequency.
 * When you specify load jobs as the insertion method using
   `BigQueryIO.write().withMethod(FILE_LOADS)`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 BigQueryIO uses streaming inserts when you apply a BigQueryIO write transform to
-{{< /paragraph >}}
 an unbounded `PCollection`.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 BigQueryIO uses streaming inserts in the following situations:
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
+{{< paragraph class="language-java" wrap="span" >}}
 * When you apply a BigQueryIO write transform to an unbounded `PCollection` and
-{{< /paragraph >}}
   do not set the triggering frequency.
 * When you specify streaming inserts as the insertion method using
   `BigQueryIO.write().withMethod(STREAMING_INSERTS)`.
+{{< /paragraph >}}
 
 <!-- Java specific -->
 
 {{< paragraph class="language-java" >}}
 You can use `withMethod` to specify the desired insertion method. See
-{{< /paragraph >}}
 [Write.Method](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html)
 for the list of the available methods and their restrictions.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 ***Note:*** If you use batch loads in a streaming pipeline, you must use
-{{< /paragraph >}}
 `withTriggeringFrequency` to specify a triggering frequency and `withNumFileShards` to specify number of file shards written.
-
+{{< /paragraph >}}
 
 ### Writing to a table
 
 {{< paragraph class="language-java" >}}
 To write to a BigQuery table, apply either a `writeTableRows` or `write`
-{{< /paragraph >}}
 transform.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 To write to a BigQuery table, apply the `WriteToBigQuery` transform.
-{{< /paragraph >}}
 `WriteToBigQuery` supports both batch mode and streaming mode. You must apply
 the transform to a `PCollection` of dictionaries. In general, you'll need to use
 another transform, such as `ParDo`, to format your output data into a
 collection.
+{{< /paragraph >}}
 
 The following examples use this `PCollection` that contains quotes.
 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteInput >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
 {{< /highlight >}}
@@ -688,21 +691,22 @@ The following examples use this `PCollection` that contains quotes.
 
 {{< paragraph class="language-java" >}}
 The `writeTableRows` method writes a `PCollection` of BigQuery `TableRow`
-{{< /paragraph >}}
 objects to a BigQuery table. Each element in the `PCollection` represents a
 single row in the table. This example uses `writeTableRows` to write quotes to a
 `PCollection<TableRow>`.  The write operation creates a table if needed; if the
 table already exists, it will be replaced.
+{{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 The following example code shows how to apply a `WriteToBigQuery` transform to
-{{< /paragraph >}}
 write a `PCollection` of dictionaries to a BigQuery table. The write operation
 creates a table if needed; if the table already exists, it will be replaced.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteTable >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
 {{< /highlight >}}
@@ -711,12 +715,12 @@ creates a table if needed; if the table already exists, it will be replaced.
 
 {{< paragraph class="language-java" >}}
 The `write` transform writes a `PCollection` of custom typed objects to a BigQuery
-{{< /paragraph >}}
 table. Use `.withFormatFunction(SerializableFunction)` to provide a formatting
 function that converts each input element in the `PCollection` into a
 `TableRow`.  This example uses `write` to write a `PCollection<String>`. The
 write operation creates a table if needed; if the table already exists, it will
 be replaced.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteFunction >}}
@@ -724,9 +728,9 @@ be replaced.
 
 {{< paragraph class="language-java" >}}
 When you use streaming inserts, you can decide what to do with failed records.
-{{< /paragraph >}}
 You can either keep retrying, or return the failed records in a separate
 `PCollection` using the `WriteResult.getFailedInserts()` method.
+{{< /paragraph >}}
 
 ### Using dynamic destinations
 
@@ -748,12 +752,11 @@ In addition, you can also write your own types that have a mapping function to
 
 {{< paragraph class="language-java" >}}
 To use dynamic destinations, you must create a `DynamicDestinations` object and
-{{< /paragraph >}}
 implement the following methods:
-
-{{< paragraph class="language-java" >}}
-* `getDestination`: Returns an object that `getTable` and `getSchema` can use as
 {{< /paragraph >}}
+
+{{< paragraph class="language-java" wrap="span" >}}
+* `getDestination`: Returns an object that `getTable` and `getSchema` can use as
   the destination key to compute the destination table and/or schema.
 
 * `getTable`: Returns the table (as a `TableDestination` object) for the
@@ -762,16 +765,18 @@ implement the following methods:
 
 * `getSchema`: Returns the table schema (as a `TableSchema` object) for the
   destination key.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 Then, use `write().to` with your `DynamicDestinations` object. This example
-{{< /paragraph >}}
 uses a `PCollection` that contains weather data and writes the data into a
 different table for each year.
+{{< /paragraph >}}
 
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 # The Beam SDK for Python does not currently support dynamic destinations.
 {{< /highlight >}}
@@ -792,13 +797,13 @@ Partitioned tables make it easier for you to manage and query your data.
 To use BigQuery time partitioning, use one of these two methods:
 {{< /paragraph >}}
 
-{{< paragraph class="language-java" >}}
+{{< paragraph class="language-java" wrap="span" >}}
 * `withTimePartitioning`: This method takes a `TimePartitioning` class, and is
-{{< /paragraph >}}
   only usable if you are writing to a single table.
 
 * `withJsonTimePartitioning`: This method is the same as
   `withTimePartitioning`, but takes a JSON-serialized String object.
+{{< /paragraph >}}
 
 {{< paragraph class="language-java" >}}
 This example generates one partition per day.
@@ -807,6 +812,7 @@ This example generates one partition per day.
 {{< highlight java >}}
 {{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTimePartitioning >}}
 {{< /highlight >}}
+
 {{< highlight py >}}
 # The Beam SDK for Python does not currently support time partitioning.
 {{< /highlight >}}

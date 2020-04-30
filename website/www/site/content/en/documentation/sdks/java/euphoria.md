@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Euphoria Java 8 DSL"
 ---
 <!--
@@ -125,20 +126,20 @@ First step to build any operator is to give it a name through `named()` method. 
 ### Coders and Types
 Beam's Java SDK requires developers to supply `Coder` for custom element type in order to have a way of materializing elements. Euphoria allows to use [Kryo](https://github.com/EsotericSoftware/kryo) as a way of serialization. The [Kryo](https://github.com/EsotericSoftware/kryo) is located in `:sdks:java:extensions:kryo` module.
 
-{{< highlight groovy >}}
+```
 //gradle
 dependencies {
     compile "org.apache.beam:sdks:java:extensions:kryo:${beam.version}"
 }
-{{< /highlight >}}
-{{< highlight xml >}}
+```
+```
 //maven
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-sdks-java-extensions-kryo</artifactId>
   <version>${beam.version}</version>
 </dependency>
-{{< /highlight >}}
+```
 
 All you need is to create `KryoCoderProvider` and register it to your
 `Pipeline`. There are two ways of doing that.
@@ -231,9 +232,9 @@ PCollection<KV<Integer, Long>> countedElements =
 ## How to get Euphoria
 Euphoria is located in `dsl-euphoria` branch, `beam-sdks-java-extensions-euphoria` module of The Apache Beam project. To build `euphoria` subproject call:
 
-{{< /highlight >}}
+```
 ./gradlew beam-sdks-java-extensions-euphoria:build
-{{< /highlight >}}
+```
 
 ## Operator Reference
 Operators are basically higher level data transformations, which allows you to build business logic of your data processing job in a simple way. All the Euphoria operators are documented in this section including examples. There are no examples with [windowing](#windowing) applied for the sake of simplicity. Refer to the [windowing section](#windowing) for more details.
@@ -257,8 +258,7 @@ Distinct.named("unique-integers-only")
   .of(input)
   .output();
 // Output will contain:  1, 2, 3
- 
-{{< /highlight >}}
+ {{< /highlight >}}
 `Distinct` with mapper.
 {{< highlight java >}}
 // suppose keyValueInput: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]

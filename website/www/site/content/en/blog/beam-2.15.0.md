@@ -1,9 +1,10 @@
 ---
 title:  "Apache Beam 2.15.0"
 date:   2019-08-22 00:00:01 -0800
-# Date above corrected but keep the old URL:
 categories:
   - blog
+aliases:
+  - /blog/2019/08/22/beam-2.15.0.html
 authors:
         - yifanzou
 

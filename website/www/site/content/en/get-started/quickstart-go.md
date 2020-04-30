@@ -27,7 +27,7 @@ If you're interested in contributing to the Apache Beam Go codebase, see the [Co
 
 The Beam SDK for Go requires `go` version 1.10 or newer. It can be downloaded [here](https://golang.org/). Check that you have version 1.10 by running:
 
-{{< /highlight >}}
+{{< highlight >}}
 $ go version
 {{< /highlight >}}
 
@@ -35,7 +35,7 @@ $ go version
 
 The easiest way to obtain the Apache Beam Go SDK is via `go get`:
 
-{{< /highlight >}}
+{{< highlight >}}
 $ go get -u github.com/apache/beam/sdks/go/...
 {{< /highlight >}}
 
@@ -82,3 +82,4 @@ This runner is not yet available for the Go SDK.
 * Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
 * Join the Beam [users@](/community/contact-us) mailing list.
 
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!

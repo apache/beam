@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL lexical structure"
 ---
 <!--
@@ -89,6 +90,7 @@ double (<code>"</code>) quotation marks, or <em>triple-quoted</em> with groups o
 
 <p><strong>Quoted literals:</strong></p>
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -115,7 +117,7 @@ double (<code>"</code>) quotation marks, or <em>triple-quoted</em> with groups o
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 <p>Prefix characters (<code>r</code>, <code>R</code>, <code>b</code>, <code>B)</code> are optional for quoted or triple-quoted strings, and indicate that the string is a raw/regex string or a byte sequence, respectively. For
 example, <code>b'abc'</code> and <code>b'''abc'''</code> are both interpreted as type bytes. Prefix characters are case insensitive.</p>
@@ -125,6 +127,7 @@ example, <code>b'abc'</code> and <code>b'''abc'''</code> are both interpreted as
 <p>The table below lists all valid escape sequences for representing non-alphanumeric characters in string literals.
 Any sequence not in this table produces an error.</p>
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -199,7 +202,7 @@ Any sequence not in this table produces an error.</p>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 <p><a id="integer_literals"></a></p>
 
@@ -338,6 +341,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 
 <p>Beam SQL follows these rules for case sensitivity:</p>
 
+{{< table >}}
 <table>
 <thead>
 <tr>
@@ -394,7 +398,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 <p><a id="reserved_keywords"></a></p>
 
@@ -410,6 +414,8 @@ language, and  have the following characteristics:</p>
 
 <p>Beam SQL has the following reserved keywords.</p>
 
+{{< table >}}
+<table style="table-layout: fixed; width: 110%">
 <tbody>
 <tr>
 <td>
@@ -518,7 +524,7 @@ WITHIN<br/>
 </tr>
 </tbody>
 </table>
-{:.table}
+{{< /table >}}
 
 <p><a id="terminating_semicolons"></a></p>
 

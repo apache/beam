@@ -1,5 +1,5 @@
-</table>
 ---
+type: languages
 title: "Beam Calcite SQL data types"
 aliases: /documentation/dsls/sql/data-types/
 ---
@@ -26,6 +26,7 @@ including arrays, maps, and nested rows. This page documents supported
 In Java, these types are mapped to Java types large enough to hold the
 full range of values.
 
+{{< table >}}
 | SQL Type  | Description  | Java class |
 | --------- | ------------ | ---------- |
 | TINYINT   | 1 byte signed integer in range -128 to 127                                 | java.lang.Byte    |
@@ -40,3 +41,4 @@ full range of values.
 | ARRAY<type>     | Ordered list of values      | java.util.List |
 | MAP<type, type> | Finite unordered map        | java.util.Map  |
 | ROW<fields>     | Nested row                  | org.apache.beam.sdk.values.Row |
+{{< /table >}}

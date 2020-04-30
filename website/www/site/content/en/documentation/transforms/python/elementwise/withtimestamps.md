@@ -17,9 +17,7 @@ limitations under the License.
 
 # WithTimestamps
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 Assigns timestamps to all the elements of a collection.
 
@@ -49,8 +47,7 @@ Output `PCollection` after getting the timestamps:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 To convert from a
 [`time.struct_time`](https://docs.python.org/3/library/time.html#time.struct_time)
@@ -59,7 +56,7 @@ to `unix_time` you can use
 For more information on time formatting options, see
 [`time.strftime`](https://docs.python.org/3/library/time.html#time.strftime).
 
-{{< /highlight >}}
+{{< highlight >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" time_tuple2unix_time >}}
 {{< /highlight >}}
 
@@ -68,7 +65,7 @@ To convert from a
 to `unix_time` you can use convert it to a `time.struct_time` first with
 [`datetime.timetuple`](https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple).
 
-{{< /highlight >}}
+{{< highlight >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" datetime2unix_time >}}
 {{< /highlight >}}
 
@@ -92,8 +89,7 @@ Output `PCollection` after getting the timestamps:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 ### Example 3: Timestamp by processing time
 
@@ -117,8 +113,8 @@ Output `PCollection` after getting the timestamps:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps" >}}
 
 ## Related transforms
 
+* [Reify](/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.

@@ -17,9 +17,7 @@ limitations under the License.
 
 # Values
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.util" class="Values" >}}
 
@@ -44,8 +42,7 @@ Output `PCollection` after `Values`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/values.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/values"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/values" >}}
 
 ## Related transforms
 

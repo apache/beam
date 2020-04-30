@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Takes a collection of key-value pairs and returns a collection of key-value pairs which has each key and value swapped.
 
 ## Examples
@@ -39,3 +38,4 @@ PCollection<KV<Integer, String>> intStrPairs = strIntPairs.apply(KvSwap.create()
 ## Related transforms 
 * [Keys](/documentation/transforms/java/elementwise/keys) for extracting the key of each component.
 * [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

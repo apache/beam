@@ -1,7 +1,9 @@
 ---
+type: runners
 title: "Hazelcast Jet Runner"
 aliases: /learn/runners/jet/
 ---
+
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,19 +21,21 @@ limitations under the License.
 ## Overview
 
 The Hazelcast Jet Runner can be used to execute Beam pipelines using [Hazelcast
-Jet](https://jet-start.sh/). 
+Jet](https://jet-start.sh/).
 
 The Jet Runner and Jet are suitable for large scale continuous jobs and provide:
-* Support for both batch (bounded) and streaming (unbounded) data sets
-* A runtime that supports very high throughput and low event latency at the same time
-* Natural back-pressure in streaming programs
-* Distributed massively parallel data processing engine with in memory storage 
 
-It's important to note that the Jet Runner is currently in an *EXPERIMENTAL* state and can not make use of many of
+- Support for both batch (bounded) and streaming (unbounded) data sets
+- A runtime that supports very high throughput and low event latency at the same time
+- Natural back-pressure in streaming programs
+- Distributed massively parallel data processing engine with in memory storage
+
+It's important to note that the Jet Runner is currently in an _EXPERIMENTAL_ state and can not make use of many of
 the capabilities present in Jet:
-* Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted
-* Internal performance of Jet is extremely high. 
-The Runner can't match it as of now because Beam pipeline optimization/surgery has not been fully implemented.
+
+- Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted
+- Internal performance of Jet is extremely high.
+  The Runner can't match it as of now because Beam pipeline optimization/surgery has not been fully implemented.
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
 supported capabilities of the Jet Runner.
@@ -39,11 +43,14 @@ supported capabilities of the Jet Runner.
 ## Running WordCount with the Hazelcast Jet Runner
 
 ### Generating the Beam examples project
+
 Just follow the instruction from the [Java Quickstart page](/get-started/quickstart-java/#get-the-wordcount-code)
 
 ### Running WordCount on a Local Jet Cluster
+
 Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.
-{{< /highlight >}}
+
+```
     $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -53,9 +60,10 @@ Issue following command in the Beam examples project to start new Jet cluster an
             --inputFile=pom.xml \
             --output=counts" \
         -Pjet-runner
-{{< /highlight >}}
+```
 
 ### Running WordCount on a Remote Jet Cluster
+
 The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that's what
 the `archetypeVersion` property is about). Each Beam version that contains the Jet Runner (ie. from 2.14.0 onwards)
 uses a certain version of Jet. Because of this, when we start a stand-alone Jet cluster and try to run Beam examples on
@@ -151,7 +159,7 @@ Pipeline on the remote Jet cluster.
 Make sure to distribute the input file (file with the words to be counted) to all machines where the
 cluster runs. The word count job won't be able to read the data otherwise.
 
-{{< /highlight >}}
+```
     $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
@@ -162,7 +170,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
             --inputFile=<INPUT_FILE_AVAILABLE_ON_ALL_CLUSTER_MEMBERS> \
             --output=/tmp/counts" \
         -Pjet-runner
-{{< /highlight >}}
+```
 
 ## Pipeline Options for the Jet Runner
 
@@ -178,7 +186,7 @@ cluster runs. The word count job won't be able to read the data otherwise.
   <td>Set to <code>JetRunner</code> to run using Jet.</td>
 </tr>
 <tr>
-    <td><code><span class="version-jet3">jetGroupName</span><span class="version-jet4">jetClusterName</span></code></td>
+  <td><code><span class="version-jet3">jetGroupName</span><span class="version-jet4">jetClusterName</span></code></td>
     <td>
         <span class="version-jet3">The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that
         will be used by the Runner. With groups it is possible to create multiple clusters where each cluster has its
@@ -220,3 +228,4 @@ cluster runs. The word count job won't be able to read the data otherwise.
   (so they are assumed to be syncs).</td>
   <td><code>false</code></td>
 </tr>
+</table>

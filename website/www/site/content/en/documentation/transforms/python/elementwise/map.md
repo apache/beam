@@ -1,5 +1,5 @@
 ---
-title: "Map"
+title: "Partition"
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,215 +15,128 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-# Map
+# Partition
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
-{{< button-pydoc path="apache_beam.transforms.core" class="Map" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}
 
-Applies a simple 1-to-1 mapping function over each element in the collection.
+Separates elements in a collection into multiple output
+collections. The partitioning function contains the logic that determines how
+to separate the elements of the input collection into each resulting
+partition output collection.
+
+The number of partitions must be determined at graph construction time.
+You cannot determine the number of partitions in mid-pipeline
+
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#partition).
 
 ## Examples
 
 In the following examples, we create a pipeline with a `PCollection` of produce with their icon, name, and duration.
-Then, we apply `Map` in multiple ways to transform every element in the `PCollection`.
+Then, we apply `Partition` in multiple ways to split the `PCollection` into multiple `PCollections`.
 
-`Map` accepts a function that returns a single element for every input element in the `PCollection`.
+`Partition` accepts a function that receives the number of partitions,
+and returns the index of the desired partition for the element.
+The number of partitions passed must be a positive integer,
+and it must return an integer in the range `0` to `num_partitions-1`.
 
-### Example 1: Map with a predefined function
+### Example 1: Partition with a function
 
-We use the function `str.strip` which takes a single `str` element and outputs a `str`.
-It strips the input element's whitespaces, including newlines and tabs.
+In the following example, we have a known list of durations.
+We partition the `PCollection` into one `PCollection` for every duration type.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_simple >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output `PCollection`s:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
-### Example 2: Map with a function
+### Example 2: Partition with a lambda function
 
-We define a function `strip_header_and_newline` which strips any `'#'`, `' '`, and `'\n'` characters from each element.
+We can also use lambda functions to simplify **Example 1**.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_function >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output `PCollection`s:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
-### Example 3: Map with a lambda function
+### Example 3: Partition with multiple arguments
 
-We can also use lambda functions to simplify **Example 2**.
-
-{{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_lambda >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
-
-### Example 4: Map with multiple arguments
-
-You can pass functions with multiple arguments to `Map`.
+You can pass functions with multiple arguments to `Partition`.
 They are passed as additional positional arguments or keyword arguments to the function.
 
-In this example, `strip` takes `text` and `chars` as arguments.
+In machine learning, it is a common task to split data into
+[training and a testing datasets](https://en.wikipedia.org/wiki/Training,_validation,_and_test_sets).
+Typically, 80% of the data is used for training a model and 20% is used for testing.
+
+In this example, we split a `PCollection` dataset into training and testing datasets.
+We define `split_dataset`, which takes the `plant` element, `num_partitions`,
+and an additional argument `ratio`.
+The `ratio` is a list of numbers which represents the ratio of how many items will go into each partition.
+`num_partitions` is used by `Partitions` as a positional argument,
+while `plant` and `ratio` are passed to `split_dataset`.
+
+If we want an 80%/20% split, we can specify a ratio of `[8, 2]`, which means that for every 10 elements,
+8 go into the first partition and 2 go into the second.
+In order to determine which partition to send each element, we have different buckets.
+For our case `[8, 2]` has **10** buckets,
+where the first 8 buckets represent the first partition and the last 2 buckets represent the second partition.
+
+First, we check that the ratio list's length corresponds to the `num_partitions` we pass.
+We then get a bucket index for each element, in the range from 0 to 9 (`num_buckets-1`).
+We could do `hash(element) % len(ratio)`, but instead we sum all the ASCII characters of the
+JSON representation to make it deterministic.
+Finally, we loop through all the elements in the ratio and have a running total to
+identify the partition index to which that bucket corresponds.
+
+This `split_dataset` function is generic enough to support any number of partitions by any ratio.
+You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_multiple_arguments >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
 {{< /highlight >}}
 
 {{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
+Output `PCollection`s:
 {{< /paragraph >}}
 
 {{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" train_test >}}
 {{< /highlight >}}
 
 {{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
-
-### Example 5: MapTuple for key-value pairs
-
-If your `PCollection` consists of `(key, value)` pairs,
-you can use `MapTuple` to unpack them into different function arguments.
-
-{{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_tuple >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `MapTuple`:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
-
-### Example 6: Map with side inputs as singletons
-
-If the `PCollection` has a single value, such as the average from another computation,
-passing the `PCollection` as a *singleton* accesses that value.
-
-In this example, we pass a `PCollection` the value `'# \n'` as a singleton.
-We then use that value as the characters for the `str.strip` method.
-
-{{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_singleton >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
-
-### Example 7: Map with side inputs as iterators
-
-If the `PCollection` has multiple values, pass the `PCollection` as an *iterator*.
-This accesses elements lazily as they are needed,
-so it is possible to iterate over large `PCollection`s that won't fit into memory.
-
-{{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_iter >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plants >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
-
-> **Note**: You can pass the `PCollection` as a *list* with `beam.pvalue.AsList(pcollection)`,
-> but this requires that all the elements fit into memory.
-
-### Example 8: Map with side inputs as dictionaries
-
-If a `PCollection` is small enough to fit into memory, then that `PCollection` can be passed as a *dictionary*.
-Each element must be a `(key, value)` pair.
-Note that all the elements of the `PCollection` must fit into memory for this.
-If the `PCollection` won't fit into memory, use `beam.pvalue.AsIter(pcollection)` instead.
-
-{{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py" map_side_inputs_dict >}}
-{{< /highlight >}}
-
-{{< paragraph class="notebook-skip" >}}
-Output `PCollection` after `Map`:
-{{< /paragraph >}}
-
-{{< highlight class="notebook-skip" >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map_test.py" plant_details >}}
-{{< /highlight >}}
-
-{{< buttons-code-snippet
-  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/map"
->}}
+  py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/partition" >}}
 
 ## Related transforms
 
-* [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`, but for
-  each input it may produce zero or more outputs.
 * [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 * [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
+* [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey)
+performs a per-key equijoin.
 
-{{< button-pydoc path="apache_beam.transforms.core" class="Map" >}}
+{{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}

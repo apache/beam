@@ -3,6 +3,8 @@ title:  "Stateful processing with Apache Beam"
 date:   2017-02-13 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2017/02/13/stateful-processing.html
 authors:
   - klk
 ---
@@ -242,12 +244,13 @@ the full state of your transform as a table, where the rows are named according
 to names you use in your program, like `"index"`, and the columns are
 key+window pairs, like this:
 
+{{< table >}}
 |               | (key, window)<sub>1</sub> | (key, window)<sub>2</sub> | (key, window)<sub>3</sub> | ... |
 |---------------|---------------------------|---------------------------|---------------------------|-----|
 | `"index"`       | `3`                         | `7`                         | `15`                        | ... |
 | `"fizzOrBuzz?"` | `"fizz"`                    | `"7"`                       | `"fizzbuzz"`                | ... |
 | ...           | ...                       | ...                       | ...                       | ... |
-{:.table}
+{{< /table >}}
 
 (if you have a superb spatial sense, feel free to imagine this as a cube where
 keys and windows are independent dimensions)

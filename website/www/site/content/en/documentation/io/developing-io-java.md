@@ -1,4 +1,3 @@
-</table>
 ---
 title: "Apache Beam: Developing I/O connectors for Java"
 aliases: /documentation/io/authoring-java/

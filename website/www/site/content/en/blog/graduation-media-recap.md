@@ -3,6 +3,8 @@ title:  "Media recap of the Apache Beam graduation"
 date:   2017-02-01 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2017/02/01/graduation-media-recap.html
 authors:
   - davor
 ---

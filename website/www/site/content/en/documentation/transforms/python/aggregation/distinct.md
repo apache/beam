@@ -33,3 +33,4 @@ Produces a collection containing distinct elements of the input collection.
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms
+* [Count](/documentation/transforms/python/aggregation/count) counts the number of elements within each aggregation.

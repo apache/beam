@@ -1,4 +1,5 @@
 ---
+type: runners
 title: "JStorm Runner"
 ---
 <!--
@@ -30,6 +31,7 @@ The [Beam Capability Matrix](/documentation/runners/capability-matrix/) document
 The JStorm runner currently supports JStorm version 2.5.0-SNAPSHOT.
 
 You can add a dependency on the latest version of the JStorm runner by adding the following to your pom.xml:
+
 {{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
@@ -41,15 +43,15 @@ You can add a dependency on the latest version of the JStorm runner by adding th
 ### Deploying JStorm with your application
 
 To run against a Standalone cluster, you can package your program with all Beam dependencies into a fat jar, and then submit the topology with the following command.
-{{< /highlight >}}
+```
 jstorm jar WordCount.jar org.apache.beam.examples.WordCount --runner=org.apache.beam.runners.jstorm.JStormRunner
-{{< /highlight >}}
+```
 
 If you don't want to package a fat jar, you can upload the Beam dependencies onto all cluster nodes(`$JSTORM_HOME/lib/ext/beam`) first.
 When you submit a topology with argument `"--external-libs beam"`, JStorm will load the Beam dependencies automatically.
-{{< /highlight >}}
+```
 jstorm jar WordCount.jar org.apache.beam.examples.WordCount --external-libs beam  --runner=org.apache.beam.runners.jstorm.JStormRunner
-{{< /highlight >}}
+```
 
 To learn about deploying a JStorm cluster, please refer to [JStorm cluster deploy](http://jstorm.io/QuickStart/Deploy/index.html)
 

@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Transforms for computing the sum of the elements in a collection, or the sum of the
 values associated with each key in a collection of key-value pairs.
 

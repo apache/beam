@@ -3,6 +3,8 @@ title:  "Release 0.4.0 adds a runner for Apache Apex"
 date:   2017-01-09 10:00:01 -0700
 categories:
   - blog
+aliases:
+  - /blog/2017/01/09/added-apex-runner.html
 authors:
   - thw
 ---

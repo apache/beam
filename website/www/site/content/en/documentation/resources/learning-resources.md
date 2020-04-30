@@ -1,4 +1,3 @@
-* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 ---
 title: "Learning Resources"
 ---

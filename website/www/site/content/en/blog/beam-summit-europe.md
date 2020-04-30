@@ -1,9 +1,10 @@
-[mailing lists](/get-started/support/).
 ---
 title:  "Beam Summit Europe 2018"
 date:   2018-08-21 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2018/08/21/beam-summit-europe.html
 authors:
   - mbaetens
 ---
@@ -25,7 +26,7 @@ With a growing community of contributors and users, the Apache Beam project is o
 
 We are happy to invite you to this event, which will take place in **London** on **October 1st and 2nd of 2018**. <!--more-->
 
-<img src="/images/blog/Facebook-AD.png" alt="Beam Summit Europe 2018 flyer" height="360" width="640" >
+<img src= alt="Beam Summit Europe 2018 flyer" height="360" width="640" >
 
 ### What is the Beam Summit 2018?
 The summit is a 2 day, multi-track event. 

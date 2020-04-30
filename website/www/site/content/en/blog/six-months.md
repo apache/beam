@@ -3,6 +3,8 @@ title:  "Apache Beam: Six Months in Incubation"
 date:   2016-08-03 00:00:01 -0700
 categories:
   - blog
+aliases:
+  - /blog/2016/08/03/six-months.html
 authors:
   - fjp
 ---

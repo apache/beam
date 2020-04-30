@@ -1,4 +1,5 @@
 ---
+type: languages
 title: "Beam ZetaSQL string functions"
 ---
 <!--
@@ -22,6 +23,7 @@ This page documents the ZetaSQL string functions supported by Beam ZetaSQL.
 These string functions work on STRING data. STRING values must be well-formed UTF-8. All string comparisons are done byte-by-byte, without regard to Unicode
 canonical equivalence.
 
+{{< table >}}
 | Operator syntax | Description |
 | ---- | ---- |
 | [CHAR_LENGTH(value)](#char_length) | Returns the length of the string in characters |
@@ -35,13 +37,13 @@ canonical equivalence.
 | [STARTS_WITH(value1, value2)](#starts_with) | Returns TRUE if the second value is a prefix of the first. |
 | [SUBSTR(value, position[, length])](#substr) | Returns a substring of the supplied value |
 | [TRIM(value1[, value2])](#trim) | Removes all leading and trailing characters that match `value2` |
-{:.table}
+{{< /table >}}
 
 ## CHAR_LENGTH
 
-{{< /highlight >}}
+```
 CHAR_LENGTH(value)
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -54,7 +56,7 @@ INT64
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table example:
 
@@ -75,11 +77,11 @@ FROM example;
 | абвгд      |                   5 |
 +------------+---------------------+
 
-{{< /highlight >}}
+```
 ## CHARACTER_LENGTH
-{{< /highlight >}}
+```
 CHARACTER_LENGTH(value)
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -92,7 +94,7 @@ INT64
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table example:
 
@@ -113,13 +115,13 @@ FROM example;
 | абвгд      |                   5 |
 +------------+---------------------+
 
-{{< /highlight >}}
+```
 
 
 ## CONCAT
-{{< /highlight >}}
+```
 CONCAT(value1[, ...])
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -132,7 +134,7 @@ STRING
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table Employees:
 
@@ -156,12 +158,12 @@ FROM Employees;
 | Jane Smith          |
 | Joe Jackson         |
 +---------------------+
-{{< /highlight >}}
+```
 
 ## ENDS_WITH
-{{< /highlight >}}
+```
 ENDS_WITH(value1, value2)
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -175,7 +177,7 @@ BOOL
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table items:
 
@@ -199,12 +201,12 @@ FROM items;
 |    True |
 +---------+
 
-{{< /highlight >}}
+```
 
 ## LTRIM
-{{< /highlight >}}
+```
 LTRIM(value1[, value2])
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -216,7 +218,7 @@ STRING
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table items:
 
@@ -287,12 +289,12 @@ FROM items;
 | orangezzz |
 | pearxyz   |
 +-----------+
-{{< /highlight >}}
+```
 
 ## REPLACE
-{{< /highlight >}}
+```
 REPLACE(original_value, from_value, to_value)
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -305,7 +307,7 @@ STRING
 
 **Examples**
 
-{{< highlight sql >}}
+```sql
 
 +--------------------+
 | dessert            |
@@ -326,13 +328,13 @@ FROM desserts;
 | blackberry cobbler |
 | cherry cobbler     |
 +--------------------+
-{{< /highlight >}}
+```
 
 ## REVERSE
 
-{{< /highlight >}}
+```
 REVERSE(value)
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -344,7 +346,7 @@ STRING
 
 **Examples**
 
-{{< /highlight >}}
+```
 WITH example AS (
   SELECT "foo" AS sample_string UNION ALL
   SELECT "абвгд" AS sample_string
@@ -360,12 +362,12 @@ FROM example;
 | foo           | oof            |
 | абвгд         | дгвба          |
 +---------------+----------------+
-{{< /highlight >}}
+```
 
 ## RTRIM
-{{< /highlight >}}
+```
 RTRIM(value1[, value2])
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -377,7 +379,7 @@ STRING
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table items:
 
@@ -425,12 +427,12 @@ FROM items;
 | orange  |
 | pear    |
 +---------+
-{{< /highlight >}}
+```
 
 ## STARTS_WITH
-{{< /highlight >}}
+```
 STARTS_WITH(value1, value2)
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -443,7 +445,7 @@ BOOL
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 SELECT
   STARTS_WITH(item, "b") as example
@@ -460,11 +462,11 @@ FROM (
 |    True |
 |    True |
 +---------+
-{{< /highlight >}}
+```
 ## SUBSTR
-{{< /highlight >}}
+```
 SUBSTR(value, position[, length])
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -490,7 +492,7 @@ STRING
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table items:
 
@@ -559,11 +561,11 @@ FROM items;
 | na      |
 | ge      |
 +---------+
-{{< /highlight >}}
+```
 ## TRIM
-{{< /highlight >}}
+```
 TRIM(value1[, value2])
-{{< /highlight >}}
+```
 
 **Description**
 
@@ -580,7 +582,7 @@ STRING
 
 **Examples**
 
-{{< /highlight >}}
+```
 
 Table items:
 
@@ -651,4 +653,4 @@ FROM items;
 | orange  |
 | pear    |
 +---------+
-{{< /highlight >}}
+```

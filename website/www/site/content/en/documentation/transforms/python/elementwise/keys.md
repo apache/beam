@@ -1,4 +1,3 @@
-* [WithTimestamps](/documentation/transforms/python/elementwise/withtimestamps) assigns timestamps to all the elements of a collection.
 ---
 title: "Keys"
 ---
@@ -18,9 +17,7 @@ limitations under the License.
 
 # Keys
 
-<script type="text/javascript">
-localStorage.setItem('language', 'language-py')
-</script>
+{{< localstorage language language-py >}}
 
 {{< button-pydoc path="apache_beam.transforms.util" class="Keys" >}}
 
@@ -45,8 +42,7 @@ Output `PCollection` after `Keys`:
 
 {{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/keys.py"
-  notebook="examples/notebooks/documentation/transforms/python/elementwise/keys"
->}}
+  notebook="examples/notebooks/documentation/transforms/python/elementwise/keys" >}}
 
 ## Related transforms
 

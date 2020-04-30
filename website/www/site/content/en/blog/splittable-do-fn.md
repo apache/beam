@@ -3,6 +3,8 @@ title:  "Powerful and modular IO connectors with Splittable DoFn in Apache Beam"
 date:   2017-08-16 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2017/08/16/splittable-do-fn.html
 authors:
   - jkff
 ---
@@ -313,8 +315,7 @@ data block, otherwise, it terminates.
     alt="Processing a restriction by claiming blocks inside it"
     width="400">
 
-For more details, see [Restrictions, blocks and
-positions](https://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw) in the
+For more details, see [Restrictions, blocks and positions](https://s.apache.org/splittable-do-fn#heading=h.vjs7pzbb7kw) in the
 design proposal document.
 
 ### Code example
@@ -470,7 +471,7 @@ IO connectors. However, a large amount of work is in progress or planned.
 
 As of August 2017, SDF is available for use in the Beam Java Direct runner and
 Dataflow Streaming runner, and implementation is in progress in the Flink and
-Apex runners; see [capability matrix](/documentation/runners/capability-matrix/) for the current status. Support
+Apex runners; see [capability matrix]({/documentation/runners/capability-matrix/) for the current status. Support
 for SDF in the Python SDK is [in active
 development](https://s.apache.org/splittable-do-fn-python).
 

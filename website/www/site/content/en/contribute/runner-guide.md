@@ -25,15 +25,6 @@ throughout the development of your runner.
 
 Topics covered:
 
- * Basics of the Beam model, focused on what a runner author needs to know to
-   execute a pipeline
- * Details of how to implement each of Beam's five primitives (of which two are
-   rather trivial and three are rather complex)
- * Support code we provide for manipulating and executing pipelines
- * How to test your runner
- * How to make your runner play nice with SDKs
- * The low-level Runner API protos used for cross-language pipelines
-
 {{< toc >}}
 
 ## Basics of the Beam model
@@ -306,7 +297,7 @@ the Python codebase.
 In Java, the `beam-runners-core-java` library provides an interface
 `DoFnRunner` for bundle processing, with implementations for many situations.
 
-{{< highlight java >}}
+{{< highlight class="language-java no-toggle" >}}
 interface DoFnRunner<InputT, OutputT> {
   void startBundle();
   void processElement(WindowedValue<InputT> elem);
@@ -648,7 +639,7 @@ very easily!  To enable these tests in a Java-based runner using Gradle, you
 scan the dependencies of the SDK for tests with the JUnit category
 `ValidatesRunner`.
 
-{{< /highlight >}}
+```
 task validatesRunner(type: Test) {
   group = "Verification"
   description = "Validates the runner"
@@ -660,7 +651,7 @@ task validatesRunner(type: Test) {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
   }
 }
-{{< /highlight >}}
+```
 
 Enabling these tests in other languages is unexplored.
 
@@ -682,7 +673,7 @@ what you know, and follow the rules, and `PipelineOptions` will treat you well.
 You must implement a sub-interface for your runner with getters and setters
 with matching names, like so:
 
-{{< highlight java >}}
+{{< highlight class="language-java no-toggle" >}}
 public interface MyRunnerOptions extends PipelineOptions {
   @Description("The Foo to use with MyRunner")
   @Required
@@ -703,7 +694,7 @@ instantiated with a `PipelineOptions` object, you access your interface by
 To make these options available on the command line, you register your options
 with a `PipelineOptionsRegistrar`. It is easy if you use `@AutoService`:
 
-{{< highlight java >}}
+{{< highlight class="language-java no-toggle" >}}
 @AutoService(PipelineOptionsRegistrar.class)
 public static class MyOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override
@@ -718,7 +709,7 @@ public static class MyOptionsRegistrar implements PipelineOptionsRegistrar {
 To make your runner available on the command line, you register your options
 with a `PipelineRunnerRegistrar`. It is easy if you use `@AutoService`:
 
-{{< highlight java >}}
+{{< highlight class="language-java no-toggle" >}}
 @AutoService(PipelineRunnerRegistrar.class)
 public static class MyRunnerRegistrar implements PipelineRunnerRegistrar {
   @Override
@@ -843,12 +834,12 @@ The heart of cross-language portability is the `FunctionSpec`. This is a
 language-independent specification of a function, in the usual programming
 sense that includes side effects, etc.
 
-{{< highlight proto >}}
+```
 message FunctionSpec {
   string urn;
   google.protobuf.Any parameter;
 }
-{{< /highlight >}}
+```
 
 A `FunctionSpec` includes a URN identifying the function as well as an arbitrary
 fixed parameter. For example the (hypothetical) "max" CombineFn might have the
@@ -874,12 +865,12 @@ it will be guaranteed to understand it. So in that case, it will always come
 with an environment that can understand and execute the function. This is
 represented by the `SdkFunctionSpec`.
 
-{{< highlight proto >}}
+```
 message SdkFunctionSpec {
   FunctionSpec spec;
   bytes environment_id;
 }
-{{< /highlight >}}
+```
 
 In the Runner API, many objects are stored by reference. Here in the
 `environment_id` is a pointer, local to the pipeline and just made up by the
@@ -905,7 +896,7 @@ A `ParDo` transform carries its `DoFn` in an `SdkFunctionSpec` and then
 provides language-independent specifications for its other features - side
 inputs, state declarations, timer declarations, etc.
 
-{{< highlight proto >}}
+```
 message ParDoPayload {
   SdkFunctionSpec do_fn;
   map<string, SideInput> side_inputs;
@@ -913,18 +904,18 @@ message ParDoPayload {
   map<string, TimerSpec> timer_specs;
   ...
 }
-{{< /highlight >}}
+```
 
 #### `ReadPayload` proto
 
 A `Read` transform carries an `SdkFunctionSpec` for its `Source` UDF.
 
-{{< highlight proto >}}
+```
 message ReadPayload {
   SdkFunctionSpec source;
   ...
 }
-{{< /highlight >}}
+```
 
 #### `WindowIntoPayload` proto
 
@@ -932,12 +923,12 @@ A `Window` transform carries an `SdkFunctionSpec` for its `WindowFn` UDF. It is
 part of the Fn API that the runner passes this UDF along and tells the SDK
 harness to use it to assign windows (as opposed to merging).
 
-{{< highlight proto >}}
+```
 message WindowIntoPayload {
   SdkFunctionSpec window_fn;
   ...
 }
-{{< /highlight >}}
+```
 
 #### `CombinePayload` proto
 
@@ -948,13 +939,13 @@ In order to effectively carry out the optimizations desired, it is also
 necessary to know the coder for intermediate accumulations, so it also carries
 a reference to this coder.
 
-{{< highlight proto >}}
+```
 message CombinePayload {
   SdkFunctionSpec combine_fn;
   string accumulator_coder_id;
   ...
 }
-{{< /highlight >}}
+```
 
 ### `PTransform` proto
 
@@ -963,7 +954,7 @@ represented in the proto using a FunctionSpec. Note that this is not an
 `SdkFunctionSpec`, since it is the runner that observes these. They will never
 be passed back to an SDK harness; they do not represent a UDF.
 
-{{< highlight proto >}}
+```
 message PTransform {
   FunctionSpec spec;
   repeated string subtransforms;
@@ -973,7 +964,7 @@ message PTransform {
   map<string, bytes> outputs;
   ...
 }
-{{< /highlight >}}
+```
 
 A `PTransform` may have subtransforms if it is a composite, in which case the
 `FunctionSpec` may be omitted since the subtransforms define its behavior.
@@ -987,14 +978,14 @@ serialized UDFs.
 A `PCollection` just stores a coder, windowing strategy, and whether or not it
 is bounded.
 
-{{< highlight proto >}}
+```
 message PCollection {
   string coder_id;
   IsBounded is_bounded;
   string windowing_strategy_id;
   ...
 }
-{{< /highlight >}}
+```
 
 ### `Coder` proto
 
@@ -1003,12 +994,12 @@ only be understood by a particular SDK, hence an `SdkFunctionSpec`, but also
 may have component coders that fully define it. For example, a `ListCoder` is
 only a meta-format, while `ListCoder(VarIntCoder)` is a fully specified format.
 
-{{< highlight proto >}}
+```
 message Coder {
   SdkFunctionSpec spec;
   repeated string component_coder_ids;
 }
-{{< /highlight >}}
+```
 
 ## The Runner API RPCs
 
@@ -1032,14 +1023,14 @@ rich and convenient API.
 This will take the same form, but `PipelineOptions` will have to be serialized
 to JSON (or a proto `Struct`) and passed along.
 
-{{< highlight proto >}}
+```
 message RunPipelineRequest {
   Pipeline pipeline;
   Struct pipeline_options;
 }
-{{< /highlight >}}
+```
 
-{{< highlight proto >}}
+```
 message RunPipelineResponse {
   bytes pipeline_id;
 
@@ -1049,7 +1040,7 @@ message RunPipelineResponse {
   // totally opaque to the SDK; for the shim to interpret
   Any contents;
 }
-{{< /highlight >}}
+```
 
 ### `PipelineResult` aka "Job API"
 
@@ -1059,7 +1050,7 @@ be generalized to support draining a job (stop reading input and let watermarks
 go to infinity). Today, verifying our test framework benefits (but does not
 depend upon wholly) querying metrics over this channel.
 
-{{< highlight proto >}}
+```
 message CancelPipelineRequest {
   bytes pipeline_id;
   ...
@@ -1078,4 +1069,4 @@ message GetStateResponse {
 enum JobState {
   ...
 }
-{{< /highlight >}}
+```

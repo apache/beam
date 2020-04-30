@@ -1,6 +1,6 @@
 ---
 title: "Beam Presentation Materials"
-redirect_from:
+aliases:
  - /learn/presentation-materials/
  - /contribute/presentation-materials/
 ---

@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Provides a variety of different transforms for computing the minimum
 values in a collection, either globally or for each key.
 

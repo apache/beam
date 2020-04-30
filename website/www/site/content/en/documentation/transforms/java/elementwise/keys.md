@@ -25,7 +25,6 @@ limitations under the License.
 </table>
 <br><br>
 
-
 Takes a collection of key-value pairs, and returns the key of each element.
 
 ## Examples
@@ -39,3 +38,4 @@ PCollection<String> keys = keyValuePairs.apply(Keys.create());
 ## Related transforms 
 * [KvSwap](/documentation/transforms/java/elementwise/kvswap) swaps key-value pair values.
 * [Values](/documentation/transforms/java/elementwise/values) for extracting the value of each element.
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.

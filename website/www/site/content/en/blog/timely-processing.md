@@ -3,6 +3,8 @@ title:  "Timely (and Stateful) Processing with Apache Beam"
 date:   2017-08-28 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2017/08/28/timely-processing.html
 authors:
   - klk
 ---

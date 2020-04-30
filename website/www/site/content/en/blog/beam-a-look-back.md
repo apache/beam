@@ -3,6 +3,8 @@ title:  "Apache Beam: A Look Back at 2017"
 date:   2018-01-09 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2018/01/09/beam-a-look-back.html
 authors:
   - ianand
   - jbonofre

@@ -3,6 +3,8 @@ title:  "Apache Beam + Kotlin = ❤️"
 date:   2019-04-25 00:00:01 -0800
 categories:
   - blog
+aliases:
+  - /blog/2019/04/25/beam-kotlin.html
 authors:
         - harshithdwivedi
 

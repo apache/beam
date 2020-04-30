@@ -1,4 +1,3 @@
-  - Find someone to chat with in realtime at [#beam on Slack](/community/contact-us).
 ---
 title: 'Post-commit policies details'
 ---

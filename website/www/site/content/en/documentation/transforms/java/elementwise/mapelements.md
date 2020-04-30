@@ -1,4 +1,3 @@
-* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
 ---
 title: "MapElements"
 ---
@@ -25,7 +24,6 @@ limitations under the License.
     </a>
 </table>
 <br><br>
-
 
 Applies a simple 1-to-1 mapping function over each element in the collection.
 

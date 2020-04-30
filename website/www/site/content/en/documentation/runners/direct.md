@@ -1,5 +1,5 @@
-</table>
 ---
+type: runners
 title: "Direct Runner"
 aliases: /learn/runners/direct/
 ---
@@ -86,22 +86,22 @@ From 2.22.0, `direct_num_workers = 0` is supported. When `direct_num_workers` is
 There are several ways to set this option.
 
 * Passing through CLI when executing a pipeline.
-{{< /highlight >}}
+```
 python wordcount.py --input xx --output xx --direct_num_workers 2
-{{< /highlight >}}
+```
 
 * Setting with `PipelineOptions`.
-{{< /highlight >}}
+```
 from apache_beam.options.pipeline_options import PipelineOptions
 pipeline_options = PipelineOptions(['--direct_num_workers', '2'])
-{{< /highlight >}}
+```
 
 * Adding to existing `PipelineOptions`.
-{{< /highlight >}}
+```
 from apache_beam.options.pipeline_options import DirectOptions
 pipeline_options = PipelineOptions(xxx)
 pipeline_options.view_as(DirectOptions).direct_num_workers = 2
-{{< /highlight >}}
+```
 
 
 
@@ -122,7 +122,7 @@ For the versions before 2.19.0, the running mode should be set with `FnApiRunner
 
 #### Running with multi-threading mode
 
-{{< /highlight >}}
+```
 import argparse
 
 import apache_beam as beam
@@ -140,11 +140,11 @@ p = beam.Pipeline(options=pipeline_options,
       runner=fn_api_runner.FnApiRunner(
           default_environment=beam_runner_api_pb2.Environment(
           urn=python_urns.EMBEDDED_PYTHON_GRPC)))
-{{< /highlight >}}
+```
 
 #### Running with multi-processing mode
 
-{{< /highlight >}}
+```
 import argparse
 import sys
 
@@ -165,4 +165,4 @@ p = beam.Pipeline(options=pipeline_options,
               urn=python_urns.SUBPROCESS_SDK,
               payload=b'%s -m apache_beam.runners.worker.sdk_worker_main'
                         % sys.executable.encode('ascii'))))
-{{< /highlight >}}
+```
