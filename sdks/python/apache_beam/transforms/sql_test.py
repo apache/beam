@@ -125,6 +125,19 @@ class SqlTransformTest(unittest.TestCase):
               FROM PCOLLECTION GROUP BY `str`"""))
       assert_that(out, equal_to([("foo", 3, 3, 2), ("bar", 4, 8, 1.414)]))
 
+  def test_datacatalog_tableprovider(self):
+    with self.make_test_pipeline() as p:
+      out = (
+          p | SqlTransform(
+              """
+              SELECT
+                id, name, type FROM datacatalog.entry.`apache-beam-testing`.`us-central1`.samples.`integ_test_small_csv_test_1`"""
+          ))
+      assert_that(
+          out,
+          equal_to([(1, "customer1", "test"), (2, "customer2", "test"),
+                    (3, "customer1", "test"), (4, "customer2", "test")]))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
