@@ -823,7 +823,6 @@ public class Snippets {
                       new DoFn<String, String>() {
                         @ProcessElement
                         public void process(@Element String src, OutputReceiver<String> o) {
-                          System.out.println(src);
                           o.output(src);
                         }
                       }))
