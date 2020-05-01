@@ -31,11 +31,18 @@ import tempfile
 import threading
 import time
 
-import grpc
 from future.moves.urllib.error import URLError
 from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
+
+# Protect against environments where grpc is not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  import grpc
+except ImportError:
+  grpc = None
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
