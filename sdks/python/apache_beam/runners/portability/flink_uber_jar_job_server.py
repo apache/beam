@@ -146,12 +146,6 @@ class FlinkBeamJob(abstract_job_service.UberJarBeamJob):
 
   def run(self):
     self._stop_artifact_service()
-    # Move the artifact manifest to the expected location.
-    with zipfile.ZipFile(self._jar, 'a', compression=zipfile.ZIP_DEFLATED) as z:
-      with z.open(self._artifact_manifest_location) as fin:
-        manifest_contents = fin.read()
-      with z.open(self.ARTIFACT_MANIFEST_PATH, 'w') as fout:
-        fout.write(manifest_contents)
 
     # Upload the jar and start the job.
     with open(self._jar, 'rb') as jar_file:
