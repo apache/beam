@@ -109,7 +109,7 @@ class UnboundedThreadPoolExecutor(_base.Executor):
         self._idle_worker_queue.get(block=False).assign_work(work_item)
 
         # If we have more idle threads then the max allowed, shutdown a thread.
-        if (self._idle_worker_queue.qsize() > self._max_idle_threads):
+        if self._idle_worker_queue.qsize() > self._max_idle_threads:
           try:
             self._idle_worker_queue.get(block=False).shutdown()
           except queue.Empty:
