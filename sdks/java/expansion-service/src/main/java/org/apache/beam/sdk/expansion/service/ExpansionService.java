@@ -44,6 +44,7 @@ import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -317,6 +318,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Pipeline pipeline = Pipeline.create();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    FileSystems.setDefaultPipelineOptions(pipeline.getOptions());
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(request.getComponents()).withPipeline(pipeline);
 
