@@ -30,6 +30,9 @@ ext.summary = """Contains code to run a SQL Expansion Service."""
 
 dependencies {
   compile project(path: ":sdks:java:extensions:sql")
+  compile project(path: ":sdks:java:extensions:sql:datacatalog")
+  // Ensure we include GCP dependencies (not sure why this isn't brought in with DC)
+  compile project(path: ":sdks:java:io:google-cloud-platform")
   compile project(path: ":sdks:java:expansion-service")
 }
 
