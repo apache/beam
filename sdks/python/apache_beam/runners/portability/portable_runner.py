@@ -303,13 +303,10 @@ class PortableRunner(runner.PipelineRunner):
     return env_class.from_options(portable_options)
 
   def default_job_server(self, options):
-    # type: (PipelineOptions) -> job_server.JobServer
-    # TODO Provide a way to specify a container Docker URL
-    # https://issues.apache.org/jira/browse/BEAM-6328
-    if not self._dockerized_job_server:
-      self._dockerized_job_server = job_server.StopOnExitJobServer(
-          job_server.DockerizedJobServer())
-    return self._dockerized_job_server
+    raise NotImplementedError(
+        'You must specify a --job_endpoint when using --runner=PortableRunner. '
+        'Alternatively, you may specify which portable runner you intend to '
+        'use, such as --runner=FlinkRunner or --runner=SparkRunner.')
 
   def create_job_service_handle(self, job_service, options):
     return JobServiceHandle(job_service, options)

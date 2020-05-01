@@ -1987,11 +1987,10 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       def addPortableWordCountTask = { boolean isStreaming, String runner ->
-        def taskName = 'portableWordCount' + (runner.equals("PortableRunner") ? "" : runner) + (isStreaming ? 'Streaming' : 'Batch')
+        def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
         project.task(taskName) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.10:job-server-container:docker',
             ':runners:flink:1.10:job-server:shadowJar',
             ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
@@ -2045,8 +2044,6 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.ext.addPortableWordCountTasks = {
         ->
-        addPortableWordCountTask(false, "PortableRunner")
-        addPortableWordCountTask(true, "PortableRunner")
         addPortableWordCountTask(false, "FlinkRunner")
         addPortableWordCountTask(true, "FlinkRunner")
         addPortableWordCountTask(false, "SparkRunner")
