@@ -526,7 +526,7 @@ FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 
 def _to_bool(value):
-  return value == 'true'
+  return value == 'true' or value == 'True'
 
 
 def _to_decimal(value):
@@ -639,6 +639,14 @@ class _CustomBigQuerySource(BoundedSource):
     self.kms_key = kms_key
     self.split_result = None
     self.options = pipeline_options
+
+  def display_data(self):
+    return {
+        'table': str(self.table_reference),
+        'query': str(self.query),
+        'project': str(self.project),
+        'use_legacy_sql': self.use_legacy_sql,
+    }
 
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
