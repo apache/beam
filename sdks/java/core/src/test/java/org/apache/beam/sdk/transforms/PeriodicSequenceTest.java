@@ -66,7 +66,7 @@ public class PeriodicSequenceTest {
                 Create.<PeriodicSequence.SequenceDefinition>of(
                     new PeriodicSequence.SequenceDefinition(startTime, stopTime, interval)))
             .apply(PeriodicSequence.create())
-            .apply(ParDo.of(new ExtractTsDoFn<>()));
+            .apply(ParDo.of(new ExtractTsDoFn<>())); // used to validate timestamp
 
     ArrayList<KV<Instant, Instant>> expectedResults =
         new ArrayList<>((int) (duration / intervalMillis + 1));

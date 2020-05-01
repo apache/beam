@@ -36,13 +36,11 @@ import org.joda.time.Instant;
 
 /**
  * A {@link PTransform} which generates a sequence of timestamped elements at given runtime
- * interval.
+ * intervals.
  *
- * <p>Transform will not output elements prior to target time. Transform can output elements at any
- * time after target time.
- *
- * <p>Multiple elements can be output at given moment if their timestamp is earlier than current
- * time.
+ * <p>Transform assigns each element some timestamp and will only output element when worker clock
+ * reach given timestamp. Transform will not output elements prior to target time. Transform can
+ * output elements at any time after target time.
  */
 @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
 public class PeriodicSequence
