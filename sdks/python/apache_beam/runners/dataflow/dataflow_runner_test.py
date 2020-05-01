@@ -595,9 +595,24 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertIn(
         u'CombineValues', set(step[u'kind'] for step in job_dict[u'steps']))
 
-  def expect_correct_override(
-      self, job, step_name, step_kind, expected_output_info):
+  def expect_correct_override(self, job, step_name, step_kind):
     """Expects that a transform was correctly overriden."""
+
+    # If the typing information isn't being forwarded correctly, the component
+    # encodings here will be incorrect.
+    expected_output_info = [{
+        "encoding": {
+            "@type": "kind:windowed_value",
+            "component_encodings": [{
+                "@type": "kind:bytes"
+            }, {
+                "@type": "kind:global_window"
+            }],
+            "is_wrapper": True
+        },
+        "output_name": "out",
+        "user_name": step_name + ".out"
+    }]
 
     job_dict = json.loads(str(job))
     maybe_step = [
@@ -620,25 +635,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     with beam.Pipeline(runner=runner,
                        options=PipelineOptions(self.default_properties)) as p:
       # pylint: disable=expression-not-assigned
-      p | beam.Create([1, 2, 3])
+      p | beam.Create([b'a', b'b', b'c'])
 
-    # If the typing information isn't being forwarded correctly, the component
-    # encodings here will be incorrect.
-    expected_output_info = [{
-        "encoding": {
-            "@type": "kind:windowed_value",
-            "component_encodings": [{
-                "@type": "kind:varint"
-            }, {
-                "@type": "kind:global_window"
-            }],
-            "is_wrapper": True
-        },
-        "output_name": "out",
-        "user_name": "Create/Read.out"
-    }]
-    self.expect_correct_override(
-        runner.job, u'Create/Read', u'ParallelRead', expected_output_info)
+    self.expect_correct_override(runner.job, u'Create/Read', u'ParallelRead')
 
   def test_read_bigquery_translation(self):
     runner = DataflowRunner()
@@ -648,23 +647,7 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       # pylint: disable=expression-not-assigned
       p | beam.io.Read(beam.io.BigQuerySource('some.table', coder=BytesCoder()))
 
-    # If the typing information isn't being forwarded correctly, the component
-    # encodings here will be incorrect.
-    expected_output_info = [{
-        "encoding": {
-            "@type": "kind:windowed_value",
-            "component_encodings": [{
-                "@type": "kind:bytes"
-            }, {
-                "@type": "kind:global_window"
-            }],
-            "is_wrapper": True
-        },
-        "output_name": "out",
-        "user_name": "Read.out"
-    }]
-    self.expect_correct_override(
-        runner.job, u'Read', u'ParallelRead', expected_output_info)
+    self.expect_correct_override(runner.job, u'Read', u'ParallelRead')
 
   def test_read_pubsub_translation(self):
     runner = DataflowRunner()
@@ -676,26 +659,8 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
       # pylint: disable=expression-not-assigned
       p | beam.io.ReadFromPubSub(topic='projects/project/topics/topic')
 
-    # If the typing information isn't being forwarded correctly, the component
-    # encodings here will be incorrect.
-    expected_output_info = [{
-        "encoding": {
-            "@type": "kind:windowed_value",
-            "component_encodings": [{
-                "@type": "kind:bytes"
-            }, {
-                "@type": "kind:global_window"
-            }],
-            "is_wrapper": True
-        },
-        "output_name": "out",
-        "user_name": "ReadFromPubSub/Read.out"
-    }]
     self.expect_correct_override(
-        runner.job,
-        u'ReadFromPubSub/Read',
-        u'ParallelRead',
-        expected_output_info)
+        runner.job, u'ReadFromPubSub/Read', u'ParallelRead')
 
 
 class CustomMergingWindowFn(window.WindowFn):
