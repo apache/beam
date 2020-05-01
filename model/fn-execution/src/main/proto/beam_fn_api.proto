@@ -104,14 +104,12 @@ message InstructionRequest {
 
   // (Required) A request that the SDK Harness needs to interpret.
   oneof request {
+    RegisterRequest register = 1000;
     ProcessBundleRequest process_bundle = 1001;
     ProcessBundleProgressRequest process_bundle_progress = 1002;
     ProcessBundleSplitRequest process_bundle_split = 1003;
     FinalizeBundleRequest finalize_bundle = 1004;
     ProcessBundleProgressMetadataRequest process_bundle_progress_metadata = 1005;
-
-    // DEPRECATED
-    RegisterRequest register = 1000;
   }
 }
 
@@ -131,14 +129,12 @@ message InstructionResponse {
   // If the instruction did not fail, it is required to return an equivalent
   // response type depending on the request this matches.
   oneof response {
+    RegisterResponse register = 1000;
     ProcessBundleResponse process_bundle = 1001;
     ProcessBundleProgressResponse process_bundle_progress = 1002;
     ProcessBundleSplitResponse process_bundle_split = 1003;
     FinalizeBundleResponse finalize_bundle = 1004;
     ProcessBundleProgressMetadataResponse process_bundle_progress_metadata = 1005;
-
-    // DEPRECATED
-    RegisterResponse register = 1000;
   }
 }
 
