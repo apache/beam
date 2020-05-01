@@ -221,7 +221,8 @@ class MethodWrapper(object):
     if self.watermark_estimator_provider is None:
       self.watermark_estimator_provider = NoOpWatermarkEstimatorProvider()
 
-  def invoke_timer_callback(self, user_state_context, key, window, timestamp):
+  def invoke_timer_callback(
+      self, user_state_context, key, window, timestamp, pane_info):
     # TODO(ccy): support side inputs.
     kwargs = {}
     if self.has_userstate_arguments:
@@ -229,10 +230,10 @@ class MethodWrapper(object):
         kwargs[kw] = user_state_context.get_state(state_spec, key, window)
       for kw, timer_spec in self.timer_args_to_replace.items():
         kwargs[kw] = user_state_context.get_timer(
-            timer_spec, key, window, None, None)
+            timer_spec, key, window, timestamp, pane_info)
 
     if self.timestamp_arg_name:
-      kwargs[self.timestamp_arg_name] = Timestamp(seconds=timestamp)
+      kwargs[self.timestamp_arg_name] = Timestamp.of(timestamp)
     if self.window_arg_name:
       kwargs[self.window_arg_name] = window
     if self.key_arg_name:
@@ -509,12 +510,12 @@ class DoFnInvoker(object):
     """
     self.signature.teardown_lifecycle_method.method_value()
 
-  def invoke_user_timer(self, timer_spec, key, window, timestamp):
+  def invoke_user_timer(self, timer_spec, key, window, timestamp, pane_info):
     # self.output_processor is Optional, but in practice it won't be None here
     self.output_processor.process_outputs(
         WindowedValue(None, timestamp, (window, )),
         self.signature.timer_methods[timer_spec].invoke_timer_callback(
-            self.user_state_context, key, window, timestamp))
+            self.user_state_context, key, window, timestamp, pane_info))
 
   def invoke_create_watermark_estimator(self, estimator_state):
     return self.signature.create_watermark_estimator_method.method_value(
@@ -983,9 +984,10 @@ class DoFnRunner:
     assert isinstance(self.do_fn_invoker, PerWindowInvoker)
     return self.do_fn_invoker.current_element_progress()
 
-  def process_user_timer(self, timer_spec, key, window, timestamp):
+  def process_user_timer(self, timer_spec, key, window, timestamp, pane_info):
     try:
-      self.do_fn_invoker.invoke_user_timer(timer_spec, key, window, timestamp)
+      self.do_fn_invoker.invoke_user_timer(
+          timer_spec, key, window, timestamp, pane_info)
     except BaseException as exn:
       self._reraise_augmented(exn)
 
