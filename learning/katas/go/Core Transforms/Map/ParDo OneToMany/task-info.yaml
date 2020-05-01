@@ -24,10 +24,10 @@ files:
 - name: pkg/task/task.go
   visible: true
   placeholders:
-  - offset: 1010
+  - offset: 1012
     length: 35
     placeholder_text: TODO()
-  - offset: 1050
+  - offset: 1052
     length: 76
     placeholder_text: TODO()
 - name: cmd/main.go

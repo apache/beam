@@ -29,9 +29,11 @@ func main() {
 
 	p, s := beam.NewPipelineWithRoot()
 
-	col := task.ApplyTransform(s, beam.Create(s, 1, 2, 3, 4, 5))
+	input := beam.Create(s, 1, 2, 3, 4, 5)
 
-	debug.Print(s, col)
+	output := task.ApplyTransform(s, input)
+
+	debug.Print(s, output)
 
 	err := beamx.Run(ctx, p)
 

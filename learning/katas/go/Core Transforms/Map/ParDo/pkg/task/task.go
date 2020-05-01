@@ -18,8 +18,9 @@ package task
 import "github.com/apache/beam/sdks/go/pkg/beam"
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	processFn := func(element int) int {
-		return element * 10
-	}
-	return beam.ParDo(s, processFn, input)
+	return beam.ParDo(s, multiplyBy10Fn, input)
+}
+
+func multiplyBy10Fn(element int) int {
+	return element * 10
 }

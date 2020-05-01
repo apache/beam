@@ -30,10 +30,6 @@ func TestTask(t *testing.T) {
 		want []interface{}
 	}{
 		{
-			input: beam.Create(s, "Hello Beam", "It is awesome"),
-			want: []interface{}{"Hello", "Beam", "It", "is", "awesome"},
-		},
-		{
 			input: beam.Create(s, "Hello Beam. It is awesome."),
 			want: []interface{}{"Hello", "Beam.", "It", "is", "awesome."},
 		},
@@ -42,7 +38,7 @@ func TestTask(t *testing.T) {
 		got := task.ApplyTransform(s, tt.input)
 		passert.Equals(s, got, tt.want...)
 		if err := ptest.Run(p); err != nil {
-			t.Errorf("ApplyTransform(\"%v\") = %v", tt.input, err)
+			t.Error(err)
 		}
 	}
 }

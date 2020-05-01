@@ -21,10 +21,10 @@ import (
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.ParDo(s, processFn, input)
+	return beam.ParDo(s, tokenizeFn, input)
 }
 
-func processFn(input string, emit func(out string)) {
+func tokenizeFn(input string, emit func(out string)) {
 	tokens := strings.Split(input, " ")
 	for _, k := range tokens {
 		emit(k)

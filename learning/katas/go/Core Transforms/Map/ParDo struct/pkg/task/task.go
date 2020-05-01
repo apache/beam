@@ -13,36 +13,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package test
+package task
 
-import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"mapelements/pkg/task"
-	"testing"
-)
+import "github.com/apache/beam/sdks/go/pkg/beam"
 
-func TestTask(t *testing.T) {
-	p, s := beam.NewPipelineWithRoot()
-	tests := []struct {
-		input beam.PCollection
-		want []interface{}
-	}{
-		{
-			input: beam.Create(s, -1, -2, -3, -4, -5),
-			want: []interface{}{-5, -10, -15, -20, -25},
-		},
-		{
-			input: beam.Create(s, 1, 2, 3, 4, 5),
-			want: []interface{}{5, 10, 15, 20, 25},
-		},
-	}
-	for _, tt := range tests {
-		got := task.ApplyTransform(s, tt.input)
-		passert.Equals(s, got, tt.want...)
-		if err := ptest.Run(p); err != nil {
-			t.Errorf("ApplyTransform(\"%v\") = %v", tt.input, err)
-		}
-	}
+func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
+	return beam.ParDo(s, &multiplyByFn{Factor: 5}, input)
+}
+
+type multiplyByFn struct {
+	Factor int
+}
+
+func (f *multiplyByFn) ProcessElement(input int) int {
+	return f.Factor * input
 }

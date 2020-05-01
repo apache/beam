@@ -30,6 +30,9 @@ files:
 - name: pkg/task/task.go
   visible: true
   placeholders:
-  - offset: 937
-    length: 101
+  - offset: 1024
+    length: 19
+    placeholder_text: TODO()
+  - offset: 944
+    length: 36
     placeholder_text: TODO()

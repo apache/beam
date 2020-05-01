@@ -16,10 +16,13 @@
     specific language governing permissions and limitations
     under the License.
 -->
-In this kata, we continue the use of a DoFn struct to map a single element into multiple elements
-(one to many).
+# Using a struct as a DoFn
 
-**Kata:** Implement a function that maps each input sentence into words tokenized by whitespace (" ").
+In previous katas, we provided our ParDo a `func` as a DoFn.  In this example, we will explore
+the use of a `struct` to in our transform.
+
+**Kata:** Implement a simple map function that multiplies all input elements by 5.  Use a `struct` as your DoFn with
+a `ProcessElement` method.
 
 <div class="hint">
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">

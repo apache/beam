@@ -20,5 +20,4 @@
 content:
 - ParDo
 - ParDo OneToMany
-- MapElements
-- FlatMapElements
+- ParDo struct
