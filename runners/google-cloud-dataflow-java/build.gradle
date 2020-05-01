@@ -243,8 +243,9 @@ task validatesRunnerFnApiWorkerTest(type: Test) {
   classpath = configurations.validatesRunner
   testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
           files(project(project.path).sourceSets.test.output.classesDirs)
+  include '**/PAssertTest.class'
   useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+//    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
     commonExcludeCategories.each {
       excludeCategories it
