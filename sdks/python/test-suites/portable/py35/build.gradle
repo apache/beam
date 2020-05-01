@@ -28,17 +28,14 @@ apply from: "../common.gradle"
 addPortableWordCountTasks()
 
 task preCommitPy35() {
-    dependsOn ':runners:flink:1.10:job-server-container:docker'
     dependsOn ':sdks:python:container:py35:docker'
-    dependsOn portableWordCountBatch
-    dependsOn portableWordCountStreaming
+    dependsOn ':runners:flink:1.10:job-server:shadowJar'
+    dependsOn portableWordCountFlinkRunnerBatch
+    dependsOn portableWordCountFlinkRunnerStreaming
 }
 
 task postCommitPy35() {
     dependsOn 'setupVirtualenv'
-    dependsOn ':runners:flink:1.10:job-server:shadowJar'
-    dependsOn portableWordCountFlinkRunnerBatch
-    dependsOn portableWordCountFlinkRunnerStreaming
     dependsOn 'postCommitPy35IT'
     dependsOn ':runners:spark:job-server:shadowJar'
     dependsOn portableWordCountSparkRunnerBatch
