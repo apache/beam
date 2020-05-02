@@ -121,7 +121,7 @@ class Pipeline(object):
   All the transforms applied to the pipeline must have distinct full labels.
   If same transform instance needs to be applied then the right shift operator
   should be used to designate new names
-  (e.g. ``input | "label" >> my_tranform``).
+  (e.g. ``input | "label" >> my_transform``).
   """
 
   # TODO: BEAM-9001 - set environment ID in all transforms and allow runners to
@@ -878,8 +878,10 @@ class Pipeline(object):
     root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
-    p.applied_labels = set(
-        [t.unique_name for t in proto.components.transforms.values()])
+    p.applied_labels = {
+        t.unique_name
+        for t in proto.components.transforms.values()
+    }
     for id in proto.components.pcollections:
       pcollection = context.pcollections.get_by_id(id)
       pcollection.pipeline = p
