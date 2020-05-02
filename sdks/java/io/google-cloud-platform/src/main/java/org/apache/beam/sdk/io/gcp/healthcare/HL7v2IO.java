@@ -21,14 +21,15 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -36,9 +37,12 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
@@ -49,6 +53,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -447,9 +452,18 @@ public class HL7v2IO {
     }
   }
 
+  /** Implemented as Splitable DoFn that claims millisecond resolutions of offset restrictions in
+   * the Message.sendTime dimension. */
+  @BoundedPerElement
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
     private final String filter;
+    // TODO(jaketf) what are reasonable defaults here
+    // These control the initial restriction split which means that the list of integer pairs
+    // must comfortably fit in memory.
+    private static final Duration DEFAULT_DESIRED_SPLIT_SIZE = Duration.standardDays(1);
+    private static final Duration DEFAULT_MIN_SPLIT_SIZE = Duration.standardHours(1);
     private transient HealthcareApiClient client;
     private Distribution messageListingLatencyMs =
         Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-pagination-latency-ms");
@@ -472,22 +486,63 @@ public class HL7v2IO {
       this.client = new HttpHealthcareApiClient();
     }
 
+    @GetInitialRestriction
+    public OffsetRange getEarliestToNowRestriction(@Element String hl7v2Store) throws IOException {
+      Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter);
+      Instant to = Instant.now();
+      return new OffsetRange(from.getMillis(), to.getMillis());
+    }
+
+    @NewTracker
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange timeRange){
+      return timeRange.newTracker();
+    }
+
+    @SplitRestriction
+    public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out){
+      // TODO(jaketf) How to pick optimal values for desiredNumOffsetsPerSplit ?
+      List<OffsetRange> splits = timeRange.split(
+          DEFAULT_DESIRED_SPLIT_SIZE.getMillis(),
+          DEFAULT_MIN_SPLIT_SIZE.getMillis());
+      // TODO:DELETEME(jaketf)
+      LOG.warn(String.format("splitting sendTime Restriction into %s", Arrays.toString(splits.toArray())));
+      for (OffsetRange s: splits){
+        out.output(s);
+      }
+    }
+
     /**
      * List messages.
      *
-     * @param context the context
+     * @param hl7v2Store the HL7v2 store to list messages from
      * @throws IOException the io exception
      */
     @ProcessElement
-    public void listMessages(ProcessContext context) throws IOException {
-      String hl7v2Store = context.element();
-      // Output all elements of all pages.
+    public void listMessages(@Element String hl7v2Store, RestrictionTracker tracker, OutputReceiver<HL7v2Message> outputReceiver) throws IOException {
+      OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
+      Instant startRestriction = Instant.ofEpochMilli(currentRestriction.getFrom());
+      Instant endRestriction = Instant.ofEpochMilli(currentRestriction.getTo());
       HttpHealthcareApiClient.HL7v2MessagePages pages =
-          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
+          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
       long reqestTime = Instant.now().getMillis();
-      for (Stream<HL7v2Message> page : pages) {
+      for (List<HL7v2Message> page: pages) {
+        int i = 0;
+        while(i < page.size()){ // loop over messages in page
+          HL7v2Message msg = page.get(i++);
+          Instant thisTime = Instant.parse(msg.getSendTime());
+          long claimedMilliSecond = thisTime.getMillis();
+          if (tracker.tryClaim(claimedMilliSecond)) {
+            // This means we have claimed an entire millisecond we need to make sure that we
+            // process all messages for this millisecond because sendTime is nano second resolution.
+            // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
+            while (thisTime.getMillis() == claimedMilliSecond) { // loop over messages in millisecond.
+              outputReceiver.output(msg);
+              msg = page.get(i++);
+              thisTime = Instant.parse(msg.getSendTime());
+            }
+          }
+        }
         messageListingLatencyMs.update(Instant.now().getMillis() - reqestTime);
-        page.forEach(context::output);
         reqestTime = Instant.now().getMillis();
       }
     }
