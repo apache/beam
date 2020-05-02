@@ -526,7 +526,7 @@ FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 
 def _to_bool(value):
-  return value == 'true' or value == 'True' or value == True
+  return value
 
 
 def _to_decimal(value):
