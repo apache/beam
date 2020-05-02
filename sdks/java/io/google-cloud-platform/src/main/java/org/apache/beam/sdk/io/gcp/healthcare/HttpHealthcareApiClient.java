@@ -47,10 +47,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
-import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IO.WriteHL7v2;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,8 +129,11 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
               filter, hl7v2Store));
     }
     String sendTime = response.getHl7V2Messages().get(0).getSendTime();
-    if (Strings.isNullOrEmpty(sendTime)){
-      LOG.warn(String.format("Earliest message in %s has null or empty sendTime defaulting to Epoch.", hl7v2Store));
+    if (Strings.isNullOrEmpty(sendTime)) {
+      LOG.warn(
+          String.format(
+              "Earliest message in %s has null or empty sendTime defaulting to Epoch.",
+              hl7v2Store));
       return Instant.ofEpochMilli(0);
     }
     // sendTime is conveniently RFC3339 UTC "Zulu"
@@ -154,7 +155,7 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
     if (start != null) {
       sendTimeFilter += String.format("sendTime >= \"%s\"", start.toString());
       if (end != null) {
-        sendTimeFilter += String.format(" AND sendTime < \"%s\"",end.toString());
+        sendTimeFilter += String.format(" AND sendTime < \"%s\"", end.toString());
       }
     }
 
@@ -175,8 +176,6 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       @Nullable String pageToken)
       throws IOException {
 
-    // TODO(jaketf):DELETEME
-    LOG.info(String.format("making list request on %s with filter %s", hl7v2Store, filter));
     Messages.List baseRequest =
         client
             .projects()
@@ -384,7 +383,11 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
      * @param client the client
      * @param hl7v2Store the HL7v2 store
      */
-    HL7v2MessagePages(HealthcareApiClient client, String hl7v2Store, @Nullable Instant start, @Nullable Instant end) {
+    HL7v2MessagePages(
+        HealthcareApiClient client,
+        String hl7v2Store,
+        @Nullable Instant start,
+        @Nullable Instant end) {
       this.client = client;
       this.hl7v2Store = hl7v2Store;
       this.filter = null;
@@ -434,12 +437,14 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
         @Nullable String orderBy,
         @Nullable String pageToken)
         throws IOException {
-      return client.makeSendTimeBoundHL7v2ListRequest(hl7v2Store, start, end, filter, orderBy, pageToken);
+      return client.makeSendTimeBoundHL7v2ListRequest(
+          hl7v2Store, start, end, filter, orderBy, pageToken);
     }
 
     @Override
     public Iterator<List<HL7v2Message>> iterator() {
-      return new HL7v2MessagePagesIterator(this.client, this.hl7v2Store, this.start, this.end, this.filter, this.orderBy);
+      return new HL7v2MessagePagesIterator(
+          this.client, this.hl7v2Store, this.start, this.end, this.filter, this.orderBy);
     }
 
     /** The type Hl7v2 message id pages iterator. */

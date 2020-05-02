@@ -32,6 +32,7 @@ public class HL7v2MessageCoder extends CustomCoder<HL7v2Message> {
   public static HL7v2MessageCoder of() {
     return new HL7v2MessageCoder();
   }
+
   public HL7v2MessageCoder() {}
 
   private static final NullableCoder<String> STRING_CODER = NullableCoder.of(StringUtf8Coder.of());

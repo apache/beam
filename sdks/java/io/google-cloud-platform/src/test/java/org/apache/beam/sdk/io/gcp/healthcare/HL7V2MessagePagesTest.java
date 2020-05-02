@@ -79,7 +79,7 @@ public class HL7V2MessagePagesTest {
                     .collect(Collectors.toList()));
     Mockito.doReturn(page0).when(client).makeHL7v2ListRequest("foo", null, null, null);
 
-    Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, null,  "page1");
+    Mockito.doReturn(page1).when(client).makeHL7v2ListRequest("foo", null, null, "page1");
 
     HL7v2MessagePages pages = new HL7v2MessagePages(client, "foo", null, null);
     assertTrue(pages.iterator().hasNext());

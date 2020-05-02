@@ -452,8 +452,10 @@ public class HL7v2IO {
     }
   }
 
-  /** Implemented as Splitable DoFn that claims millisecond resolutions of offset restrictions in
-   * the Message.sendTime dimension. */
+  /**
+   * Implemented as Splitable DoFn that claims millisecond resolutions of offset restrictions in the
+   * Message.sendTime dimension.
+   */
   @BoundedPerElement
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
 
@@ -494,19 +496,32 @@ public class HL7v2IO {
     }
 
     @NewTracker
-    public OffsetRangeTracker newTracker(@Restriction OffsetRange timeRange){
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange timeRange) {
       return timeRange.newTracker();
     }
 
     @SplitRestriction
-    public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out){
+    public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out) {
       // TODO(jaketf) How to pick optimal values for desiredNumOffsetsPerSplit ?
-      List<OffsetRange> splits = timeRange.split(
-          DEFAULT_DESIRED_SPLIT_SIZE.getMillis(),
-          DEFAULT_MIN_SPLIT_SIZE.getMillis());
+      List<OffsetRange> splits =
+          timeRange.split(
+              DEFAULT_DESIRED_SPLIT_SIZE.getMillis(), DEFAULT_MIN_SPLIT_SIZE.getMillis());
       // TODO:DELETEME(jaketf)
-      LOG.warn(String.format("splitting sendTime Restriction into %s", Arrays.toString(splits.toArray())));
-      for (OffsetRange s: splits){
+      Instant from = Instant.ofEpochMilli(timeRange.getFrom());
+      Instant to = Instant.ofEpochMilli(timeRange.getTo());
+      Duration totalDuration = new Duration(from, to);
+          LOG.warn(
+          String.format(
+              "splitting initial sendTime restriction of [minSendTime, now): [%s,%s), "
+                  + "or [%s, %s). \n"
+                  + "total days: %s \n"
+                  + "into %s splits. \n"
+                  + "Last split: %s",
+              from, to, timeRange.getFrom(), timeRange.getTo(), totalDuration.getStandardDays(),
+              splits.size(), splits.get(splits.size() -1 ).toString()));
+          // END DELETEME
+
+      for (OffsetRange s : splits) {
         out.output(s);
       }
     }
@@ -518,16 +533,21 @@ public class HL7v2IO {
      * @throws IOException the io exception
      */
     @ProcessElement
-    public void listMessages(@Element String hl7v2Store, RestrictionTracker tracker, OutputReceiver<HL7v2Message> outputReceiver) throws IOException {
+    public void listMessages(
+        @Element String hl7v2Store,
+        RestrictionTracker tracker,
+        OutputReceiver<HL7v2Message> outputReceiver)
+        throws IOException {
       OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
       Instant startRestriction = Instant.ofEpochMilli(currentRestriction.getFrom());
       Instant endRestriction = Instant.ofEpochMilli(currentRestriction.getTo());
       HttpHealthcareApiClient.HL7v2MessagePages pages =
-          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
+          new HttpHealthcareApiClient.HL7v2MessagePages(
+              client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
       long reqestTime = Instant.now().getMillis();
-      for (List<HL7v2Message> page: pages) {
+      for (List<HL7v2Message> page : pages) {
         int i = 0;
-        while(i < page.size()){ // loop over messages in page
+        while (i < page.size()) { // loop over messages in page
           HL7v2Message msg = page.get(i++);
           Instant thisTime = Instant.parse(msg.getSendTime());
           long claimedMilliSecond = thisTime.getMillis();
@@ -535,7 +555,8 @@ public class HL7v2IO {
             // This means we have claimed an entire millisecond we need to make sure that we
             // process all messages for this millisecond because sendTime is nano second resolution.
             // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
-            while (thisTime.getMillis() == claimedMilliSecond) { // loop over messages in millisecond.
+            while (thisTime.getMillis()
+                == claimedMilliSecond) { // loop over messages in millisecond.
               outputReceiver.output(msg);
               msg = page.get(i++);
               thisTime = Instant.parse(msg.getSendTime());

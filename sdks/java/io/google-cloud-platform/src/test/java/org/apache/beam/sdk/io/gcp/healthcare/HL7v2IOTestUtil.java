@@ -218,7 +218,8 @@ class HL7v2IOTestUtil {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
       HttpHealthcareApiClient.HL7v2MessagePages pages =
-          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, null, null, this.filter, "sendTime");
+          new HttpHealthcareApiClient.HL7v2MessagePages(
+              client, hl7v2Store, null, null, this.filter, "sendTime");
       for (List<HL7v2Message> page : pages) {
         page.stream().map(HL7v2Message::getName).forEach(context::output);
       }
