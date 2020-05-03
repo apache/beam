@@ -53,7 +53,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.AbstractRichFunction;
 import org.apache.flink.api.common.functions.GroupReduceFunction;
@@ -253,20 +252,7 @@ public class FlinkExecutableStageFunction<InputT> extends AbstractRichFunction
               receiverFactory, timerReceiverFactory, stateRequestHandler, progressHandler)) {
 
         PipelineTranslatorUtils.fireEligibleTimers(
-            timerInternals,
-            (KV<String, String> transformAndTimerId, Timer<?> timerValue) -> {
-              FnDataReceiver<Timer> fnTimerReceiver =
-                  bundle.getTimerReceivers().get(transformAndTimerId);
-              Preconditions.checkNotNull(
-                  fnTimerReceiver, "No FnDataReceiver found for %s", transformAndTimerId);
-              try {
-                fnTimerReceiver.accept(timerValue);
-              } catch (Exception e) {
-                throw new RuntimeException(
-                    String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
-              }
-            },
-            currentTimerKey);
+            timerInternals, bundle.getTimerReceivers(), currentTimerKey);
       }
     }
   }
