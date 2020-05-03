@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 -->
-# Using a struct as a DoFn
+# ParDo - using a struct as a DoFn
 
 In previous katas, we provided our ParDo a `func` as a DoFn.  In this example, we will explore
 the use of a `struct` to in our transform.
