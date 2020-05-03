@@ -40,13 +40,13 @@ public class InMemoryTimerInternals implements TimerInternals {
   Table<StateNamespace, String, TimerData> existingTimers = HashBasedTable.create();
 
   /** Pending input watermark timers, in timestamp order. */
-  private NavigableSet<TimerData> watermarkTimers = new TreeSet<>();
+  private final NavigableSet<TimerData> watermarkTimers = new TreeSet<>();
 
   /** Pending processing time timers, in timestamp order. */
-  private NavigableSet<TimerData> processingTimers = new TreeSet<>();
+  private final NavigableSet<TimerData> processingTimers = new TreeSet<>();
 
   /** Pending synchronized processing time timers, in timestamp order. */
-  private NavigableSet<TimerData> synchronizedProcessingTimers = new TreeSet<>();
+  private final NavigableSet<TimerData> synchronizedProcessingTimers = new TreeSet<>();
 
   /** Current input watermark. */
   private Instant inputWatermarkTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -68,9 +68,7 @@ public class InMemoryTimerInternals implements TimerInternals {
 
   /** Returns true when there are still timers to be fired. */
   public boolean hasPendingTimers() {
-    return !(watermarkTimers.isEmpty()
-        && processingTimers.isEmpty()
-        && synchronizedProcessingTimers.isEmpty());
+    return !existingTimers.isEmpty();
   }
 
   /**
@@ -167,9 +165,9 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Deprecated
   @Override
   public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
-    TimerData existing = existingTimers.get(namespace, timerId + '+' + timerFamilyId);
-    if (existing != null) {
-      deleteTimer(existing);
+    TimerData removedTimer = existingTimers.remove(namespace, timerId + '+' + timerFamilyId);
+    if (removedTimer != null) {
+      timersForDomain(removedTimer.getDomain()).remove(removedTimer);
     }
   }
 
@@ -177,10 +175,7 @@ public class InMemoryTimerInternals implements TimerInternals {
   @Deprecated
   @Override
   public void deleteTimer(TimerData timer) {
-    WindowTracing.trace("{}.deleteTimer: {}", getClass().getSimpleName(), timer);
-    existingTimers.remove(
-        timer.getNamespace(), timer.getTimerId() + '+' + timer.getTimerFamilyId());
-    timersForDomain(timer.getDomain()).remove(timer);
+    deleteTimer(timer.getNamespace(), timer.getTimerId(), timer.getTimerFamilyId());
   }
 
   @Override
