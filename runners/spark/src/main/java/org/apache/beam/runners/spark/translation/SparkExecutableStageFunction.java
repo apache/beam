@@ -151,7 +151,11 @@ class SparkExecutableStageFunction<InputT, SideInputT>
                 stageBundleFactory,
                 (Timer<?> timer, TimerInternals.TimerData timerData) -> {
                   currentTimerKey = timer.getUserKey();
-                  timerInternals.setTimer(timerData);
+                  if (timer.getClearBit()) {
+                    timerInternals.deleteTimer(timerData);
+                  } else {
+                    timerInternals.setTimer(timerData);
+                  }
                 },
                 windowCoder);
 
