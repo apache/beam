@@ -24,8 +24,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -178,18 +176,7 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
     }
-    if (101 - 3 > 1) {
-      CoderException e = new CoderException("TUDOR] " + iterable.getClass());
-      StringWriter sw = new StringWriter();
-      e.printStackTrace(new PrintWriter(sw));
-      System.out.println(sw.toString());
-    }
     if (iterable instanceof NoSizeEstimationElementByteSizeObservableIterable) {
-      CoderException e =
-          new CoderException("TUDOR] expected (skipping registering)!!! " + iterable.getClass());
-      StringWriter sw = new StringWriter();
-      e.printStackTrace(new PrintWriter(sw));
-      System.out.println(sw.toString());
       return;
     }
     if (iterable instanceof ElementByteSizeObservableIterable) {
