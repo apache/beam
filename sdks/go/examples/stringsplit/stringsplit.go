@@ -112,7 +112,7 @@ func (fn *StringSplitFn) CreateTracker(rest offsetrange.Restriction) *offsetrang
 //
 // Example: If BufSize is 100, then a restriction of 75 to 325 should emit the
 // following substrings: [100, 200], [200, 300], [300, 400]
-func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, emit func(string)) error {
+func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, emit func(string)) {
 	log.Debugf(context.Background(), "StringSplit ProcessElement: Tracker = %v", rt)
 	i := rt.Rest.Start
 	if rem := i % fn.BufSize; rem != 0 {
@@ -128,8 +128,6 @@ func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, em
 		}
 		i += fn.BufSize
 	}
-	// TODO(BEAM-9799): Remove this check once error checking is automatic.
-	return rt.GetError()
 }
 
 // LogFn is a DoFn to log our split output.
