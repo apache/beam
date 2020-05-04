@@ -246,8 +246,8 @@ class WindmillTimerInternals implements TimerInternals {
       builder.setStateFamily(stateFamily);
     }
 
-    builder.setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getTimestamp()));
-
+    builder.setTimestamp(
+        WindmillTimeUtils.harnessToWindmillTimestamp(timerData.getOutputTimestamp()));
     return builder;
   }
 

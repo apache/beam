@@ -1089,7 +1089,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
         !gcTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
         "Timer %s is beyond end-of-time",
         gcTime);
-    directContext.timers().setTimer(gcTime, gcTime.minus(1L), TimeDomain.EVENT_TIME);
+    directContext.timers().setTimer(gcTime, TimeDomain.EVENT_TIME);
   }
 
   private void cancelEndOfWindowAndGarbageCollectionTimers(

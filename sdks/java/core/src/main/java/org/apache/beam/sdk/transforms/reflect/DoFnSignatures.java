@@ -191,6 +191,7 @@ public class DoFnSignatures {
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class,
+              Parameter.TimestampParameter.class,
               Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
