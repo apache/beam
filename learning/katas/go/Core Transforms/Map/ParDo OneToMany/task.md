@@ -27,6 +27,6 @@ In this kata we will map a single element into many by splitting a sentence into
 <div class="hint">
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">
   ParDo</a>
-  with <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
+  with a <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
   DoFn</a>.
 </div>
