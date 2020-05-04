@@ -65,7 +65,7 @@ task crossLanguagePythonJavaDirect {
 
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.10:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -73,7 +73,7 @@ task crossLanguagePythonJavaFlink {
   doLast {
     def testServiceExpansionJar = project(":sdks:java:testing:expansion-service:").buildTestExpansionServiceJar.archivePath
     def options = [
-        "--runner=PortableRunner",
+        "--runner=FlinkRunner",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -87,9 +87,9 @@ task crossLanguagePythonJavaFlink {
   }
 }
 
-task crossLanguagePortableWordCount {
+task crossLanguagePortableWordCountFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.10:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -99,7 +99,7 @@ task crossLanguagePortableWordCount {
     def options = [
         "--input=/etc/profile",
         "--output=/tmp/py-wordcount-portable",
-        "--runner=PortableRunner",
+        "--runner=FlinkRunner",
         "--parallelism=2",
         "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
@@ -139,7 +139,7 @@ task postCommitPy2IT {
 
 task crossLanguageTests {
   dependsOn "crossLanguagePythonJavaFlink"
-  dependsOn "crossLanguagePortableWordCount"
+  dependsOn "crossLanguagePortableWordCountFlink"
 }
 
 task installChicagoTaxiExampleRequirements {
