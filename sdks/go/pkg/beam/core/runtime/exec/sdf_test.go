@@ -37,11 +37,11 @@ func TestSdfNodes(t *testing.T) {
 	// have testable behavior to confirm that they got correctly invoked.
 	// Without knowing the expected behavior of these DoFns, the desired outputs
 	// in the unit tests below will not make much sense.
-	dfn, err := graph.NewDoFn(&Sdf{}, graph.NumMainInputs(graph.MainSingle))
+	dfn, err := graph.NewDoFn(&VetSdf{}, graph.NumMainInputs(graph.MainSingle))
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
-	kvdfn, err := graph.NewDoFn(&KvSdf{}, graph.NumMainInputs(graph.MainKv))
+	kvdfn, err := graph.NewDoFn(&VetKvSdf{}, graph.NumMainInputs(graph.MainKv))
 	if err != nil {
 		t.Fatalf("invalid function: %v", err)
 	}
@@ -59,19 +59,19 @@ func TestSdfNodes(t *testing.T) {
 				name: "SingleElem",
 				fn:   dfn,
 				in: FullValue{
-					Elm:       5,
+					Elm:       1,
 					Elm2:      nil,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
 				want: FullValue{
 					Elm: &FullValue{
-						Elm:       5,
+						Elm:       1,
 						Elm2:      nil,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      Restriction{5},
+					Elm2:      &VetRestriction{ID: "Sdf", CreateRest: true, Val: 1},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -80,19 +80,19 @@ func TestSdfNodes(t *testing.T) {
 				name: "KvElem",
 				fn:   kvdfn,
 				in: FullValue{
-					Elm:       5,
+					Elm:       1,
 					Elm2:      2,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
 				want: FullValue{
 					Elm: &FullValue{
-						Elm:       5,
+						Elm:       1,
 						Elm2:      2,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      Restriction{7},
+					Elm2:      &VetRestriction{ID: "KvSdf", CreateRest: true, Key: 1, Val: 2},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -109,8 +109,8 @@ func TestSdfNodes(t *testing.T) {
 
 				got := capt.Elements[0]
 				if !cmp.Equal(got, test.want) {
-					t.Errorf("ProcessElement(%v) has incorrect output: got: %v, want: %v",
-						test.in, got, test.want)
+					t.Errorf("PairWithRestriction(%v) has incorrect output: (-got, +want)\n%v",
+						test.in, cmp.Diff(got, test.want))
 				}
 			})
 		}
@@ -130,12 +130,12 @@ func TestSdfNodes(t *testing.T) {
 				fn:   dfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:       2,
+						Elm:       1,
 						Elm2:      nil,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      Restriction{5},
+					Elm2:      &VetRestriction{ID: "Sdf"},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -143,28 +143,28 @@ func TestSdfNodes(t *testing.T) {
 					{
 						Elm: &FullValue{
 							Elm: &FullValue{
-								Elm:       2,
+								Elm:       1,
 								Elm2:      nil,
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: Restriction{7},
+							Elm2: &VetRestriction{ID: "Sdf.1", SplitRest: true, RestSize: true, Val: 1},
 						},
-						Elm2:      9.0,
+						Elm2:      1.0,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
 					{
 						Elm: &FullValue{
 							Elm: &FullValue{
-								Elm:       2,
+								Elm:       1,
 								Elm2:      nil,
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: Restriction{8},
+							Elm2: &VetRestriction{ID: "Sdf.2", SplitRest: true, RestSize: true, Val: 1},
 						},
-						Elm2:      10.0,
+						Elm2:      1.0,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
@@ -175,12 +175,12 @@ func TestSdfNodes(t *testing.T) {
 				fn:   kvdfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:       2,
-						Elm2:      5,
+						Elm:       1,
+						Elm2:      2,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
-					Elm2:      Restriction{3},
+					Elm2:      &VetRestriction{ID: "KvSdf"},
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -188,28 +188,28 @@ func TestSdfNodes(t *testing.T) {
 					{
 						Elm: &FullValue{
 							Elm: &FullValue{
-								Elm:       2,
-								Elm2:      5,
+								Elm:       1,
+								Elm2:      2,
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: Restriction{5},
+							Elm2: &VetRestriction{ID: "KvSdf.1", SplitRest: true, RestSize: true, Key: 1, Val: 2},
 						},
-						Elm2:      12.0,
+						Elm2:      3.0,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
 					{
 						Elm: &FullValue{
 							Elm: &FullValue{
-								Elm:       2,
-								Elm2:      5,
+								Elm:       1,
+								Elm2:      2,
 								Timestamp: testTimestamp,
 								Windows:   testWindows,
 							},
-							Elm2: Restriction{8},
+							Elm2: &VetRestriction{ID: "KvSdf.2", SplitRest: true, RestSize: true, Key: 1, Val: 2},
 						},
-						Elm2:      15.0,
+						Elm2:      3.0,
 						Timestamp: testTimestamp,
 						Windows:   testWindows,
 					},
@@ -227,7 +227,7 @@ func TestSdfNodes(t *testing.T) {
 
 				for i, got := range capt.Elements {
 					if !cmp.Equal(got, test.want[i]) {
-						t.Errorf("ProcessElement(%v) has incorrect output %v: got: %v, want: %v",
+						t.Errorf("SplitAndSizeRestrictions(%v) has incorrect output %v: got: %v, want: %v",
 							test.in, i, got, test.want)
 					}
 				}
@@ -249,16 +249,16 @@ func TestSdfNodes(t *testing.T) {
 				fn:   dfn,
 				in: FullValue{
 					Elm: &FullValue{
-						Elm:  3,
-						Elm2: Restriction{5},
+						Elm:  1,
+						Elm2: &VetRestriction{ID: "Sdf"},
 					},
-					Elm2:      8.0,
+					Elm2:      1.0,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
 				want: FullValue{
-					Elm:       8,
-					Elm2:      4,
+					Elm:       VetRestriction{ID: "Sdf", CreateTracker: true, ProcessElm: true, Val: 1},
+					Elm2:      nil,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -269,20 +269,20 @@ func TestSdfNodes(t *testing.T) {
 				in: FullValue{
 					Elm: &FullValue{
 						Elm: &FullValue{
-							Elm:       3,
-							Elm2:      10,
+							Elm:       1,
+							Elm2:      2,
 							Timestamp: testTimestamp,
 							Windows:   testWindows,
 						},
-						Elm2: Restriction{5},
+						Elm2: &VetRestriction{ID: "KvSdf"},
 					},
-					Elm2:      18.0,
+					Elm2:      3.0,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
 				want: FullValue{
-					Elm:       8,
-					Elm2:      12,
+					Elm:       VetRestriction{ID: "KvSdf", CreateTracker: true, ProcessElm: true, Key: 1, Val: 2},
+					Elm2:      nil,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
 				},
@@ -300,7 +300,7 @@ func TestSdfNodes(t *testing.T) {
 
 				got := capt.Elements[0]
 				if !cmp.Equal(got, test.want) {
-					t.Errorf("ProcessElement(%v) has incorrect output: got: %v, want: %v",
+					t.Errorf("ProcessSizedElementsAndRestrictions(%v) has incorrect output: got: %v, want: %v",
 						test.in, got, test.want)
 				}
 			})
