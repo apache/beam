@@ -299,6 +299,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
       return builder()
           .setQueryString(configuration.query)
           .setQueryParameters(QueryParameters.ofNone())
+          .setQueryPlannerClassName(configuration.queryPlannerClassName)
           .setUdafDefinitions(Collections.emptyList())
           .setUdfDefinitions(Collections.emptyList())
           .setTableProviderMap(Collections.emptyMap())
@@ -344,9 +345,14 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     public static class Configuration {
       String query;
+      String queryPlannerClassName;
 
       public void setQuery(String query) {
         this.query = query;
+      }
+
+      public void setQueryPlannerClassName(@Nullable String dialect) {
+        this.queryPlannerClassName = dialect;
       }
     }
   }

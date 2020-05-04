@@ -138,6 +138,16 @@ class SqlTransformTest(unittest.TestCase):
               ON simple.`int` = enrich.`int`"""))
       assert_that(out, equal_to([(1, "a"), (26, "z"), (1, "a")]))
 
+  def test_zetasql_generate_data(self):
+    with TestPipeline() as p:
+      out = p | SqlTransform(
+          """SELECT
+            CAST(1 AS INT64) AS `int`,
+            CAST('foo' AS STRING) AS `str`,
+            CAST(3.14  AS FLOAT64) AS `flt`""",
+          dialect="zetasql")
+      assert_that(out, equal_to([(1, "foo", 3.14)]))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
