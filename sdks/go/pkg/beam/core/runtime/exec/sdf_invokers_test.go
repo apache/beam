@@ -220,11 +220,13 @@ type RTracker struct {
 	Val  int
 }
 
-func (rt *RTracker) TryClaim(interface{}) bool                      { return false }
-func (rt *RTracker) GetError() error                                { return nil }
-func (rt *RTracker) TrySplit(fraction float64) (interface{}, error) { return nil, nil }
-func (rt *RTracker) GetProgress() (float64, float64)                { return 0, 0 }
-func (rt *RTracker) IsDone() bool                                   { return true }
+func (rt *RTracker) TryClaim(interface{}) bool       { return false }
+func (rt *RTracker) GetError() error                 { return nil }
+func (rt *RTracker) GetProgress() (float64, float64) { return 0, 0 }
+func (rt *RTracker) IsDone() bool                    { return true }
+func (rt *RTracker) TrySplit(fraction float64) (interface{}, interface{}, error) {
+	return nil, nil, nil
+}
 
 // In order to test that these methods get called properly, each one has an
 // implementation that lets us confirm that each argument was passed properly.
