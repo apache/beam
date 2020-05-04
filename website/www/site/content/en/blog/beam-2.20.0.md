@@ -1,8 +1,10 @@
 ---
 title:  "Apache Beam 2.20.0"
-date:   2020-03-01 00:00:01 -0800
+date:   2020-04-15 00:00:01 -0800
 # Date above corrected but keep the old URL:
-aliases: /blog/2020/03/01/beam-2.20.0.html
+aliases: 
+  - /blog/2020/03/01/beam-2.20.0.html
+  - /blog/2020/04/15/beam-2.20.0.html
 categories: 
   - blog
 authors:
@@ -41,6 +43,7 @@ Python SDK: . (#10223).
 * [BEAM-8841](https://issues.apache.org/jira/browse/BEAM-8841) Added ability to write to BigQuery via Avro file loads
 * [BEAM-9228](https://issues.apache.org/jira/browse/BEAM-9228) Direct runner for FnApi supports further parallelism
 * [BEAM-8550](https://issues.apache.org/jira/browse/BEAM-8550) Support for @RequiresTimeSortedInput in Flink and Spark
+* [BEAM-6857](https://issues.apache.org/jira/browse/BEAM-6857) Added support for dynamic timers
 
 ### Breaking Changes
 * [BEAM-3453](https://issues.apache.org/jira/browse/BEAM-3453) Backwards incompatible change in ReadFromPubSub(topic=) in Python
@@ -56,9 +59,10 @@ Python SDK: . (#10223).
 * [BEAM-9503](https://issues.apache.org/jira/browse/BEAM-9503) Fixed SyntaxError in process worker startup
 * Various bug fixes and performance improvements.
 
-### Bugfixes
+### Known Issues
 * [BEAM-9322](https://issues.apache.org/jira/browse/BEAM-9322) Python SDK ignores manually set PCollection tags
 * [BEAM-9445](https://issues.apache.org/jira/browse/BEAM-9445) Python SDK pre_optimize=all experiment may cause error
+* [BEAM-9725](https://issues.apache.org/jira/browse/BEAM-9725) Python SDK performance regression for reshuffle transform
 
 ## List of Contributors
 
@@ -68,6 +72,6 @@ Ahmet Altay, Alex Amato, Alexey Romanenko, Andrew Pilloud, Ankur Goenka, Anton K
 , Charles Chen, Craig Chambers, Daniel Oliveira, David Moravek, David Rieber, Dustin Rhodes, Etienne Chauchot, Gleb Kanterov, Hai Lu, Heejong Lee
 , Ismaël Mejía, J Ross Thomson, Jan Lukavský, Jason Kuster, Jean-Baptiste Onofré, Jeff Klukas, João Cabrita, Juan Rael, Juta, Kasia Kucharczyk
 , Kengo Seki, Kenneth Jung, Kenneth Knowles, Kyle Weaver, Kyle Winkelman, Lukas Drbal, Marek Simunek, Mark Liu, Maximilian Michels, Melissa Pashniak
-, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Reuven Lax, Rob, Robbe Sneyders
-, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Thomas Weise, Tianyang Hu, Tyler Akidau
+, Michael Luckey, Michal Walenia, Mike Pedersen, Mikhail Gryzykhin, Niel Markwick, Pablo Estrada, Pascal Gula, Rehman Murad Ali, Reuven Lax, Rob, Robbe Sneyders
+, Robert Bradshaw, Robert Burke, Rui Wang, Ruoyun Huang, Ryan Williams, Sam Rohde, Sam Whittle, Scott Wegner, Shoaib Zafar, Thomas Weise, Tianyang Hu, Tyler Akidau
 , Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, XuMingmin, ttanay, tvalentyn, Łukasz Gajowy
