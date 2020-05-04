@@ -51,8 +51,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
-import org.apache.beam.sdk.util.common.NoSizeEstimationElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.apache.beam.sdk.values.KV;
@@ -354,8 +354,7 @@ public class GroupingShuffleReader<K, V> extends NativeReader<WindowedValue<KV<K
      * Provides the {@link Reiterable} used to iterate through the values part of a {@code KV<K,
      * Reiterable<V>>} entry produced by a {@link GroupingShuffleReader}.
      */
-    private final class ValuesIterable
-        extends NoSizeEstimationElementByteSizeObservableIterable<V, ValuesIterator>
+    private final class ValuesIterable extends ElementByteSizeObservableIterable<V, ValuesIterator>
         implements Reiterable<V> {
       // N.B. This class is *not* static; it uses the valueCoder from
       // its enclosing GroupingShuffleReader.

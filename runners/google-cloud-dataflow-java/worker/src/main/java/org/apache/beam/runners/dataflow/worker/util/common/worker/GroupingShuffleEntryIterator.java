@@ -23,8 +23,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterator;
-import org.apache.beam.sdk.util.common.NoSizeEstimationElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.Reiterable;
 import org.apache.beam.sdk.util.common.Reiterator;
 import org.slf4j.Logger;
@@ -184,7 +184,7 @@ public abstract class GroupingShuffleEntryIterator {
   }
 
   private static class ValuesIterable
-      extends NoSizeEstimationElementByteSizeObservableIterable<ShuffleEntry, ValuesIterator>
+      extends ElementByteSizeObservableIterable<ShuffleEntry, ValuesIterator>
       implements Reiterable<ShuffleEntry> {
     private final GroupingShuffleEntryIterator parent;
     private final byte[] currentKeyBytes;
