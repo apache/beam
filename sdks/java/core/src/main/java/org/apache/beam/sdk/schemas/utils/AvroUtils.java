@@ -112,10 +112,7 @@ public class AvroUtils {
         // {"name": "foo", "type": ["null", "something"]}
 
         // don't need recursion because nested unions aren't supported in AVRO
-        List<org.apache.avro.Schema> nonNullTypes =
-            types.stream()
-                .filter(x -> x.getType() != org.apache.avro.Schema.Type.NULL)
-                .collect(Collectors.toList());
+        List<org.apache.avro.Schema> nonNullTypes = types.stream().collect(Collectors.toList());
 
         if (nonNullTypes.size() == types.size() || nonNullTypes.isEmpty()) {
           // union without `null` or all 'null' union, keep as is.

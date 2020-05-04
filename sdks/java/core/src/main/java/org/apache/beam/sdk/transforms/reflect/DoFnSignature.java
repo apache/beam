@@ -43,6 +43,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.Restrictio
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SchemaElementParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.SideInputParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TaggedOutputReceiverParameter;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerFamilyParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.TimerParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.WindowParameter;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -956,7 +958,7 @@ public abstract class DoFnSignature {
     }
 
     /**
-     * Whether this {@link DoFn} observes - directly or indirectly - the window that an element
+     * Whether this process method observes - directly or indirectly - the window that an element
      * resides in.
      *
      * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
@@ -968,7 +970,10 @@ public abstract class DoFnSignature {
               Predicates.or(
                       Predicates.instanceOf(WindowParameter.class),
                       Predicates.instanceOf(TimerParameter.class),
-                      Predicates.instanceOf(StateParameter.class))
+                      Predicates.instanceOf(StateParameter.class),
+                      Predicates.instanceOf(TimerFamilyParameter.class),
+                      Predicates.instanceOf(OutputReceiverParameter.class),
+                      Predicates.instanceOf(TaggedOutputReceiverParameter.class))
                   ::apply);
     }
 
@@ -1180,6 +1185,26 @@ public abstract class DoFnSignature {
     @Override
     @Nullable
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
+
+    /**
+     * Whether this process method observes - directly or indirectly - the window that an element
+     * resides in.
+     *
+     * <p>{@link State} and {@link Timer} parameters indirectly observe the window, because they are
+     * each scoped to a single window.
+     */
+    public boolean observesWindow() {
+      return extraParameters().stream()
+          .anyMatch(
+              Predicates.or(
+                      Predicates.instanceOf(WindowParameter.class),
+                      Predicates.instanceOf(TimerParameter.class),
+                      Predicates.instanceOf(TimerFamilyParameter.class),
+                      Predicates.instanceOf(StateParameter.class),
+                      Predicates.instanceOf(OutputReceiverParameter.class),
+                      Predicates.instanceOf(TaggedOutputReceiverParameter.class))
+                  ::apply);
+    }
 
     static BundleMethod create(Method targetMethod, List<Parameter> extraParameters) {
       /* start bundle/finish bundle currently do not get invoked on a per window basis and can't accept a BoundedWindow parameter */

@@ -150,6 +150,9 @@ public class DoFnSignatures {
       ImmutableList.of(
           Parameter.PipelineOptionsParameter.class,
           Parameter.FinishBundleContextParameter.class,
+          Parameter.OutputReceiverParameter.class,
+          Parameter.TaggedOutputReceiverParameter.class,
+          Parameter.WindowParameter.class,
           Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_ON_TIMER_PARAMETERS =

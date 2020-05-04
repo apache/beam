@@ -34,15 +34,50 @@ import org.joda.time.Instant;
 /** Common {@link OutputReceiver} and {@link MultiOutputReceiver} classes. */
 @Internal
 public class DoFnOutputReceivers {
+  public interface OutputInterface<DefaultOutputT> {
+    void output(DefaultOutputT output);
+
+    <T> void output(TupleTag<T> tag, T output);
+
+    void outputWithTimestamp(DefaultOutputT output, Instant timestamp);
+
+    <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp);
+  }
+
+  public static <DefaultOutputT> OutputInterface fromWindowedContext(
+      DoFn<?, DefaultOutputT>.WindowedContext context) {
+    return new OutputInterface<DefaultOutputT>() {
+      @Override
+      public void output(DefaultOutputT output) {
+        context.output(output);
+      }
+
+      @Override
+      public <T> void output(TupleTag<T> tag, T output) {
+        context.output(tag, output);
+      }
+
+      @Override
+      public void outputWithTimestamp(DefaultOutputT output, Instant timestamp) {
+        context.outputWithTimestamp(output, timestamp);
+      }
+
+      @Override
+      public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+        context.outputWithTimestamp(tag, output, timestamp);
+      }
+    };
+  }
+
   private static class RowOutputReceiver<T> implements OutputReceiver<Row> {
-    WindowedContextOutputReceiver<T> outputReceiver;
+    WindowedOutputReceiver<T> outputReceiver;
     SchemaCoder<T> schemaCoder;
 
     public RowOutputReceiver(
-        DoFn<?, ?>.WindowedContext context,
+        OutputInterface<T> outputInterface,
         @Nullable TupleTag<T> outputTag,
         SchemaCoder<T> schemaCoder) {
-      outputReceiver = new WindowedContextOutputReceiver<>(context, outputTag);
+      outputReceiver = new WindowedOutputReceiver<>(outputInterface, outputTag);
       this.schemaCoder = checkNotNull(schemaCoder);
     }
 
@@ -57,53 +92,47 @@ public class DoFnOutputReceivers {
     }
   }
 
-  private static class WindowedContextOutputReceiver<T> implements OutputReceiver<T> {
-    DoFn<?, ?>.WindowedContext context;
-    @Nullable TupleTag<T> outputTag;
+  private static class WindowedOutputReceiver<T> implements OutputReceiver<T> {
+    final OutputInterface<T> output;
+    final @Nullable TupleTag<T> outputTag;
 
-    public WindowedContextOutputReceiver(
-        DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
-      this.context = context;
+    public WindowedOutputReceiver(OutputInterface<T> output, @Nullable TupleTag<T> outputTag) {
+      this.output = output;
       this.outputTag = outputTag;
     }
 
     @Override
-    public void output(T output) {
+    public void output(T element) {
       if (outputTag != null) {
-        context.output(outputTag, output);
+        output.output(outputTag, element);
       } else {
-        ((DoFn<?, T>.WindowedContext) context).output(output);
+        output.output(element);
       }
     }
 
     @Override
-    public void outputWithTimestamp(T output, Instant timestamp) {
+    public void outputWithTimestamp(T element, Instant timestamp) {
       if (outputTag != null) {
-        context.outputWithTimestamp(outputTag, output, timestamp);
+        output.outputWithTimestamp(outputTag, element, timestamp);
       } else {
-        ((DoFn<?, T>.WindowedContext) context).outputWithTimestamp(output, timestamp);
+        output.outputWithTimestamp(element, timestamp);
       }
     }
   }
 
-  private static class WindowedContextMultiOutputReceiver implements MultiOutputReceiver {
-    DoFn<?, ?>.WindowedContext context;
+  private static class WindowedMultiOutputReceiver implements MultiOutputReceiver {
+    OutputInterface<?> output;
     @Nullable Map<TupleTag<?>, Coder<?>> outputCoders;
 
-    public WindowedContextMultiOutputReceiver(
-        DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
-      this.context = context;
+    public WindowedMultiOutputReceiver(
+        OutputInterface<?> output, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
+      this.output = output;
       this.outputCoders = outputCoders;
-    }
-
-    // This exists for backwards compatibility with the Dataflow runner, and will be removed.
-    public WindowedContextMultiOutputReceiver(DoFn<?, ?>.WindowedContext context) {
-      this.context = context;
     }
 
     @Override
     public <T> OutputReceiver<T> get(TupleTag<T> tag) {
-      return DoFnOutputReceivers.windowedReceiver(context, tag);
+      return DoFnOutputReceivers.windowedReceiver((OutputInterface<T>) output, tag);
     }
 
     @Override
@@ -113,39 +142,28 @@ public class DoFnOutputReceivers {
       checkState(
           outputCoder instanceof SchemaCoder,
           "Output with tag " + tag + " must have a schema in order to call " + " getRowReceiver");
-      return DoFnOutputReceivers.rowReceiver(context, tag, (SchemaCoder<T>) outputCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          (OutputInterface<T>) output, tag, (SchemaCoder<T>) outputCoder);
     }
   }
 
   /** Returns a {@link OutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
   public static <T> OutputReceiver<T> windowedReceiver(
-      DoFn<?, ?>.WindowedContext context, @Nullable TupleTag<T> outputTag) {
-    return new WindowedContextOutputReceiver<>(context, outputTag);
+      OutputInterface<T> output, @Nullable TupleTag<T> outputTag) {
+    return new WindowedOutputReceiver<>(output, outputTag);
   }
 
   /** Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}. */
-  public static <T> MultiOutputReceiver windowedMultiReceiver(
-      DoFn<?, ?>.WindowedContext context, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
-    return new WindowedContextMultiOutputReceiver(context, outputCoders);
+  public static MultiOutputReceiver windowedMultiReceiver(
+      OutputInterface<?> output, @Nullable Map<TupleTag<?>, Coder<?>> outputCoders) {
+    return new WindowedMultiOutputReceiver(output, outputCoders);
   }
-
-  /**
-   * Returns a {@link MultiOutputReceiver} that delegates to a {@link DoFn.WindowedContext}.
-   *
-   * <p>This exists for backwards-compatibility with the Dataflow runner, and will be removed.
-   */
-  public static <T> MultiOutputReceiver windowedMultiReceiver(DoFn<?, ?>.WindowedContext context) {
-    return new WindowedContextMultiOutputReceiver(context);
-  }
-
   /**
    * Returns a {@link OutputReceiver} that automatically converts a {@link Row} to the user's output
-   * type and delegates to {@link WindowedContextOutputReceiver}.
+   * type and delegates to {@link WindowedOutputReceiver}.
    */
   public static <T> OutputReceiver<Row> rowReceiver(
-      DoFn<?, ?>.WindowedContext context,
-      @Nullable TupleTag<T> outputTag,
-      SchemaCoder<T> schemaCoder) {
-    return new RowOutputReceiver<>(context, outputTag, schemaCoder);
+      OutputInterface<T> output, @Nullable TupleTag<T> outputTag, SchemaCoder<T> schemaCoder) {
+    return new RowOutputReceiver<>(output, outputTag, schemaCoder);
   }
 }

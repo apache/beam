@@ -42,6 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers.OutputInterface;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -59,6 +60,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -92,7 +94,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   /** The set of known output tags. */
   private final Set<TupleTag<?>> outputTags;
 
-  private final boolean observesWindow;
+  private final boolean observesWindowInProcess;
+
+  private final boolean observesWindowInFinishBundle;
 
   private final DoFnSignature signature;
 
@@ -113,6 +117,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   private final Map<String, PCollectionView<?>> sideInputMapping;
 
+  private final Set<BoundedWindow> windowsInBundle = Sets.newHashSet();
+
   /** Constructor. */
   public SimpleDoFnRunner(
       PipelineOptions options,
@@ -130,7 +136,11 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     this.options = options;
     this.fn = fn;
     this.signature = DoFnSignatures.getSignature(fn.getClass());
-    this.observesWindow = signature.processElement().observesWindow() || !sideInputReader.isEmpty();
+    this.observesWindowInProcess =
+        signature.processElement().observesWindow() || !sideInputReader.isEmpty();
+    this.observesWindowInFinishBundle =
+        (signature.finishBundle() != null) && signature.finishBundle().observesWindow();
+
     this.invoker = DoFnInvokers.invokerFor(fn);
     this.sideInputReader = sideInputReader;
     this.schemaCoder =
@@ -170,6 +180,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       invoker.invokeStartBundle(new DoFnStartBundleArgumentProvider());
+      if (observesWindowInFinishBundle) {
+        windowsInBundle.clear();
+      }
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
@@ -178,12 +191,16 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
-    if (observesWindow) {
+    if (observesWindowInProcess) {
       for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
         invokeProcessElement(elem);
+        if (observesWindowInFinishBundle) {
+          windowsInBundle.add(Iterables.getOnlyElement(elem.getWindows()));
+        }
       }
     } else {
       invokeProcessElement(compressedElem);
+      windowsInBundle.addAll(compressedElem.getWindows());
     }
   }
 
@@ -232,7 +249,14 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
   public void finishBundle() {
     // This can contain user code. Wrap it in case it throws an exception.
     try {
-      invoker.invokeFinishBundle(new DoFnFinishBundleArgumentProvider());
+      if (observesWindowInFinishBundle && !windowsInBundle.isEmpty()) {
+        for (BoundedWindow window : windowsInBundle) {
+          invoker.invokeFinishBundle(new DoFnFinishBundleArgumentProvider(window));
+        }
+        windowsInBundle.clear();
+      } else {
+        invoker.invokeFinishBundle(new DoFnFinishBundleArgumentProvider());
+      }
     } catch (Throwable t) {
       // Exception in user code.
       throw wrapUserCodeException(t);
@@ -317,7 +341,71 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       }
     }
 
+    @Nullable private final BoundedWindow window;
+
     private final Context context = new Context();
+
+    private StateNamespace namespace;
+
+    private DoFnFinishBundleArgumentProvider(BoundedWindow window) {
+      this.window = window;
+    }
+
+    private DoFnFinishBundleArgumentProvider() {
+      this.window = null;
+    }
+
+    private StateNamespace getNamespace() {
+      if (namespace == null) {
+        namespace = StateNamespaces.window(windowCoder, window());
+      }
+      return namespace;
+    }
+
+    private OutputInterface<OutputT> getOutputInterface() {
+      return new DoFnOutputReceivers.OutputInterface<OutputT>() {
+        @Override
+        public void output(OutputT output) {
+          context.output(output, window().maxTimestamp(), window());
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output) {
+          context.output(tag, output, window().maxTimestamp(), window());
+        }
+
+        @Override
+        public void outputWithTimestamp(OutputT output, Instant timestamp) {
+          context.output(output, timestamp, window());
+        }
+
+        @Override
+        public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+          context.output(tag, output, timestamp, window());
+        }
+      };
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(getOutputInterface(), mainOutputTag);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(
+          getOutputInterface(), mainOutputTag, mainOutputSchemaCoder);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedMultiReceiver(getOutputInterface(), outputCoders);
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return Preconditions.checkNotNull(window);
+    }
 
     @Override
     public PipelineOptions pipelineOptions() {
@@ -328,6 +416,58 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
         DoFn<InputT, OutputT> doFn) {
       return context;
+    }
+
+    @Override
+    public State state(String stateId, boolean alwaysFetched) {
+      try {
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        State state =
+            stepContext
+                .stateInternals()
+                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+        if (alwaysFetched) {
+          return (State) ((ReadableState) state).readLater();
+        } else {
+          return state;
+        }
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      try {
+        TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
+        return new TimerInternalsTimer(
+            window(),
+            getNamespace(),
+            timerId,
+            spec,
+            window().maxTimestamp(),
+            stepContext.timerInternals());
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public TimerMap timerFamily(String timerFamilyId) {
+      try {
+        TimerSpec spec =
+            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
+        return new TimerInternalsTimerMap(
+            timerFamilyId,
+            window(),
+            getNamespace(),
+            spec,
+            window().maxTimestamp(),
+            stepContext.timerInternals());
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
@@ -506,17 +646,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), outputCoders);
     }
 
     @Override
@@ -723,17 +866,20 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+      return DoFnOutputReceivers.windowedReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), mainOutputTag);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), mainOutputTag, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), outputCoders);
     }
 
     @Override

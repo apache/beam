@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -69,6 +70,7 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.MultiOutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFnOutputReceivers;
+import org.apache.beam.sdk.transforms.DoFnOutputReceivers.OutputInterface;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -98,6 +100,7 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.Durations;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableListMultimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -233,6 +236,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final RehydratedComponents rehydratedComponents;
   private final DoFn<InputT, OutputT> doFn;
   private final DoFnSignature doFnSignature;
+  private final boolean observesWindowInFinishBundle;
   private final TupleTag<OutputT> mainOutputTag;
   private final Coder<?> inputCoder;
   private final SchemaCoder<InputT> schemaCoder;
@@ -255,6 +259,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final ProcessBundleContext processContext;
   private final OnTimerContext onTimerContext;
   private final FinishBundleArgumentProvider finishBundleArgumentProvider;
+  private final Set<BoundedWindow> windowsInBundle = Sets.newHashSet();
 
   /**
    * Only set for {@link PTransformTranslation#SPLITTABLE_PROCESS_ELEMENTS_URN} and {@link
@@ -340,6 +345,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
       doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
       doFnSignature = DoFnSignatures.signatureForDoFn(doFn);
+      observesWindowInFinishBundle =
+          (doFnSignature.finishBundle() != null) && doFnSignature.finishBundle().observesWindow();
       switch (pTransform.getSpec().getUrn()) {
         case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
         case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
@@ -625,6 +632,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             () -> currentWindow);
 
     doFnInvoker.invokeStartBundle(startBundleArgumentProvider);
+    if (observesWindowInFinishBundle) {
+      windowsInBundle.clear();
+    }
   }
 
   public void processElementForParDo(WindowedValue<InputT> elem) {
@@ -635,6 +645,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       while (windowIterator.hasNext()) {
         currentWindow = windowIterator.next();
         doFnInvoker.invokeProcessElement(processContext);
+      }
+      if (observesWindowInFinishBundle) {
+        windowsInBundle.addAll(elem.getWindows());
       }
     } finally {
       currentElement = null;
@@ -810,7 +823,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   }
 
   public void finishBundle() {
-    doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
+    if (observesWindowInFinishBundle && !windowsInBundle.isEmpty()) {
+      for (BoundedWindow window : windowsInBundle) {
+        currentWindow = window;
+        doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
+      }
+      windowsInBundle.clear();
+    } else {
+      currentWindow = null;
+      doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
+    }
 
     // TODO: Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
@@ -1074,6 +1096,51 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       return bundleFinalizer;
     }
 
+    private OutputInterface<OutputT> getOutputInterface() {
+      return new DoFnOutputReceivers.OutputInterface<OutputT>() {
+        @Override
+        public void output(OutputT output) {
+          context.output(output, window().maxTimestamp(), window());
+        }
+
+        @Override
+        public <T> void output(TupleTag<T> tag, T output) {
+          context.output(tag, output, window().maxTimestamp(), window());
+        }
+
+        @Override
+        public void outputWithTimestamp(OutputT output, Instant timestamp) {
+          context.output(output, timestamp, window());
+        }
+
+        @Override
+        public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+          context.output(tag, output, timestamp, window());
+        }
+      };
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(getOutputInterface(), mainOutputTag);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(
+          getOutputInterface(), mainOutputTag, mainOutputSchemaCoder);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedMultiReceiver(getOutputInterface(), outputCoders);
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return Preconditions.checkNotNull(currentWindow);
+    }
+
     @Override
     public String getErrorContext() {
       return "FnApiDoFnRunner/FinishBundle";
@@ -1153,17 +1220,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(this, null);
+      return DoFnOutputReceivers.windowedReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), null);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(this, null, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), null, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+      return DoFnOutputReceivers.windowedMultiReceiver(
+          DoFnOutputReceivers.fromWindowedContext(this), outputCoders);
     }
 
     @Override
@@ -1390,17 +1460,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedReceiver(context, null);
+      return DoFnOutputReceivers.windowedReceiver(
+          DoFnOutputReceivers.fromWindowedContext(context), null);
     }
 
     @Override
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.rowReceiver(context, null, mainOutputSchemaCoder);
+      return DoFnOutputReceivers.rowReceiver(
+          DoFnOutputReceivers.fromWindowedContext(context), null, mainOutputSchemaCoder);
     }
 
     @Override
     public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-      return DoFnOutputReceivers.windowedMultiReceiver(context);
+      return DoFnOutputReceivers.windowedMultiReceiver(
+          DoFnOutputReceivers.fromWindowedContext(context), null);
     }
 
     @Override

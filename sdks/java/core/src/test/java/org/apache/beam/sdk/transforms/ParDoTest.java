@@ -610,6 +610,138 @@ public class ParDoTest implements Serializable {
 
       pipeline.run();
     }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testOutputReceiverFromFinishBundle() {
+      PCollection<Integer> input =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(1, Instant.EPOCH),
+                      TimestampedValue.of(1, Instant.EPOCH.plus(Duration.standardMinutes(1))),
+                      TimestampedValue.of(1, Instant.EPOCH.plus(Duration.standardMinutes(2)))))
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+      PCollection<Void> output =
+          input.apply(
+              ParDo.of(
+                  new DoFn<Integer, Void>() {
+                    @ProcessElement
+                    public void process() {}
+
+                    @FinishBundle
+                    public void finishBundle(OutputReceiver<Void> output) {
+                      output.output((Void) null);
+                    }
+                  }));
+
+      IntervalWindow firstWindow =
+          new IntervalWindow(Instant.EPOCH, Instant.EPOCH.plus(Duration.standardMinutes(1)));
+      IntervalWindow secondWindow =
+          new IntervalWindow(
+              Instant.EPOCH.plus(Duration.standardMinutes(1)),
+              Instant.EPOCH.plus(Duration.standardMinutes(2)));
+      IntervalWindow thirdWindow =
+          new IntervalWindow(
+              Instant.EPOCH.plus(Duration.standardMinutes(2)),
+              Instant.EPOCH.plus(Duration.standardMinutes(3)));
+
+      PAssert.that(output).inWindow(firstWindow).containsInAnyOrder((Void) null);
+      PAssert.that(output).inWindow(secondWindow).containsInAnyOrder((Void) null);
+      PAssert.that(output).inWindow(thirdWindow).containsInAnyOrder((Void) null);
+      pipeline.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testWindowInFinishBundle() {
+      PCollection<Integer> input =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(1, Instant.EPOCH),
+                      TimestampedValue.of(1, Instant.EPOCH.plus(Duration.standardMinutes(1))),
+                      TimestampedValue.of(1, Instant.EPOCH.plus(Duration.standardMinutes(2)))))
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+      PCollection<IntervalWindow> output =
+          input
+              .apply(
+                  ParDo.of(
+                      new DoFn<Integer, IntervalWindow>() {
+                        @ProcessElement
+                        public void process() {}
+
+                        @FinishBundle
+                        public void finishBundle(
+                            IntervalWindow window, OutputReceiver<IntervalWindow> output) {
+                          output.output(window);
+                        }
+                      }))
+              .setCoder(IntervalWindow.getCoder());
+
+      IntervalWindow firstWindow =
+          new IntervalWindow(Instant.EPOCH, Instant.EPOCH.plus(Duration.standardMinutes(1)));
+      IntervalWindow secondWindow =
+          new IntervalWindow(
+              Instant.EPOCH.plus(Duration.standardMinutes(1)),
+              Instant.EPOCH.plus(Duration.standardMinutes(2)));
+      IntervalWindow thirdWindow =
+          new IntervalWindow(
+              Instant.EPOCH.plus(Duration.standardMinutes(2)),
+              Instant.EPOCH.plus(Duration.standardMinutes(3)));
+
+      PAssert.that(output).inWindow(firstWindow).containsInAnyOrder(firstWindow);
+      PAssert.that(output).inWindow(secondWindow).containsInAnyOrder(secondWindow);
+      PAssert.that(output).inWindow(thirdWindow).containsInAnyOrder(thirdWindow);
+      pipeline.run();
+    }
+
+    @Test
+    @Category(NeedsRunner.class)
+    public void testMultiOutputReceiverFromFinishBundle() {
+      PCollection<Integer> input =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      TimestampedValue.of(1, Instant.EPOCH),
+                      TimestampedValue.of(1, Instant.EPOCH.plus(Duration.standardMinutes(1))),
+                      TimestampedValue.of(1, Instant.EPOCH.plus(Duration.standardMinutes(2)))))
+              .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+
+      final TupleTag<Void> mainOutputTag = new TupleTag<Void>("main") {};
+      final TupleTag<Void> additionalOutputTag = new TupleTag<Void>("additional") {};
+      PCollection<Void> output =
+          input
+              .apply(
+                  ParDo.of(
+                          new DoFn<Integer, Void>() {
+                            @ProcessElement
+                            public void process() {}
+
+                            @FinishBundle
+                            public void finishBundle(MultiOutputReceiver output) {
+                              output.get(additionalOutputTag).output((Void) null);
+                            }
+                          })
+                      .withOutputTags(mainOutputTag, TupleTagList.of(additionalOutputTag)))
+              .get(additionalOutputTag);
+
+      IntervalWindow firstWindow =
+          new IntervalWindow(Instant.EPOCH, Instant.EPOCH.plus(Duration.standardMinutes(1)));
+      IntervalWindow secondWindow =
+          new IntervalWindow(
+              Instant.EPOCH.plus(Duration.standardMinutes(1)),
+              Instant.EPOCH.plus(Duration.standardMinutes(2)));
+      IntervalWindow thirdWindow =
+          new IntervalWindow(
+              Instant.EPOCH.plus(Duration.standardMinutes(2)),
+              Instant.EPOCH.plus(Duration.standardMinutes(3)));
+
+      PAssert.that(output).inWindow(firstWindow).containsInAnyOrder((Void) null);
+      PAssert.that(output).inWindow(secondWindow).containsInAnyOrder((Void) null);
+      PAssert.that(output).inWindow(thirdWindow).containsInAnyOrder((Void) null);
+      pipeline.run();
+    }
   }
 
   /** Tests to validate behaviors around multiple inputs or outputs. */

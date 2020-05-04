@@ -152,7 +152,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
               @Override
               public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedReceiver(processContext, null);
+                return DoFnOutputReceivers.windowedReceiver(
+                    DoFnOutputReceivers.fromWindowedContext(processContext), null);
               }
 
               @Override
@@ -162,7 +163,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
               @Override
               public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
-                return DoFnOutputReceivers.windowedMultiReceiver(processContext, null);
+                return DoFnOutputReceivers.windowedMultiReceiver(
+                    DoFnOutputReceivers.fromWindowedContext(processContext), null);
               }
 
               @Override
