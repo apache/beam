@@ -59,6 +59,14 @@ public class Sample {
   }
 
   /**
+   * Returns a {@link CombineFn} that computes a single and potentially non-uniform sample value of
+   * its inputs.
+   */
+  public static <T> CombineFn<T, ?, T> anyValueCombineFn() {
+    return new AnyValueCombineFn<>();
+  }
+
+  /**
    * {@code Sample#any(long)} takes a {@code PCollection<T>} and a limit, and produces a new {@code
    * PCollection<T>} containing up to limit elements of the input {@code PCollection}.
    *
@@ -243,6 +251,36 @@ public class Sample {
     @Override
     public Iterable<T> extractOutput(List<T> accumulator) {
       return accumulator;
+    }
+  }
+
+  /** A {@link CombineFn} that combines into a single element. */
+  private static class AnyValueCombineFn<T> extends CombineFn<T, List<T>, T> {
+    private SampleAnyCombineFn internal;
+
+    private AnyValueCombineFn() {
+      internal = new SampleAnyCombineFn<>(1);
+    }
+
+    @Override
+    public List<T> createAccumulator() {
+      return internal.createAccumulator();
+    }
+
+    @Override
+    public List<T> addInput(List<T> accumulator, T input) {
+      return internal.addInput(accumulator, input);
+    }
+
+    @Override
+    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
+      return internal.mergeAccumulators(accumulators);
+    }
+
+    @Override
+    public T extractOutput(List<T> accumulator) {
+      Iterator<T> it = internal.extractOutput(accumulator).iterator();
+      return it.hasNext() ? it.next() : null;
     }
   }
 
