@@ -34,6 +34,7 @@ import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
+import org.apache.beam.sdk.util.common.NoSizeEstimationElementByteSizeObservableIterable;
 
 /**
  * An abstract base class with functionality for assembling a {@link Coder} for a class that
@@ -165,7 +166,8 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
    */
   @Override
   public boolean isRegisterByteSizeObserverCheap(IterableT iterable) {
-    return iterable instanceof ElementByteSizeObservableIterable;
+    return iterable instanceof ElementByteSizeObservableIterable
+        && (!(iterable instanceof NoSizeEstimationElementByteSizeObservableIterable));
   }
 
   @Override
@@ -174,7 +176,9 @@ public abstract class IterableLikeCoder<T, IterableT extends Iterable<T>>
     if (iterable == null) {
       throw new CoderException("cannot encode a null Iterable");
     }
-
+    if (iterable instanceof NoSizeEstimationElementByteSizeObservableIterable) {
+      return;
+    }
     if (iterable instanceof ElementByteSizeObservableIterable) {
       observer.setLazy();
       ElementByteSizeObservableIterable<?, ?> observableIterable =
