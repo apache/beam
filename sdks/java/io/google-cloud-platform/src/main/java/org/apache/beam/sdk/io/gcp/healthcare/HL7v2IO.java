@@ -21,7 +21,6 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -464,8 +463,10 @@ public class HL7v2IO {
     // TODO(jaketf) what are reasonable defaults here
     // These control the initial restriction split which means that the list of integer pairs
     // must comfortably fit in memory.
-    private static final Duration DEFAULT_DESIRED_SPLIT_SIZE = Duration.standardDays(1);
-    private static final Duration DEFAULT_MIN_SPLIT_SIZE = Duration.standardHours(1);
+    private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
+    private static final Duration DEFAULT_MIN_SPLIT_DURATION = Duration.standardHours(1);
+    private Instant from;
+    private Instant to;
     private transient HealthcareApiClient client;
     private Distribution messageListingLatencyMs =
         Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-pagination-latency-ms");
@@ -490,8 +491,8 @@ public class HL7v2IO {
 
     @GetInitialRestriction
     public OffsetRange getEarliestToNowRestriction(@Element String hl7v2Store) throws IOException {
-      Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter);
-      Instant to = Instant.now();
+      from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter);
+      to = Instant.now();
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
@@ -505,21 +506,24 @@ public class HL7v2IO {
       // TODO(jaketf) How to pick optimal values for desiredNumOffsetsPerSplit ?
       List<OffsetRange> splits =
           timeRange.split(
-              DEFAULT_DESIRED_SPLIT_SIZE.getMillis(), DEFAULT_MIN_SPLIT_SIZE.getMillis());
-      // TODO:DELETEME(jaketf)
+              DEFAULT_DESIRED_SPLIT_DURATION.getMillis(), DEFAULT_MIN_SPLIT_DURATION.getMillis());
       Instant from = Instant.ofEpochMilli(timeRange.getFrom());
       Instant to = Instant.ofEpochMilli(timeRange.getTo());
       Duration totalDuration = new Duration(from, to);
-          LOG.warn(
+      LOG.info(
           String.format(
               "splitting initial sendTime restriction of [minSendTime, now): [%s,%s), "
                   + "or [%s, %s). \n"
                   + "total days: %s \n"
                   + "into %s splits. \n"
                   + "Last split: %s",
-              from, to, timeRange.getFrom(), timeRange.getTo(), totalDuration.getStandardDays(),
-              splits.size(), splits.get(splits.size() -1 ).toString()));
-          // END DELETEME
+              from,
+              to,
+              timeRange.getFrom(),
+              timeRange.getTo(),
+              totalDuration.getStandardDays(),
+              splits.size(),
+              splits.get(splits.size() - 1).toString()));
 
       for (OffsetRange s : splits) {
         out.output(s);
@@ -545,26 +549,53 @@ public class HL7v2IO {
           new HttpHealthcareApiClient.HL7v2MessagePages(
               client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
       long reqestTime = Instant.now().getMillis();
-      for (List<HL7v2Message> page : pages) {
+      long claimedMilliSecond = currentRestriction.getFrom();
+      Instant cursor;
+      for (List<HL7v2Message> page : pages) { // loop over pages.
         int i = 0;
+        HL7v2Message msg = page.get(i);
         while (i < page.size()) { // loop over messages in page
-          HL7v2Message msg = page.get(i++);
-          Instant thisTime = Instant.parse(msg.getSendTime());
-          long claimedMilliSecond = thisTime.getMillis();
+          cursor = Instant.parse(msg.getSendTime());
+          claimedMilliSecond = cursor.getMillis();
+          LOG.info(String.format("initial claim for page %s claimedMilliSecond = %s", i, claimedMilliSecond));
           if (tracker.tryClaim(claimedMilliSecond)) {
             // This means we have claimed an entire millisecond we need to make sure that we
             // process all messages for this millisecond because sendTime is nano second resolution.
             // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
-            while (thisTime.getMillis()
-                == claimedMilliSecond) { // loop over messages in millisecond.
+            while (cursor.getMillis() == claimedMilliSecond) { // loop over messages in millisecond.
               outputReceiver.output(msg);
               msg = page.get(i++);
-              thisTime = Instant.parse(msg.getSendTime());
+              cursor = Instant.parse(msg.getSendTime());
             }
+
+            // Now, msg.sendTime is outside the current claim.
+            // Need to claim all milliseconds until cursor to properly advance the tracker.
+            // TODO(jaketf): claiming every ms between messages is quite inefficient! consider claiming larger intervals or implementing a different kind of tracker.
+            for (long j = claimedMilliSecond + 1; j <= cursor.getMillis(); j++){ // loop over and claim milliseconds between messages.
+              if (!tracker.tryClaim(j)){
+                break;
+              }
+              claimedMilliSecond++;
+            }
+            LOG.info(String.format("After claiming between messages claimedMilliSecond = %s", claimedMilliSecond));
           }
         }
         messageListingLatencyMs.update(Instant.now().getMillis() - reqestTime);
-        reqestTime = Instant.now().getMillis();
+        reqestTime = Instant.now().getMillis(); // this is for updating listing latency metric in next iteration.
+      }
+
+      if (claimedMilliSecond == currentRestriction.getFrom()) { // no messages found for this time interval need to claim first ms.
+        if (!tracker.tryClaim(claimedMilliSecond)){
+          return;
+        }
+      }
+
+      // loop over and claim milliseconds between last claimed ms and end of OffsetRange.
+      for (long j = claimedMilliSecond + 1; j <= currentRestriction.getTo(); j++){
+        if (!tracker.tryClaim(j)){
+          claimedMilliSecond++;
+          break;
+        }
       }
     }
   }

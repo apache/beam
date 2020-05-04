@@ -418,6 +418,9 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       this.end = end;
     }
 
+    public Instant getStart() {return this.start; }
+    public Instant getEnd() {return this.end; }
+
     /**
      * Make list request list messages response.
      *
