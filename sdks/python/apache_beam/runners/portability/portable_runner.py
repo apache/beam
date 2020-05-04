@@ -18,7 +18,9 @@
 # pytype: skip-file
 
 from __future__ import absolute_import
+from __future__ import division
 
+import atexit
 import functools
 import itertools
 import logging
@@ -430,13 +432,15 @@ class PortableRunner(runner.PipelineRunner):
         state_stream,
         cleanup_callbacks)
     if cleanup_callbacks:
-      # We wait here to ensure that we run the cleanup callbacks.
+      # Register an exit handler to ensure cleanup on exit.
+      atexit.register(functools.partial(result._cleanup, on_exit=True))
       _LOGGER.info(
-          'Waiting until the pipeline has finished because the '
-          'environment "%s" has started a component necessary for the '
-          'execution.',
+          'Environment "%s" has started a component necessary for the '
+          'execution. Be sure to run the pipeline using\n'
+          '  with Pipeline() as p:\n'
+          '    p.apply(..)\n'
+          'This ensures that the pipeline finishes before this program exits.',
           portable_options.environment_type)
-      result.wait_until_finish()
     return result
 
 
@@ -483,6 +487,7 @@ class PipelineResult(runner.PipelineResult):
     self._state_stream = state_stream
     self._cleanup_callbacks = cleanup_callbacks
     self._metrics = None
+    self._runtime_exception = None
 
   def cancel(self):
     try:
@@ -532,7 +537,12 @@ class PipelineResult(runner.PipelineResult):
     else:
       return 'unknown error'
 
-  def wait_until_finish(self):
+  def wait_until_finish(self, duration=None):
+    """
+    :param duration: The maximum time in milliseconds to wait for the result of
+    the execution. If None or zero, will wait until the pipeline finishes.
+    :return: The result of the pipeline, i.e. PipelineResult.
+    """
     def read_messages():
       previous_state = -1
       for message in self._message_stream:
@@ -550,27 +560,56 @@ class PipelineResult(runner.PipelineResult):
             previous_state = current_state
         self._messages.append(message)
 
-    t = threading.Thread(target=read_messages, name='wait_until_finish_read')
-    t.daemon = True
-    t.start()
+    message_thread = threading.Thread(
+        target=read_messages, name='wait_until_finish_read')
+    message_thread.daemon = True
+    message_thread.start()
 
+    if duration:
+      state_thread = threading.Thread(
+          target=functools.partial(self._observe_state, message_thread),
+          name='wait_until_finish_state_observer')
+      state_thread.daemon = True
+      state_thread.start()
+      start_time = time.time()
+      duration_secs = duration / 1000
+      while (time.time() - start_time < duration_secs and
+             state_thread.is_alive()):
+        time.sleep(1)
+    else:
+      self._observe_state(message_thread)
+
+    if self._runtime_exception:
+      raise self._runtime_exception
+
+    return self._state
+
+  def _observe_state(self, message_thread):
     try:
       for state_response in self._state_stream:
         self._state = self._runner_api_state_to_pipeline_state(
             state_response.state)
         if state_response.state in TERMINAL_STATES:
           # Wait for any last messages.
-          t.join(10)
+          message_thread.join(10)
           break
       if self._state != runner.PipelineState.DONE:
-        raise RuntimeError(
+        self._runtime_exception = RuntimeError(
             'Pipeline %s failed in state %s: %s' %
             (self._job_id, self._state, self._last_error_message()))
-      return self._state
+    except Exception as e:
+      self._runtime_exception = e
     finally:
       self._cleanup()
 
-  def _cleanup(self):
+  def _cleanup(self, on_exit=False):
+    if on_exit and self._cleanup_callbacks:
+      _LOGGER.info(
+          'Running cleanup on exit. If your pipeline should continue running, '
+          'be sure to use the following syntax:\n'
+          '  with Pipeline() as p:\n'
+          '    p.apply(..)\n'
+          'This ensures that the pipeline finishes before this program exits.')
     has_exception = None
     for callback in self._cleanup_callbacks:
       try:
