@@ -695,6 +695,7 @@ class BigQueryWrapper(object):
       job_id,
       table_reference,
       destination_format,
+      project=None,
       include_header=True,
       compression=ExportCompression.NONE):
     """Starts a job to export data from BigQuery.
@@ -702,10 +703,10 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
-    job_reference = bigquery.JobReference(
-        jobId=job_id, projectId=table_reference.projectId)
+    job_project = project or table_reference.projectId
+    job_reference = bigquery.JobReference(jobId=job_id, projectId=job_project)
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=table_reference.projectId,
+        projectId=job_project,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 extract=bigquery.JobConfigurationExtract(
