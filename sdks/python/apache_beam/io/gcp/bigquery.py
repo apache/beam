@@ -525,10 +525,6 @@ class BigQuerySource(dataflow_io.NativeSource):
 FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 
-def _to_bool(value):
-  return value
-
-
 def _to_decimal(value):
   return decimal.Decimal(value)
 
@@ -547,7 +543,6 @@ class _JsonToDictCoder(coders.Coder):
         'INTEGER': int,
         'INT64': int,
         'FLOAT': float,
-        'BOOLEAN': _to_bool,
         'NUMERIC': _to_decimal,
         'BYTES': _to_bytes,
     }
