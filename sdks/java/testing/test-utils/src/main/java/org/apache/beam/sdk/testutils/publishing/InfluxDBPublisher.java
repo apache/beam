@@ -47,8 +47,7 @@ public final class InfluxDBPublisher {
       try {
         publish(results, settings);
       } catch (final Exception exception) {
-        LOG.warn(
-            "Unable to publish metrics due to error: {}", exception.getMessage(), exception);
+        LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage(), exception);
       }
     } else {
       LOG.warn("Missing property -- measurement/database. Metrics won't be published.");
