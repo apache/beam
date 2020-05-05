@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  */
 abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(LoadTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(LoadTest.class);
 
   private final String metricsNamespace;
 
@@ -98,7 +98,7 @@ abstract class LoadTest<OptionsT extends LoadTestOptions> {
     if (matcher.matches()) {
       return matcher.group(3).toLowerCase() + "_";
     } else {
-      LOGGER.warn("Unable to get runner name, no prefix used for metrics");
+      LOG.warn("Unable to get runner name, no prefix used for metrics");
       return "";
     }
   }

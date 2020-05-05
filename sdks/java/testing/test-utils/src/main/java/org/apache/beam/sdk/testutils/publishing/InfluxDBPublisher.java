@@ -36,7 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class InfluxDBPublisher {
-  private static final Logger LOGGER = LoggerFactory.getLogger(InfluxDBPublisher.class);
+  private static final Logger LOG = LoggerFactory.getLogger(InfluxDBPublisher.class);
 
   private InfluxDBPublisher() {}
 
@@ -47,11 +47,11 @@ public final class InfluxDBPublisher {
       try {
         publish(results, settings);
       } catch (final Exception exception) {
-        LOGGER.warn(
+        LOG.warn(
             "Unable to publish metrics due to error: {}", exception.getMessage(), exception);
       }
     } else {
-      LOGGER.warn("Missing property -- measurement/database. Metrics won't be published.");
+      LOG.warn("Missing property -- measurement/database. Metrics won't be published.");
     }
   }
 
