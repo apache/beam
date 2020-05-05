@@ -15,17 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.aws2.sns;
+package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
-import software.amazon.awssdk.services.sns.SnsClient;
+import java.util.function.BiConsumer;
 
 /**
- * Provides instances of SNS client.
+ * A union of the {@link BiConsumer} and {@link Serializable} interfaces.
  *
- * <p>Please note, that any instance of {@link SnsClientProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
+ * @param <FirstInputT> first input value type
+ * @param <SecondInputT> second input value type
  */
-public interface SnsClientProvider extends Serializable {
-  SnsClient getSnsClient();
-}
+public interface SerializableBiConsumer<FirstInputT, SecondInputT>
+    extends BiConsumer<FirstInputT, SecondInputT>, Serializable {}

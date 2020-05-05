@@ -17,15 +17,22 @@
  */
 package org.apache.beam.sdk.io.aws2.sns;
 
-import java.io.Serializable;
-import software.amazon.awssdk.services.sns.SnsClient;
+import java.util.concurrent.CompletableFuture;
+import software.amazon.awssdk.services.sns.model.PublishRequest;
+import software.amazon.awssdk.services.sns.model.PublishResponse;
 
-/**
- * Provides instances of SNS client.
- *
- * <p>Please note, that any instance of {@link SnsClientProvider} must be {@link Serializable} to
- * ensure it can be sent to worker machines.
- */
-public interface SnsClientProvider extends Serializable {
-  SnsClient getSnsClient();
+final class MockSnsAsyncExceptionClient extends MockSnsAsyncBaseClient {
+  private MockSnsAsyncExceptionClient() {}
+
+  static MockSnsAsyncExceptionClient create() {
+    return new MockSnsAsyncExceptionClient();
+  }
+
+  @Override
+  public CompletableFuture<PublishResponse> publish(PublishRequest publishRequest) {
+    CompletableFuture<PublishResponse> completableFuture = new CompletableFuture<>();
+    completableFuture.completeExceptionally(
+        new RuntimeException("Error occurred during publish call"));
+    return completableFuture;
+  }
 }
