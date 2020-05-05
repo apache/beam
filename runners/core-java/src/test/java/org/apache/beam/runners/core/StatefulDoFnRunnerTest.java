@@ -133,6 +133,47 @@ public class StatefulDoFnRunnerTest {
     testOutput(true, (fn, output) -> createStatefulDoFnRunner(fn, output, false));
   }
 
+  @Test
+  public void testDataDroppedBasedOnInputWatermarkWhenOrdered() throws Exception {
+    MetricsContainerImpl container = new MetricsContainerImpl("any");
+    MetricsEnvironment.setCurrentContainer(container);
+    Instant timestamp = new Instant(0);
+
+    MyDoFn fn = MyDoFn.create(true);
+
+    DoFnRunner<KV<String, Integer>, Integer> runner = createStatefulDoFnRunner(fn);
+
+    runner.startBundle();
+
+    IntervalWindow window = new IntervalWindow(timestamp, timestamp.plus(WINDOW_SIZE));
+
+    runner.processElement(
+        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+
+    long droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
+    assertEquals(0L, droppedValues);
+
+    timerInternals.advanceInputWatermark(timestamp.plus(ALLOWED_LATENESS + 1));
+
+    runner.processElement(
+        WindowedValue.of(KV.of("hello", 1), timestamp, window, PaneInfo.NO_FIRING));
+
+    droppedValues =
+        container
+            .getCounter(
+                MetricName.named(
+                    StatefulDoFnRunner.class, StatefulDoFnRunner.DROPPED_DUE_TO_LATENESS_COUNTER))
+            .getCumulative();
+    assertEquals(1L, droppedValues);
+
+    runner.finishBundle();
+  }
+
   private void testLateDropping(boolean ordered) throws Exception {
     MetricsContainerImpl container = new MetricsContainerImpl("any");
     MetricsEnvironment.setCurrentContainer(container);
