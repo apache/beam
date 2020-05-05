@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import java.util.Collections;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
@@ -57,6 +58,8 @@ public abstract class PipelineTranslator extends Pipeline.PipelineVisitor.Defaul
       options.setFilesToStage(
           PipelineResources.prepareFilesForStaging(
               options.getFilesToStage(), options.getTempLocation()));
+    } else {
+      options.setFilesToStage(Collections.emptyList());
     }
   }
 
