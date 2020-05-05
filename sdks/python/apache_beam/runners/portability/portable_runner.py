@@ -164,14 +164,7 @@ class JobServiceHandle(object):
     all_options = self.options.get_all_options(
         add_extra_args_fn=add_runner_options,
         retain_unknown_options=self._retain_unknown_options)
-    # TODO: Define URNs for options.
-    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-    p_options = {
-        'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-        for k,
-        v in all_options.items() if v is not None
-    }
-    return job_utils.dict_to_struct(p_options)
+    return job_utils.pipeline_options_dict_to_struct(all_options)
 
   def prepare(self, proto_pipeline):
     # type: (beam_runner_api_pb2.Pipeline) -> beam_job_api_pb2.PrepareJobResponse
