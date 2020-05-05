@@ -80,7 +80,7 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
 
   void setInfluxHost(@Nullable String host);
 
-  @Description("InfluxDB databse.")
+  @Description("InfluxDB database.")
   @Nullable
   String getInfluxDatabase();
 

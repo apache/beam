@@ -56,7 +56,7 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
 
   void setInfluxHost(@Nullable String host);
 
-  @Description("InfluxDB databse.")
+  @Description("InfluxDB database.")
   @Nullable
   String getInfluxDatabase();
 
