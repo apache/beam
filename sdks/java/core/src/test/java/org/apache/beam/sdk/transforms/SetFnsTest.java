@@ -58,7 +58,7 @@ public class SetFnsTest {
     String[] leftData = {"a", "a", "a", "b", "b", "c", "d", "d", "g", "g", "h", "h"};
     String[] rightData = {"a", "a", "b", "b", "b", "c", "d", "d", "e", "e", "f", "f"};
 
-    left = p.apply("left", Create.of(Arrays.asList(leftData)).withCoder(StringUtf8Coder.of()));
+    left = p.apply("left", Create.of(Arrays.asList(leftData)));
     right = p.apply("right", Create.of(Arrays.asList(rightData)));
     leftRow = p.apply("leftRow", Create.of(toRows(leftData)).withRowSchema(schema));
     rightRow = p.apply("rightRow", Create.of(toRows(rightData)).withRowSchema(schema));

@@ -51,7 +51,7 @@ public class SetFns {
   public static <T> SetImpl<T> intersect(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> intersectFn =
-        (inFirst, inSecond) -> (inFirst > 0 && inSecond > 0) ? 1L : 0L;
+        (numberOfElementsinLeft, numberOfElementsinRight) -> (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? 1L : 0L;
     return new SetImpl<>(rightCollection, intersectFn);
   }
 
@@ -79,7 +79,7 @@ public class SetFns {
   public static <T> SetImpl<T> intersectAll(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> intersectFn =
-        (inFirst, inSecond) -> (inFirst > 0 && inSecond > 0) ? Math.min(inFirst, inSecond) : 0L;
+        (numberOfElementsinLeft, numberOfElementsinRight) -> (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? Math.min(numberOfElementsinLeft, numberOfElementsinRight) : 0L;
     return new SetImpl<>(rightCollection, intersectFn);
   }
 
@@ -106,7 +106,7 @@ public class SetFns {
   public static <T> SetImpl<T> except(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> exceptFn =
-        (inFirst, inSecond) -> inFirst > 0 && inSecond == 0 ? 1L : 0L;
+        (numberOfElementsinLeft, numberOfElementsinRight) -> numberOfElementsinLeft > 0 && numberOfElementsinRight == 0 ? 1L : 0L;
     return new SetImpl<>(rightCollection, exceptFn);
   }
 
@@ -135,11 +135,11 @@ public class SetFns {
   public static <T> SetImpl<T> exceptAll(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> exceptFn =
-        (inFirst, inSecond) -> {
-          if (inFirst > 0 && inSecond == 0) {
-            return inFirst;
-          } else if (inFirst > 0 && inSecond > 0) {
-            return Math.max(inFirst - inSecond, 0L);
+        (numberOfElementsinLeft, numberOfElementsinRight) -> {
+          if (numberOfElementsinLeft > 0 && numberOfElementsinRight == 0) {
+            return numberOfElementsinLeft;
+          } else if (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) {
+            return Math.max(numberOfElementsinLeft - numberOfElementsinRight, 0L);
           }
           return 0L;
         };
@@ -167,7 +167,7 @@ public class SetFns {
    */
   public static <T> SetImpl<T> union(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    SerializableBiFunction<Long, Long, Long> unionFn = (inFirst, inSecond) -> 1L;
+    SerializableBiFunction<Long, Long, Long> unionFn = (numberOfElementsinLeft, numberOfElementsinRight) -> 1L;
     return new SetImpl<>(rightCollection, unionFn);
   }
 
