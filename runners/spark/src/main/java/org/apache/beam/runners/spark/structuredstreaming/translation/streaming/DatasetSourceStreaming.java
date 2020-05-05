@@ -29,6 +29,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -202,6 +203,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
     private boolean closed;
     private final UnboundedSource<T, CheckpointMarkT> source;
     private UnboundedSource.UnboundedReader<T> reader;
+    private final Coder<T> coder;
 
     DatasetPartitionReader(
         UnboundedSource<T, CheckpointMarkT> source,
@@ -209,6 +211,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       this.started = false;
       this.closed = false;
       this.source = source;
+      this.coder = source.getOutputCoder();
       // reader is not serializable so lazy initialize it
       try {
         reader =
@@ -238,7 +241,7 @@ class DatasetSourceStreaming implements DataSourceV2, MicroBatchReadSupport {
       WindowedValue<T> windowedValue =
           WindowedValue.timestampedValueInGlobalWindow(
               reader.getCurrent(), reader.getCurrentTimestamp());
-      return RowHelpers.storeWindowedValueInRow(windowedValue, source.getOutputCoder());
+      return RowHelpers.storeWindowedValueInRow(windowedValue, coder);
     }
 
     @Override

@@ -27,6 +27,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.serialization.Base64Serializer;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SchemaHelpers;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.RowHelpers;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -120,12 +121,14 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
     private boolean closed;
     private final BoundedSource<T> source;
     private BoundedReader<T> reader;
+    private final Coder<T> coder;
 
     DatasetPartitionReader(
         BoundedSource<T> source, SerializablePipelineOptions serializablePipelineOptions) {
       this.started = false;
       this.closed = false;
       this.source = source;
+      this.coder = source.getOutputCoder();
       // reader is not serializable so lazy initialize it
       try {
         reader = source.createReader(serializablePipelineOptions.get().as(PipelineOptions.class));
@@ -149,7 +152,7 @@ public class DatasetSourceBatch implements DataSourceV2, ReadSupport {
       WindowedValue<T> windowedValue =
           WindowedValue.timestampedValueInGlobalWindow(
               reader.getCurrent(), reader.getCurrentTimestamp());
-      return RowHelpers.storeWindowedValueInRow(windowedValue, source.getOutputCoder());
+      return RowHelpers.storeWindowedValueInRow(windowedValue, coder);
     }
 
     @Override
