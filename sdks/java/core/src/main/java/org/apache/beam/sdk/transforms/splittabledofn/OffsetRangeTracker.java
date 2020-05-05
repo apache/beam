@@ -95,15 +95,13 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
       return;
     }
 
-    if (lastAttemptedOffset != null) {
-      checkState(
-          lastAttemptedOffset >= range.getTo() - 1,
-          "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
-          lastAttemptedOffset,
-          range,
-          lastAttemptedOffset + 1,
-          range.getTo());
-    }
+    checkState(
+        lastAttemptedOffset >= range.getTo() - 1,
+        "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
+        lastAttemptedOffset,
+        range,
+        lastAttemptedOffset + 1,
+        range.getTo());
   }
 
   @Override

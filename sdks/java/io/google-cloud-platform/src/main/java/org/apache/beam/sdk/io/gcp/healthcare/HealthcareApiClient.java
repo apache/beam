@@ -70,6 +70,8 @@ public interface HealthcareApiClient {
    */
   Instant getEarliestHL7v2SendTime(String hl7v2Store, @Nullable String filter) throws IOException;
 
+  Instant getLatestHL7v2SendTime(String hl7v2Store, @Nullable String filter) throws IOException;
+
   /**
    * Make send time bound hl 7 v 2 list request.
    *

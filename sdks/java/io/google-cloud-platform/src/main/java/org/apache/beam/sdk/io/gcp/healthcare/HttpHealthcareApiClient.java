@@ -36,7 +36,6 @@ import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
 import com.google.auth.oauth2.GoogleCredentials;
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.URI;
@@ -49,6 +48,7 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -135,6 +135,42 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
               "Earliest message in %s has null or empty sendTime defaulting to Epoch.",
               hl7v2Store));
       return Instant.ofEpochMilli(0);
+    }
+    // sendTime is conveniently RFC3339 UTC "Zulu"
+    // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
+    return Instant.parse(sendTime);
+  }
+
+  @Override
+  public Instant getLatestHL7v2SendTime(String hl7v2Store, @Nullable String filter)
+      throws IOException {
+    ListMessagesResponse response =
+        client
+            .projects()
+            .locations()
+            .datasets()
+            .hl7V2Stores()
+            .messages()
+            .list(hl7v2Store)
+            .setFilter(filter)
+            .set("view", "full") // needed to retrieve the value for sendTime
+            .setOrderBy("sendTime desc")
+            // https://cloud.google.com/apis/design/design_patterns#sorting_order
+            .setPageSize(1) // Only interested in the earliest sendTime
+            .execute();
+    if (response.isEmpty()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Could not find latest send time. The filter %s  matched no results on "
+                  + "HL7v2 Store: %s",
+              filter, hl7v2Store));
+    }
+    String sendTime = response.getHl7V2Messages().get(0).getSendTime();
+    if (Strings.isNullOrEmpty(sendTime)) {
+      LOG.warn(
+          String.format(
+              "Latest message in %s has null or empty sendTime defaulting to now.", hl7v2Store));
+      return Instant.now();
     }
     // sendTime is conveniently RFC3339 UTC "Zulu"
     // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
@@ -418,8 +454,13 @@ public class HttpHealthcareApiClient<T> implements HealthcareApiClient, Serializ
       this.end = end;
     }
 
-    public Instant getStart() {return this.start; }
-    public Instant getEnd() {return this.end; }
+    public Instant getStart() {
+      return this.start;
+    }
+
+    public Instant getEnd() {
+      return this.end;
+    }
 
     /**
      * Make list request list messages response.
