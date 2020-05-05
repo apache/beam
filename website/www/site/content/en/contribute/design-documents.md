@@ -1,8 +1,5 @@
 ---
-layout: section
 title: 'Beam Design Documents'
-section_menu: section-menu/contribute.html
-permalink: /contribute/design-documents/
 redirect_to: https://cwiki.apache.org/confluence/display/BEAM/Design+Documents
 ---
 <!--

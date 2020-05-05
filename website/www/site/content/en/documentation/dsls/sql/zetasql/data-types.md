@@ -1,8 +1,6 @@
+</table>
 ---
-layout: section
 title: "Beam ZetaSQL data types"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/data-types/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,8 +86,7 @@ supported.
 <br/><br/>
 All types that support comparisons
 can be used in a <code>JOIN</code> condition. See
-<a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/query-syntax#join_types">JOIN
+<a href="/documentation/dsls/sql/zetasql/query-syntax#join_types">JOIN
 Types</a> for an explanation of join conditions.
 </td>
 </tr>

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam Feature Branches"
-permalink: /contribute/feature-branches/
-section_menu: section-menu/contribute.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,8 +31,7 @@ thorough and trustworthy.
 ## Establishing a feature branch
 
 If your project is large enough to need a feature branch, there should
-be a discussion on the mailing list. The first step is to [engage]({{
-site.baseurl }}/contribute/#connect-with-the-beam-community) there to raise awareness
+be a discussion on the mailing list. The first step is to [engage](/contribute/#connect-with-the-beam-community) there to raise awareness
 that you want to start a large project. Almost any project should be accepted
 -- there is no real cost to letting a feature branch exist -- but you may find
 other interested contributors or gain other advice from the community.
@@ -47,7 +43,7 @@ directly to GitHub or ASF's gitbox.
 ## Developing on a feature branch
 
 To contribute code on a feature branch, use the same process as in the
-[Contribution Guide]({{ site.baseurl}}/contribute/contribution-guide/), but
+[Contribution Guide](/contribute/contribution-guide/), but
 replace `master` with the name of the feature branch.
 
 Since feature branches are often used for new components, you may find that

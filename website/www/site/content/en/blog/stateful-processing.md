@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Stateful processing with Apache Beam"
 date:   2017-02-13 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - klk
 ---
@@ -36,7 +35,7 @@ snippets!**
 > **Warning: new features ahead!**: This is a very new aspect of the Beam
 > model. Runners are still adding support. You can try it out today on multiple
 > runners, but do check the [runner capability
-> matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) for
+> matrix](/documentation/runners/capability-matrix/) for
 > the current status in each runner.
 
 First, a quick recap: In Beam, a big data processing _pipeline_ is a directed,
@@ -44,7 +43,7 @@ acyclic graph of parallel operations called _`PTransforms`_ processing data
 from _`PCollections`_. I'll expand on that by walking through this illustration:
 
 <img class="center-block" 
-    src="{{ site.baseurl }}/images/blog/stateful-processing/pipeline.png" 
+    src="/images/blog/stateful-processing/pipeline.png" 
     alt="A Beam Pipeline - PTransforms are boxes - PCollections are arrows" 
     width="300">
 
@@ -66,7 +65,7 @@ key of the element. Thus the `GroupByKey`/`CombinePerKey` transform gathers all 
 green squares to produce a single output element.
 
 <img class="center-block" 
-    src="{{ site.baseurl }}/images/blog/stateful-processing/pardo-and-gbk.png"
+    src="/images/blog/stateful-processing/pardo-and-gbk.png"
     alt="ParDo and GroupByKey/CombinePerKey: 
         Elementwise versus aggregating computations"
     width="400">
@@ -77,7 +76,7 @@ extension to the Beam programming model: **per-element operation augmented with
 mutable state**.
 
 <img class="center-block" 
-    src="{{ site.baseurl}}/images/blog/stateful-processing/stateful-pardo.png"
+    src="/images/blog/stateful-processing/stateful-pardo.png"
     alt="Stateful ParDo - sequential per-key processing with persistent state"
     width="300">
 
@@ -85,7 +84,7 @@ In the illustration above, ParDo now has a bit of durable, consistent state on
 the side, which can be read and written during the processing of each element.
 The state is partitioned by key, so it is drawn as having disjoint sections for
 each color. It is also partitioned per window, but I thought plaid 
-<img src="{{ site.baseurl }}/images/blog/stateful-processing/plaid.png"
+<img src="/images/blog/stateful-processing/plaid.png"
     alt="A plaid storage cylinder" width="20"> 
 would be a bit much  :-). I'll talk about
 why state is partitioned this way a bit later, via my first example.
@@ -106,7 +105,7 @@ persistent mutable state while processing each input element. Consider this
 illustration:
 
 <img class="center-block" 
-    src="{{ site.baseurl}}/images/blog/stateful-processing/stateful-dofn.png"
+    src="/images/blog/stateful-processing/stateful-dofn.png"
     alt="Stateful DoFn - 
         the runner controls input but the DoFn controls storage and output"
     width="300">
@@ -144,7 +143,7 @@ that a runner might invoke it on a per-key basis to build an accumulator and
 extract an output from the final accumulator:
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/stateful-processing/combinefn.png"
+    src="/images/blog/stateful-processing/combinefn.png"
     alt="CombineFn - the runner controls input, storage, and output"
     width="300">
 
@@ -178,7 +177,7 @@ of a `CombineFn` on a number of inputs and later combine them in a classic
 divide-and-conquer architecture, as in this picture:
 
 <img class="center-block" 
-    src="{{ site.baseurl }}/images/blog/stateful-processing/combiner-lifting.png"
+    src="/images/blog/stateful-processing/combiner-lifting.png"
     alt="Divide-and-conquer aggregation with a CombineFn"
     width="600">
 
@@ -210,7 +209,7 @@ SDK, I'll go over this example from the level of the model. In pictures, you
 want to write a transform that maps input to output like this:
 
 <img class="center-block" 
-    src="{{ site.baseurl }}/images/blog/stateful-processing/assign-indices.png"
+    src="/images/blog/stateful-processing/assign-indices.png"
     alt="Assigning arbitrary but unique indices to each element"
     width="180">
 
@@ -276,7 +275,7 @@ write stateful processing code using Beam's Java SDK.  Here is the code for a
 stateful `DoFn` that assigns an arbitrary-but-consistent index to each element
 on a per key-and-window basis:
 
-```java
+{{< highlight java >}}
 new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
   // A state cell holding a single Integer per key+window
@@ -293,9 +292,9 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
     index.write(current+1);
   }
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class IndexAssigningStatefulDoFn(DoFn):
   INDEX_STATE = CombiningStateSpec('index', sum)
 
@@ -304,7 +303,7 @@ class IndexAssigningStatefulDoFn(DoFn):
     current_index = index.read()
     yield (value, current_index)
     index.add(1)
-```
+{{< /highlight >}}
 
 Let's dissect this:
 
@@ -356,7 +355,7 @@ If you try to express the building of your model as a `CombineFn`, you may have
 trouble with `mergeAccumulators`. Assuming you could express that, it might
 look something like this:
 
-```java
+{{< highlight java >}}
 class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
     @Override
     public abstract Model createAccumulator() {
@@ -377,9 +376,9 @@ class ModelFromEventsFn extends CombineFn<Event, Model, Model> {
     public abstract Model extractOutput(Model accumulator) {
       return accumulator; }
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class ModelFromEventsFn(apache_beam.core.CombineFn):
 
   def create_accumulator(self):
@@ -394,7 +393,7 @@ class ModelFromEventsFn(apache_beam.core.CombineFn):
 
   def extract_output(self, model):
     return model
-```
+{{< /highlight >}}
 
 Now you have a way to compute the model of a particular user for a window as
 `Combine.perKey(new ModelFromEventsFn())`. How would you apply this model to
@@ -404,7 +403,7 @@ elements of a `PCollection` is to read it as a side input to a `ParDo`
 transform. So you could side input the model and check the stream of events
 against it, outputting the prediction, like so:
 
-```java
+{{< highlight java >}}
 PCollection<KV<UserId, Event>> events = ...
 
 final PCollectionView<Map<UserId, Model>> userModels = events
@@ -425,9 +424,9 @@ PCollection<KV<UserId, Prediction>> predictions = events
         … c.output(KV.of(userId, model.prediction(event))) … 
       }
     }));
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 # Events is a collection of (user, event) pairs.
 events = (p | ReadFromEventSource() | beam.WindowInto(....))
 
@@ -446,7 +445,7 @@ def event_prediction(user_event, models):
 
 # Predictions is a collection of (user, prediction) pairs.
 predictions = events | beam.Map(event_prediction, user_models)
-```
+{{< /highlight >}}
 
 In this pipeline, there is just one model emitted by the `Combine.perKey(...)`
 per user, per window, which is then prepared for side input by the `View.asMap()`
@@ -464,7 +463,7 @@ generic Beam feature for managing completeness versus latency tradeoffs. So here
 is the same pipeline with an added trigger that outputs a new model one second
 after input arrives:
 
-```java
+{{< highlight java >}}
 PCollection<KV<UserId, Event>> events = ...
 
 PCollectionView<Map<UserId, Model>> userModels = events
@@ -475,9 +474,9 @@ PCollectionView<Map<UserId, Model>> userModels = events
 
     .apply(Combine.perKey(new ModelFromEventsFn()))
     .apply(View.asMap());
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 events = ...
 
 user_models = beam.pvalue.AsDict(
@@ -487,7 +486,7 @@ user_models = beam.pvalue.AsDict(
                           trigger.AfterCount(1),
                           trigger.AfterProcessingTime(1)))
                   | beam.CombinePerKey(ModelFromEventsFn()))
-```
+{{< /highlight >}}
 
 This is often a pretty nice tradeoff between latency and cost: If a huge flood
 of events comes in a second, then you will only emit one new model, so you
@@ -509,7 +508,7 @@ Stateful processing lets you address both the latency problem of side inputs
 and the cost problem of excessive uninteresting output. Here is the code, using
 only features I have already introduced:
 
-```java
+{{< highlight java >}}
 new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 
   @StateId("model")
@@ -540,9 +539,9 @@ new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
     }
   }
 };
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class ModelStatefulFn(beam.DoFn):
 
   PREVIOUS_PREDICTION = BagStateSpec('previous_pred_state', PredictionCoder())
@@ -568,7 +567,7 @@ class ModelStatefulFn(beam.DoFn):
       previous_pred_state.clear()
       previous_pred_state.add(new_prediction)
       yield (user, new_prediction)
-```
+{{< /highlight >}}
 
 Let's walk through it,
 
@@ -627,10 +626,10 @@ If you are new to Beam, I hope you are now interested in seeing if Beam with
 stateful processing addresses your use case.  If you are already using Beam, I
 hope this new addition to the model unlocks new use cases for you.  Do check
 the [capability
-matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) to
+matrix](/documentation/runners/capability-matrix/) to
 see the level of support for this new model feature on your favorite
 backend(s). 
 
 And please do join the community at
-[user@beam.apache.org]({{ site.baseurl }}/get-started/support). We'd love to
+[user@beam.apache.org](/get-started/support). We'd love to
 hear from you.

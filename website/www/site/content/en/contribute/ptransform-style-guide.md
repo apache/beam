@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "PTransform Style Guide"
-section_menu: section-menu/contribute.html
-permalink: /contribute/ptransform-style-guide/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,15 +19,14 @@ limitations under the License.
 
 _A style guide for writers of new reusable PTransforms._
 
-* TOC
-{:toc}
+{{< toc >}}
 
 ## Language-neutral considerations
 
 ### Consistency
 Be consistent with prior art:
 
-* Please read the [contribution guide]({{ site.baseurl }}/contribute/).
+* Please read the [contribution guide](/contribute/).
 * If there is already a similar transform in some SDK, make the API of your transform similar, so that users' experience with one of them will transfer to the other. This applies to transforms in the same-language SDK and different-language SDKs.
 *Exception:* pre-existing transforms that clearly violate the current style guide for the sole reason that they were developed before this guide was ratified. In this case, the style guide takes priority over consistency with the existing transform.
 * When there is no existing similar transform, stay within what is idiomatic within your language of choice (e.g. Java or Python).
@@ -202,8 +198,8 @@ Do not:
 Do:
 
 * Generally, follow the rules of [semantic versioning](https://semver.org/).
-* If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
-* If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python](https://beam.apache.org/releases/pydoc/{{ site.release_latest }}/apache_beam.utils.annotations.html)).
+* If the API of the transform is not yet stable, annotate it as `@Experimental` (Java) or `@experimental` ([Python](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.utils.annotations.html)).
+* If the API deprecated, annotate it as `@Deprecated` (Java) or `@deprecated` ([Python](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.utils.annotations.html)).
 * Pay attention to the stability and versioning of third-party classes exposed by the transform's API: if they are unstable or improperly versioned (do not obey [semantic versioning](https://semver.org/)), it is better to wrap them in your own classes.
 
 Do not:
@@ -234,7 +230,7 @@ E.g. if you want to return a `PCollection<Foo>` and a `PCollection<Bar>`, expose
 
 For example:
 
-```java
+{{< highlight java >}}
 public class MyTransform extends PTransform<..., PCollectionTuple> {
   private final TupleTag<Moo> mooTag = new TupleTag<Moo>() {};
   private final TupleTag<Blah> blahTag = new TupleTag<Blah>() {};
@@ -256,13 +252,13 @@ public class MyTransform extends PTransform<..., PCollectionTuple> {
   }
   ...
 }
-```
+{{< /highlight >}}
 
 #### Fluent builders for configuration
 
 Make the transform class immutable, with methods to produce modified immutable objects. Use [AutoValue](https://github.com/google/auto/tree/master/value). Autovalue can provide a Builder helper class. Use `@Nullable` to mark parameters of class type that don't have a default value or whose default value is null, except for primitive types (e.g. int).
 
-```java
+{{< highlight java >}}
 @AutoValue
 public abstract static class MyTransform extends PTransform<...> {
   int getMoo();
@@ -279,13 +275,13 @@ public abstract static class MyTransform extends PTransform<...> {
   }
   ...
 }
-```
+{{< /highlight >}}
 
 ##### Factory methods
 
 Provide a single argumentless static factory method, either in the enclosing class (see "Packaging a family of transforms") or in the transform class itself.
 
-```java
+{{< highlight java >}}
 public class Thumbs {
   public static Twiddle twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder().build();
@@ -301,7 +297,7 @@ public abstract static class TwiddleThumbs extends PTransform<...> {
   }
   ...
 }
-```
+{{< /highlight >}}
 
 
 Exception: when transform has a single overwhelmingly most important parameter, then call the factory method `of` and put the parameter into an argument of the factory method: `ParDo.of(DoFn).withAllowedLateness()`.
@@ -314,7 +310,7 @@ Treat `withBlah()` methods as an unordered set of keyword arguments - result mus
 
 Document implications of each `withBlah` method: when to use this method at all, what values are allowed, what is the default, what are the implications of changing the value.
 
-```java
+{{< highlight java >}}
 /**
  * Returns a new {@link TwiddleThumbs} transform with moo set
  * to the given value.
@@ -331,20 +327,20 @@ public Twiddle withMoo(int moo) {
       moo);
   return toBuilder().setMoo(moo).build();
 }
-```
+{{< /highlight >}}
 
 ##### Default values for parameters
 
 Specify them in the factory method (factory method returns an object with default values).
 
-```java
+{{< highlight java >}}
 public class Thumbs {
   public static Twiddle twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder().setMoo(42).build();
   }
   ...
 }
-```
+{{< /highlight >}}
 
 ##### Packaging multiple parameters into a reusable object
 
@@ -354,7 +350,7 @@ If several parameters of the transform are very tightly logically coupled, somet
 
 All type parameters should be specified explicitly on factory method. Builder methods (`withBlah()`) should not change the types.
 
-```java
+{{< highlight java >}}
 public class Thumbs {
   public static Twiddle<T> twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder<T>().build();
@@ -383,7 +379,7 @@ public class Thumbs {
 Thumbs.Twiddle<String> twiddle = Thumbs.<String>twiddle();
 // Or:
 PCollection<Bar<String>> bars = foos.apply(Thumbs.<String>twiddle() … );
-```
+{{< /highlight >}}
 
 Exception: when the transform has a single most important parameter and this parameter depends on type T, then prefer to put it right into the factory method: e.g. `Combine.globally(SerializableFunction<Iterable<V>,V>`). This improves Java's type inference and allows the user not to specify type parameters explicitly.
 
@@ -410,7 +406,7 @@ The container class must have a private constructor, so it can't be instantiated
 
 Document common stuff at `FooIO` level, and each factory method individually.
 
-```java
+{{< highlight java >}}
 /** Transforms for clustering data. */
 public class Cluster {
   // Force use of static factory methods.
@@ -437,11 +433,11 @@ public class FooIO {
   public static class Delete extends PTransform<...> { ... }
   public static class Mutate extends PTransform<...> { ... }
 }
-```
+{{< /highlight >}}
 
 When supporting multiple versions with incompatible APIs, use the version as a namespace-like class too, and put implementations of different API versions in different files.
 
-```java
+{{< highlight java >}}
 // FooIO.java
 public class FooIO {
   // Force use of static factory methods.
@@ -467,7 +463,7 @@ public static class FooV2 {
 
   public static class Read extends PTransform<...> { ... }
 }
-```
+{{< /highlight >}}
 
 ### Behavior
 
@@ -488,7 +484,7 @@ public static class FooV2 {
   These validations will be executed when the pipeline is already fully constructed/expanded and is about to be run with a particular `PipelineOptions`.
   Most `PTransform`s do not use `PipelineOptions` and thus don't need a `validate()` method - instead, they should perform their validation via the two other methods above.
 
-```java
+{{< highlight java >}}
 @AutoValue
 public abstract class TwiddleThumbs
     extends PTransform<PCollection<Foo>, PCollection<Bar>> {
@@ -534,7 +530,7 @@ public abstract class TwiddleThumbs
     ...
   }
 }
-```
+{{< /highlight >}}
 
 #### Coders
 

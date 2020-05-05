@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Timely (and Stateful) Processing with Apache Beam"
 date:   2017-08-28 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - klk
 ---
@@ -22,7 +21,7 @@ limitations under the License.
 -->
 
 In a [prior blog
-post]({{ site.baseurl }}/blog/2017/02/13/stateful-processing.html), I
+post](/blog/2017/02/13/stateful-processing.html), I
 introduced the basics of stateful processing in Apache Beam, focusing on the
 addition of state to per-element processing. So-called _timely_ processing
 complements stateful processing in Beam by letting you set timers to request a
@@ -76,7 +75,7 @@ distributed across computers in any way, yielding essentially limitless
 parallelism.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/ParDo.png"
+    src="/images/blog/timely-processing/ParDo.png"
     alt="ParDo offers limitless parallelism"
     width="600">
 
@@ -104,7 +103,7 @@ green squares, etc. In a real application, you may have millions of keys, so
 the parallelism is still massive.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/CombinePerKey.png"
+    src="/images/blog/timely-processing/CombinePerKey.png"
     alt="Gathering elements per key then combining them"
     width="600">
 
@@ -120,8 +119,7 @@ and timers.
 
 However, _your_ code is just a declarative expression of the aggregation
 operator.  The runner can choose a variety of ways to execute your operator. 
-I went over this in detail in [my prior post focused on state alone]({{
-site.baseurl }}/blog/2017/02/13/stateful-processing.html). Since you do not
+I went over this in detail in [my prior post focused on state alone](/blog/2017/02/13/stateful-processing.html). Since you do not
 observe elements in any defined order, nor manipulate mutable state or timers
 directly, I call this neither stateful nor timely processing.
 
@@ -158,7 +156,7 @@ access to state (the color-partitioned cylinder on the right) and can set
 timers to receive callbacks (the colorful clocks on the left).
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/StateAndTimers.png"
+    src="/images/blog/timely-processing/StateAndTimers.png"
     alt="Gathering elements per key then timely, stateful processing"
     width="600">
 
@@ -184,7 +182,7 @@ Let's set up the state we need to track batches of elements. As each element
 comes in, we will write the element to a buffer while tracking the number of
 elements we have buffered. Here are the state cells in code:
 
-```java
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
 
   @StateId("buffer")
@@ -195,9 +193,9 @@ new DoFn<Event, EnrichedEvent>() {
 
   … TBD … 
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
 
   BUFFER_STATE = BagStateSpec('buffer', EventCoder())
@@ -205,7 +203,7 @@ class StatefulBufferingFn(beam.DoFn):
   COUNT_STATE = CombiningValueStateSpec('count',
                                         VarIntCoder(),
                                         combiners.SumCombineFn())
-```
+{{< /highlight >}}
 
 Walking through the code, we have:
 
@@ -217,7 +215,7 @@ method. We will choose a limit on the size of the buffer, `MAX_BUFFER_SIZE`. If
 our buffer reaches this size, we will perform a single RPC to enrich all the
 events, and output.
 
-```java
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
 
   private static final int MAX_BUFFER_SIZE = 500;
@@ -250,9 +248,9 @@ new DoFn<Event, EnrichedEvent>() {
 
   … TBD … 
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
 
   MAX_BUFFER_SIZE = 500;
@@ -277,12 +275,12 @@ class StatefulBufferingFn(beam.DoFn):
         yield event
       count_state.clear()
       buffer_state.clear()
-```
+{{< /highlight >}}
 
 Here is an illustration to accompany the code:
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/BatchedRpcState.png"
+    src="/images/blog/timely-processing/BatchedRpcState.png"
     alt="Batching elements in state, then performing RPCs"
     width="600">
 
@@ -319,7 +317,7 @@ completeness for a `PCollection` - such as when a window expires.
 For our example, let us add an event time timer so that when the window expires,
 any events remaining in the buffer are processed.
 
-```java
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
   …
 
@@ -351,9 +349,9 @@ new DoFn<Event, EnrichedEvent>() {
     }
   }
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
   …
 
@@ -380,7 +378,7 @@ class StatefulBufferingFn(beam.DoFn):
 
     buffer_state.clear()
     count_state.clear()
-```
+{{< /highlight >}}
 
 Let's unpack the pieces of this snippet:
 
@@ -404,7 +402,7 @@ Let's unpack the pieces of this snippet:
 Illustrating this logic, we have the diagram below:
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/BatchedRpcExpiry.png"
+    src="/images/blog/timely-processing/BatchedRpcExpiry.png"
     alt="Batched RPCs with window expiration"
     width="600">
 
@@ -435,7 +433,7 @@ timer has not been set, then we set it for the current moment plus
 `MAX_BUFFER_DURATION`. After the allotted processing time has passed, a
 callback will fire and enrich and emit any buffered elements.
 
-```java
+{{< highlight java >}}
 new DoFn<Event, EnrichedEvent>() {
   …
 
@@ -477,9 +475,9 @@ new DoFn<Event, EnrichedEvent>() {
 
   … same expiry as above …
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class StatefulBufferingFn(beam.DoFn):
   …
 
@@ -512,12 +510,12 @@ class StatefulBufferingFn(beam.DoFn):
     buffer_state.clear()
     count_state.clear()
 
-```
+{{< /highlight >}}
 
 Here is an illustration of the final code:
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/BatchedRpcStale.png"
+    src="/images/blog/timely-processing/BatchedRpcStale.png"
     alt="Batching elements in state, then performing RPCs"
     width="600">
 
@@ -561,7 +559,7 @@ minutes sliding by 10 minutes, the stateful, timely transform should
 transparently work correctly.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/WindowingChoices.png"
+    src="/images/blog/timely-processing/WindowingChoices.png"
     alt="Two windowing strategies for the same stateful and timely transform"
     width="600">
 
@@ -589,7 +587,7 @@ processing logic be applicable to archived events just as easily as incoming
 near-real-time data.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/timely-processing/UnifiedModel.png"
+    src="/images/blog/timely-processing/UnifiedModel.png"
     alt="Unified stateful processing over streams and file archives"
     width="600">
 
@@ -603,10 +601,9 @@ falls within documented allowances.
 I'll end this post in the same way I ended the last. I hope you will go try out
 Beam with stateful, timely processing. If it opens up new possibilities for
 you, then great! If not, we want to hear about it. Since this is a new feature,
-please check the [capability matrix]({{ site.baseurl
-}}/documentation/runners/capability-matrix/) to see the level of support for
+please check the [capability matrix](/documentation/runners/capability-matrix/) to see the level of support for
 your preferred Beam backend(s).
 
 And please do join the Beam community at
-[user@beam.apache.org]({{ site.baseurl }}/get-started/support) and follow
+[user@beam.apache.org](/get-started/support) and follow
 [@ApacheBeam](https://twitter.com/ApacheBeam) on Twitter.

@@ -1,8 +1,6 @@
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
-layout: section
 title: "Beam Releases"
-permalink: get-started/downloads/
-section_menu: section-menu/get-started.html
 redirect_from:
   - /get-started/releases/
   - /use/releases/
@@ -24,7 +22,7 @@ limitations under the License.
 
 # Apache Beam&#8482; Downloads
 
-> Beam SDK {{ site.release_latest }} is the latest released version.
+> Beam SDK {{< param release_latest >}} is the latest released version.
 
 ## Using a central repository
 
@@ -38,19 +36,19 @@ with the `DirectRunner`, add the following dependencies to your `pom.xml` file:
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
-      <version>{{ site.release_latest }}</version>
+      <version>{{< param release_latest >}}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
-      <version>{{ site.release_latest }}</version>
+      <version>{{< param release_latest >}}</version>
       <scope>runtime</scope>
     </dependency>
 
 Similarly in Python, if you are using PyPI and want to use the SDK for Python
 with `DirectRunner`, add the following requirement to your `setup.py` file:
 
-    apache-beam=={{ site.release_latest }}
+    apache-beam=={{< param release_latest >}}
 
 Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline
@@ -82,7 +80,7 @@ the form `major.minor.incremental` and are incremented as follows:
 * minor version for new functionality added in a backward-compatible manner
 * incremental version for forward-compatible bug fixes
 
-Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/annotations/Experimental.html)
+Please note that APIs marked [`@Experimental`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/annotations/Experimental.html)
 may change at any point and are not guaranteed to remain compatible across versions.
 
 Additionally, any API may change before the first stable release, i.e., between

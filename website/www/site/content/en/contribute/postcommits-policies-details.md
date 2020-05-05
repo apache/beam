@@ -1,8 +1,6 @@
+  - Find someone to chat with in realtime at [#beam on Slack](/community/contact-us).
 ---
-layout: section
 title: 'Post-commit policies details'
-permalink: /contribute/postcommits-policies-details/
-section_menu: section-menu/contribute.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Partition"
-permalink: /documentation/transforms/python/elementwise/partition/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +21,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-{% include button-pydoc.md path="apache_beam.transforms.core" class="Partition" %}
+{{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}
 
 Separates elements in a collection into multiple output
 collections. The partitioning function contains the logic that determines how
@@ -34,7 +31,7 @@ partition output collection.
 The number of partitions must be determined at graph construction time.
 You cannot determine the number of partitions in mid-pipeline
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#partition).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#partition).
 
 ## Examples
 
@@ -51,39 +48,43 @@ and it must return an integer in the range `0` to `num_partitions-1`.
 In the following example, we have a known list of durations.
 We partition the `PCollection` into one `PCollection` for every duration type.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_function %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_function >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection`s:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:partitions %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
-%}
+>}}
 
 ### Example 2: Partition with a lambda function
 
 We can also use lambda functions to simplify **Example 1**.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_lambda %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_lambda >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection`s:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:partitions %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" partitions >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
-%}
+>}}
 
 ### Example 3: Partition with multiple arguments
 
@@ -117,28 +118,30 @@ identify the partition index to which that bucket corresponds.
 This `split_dataset` function is generic enough to support any number of partitions by any ratio.
 You might want to adapt the bucket assignment to use a more appropriate or randomized hash for your dataset.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py tag:partition_multiple_arguments %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py" partition_multiple_arguments >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection`s:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py tag:train_test %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition_test.py" train_test >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/partition.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/partition"
-%}
+>}}
 
 ## Related transforms
 
-* [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just
+* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
+* [ParDo](/documentation/transforms/python/elementwise/pardo) is the most general elementwise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.
-* [CoGroupByKey]({{ site.baseurl }}/documentation/transforms/python/aggregation/cogroupbykey)
+* [CoGroupByKey](/documentation/transforms/python/aggregation/cogroupbykey)
 performs a per-key equijoin.
 
-{% include button-pydoc.md path="apache_beam.transforms.core" class="Partition" %}
+{{< button-pydoc path="apache_beam.transforms.core" class="Partition" >}}

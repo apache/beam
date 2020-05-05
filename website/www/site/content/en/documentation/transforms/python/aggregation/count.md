@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Count"
-permalink: /documentation/transforms/python/aggregation/count/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,9 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Counts the number of elements within each aggregation.
 
 ## Examples

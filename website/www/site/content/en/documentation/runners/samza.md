@@ -1,9 +1,7 @@
+{{< capability-matrix cap-data="capability-matrix" cap-style="cap" cap-view="full" cap-other-view="summary" cap-toggle-details=0 cap-display="none" >}}
 ---
-layout: section
 title: "Apache Samza Runner"
-section_menu: section-menu/runners.html
-permalink: /documentation/runners/samza/
-redirect_from: /learn/runners/Samza/
+aliases: /learn/runners/Samza/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +29,7 @@ The Samza Runner and Samza are suitable for large scale, stateful streaming jobs
 * Flexible deployment model for running the the applications in any hosting environment with Zookeeper.
 * Features like canaries, upgrades and rollbacks that support extremely large deployments with minimal downtime.
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Samza Runner.
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Samza Runner.
 
 ## Samza Runner prerequisites and setup
 
@@ -40,11 +38,11 @@ The Samza Runner is built on Samza version greater than 1.0.
 ### Specify your dependency
 
 <span class="language-java">You can specify your dependency on the Samza Runner by adding the following to your `pom.xml`:</span>
-```java
+{{< highlight java >}}
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-samza</artifactId>
-  <version>{{ site.release_latest }}</version>
+  <version>{{< param release_latest >}}</version>
   <scope>runtime</scope>
 </dependency>
 
@@ -82,30 +80,30 @@ The Samza Runner is built on Samza version greater than 1.0.
   <scope>runtime</scope>
 </dependency>
     
-```
+{{< /highlight >}}
 
 ## Executing a pipeline with Samza Runner
 
 If you run your pipeline locally or deploy it to a standalone cluster with all the jars and resource files, no packaging is required. For example, the following command runs the WordCount example:
 
-```
+{{< /highlight >}}
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Psamza-runner \
     -Dexec.args="--runner=SamzaRunner \
       --inputFile=/path/to/input \
       --output=/path/to/counts"
-```
+{{< /highlight >}}
 
 To deploy your pipeline to a YARN cluster, here is the [instructions](https://samza.apache.org/startup/hello-samza/latest/) of deploying a sample Samza job. First you need to package your application jars and resource files into a `.tgz` archive file, and make it available to download for Yarn containers. In your config, you need to specify the URI of this TGZ file location:
 
-```
+{{< /highlight >}}
 yarn.package.path=${your_job_tgz_URI}
 
 job.name=${your_job_name}
 job.factory.class=org.apache.samza.job.yarn.YarnJobFactory
 job.coordinator.system=${job_coordinator_system}
 job.default.system=${job_default_system}
-```
+{{< /highlight >}}
 
 For more details on the configuration, see [Samza Configuration Reference](https://samza.apache.org/learn/documentation/latest/jobs/configuration-table.html).
 

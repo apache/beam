@@ -1,9 +1,9 @@
+As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the [Apache Beam presentation materials](/contribute/presentation-materials/) page or email the [`user@beam.apache.org`](mailto:user@beam.apache.org) mailing list with your ideas or questions.
 ---
-layout: post
 title:  "Apache Beam established as a new top-level project"
 date:   2017-01-10 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - davor
 ---
@@ -73,6 +73,6 @@ and a member of the project management committee.
 Please consider joining us, whether as a user or a contributor, as we work
 towards our first release with API stability. If you’d like to try out Apache
 Beam today, check out the latest
-[0.4.0 release]({{ site.baseurl }}/get-started/downloads/). We welcome
+[0.4.0 release](/get-started/downloads/). We welcome
 contribution and participation from anyone through our mailing lists, issue
 tracker, pull requests, and events.

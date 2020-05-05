@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Contact Us"
-permalink: /community/contact-us/
-section_menu: section-menu/community.html
 redirect_from:
   - /use/issue-tracking/
   - /use/mailing-lists/

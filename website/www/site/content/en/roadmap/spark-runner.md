@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Spark Runner Roadmap"
-permalink: /roadmap/spark-runner/
-section_menu: section-menu/roadmap.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

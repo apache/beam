@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam ZetaSQL conditional expressions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/conditional-expressions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

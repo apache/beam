@@ -1,8 +1,6 @@
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
 ---
-layout: section
 title: "ToString"
-permalink: /documentation/transforms/java/elementwise/tostring/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +24,9 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 A variety of utility transforms for invoking the `toString()` method
 on every element in the input collection.
 
@@ -34,4 +34,3 @@ on every element in the input collection.
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
-* [MapElements]({{ site.baseurl }}/documentation/transforms/java/elementwise/mapelements)

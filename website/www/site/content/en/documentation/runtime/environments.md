@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Container environments"
-section_menu: section-menu/documentation.html
-permalink: /documentation/runtime/environments/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,18 +36,18 @@ It's often easier to write a new Dockerfile. However, by modifying the original 
 ### Writing new Dockerfiles on top of the original {#writing-new-dockerfiles}
 
 1. Pull a [prebuilt SDK container image](https://hub.docker.com/search?q=apache%2Fbeam&type=image) for your [target](https://docs.docker.com/docker-hub/repos/#searching-for-repositories) language and version. The following example pulls the latest Python SDK:
-```
+{{< /highlight >}}
 docker pull apache/beam_python3.7_sdk
-```
+{{< /highlight >}}
 2. [Write a new Dockerfile](https://docs.docker.com/develop/develop-images/dockerfile_best-practices/) that [designates](https://docs.docker.com/engine/reference/builder/#from) the original as its [parent](https://docs.docker.com/glossary/?term=parent%20image).
 3. [Build](#building-container-images) a child image.
 
 ### Modifying the original Dockerfile {#modifying-dockerfiles}
 
 1. Clone the `beam` repository:
-```
+{{< /highlight >}}
 git clone https://github.com/apache/beam.git
-```
+{{< /highlight >}}
 2. Customize the [Dockerfile](https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile). If you're adding dependencies from [PyPI](https://pypi.org/), use [`base_image_requirements.txt`](https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt) instead.
 3. [Reimage](#building-container-images) the container.
 
@@ -60,18 +57,18 @@ To test a customized image locally, run a pipeline with PortableRunner and set t
 
 {:.runner-direct}
 
-```
+{{< /highlight >}}
 python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output /path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=embed \
 --environment_config=path/to/container/image
-```
+{{< /highlight >}}
 
 {:.runner-flink-local}
 
-```
+{{< /highlight >}}
 # Start a Flink job server on localhost:8099
 ./gradlew :runners:flink:1.8:job-server:runShadow
 
@@ -82,11 +79,11 @@ python -m apache_beam.examples.wordcount \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
 --environment_config=path/to/container/image
-```
+{{< /highlight >}}
 
 {:.runner-spark-local}
 
-```
+{{< /highlight >}}
 # Start a Spark job server on localhost:8099
 ./gradlew :runners:spark:job-server:runShadow
 
@@ -97,7 +94,7 @@ python -m apache_beam.examples.wordcount \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
 --environment_config=path/to/container/image
-```
+{{< /highlight >}}
 
 ## Building container images
 
@@ -106,7 +103,7 @@ To build Beam SDK container images:
 1. Navigate to the local copy of your [customized container image](#customizing-container-images).
 2. Run Gradle with the `docker` target. If you're [building a child image](#writing-new-dockerfiles), set the optional `--file` flag to the new Dockerfile. If you're [building an image from an original Dockerfile](#modifying-dockerfiles), ignore the `--file` flag and use a default repository:
 
-```
+{{< /highlight >}}
 # The default repository of each SDK
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
@@ -117,10 +114,10 @@ To build Beam SDK container images:
 
 # Shortcut for building all four Python SDKs
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
-```
+{{< /highlight >}}
 
 To examine the containers that you built, run `docker images` from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:
-```
+{{< /highlight >}}
 REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
 apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
 apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
@@ -128,7 +125,7 @@ apache/beam_python3.5_sdk          latest              bae309000d09        2 wee
 apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
 apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
 apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
-```
+{{< /highlight >}}
 
 ### Overriding default Docker targets
 
@@ -136,15 +133,15 @@ The default [tag](https://docs.docker.com/engine/reference/commandline/tag/) is 
 The `docker` command-line tool implicitly [pushes container images](#pushing-container-images) to this location.
 
 To tag a local image, set the `docker-tag` option when building the container. The following command tags a Python SDK image with a date.
-```
+{{< /highlight >}}
 ./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
-```
+{{< /highlight >}}
 
 To change the repository, set the `docker-repository-root` option to a new location. The following command sets the `docker-repository-root` 
 to a repository named `example-repo` on Docker Hub.
-```
+{{< /highlight >}}
 ./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
-```
+{{< /highlight >}}
 
 ## Pushing container images
 
@@ -153,15 +150,15 @@ After [building a container image](#building-container-images), you can store it
 The following steps push a Python3.6 SDK image to the [`docker-root-repository` value](#overriding-default-docker-targets). 
 Please log in to the destination repository as needed. 
 
-```
+{{< /highlight >}}
 Upload it to the remote repository:
-```
+{{< /highlight >}}
 docker push example-repo/beam_python3.6_sdk
-```
+{{< /highlight >}}
 
 To download the image again, run `docker pull`:
-```
+{{< /highlight >}}
 docker pull example-repo/beam_python3.6_sdk
-```
+{{< /highlight >}}
 
 > **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.

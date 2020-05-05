@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Beam SQL extensions: SET and RESET Statement"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/extensions/set/
-redirect_from: /documentation/dsls/sql/set/
+aliases: /documentation/dsls/sql/set/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,32 +19,32 @@ limitations under the License.
 # Beam SQL extensions: SET and RESET Pipeline Options
 
 Beam SQL's `SET` and `RESET` statements allow the user to [configure Pipeline
-Options]({{ site.baseurl }}/documentation/programming-guide/#configuring-pipeline-options)
+Options](/documentation/programming-guide/#configuring-pipeline-options)
 via the SQL shell. These are the same Pipeline Options passed to other Beam
 applications on the command line in the `--<option>=<value>` format.
 
 ## Syntax
 
-```
+{{< /highlight >}}
 SET option = value
-```
+{{< /highlight >}}
 
 The SET command sets a Pipeline Option.
 
 *   `option`: The case sensitive name of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers).
+    [Identifier](/documentation/dsls/sql/calcite/lexical/#identifiers).
 *   `value`: The case sensitive value of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers).
+    [Identifier](/documentation/dsls/sql/calcite/lexical/#identifiers).
     For flag options that have no value on the command line, use `true`.
 
-```
+{{< /highlight >}}
 RESET option
-```
+{{< /highlight >}}
 
 The RESET command resets a Pipeline Option to its default value.
 
 *   `option`: The case sensitive name of the Pipeline Option, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical#identifiers).
+    [Identifier](/documentation/dsls/sql/calcite/lexical#identifiers).
 
 ## Common Options
 

@@ -1,8 +1,6 @@
+* [Combine](/documentation/transforms/java/aggregation/combine)
 ---
-layout: section
 title: "CombineWithContext"
-permalink: /documentation/transforms/java/aggregation/combinewithcontext/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,12 +24,14 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 A class of transforms that contains combine functions that have access to `PipelineOptions` and side inputs through `CombineWithContext.Context`.
 
 ## Examples
 See [BEAM-7703](https://issues.apache.org/jira/browse/BEAM-7703) for updates.
 
 ## Related transforms 
-* [Combine]({{ site.baseurl }}/documentation/transforms/java/aggregation/combine)
+* [Combine](/documentation/transforms/java/aggregation/combine)
   for combining all values associated with a key to a single result

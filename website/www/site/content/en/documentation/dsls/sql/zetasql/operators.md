@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam ZetaSQL operators"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/operators/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -96,8 +93,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>5 (Comparison Operators)</td>
       <td>=</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Equal</td>
       <td>Binary</td>
@@ -106,8 +102,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&lt;</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Less than</td>
       <td>Binary</td>
@@ -116,8 +111,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&gt;</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Greater than</td>
       <td>Binary</td>
@@ -126,8 +120,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&lt;=</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Less than or equal to</td>
       <td>Binary</td>
@@ -136,8 +129,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>&gt;=</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Greater than or equal to</td>
       <td>Binary</td>
@@ -146,8 +138,7 @@ lowest precedence. Precedence determines the order in which operators will be ev
       <td>&nbsp;</td>
       <td>!=, &lt;&gt;</td>
       <td>Any comparable type. See
-      <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
+      <a href="/documentation/dsls/sql/zetasql/data-types">Data Types</a> for
       a complete list.</td>
       <td>Not equal</td>
       <td>Binary</td>
@@ -231,15 +222,15 @@ is interpreted as
 
 The expression:
 
-```
+{{< /highlight >}}
 x * y / z
-```
+{{< /highlight >}}
 
 is interpreted as:
 
-```
+{{< /highlight >}}
 ( ( x * y ) / z )
-```
+{{< /highlight >}}
 
 All comparison operators have the same priority and are grouped using left
 associativity. However, comparison operators are not associative. As a result,
@@ -418,11 +409,9 @@ require both operands to be of the same type. If operands are of different
 types, and if Cloud Dataflow SQL can convert the values of those types to a
 common type without loss of precision, Cloud Dataflow SQL will generally coerce
 them to that common type for the comparison; Cloud Dataflow SQL will generally
-[coerce literals to the type of non-literals]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/conversion-rules/#coercion), where
+[coerce literals to the type of non-literals](/documentation/dsls/sql/zetasql/conversion-rules/#coercion), where
 present. Comparable data types are defined in
-[Data Types]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types).
+[Data Types](/documentation/dsls/sql/zetasql/data-types).
 
 
 

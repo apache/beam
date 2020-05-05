@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Pipeline option patterns"
-section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/pipeline-options/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,28 +17,20 @@ limitations under the License.
 
 # Pipeline option patterns
 
-The samples on this page show you common pipeline configurations. For more information about pipeline configuration options, see [Creating a pipeline]({{ site.baseurl }}/documentation/programming-guide/#creating-a-pipeline) and [Configuring pipeline options]({{ site.baseurl }}/documentation/programming-guide/#configuring-pipeline-options).
+The samples on this page show you common pipeline configurations. For more information about pipeline configuration options, see [Creating a pipeline](/documentation/programming-guide/#creating-a-pipeline) and [Configuring pipeline options](/documentation/programming-guide/#configuring-pipeline-options).
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+{{< language-switcher java py >}}
 
 ## Retroactively logging runtime parameters
 
 Use the `ValueProvider` interface to access runtime parameters after completing a pipeline job.
 
-You can use the `ValueProvider` interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the the Beam DAG. A solution is to add a pipeline [branch]({{ site.baseurl }}/documentation/programming-guide/#applying-transforms) with a `DoFn` that processes a placeholder value and then logs the runtime parameters:
+You can use the `ValueProvider` interface to pass runtime parameters to your pipeline, but you can only log the parameters from within the the Beam DAG. A solution is to add a pipeline [branch](/documentation/programming-guide/#applying-transforms) with a `DoFn` that processes a placeholder value and then logs the runtime parameters:
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:AccessingValueProviderInfoAfterRunSnip1
-%}
-```
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" AccessingValueProviderInfoAfterRunSnip1 >}}
+{{< /highlight >}}
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:AccessingValueProviderInfoAfterRunSnip1
-%}
-```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" AccessingValueProviderInfoAfterRunSnip1 >}}
+{{< /highlight >}}

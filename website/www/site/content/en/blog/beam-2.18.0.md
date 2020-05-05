@@ -1,11 +1,9 @@
 ---
-layout: post
 title:  "Apache Beam 2.18.0"
 date:   2020-01-23 00:00:01 -0800
 # Date above corrected but keep the old URL:
-permalink: /blog/2020/01/13/beam-2.18.0.html
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - udim
   - altay
@@ -26,7 +24,7 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.18.0 release of Beam. This release includes both improvements and new functionality.
-See the [download page]({{ site.baseurl }}/get-started/downloads/#2180-2020-01-23) for this release.<!--more-->
+See the [download page](/get-started/downloads/#2180-2020-01-23) for this release.<!--more-->
 For more information on changes in 2.18.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12346383&projectId=12319527).
 

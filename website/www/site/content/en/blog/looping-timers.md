@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Looping timers in Apache Beam"
 date:   2019-06-11 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
        - rez
        - klk
@@ -27,7 +26,7 @@ variety of use cases. One specific use case is the analysis of time series data
 in which continuous sequences across window boundaries are important. A few fun
 challenges arise as you tackle this type of data and in this blog we will
 explore one of those in more detail and make use of the Timer API
-([blog post]({{ site.baseurl }}/blog/2017/08/28/timely-processing.html))
+([blog post](/blog/2017/08/28/timely-processing.html))
 using the "looping timer" pattern.
 
 <!--more-->
@@ -46,7 +45,7 @@ event, there is nothing to count!
 
 Let's build a simple pipeline to work with:
 
-```
+{{< /highlight >}}
   // We will start our timer at 1 sec from the fixed upper boundary of our
   // minute window
   Instant now = Instant.parse("2000-01-01T00:00:59Z");
@@ -87,15 +86,15 @@ FixedWindows.<Integer>of(Duration.standardMinutes(1))))
        }));
 
   p.run();
-```
+{{< /highlight >}}
 
 Running that pipeline will result in the following output:
 
-```
+{{< /highlight >}}
 INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-```
+{{< /highlight >}}
 
 > Note: The lack of order in the output should be expected, however the
 > key-window tuple is correctly computed.
@@ -130,10 +129,10 @@ Beam pipeline.
 
 We can use a generating source to emit the value using this code snippet:
 
-```
+{{< /highlight >}}
 pipeline.apply(GenerateSequence.
             from(0).withRate(1,Duration.standardSeconds(1L)))
-```
+{{< /highlight >}}
 
 We can then:
 
@@ -172,7 +171,7 @@ So how do timers help? Well let's have a look at a new transform:
 
 Edit: Looping Timer State changed from Boolean to Long to allow for min value check.  
 
-```java
+{{< highlight java >}}
 public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<String, Integer>> {
 
     Instant stopTimerTime;
@@ -236,7 +235,7 @@ public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<St
       }
     }
   }
-```
+{{< /highlight >}}
 
 There are two data values that the state API needs to keep:
 
@@ -275,7 +274,7 @@ In the @OnTimer block, the following occurs:
 
 And that's it, let's add our transform back into the pipeline:
 
-```java
+{{< highlight java >}}
   // Apply a fixed window of duration 1 min and Sum the results
   p.apply(Create.timestamped(time_1, time_2, time_3)).apply(
     Window.<KV<String, Integer>>into(FixedWindows.<Integer>of(Duration.standardMinutes(1))))
@@ -294,7 +293,7 @@ And that's it, let's add our transform back into the pipeline:
 
      }
   }));
-```
+{{< /highlight >}}
 
 1. In the first part of the pipeline we create FixedWindows and reduce the value
    per key down to a single Sum.
@@ -318,7 +317,7 @@ interval. This can reduce the number of reads of the State API during the
 
 Here is the logging output of running our modified pipeline:
 
-```
+{{< /highlight >}}
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:02:59.999Z fired
 INFO  LoopingTimer  - Timer @ 2000-01-01T00:03:59.999Z fired
@@ -327,7 +326,7 @@ INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999
 INFO  LoopingTimer  - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
 INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-```
+{{< /highlight >}}
 
 Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
 though the source dataset has no elements in that interval.
@@ -342,7 +341,7 @@ feature sets. You can experiment with this pattern today using the
 DirectRunner. For other runners, please look out for their release notes on
 support for dealing with this use case in production.
 
-([Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/))
+([Capability Matrix](/documentation/runners/capability-matrix/))
 
 
 Runner specific notes:

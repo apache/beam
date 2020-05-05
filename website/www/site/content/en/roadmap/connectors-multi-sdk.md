@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Multi-SDK Connector Efforts"
-permalink: /roadmap/connectors-multi-sdk/
-section_menu: section-menu/roadmap.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

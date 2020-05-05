@@ -1,9 +1,7 @@
+</table>
 ---
-layout: section
 title: "Beam Calcite SQL aggregate functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/aggregate-functions/
-redirect_from: /documentation/dsls/sql/aggregate-functions/
+aliases: /documentation/dsls/sql/aggregate-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,4 +28,3 @@ This page documents Apache Calcite aggregate functions supported by Beam Calcite
 | SUM(numeric) | Returns the sum of numeric across all input values |
 | MAX(value) | Returns the maximum value of value across all input values |
 | MIN(value) | Returns the minimum value of value across all input values |
-{:.table}

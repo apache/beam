@@ -1,9 +1,7 @@
+</table>
 ---
-layout: section
 title: "Beam Calcite SQL data types"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/data-types/
-redirect_from: /documentation/dsls/sql/data-types/
+aliases: /documentation/dsls/sql/data-types/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,4 +40,3 @@ full range of values.
 | ARRAY<type>     | Ordered list of values      | java.util.List |
 | MAP<type, type> | Finite unordered map        | java.util.Map  |
 | ROW<fields>     | Nested row                  | org.apache.beam.sdk.values.Row |
-{:.table}

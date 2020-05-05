@@ -1,8 +1,6 @@
+* [Reify](/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.
 ---
-layout: section
 title: "ParDo"
-permalink: /documentation/transforms/python/elementwise/pardo/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +22,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-{% include button-pydoc.md path="apache_beam.transforms.core" class="ParDo" %}
+{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}
 
 A transform for generic parallel processing.
 A `ParDo` transform considers each element in the input `PCollection`,
@@ -32,7 +30,7 @@ performs some processing function (your user code) on that element,
 and emits zero or more elements to an output `PCollection`.
 
 See more information in the
-[Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#pardo).
+[Beam Programming Guide](/documentation/programming-guide/#pardo).
 
 ## Examples
 
@@ -46,20 +44,22 @@ which stores the `delimiter` as an object field.
 The `process` method is called once per element,
 and it can yield zero or more output elements.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `ParDo`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:plants %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" plants >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
-%}
+>}}
 
 ### Example 2: ParDo with timestamp and window information
 
@@ -74,20 +74,22 @@ In this example, we add new parameters to the `process` method to bind parameter
   [`apache_beam.transforms.window.*Window`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html)
   object.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn_params %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_params >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 `stdout` output:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:dofn_params %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" dofn_params >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
-%}
+>}}
 
 ### Example 3: ParDo with DoFn methods
 
@@ -134,20 +136,22 @@ starts and finishes with `start_bundle` and `finish_bundle`.
   Note that `teardown` is called as a *best effort* and is *not guaranteed*.
   For example, if the worker crashes, `teardown` might not be called.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py tag:pardo_dofn_methods %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py" pardo_dofn_methods >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 `stdout` output:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py tag:results %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo_test.py" results >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/pardo"
-%}
+>}}
 
 > *Known issues:*
 >
@@ -158,10 +162,10 @@ starts and finishes with `start_bundle` and `finish_bundle`.
 
 ## Related transforms
 
-* [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
-* [FlatMap]({{ site.baseurl }}/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`,
+* [Map](/documentation/transforms/python/elementwise/map) behaves the same, but produces exactly one output for each input.
+* [FlatMap](/documentation/transforms/python/elementwise/flatmap) behaves the same as `Map`,
   but for each input it may produce zero or more outputs.
-* [Filter]({{ site.baseurl }}/documentation/transforms/python/elementwise/filter) is useful if the function is just
+* [Filter](/documentation/transforms/python/elementwise/filter) is useful if the function is just
   deciding whether to output an element or not.
 
-{% include button-pydoc.md path="apache_beam.transforms.core" class="ParDo" %}
+{{< button-pydoc path="apache_beam.transforms.core" class="ParDo" >}}

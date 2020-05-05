@@ -1,8 +1,5 @@
 ---
-layout: section
 title: 'Beam Testing'
-section_menu: section-menu/contribute.html
-permalink: /contribute/testing/
 redirect_to: https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide
 ---
 <!--

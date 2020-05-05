@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Apache Nemo Runner"
-section_menu: section-menu/runners.html
-permalink: /documentation/runners/nemo/
-redirect_from: /learn/runners/nemo/
+aliases: /learn/runners/nemo/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,7 +29,7 @@ The Nemo Runner executes Beam pipelines on top of Apache Nemo, providing:
 * Integration with YARN and other components of the Apache Hadoop ecosystem
 * Support for the various optimizations provided by the Nemo optimizer
 
-The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
 supported capabilities of the Nemo Runner.
 
 ## Nemo Runner prerequisites and setup
@@ -40,7 +37,7 @@ supported capabilities of the Nemo Runner.
 The Nemo Runner can be used simply by adding a dependency on a version of the Nemo runner newer than `0.1`
 to your pom.xml as follows:
 
-```
+{{< /highlight >}}
 <dependency>
     <groupId>org.apache.nemo</groupId>
     <artifactId>nemo-compiler-frontend-beam</artifactId>
@@ -61,14 +58,14 @@ to your pom.xml as follows:
         </exclusion>
     </exclusions>
 </dependency>
-```
+{{< /highlight >}}
 
 ## Deploying Nemo with your Application
 
 A self-contained application might be easier to manage and allows you to fully use the functionality that Nemo provides.
 Simply add the dependency shown above and shade the application JAR using the Maven Shade plugin:
 
-```
+{{< /highlight >}}
 <plugin>
   <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>
@@ -102,24 +99,24 @@ Simply add the dependency shown above and shade the application JAR using the Ma
     </execution>
   </executions>
 </plugin>
-```
+{{< /highlight >}}
 
 After running `mvn package`, run `ls target` and you should see the following output (in this example, your artifactId is `beam-examples`
 and the version is `1.0.0`):
 
-```
+{{< /highlight >}}
 beam-examples-1.0.0-shaded.jar
-```
+{{< /highlight >}}
 
 With this shaded jar, you can use the `bin/run_beam.sh` shell script as follows:
 
-```
+{{< /highlight >}}
 ## MapReduce example
 ./bin/run_beam.sh \
     -job_id mr_default \
     -user_main org.apache.nemo.examples.beam.WordCount \
     -user_args "`pwd`/examples/resources/test_input_wordcount `pwd`/examples/resources/test_output_wordcount"
-```
+{{< /highlight >}}
 
 To use Nemo using YARN, set the `-deploy_mode` flag on Nemo to `yarn`. 
 
@@ -158,12 +155,12 @@ and `-optimization_policy org.apache.nemo.compiler.optimizer.policy.StreamingPol
 to streaming mode.
 Also, be sure to extend the `capacity` of the resources in the `resources.json`, for example:
 
-```
+{{< /highlight >}}
 {
   "type": "Reserved",
   "memory_mb": 2048,
   "capacity": 50000
 }
-```
+{{< /highlight >}}
 
 Please refer to the [Apache Nemo GitHub README](https://github.com/apache/incubator-nemo) for more information.

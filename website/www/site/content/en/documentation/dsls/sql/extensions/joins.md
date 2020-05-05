@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam SQL extensions: Joins"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/extensions/joins/
 redirect-from: /documentation/dsls/sql/joins/
 ---
 <!--

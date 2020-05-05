@@ -1,8 +1,6 @@
+The Apache Beam project uses predefined colors and fonts. [This document](/{{ site.downloads }}/palette.pdf) has more information.
 ---
-layout: section
 title: "Contact Us"
-permalink: /community/in-person/
-section_menu: section-menu/community.html
 redirect_from:
   - /use/issue-tracking/
   - /use/mailing-lists/

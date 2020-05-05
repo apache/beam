@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam SQL: Overview"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/overview/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -37,32 +34,28 @@ To change dialects, pass [the dialect's full package name](https://beam.apache.o
 
 There are two additional concepts you need to know to use SQL in your pipeline:
 
- - [SqlTransform](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html): the interface for creating `PTransforms` from SQL queries.
- - [Row](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/values/Row.html):
+ - [SqlTransform](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html): the interface for creating `PTransforms` from SQL queries.
+ - [Row](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/values/Row.html):
    the type of elements that Beam SQL operates on. A `PCollection<Row>` plays the role of a table.
 
 ## Walkthrough
-The [SQL pipeline walkthrough]({{ site.baseurl
-}}/documentation/dsls/sql/walkthrough) works through how to use Beam SQL with example code.
+The [SQL pipeline walkthrough](/documentation/dsls/sql/walkthrough) works through how to use Beam SQL with example code.
 
 ## Shell
 The Beam SQL shell allows you to write pipelines as SQL queries without using the Java SDK. 
-The [Shell page]({{ site.baseurl
-}}/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell. 
+The [Shell page](/documentation/dsls/sql/shell) describes how to work with the interactive Beam SQL shell. 
 
 ## Apache Calcite dialect 
-The [Beam Calcite SQL overview]({{ site.baseurl
-}}/documentation/dsls/sql/calcite/overview) summarizes Apache Calcite operators,
+The [Beam Calcite SQL overview](/documentation/dsls/sql/calcite/overview) summarizes Apache Calcite operators,
 functions, syntax, and data types supported by Beam Calcite SQL.
 
 ## ZetaSQL dialect
-For more information on the ZetaSQL features in Beam SQL, see the [Beam ZetaSQL dialect reference]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/overview).
+For more information on the ZetaSQL features in Beam SQL, see the [Beam ZetaSQL dialect reference](/documentation/dsls/sql/zetasql/overview).
 
 To switch to Beam ZetaSQL, configure the [pipeline options](https://beam.apache.org/releases/javadoc/2.15.0/org/apache/beam/sdk/options/PipelineOptions.html) as follows:
-```
+{{< /highlight >}}
 setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner")
-```
+{{< /highlight >}}
 
 ## Beam SQL extensions
 Beam SQL has additional extensions leveraging Beam’s unified batch/streaming model and processing complex data types. You can use these extensions with all Beam SQL dialects.

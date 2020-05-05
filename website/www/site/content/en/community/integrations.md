@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Integrations"
-permalink: /community/integrations/
-section_menu: section-menu/community.html
 redirect_from:
 ---
 <!--

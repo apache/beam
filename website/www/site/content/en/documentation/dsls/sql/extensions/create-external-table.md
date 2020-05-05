@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam SQL extension: CREATE EXTERNAL TABLE Statement"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/extensions/create-external-table/
 redirect_from:
   - /documentation/dsls/sql/create-external-table/
   - /documentation/dsls/sql/statements/create-table/
@@ -25,7 +22,7 @@ limitations under the License.
 # Beam SQL extensions: CREATE EXTERNAL TABLE
 
 Beam SQL's `CREATE EXTERNAL TABLE` statement registers a virtual table that maps to an
-[external storage system]({{ site.baseurl }}/documentation/io/built-in/).
+[external storage system](/documentation/io/built-in/).
 For some storage systems, `CREATE EXTERNAL TABLE` does not create a physical table until
 a write occurs. After the physical table exists, you can access the table with
 the `SELECT`, `JOIN`, and `INSERT INTO` statements.
@@ -34,7 +31,7 @@ The `CREATE EXTERNAL TABLE` statement includes a schema and extended clauses.
 
 ## Syntax
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE type
 [LOCATION location]
@@ -45,13 +42,13 @@ simpleType: TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE | DECIMAL | B
 fieldType: simpleType | MAP<simpleType, fieldType> | ARRAY<fieldType> | ROW<tableElement [, tableElement ]*>
 
 tableElement: columnName fieldType [ NOT NULL ]
-```
+{{< /highlight >}}
 
 *   `IF NOT EXISTS`: Optional. If the table is already registered, Beam SQL
     ignores the statement instead of returning an error.
 *   `tableName`: The case sensitive name of the table to create and register,
     specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical#identifiers).
+    [Identifier](/documentation/dsls/sql/calcite/lexical#identifiers).
     The table name does not need to match the name in the underlying data
     storage system.
 *   `tableElement`: `columnName` `fieldType` `[ NOT NULL ]`
@@ -66,7 +63,7 @@ tableElement: columnName fieldType [ NOT NULL ]
         *   `ROW<tableElement [, tableElement ]*>`
     *   `NOT NULL`: Optional. Indicates that the column is not nullable.
 *   `type`: The I/O transform that backs the virtual table, specified as an
-    [Identifier]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#identifiers)
+    [Identifier](/documentation/dsls/sql/calcite/lexical/#identifiers)
     with one of the following values:
     *   `bigquery`
     *   `pubsub`
@@ -74,23 +71,23 @@ tableElement: columnName fieldType [ NOT NULL ]
     *   `text`
 *   `location`: The I/O specific location of the underlying table, specified as
     a [String
-    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#string-literals).
+    Literal](/documentation/dsls/sql/calcite/lexical/#string-literals).
     See the I/O specific sections for `location` format requirements.
 *   `tblProperties`: The I/O specific quoted key value JSON object with extra
     configuration, specified as a [String
-    Literal]({{ site.baseurl }}/documentation/dsls/sql/calcite/lexical/#string-literals).
+    Literal](/documentation/dsls/sql/calcite/lexical/#string-literals).
     See the I/O specific sections for `tblProperties` format requirements.
 
 ## BigQuery
 
 ### Syntax
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE bigquery
 LOCATION '[PROJECT_ID]:[DATASET].[TABLE]'
 TBLPROPERTIES '{"method": "DIRECT_READ"}'
-```
+{{< /highlight >}}
 
 *   `LOCATION`: Location of the table in the BigQuery CLI format.
     *   `PROJECT_ID`: ID of the Google Cloud Project.
@@ -200,17 +197,17 @@ as follows:
 
 ### Example
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE bigquery
 LOCATION 'testing-integration:apache.users'
-```
+{{< /highlight >}}
 
 ## Pub/Sub
 
 ### Syntax
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
   (
    event_timestamp TIMESTAMP,
@@ -220,7 +217,7 @@ CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName
 TYPE pubsub
 LOCATION 'projects/[PROJECT]/topics/[TOPIC]'
 TBLPROPERTIES '{"timestampAttributeKey": "key", "deadLetterQueue": "projects/[PROJECT]/topics/[TOPIC]"}'
-```
+{{< /highlight >}}
 
 *   `event_timestamp`: The event timestamp associated with the Pub/Sub message
     by PubsubIO. It can be one of the following:
@@ -280,11 +277,11 @@ declare a special set of columns, as shown below.
 
 ### Example
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE locations (event_timestamp TIMESTAMP, attributes MAP<VARCHAR, VARCHAR>, payload ROW<id INTEGER, location VARCHAR>)
 TYPE pubsub
 LOCATION 'projects/testing-integration/topics/user-location'
-```
+{{< /highlight >}}
 
 ## Kafka
 
@@ -292,12 +289,12 @@ KafkaIO is experimental in Beam SQL.
 
 ### Syntax
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE kafka
 LOCATION 'kafka://localhost:2181/brokers'
 TBLPROPERTIES '{"bootstrap.servers":"localhost:9092", "topics": ["topic1", "topic2"]}'
-```
+{{< /highlight >}}
 
 *   `LOCATION`: The Kafka topic URL.
 *   `TBLPROPERTIES`:
@@ -327,11 +324,11 @@ Only simple types are supported.
 
 ### Syntax
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE mongodb
 LOCATION 'mongodb://[HOST]:[PORT]/[DATABASE]/[COLLECTION]'
-```
+{{< /highlight >}}
 *   `LOCATION`: Location of the collection.
     *   `HOST`: Location of the MongoDB server. Can be localhost or an ip address.
          When authentication is required username and password can be specified
@@ -354,11 +351,11 @@ Only simple types are supported. MongoDB documents are mapped to Beam SQL types 
 
 ### Example
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE users (id INTEGER, username VARCHAR)
 TYPE mongodb
 LOCATION 'mongodb://localhost:27017/apache/users'
-```
+{{< /highlight >}}
 
 ## Text
 
@@ -367,12 +364,12 @@ access the same underlying data.
 
 ### Syntax
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE [ IF NOT EXISTS ] tableName (tableElement [, tableElement ]*)
 TYPE text
 LOCATION '/home/admin/orders'
 TBLPROPERTIES '{"format: "Excel"}'
-```
+{{< /highlight >}}
 
 *   `LOCATION`: The path to the file for Read Mode. The prefix for Write Mode.
 *   `TBLPROPERTIES`:
@@ -410,8 +407,8 @@ Only simple types are supported.
 
 ### Example
 
-```
+{{< /highlight >}}
 CREATE EXTERNAL TABLE orders (id INTEGER, price INTEGER)
 TYPE text
 LOCATION '/home/admin/orders'
-```
+{{< /highlight >}}

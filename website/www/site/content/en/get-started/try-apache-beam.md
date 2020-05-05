@@ -1,8 +1,6 @@
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
-layout: section
 title: "Try Apache Beam"
-permalink: /get-started/try-apache-beam/
-section_menu: section-menu/get-started.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,20 +20,13 @@ limitations under the License.
 
 You can try Apache Beam using our interactive notebooks, which are hosted in [Colab](https://colab.research.google.com). The notebooks allow you to interactively play with the code and see how your changes affect the pipeline. You don't need to install anything or modify your computer in any way to use these notebooks.
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-    <li data-type="language-go">Go SDK</li>
-  </ul>
-</nav>
+{{< language-switcher py go >}}
 
 ## Interactive WordCount in Colab
 
 This interactive notebook shows you what a simple, minimal version of WordCount looks like.
 
-```java
+{{< highlight java >}}
 package samples.quickstart;
 
 import org.apache.beam.sdk.Pipeline;
@@ -71,10 +62,11 @@ public class WordCount {
     pipeline.run();
   }
 }
-```
+{{< /highlight >}}
 
-{:.language-java}
+{{< paragraph class="language-java" >}}
 <a class="button button--primary" target="_blank"
+{{< /paragraph >}}
   href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-java.ipynb">
   Run in Colab
 </a>
@@ -83,10 +75,11 @@ public class WordCount {
   View on GitHub
 </a>
 
-{:.language-java}
+{{< paragraph class="language-java" >}}
 To learn how to install and run the Apache Beam Java SDK on your own computer, follow the instructions in the [Java Quickstart]({{ site.baseurl }}/get-started/quickstart-java).
+{{< /paragraph >}}
 
-```py
+{{< highlight py >}}
 import apache_beam as beam
 import re
 
@@ -103,10 +96,11 @@ with beam.Pipeline() as pipeline:
       | 'Format results' >> beam.Map(lambda word_count: str(word_count))
       | 'Write results' >> beam.io.WriteToText(outputs_prefix)
   )
-```
+{{< /highlight >}}
 
-{:.language-py}
+{{< paragraph class="language-py" >}}
 <a class="button button--primary" target="_blank"
+{{< /paragraph >}}
   href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-py.ipynb">
   Run in Colab
 </a>
@@ -115,10 +109,11 @@ with beam.Pipeline() as pipeline:
   View on GitHub
 </a>
 
-{:.language-py}
+{{< paragraph class="language-py" >}}
 To learn how to install and run the Apache Beam Python SDK on your own computer, follow the instructions in the [Python Quickstart]({{ site.baseurl }}/get-started/quickstart-py).
+{{< /paragraph >}}
 
-```go
+{{< highlight go >}}
 package main
 
 import (
@@ -164,10 +159,11 @@ func main() {
 
 	direct.Execute(context.Background(), pipeline)
 }
-```
+{{< /highlight >}}
 
-{:.language-go}
+{{< paragraph class="language-go" >}}
 <a class="button button--primary" target="_blank"
+{{< /paragraph >}}
   href="https://colab.sandbox.google.com/github/{{ site.branch_repo }}/examples/notebooks/get-started/try-apache-beam-go.ipynb">
   Run in Colab
 </a>
@@ -176,17 +172,17 @@ func main() {
   View on GitHub
 </a>
 
-{:.language-go}
+{{< paragraph class="language-go" >}}
 To learn how to install and run the Apache Beam Go SDK on your own computer, follow the instructions in the [Go Quickstart]({{ site.baseurl }}/get-started/quickstart-go).
+{{< /paragraph >}}
 
-For a more detailed explanation about how WordCount works, see the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+For a more detailed explanation about how WordCount works, see the [WordCount Example Walkthrough](/get-started/wordcount-example).
 
 ## Next Steps
 
-* Walk through additional WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
-* Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
-* Dive in to some of our favorite [Videos and Podcasts]({{ site.baseurl }}/documentation/resources/videos-and-podcasts).
-* Join the Beam [users@]({{ site.baseurl }}/community/contact-us) mailing list.
-* If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide]({{ site.baseurl }}/contribute).
+* Walk through additional WordCount examples in the [WordCount Example Walkthrough](/get-started/wordcount-example).
+* Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
+* Dive in to some of our favorite [Videos and Podcasts](/documentation/resources/videos-and-podcasts).
+* Join the Beam [users@](/community/contact-us) mailing list.
+* If you're interested in contributing to the Apache Beam codebase, see the [Contribution Guide](/contribute).
 
-Please don't hesitate to [reach out]({{ site.baseurl }}/community/contact-us) if you encounter any issues!

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam Presentation Materials"
-section_menu: section-menu/community.html
-permalink: /community/presentation-materials/
 redirect_from:
  - /learn/presentation-materials/
  - /contribute/presentation-materials/

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam ZetaSQL mathematical functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/math-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -34,9 +31,9 @@ All mathematical functions return `NULL` if any of the input parameters is `NULL
 
 ## MOD
 
-```
+{{< /highlight >}}
 MOD(X, Y)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -45,9 +42,9 @@ has the same sign as X.
 
 ## CEIL
 
-```
+{{< /highlight >}}
 CEIL(X)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -56,9 +53,9 @@ type) that is not less than X.
 
 ## CEILING
 
-```
+{{< /highlight >}}
 CEILING(X)
-```
+{{< /highlight >}}
 
 **Description**
 
@@ -66,9 +63,9 @@ Synonym of CEIL(X)
 
 ## FLOOR
 
-```
+{{< /highlight >}}
 FLOOR(X)
-```
+{{< /highlight >}}
 
 **Description**
 

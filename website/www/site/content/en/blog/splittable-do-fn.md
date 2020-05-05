@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Powerful and modular IO connectors with Splittable DoFn in Apache Beam"
 date:   2017-08-16 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - jkff
 ---
@@ -24,7 +23,7 @@ limitations under the License.
 One of the most important parts of the Apache Beam ecosystem is its quickly
 growing set of connectors that allow Beam pipelines to read and write data to
 various data storage systems ("IOs"). Currently, Beam ships [over 20 IO
-connectors]({{ site.baseurl }}/documentation/io/built-in/) with many more in
+connectors](/documentation/io/built-in/) with many more in
 active development. As user demands for IO connectors grew, our work on
 improving the related Beam APIs (in particular, the Source API) produced an
 unexpected result: a generalization of Beam's most basic primitive, `DoFn`.
@@ -48,7 +47,7 @@ and `ParDo(execute sub-query)`.  Some IOs
 considerably more complicated pipelines.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/splittable-do-fn/jdbcio-expansion.png"
+    src="/images/blog/splittable-do-fn/jdbcio-expansion.png"
     alt="Expansion of the JdbcIO.read() composite transform"
     width="600">
 
@@ -78,32 +77,28 @@ result, the pipeline can suffer from poor performance due to stragglers.
 
 * In the Kafka example, implementing the second `ParDo` is *simply impossible*
 with a regular `DoFn`, because it would need to output an infinite number of
-records per each input element `topic, partition` *([stateful processing]({{
-site.baseurl }}/blog/2017/02/13/stateful-processing.html) comes close, but it
+records per each input element `topic, partition` *([stateful processing](/blog/2017/02/13/stateful-processing.html) comes close, but it
 has other limitations that make it insufficient for this task*).
 
 ## Beam Source API
 
 Apache Beam historically provides a Source API
-([BoundedSource](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/BoundedSource.html)
+([BoundedSource](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/BoundedSource.html)
 and
-[UnboundedSource](https://beam.apache.org/releases/javadoc/{{
-site.release_latest }}/org/apache/beam/sdk/io/UnboundedSource.html)) which does
+[UnboundedSource](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/UnboundedSource.html)) which does
 not have these limitations and allows development of efficient data sources for
 batch and streaming systems. Pipelines use this API via the
-[`Read.from(Source)`](https://beam.apache.org/releases/javadoc/{{
-site.release_latest }}/org/apache/beam/sdk/io/Read.html) built-in `PTransform`.
+[`Read.from(Source)`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/Read.html) built-in `PTransform`.
 
 The Source API is largely similar to that of most other data processing
 frameworks, and allows the system to read data in parallel using multiple
 workers, as well as checkpoint and resume reading from an unbounded data source.
 Additionally, the Beam
-[`BoundedSource`](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/org/apache/beam/sdk/io/BoundedSource.html)
+[`BoundedSource`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/BoundedSource.html)
 API provides advanced features such as progress reporting and [dynamic
-rebalancing]({{ site.baseurl }}/blog/2016/05/18/splitAtFraction-method.html)
+rebalancing](/blog/2016/05/18/splitAtFraction-method.html)
 (which together enable autoscaling), and
-[`UnboundedSource`](https://beam.apache.org/releases/javadoc/{{
-site.release_latest }}/org/apache/beam/sdk/io/UnboundedSource.html) supports
+[`UnboundedSource`](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/org/apache/beam/sdk/io/UnboundedSource.html) supports
 reporting the source's watermark and backlog *(until SDF, we believed that
 "batch" and "streaming" data sources are fundamentally different and thus
 require fundamentally different APIs)*. 
@@ -215,7 +210,7 @@ offset, and `ReadFn` may interpret it as *read records whose starting offsets
 are in the given range*.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/splittable-do-fn/restrictions.png"
+    src="/images/blog/splittable-do-fn/restrictions.png"
     alt="Specifying parts of work for an element using restrictions"
     width="600">
 
@@ -245,7 +240,7 @@ inf)* to be processed later, effectively checkpointing and resuming the call;
 this can be repeated forever.
 
 <img class="center-block" 
-    src="{{ site.baseurl }}/images/blog/splittable-do-fn/kafka-splitting.png" 
+    src="/images/blog/splittable-do-fn/kafka-splitting.png" 
     alt="Splitting an infinite restriction into a finite primary and infinite residual"
     width="400">
 
@@ -261,7 +256,7 @@ following diagram, where "magic" stands for the runner-specific ability to split
 the restrictions and schedule processing of residuals.
 
 <img class="center-block" 
-    src="{{ site.baseurl }}/images/blog/splittable-do-fn/transform-expansion.png" 
+    src="/images/blog/splittable-do-fn/transform-expansion.png" 
     alt="Execution of an SDF - pairing with a restriction, splitting
     restrictions, processing element/restriction pairs"
     width="600">
@@ -314,7 +309,7 @@ If a block is claimed successfully, then the call outputs all records in this
 data block, otherwise, it terminates.
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/splittable-do-fn/blocks.png"
+    src="/images/blog/splittable-do-fn/blocks.png"
     alt="Processing a restriction by claiming blocks inside it"
     width="400">
 
@@ -349,7 +344,7 @@ smaller restrictions, and a few others.
 The "Hello World" of SDF is a counter, which takes pairs *(x, N)* as input and
 produces pairs *(x, 0), (x, 1), …, (x, N-1)* as output.
 
-```java
+{{< highlight java >}}
 class CountFn<T> extends DoFn<KV<T, Long>, KV<T, Long>> {
   @ProcessElement
   public void process(ProcessContext c, OffsetRangeTracker tracker) {
@@ -367,9 +362,9 @@ class CountFn<T> extends DoFn<KV<T, Long>, KV<T, Long>> {
 PCollection<KV<String, Long>> input = …;
 PCollection<KV<String, Long>> output = input.apply(
     ParDo.of(new CountFn<String>());
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class CountFn(DoFn):
   def process(element, tracker=DoFn.RestrictionTrackerParam)
     for i in xrange(*tracker.current_restriction()):
@@ -379,7 +374,7 @@ class CountFn(DoFn):
         
   def get_initial_restriction(element):
     return (0, element[1])
-```
+{{< /highlight >}}
 
 This short `DoFn` subsumes the functionality of
 [CountingSource](https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/CountingSource.java),
@@ -401,7 +396,7 @@ A slightly more complex example is the `ReadFn` considered above, which reads
 data from Avro files and illustrates the idea of *blocks*: we provide pseudocode
 to illustrate the approach.
 
-```java
+{{< highlight java >}}
 class ReadFn extends DoFn<String, AvroRecord> {
   @ProcessElement
   void process(ProcessContext c, OffsetRangeTracker tracker) {
@@ -427,9 +422,9 @@ class ReadFn extends DoFn<String, AvroRecord> {
     return new OffsetRange(0, new File(filename).getSize());
   }
 }
-```
+{{< /highlight >}}
 
-```py
+{{< highlight py >}}
 class AvroReader(DoFn):
   def process(filename, tracker=DoFn.RestrictionTrackerParam)
     with fileio.ChannelFactory.open(filename) as file:
@@ -449,7 +444,7 @@ class AvroReader(DoFn):
         
   def get_initial_restriction(self, filename):
     return (0, fileio.ChannelFactory.size_in_bytes(filename))
-```
+{{< /highlight >}}
 
 This hypothetical `DoFn` reads records from a single Avro file. Notably missing
 is the code for expanding a filepattern: it no longer needs to be part of this
@@ -475,8 +470,7 @@ IO connectors. However, a large amount of work is in progress or planned.
 
 As of August 2017, SDF is available for use in the Beam Java Direct runner and
 Dataflow Streaming runner, and implementation is in progress in the Flink and
-Apex runners; see [capability matrix]({{ site.baseurl
-}}/documentation/runners/capability-matrix/) for the current status. Support
+Apex runners; see [capability matrix](/documentation/runners/capability-matrix/) for the current status. Support
 for SDF in the Python SDK is [in active
 development](https://s.apache.org/splittable-do-fn-python).
 

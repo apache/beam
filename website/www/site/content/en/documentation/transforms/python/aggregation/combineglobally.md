@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "CombineGlobally"
-permalink: /documentation/transforms/python/aggregation/combineglobally/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,18 +23,20 @@ limitations under the License.
      Pydoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 
 Combines all elements in a collection.
 
-See more information in the [Beam Programming Guide]({{ site.baseurl }}/documentation/programming-guide/#combine).
+See more information in the [Beam Programming Guide](/documentation/programming-guide/#combine).
 
 ## Examples
 See [BEAM-7390](https://issues.apache.org/jira/browse/BEAM-7390) for updates. 
 
 ## Related transforms 
 You can use the following combiner transforms:
-* [Mean]({{ site.baseurl }}/documentation/transforms/python/aggregation/mean)
-* [Count]({{ site.baseurl }}/documentation/transforms/python/aggregation/count)
-* [Top]({{ site.baseurl }}/documentation/transforms/python/aggregation/top)
-* [Sample]({{ site.baseurl }}/documentation/transforms/python/aggregation/sample)
+* [Mean](/documentation/transforms/python/aggregation/mean)
+* [Count](/documentation/transforms/python/aggregation/count)
+* [Top](/documentation/transforms/python/aggregation/top)
+* [Sample](/documentation/transforms/python/aggregation/sample)

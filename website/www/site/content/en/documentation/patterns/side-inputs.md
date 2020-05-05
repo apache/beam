@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Side input patterns"
-section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/side-inputs/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,15 +17,9 @@ limitations under the License.
 
 # Side input patterns
 
-The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs]({{ site.baseurl }}/documentation/programming-guide/#side-inputs).
+The samples on this page show you common Beam side input patterns. A side input is an additional input that your `DoFn` can access each time it processes an element in the input `PCollection`. For more information, see the [programming guide section on side inputs](/documentation/programming-guide/#side-inputs).
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+{{< language-switcher java py >}}
 
 ## Slowly updating global window side inputs
 
@@ -50,13 +41,12 @@ The global window side input triggers on processing time, so the main pipeline n
 
 For instance, the following code sample uses a `Map` to create a `DoFn`. The `Map` becomes a `View.asSingleton` side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:SideInputPatternSlowUpdateGlobalWindowSnip1
-%}
-```
-```py
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
+{{< /highlight >}}
+{{< highlight py >}}
 No sample present.
-```
+{{< /highlight >}}
 
 
 ## Slowly updating side input using windowing
@@ -78,10 +68,9 @@ To read side input data periodically into distinct PColleciton windows:
 PCollection element.
 1. Apply the side input.
 
-```java
+{{< highlight java >}}
 No sample present.
-```
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:SideInputSlowUpdateSnip1
-%}
-```
+{{< /highlight >}}
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" SideInputSlowUpdateSnip1 >}}
+{{< /highlight >}}

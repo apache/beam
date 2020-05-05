@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam ZetaSQL lexical structure"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/lexical/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -413,7 +410,6 @@ language, and  have the following characteristics:</p>
 
 <p>Beam SQL has the following reserved keywords.</p>
 
-<table style="table-layout: fixed; width: 110%">
 <tbody>
 <tr>
 <td>

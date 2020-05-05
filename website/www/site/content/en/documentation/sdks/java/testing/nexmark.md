@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Nexmark benchmark suite"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/java/testing/nexmark/
-redirect_from: /documentation/sdks/java/nexmark/
+aliases: /documentation/sdks/java/nexmark/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -211,7 +208,7 @@ Available suites are:
     --stagingLocation=gs://<a gs path for staging> \
     --runner=DataflowRunner \
     --tempLocation=gs://<a gs path for temporary files> \
-    --filesToStage=target/beam-sdks-java-nexmark-{{ site.release_latest }}.jar
+    --filesToStage=target/beam-sdks-java-nexmark-{{< param release_latest >}}.jar
 
 ### Direct runner specific configuration
 
@@ -668,7 +665,7 @@ Submit to the cluster:
         --driver-memory 512m \
         --executor-memory 512m \
         --executor-cores 1 \
-        sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-{{ site.release_latest }}-spark.jar \
+        sdks/java/testing/nexmark/build/libs/beam-sdks-java-nexmark-{{< param release_latest >}}-spark.jar \
             --runner=SparkRunner \
             --query=0 \
             --streamTimeout=60 \

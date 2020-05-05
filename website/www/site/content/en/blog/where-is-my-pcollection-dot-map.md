@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Where's my PCollection.map()?"
 date:   2016-05-27 09:00:00 -0700
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - robertwb
 ---
@@ -95,7 +94,7 @@ Though PTransforms are generally constructed at the site at which they're used, 
 
 As pipelines grow and evolve, it is useful to structure your pipeline into modular, often reusable components, and PTransforms allow one to do this nicely in a data-processing pipeline. In addition, modular PTransforms also expose the logical structure of your code to the system (e.g. for monitoring). Of the three different representations of the WordCount pipeline below, only the structured view captures the high-level intent of the pipeline. Letting even the simple operations be PTransforms means there's less of an abrupt edge to packaging things up into composite operations.
 
-<img class="center-block" src="{{ "/images/blog/simple-wordcount-pipeline.png" | prepend: site.baseurl }}" alt="Three different visualizations of a simple WordCount pipeline" width="500">
+<img class="center-block" src="/images/blog/simple-wordcount-pipeline.png" alt="Three different visualizations of a simple WordCount pipeline" width="500">
 
 <div class="text-center">
 <i>Three different visualizations of a simple WordCount pipeline which computes the number of occurrences of every word in a set of text files. The flat view gives the full DAG of all operations performed. The execution view groups operations according to how they're executed, e.g. after performing runner-specific optimizations like function composition. The structured view nests operations according to their grouping in PTransforms.</i>

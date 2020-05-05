@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Apache Beam 2.6.0"
 date:   2018-08-10 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
         - pabloem
         - rfernand

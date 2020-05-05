@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam ZetaSQL conversion rules"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/conversion-rules/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -103,18 +100,18 @@ The table below summarizes all possible `CAST`s and coercions. "Coercion To" app
 
 Syntax:
 
-```
+{{< /highlight >}}
 CAST(expr AS typename)
-```
+{{< /highlight >}}
 
 Cast syntax is used in a query to indicate that the result type of an
 expression should be converted to some other type.
 
 Example:
 
-```
+{{< /highlight >}}
 CAST(x=1 AS STRING)
-```
+{{< /highlight >}}
 
 This results in `"true"` if `x` is `1`, `"false"` for any other non-`NULL`
 value, and `NULL` if `x` is `NULL`.

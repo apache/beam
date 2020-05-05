@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam ZetaSQL query syntax"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/zetasql/query-syntax/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,8 +48,7 @@ limitations under the License.
     <span class="var"><a href="#with_query_name">with_query_name</a></span> [ [ AS ] <span class="var">alias</span> ]
 }
 <span class="var">table_name</span>:
-    <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> [ . <a href="{{ site.baseurl
+    <a href="/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> [ . <a href="{{ site.baseurl
 }}/documentation/dsls/sql/zetasql/lexical#identifiers"><span class="var">identifier</span></a> ...]
 
 <span class="var">join</span>:
@@ -156,8 +152,7 @@ rows for processing in the rest of the query.</p>
 
 The fully-qualified SQL name of a data source queryable by Beam
   SQL, specified by a dot-separated list of identifiers using
-  [Standard SQL lexical structure]({{ site.baseurl
-}}/documentation/dsls/sql/zetasql/lexical). You
+  [Standard SQL lexical structure](/documentation/dsls/sql/zetasql/lexical). You
   must use backticks to enclose identifiers that contain characters which
   are not letters, numbers, or underscores.
 
@@ -375,8 +370,7 @@ for the <code>expression</code> in the <code>GROUP BY</code> clause. For multipl
 source table with non-distinct values for <code>expression</code>, the
 <code>GROUP BY</code> clause produces a single combined row. <code>GROUP BY</code> is commonly used
 when aggregate functions are present in the <code>SELECT</code> list, or to eliminate
-redundancy in the output. The data type of <code>expression</code> must be <a href="{{ site.baseurl
-}}/documentation/dsls/sql/zetasql/data-types#data-type-properties">groupable</a>.</p>
+redundancy in the output. The data type of <code>expression</code> must be <a href="/documentation/dsls/sql/zetasql/data-types#data-type-properties">groupable</a>.</p>
 
 <p>Example:</p>
 

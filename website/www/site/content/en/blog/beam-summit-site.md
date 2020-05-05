@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Announcing Beam Summit Site"
 date:   2019-03-18 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
         - aizhamal
 

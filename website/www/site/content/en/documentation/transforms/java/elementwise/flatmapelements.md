@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "FlatMapElements"
-permalink: /documentation/transforms/java/elementwise/flatmapelements/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +23,9 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Applies a simple 1-to-many mapping function over each element in the
 collection. The many elements are flattened into the resulting collection.
 
@@ -34,7 +33,7 @@ collection. The many elements are flattened into the resulting collection.
 See [BEAM-7702](https://issues.apache.org/jira/browse/BEAM-7702) for updates.
 
 ## Related transforms 
-* [Filter]({{ site.baseurl }}/documentation/transforms/java/elementwise/filter) is useful if the function is just 
+* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just 
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
+* [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs. 

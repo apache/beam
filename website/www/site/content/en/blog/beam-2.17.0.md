@@ -1,11 +1,9 @@
 ---
-layout: post
 title:  "Apache Beam 2.17.0"
 date:   2020-01-06 00:00:01 -0800
 # Date above corrected but keep the old URL:
-permalink: /blog/2020/01/06/beam-2.17.0.html
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - ardagan
 
@@ -25,9 +23,9 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.17.0 release of Beam. This release includes both improvements and new functionality.
-Users of the MongoDbIO connector are encouraged to upgrade to this release to address a [security vulnerability]({{ site.baseurl }}/security/CVE-2020-1929/).
+Users of the MongoDbIO connector are encouraged to upgrade to this release to address a [security vulnerability](/security/CVE-2020-1929/).
 
-See the [download page]({{ site.baseurl }}/get-started/downloads/#2170-2020-01-06) for this release.<!--more-->
+See the [download page](/get-started/downloads/#2170-2020-01-06) for this release.<!--more-->
 For more information on changes in 2.17.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?version=12345970&projectId=12319527).
 

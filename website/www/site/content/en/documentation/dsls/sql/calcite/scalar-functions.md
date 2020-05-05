@@ -1,9 +1,6 @@
 ---
-layout: section
 title: "Beam Calcite SQL scalar functions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/dsls/sql/calcite/scalar-functions/
-redirect_from: /documentation/dsls/sql/scalar-functions/
+aliases: /documentation/dsls/sql/scalar-functions/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -130,4 +127,3 @@ This page documents the Apache Calcite functions supported by Beam Calcite SQL.
 | CASE <br>WHEN condition1 THEN result1 <br>[ WHEN conditionN THEN resultN ]* <br>[ ELSE resultZ ] <br>END | Searched case |
 | NULLIF(value, value) | Returns NULL if the values are the same. For example, NULLIF(5, 5) returns NULL; NULLIF(5, 0) returns 5. |
 | COALESCE(value, value [, value ]*) | Provides a value if the first value is null. For example, COALESCE(NULL, 5) returns 5. |
-{:.table}

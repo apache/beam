@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Connectors - Go SDK"
-permalink: /roadmap/connectors-go-sdk/
-section_menu: section-menu/roadmap.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

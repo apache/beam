@@ -1,8 +1,6 @@
+* [WithKeys](/documentation/transforms/java/elementwise/withkeys) for adding a key to each element.
 ---
-layout: section
 title: "MapElements"
-permalink: /documentation/transforms/java/elementwise/mapelements/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,13 +24,15 @@ limitations under the License.
      Javadoc
     </a>
 </table>
-<br>
+<br><br>
+
+
 Applies a simple 1-to-1 mapping function over each element in the collection.
 
 ## Examples
 **Example 1**: providing the mapping function using a `SimpleFunction`
 
-```java
+{{< highlight java >}}
 PCollection<String> lines = Create.of("Hello World", "Beam is fun");
 PCollection<Integer> lineLengths = lines.apply(MapElements.via(
     new SimpleFunction<String, Integer>() {
@@ -41,23 +41,23 @@ PCollection<Integer> lineLengths = lines.apply(MapElements.via(
         return line.length();
       }
     });
-```
+{{< /highlight >}}
 
 **Example 2**: providing the mapping function using a `SerializableFunction`,
 which allows the use of Java 8 lambdas. Due to type erasure, you need
 to provide a hint indicating the desired return type. 
 
-```java
+{{< highlight java >}}
 PCollection<String> lines = Create.of("Hello World", "Beam is fun");
 PCollection<Integer> lineLengths = lines.apply(MapElements
     .into(TypeDescriptors.integers())
     .via((String line) -> line.length()));
-```
+{{< /highlight >}}
 
 ## Related transforms 
-* [FlatMapElements]({{ site.baseurl }}/documentation/transforms/java/elementwise/flatmapelements) behaves the same as `Map`, but for
+* [FlatMapElements](/documentation/transforms/java/elementwise/flatmapelements) behaves the same as `Map`, but for
   each input it may produce zero or more outputs.
-* [Filter]({{ site.baseurl }}/documentation/transforms/java/elementwise/filter) is useful if the function is just 
+* [Filter](/documentation/transforms/java/elementwise/filter) is useful if the function is just 
   deciding whether to output an element or not.
-* [ParDo]({{ site.baseurl }}/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
+* [ParDo](/documentation/transforms/java/elementwise/pardo) is the most general element-wise mapping
   operation, and includes other abilities such as multiple output collections and side-inputs.

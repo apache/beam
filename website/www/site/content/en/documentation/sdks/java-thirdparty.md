@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam 3rd Party Java Extensions"
-section_menu: section-menu/sdks.html
-permalink: /documentation/sdks/java-thirdparty/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

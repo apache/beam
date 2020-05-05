@@ -1736,4 +1736,3 @@ Note that in the future, we intend to add additional tables beyond the current s
 {{< capability-matrix cap-data="capability-matrix" cap-style="cap-summary" cap-view="summary" cap-other-view="full" cap-toggle-details=1 cap-display="block" >}}
 
 <!-- Full details table -->
-{{< capability-matrix cap-data="capability-matrix" cap-style="cap" cap-view="full" cap-other-view="summary" cap-toggle-details=0 cap-display="none" >}}

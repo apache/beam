@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "WithTimestamps"
-permalink: /documentation/transforms/python/elementwise/withtimestamps/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,20 +35,22 @@ The elements themselves often already contain a timestamp field.
 [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time)
 in the form of seconds.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_event_time %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_event_time >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after getting the timestamps:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_timestamps %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_timestamps >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
-%}
+>}}
 
 To convert from a
 [`time.struct_time`](https://docs.python.org/3/library/time.html#time.struct_time)
@@ -60,16 +59,18 @@ to `unix_time` you can use
 For more information on time formatting options, see
 [`time.strftime`](https://docs.python.org/3/library/time.html#time.strftime).
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:time_tuple2unix_time %}```
+{{< /highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" time_tuple2unix_time >}}
+{{< /highlight >}}
 
 To convert from a
 [`datetime.datetime`](https://docs.python.org/3/library/datetime.html#datetime.datetime)
 to `unix_time` you can use convert it to a `time.struct_time` first with
 [`datetime.timetuple`](https://docs.python.org/3/library/datetime.html#datetime.datetime.timetuple).
 
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:datetime2unix_time %}```
+{{< /highlight >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" datetime2unix_time >}}
+{{< /highlight >}}
 
 ### Example 2: Timestamp by logical clock
 
@@ -77,20 +78,22 @@ If each element has a chronological number, these numbers can be used as a
 [logical clock](https://en.wikipedia.org/wiki/Logical_clock).
 These numbers have to be converted to a *"seconds"* equivalent, which can be especially important depending on your windowing and late data rules.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_logical_clock %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_logical_clock >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after getting the timestamps:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_events %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_events >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
-%}
+>}}
 
 ### Example 3: Timestamp by processing time
 
@@ -100,21 +103,22 @@ Workers might have time deltas, so using this method is not a reliable way to do
 
 By using processing time, there is no way of knowing if data is arriving late because the timestamp is attached when the element *enters* into the pipeline.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py tag:withtimestamps_processing_time %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py" withtimestamps_processing_time >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after getting the timestamps:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py tag:plant_processing_times %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps_test.py" plant_processing_times >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/withtimestamps.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/withtimestamps"
-%}
+>}}
 
 ## Related transforms
 
-* [Reify]({{ site.baseurl }}/documentation/transforms/python/elementwise/reify) converts between explicit and implicit forms of Beam values.

@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Media recap of the Apache Beam graduation"
 date:   2017-02-01 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - davor
 ---
@@ -23,7 +22,7 @@ limitations under the License.
 
 One year ago today Apache Beam was accepted into incubation at the Apache
 Software Foundation. The community's work over the past year culminated, just
-over three weeks ago, with an [announcement]({{ site.baseurl }}/blog/2017/01/10/beam-graduates.html)
+over three weeks ago, with an [announcement](/blog/2017/01/10/beam-graduates.html)
 that Apache Beam has successfully graduated as a new Top-Level Project at the
 foundation. Graduation sparked an additional interest in the project, from
 corporate endorsements, news articles, interviews, to the volume of traffic to
@@ -60,6 +59,6 @@ several times larger than before graduation.
 Hopefully these perspectives entice you to join us on this exciting ride, either
 as a user or a contributor, as we work towards our first release with API
 stability. If you’d like to try out Apache Beam today, check out the latest
-[0.4.0 release]({{ site.baseurl }}/get-started/downloads/). We welcome
+[0.4.0 release](/get-started/downloads/). We welcome
 contribution and participation from anyone through our mailing lists, issue
 tracker, pull requests, and events.

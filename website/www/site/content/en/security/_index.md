@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Beam Security"
-permalink: security/
-section_menu: section-menu/get-started.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

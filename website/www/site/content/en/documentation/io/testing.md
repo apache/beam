@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Testing I/O Transforms"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/testing/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,13 +19,7 @@ limitations under the License.
 
 *Examples and design patterns for testing Apache Beam I/O transforms*
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+{{< language-switcher java py >}}
 
 > Note: This guide is still in progress. There is an open issue to finish the guide: [BEAM-1025](https://issues.apache.org/jira/browse/BEAM-1025).
 
@@ -94,7 +85,7 @@ Python:
 
 ### Implementing unit tests {#implementing-unit-tests}
 
-A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
+A general guide to writing Unit Tests for all transforms can be found in the [PTransform Style Guide](/contribute/ptransform-style-guide/#testing ). We have expanded on a few important points below.
 
 If you are using the `Source` API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java">`SourceTestUtils`</span><span class="language-py">`source_test_utils`</span> - it is a key piece of testing `Source` implementations.
 
@@ -175,19 +166,19 @@ If you're using Kubernetes scripts to host data stores, make sure you can connec
 
 Example usage on Cloud Dataflow runner: 
 
-```
+{{< /highlight >}}
 ./gradlew integrationTest -p sdks/java/io/hadoop-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT
-```
+{{< /highlight >}}
 
 Example usage on HDFS filesystem and Direct runner: 
 
 NOTE: Below setup will only work when /etc/hosts file contains entries with hadoop namenode and hadoop datanodes external IPs. Please see explanation in: [Small Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/SmallITCluster/pkb-config.yml) and [Large Cluster config file](https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/LargeITCluster/pkb-config.yml).
 
-```
+{{< /highlight >}}
 export HADOOP_USER_NAME=root 
 
 ./gradlew integrationTest -p sdks/java/io/file-based-io-tests -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--filenamePrefix=hdfs://HDFS_NAMENODE:9000/XMLIOIT", "--hdfsConfiguration=[{\"fs.defaultFS\":\"hdfs://HDFS_NAMENODE:9000\",\"dfs.replication\":1,\"dfs.client.use.datanode.hostname\":\"true\" }]" ]' -DintegrationTestRunner=direct -Dfilesystem=hdfs --tests org.apache.beam.sdk.io.xml.XmlIOIT
-```
+{{< /highlight >}}
 
 Parameter descriptions:
 
@@ -428,5 +419,5 @@ An example of this is [HadoopFormatIO](https://github.com/apache/beam/tree/maste
 
 If you have a well tested I/O transform, why not contribute it to Apache Beam? Read all about it:
 
-[Contributing I/O Transforms]({{site.baseurl }}/documentation/io/contributing/)
+[Contributing I/O Transforms](/documentation/io/contributing/)
 -->

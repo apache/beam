@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "SDK Harness Configuration"
-section_menu: section-menu/documentation.html
-permalink: /documentation/runtime/sdk-harness-config/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +17,7 @@ limitations under the License.
 
 # SDK Harness Configuration
 
-Beam allows configuration of the [SDK harness]({{ site.baseurl }}/roadmap/portability/) to
+Beam allows configuration of the [SDK harness](/roadmap/portability/) to
 accommodate varying cluster setups.
 (The options below are for Python, but much of this information should apply to the Java and Go SDKs
 as well.)
@@ -32,7 +29,7 @@ as well.)
     - `environment_config`: URL for the Docker container image. Official Docker images
     are available [here](https://hub.docker.com/u/apachebeam) and are used by default.
     Alternatively, you can build your own image by following the instructions
-    [here]({{ site.baseurl }}/documentation/runtime/environments/).
+    [here](/documentation/runtime/environments/).
   - `PROCESS`: User code is executed by processes that are automatically started by the runner on
     each worker node.
     - `environment_config`: JSON of the form `{"os": "<OS>", "arch": "<ARCHITECTURE>",

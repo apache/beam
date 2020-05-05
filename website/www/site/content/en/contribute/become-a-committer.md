@@ -1,8 +1,6 @@
+[reach out to the Beam community](/community/contact-us).
 ---
-layout: section
 title: "Become A Committer"
-permalink: /contribute/become-a-committer/
-section_menu: section-menu/contribute.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");

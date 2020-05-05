@@ -1,10 +1,9 @@
 ---
-layout: post
 title:  "Google Summer of Code '19"
 date:   2019-09-04 00:00:01 -0800
-permalink: /blog/2019/09/04/gsoc-19.html
-excerpt_separator: <!--more-->
-categories: blog gsoc
+categories:
+  - blog
+  - gsoc
 authors:
 - ttanay
 

@@ -1,9 +1,8 @@
 ---
-layout: post
 title:  "Beam community update!"
 date:   2019-05-11 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories:
+  - blog
 authors:
   - mbaetens
 ---

@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "ToString"
-permalink: /documentation/transforms/python/elementwise/tostring/
-section_menu: section-menu/documentation.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +21,7 @@ limitations under the License.
 localStorage.setItem('language', 'language-py')
 </script>
 
-{% include button-pydoc.md path="apache_beam.transforms.util" class="ToString" %}
+{{< button-pydoc path="apache_beam.transforms.util" class="ToString" >}}
 
 Transforms every element in an input collection to a string.
 
@@ -40,40 +37,44 @@ expect their input elements to be strings.
 The following example converts a `(key, value)` pair into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py tag:tostring_kvs %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_kvs >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `ToString`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py tag:plants %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring"
-%}
+>}}
 
 ### Example 2: Elements to string
 
 The following example converts a dictionary into a string.
 The string output will be equivalent to `str(element)`.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py tag:tostring_element %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_element >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `ToString`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py tag:plant_lists %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plant_lists >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring"
-%}
+>}}
 
 ### Example 3: Iterables to string
 
@@ -82,23 +83,25 @@ into a string delimited by `','`.
 You can specify a different delimiter using the `delimiter` argument.
 The string output will be equivalent to `iterable.join(delimiter)`.
 
-```py
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py tag:tostring_iterables %}```
+{{< highlight py >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py" tostring_iterables >}}
+{{< /highlight >}}
 
-{:.notebook-skip}
+{{< paragraph class="notebook-skip" >}}
 Output `PCollection` after `ToString`:
+{{< /paragraph >}}
 
-{:.notebook-skip}
-```
-{% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py tag:plants_csv %}```
+{{< highlight class="notebook-skip" >}}
+{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring_test.py" plants_csv >}}
+{{< /highlight >}}
 
-{% include buttons-code-snippet.md
+{{< buttons-code-snippet
   py="sdks/python/apache_beam/examples/snippets/transforms/elementwise/tostring.py"
   notebook="examples/notebooks/documentation/transforms/python/elementwise/tostring"
-%}
+>}}
 
 ## Related transforms
 
-* [Map]({{ site.baseurl }}/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
+* [Map](/documentation/transforms/python/elementwise/map) applies a simple 1-to-1 mapping function over each element in the collection
 
-{% include button-pydoc.md path="apache_beam.transforms.util" class="ToString" %}
+{{< button-pydoc path="apache_beam.transforms.util" class="ToString" >}}

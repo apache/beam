@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Custom I/O patterns"
-section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/custom-io/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,19 +17,13 @@ limitations under the License.
 
 # Custom I/O patterns
 
-This page describes common patterns in pipelines with [custom I/O connectors]({{ site.baseurl }}/documentation/io/developing-io-overview/). Custom I/O connectors connect pipelines to databases that aren't supported by Beam's [built-in I/O transforms]({{ site.baseurl }}/documentation/io/built-in/).
+This page describes common patterns in pipelines with [custom I/O connectors](/documentation/io/developing-io-overview/). Custom I/O connectors connect pipelines to databases that aren't supported by Beam's [built-in I/O transforms](/documentation/io/built-in/).
 
-<nav class="language-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
-  </ul>
-</nav>
+{{< language-switcher java py >}}
 
 ## Choosing between built-in and custom connectors
 
-[Built-in I/O connectors]({{ site.baseurl }}/documentation/io/built-in/) are tested and hardened, so use them whenever possible. Only use custom I/O connectors when:
+[Built-in I/O connectors](/documentation/io/built-in/) are tested and hardened, so use them whenever possible. Only use custom I/O connectors when:
 
 * No built-in options exist
 * Your pipeline pulls in a small subset of source data

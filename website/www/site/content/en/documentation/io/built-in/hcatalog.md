@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Apache HCatalog I/O connector"
-section_menu: section-menu/documentation.html
-permalink: /documentation/io/built-in/hcatalog/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -27,7 +24,7 @@ An `HCatalogIO` is a transform for reading and writing data to an HCatalog manag
 To configure an HCatalog source, you must specify a metastore URI and a table name. Other optional parameters are database and filter.
 
 For example:
-```java
+{{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port"); 
 pipeline
@@ -36,10 +33,10 @@ pipeline
   .withDatabase("default") //optional, assumes default if none specified
   .withTable("employee")
   .withFilter(filterString)) //optional, may be specified if the table is partitioned
-```
-```py
+{{< /highlight >}}
+{{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
-```
+{{< /highlight >}}
 
 ### Writing using HCatalogIO
 
@@ -48,7 +45,7 @@ optional parameters are database, partition and batchsize.
 The destination table should exist beforehand as the transform will not create a new table if missing.
 
 For example:
-```java
+{{< highlight java >}}
 Map<String, String> configProperties = new HashMap<String, String>();
 configProperties.put("hive.metastore.uris","thrift://metastore-host:port");
 
@@ -60,10 +57,10 @@ pipeline
     .withTable("employee")
     .withPartition(partitionValues) //optional, may be specified if the table is partitioned
     .withBatchSize(1024L)) //optional, assumes a default batch size of 1024 if none specified
-```
-```py
+{{< /highlight >}}
+{{< highlight py >}}
   # The Beam SDK for Python does not support HCatalogIO.
-```
+{{< /highlight >}}
 
 ### Using older versions of HCatalog (1.x)
 
@@ -73,7 +70,7 @@ The following illustrates a workaround to work with Hive 1.1.
 Include the following Hive 1.2 jars in the über jar you build. 
 The 1.2 jars provide the necessary methods for Beam while remain compatible with Hive 1.1.
  
-```
+{{< /highlight >}}
 <dependency>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-io-hcatalog</artifactId>
@@ -99,11 +96,11 @@ The 1.2 jars provide the necessary methods for Beam while remain compatible with
     <artifactId>hive-common</artifactId>
     <version>1.2</version>
 </dependency>
-```
+{{< /highlight >}}
  
 Relocate _only_ the following hive packages:
 
-```
+{{< /highlight >}}
 <plugin>
     <groupId>org.apache.maven.plugins</groupId>
     <artifactId>maven-shade-plugin</artifactId>
@@ -152,7 +149,7 @@ Relocate _only_ the following hive packages:
         </execution>
     </executions>
 </plugin>
-```
+{{< /highlight >}}
 
 This has been testing to read SequenceFile and ORCFile file backed tables running with 
 Beam 2.4.0 on Spark 2.3 / YARN in a Cloudera CDH 5.12.2 managed environment.

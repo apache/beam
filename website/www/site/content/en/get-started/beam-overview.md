@@ -1,8 +1,6 @@
+Please don't hesitate to [reach out](/community/contact-us) if you encounter any issues!
 ---
-layout: section
 title: "Beam Overview"
-permalink: /get-started/beam-overview/
-section_menu: section-menu/get-started.html
 redirect_from:
   - /use/beam-overview/
   - /docs/use/beam-overview/
@@ -33,25 +31,25 @@ The Beam SDKs provide a unified programming model that can represent and transfo
 
 Beam currently supports the following language-specific SDKs:
 
-* Java ![Java logo]({{ "/images/logos/sdks/java.png" | prepend: site.baseurl }})
-* Python ![Python logo]({{ "/images/logos/sdks/python.png" | prepend: site.baseurl }})
-* Go ![Go logo]({{ "/images/logos/sdks/go.png" | prepend: site.baseurl }}){: height="45px"}
+* Java ![Java logo](/images/logos/sdks/java.png)
+* Python ![Python logo](/images/logos/sdks/python.png)
+* Go ![Go logo](/images/logos/sdks/go.png){: height="45px"}
 
-A Scala ![Scala logo]({{ "/images/logos/sdks/scala.png" | prepend: site.baseurl }}){: height="45px"} interface is also available as [Scio](https://github.com/spotify/scio).
+A Scala ![Scala logo](/images/logos/sdks/scala.png){: height="45px"} interface is also available as [Scio](https://github.com/spotify/scio).
 
 ## Apache Beam Pipeline Runners
 
-The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you'll need to specify an [appropriate runner]({{ site.baseurl }}/documentation/runners/capability-matrix) for the back-end where you want to execute your pipeline.
+The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you'll need to specify an [appropriate runner](/documentation/runners/capability-matrix) for the back-end where you want to execute your pipeline.
 
 Beam currently supports Runners that work with the following distributed processing back-ends:
 
-* Apache Apex  ![Apache Apex logo]({{ "/images/logos/runners/apex.png" | prepend: site.baseurl }})
-* Apache Flink ![Apache Flink logo]({{ "/images/logos/runners/flink.png" | prepend: site.baseurl }})
-* Apache Gearpump (incubating) ![Apache Gearpump logo]({{ "/images/logos/runners/gearpump.png" | prepend: site.baseurl }})
-* Apache Samza ![Apache Samza logo]({{ "/images/logos/runners/samza.png" | prepend: site.baseurl }}){:height="20px" width="50"}
-* Apache Spark ![Apache Spark logo]({{ "/images/logos/runners/spark.png" | prepend: site.baseurl }})
-* Google Cloud Dataflow ![Google Cloud Dataflow logo]({{ "/images/logos/runners/dataflow.png" | prepend: site.baseurl }})
-* Hazelcast Jet ![Hazelcast Jet logo]({{ "/images/logos/runners/jet.png" | prepend: site.baseurl }})
+* Apache Apex  ![Apache Apex logo](/images/logos/runners/apex.png)
+* Apache Flink ![Apache Flink logo](/images/logos/runners/flink.png)
+* Apache Gearpump (incubating) ![Apache Gearpump logo](/images/logos/runners/gearpump.png)
+* Apache Samza ![Apache Samza logo](/images/logos/runners/samza.png){:height="20px" width="50"}
+* Apache Spark ![Apache Spark logo](/images/logos/runners/spark.png)
+* Google Cloud Dataflow ![Google Cloud Dataflow logo](/images/logos/runners/dataflow.png)
+* Hazelcast Jet ![Hazelcast Jet logo](/images/logos/runners/jet.png)
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
 
@@ -61,14 +59,13 @@ Get started using Beam for your data processing tasks.
 
 1. [Try Apache Beam]({{ stie.baseurl }}/get-started/try-apache-beam) in an online interactive environment.
 
-1. Follow the Quickstart for the [Java SDK]({{ site.baseurl }}/get-started/quickstart-java), the [Python SDK]({{ site.baseurl }}/get-started/quickstart-py) or the [Go SDK]({{ site.baseurl }}/get-started/quickstart-go).
+1. Follow the Quickstart for the [Java SDK](/get-started/quickstart-java), the [Python SDK](/get-started/quickstart-py) or the [Go SDK](/get-started/quickstart-go).
 
-1. See the [WordCount Examples Walkthrough]({{ site.baseurl }}/get-started/wordcount-example) for examples that introduce various features of the SDKs.
+1. See the [WordCount Examples Walkthrough](/get-started/wordcount-example) for examples that introduce various features of the SDKs.
 
-1. Take a self-paced tour through our [Learning Resources]({{ site.baseurl }}/documentation/resources/learning-resources).
+1. Take a self-paced tour through our [Learning Resources](/documentation/resources/learning-resources).
 
-1. Dive into the [Documentation]({{ site.baseurl }}/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.
+1. Dive into the [Documentation](/documentation/) section for in-depth concepts and reference materials for the Beam model, SDKs, and runners.
 
 ## Contribute
 
-Beam is an [Apache Software Foundation](http://www.apache.org){:target="_blank"} project, available under the Apache v2 license. Beam is an open source community and contributions are greatly appreciated! If you'd like to contribute, please see the [Contribute]({{ site.baseurl }}/contribute/) section.

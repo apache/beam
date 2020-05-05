@@ -1,8 +1,5 @@
 ---
-layout: section
 title: "Custom window patterns"
-section_menu: section-menu/documentation.html
-permalink: /documentation/patterns/custom-windows/
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +16,7 @@ limitations under the License.
 -->
 
 # Custom window patterns
-The samples on this page demonstrate common custom window patterns. You can create custom windows with [`WindowFn` functions]({{ site.baseurl }}/documentation/programming-guide/#provided-windowing-functions). For more information, see the [programming guide section on windowing]({{ site.baseurl }}/documentation/programming-guide/#windowing).
+The samples on this page demonstrate common custom window patterns. You can create custom windows with [`WindowFn` functions](/documentation/programming-guide/#provided-windowing-functions). For more information, see the [programming guide section on windowing](/documentation/programming-guide/#windowing).
 
 **Note**: Custom merging windows isn't supported in Python (with fnapi).
 
@@ -29,10 +26,9 @@ You can modify the [`assignWindows`](https://beam.apache.org/releases/javadoc/cu
 
 Access the `assignWindows` function through `WindowFn.AssignContext.element()`. The original, fixed-duration `assignWindows` function is:
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow1
-%}
-```
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow1 >}}
+{{< /highlight >}}
 
 ### Creating data-driven gaps
 To create data-driven gaps, add the following snippets to the `assignWindows` function:
@@ -41,39 +37,35 @@ To create data-driven gaps, add the following snippets to the `assignWindows` fu
 
 For example, the following function assigns each element to a window between the timestamp and `gapDuration`:
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow3
-%}
-```
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow3 >}}
+{{< /highlight >}}
 
 Then, set the `gapDuration` field in a windowing function:
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow2
-%}
-```
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow2 >}}
+{{< /highlight >}}
 
 ### Windowing messages into sessions
 After creating data-driven gaps, you can window incoming data into the new, custom sessions.
 
 First, set the session length to the gap duration:
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow4
-%}
-```
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow4 >}}
+{{< /highlight >}}
 
 Lastly, window data into sessions in your pipeline:
 
-```java
-{% github_sample /apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java tag:CustomSessionWindow6
-%}
-```
+{{< highlight java >}}
+{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CustomSessionWindow6 >}}
+{{< /highlight >}}
 
 ### Example data and windows
 The following test data tallies two users' scores with and without the `gap` attribute:
 
-```
+{{< /highlight >}}
 .apply("Create data", Create.timestamped(
             TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"12\",\"gap\":\"5\"}", new Instant()),
             TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"4\"}", new Instant()),
@@ -82,20 +74,20 @@ The following test data tallies two users' scores with and without the `gap` att
             TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"7\",\"gap\":\"5\"}", new Instant().plus(12000)),
             TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"10\"}", new Instant().plus(12000)))
         .withCoder(StringUtf8Coder.of()))
-```
+{{< /highlight >}}
 
 The diagram below visualizes the test data:
 
-![Two sets of data and the standard and dynamic sessions with which the data is windowed.]( {{ "/images/standard-vs-dynamic-sessions.png" | prepend: site.baseurl }})
+![Two sets of data and the standard and dynamic sessions with which the data is windowed.]( /images/standard-vs-dynamic-sessions.png)
 
 #### Standard sessions
 
 Standard sessions use the following windows and scores:
-```
+{{< /highlight >}}
 user=user-2, score=4, window=[2019-05-26T13:28:49.122Z..2019-05-26T13:28:59.122Z)
 user=user-1, score=18, window=[2019-05-26T13:28:48.582Z..2019-05-26T13:29:12.774Z)
 user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367Z)
-```
+{{< /highlight >}}
 
 User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren't added.
 
@@ -104,11 +96,11 @@ User #2 sees four events, seperated by two, seven, and three seconds, respective
 #### Dynamic sessions
 The dynamic sessions specify a five-second gap, so they use the following windows and scores:
 
-```
+{{< /highlight >}}
 user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
 user=user-1, score=9, window=[2019-05-26T14:30:22.429Z..2019-05-26T14:30:30.553Z)
 user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z)
 user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
-```
+{{< /highlight >}}
 
 With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it's grouped into a different session. The large, 18-point session is split into two 9-point sessions.
