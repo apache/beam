@@ -139,8 +139,7 @@ public class KafkaIOIT {
     cancelIfTimeouted(readResult, readState);
 
     Set<NamedTestResult> metrics = readMetrics(writeResult, readResult);
-    IOITMetrics.publish(
-        TEST_ID, TIMESTAMP, options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
+    IOITMetrics.publish(options.getBigQueryDataset(), options.getBigQueryTable(), metrics);
     IOITMetrics.publishToInflux(TEST_ID, TIMESTAMP, metrics, settings);
   }
 

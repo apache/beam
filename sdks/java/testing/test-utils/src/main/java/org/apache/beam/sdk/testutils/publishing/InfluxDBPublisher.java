@@ -18,8 +18,8 @@
 package org.apache.beam.sdk.testutils.publishing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.Objects.nonNull;
 import static java.util.Objects.requireNonNull;
+import static org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -43,10 +43,15 @@ public final class InfluxDBPublisher {
   public static void publishWithSettings(
       final Collection<NamedTestResult> results, final InfluxDBSettings settings) {
     requireNonNull(settings, "InfluxDB settings must not be null");
-    try {
-      publish(results, settings);
-    } catch (final Exception exception) {
-      LOGGER.warn("Unable to publish metrics due to error: {}", exception.getMessage(), exception);
+    if (isNoneBlank(settings.measurement, settings.database)) {
+      try {
+        publish(results, settings);
+      } catch (final Exception exception) {
+        LOGGER.warn(
+            "Unable to publish metrics due to error: {}", exception.getMessage(), exception);
+      }
+    } else {
+      LOGGER.warn("Missing property -- measurement/database. Metrics won't be published.");
     }
   }
 
@@ -55,7 +60,7 @@ public final class InfluxDBPublisher {
 
     final HttpClientBuilder builder = HttpClientBuilder.create();
 
-    if (nonNull(settings.userName) && nonNull(settings.userPassword)) {
+    if (isNoneBlank(settings.userName, settings.userPassword)) {
       final CredentialsProvider provider = new BasicCredentialsProvider();
       provider.setCredentials(
           AuthScope.ANY, new UsernamePasswordCredentials(settings.userName, settings.userPassword));

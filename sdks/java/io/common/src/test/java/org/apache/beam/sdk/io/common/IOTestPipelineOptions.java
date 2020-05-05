@@ -48,17 +48,17 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   @Nullable
   String getInfluxMeasurement();
 
-  void setInfluxMeasurement(String measurement);
+  void setInfluxMeasurement(@Nullable String measurement);
 
   @Description("InfluxDB host.")
   @Nullable
   String getInfluxHost();
 
-  void setInfluxHost(String host);
+  void setInfluxHost(@Nullable String host);
 
   @Description("InfluxDB databse.")
   @Nullable
   String getInfluxDatabase();
 
-  void setInfluxDatabase(String database);
+  void setInfluxDatabase(@Nullable String database);
 }

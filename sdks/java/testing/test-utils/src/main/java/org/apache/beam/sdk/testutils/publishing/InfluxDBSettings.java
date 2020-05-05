@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.testutils.publishing;
 
-import static java.util.Objects.isNull;
-
-import java.util.Arrays;
-import java.util.Objects;
+import static org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils.isBlank;
 
 public final class InfluxDBSettings {
 
@@ -74,14 +71,9 @@ public final class InfluxDBSettings {
     public InfluxDBSettings get() {
       final String userName = System.getenv(INFLUX_USER);
       final String userPassword = System.getenv(INFLUX_PASSWORD);
-      final String influxHost = isNull(host) ? DEFAULT_HOST : host;
-      allNotNull(measurement, database);
+      final String influxHost = isBlank(host) ? DEFAULT_HOST : host;
 
       return new InfluxDBSettings(influxHost, userName, userPassword, measurement, database);
-    }
-
-    private void allNotNull(Object... objects) {
-      Arrays.stream(objects).forEach(Objects::requireNonNull);
     }
   }
 }

@@ -184,7 +184,7 @@ public class TFRecordIOIT {
         MetricsReader.ofResults(readResults, TFRECORD_NAMESPACE)
             .readAll(getReadMetricSuppliers(uuid, timestamp)));
 
-    IOITMetrics.publish(uuid, timestamp, bigQueryDataset, bigQueryTable, results);
+    IOITMetrics.publish(bigQueryDataset, bigQueryTable, results);
     IOITMetrics.publishToInflux(uuid, timestamp, results, settings);
   }
 

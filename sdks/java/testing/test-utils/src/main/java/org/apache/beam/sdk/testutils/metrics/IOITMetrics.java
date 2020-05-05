@@ -56,28 +56,25 @@ public class IOITMetrics {
     MetricsReader reader = new MetricsReader(result, namespace);
     Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
 
-    publish(uuid, timestamp, bigQueryDataset, bigQueryTable, namedTestResults);
+    publish(bigQueryDataset, bigQueryTable, namedTestResults);
   }
 
   public static void publish(
-      String uuid,
-      String timestamp,
-      String bigQueryDataset,
-      String bigQueryTable,
-      Collection<NamedTestResult> results) {
+      final String bigQueryDataset,
+      final String bigQueryTable,
+      final Collection<NamedTestResult> results) {
 
     if (bigQueryDataset != null && bigQueryTable != null) {
       BigQueryResultsPublisher.create(bigQueryDataset, NamedTestResult.getSchema())
           .publish(results, bigQueryTable);
     }
-    ConsoleResultPublisher.publish(results, uuid, timestamp);
   }
 
   public void publishToInflux(final InfluxDBSettings settings) {
     MetricsReader reader = new MetricsReader(result, namespace);
     Collection<NamedTestResult> namedTestResults = reader.readAll(metricSuppliers);
 
-    InfluxDBPublisher.publishWithSettings(namedTestResults, settings);
+    publishToInflux(uuid, timestamp, namedTestResults, settings);
   }
 
   public static void publishToInflux(
@@ -86,7 +83,7 @@ public class IOITMetrics {
       final Collection<NamedTestResult> results,
       final InfluxDBSettings settings) {
 
-    InfluxDBPublisher.publishWithSettings(results, settings);
     ConsoleResultPublisher.publish(results, uuid, timestamp);
+    InfluxDBPublisher.publishWithSettings(results, settings);
   }
 }

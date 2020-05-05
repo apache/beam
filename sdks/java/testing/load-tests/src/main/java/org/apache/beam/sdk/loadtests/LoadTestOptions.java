@@ -68,6 +68,30 @@ public interface LoadTestOptions extends PipelineOptions, ApplicationNameOptions
 
   void setInputWindowDurationSec(Long windowSizeSec);
 
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxMeasurement();
+
+  void setInfluxMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB databse.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
+
+  @Description("Whether the results should be published to InfluxDB")
+  @Default.Boolean(false)
+  Boolean getPublishToInfluxDB();
+
+  void setPublishToInfluxDB(Boolean publishToInfluxDB);
+
   static <T extends LoadTestOptions> T readFromArgs(String[] args, Class<T> optionsClass) {
     return PipelineOptionsFactory.fromArgs(args).withValidation().as(optionsClass);
   }
