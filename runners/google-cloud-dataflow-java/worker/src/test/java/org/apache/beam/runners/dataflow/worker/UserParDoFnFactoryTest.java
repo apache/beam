@@ -382,6 +382,7 @@ public class UserParDoFnFactoryTest {
     // The user step context that the DoFnRunner gets a handle on
     DataflowStepContext userStepContext = mock(DataflowStepContext.class);
     when(stepContext.namespacedToUser()).thenReturn(userStepContext);
+    when(stepContext.stateInternals()).thenReturn(stateInternals);
     when(userStepContext.stateInternals()).thenReturn((StateInternals) stateInternals);
 
     DataflowExecutionContext<DataflowStepContext> executionContext =
