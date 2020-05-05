@@ -640,8 +640,62 @@ PCollection element.</li>
   <li>Apply the side input.</li>
 </ol>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">No</span> <span class="n">sample</span> <span class="n">present</span><span class="o">.</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">List</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">sideInput</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="s">"SIImpulse"</span><span class="o">,</span>
+            <span class="n">PeriodicImpulse</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
+                <span class="o">.</span><span class="na">startAt</span><span class="o">(</span><span class="n">startAt</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">stopAt</span><span class="o">(</span><span class="n">stopAt</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">withInterval</span><span class="o">(</span><span class="n">interval1</span><span class="o">)</span>
+                <span class="o">.</span><span class="na">applyWindowing</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="s">"FileToRead"</span><span class="o">,</span>
+            <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+                  <span class="nd">@DoFn</span><span class="o">.</span><span class="na">ProcessElement</span>
+                  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">Instant</span> <span class="n">notUsed</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">fileToRead</span><span class="o">);</span>
+                  <span class="o">}</span>
+                <span class="o">}))</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">matchAll</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">readMatches</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">readFiles</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+            <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
+                  <span class="nd">@ProcessElement</span>
+                  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">String</span> <span class="n">src</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">src</span><span class="o">);</span>
+                  <span class="o">}</span>
+                <span class="o">}))</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Combine</span><span class="o">.</span><span class="na">globally</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">combineFn</span><span class="o">()).</span><span class="na">withoutDefaults</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">View</span><span class="o">.</span><span class="na">asList</span><span class="o">());</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">&gt;</span> <span class="n">mainInput</span> <span class="o">=</span>
+    <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"MIImpulse"</span><span class="o">,</span>
+        <span class="n">PeriodicImpulse</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
+            <span class="o">.</span><span class="na">startAt</span><span class="o">(</span><span class="n">startAt</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+            <span class="o">.</span><span class="na">stopAt</span><span class="o">(</span><span class="n">stopAt</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+            <span class="o">.</span><span class="na">withInterval</span><span class="o">(</span><span class="n">interval2</span><span class="o">)</span>
+            <span class="o">.</span><span class="na">applyWindowing</span><span class="o">());</span>
+
+<span class="c1">// Consume side input. GenerateSequence generates test data.</span>
+<span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
+    <span class="n">mainInput</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+        <span class="s">"generateOutput"</span><span class="o">,</span>
+        <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;()</span> <span class="o">{</span>
+                  <span class="nd">@ProcessElement</span>
+                  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+                    <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">((</span><span class="kt">long</span><span class="o">)</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">sideInput</span><span class="o">).</span><span class="na">size</span><span class="o">());</span>
+                  <span class="o">}</span>
+                <span class="o">})</span>
+            <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">sideInput</span><span class="o">));</span>
+
 </code></pre></div></div>
+
 <div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.transforms.periodicsequence</span> <span class="kn">import</span> <span class="n">PeriodicImpulse</span>
 <span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="kn">import</span> <span class="n">TimestampedValue</span>
 <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="kn">import</span> <span class="n">window</span>
