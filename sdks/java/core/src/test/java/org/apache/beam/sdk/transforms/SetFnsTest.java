@@ -66,11 +66,10 @@ public class SetFnsTest {
   @Test
   @Category(NeedsRunner.class)
   public void testIntersection() {
-    PAssert.that(left.apply("strings", org.apache.beam.sdk.transforms.SetFns.intersect(right)))
+    PAssert.that(left.apply("strings", SetFns.intersect(right)))
         .containsInAnyOrder("a", "b", "c", "d");
 
-    PCollection<Row> results =
-        leftRow.apply("rows", org.apache.beam.sdk.transforms.SetFns.intersect(rightRow));
+    PCollection<Row> results = leftRow.apply("rows", SetFns.intersect(rightRow));
     PAssert.that(results).containsInAnyOrder(toRows("a", "b", "c", "d"));
     assertEquals(schema, results.getSchema());
 
@@ -81,10 +80,9 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testIntersectionAll() {
 
-    PAssert.that(left.apply("strings", org.apache.beam.sdk.transforms.SetFns.intersectAll(right)))
+    PAssert.that(left.apply("strings", SetFns.intersectAll(right)))
         .containsInAnyOrder("a", "a", "b", "b", "c", "d", "d");
-    PAssert.that(
-            leftRow.apply("rows", org.apache.beam.sdk.transforms.SetFns.intersectAll(rightRow)))
+    PAssert.that(leftRow.apply("rows", SetFns.intersectAll(rightRow)))
         .containsInAnyOrder(toRows("a", "a", "b", "b", "c", "d", "d"));
 
     p.run();
@@ -94,9 +92,8 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testExcept() {
 
-    PAssert.that(left.apply("strings", org.apache.beam.sdk.transforms.SetFns.except(right)))
-        .containsInAnyOrder("g", "h");
-    PAssert.that(leftRow.apply("rows", org.apache.beam.sdk.transforms.SetFns.except(rightRow)))
+    PAssert.that(left.apply("strings", SetFns.except(right))).containsInAnyOrder("g", "h");
+    PAssert.that(leftRow.apply("rows", SetFns.except(rightRow)))
         .containsInAnyOrder(toRows("g", "h"));
     p.run();
   }
@@ -105,9 +102,9 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testExceptAll() {
 
-    PAssert.that(left.apply("strings", org.apache.beam.sdk.transforms.SetFns.exceptAll(right)))
+    PAssert.that(left.apply("strings", SetFns.exceptAll(right)))
         .containsInAnyOrder("a", "g", "g", "h", "h");
-    PAssert.that(leftRow.apply("rows", org.apache.beam.sdk.transforms.SetFns.exceptAll(rightRow)))
+    PAssert.that(leftRow.apply("rows", SetFns.exceptAll(rightRow)))
         .containsInAnyOrder(toRows("a", "g", "g", "h", "h"));
 
     p.run();
@@ -117,9 +114,9 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testUnion() {
 
-    PAssert.that(left.apply("strings", org.apache.beam.sdk.transforms.SetFns.union(right)))
+    PAssert.that(left.apply("strings", SetFns.union(right)))
         .containsInAnyOrder("a", "b", "c", "d", "e", "f", "g", "h");
-    PAssert.that(leftRow.apply("rows", org.apache.beam.sdk.transforms.SetFns.union(rightRow)))
+    PAssert.that(leftRow.apply("rows", SetFns.union(rightRow)))
         .containsInAnyOrder(toRows("a", "b", "c", "d", "e", "f", "g", "h"));
 
     p.run();
@@ -129,11 +126,11 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testUnionAll() {
 
-    PAssert.that(left.apply("strings", org.apache.beam.sdk.transforms.SetFns.unionAll(right)))
+    PAssert.that(left.apply("strings", SetFns.unionAll(right)))
         .containsInAnyOrder(
             "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "c", "c", "d", "d", "d", "d", "e",
             "e", "f", "f", "g", "g", "h", "h");
-    PAssert.that(leftRow.apply("rows", org.apache.beam.sdk.transforms.SetFns.unionAll(rightRow)))
+    PAssert.that(leftRow.apply("rows", SetFns.unionAll(rightRow)))
         .containsInAnyOrder(
             toRows(
                 "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "c", "c", "d", "d", "d", "d", "e",

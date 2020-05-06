@@ -41,11 +41,12 @@ public class SetFns {
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "3","4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.intersect(right));
+   *     left.apply(SetFns.intersect(right)); // results will be PCollection<String> containing: "1","3","4"
+   *
    * }</pre>
    */
   public static <T> SetImpl<T> intersect(PCollection<T> rightCollection) {
@@ -70,20 +71,16 @@ public class SetFns {
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1","1","1", "2", "3", "3","4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1","1", "3", "4","4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.intersectAll(right));
+   *     left.apply(SetFns.intersectAll(right)); // results will be PCollection<String> containing: "1","1","3","4"
    * }</pre>
    */
   public static <T> SetImpl<T> intersectAll(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    SerializableBiFunction<Long, Long, Long> intersectFn =
-        (numberOfElementsinLeft, numberOfElementsinRight) ->
-            (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0)
-                ? Math.min(numberOfElementsinLeft, numberOfElementsinRight)
-                : 0L;
+    SerializableBiFunction<Long, Long, Long> intersectFn = Math::min;
     return new SetImpl<>(rightCollection, intersectFn);
   }
 
@@ -100,11 +97,11 @@ public class SetFns {
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1","1","1", "2", "3", "3","4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1","1", "3", "4","4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.except(right));
+   *     left.apply(SetFns.except(right)); // results will be PCollection<String> containing: "2","5"
    * }</pre>
    */
   public static <T> SetImpl<T> except(PCollection<T> rightCollection) {
@@ -130,24 +127,18 @@ public class SetFns {
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1","1","1", "2", "3", "3","3","4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.exceptAll(right));
+   *     left.apply(SetFns.exceptAll(right)); // results will be PCollection<String> containing: "1","1","2","3","3","5"
    * }</pre>
    */
   public static <T> SetImpl<T> exceptAll(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> exceptFn =
-        (numberOfElementsinLeft, numberOfElementsinRight) -> {
-          if (numberOfElementsinLeft > 0 && numberOfElementsinRight == 0) {
-            return numberOfElementsinLeft;
-          } else if (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) {
-            return Math.max(numberOfElementsinLeft - numberOfElementsinRight, 0L);
-          }
-          return 0L;
-        };
+        (numberOfElementsinLeft, numberOfElementsinRight) ->
+            Math.max(numberOfElementsinLeft - numberOfElementsinRight, 0L);
     return new SetImpl<>(rightCollection, exceptFn);
   }
 
@@ -163,11 +154,11 @@ public class SetFns {
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1","1","2"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.union(right));
+   *     left.apply(SetFns.union(right)); // results will be PCollection<String> containing: "1","2","3","4"
    * }</pre>
    */
   public static <T> SetImpl<T> union(PCollection<T> rightCollection) {
@@ -191,11 +182,11 @@ public class SetFns {
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1","1","2"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.unionAll(right));
+   *     left.apply(SetFns.unionAll(right)); // results will be PCollection<String> containing: "1","1","1","2","3","4","4"
    * }</pre>
    */
   public static <T> SetImpl<T> unionAll(PCollection<T> rightCollection) {
