@@ -52,6 +52,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -1347,8 +1348,8 @@ public class SpannerIO {
         Metrics.counter(WriteGrouped.class, "spanner_write_success");
     private final Counter spannerWriteFail =
         Metrics.counter(WriteGrouped.class, "spanner_write_fail");
-    private final Counter spannerWriteTotalLatency =
-        Metrics.counter(WriteGrouped.class, "spanner_write_total_latency_ms");
+    private final Distribution spannerWriteLatency =
+        Metrics.distribution(WriteGrouped.class, "spanner_write_latency_ms");
     private final Counter spannerWriteTimeouts =
         Metrics.counter(WriteGrouped.class, "spanner_write_timeouts");
     private final Counter spannerWriteRetries =
@@ -1486,7 +1487,7 @@ public class SpannerIO {
             throw exception;
           }
         } finally {
-          spannerWriteTotalLatency.inc(timer.elapsed(TimeUnit.MILLISECONDS));
+          spannerWriteLatency.update(timer.elapsed(TimeUnit.MILLISECONDS));
         }
       }
     }
