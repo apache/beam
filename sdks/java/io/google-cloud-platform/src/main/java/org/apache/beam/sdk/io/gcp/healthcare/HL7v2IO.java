@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -41,7 +40,8 @@ import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.OrderedTimeRange;
+import org.apache.beam.sdk.transforms.splittabledofn.OrderedTimeRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -487,9 +487,7 @@ public class HL7v2IO {
      * @param hl7v2Stores the hl7v2 stores
      * @param initialSplitDuration the initial split duration
      */
-    ListHL7v2Messages(
-        ValueProvider<List<String>> hl7v2Stores,
-        Duration initialSplitDuration) {
+    ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, Duration initialSplitDuration) {
       this.hl7v2Stores = hl7v2Stores.get();
       this.initialSplitDuration = initialSplitDuration;
     }
@@ -551,26 +549,28 @@ public class HL7v2IO {
     }
 
     @GetInitialRestriction
-    public OffsetRange getEarliestToNowRestriction(@Element String hl7v2Store) throws IOException {
+    public OrderedTimeRange getEarliestToLatestRestriction(@Element String hl7v2Store)
+        throws IOException {
       from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter);
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
       to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter).plus(1);
-      return new OffsetRange(from.getMillis(), to.getMillis());
+      return new OrderedTimeRange(from, to);
     }
 
     @NewTracker
-    public OffsetRangeTracker newTracker(@Restriction OffsetRange timeRange) {
+    public OrderedTimeRangeTracker newTracker(@Restriction OrderedTimeRange timeRange) {
       return timeRange.newTracker();
     }
 
     @SplitRestriction
-    public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out) {
+    public void split(
+        @Restriction OrderedTimeRange timeRange, OutputReceiver<OrderedTimeRange> out) {
       // TODO(jaketf) How to pick optimal values for desiredNumOffsetsPerSplit ?
-      List<OffsetRange> splits =
-          timeRange.split(initialSplitDuration.getMillis(), DEFAULT_MIN_SPLIT_DURATION.getMillis());
-      Instant from = Instant.ofEpochMilli(timeRange.getFrom());
-      Instant to = Instant.ofEpochMilli(timeRange.getTo());
+      List<OrderedTimeRange> splits =
+          timeRange.split(initialSplitDuration, DEFAULT_MIN_SPLIT_DURATION);
+      Instant from = timeRange.getFrom();
+      Instant to = timeRange.getTo();
       Duration totalDuration = new Duration(from, to);
       LOG.info(
           String.format(
@@ -587,7 +587,7 @@ public class HL7v2IO {
               splits.size(),
               splits.get(splits.size() - 1).toString()));
 
-      for (OffsetRange s : splits) {
+      for (OrderedTimeRange s : splits) {
         out.output(s);
       }
     }
@@ -604,31 +604,21 @@ public class HL7v2IO {
         RestrictionTracker tracker,
         OutputReceiver<HL7v2Message> outputReceiver)
         throws IOException {
-      OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
-      Instant startRestriction = Instant.ofEpochMilli(currentRestriction.getFrom());
-      Instant endRestriction = Instant.ofEpochMilli(currentRestriction.getTo());
+      OrderedTimeRange currentRestriction = (OrderedTimeRange) tracker.currentRestriction();
+      Instant startRestriction = currentRestriction.getFrom();
+      Instant endRestriction = currentRestriction.getTo();
       HttpHealthcareApiClient.HL7v2MessagePages pages =
           new HttpHealthcareApiClient.HL7v2MessagePages(
               client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
       long reqestTime = Instant.now().getMillis();
-      // TODO(jaketf) this code is hard to follow. Break this up into unit testable pieces.
-      // [Start] Hard to read, hard to test, hard to maintain code.
-      long lastClaimedMilliSecond = currentRestriction.getFrom();
-      Instant cursor = Instant.ofEpochMilli(currentRestriction.getFrom());
+      long lastClaimedMilliSecond;
+      Instant cursor;
       boolean hangingClaim = false; // flag if the claimed ms spans spills over to the next page.
       for (List<HL7v2Message> page : pages) { // loop over pages.
         int i = 0;
         HL7v2Message msg = page.get(i);
         while (i < page.size()) { // loop over messages in page
           cursor = Instant.parse(msg.getSendTime());
-          if (!hangingClaim) {
-            // claim all outstanding ms up until this message.
-            for (long j = lastClaimedMilliSecond + 1; j < cursor.getMillis(); j++) {
-              if (!tracker.tryClaim(j)) {
-                break;
-              }
-            }
-          }
           lastClaimedMilliSecond = cursor.getMillis();
           LOG.info(
               String.format(
@@ -636,7 +626,8 @@ public class HL7v2IO {
                   i, lastClaimedMilliSecond));
           if (hangingClaim || tracker.tryClaim(lastClaimedMilliSecond)) {
             // This means we have claimed an entire millisecond we need to make sure that we
-            // process all messages for this millisecond because sendTime is nano second resolution.
+            // process all messages for this millisecond because sendTime is allegedly nano second
+            // resolution.
             // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
             while (cursor.getMillis() == lastClaimedMilliSecond
                 && i < page.size()) { // loop over messages in millisecond.
@@ -652,18 +643,10 @@ public class HL7v2IO {
             }
 
             // If reached this point, msg.sendTime is outside the current claim.
-            // Need to claim all milliseconds until cursor to properly advance the tracker.
-            // TODO(jaketf): claiming every ms between messages in these for loops is very
-            // inefficient! consider claiming larger intervals or implementing a different kind of
+            // Need to claim time range up to (and including) the cursor to properly advance the
             // tracker.
-            for (long j = lastClaimedMilliSecond + 1;
-                j <= cursor.getMillis();
-                j++) { // loop over and claim milliseconds between messages.
-              if (!tracker.tryClaim(j)) {
-                break;
-              }
-              lastClaimedMilliSecond++;
-            }
+            tracker.tryClaim(cursor.getMillis());
+            lastClaimedMilliSecond = cursor.getMillis();
             LOG.info(
                 String.format(
                     "After claiming between messages lastClaimedMilliSecond = %s",
@@ -676,22 +659,9 @@ public class HL7v2IO {
                 .getMillis(); // this is for updating listing latency metric in next iteration.
       }
 
-      if (lastClaimedMilliSecond == currentRestriction.getFrom()) {
-        // no messages found for this time interval need to claim first ms in the restriction
-        // before claiming the rest in the loop below.
-        if (!tracker.tryClaim(lastClaimedMilliSecond)) {
-          return;
-        }
-      }
-
-      // loop over and claim milliseconds between last claimed ms and end of OffsetRange to it is
-      // completely claimed.
-      for (long j = lastClaimedMilliSecond + 1; j <= currentRestriction.getTo(); j++) {
-        if (!tracker.tryClaim(j)) {
-          break;
-        }
-      }
-      // [End] Hard to read, hard to test, hard to maintain code
+      // We've paginated through all messages for this restriction but the last message may be
+      // before the end of the restriction
+      tracker.tryClaim(currentRestriction.getTo().getMillis() - 1);
     }
   }
 

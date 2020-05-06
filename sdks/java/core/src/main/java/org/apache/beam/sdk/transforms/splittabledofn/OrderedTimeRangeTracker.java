@@ -24,42 +24,46 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
+import org.joda.time.Instant;
 
 /**
- * A {@link RestrictionTracker} for claiming offsets in an {@link OffsetRange} in a monotonically
- * increasing fashion.
+ * A {@link RestrictionTracker} for claiming offsets in an {@link OrderedTimeRange} in a
+ * monotonically increasing fashion.
  */
 @Experimental(Kind.SPLITTABLE_DO_FN)
-public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
+public class OrderedTimeRangeTracker extends RestrictionTracker<OrderedTimeRange, Long>
     implements HasProgress {
-  private OffsetRange range;
+  private OrderedTimeRange range;
+  private OffsetRangeTracker offsetRangeTracker;
   @Nullable private Long lastClaimedOffset = null;
   @Nullable private Long lastAttemptedOffset = null;
 
-  public OffsetRangeTracker(OffsetRange range) {
+  public OrderedTimeRangeTracker(OrderedTimeRange range) {
     this.range = checkNotNull(range);
   }
 
   @Override
-  public OffsetRange currentRestriction() {
+  public OrderedTimeRange currentRestriction() {
     return range;
   }
 
   @Override
-  public SplitResult<OffsetRange> trySplit(double fractionOfRemainder) {
-    long cur = (lastAttemptedOffset == null) ? range.getFrom() - 1 : lastAttemptedOffset;
+  public SplitResult<OrderedTimeRange> trySplit(double fractionOfRemainder) {
+    long cur =
+        (lastAttemptedOffset == null) ? range.getFrom().minus(1L).getMillis() : lastAttemptedOffset;
     long splitPos =
         cur
             + Math.max(
-                1L, (Double.valueOf((range.getTo() - cur) * fractionOfRemainder)).longValue());
-    if (splitPos >= range.getTo()) {
+                1L,
+                (Double.valueOf((range.getTo().getMillis() - cur) * fractionOfRemainder))
+                    .longValue());
+    if (splitPos >= range.getTo().getMillis()) {
       return null;
     }
-    OffsetRange res = new OffsetRange(splitPos, range.getTo());
-    this.range = new OffsetRange(range.getFrom(), splitPos);
+    OrderedTimeRange res = new OrderedTimeRange(Instant.ofEpochMilli(splitPos), range.getTo());
+    this.range = new OrderedTimeRange(range.getFrom(), Instant.ofEpochMilli(splitPos));
     return SplitResult.of(range, res);
   }
 
@@ -69,20 +73,23 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
    * <p>Must be larger than the last successfully claimed offset.
    *
    * @return {@code true} if the offset was successfully claimed, {@code false} if it is outside the
-   *     current {@link OffsetRange} of this tracker (in that case this operation is a no-op).
+   *     current {@link OrderedTimeRange} of this tracker (in that case this operation is a no-op).
    */
   @Override
   public boolean tryClaim(Long i) {
     checkArgument(
         lastAttemptedOffset == null || i > lastAttemptedOffset,
         "Trying to claim offset %s while last attempted was %s",
-        i,
-        lastAttemptedOffset);
+        Instant.ofEpochMilli(i),
+        lastAttemptedOffset == null ? null : Instant.ofEpochMilli(lastAttemptedOffset));
     checkArgument(
-        i >= range.getFrom(), "Trying to claim offset %s before start of the range %s", i, range);
+        i >= range.getFrom().getMillis(),
+        "Trying to claim offset %s before start of the range %s",
+        Instant.ofEpochMilli(i),
+        range);
     lastAttemptedOffset = i;
     // No respective checkArgument for i < range.to() - it's ok to try claiming offsets beyond it.
-    if (i >= range.getTo()) {
+    if (i >= range.getTo().getMillis()) {
       return false;
     }
     lastClaimedOffset = i;
@@ -91,18 +98,18 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
 
   @Override
   public void checkDone() throws IllegalStateException {
-    if (range.getFrom() == range.getTo()) {
+    if (range.getFrom().getMillis() == range.getTo().getMillis()) {
       return;
     }
     if (lastAttemptedOffset == null) {
       throw new IllegalStateException("lastAttemptedOffset should not be null");
     }
     checkState(
-        lastAttemptedOffset >= range.getTo() - 1,
+        lastAttemptedOffset >= range.getTo().getMillis() - 1,
         "Last attempted offset was %s in range %s, claiming work in [%s, %s) was not attempted",
-        lastAttemptedOffset,
+        Instant.ofEpochMilli(lastAttemptedOffset),
         range,
-        lastAttemptedOffset + 1,
+        Instant.ofEpochMilli(lastAttemptedOffset + 1),
         range.getTo());
   }
 
@@ -120,12 +127,13 @@ public class OffsetRangeTracker extends RestrictionTracker<OffsetRange, Long>
     // If we have never attempted an offset, we return the length of the entire range as work
     // remaining.
     if (lastAttemptedOffset == null) {
-      return Progress.from(0, range.getTo() - range.getFrom());
+      return Progress.from(0, range.getTo().getMillis() - range.getFrom().getMillis());
     }
 
     // Compute the amount of work remaining from where we are to where we are attempting to get to
     // with a minimum of zero in case we have claimed beyond the end of the range.
-    long workRemaining = Math.max(range.getTo() - lastAttemptedOffset, 0);
-    return Progress.from(range.getTo() - range.getFrom() - workRemaining, workRemaining);
+    long workRemaining = Math.max(range.getTo().getMillis() - lastAttemptedOffset, 0);
+    return Progress.from(
+        range.getTo().getMillis() - range.getFrom().getMillis() - workRemaining, workRemaining);
   }
 }
