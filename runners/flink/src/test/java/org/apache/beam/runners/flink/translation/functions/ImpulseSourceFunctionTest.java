@@ -62,12 +62,12 @@ public class ImpulseSourceFunctionTest {
   @Test
   public void testInstanceOfSourceFunction() {
     // should be a non-parallel source function
-    assertThat(new ImpulseSourceFunction(false), instanceOf(SourceFunction.class));
+    assertThat(new ImpulseSourceFunction(0), instanceOf(SourceFunction.class));
   }
 
   @Test(timeout = 10_000)
   public void testImpulseInitial() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(false);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(0);
     // No state available from previous runs
     ListState<Object> mockListState = getMockListState(Collections.emptyList());
     source.initializeState(getInitializationContext(mockListState));
@@ -88,7 +88,7 @@ public class ImpulseSourceFunctionTest {
 
   @Test(timeout = 10_000)
   public void testImpulseRestored() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(false);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(0);
     // Previous state available
     ListState<Object> mockListState = getMockListState(Collections.singletonList(true));
     source.initializeState(getInitializationContext(mockListState));
@@ -106,7 +106,7 @@ public class ImpulseSourceFunctionTest {
 
   @Test(timeout = 10_000)
   public void testKeepAlive() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(true);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(Long.MAX_VALUE);
 
     // No previous state available (=impulse should be emitted)
     ListState<Object> mockListState = getMockListState(Collections.emptyList());
@@ -140,7 +140,7 @@ public class ImpulseSourceFunctionTest {
 
   @Test(timeout = 10_000)
   public void testKeepAliveDuringInterrupt() throws Exception {
-    ImpulseSourceFunction source = new ImpulseSourceFunction(true);
+    ImpulseSourceFunction source = new ImpulseSourceFunction(Long.MAX_VALUE);
 
     // No previous state available (=impulse should not be emitted)
     ListState<Object> mockListState = getMockListState(Collections.singletonList(true));

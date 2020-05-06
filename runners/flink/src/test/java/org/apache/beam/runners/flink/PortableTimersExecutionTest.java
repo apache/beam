@@ -109,7 +109,6 @@ public class PortableTimersExecutionTest implements Serializable {
     options.setFlinkMaster("[local]");
     options.setStreaming(isStreaming);
     options.setParallelism(2);
-    options.setShutdownSourcesOnFinalWatermark(true);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);

@@ -91,12 +91,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
    */
   private final List<? extends UnboundedSource<OutputT, CheckpointMarkT>> splitSources;
 
-  /**
-   * Shuts down the source if the final watermark is read. Note: This prevents further checkpoints
-   * of the streaming application.
-   */
-  private final boolean shutdownOnFinalWatermark;
-
   /** The idle time before we the source shuts down. */
   private final long idleTimeoutMs;
 
@@ -176,7 +170,6 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
     splitSources = source.split(parallelism, pipelineOptions);
 
     FlinkPipelineOptions options = pipelineOptions.as(FlinkPipelineOptions.class);
-    shutdownOnFinalWatermark = options.isShutdownSourcesOnFinalWatermark();
     idleTimeoutMs = options.getShutdownSourcesAfterIdleMs();
   }
 
@@ -289,8 +282,7 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         UnboundedSource.UnboundedReader<OutputT> reader = localReaders.get(currentReader);
 
         synchronized (ctx.getCheckpointLock()) {
-          boolean dataAvailable = readerInvoker.invokeAdvance(reader);
-          if (dataAvailable) {
+          if (readerInvoker.invokeAdvance(reader)) {
             emitElement(ctx, reader);
             hadData = true;
           }
@@ -298,8 +290,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
 
         currentReader = (currentReader + 1) % numReaders;
         if (currentReader == 0 && !hadData) {
-          Thread.sleep(50);
+          // We have visited all the readers and none had data
+          break;
         } else if (currentReader == 0) {
+          // Reset the flag for another round across the readers
           hadData = false;
         }
       }
@@ -311,24 +305,21 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
   }
 
   private void finalizeSource() {
-    if (!shutdownOnFinalWatermark) {
-      // do nothing, but still look busy ...
-      // we can't return here since Flink requires that all operators stay up,
-      // otherwise checkpointing would not work correctly anymore
-      //
-      // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
+    // do nothing, but still look busy ...
+    // we can't return here since Flink requires that all operators stay up,
+    // otherwise checkpointing would not work correctly anymore
+    //
+    // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
 
-      long idleStart = System.currentTimeMillis();
-      while (isRunning
-          && (idleTimeoutMs <= 0 || System.currentTimeMillis() - idleStart < idleTimeoutMs)) {
-        try {
-          // Flink will interrupt us at some point
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          if (!isRunning) {
-            // restore the interrupted state, and fall through the loop
-            Thread.currentThread().interrupt();
-          }
+    long idleStart = System.currentTimeMillis();
+    while (isRunning && System.currentTimeMillis() - idleStart < idleTimeoutMs) {
+      try {
+        // Flink will interrupt us at some point
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        if (!isRunning) {
+          // restore the interrupted state, and fall through the loop
+          Thread.currentThread().interrupt();
         }
       }
     }
@@ -464,12 +455,10 @@ public class UnboundedSourceWrapper<OutputT, CheckpointMarkT extends UnboundedSo
         }
         context.emitWatermark(new Watermark(watermarkMillis));
 
-        if (shutdownOnFinalWatermark
-            && watermarkMillis >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
-          this.isRunning = false;
+        if (watermarkMillis <= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+          setNextWatermarkTimer(this.runtimeContext);
         }
       }
-      setNextWatermarkTimer(this.runtimeContext);
     }
   }
 

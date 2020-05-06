@@ -116,7 +116,6 @@ public class UnboundedSourceWrapperTest {
     public void testValueEmission() throws Exception {
       final int numElementsPerShard = 20;
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-      options.setShutdownSourcesOnFinalWatermark(true);
 
       final long[] numElementsReceived = {0L};
       final int[] numWatermarksReceived = {0};
@@ -627,6 +626,8 @@ public class UnboundedSourceWrapperTest {
     private static void testSourceDoesNotShutdown(boolean shouldHaveReaders) throws Exception {
       final int parallelism = 2;
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      // Make sure we do not shut down
+      options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
       TestCountingSource source = new TestCountingSource(20).withoutSplitting();
 
@@ -713,7 +714,6 @@ public class UnboundedSourceWrapperTest {
               CountingSource.upTo(1000));
 
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-      options.setShutdownSourcesOnFinalWatermark(true);
 
       UnboundedSourceWrapper<
               Long, UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>

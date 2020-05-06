@@ -55,7 +55,6 @@ import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
-import org.apache.beam.runners.flink.FlinkDebugPipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
@@ -461,8 +460,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (!options.getDisableMetrics()) {
       flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
-      String checkpointMetricNamespace =
-          options.as(FlinkDebugPipelineOptions.class).getReportCheckpointDuration();
+      String checkpointMetricNamespace = options.getReportCheckpointDuration();
       if (checkpointMetricNamespace != null) {
         MetricName checkpointMetric =
             MetricName.named(checkpointMetricNamespace, "checkpoint_duration");
