@@ -40,7 +40,6 @@ from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.util import CoGroupByKey
-from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'assert_that',

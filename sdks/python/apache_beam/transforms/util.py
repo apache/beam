@@ -29,7 +29,6 @@ import random
 import re
 import sys
 import time
-import warnings
 from builtins import filter
 from builtins import object
 from builtins import range

@@ -64,7 +64,7 @@ from apache_beam.utils.windowed_value import WindowedValue
 
 warnings.filterwarnings(
     'ignore',
-    category=warnings.FutureWarning,
+    category=FutureWarning,
     module='apache_beam.transform.util_test')
 
 

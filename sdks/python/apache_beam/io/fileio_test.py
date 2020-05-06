@@ -53,7 +53,7 @@ from apache_beam.transforms.window import GlobalWindow
 
 warnings.filterwarnings(
     'ignore',
-    category=warnings.FutureWarning,
+    category=FutureWarning,
     module='apache_beam.io.fileio_test')
 
 
