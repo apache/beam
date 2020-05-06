@@ -1027,25 +1027,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
     @Override
     public Timer timer(String timerId) {
-      try {
-        TimerSpec spec = (TimerSpec) signature.timerDeclarations().get(timerId).field().get(fn);
-        return new TimerInternalsTimer(
-            window, getNamespace(), timerId, spec, timestamp, stepContext.timerInternals());
-      } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
-      }
+      throw new UnsupportedOperationException("Timer parameters are not supported.");
     }
 
     @Override
     public TimerMap timerFamily(String timerFamilyId) {
-      try {
-        TimerSpec spec =
-            (TimerSpec) signature.timerFamilyDeclarations().get(timerFamilyId).field().get(fn);
-        return new TimerInternalsTimerMap(
-            timerFamilyId, window(), getNamespace(), spec, timestamp, stepContext.timerInternals());
-      } catch (IllegalAccessException e) {
-        throw new RuntimeException(e);
-      }
+      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
     }
 
     @Override

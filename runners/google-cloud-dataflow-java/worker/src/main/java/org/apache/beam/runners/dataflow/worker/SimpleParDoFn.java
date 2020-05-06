@@ -387,8 +387,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           timer);
 
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
-      Instant targetTime =
-          earliestAllowableCleanupTime(window, fnInfo.getWindowingStrategy()).minus(1L);
+      Instant targetTime = earliestAllowableCleanupTime(window, fnInfo.getWindowingStrategy());
 
       checkState(
           !targetTime.isAfter(timer.getTimestamp()),
