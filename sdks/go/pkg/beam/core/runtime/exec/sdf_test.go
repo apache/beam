@@ -306,4 +306,83 @@ func TestSdfNodes(t *testing.T) {
 			})
 		}
 	})
+
+	// Validate SdfFallback matches its contract and properly invokes SDF
+	// methods CreateRestriction, SplitRestriction, CreateTracker and
+	// ProcessElement.
+	t.Run("SdfFallback", func(t *testing.T) {
+		tests := []struct {
+			name string
+			fn   *graph.DoFn
+			in   FullValue
+			want []FullValue
+		}{
+			{
+				name: "SingleElem",
+				fn:   dfn,
+				in: FullValue{
+					Elm:       1,
+					Elm2:      nil,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				want: []FullValue{
+					{
+						Elm:       &VetRestriction{ID: "Sdf.1", CreateRest: true, SplitRest: true, CreateTracker: true, ProcessElm: true, Val: 1},
+						Elm2:      nil,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+					{
+						Elm:       &VetRestriction{ID: "Sdf.2", CreateRest: true, SplitRest: true, CreateTracker: true, ProcessElm: true, Val: 1},
+						Elm2:      nil,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+				},
+			},
+			{
+				name: "KvElem",
+				fn:   kvdfn,
+				in: FullValue{
+					Elm:       1,
+					Elm2:      2,
+					Timestamp: testTimestamp,
+					Windows:   testWindows,
+				},
+				want: []FullValue{
+					{
+						Elm:       &VetRestriction{ID: "KvSdf.1", CreateRest: true, SplitRest: true, CreateTracker: true, ProcessElm: true, Key: 1, Val: 2},
+						Elm2:      nil,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+					{
+						Elm:       &VetRestriction{ID: "KvSdf.2", CreateRest: true, SplitRest: true, CreateTracker: true, ProcessElm: true, Key: 1, Val: 2},
+						Elm2:      nil,
+						Timestamp: testTimestamp,
+						Windows:   testWindows,
+					},
+				},
+			},
+		}
+		for _, test := range tests {
+			test := test
+			t.Run(test.name, func(t *testing.T) {
+				capt := &CaptureNode{UID: 2}
+				n := &ParDo{UID: 1, Fn: test.fn, Out: []Node{capt}}
+				node := &SdfFallback{PDo: n}
+				root := &FixedRoot{UID: 0, Elements: []MainInput{{Key: test.in}}, Out: node}
+				units := []Unit{root, node, capt}
+				constructAndExecutePlan(t, units)
+
+				for i, got := range capt.Elements {
+					if !cmp.Equal(got, test.want[i]) {
+						t.Errorf("SdfFallback(%v) has incorrect output %v: got: %v, want: %v",
+							test.in, i, got, test.want)
+					}
+				}
+			})
+		}
+	})
 }
