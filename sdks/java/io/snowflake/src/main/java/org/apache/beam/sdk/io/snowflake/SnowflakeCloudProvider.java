@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.io.snowflake;
 
+import java.io.IOException;
+
 /** Interface which defines common methods for cloud providers. */
 public interface SnowflakeCloudProvider {
-  void removeFiles(String bucketName, String pathOnBucket);
+  void removeFiles(String bucketName, String pathOnBucket) throws IOException;
 
   String formatCloudPath(String... pathSteps);
 
-  String transformCloudPathToSnowflakePath(String path);
+  String transformSnowflakePathToCloudPath(String path);
 }

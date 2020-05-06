@@ -56,7 +56,7 @@ public class SnowflakeServiceImpl implements SnowflakeService {
 
     runStatement(copyQuery, getConnection(dataSourceProviderFn), null);
 
-    return cloudProvider.transformCloudPathToSnowflakePath(stagingBucketName).concat("*");
+    return cloudProvider.transformSnowflakePathToCloudPath(stagingBucketName).concat("*");
   }
 
   private static void runStatement(String query, Connection connection, Consumer resultSetMethod)

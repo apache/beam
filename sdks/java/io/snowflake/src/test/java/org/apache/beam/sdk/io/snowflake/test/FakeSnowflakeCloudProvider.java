@@ -17,13 +17,14 @@
  */
 package org.apache.beam.sdk.io.snowflake.test;
 
+import java.io.IOException;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.snowflake.SnowflakeCloudProvider;
 
 /** Fake implementation of {@link SnowflakeCloudProvider} used in test code. */
 public class FakeSnowflakeCloudProvider implements SnowflakeCloudProvider, Serializable {
   @Override
-  public void removeFiles(String bucketName, String pathOnBucket) {
+  public void removeFiles(String bucketName, String pathOnBucket) throws IOException {
     TestUtils.removeTempDir(bucketName);
   }
 
@@ -40,7 +41,7 @@ public class FakeSnowflakeCloudProvider implements SnowflakeCloudProvider, Seria
   }
 
   @Override
-  public String transformCloudPathToSnowflakePath(String path) {
+  public String transformSnowflakePathToCloudPath(String path) {
     return path;
   }
 }

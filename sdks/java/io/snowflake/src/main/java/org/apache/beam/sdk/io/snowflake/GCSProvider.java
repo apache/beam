@@ -17,33 +17,36 @@
  */
 package org.apache.beam.sdk.io.snowflake;
 
-import com.google.api.gax.paging.Page;
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 
 /**
  * Implemenation of {@link org.apache.beam.sdk.io.snowflake.SnowflakeCloudProvider} used in
  * production.
  */
 public class GCSProvider implements SnowflakeCloudProvider, Serializable {
-  private static final String GCS_PREFIX = "gcs://";
-  private static final String SF_PREFIX = "gs://";
+  private static final String SF_PREFIX = "gcs://";
+  private static final String GCS_PREFIX = "gs://";
 
   @Override
-  public void removeFiles(String stagingBucketName, String pathOnBucket) {
-    Storage storage = StorageOptions.getDefaultInstance().getService();
-    Page<Blob> blobs = storage.list(stagingBucketName, Storage.BlobListOption.prefix(pathOnBucket));
-    for (Blob blob : blobs.iterateAll()) {
-      storage.delete(blob.getBlobId());
-    }
+  public void removeFiles(String stagingBucketName, String pathOnBucket) throws IOException {
+    String combinedPath = GCS_PREFIX + stagingBucketName + '/' + pathOnBucket + "/*";
+    List<ResourceId> paths =
+        FileSystems.match(combinedPath).metadata().stream()
+            .map(metadata -> metadata.resourceId())
+            .collect(Collectors.toList());
+
+    FileSystems.delete(paths);
   }
 
   @Override
   public String formatCloudPath(String... pathSteps) {
     StringBuilder builder = new StringBuilder();
-    builder.append(GCS_PREFIX);
+    builder.append(SF_PREFIX);
 
     for (String step : pathSteps) {
       builder.append(String.format("%s/", step));
@@ -53,7 +56,7 @@ public class GCSProvider implements SnowflakeCloudProvider, Serializable {
   }
 
   @Override
-  public String transformCloudPathToSnowflakePath(String path) {
-    return path.replace(GCS_PREFIX, SF_PREFIX);
+  public String transformSnowflakePathToCloudPath(String path) {
+    return path.replace(SF_PREFIX, GCS_PREFIX);
   }
 }

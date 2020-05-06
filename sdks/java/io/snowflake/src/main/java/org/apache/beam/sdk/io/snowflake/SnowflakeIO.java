@@ -429,7 +429,7 @@ public class SnowflakeIO {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext c) {
+      public void processElement(ProcessContext c) throws IOException {
         snowflakeCloudProvider.removeFiles(bucketName, bucketPath);
       }
     }
