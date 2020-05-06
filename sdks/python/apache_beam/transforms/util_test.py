@@ -63,9 +63,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
 
 warnings.filterwarnings(
-    'ignore',
-    category=FutureWarning,
-    module='apache_beam.transform.util_test')
+    'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
 
 
 class FakeClock(object):

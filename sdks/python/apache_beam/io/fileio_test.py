@@ -52,9 +52,7 @@ from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 
 warnings.filterwarnings(
-    'ignore',
-    category=FutureWarning,
-    module='apache_beam.io.fileio_test')
+    'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')
 
 
 def _get_file_reader(readable_file):

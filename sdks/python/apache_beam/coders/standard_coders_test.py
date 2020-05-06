@@ -60,7 +60,8 @@ def _load_test_cases(test_yaml):
   if not os.path.exists(test_yaml):
     raise ValueError('Could not find the test spec: %s' % test_yaml)
   with open(test_yaml, 'rb') as coder_spec:
-    for ix, spec in enumerate(yaml.load_all(coder_spec, Loader=yaml.SafeLoader)):
+    for ix, spec in enumerate(
+        yaml.load_all(coder_spec, Loader=yaml.SafeLoader)):
       spec['index'] = ix
       name = spec.get('name', spec['coder']['urn'].split(':')[-2])
       yield [name, spec]
