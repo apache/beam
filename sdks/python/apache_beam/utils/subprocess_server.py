@@ -161,7 +161,7 @@ class JavaJarServer(SubprocessServer):
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
-  _BEAM_SERVICES = _BEAM_SERVICES = type(
+  _BEAM_SERVICES = type(
       'local', (threading.local, ),
       dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
