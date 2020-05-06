@@ -28,11 +28,8 @@ from __future__ import print_function
 
 import sys
 import unittest
-from datetime import timedelta
 
 import pandas as pd
-from nose import SkipTest
-from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import StandardOptions
@@ -40,10 +37,9 @@ from apache_beam.runners.direct import direct_runner
 from apache_beam.runners.interactive import interactive_beam as ib
 from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
-from apache_beam.runners.interactive.options.capture_limiters import DurationLimiter
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import timeout
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import Timestamp
@@ -70,9 +66,6 @@ def print_with_message(msg):
 class InteractiveRunnerTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
-    runner = TestPipeline(is_integration_test=True).runner
-    if not isinstance(runner, direct_runner.DirectRunner):
-      raise SkipTest
 
   def test_basic(self):
     p = beam.Pipeline(
@@ -162,7 +155,7 @@ class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(
       sys.version_info < (3, 5, 3),
       'The tests require at least Python 3.6 to work.')
-  @attr('IT')
+  @timeout(30)
   def test_streaming_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
@@ -172,12 +165,10 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     # Add the TestStream so that it can be cached.
     ib.options.capturable_sources.add(TestStream)
-    ib.options.capture_duration = timedelta(seconds=30)
 
-    p = TestPipeline(
+    p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(),
-        options=StandardOptions(streaming=True),
-        is_integration_test=True)
+        options=StandardOptions(streaming=True))
 
     data = (
         p
@@ -222,10 +213,9 @@ class InteractiveRunnerTest(unittest.TestCase):
           return len(results) >= 10
         return False
 
-    # This sets the limiters to stop reading when the test receives 10 elements
-    # or after 5 seconds have elapsed (to eliminate the possibility of hanging).
+    # This sets the limiters to stop reading when the test receives 10 elements.
     ie.current_env().options.capture_control.set_limiters_for_test(
-        [FakeLimiter(p, data), DurationLimiter(timedelta(seconds=5))])
+        [FakeLimiter(p, data)])
 
     # This tests that the data was correctly cached.
     pane_info = PaneInfo(True, True, PaneInfoTiming.UNKNOWN, 0, 0)
