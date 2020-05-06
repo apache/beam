@@ -37,7 +37,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: beamgrafana
-        image: gcr.io/apache-beam-testing/beamgrafana:beammetrics20200505
+        image: gcr.io/apache-beam-testing/beamgrafana:beammetrics20200506
         securityContext:
           runAsUser: 0
         env:
@@ -104,7 +104,7 @@ spec:
             mountPath: /secrets/cloudsql
             readOnly: true
       - name: beammetricssyncjenkins
-        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:beammetrics20200505
+        image: gcr.io/apache-beam-testing/beammetricssyncjenkins:beammetrics20200506
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -123,7 +123,7 @@ spec:
                 name: beammetrics-psql-db-credentials
                 key: password
       - name: beammetricssyncjira
-        image: gcr.io/apache-beam-testing/beammetricssyncjira:beammetrics20200505
+        image: gcr.io/apache-beam-testing/beammetricssyncjira:beammetrics20200506
         env:
           - name: DB_HOST
             value: 127.0.0.1
@@ -142,7 +142,7 @@ spec:
                 name: beammetrics-psql-db-credentials
                 key: password
       - name: beammetricssyncgithub
-        image: gcr.io/apache-beam-testing/beammetricssyncgithub:beammetrics20200505
+        image: gcr.io/apache-beam-testing/beammetricssyncgithub:beammetrics20200506
         env:
           - name: DB_HOST
             value: 127.0.0.1
