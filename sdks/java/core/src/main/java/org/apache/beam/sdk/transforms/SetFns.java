@@ -22,9 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.*;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 public class SetFns {
@@ -169,8 +167,8 @@ public class SetFns {
   }
 
   /**
-   * Returns a new {@code SetFns.SetImpl<T>} transform that compute the unionAll with provided
-   * {@code PCollection<T>}.
+   * Returns a new {@code SetFns.SetUnionAllImpl<T>} transform that compute the unionAll with
+   * provided {@code PCollection<T>}.
    *
    * <p>The argument should not be modified after this is called.
    *
@@ -189,10 +187,10 @@ public class SetFns {
    *     left.apply(SetFns.unionAll(right)); // results will be PCollection<String> containing: "1","1","1","2","3","4","4"
    * }</pre>
    */
-  public static <T> SetImpl<T> unionAll(PCollection<T> rightCollection) {
+  public static <T> SetUnionAllImpl<T> unionAll(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    SerializableBiFunction<Long, Long, Long> unionFn = Long::sum;
-    return new SetImpl<>(rightCollection, unionFn);
+
+    return new SetUnionAllImpl<T>(rightCollection);
   }
 
   private static <T> PCollection<T> performSetOperation(
@@ -219,7 +217,7 @@ public class SetFns {
         KeyedPCollectionTuple.of(leftCollectionTag, left)
             .and(rightCollectionTag, right)
             .apply(CoGroupByKey.create());
-
+    // TODO: lift combiners through the CoGBK.
     return coGbkResults.apply(
         ParDo.of(
             new DoFn<KV<T, CoGbkResult>, T>() {
@@ -253,6 +251,19 @@ public class SetFns {
     public PCollection<T> expand(PCollection<T> leftCollection) {
       return performSetOperation(leftCollection, rightCollection, fn)
           .setCoder(leftCollection.getCoder());
+    }
+  }
+
+  public static class SetUnionAllImpl<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    private final PCollection<T> rightCollection;
+
+    private SetUnionAllImpl(PCollection<T> rightCollection) {
+      this.rightCollection = rightCollection;
+    }
+
+    @Override
+    public PCollection<T> expand(PCollection<T> leftCollection) {
+      return PCollectionList.of(leftCollection).and(rightCollection).apply(Flatten.pCollections());
     }
   }
 }
