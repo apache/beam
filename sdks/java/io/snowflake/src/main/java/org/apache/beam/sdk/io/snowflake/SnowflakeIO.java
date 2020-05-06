@@ -536,6 +536,11 @@ public class SnowflakeIO {
       abstract DataSourceConfiguration build();
     }
 
+    /**
+     * Creates {@link DataSourceConfiguration} from existing instance of {@link DataSource}.
+     *
+     * @param dataSource - an instance of {@link DataSource}.
+     */
     public static DataSourceConfiguration create(DataSource dataSource) {
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
@@ -543,10 +548,21 @@ public class SnowflakeIO {
           .build();
     }
 
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link SnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link SnowflakeCredentials}.
+     */
     public static DataSourceConfiguration create(SnowflakeCredentials credentials) {
       return credentials.createSnowflakeDataSourceConfiguration();
     }
 
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link
+     * UsernamePasswordSnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link UsernamePasswordSnowflakeCredentials}.
+     */
     public static DataSourceConfiguration create(UsernamePasswordSnowflakeCredentials credentials) {
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
           .setUsername(credentials.getUsername())
@@ -554,6 +570,11 @@ public class SnowflakeIO {
           .build();
     }
 
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link KeyPairSnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link KeyPairSnowflakeCredentials}.
+     */
     public static DataSourceConfiguration create(KeyPairSnowflakeCredentials credentials) {
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
           .setUsername(credentials.getUsername())
@@ -561,12 +582,26 @@ public class SnowflakeIO {
           .build();
     }
 
+    /**
+     * Creates {@link DataSourceConfiguration} from instance of {@link
+     * OAuthTokenSnowflakeCredentials}.
+     *
+     * @param credentials - an instance of {@link OAuthTokenSnowflakeCredentials}.
+     */
     public static DataSourceConfiguration create(OAuthTokenSnowflakeCredentials credentials) {
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
           .setOauthToken(credentials.getToken())
           .build();
     }
 
+    /**
+     * Sets URL of Snowflake server in following format:
+     * jdbc:snowflake://<account_name>.snowflakecomputing.com
+     *
+     * <p>Either withUrl or withServerName is required.
+     *
+     * @param url - String with URL of the Snowflake server.
+     */
     public DataSourceConfiguration withUrl(String url) {
       checkArgument(
           url.startsWith("jdbc:snowflake://"),
@@ -577,33 +612,71 @@ public class SnowflakeIO {
       return builder().setUrl(url).build();
     }
 
+    /**
+     * Sets database to use.
+     *
+     * @param database - String with database name.
+     */
     public DataSourceConfiguration withDatabase(String database) {
       return builder().setDatabase(database).build();
     }
 
+    /**
+     * Sets Snowflake Warehouse to use.
+     *
+     * @param warehouse - String with warehouse name.
+     */
     public DataSourceConfiguration withWarehouse(String warehouse) {
       return builder().setWarehouse(warehouse).build();
     }
 
+    /**
+     * Sets schema to use when connecting to Snowflake.
+     *
+     * @param schema - String with schema name.
+     */
     public DataSourceConfiguration withSchema(String schema) {
       return builder().setSchema(schema).build();
     }
 
-    public DataSourceConfiguration withServerName(String withServerName) {
+    /**
+     * Sets the name of the Snowflake server. Following format is required:
+     * <account_name>.snowflakecomputing.com
+     *
+     * <p>Either withServerName or withUrl is required.
+     *
+     * @param serverName - String with server name.
+     */
+    public DataSourceConfiguration withServerName(String serverName) {
       checkArgument(
-          withServerName.endsWith("snowflakecomputing.com"),
+          serverName.endsWith("snowflakecomputing.com"),
           "serverName must be in format <account_name>.snowflakecomputing.com");
-      return builder().setServerName(withServerName).build();
+      return builder().setServerName(serverName).build();
     }
 
+    /**
+     * Sets port number to use to connect to Snowflake.
+     *
+     * @param portNumber - Integer with port number.
+     */
     public DataSourceConfiguration withPortNumber(Integer portNumber) {
       return builder().setPortNumber(portNumber).build();
     }
 
+    /**
+     * Sets user's role to be used when running queries on Snowflake.
+     *
+     * @param role - String with role name.
+     */
     public DataSourceConfiguration withRole(String role) {
       return builder().setRole(role).build();
     }
 
+    /**
+     * Sets loginTimeout that will be used in {@link SnowflakeBasicDataSource:setLoginTimeout}.
+     *
+     * @param loginTimeout - Integer with timeout value.
+     */
     public DataSourceConfiguration withLoginTimeout(Integer loginTimeout) {
       return builder().setLoginTimeout(loginTimeout).build();
     }
@@ -617,6 +690,7 @@ public class SnowflakeIO {
       }
     }
 
+    /** Builds {@link SnowflakeBasicDataSource} based on the current configuration. */
     public DataSource buildDatasource() {
       if (getDataSource() == null) {
         SnowflakeBasicDataSource basicDataSource = new SnowflakeBasicDataSource();
