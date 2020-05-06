@@ -51,7 +51,8 @@ public class SetFns {
   public static <T> SetImpl<T> intersect(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> intersectFn =
-        (numberOfElementsinLeft, numberOfElementsinRight) -> (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? 1L : 0L;
+        (numberOfElementsinLeft, numberOfElementsinRight) ->
+            (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? 1L : 0L;
     return new SetImpl<>(rightCollection, intersectFn);
   }
 
@@ -79,7 +80,10 @@ public class SetFns {
   public static <T> SetImpl<T> intersectAll(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> intersectFn =
-        (numberOfElementsinLeft, numberOfElementsinRight) -> (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? Math.min(numberOfElementsinLeft, numberOfElementsinRight) : 0L;
+        (numberOfElementsinLeft, numberOfElementsinRight) ->
+            (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0)
+                ? Math.min(numberOfElementsinLeft, numberOfElementsinRight)
+                : 0L;
     return new SetImpl<>(rightCollection, intersectFn);
   }
 
@@ -106,7 +110,8 @@ public class SetFns {
   public static <T> SetImpl<T> except(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> exceptFn =
-        (numberOfElementsinLeft, numberOfElementsinRight) -> numberOfElementsinLeft > 0 && numberOfElementsinRight == 0 ? 1L : 0L;
+        (numberOfElementsinLeft, numberOfElementsinRight) ->
+            numberOfElementsinLeft > 0 && numberOfElementsinRight == 0 ? 1L : 0L;
     return new SetImpl<>(rightCollection, exceptFn);
   }
 
@@ -167,7 +172,8 @@ public class SetFns {
    */
   public static <T> SetImpl<T> union(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    SerializableBiFunction<Long, Long, Long> unionFn = (numberOfElementsinLeft, numberOfElementsinRight) -> 1L;
+    SerializableBiFunction<Long, Long, Long> unionFn =
+        (numberOfElementsinLeft, numberOfElementsinRight) -> 1L;
     return new SetImpl<>(rightCollection, unionFn);
   }
 

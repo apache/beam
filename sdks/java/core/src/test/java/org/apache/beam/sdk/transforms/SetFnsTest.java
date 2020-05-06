@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static junit.framework.TestCase.assertEquals;
 
 import java.util.Arrays;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
