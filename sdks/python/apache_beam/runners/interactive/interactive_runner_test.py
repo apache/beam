@@ -31,6 +31,8 @@ import unittest
 from datetime import timedelta
 
 import pandas as pd
+from nose import SkipTest
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import StandardOptions
@@ -40,6 +42,7 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
 from apache_beam.runners.interactive.options.capture_limiters import DurationLimiter
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
@@ -67,6 +70,9 @@ def print_with_message(msg):
 class InteractiveRunnerTest(unittest.TestCase):
   def setUp(self):
     ie.new_env()
+    runner = TestPipeline(is_integration_test=True).runner
+    if not isinstance(runner, direct_runner.DirectRunner):
+      raise SkipTest
 
   def test_basic(self):
     p = beam.Pipeline(
@@ -156,6 +162,7 @@ class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(
       sys.version_info < (3, 5, 3),
       'The tests require at least Python 3.6 to work.')
+  @attr('IT')
   def test_streaming_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
@@ -165,11 +172,12 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     # Add the TestStream so that it can be cached.
     ib.options.capturable_sources.add(TestStream)
-    ib.options.capture_duration = timedelta(seconds=5)
+    ib.options.capture_duration = timedelta(seconds=30)
 
-    p = beam.Pipeline(
+    p = TestPipeline(
         runner=interactive_runner.InteractiveRunner(),
-        options=StandardOptions(streaming=True))
+        options=StandardOptions(streaming=True),
+        is_integration_test=True)
 
     data = (
         p
