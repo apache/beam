@@ -29,6 +29,7 @@ import random
 import re
 import time
 import unittest
+import warnings
 from builtins import object
 from builtins import range
 
@@ -60,6 +61,11 @@ from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
+
+warnings.filterwarnings(
+    'ignore',
+    category=warnings.FutureWarning,
+    module='apache_beam.transform.util_test')
 
 
 class FakeClock(object):

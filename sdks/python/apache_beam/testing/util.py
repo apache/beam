@@ -317,7 +317,6 @@ def assert_that(
   actual | AssertThat()  # pylint: disable=expression-not-assigned
 
 
-@experimental()
 def open_shards(glob_pattern, mode='rt', encoding='utf-8'):
   """Returns a composite file of all shards matching the given glob pattern.
 

@@ -1235,8 +1235,8 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_metrics(self):
@@ -1255,8 +1255,8 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
         direct_num_workers=2, direct_running_mode='multi_threading')
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_metrics(self):
@@ -1283,7 +1283,8 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
         options=pipeline_options)
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_register_finalizations(self):
