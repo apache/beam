@@ -159,7 +159,7 @@ public class FlinkRequiresStableInputTest {
     } while (!latch.await(100, TimeUnit.MILLISECONDS));
     flinkCluster.cancelJob(jobID).get();
 
-    options.setShutdownSourcesOnFinalWatermark(true);
+    options.setShutdownSourcesAfterIdleMs(0L);
     restoreFromSavepoint(p, savepointDir);
     waitUntilJobIsDone();
 

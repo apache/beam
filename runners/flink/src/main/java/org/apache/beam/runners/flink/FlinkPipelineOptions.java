@@ -31,7 +31,7 @@ import org.apache.beam.sdk.options.StreamingOptions;
  * requiring flink on the classpath (e.g. to use with the direct runner).
  */
 public interface FlinkPipelineOptions
-    extends FlinkDebugPipelineOptions, PipelineOptions, ApplicationNameOptions, StreamingOptions {
+    extends PipelineOptions, ApplicationNameOptions, StreamingOptions {
 
   String AUTO = "[auto]";
   String PIPELINED = "PIPELINED";
@@ -127,6 +127,17 @@ public interface FlinkPipelineOptions
   void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
 
   @Description(
+      "Shuts down sources which have been idle for the configured time of milliseconds. Once a source has been "
+          + "shut down, checkpointing is not possible anymore. Shutting down the sources eventually leads to pipeline "
+          + "shutdown (=Flink job finishes) once all input has been processed. Unless explicitly set, this will "
+          + "default to Long.MAX_VALUE when checkpointing is enabled and to 0 when checkpointing is disabled. "
+          + "See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue.")
+  @Default.Long(-1L)
+  Long getShutdownSourcesAfterIdleMs();
+
+  void setShutdownSourcesAfterIdleMs(Long timeoutMs);
+
+  @Description(
       "Sets the number of times that failed tasks are re-executed. "
           + "A value of zero effectively disables fault tolerance. A value of -1 indicates "
           + "that the system default value (as defined in the configuration) should be used.")
@@ -193,20 +204,6 @@ public interface FlinkPipelineOptions
 
   void setMaxBundleTimeMills(Long time);
 
-  /**
-   * Whether to shutdown sources when their watermark reaches {@code +Inf}. For production use cases
-   * you want this to be disabled because Flink will currently (versions {@literal <=} 1.5) stop
-   * doing checkpoints when any operator (which includes sources) is finished.
-   *
-   * <p>Please see <a href="https://issues.apache.org/jira/browse/FLINK-2491">FLINK-2491</a> for
-   * progress on this issue.
-   */
-  @Description("If set, shutdown sources when their watermark reaches +Inf.")
-  @Default.Boolean(false)
-  Boolean isShutdownSourcesOnFinalWatermark();
-
-  void setShutdownSourcesOnFinalWatermark(Boolean shutdownOnFinalWatermark);
-
   @Description(
       "Interval in milliseconds for sending latency tracking marks from the sources to the sinks. "
           + "Interval value <= 0 disables the feature.")
@@ -255,4 +252,10 @@ public interface FlinkPipelineOptions
   Boolean isAutoBalanceWriteFilesShardingEnabled();
 
   void setAutoBalanceWriteFilesShardingEnabled(Boolean autoBalanceWriteFilesShardingEnabled);
+
+  @Description(
+      "If not null, reports the checkpoint duration of each ParDo stage in the provided metric namespace.")
+  String getReportCheckpointDuration();
+
+  void setReportCheckpointDuration(String metricNamespace);
 }

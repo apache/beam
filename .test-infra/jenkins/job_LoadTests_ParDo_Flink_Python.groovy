@@ -171,7 +171,6 @@ def streamingScenarios = { datasetName, sdkHarnessImageTag -> [
             // Turn on streaming mode (flags are indicated with null values)
             streaming            : null,
             stateful             : null,
-            shutdown_sources_on_final_watermark : null,
             job_endpoint         : 'localhost:8099',
             environment_config   : sdkHarnessImageTag,
             environment_type     : 'DOCKER',

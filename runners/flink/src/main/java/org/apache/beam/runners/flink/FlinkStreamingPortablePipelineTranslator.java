@@ -279,16 +279,15 @@ public class FlinkStreamingPortablePipelineTranslator
 
     if (allInputs.isEmpty()) {
 
-      FlinkPipelineOptions pipelineOptions = context.getPipelineOptions();
       // create an empty dummy source to satisfy downstream operations
       // we cannot create an empty source in Flink, therefore we have to
       // add the flatMap that simply never forwards the single element
-      boolean keepSourceAlive = !pipelineOptions.isShutdownSourcesOnFinalWatermark();
-      long shutdownAfterIdleSourcesMs = pipelineOptions.getShutdownSourcesAfterIdleMs();
+      long shutdownAfterIdleSourcesMs =
+          context.getPipelineOptions().getShutdownSourcesAfterIdleMs();
       DataStreamSource<WindowedValue<byte[]>> dummySource =
           context
               .getExecutionEnvironment()
-              .addSource(new ImpulseSourceFunction(keepSourceAlive, shutdownAfterIdleSourcesMs));
+              .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs));
 
       DataStream<WindowedValue<T>> result =
           dummySource
@@ -549,14 +548,11 @@ public class FlinkStreamingPortablePipelineTranslator
         new CoderTypeInformation<>(
             WindowedValue.getFullCoder(ByteArrayCoder.of(), GlobalWindow.Coder.INSTANCE));
 
-    FlinkPipelineOptions pipelineOptions = context.getPipelineOptions();
-    boolean keepSourceAlive = !pipelineOptions.isShutdownSourcesOnFinalWatermark();
-    long shutdownAfterIdleSourcesMs = pipelineOptions.getShutdownSourcesAfterIdleMs();
+    long shutdownAfterIdleSourcesMs = context.getPipelineOptions().getShutdownSourcesAfterIdleMs();
     SingleOutputStreamOperator<WindowedValue<byte[]>> source =
         context
             .getExecutionEnvironment()
-            .addSource(
-                new ImpulseSourceFunction(keepSourceAlive, shutdownAfterIdleSourcesMs), "Impulse")
+            .addSource(new ImpulseSourceFunction(shutdownAfterIdleSourcesMs), "Impulse")
             .returns(typeInfo);
 
     context.addDataStream(Iterables.getOnlyElement(pTransform.getOutputsMap().values()), source);
