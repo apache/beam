@@ -119,7 +119,7 @@ class _PipelineContextMap(object):
     return self.get_id_to_proto_map()[id]
 
   def put_proto(self, id, proto, ignore_duplicates=False):
-    # type: (str, message.Message) -> str
+    # type: (str, message.Message, bool) -> str
     if not ignore_duplicates and id in self._id_to_proto:
       raise ValueError("Id '%s' is already taken." % id)
     elif (ignore_duplicates and id in self._id_to_proto and
