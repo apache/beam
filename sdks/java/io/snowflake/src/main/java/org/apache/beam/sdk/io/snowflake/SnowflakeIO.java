@@ -207,6 +207,11 @@ public class SnowflakeIO {
       abstract Read<T> build();
     }
 
+    /**
+     * Setting information about Snowflake server.
+     *
+     * @param config - An instance of {@link DataSourceConfiguration}.
+     */
     public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
 
       try {
@@ -219,31 +224,66 @@ public class SnowflakeIO {
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
+    /**
+     * Setting function that will provide {@link DataSourceConfiguration} in runtime.
+     *
+     * @param dataSourceProviderFn a {@link SerializableFunction}.
+     */
     public Read<T> withDataSourceProviderFn(
         SerializableFunction<Void, DataSource> dataSourceProviderFn) {
       return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
     }
 
+    /**
+     * A query to be executed in Snowflake.
+     *
+     * @param query - String with query.
+     */
     public Read<T> fromQuery(String query) {
       return toBuilder().setQuery(query).build();
     }
 
+    /**
+     * A table name to be read in Snowflake.
+     *
+     * @param table - String with the name of the table.
+     */
     public Read<T> fromTable(String table) {
       return toBuilder().setTable(table).build();
     }
 
+    /**
+     * Name of the bucket to use as tmp location of CSVs during COPY statement.
+     *
+     * @param stagingBucketName - String with the name of the bucket.
+     */
     public Read<T> withStagingBucketName(String stagingBucketName) {
       return toBuilder().setStagingBucketName(stagingBucketName).build();
     }
 
+    /**
+     * Name of the Storage Integration in Snowflake to be used.
+     *
+     * @param integrationName - String with the name of the Storage Integration.
+     */
     public Read<T> withIntegrationName(String integrationName) {
       return toBuilder().setIntegrationName(integrationName).build();
     }
 
+    /**
+     * User-defined function mapping CSV lines into user data.
+     *
+     * @param csvMapper - an instance of {@link CsvMapper}.
+     */
     public Read<T> withCsvMapper(CsvMapper<T> csvMapper) {
       return toBuilder().setCsvMapper(csvMapper).build();
     }
 
+    /**
+     * A coder to use.
+     *
+     * @param coder - an instance of {@link Coder}.
+     */
     public Read<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
     }
