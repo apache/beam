@@ -161,8 +161,9 @@ class JavaJarServer(SubprocessServer):
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
-  _BEAM_SERVICES = threading.local()
-  _BEAM_SERVICES.replacements = {}
+  _BEAM_SERVICES = _BEAM_SERVICES = type(
+      'local', (threading.local, ),
+      dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
   def __init__(self, stub_class, path_to_jar, java_arguments):
     super(JavaJarServer, self).__init__(
