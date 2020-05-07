@@ -30,7 +30,6 @@ option java_package = "org.apache.beam.model.expansion.v1";
 option java_outer_classname = "ExpansionApi";
 
 import "beam_runner_api.proto";
-import "google/protobuf/struct.proto";
 
 message ExpansionRequest {
   // Set of components needed to interpret the transform, or which
@@ -47,9 +46,6 @@ message ExpansionRequest {
   // A namespace (prefix) to use for the id of any newly created
   // components.
   string namespace = 3;
-
-  // The pipeline options specified by the caller
-  google.protobuf.Struct pipeline_options = 4;
 }
 
 message ExpansionResponse {

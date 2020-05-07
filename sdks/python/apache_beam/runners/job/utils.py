@@ -28,17 +28,6 @@ from google.protobuf import json_format
 from google.protobuf import struct_pb2
 
 
-def pipeline_options_dict_to_struct(options):
-  # type: (dict) -> struct_pb2.Struct
-  # TODO: Define URNs for options.
-  # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
-  return dict_to_struct({
-      'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
-      for k,
-      v in options.items() if v is not None
-  })
-
-
 def dict_to_struct(dict_obj):
   # type: (dict) -> struct_pb2.Struct
   return json_format.ParseDict(dict_obj, struct_pb2.Struct())
