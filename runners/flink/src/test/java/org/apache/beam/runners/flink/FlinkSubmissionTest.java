@@ -163,9 +163,6 @@ public class FlinkSubmissionTest {
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
     options.setRunner(FlinkRunner.class);
     options.setStreaming(streaming);
-    if (streaming) {
-      options.setShutdownSourcesOnFinalWatermark(true);
-    }
     options.setParallelism(1);
     Pipeline p = Pipeline.create(options);
     p.apply(GenerateSequence.from(0).to(1));

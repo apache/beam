@@ -38,7 +38,10 @@ public class FlinkPortableRunnerResult extends FlinkRunnerResult implements Port
     Iterable<MetricsApi.MonitoringInfo> monitoringInfos =
         this.getMetricsContainerStepMap().getMonitoringInfos();
 
-    return JobApi.MetricResults.newBuilder().addAllAttempted(monitoringInfos).build();
+    return JobApi.MetricResults.newBuilder()
+        .addAllCommitted(monitoringInfos)
+        .addAllAttempted(monitoringInfos)
+        .build();
   }
 
   static class Detached extends FlinkDetachedRunnerResult implements PortablePipelineResult {

@@ -218,11 +218,18 @@ public class FlinkExecutionEnvironments {
       }
       flinkStreamEnv.enableCheckpointing(
           checkpointInterval, CheckpointingMode.valueOf(options.getCheckpointingMode()));
+
+      if (options.getShutdownSourcesAfterIdleMs() == -1) {
+        // If not explicitly configured, we never shutdown sources when checkpointing is enabled.
+        options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
+      }
+
       if (options.getCheckpointTimeoutMillis() != -1) {
         flinkStreamEnv
             .getCheckpointConfig()
             .setCheckpointTimeout(options.getCheckpointTimeoutMillis());
       }
+
       boolean externalizedCheckpoint = options.isExternalizedCheckpointsEnabled();
       boolean retainOnCancellation = options.getRetainExternalizedCheckpointsOnCancellation();
       if (externalizedCheckpoint) {
@@ -246,6 +253,11 @@ public class FlinkExecutionEnvironments {
       flinkStreamEnv
           .getCheckpointConfig()
           .setMaxConcurrentCheckpoints(options.getNumConcurrentCheckpoints());
+    } else {
+      if (options.getShutdownSourcesAfterIdleMs() == -1) {
+        // If not explicitly configured, we never shutdown sources when checkpointing is enabled.
+        options.setShutdownSourcesAfterIdleMs(0L);
+      }
     }
 
     applyLatencyTrackingInterval(flinkStreamEnv.getConfig(), options);
@@ -266,6 +278,8 @@ public class FlinkExecutionEnvironments {
 
     return flinkStreamEnv;
   }
+
+  private void configureCheckpointingOptions() {}
 
   /**
    * Removes the http:// or https:// schema from a url string. This is commonly used with the

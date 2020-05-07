@@ -98,7 +98,6 @@ public class PortableExecutionTest implements Serializable {
     options.as(FlinkPipelineOptions.class).setFlinkMaster("[local]");
     options.as(FlinkPipelineOptions.class).setStreaming(isStreaming);
     options.as(FlinkPipelineOptions.class).setParallelism(2);
-    options.as(FlinkPipelineOptions.class).setShutdownSourcesOnFinalWatermark(true);
     options
         .as(PortablePipelineOptions.class)
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);

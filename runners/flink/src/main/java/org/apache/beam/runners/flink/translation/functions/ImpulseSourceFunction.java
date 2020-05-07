@@ -36,8 +36,8 @@ import org.apache.flink.streaming.api.watermark.Watermark;
 public class ImpulseSourceFunction
     implements SourceFunction<WindowedValue<byte[]>>, CheckpointedFunction {
 
-  /** Keep source running even after it has done all the work. */
-  private final boolean keepSourceAlive;
+  /** The idle time before the source shuts down. */
+  private final long idleTimeoutMs;
 
   /** Indicates the streaming job is running and the source can produce elements. */
   private volatile boolean running;
@@ -45,8 +45,8 @@ public class ImpulseSourceFunction
   /** Checkpointed state which indicates whether the impulse has finished. */
   private transient ListState<Boolean> impulseEmitted;
 
-  public ImpulseSourceFunction(boolean keepSourceAlive) {
-    this.keepSourceAlive = keepSourceAlive;
+  public ImpulseSourceFunction(long idleTimeoutMs) {
+    this.idleTimeoutMs = idleTimeoutMs;
     this.running = true;
   }
 
@@ -75,22 +75,21 @@ public class ImpulseSourceFunction
     // otherwise checkpointing would not work correctly anymore
     //
     // See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue
-    if (keepSourceAlive) {
-      // wait until this is canceled
-      final Object waitLock = new Object();
-      while (running) {
-        try {
-          // Flink will interrupt us at some point
-          //noinspection SynchronizationOnLocalVariableOrMethodParameter
-          synchronized (waitLock) {
-            // don't wait indefinitely, in case something goes horribly wrong
-            waitLock.wait(1000);
-          }
-        } catch (InterruptedException e) {
-          if (!running) {
-            // restore the interrupted state, and fall through the loop
-            Thread.currentThread().interrupt();
-          }
+    long idleStart = System.currentTimeMillis();
+    // wait until this is canceled
+    final Object waitLock = new Object();
+    while (running && (System.currentTimeMillis() - idleStart < idleTimeoutMs)) {
+      try {
+        // Flink will interrupt us at some point
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized (waitLock) {
+          // don't wait indefinitely, in case something goes horribly wrong
+          waitLock.wait(1000);
+        }
+      } catch (InterruptedException e) {
+        if (!running) {
+          // restore the interrupted state, and fall through the loop
+          Thread.currentThread().interrupt();
         }
       }
     }
