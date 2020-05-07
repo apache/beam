@@ -17,15 +17,23 @@
 from __future__ import absolute_import
 
 import inspect
+import typing
 
 import pandas as pd
 
 from apache_beam.dataframe import expressions
 
+if typing.TYPE_CHECKING:
+  # pylint: disable=ungrouped-imports
+  from typing import Any
+  from typing import Dict
+  from typing import Tuple
+  from typing import Union
+
 
 class DeferredFrame(object):
 
-  _pandas_type_map = {}
+  _pandas_type_map = {}  # type: Dict[type, type]
 
   def __init__(self, expr):
     self._expr = expr

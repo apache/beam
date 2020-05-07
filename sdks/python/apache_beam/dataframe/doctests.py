@@ -43,6 +43,7 @@ import collections
 import contextlib
 import doctest
 import re
+import typing
 
 import numpy as np
 import pandas as pd
@@ -52,6 +53,12 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import transforms
 from apache_beam.dataframe.frame_base import DeferredFrame
+
+if typing.TYPE_CHECKING:
+  # pylint: disable=ungrouped-imports
+  from typing import Any
+  from typing import Dict
+  from typing import List
 
 
 class TestEnvironment(object):
@@ -136,7 +143,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS = {}
+  _ALL_RESULTS = {}  # type: Dict[str, List[Any]]
 
   def __init__(self):
     self._id = id(self)
