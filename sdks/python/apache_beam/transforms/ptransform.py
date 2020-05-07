@@ -664,7 +664,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       return register
 
   def to_runner_api(self, context, has_parts=False, **extra_kwargs):
-    # type: (PipelineContext, bool) -> beam_runner_api_pb2.FunctionSpec
+    # type: (PipelineContext, bool, Any) -> beam_runner_api_pb2.FunctionSpec
     from apache_beam.portability.api import beam_runner_api_pb2
     urn, typed_param = self.to_runner_api_parameter(context, **extra_kwargs)
     if urn == python_urns.GENERIC_COMPOSITE_TRANSFORM and not has_parts:
