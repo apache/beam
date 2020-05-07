@@ -1193,7 +1193,8 @@ release tag to the origin repository (this would be the Apache Beam repo):</p>
 
 <p>Build python binaries in release branch in sdks/python dir.</p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python setup.py sdist --format=zip
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install -r build-requirements.txt
+python setup.py sdist --format=zip
 cd dist
 cp apache-beam-${RELEASE}.zip staging/apache-beam-${RELEASE}-python.zip
 cd staging
@@ -1317,7 +1318,7 @@ the version number has changed, download a new version of the corresponding
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pip install tox
 </code></pre></div></div>
 <p>Create the Python SDK documentation using sphinx by running a helper script.</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cd sdks/python &amp;&amp; tox -e docs
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cd sdks/python &amp;&amp; pip install -r build-requirements.txt &amp;&amp; tox -e py37-docs
 </code></pre></div></div>
 <p>By default the Pydoc is generated in <code class="highlighter-rouge">sdks/python/target/docs/_build</code>. Let <code class="highlighter-rouge">${PYDOC_ROOT}</code> be the absolute path to <code class="highlighter-rouge">_build</code>.</p>
 
