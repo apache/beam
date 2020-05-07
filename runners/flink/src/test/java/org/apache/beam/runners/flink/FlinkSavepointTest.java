@@ -160,6 +160,8 @@ public class FlinkSavepointTest implements Serializable {
     // Initial parallelism
     options.setParallelism(2);
     options.setRunner(FlinkRunner.class);
+    // Avoid any task from shutting down which would prevent savepointing
+    options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
     oneShotLatch = new CountDownLatch(1);
     Pipeline pipeline = Pipeline.create(options);

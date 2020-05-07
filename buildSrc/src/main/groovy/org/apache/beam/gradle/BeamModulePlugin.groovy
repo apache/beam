@@ -2016,7 +2016,6 @@ class BeamModulePlugin implements Plugin<Project> {
               "--output=${outputDir}/out.txt",
               "--runner=${runner}",
               "--parallelism=2",
-              "--shutdown_sources_on_final_watermark",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(':runners:flink:1.10:job-server').shadowJar.archivePath}",
               "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",

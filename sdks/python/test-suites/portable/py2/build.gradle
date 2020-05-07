@@ -75,7 +75,6 @@ task crossLanguagePythonJavaFlink {
     def options = [
         "--runner=PortableRunner",
         "--parallelism=2",
-        "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_port=8096",
         "--expansion_service_jar=${testServiceExpansionJar}",
@@ -101,7 +100,6 @@ task crossLanguagePortableWordCount {
         "--output=/tmp/py-wordcount-portable",
         "--runner=PortableRunner",
         "--parallelism=2",
-        "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_jar=${testServiceExpansionJar}",
         // Writes to local filesystem might fail for multiple SDK workers.
