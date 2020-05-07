@@ -45,7 +45,7 @@ public final class InfluxDBSettings {
   }
 
   public static class Builder {
-    private static final String DEFAULT_HOST = "http://localhost:8086/";
+    private static final String DEFAULT_HOST = "http://localhost:8086";
     private static final String INFLUX_USER = "INFLUXDB_USER";
     private static final String INFLUX_PASSWORD = "INFLUXDB_USER_PASSWORD";
 
