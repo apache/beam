@@ -27,7 +27,7 @@ class FlinkKafkaInput(PTransform):
   def infer_output_type(self, unused_input_type):
     return bytes
 
-  def to_runner_api_parameter(self, context):
+  def to_runner_api_parameter(self, _unused_context):
     assert isinstance(self, FlinkKafkaInput), \
       "expected instance of FlinkKafkaInput, but got %s" % self.__class__
     assert self.topic is not None, "topic not set"
@@ -41,7 +41,7 @@ class FlinkKafkaInput(PTransform):
 
   @staticmethod
   @PTransform.register_urn("lyft:flinkKafkaInput", None)
-  def from_runner_api_parameter(spec_parameter, _unused_context):
+  def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
     logging.info("kafka spec: %s", spec_parameter)
     instance = FlinkKafkaInput()
     payload = json.loads(spec_parameter)
@@ -115,7 +115,7 @@ class FlinkKafkaSink(PTransform):
   def get_windowing(self, inputs):
     return Windowing(GlobalWindows())
 
-  def to_runner_api_parameter(self, context):
+  def to_runner_api_parameter(self, _unused_context):
     assert isinstance(self, FlinkKafkaSink), \
       "expected instance of FlinkKafkaSink, but got %s" % self.__class__
     assert self.topic is not None, "topic not set"
@@ -127,7 +127,7 @@ class FlinkKafkaSink(PTransform):
 
   @staticmethod
   @PTransform.register_urn("lyft:flinkKafkaSink", None)
-  def from_runner_api_parameter(spec_parameter, _unused_context):
+  def from_runner_api_parameter(_unused_ptransform, spec_parameter, _unused_context):
     logging.info("kafka spec: %s", spec_parameter)
     instance = FlinkKafkaInput()
     payload = json.loads(spec_parameter)
