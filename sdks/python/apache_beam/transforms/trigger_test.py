@@ -572,7 +572,8 @@ class TranscriptTest(unittest.TestCase):
   # runner does not execute this method directly as a test.
   @classmethod
   def _create_tests(cls, transcript_filename):
-    for spec in yaml.load_all(open(transcript_filename)):
+    for spec in yaml.load_all(open(transcript_filename),
+                              Loader=yaml.SafeLoader):
       cls._create_test(spec)
 
   def _run_log_test(self, spec):
@@ -1005,7 +1006,7 @@ class BaseTestStreamTranscriptTest(TranscriptTest):
 
     with TestPipeline() as p:
       # TODO(BEAM-8601): Pass this during pipeline construction.
-      p.options.view_as(StandardOptions).streaming = True
+      p._options.view_as(StandardOptions).streaming = True
 
       # We can have at most one test stream per pipeline, so we share it.
       inputs_and_expected = p | read_test_stream
