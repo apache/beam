@@ -159,7 +159,6 @@ task javaPreCommitBeamZetaSQL() {
 
 task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:build"
-  dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
 }
 
 task javaPostCommit() {
@@ -173,10 +172,6 @@ task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
   dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
-}
-
-task javaPostCommitPortabilityApi () {
-  dependsOn ":runners:google-cloud-dataflow-java:postCommitPortabilityApi"
 }
 
 task goPreCommit() {
