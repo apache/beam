@@ -19,7 +19,7 @@
 apiVersion: 1
 
 providers:
-  - name: "All Beam dashboards"
+  - name: "Dashboards for Beam Community Metrics"
     orgId: 1
     folder: ''
     folderUid: ''
@@ -29,4 +29,13 @@ providers:
     updateIntervalSeconds: 3600
     options:
       path: /etc/beamgrafana/dashboards
-
+  - name: "Dashboards for performance tests metrics"
+    orgId: 1
+    folder: 'Performance tests metrics'
+    folderUid: ''
+    type: file
+    disableDeletion: true
+    editable: true
+    updateIntervalSeconds: 3600
+    options:
+      path: /etc/beamgrafana/dashboards/perftests_metrics
