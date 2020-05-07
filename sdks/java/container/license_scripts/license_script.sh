@@ -37,7 +37,7 @@ FLAGS="--license_dir=${ROOT}/java_third_party_licenses \
 echo "Executing ${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
 ${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS
 
-
+if [ -d "$LICENSE_DIR" ]; then rm -rf $LICENSE_DIR; fi
 mkdir -p ${LICENSE_DIR}
 echo "Copy licenses to ${LICENSE_DIR}."
 cp -r ${ROOT}/java_third_party_licenses/*.jar ${LICENSE_DIR}/
