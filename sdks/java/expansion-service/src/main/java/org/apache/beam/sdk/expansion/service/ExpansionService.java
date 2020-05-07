@@ -38,7 +38,6 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
@@ -314,11 +313,8 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         request.getTransform().getUniqueName(),
         request.getTransform().getSpec().getUrn());
     LOG.debug("Full transform: {}", request.getTransform());
-
-    Pipeline pipeline =
-        Pipeline.create(PipelineOptionsTranslation.fromProto(request.getPipelineOptions()));
-
     Set<String> existingTransformIds = request.getComponents().getTransformsMap().keySet();
+    Pipeline pipeline = Pipeline.create();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
     RehydratedComponents rehydratedComponents =
