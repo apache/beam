@@ -37,7 +37,6 @@ from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.job import utils as job_utils
 from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.trivial_inference import instance_to_type
@@ -310,16 +309,10 @@ class ExternalTransform(ptransform.PTransform):
                   urn=common_urns.primitives.IMPULSE.urn),
               outputs={'out': transform_proto.inputs[tag]}))
     components = context.to_runner_api()
-
-    # Retain unknown options since they may only be relevant to the expanding
-    # SDK
-    options = pipeline._options.get_all_options(
-        drop_default=True, retain_unknown_options=True)
     request = beam_expansion_api_pb2.ExpansionRequest(
         components=components,
         namespace=self._namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
-        transform=transform_proto,
-        pipeline_options=job_utils.pipeline_options_dict_to_struct(options))
+        transform=transform_proto)
 
     if isinstance(self._expansion_service, str):
       # Some environments may not support unsecure channels. Hence using a
