@@ -48,11 +48,11 @@ public class BoundedDataset<T> implements Dataset {
   private JavaRDD<WindowedValue<T>> rdd;
   private List<byte[]> clientBytes;
 
-  BoundedDataset(JavaRDD<WindowedValue<T>> rdd) {
+  public BoundedDataset(JavaRDD<WindowedValue<T>> rdd) {
     this.rdd = rdd;
   }
 
-  BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
+  public BoundedDataset(Iterable<T> values, JavaSparkContext jsc, Coder<T> coder) {
     this.windowedValues = Iterables.transform(values, WindowedValue::valueInGlobalWindow);
     this.jsc = jsc;
     this.coder = coder;
