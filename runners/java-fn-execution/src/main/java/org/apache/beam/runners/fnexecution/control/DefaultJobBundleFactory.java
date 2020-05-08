@@ -620,7 +620,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       // These will be closed in the reverse creation order:
       try (AutoCloseable envCloser = environment;
           AutoCloseable provisioningServer = serverInfo.getProvisioningServer();
-          AutoCloseable retrievalServer = serverInfo.getLegacyRetrievalServer();
+          AutoCloseable legacyRetrievalServer = serverInfo.getLegacyRetrievalServer();
           AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
           AutoCloseable stateServer = serverInfo.getStateServer();
           AutoCloseable dataServer = serverInfo.getDataServer();
