@@ -170,7 +170,7 @@ public class GroupByKey<K, V>
       throw new IllegalArgumentException(
           String.format(
               "Unsafe trigger '%s' may lose data, did you mean to wrap it in"
-                  + "`Repeatedly.forever(...)`?\nSee "
+                  + "`Repeatedly.forever(...)`?%nSee "
                   + "https://s.apache.org/finishing-triggers-drop-data "
                   + "for details.",
               windowingStrategy.getTrigger()));
