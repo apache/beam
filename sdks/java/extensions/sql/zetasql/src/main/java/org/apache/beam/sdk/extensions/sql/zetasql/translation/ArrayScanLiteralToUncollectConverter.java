@@ -27,9 +27,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Converts array scan that represents an array literal to uncollect. */
-class ArrayScanToUncollectConverter extends RelConverter<ResolvedArrayScan> {
+class ArrayScanLiteralToUncollectConverter extends RelConverter<ResolvedArrayScan> {
 
-  ArrayScanToUncollectConverter(ConversionContext context) {
+  ArrayScanLiteralToUncollectConverter(ConversionContext context) {
     super(context);
   }
 
