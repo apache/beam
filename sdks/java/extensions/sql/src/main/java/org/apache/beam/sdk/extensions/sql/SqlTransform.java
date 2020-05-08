@@ -29,6 +29,7 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
@@ -47,6 +48,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 
 /**
  * {@link SqlTransform} is the DSL interface of Beam SQL. It translates a SQL query as a {@link
@@ -103,6 +105,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract @Nullable String defaultTableProvider();
 
+  abstract @Nullable String queryPlannerClassName();
+
   @Override
   public PCollection<Row> expand(PInput input) {
     BeamSqlEnvBuilder sqlEnvBuilder =
@@ -123,7 +127,9 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     }
 
     sqlEnvBuilder.setQueryPlannerClassName(
-        input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName());
+        MoreObjects.firstNonNull(
+            queryPlannerClassName(),
+            input.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getPlannerName()));
 
     sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
 
@@ -202,6 +208,10 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
   }
 
+  public SqlTransform withQueryPlannerClass(Class<? extends QueryPlanner> clazz) {
+    return toBuilder().setQueryPlannerClassName(clazz.getName()).build();
+  }
+
   public SqlTransform withNamedParameters(Map<String, ?> parameters) {
     return toBuilder().setQueryParameters(QueryParameters.ofNamed(parameters)).build();
   }
@@ -273,6 +283,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setTableProviderMap(Map<String, TableProvider> tableProviderMap);
 
     abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
+
+    abstract Builder setQueryPlannerClassName(@Nullable String queryPlannerClassName);
 
     abstract SqlTransform build();
 
