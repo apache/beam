@@ -20,7 +20,7 @@ package org.apache.beam.runners.flink;
 import java.util.Map;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.pipeline.v1.MetricsApi;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

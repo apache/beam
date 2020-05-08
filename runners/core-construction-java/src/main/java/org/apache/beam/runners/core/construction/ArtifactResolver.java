@@ -40,6 +40,10 @@ public interface ArtifactResolver {
   /** Updating pipeline proto by applying registered {@link ResolutionFn}s. */
   RunnerApi.Pipeline resolveArtifacts(RunnerApi.Pipeline pipeline);
 
+  /** Resolves a list of artifacts by applying registered {@link ResolutionFn}s. */
+  List<RunnerApi.ArtifactInformation> resolveArtifacts(
+      List<RunnerApi.ArtifactInformation> artifacts);
+
   /**
    * A lazy transformer for resolving {@link RunnerApi.ArtifactInformation}. Note that {@link
    * ResolutionFn} postpones any side-effect until {@link

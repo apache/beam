@@ -84,7 +84,9 @@ class SubprocessServer(object):
     try:
       endpoint = self.start_process()
       wait_secs = .1
-      channel = grpc.insecure_channel(endpoint)
+      channel_options = [("grpc.max_receive_message_length", -1),
+                         ("grpc.max_send_message_length", -1)]
+      channel = grpc.insecure_channel(endpoint, options=channel_options)
       channel_ready = grpc.channel_ready_future(channel)
       while True:
         if self._process is not None and self._process.poll() is not None:
