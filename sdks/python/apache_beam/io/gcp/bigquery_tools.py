@@ -411,7 +411,7 @@ class BigQueryWrapper(object):
     return response
 
   def wait_for_bq_job(
-      self, job_reference, sleep_duration_sec=5, max_retries=60):
+      self, job_reference, sleep_duration_sec=5, max_retries=0):
     """Poll job until it is DONE.
 
     Args:
