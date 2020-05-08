@@ -1155,7 +1155,10 @@ public class SpannerIO {
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      if (batchCells > 0) {
+      // Only output when there is something in the batch.
+      if (mutationsToSort.isEmpty()) {
+        mutationsToSort = null;
+      } else {
         c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
       }
     }
