@@ -20,11 +20,13 @@ package org.apache.beam.sdk.transforms;
 import static junit.framework.TestCase.assertEquals;
 
 import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.junit.Before;
@@ -45,6 +47,8 @@ public class SetFnsTest {
   static PCollection<String> right;
   static PCollection<Row> leftRow;
   static PCollection<Row> rightRow;
+  static final String[] LEFT_DATA = {"a", "a", "a", "b", "b", "c", "d", "d", "g", "g", "h", "h"};
+  static final String[] RIGHT_DATA = {"a", "a", "b", "b", "b", "c", "d", "d", "e", "e", "f", "f"};
 
   private Iterable<Row> toRows(String... values) {
     return Iterables.transform(
@@ -54,13 +58,10 @@ public class SetFnsTest {
   @Before
   public void setup() {
 
-    String[] leftData = {"a", "a", "a", "b", "b", "c", "d", "d", "g", "g", "h", "h"};
-    String[] rightData = {"a", "a", "b", "b", "b", "c", "d", "d", "e", "e", "f", "f"};
-
-    left = p.apply("left", Create.of(Arrays.asList(leftData)));
-    right = p.apply("right", Create.of(Arrays.asList(rightData)));
-    leftRow = p.apply("leftRow", Create.of(toRows(leftData)).withRowSchema(schema));
-    rightRow = p.apply("rightRow", Create.of(toRows(rightData)).withRowSchema(schema));
+    left = p.apply("left", Create.of(Arrays.asList(LEFT_DATA)));
+    right = p.apply("right", Create.of(Arrays.asList(RIGHT_DATA)));
+    leftRow = p.apply("leftRow", Create.of(toRows(LEFT_DATA)).withRowSchema(schema));
+    rightRow = p.apply("rightRow", Create.of(toRows(RIGHT_DATA)).withRowSchema(schema));
   }
 
   @Test
@@ -72,6 +73,19 @@ public class SetFnsTest {
     PCollection<Row> results = leftRow.apply("rows", SetFns.intersect(rightRow));
     PAssert.that(results).containsInAnyOrder(toRows("a", "b", "c", "d"));
     assertEquals(schema, results.getSchema());
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testIntersectionCollectionList() {
+    List<String> strings = Arrays.asList("b", "b", "c");
+    PCollection<String> set3 = p.apply("set3", Create.of(strings));
+
+    PAssert.that(
+            PCollectionList.of(left).and(right).and(set3).apply("stringsCol", SetFns.intersect()))
+        .containsInAnyOrder("b", "c");
 
     p.run();
   }
@@ -136,6 +150,30 @@ public class SetFnsTest {
                 "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "c", "c", "d", "d", "d", "d", "e",
                 "e", "f", "f", "g", "g", "h", "h"));
 
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testUnionAllCollections() {
+
+    List<String> strings = Arrays.asList("a", "b", "b");
+    PCollection<String> set3 = p.apply("set3", Create.of(strings));
+
+    PAssert.that(
+            PCollectionList.of(left).and(right).and(set3).apply("stringsCol", SetFns.unionAll()))
+        .containsInAnyOrder(
+            "a", "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "b", "b", "c", "c", "d", "d",
+            "d", "d", "e", "e", "f", "f", "g", "g", "h", "h");
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testOnlyOneCollectionInPCollectionList() {
+
+    PAssert.that(PCollectionList.of(left).apply("stringsCol", SetFns.intersect()))
+        .containsInAnyOrder(LEFT_DATA);
     p.run();
   }
 }

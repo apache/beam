@@ -76,7 +76,7 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
         if (all) {
           return leftRows.apply(SetFns.unionAll(rightRows));
         } else {
-          return leftRows.apply(SetFns.union(rightRows));
+          return leftRows.apply(SetFns.distinctUnion(rightRows));
         }
       case INTERSECT:
         if (all) {
