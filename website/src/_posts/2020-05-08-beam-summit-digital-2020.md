@@ -23,7 +23,7 @@ limitations under the License.
 -->
 
 
-As some of you are already aware, the 2020 edition of the Beam Summit will be completely digital and free. And as you would expect from the Apache Beam community, it is coming in fast; the Beam Digital Summit will be from June 15th to 19th, one moth away! The conference will be spread across the course of one week with only a couple of hours of program each day.
+As some of you are already aware, the 2020 edition of the Beam Summit will be completely **digital and free**. And as you would expect from the Apache Beam community, it is coming in fast; the Beam Digital Summit will be from **June 15th to 19th**, one moth away! The conference will be spread across the course of one week with a couple of hours of program each day.
 
 <!--more-->
 
@@ -39,10 +39,10 @@ So, what we want to say with this is: We will have a great event! And if you hav
 
 As all things Beam, this is a community effort. The door is open for participation:
 
-1. Submit a proposal to talk. Please check out the **[Call for Papers](https://sessionize.com/beam-digital-summit-2020/)** and submit a talk. The deadline for submissions is May 20th!
+1. Submit a proposal to talk. Please check out the **[Call for Papers](https://sessionize.com/beam-digital-summit-2020/)** and submit a talk. The deadline for submissions is _May 20th_!
 2. Register to join as an attendee. Registration is now open at the **[registration page](https://crowdcast.io/e/beamsummit)**. Registration is free!
 3. Consider sponsoring the event. If your company is interested in engaging with members of the community please check out our [sponsoring prospectus](https://drive.google.com/open?id=1EbijvZKpkWwWyMryLY9sJfyZzZk1k44v).
-4. Help us get the word out. Please make sure to let your colleagues and friends in the data engineering field know about the Beam Summit.
+4. Help us get the word out. Please make sure to let your colleagues and friends in the data engineering field (and beyond!) know about the Beam Summit.
 
 ## Follow up and more information
 
