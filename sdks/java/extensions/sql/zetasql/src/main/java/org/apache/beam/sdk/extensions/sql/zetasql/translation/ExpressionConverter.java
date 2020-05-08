@@ -561,6 +561,7 @@ public class ExpressionConverter {
     return ret;
   }
 
+  /** Convert a TableValuedFunction in ZetaSQL to a RexCall in Calcite. */
   public RexCall convertTableValuedFunction(
       RelNode input,
       TableValuedFunction tvf,
@@ -600,9 +601,8 @@ public class ExpressionConverter {
       }
     }
 
-    // ZetaSQL parser guarantees that wmCol can be found from inputTableColumns.
-    // so it shouldn't reach here.
-    throw new IllegalArgumentException();
+    throw new IllegalArgumentException(
+        "ZetaSQL parser guarantees that wmCol can be found from inputTableColumns so it shouldn't reach here.");
   }
 
   private ResolvedColumn extractWatermarkColumnFromDescriptor(

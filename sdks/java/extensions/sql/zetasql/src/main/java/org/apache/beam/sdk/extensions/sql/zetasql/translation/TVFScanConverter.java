@@ -31,6 +31,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelRecordType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 
+/** Converts TVFScan. */
 class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
 
   TVFScanConverter(ConversionContext context) {

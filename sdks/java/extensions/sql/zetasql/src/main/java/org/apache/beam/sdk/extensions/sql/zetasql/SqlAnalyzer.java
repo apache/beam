@@ -53,6 +53,7 @@ import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
@@ -210,9 +211,11 @@ class SqlAnalyzer {
                 retType, ImmutableList.of(inputTableType, descriptorType, stringType), 123),
             ImmutableList.of(
                 TVFRelation.Column.create(
-                    "window_start", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+                    TVFStreamingUtils.WINDOW_START,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
                 TVFRelation.Column.create(
-                    "window_end", TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+                    TVFStreamingUtils.WINDOW_END,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
   }
 
   /**

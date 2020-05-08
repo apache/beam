@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -28,6 +30,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.Con
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.TableFunctionScan;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 
+/**
+ * This is the conveter rule that converts a Calcite {@code TableFunctionScan} to Beam {@code
+ * TableFunctionScanRel}.
+ */
 public class BeamTableFunctionScanRule extends ConverterRule {
   public static final BeamTableFunctionScanRule INSTANCE = new BeamTableFunctionScanRule();
 
@@ -44,6 +50,11 @@ public class BeamTableFunctionScanRule extends ConverterRule {
     TableFunctionScan tableFunctionScan = (TableFunctionScan) relNode;
     // only support one input for table function scan.
     List<RelNode> inputs = new ArrayList<>();
+    checkArgument(
+        relNode.getInputs().size() == 1,
+        "Wrong number of inputs for %s, expected 1 input but received: %s",
+        BeamTableFunctionScanRel.class.getSimpleName(),
+        relNode.getInputs().size());
     inputs.add(
         convert(
             relNode.getInput(0),

@@ -48,6 +48,10 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexLiteral;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.joda.time.Duration;
 
+/**
+ * BeamRelNode to replace {@code TableFunctionScan}. Currently this class limits to support
+ * table-valued function for streaming windowing.
+ */
 public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamRelNode {
   public BeamTableFunctionScanRel(
       RelOptCluster cluster,
@@ -83,12 +87,14 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
     public PCollection<Row> expand(PCollectionList<Row> input) {
       checkArgument(
           input.size() == 1,
-          "Wrong number of inputs for %s: %s",
+          "Wrong number of inputs for %s, expected 1 input but received: %s",
           BeamTableFunctionScanRel.class.getSimpleName(),
           input);
+      String operatorName = ((RexCall) getCall()).getOperator().getName();
       checkArgument(
-          ((RexCall) getCall()).getOperator().getName().equals("TUMBLE"),
-          "Only support TUMBLE table-valued function");
+          operatorName.equals("TUMBLE"),
+          "Only support TUMBLE table-valued function. Current operator: %s",
+          operatorName);
       RexCall call = ((RexCall) getCall());
       RexInputRef wmCol = (RexInputRef) call.getOperands().get(1);
       PCollection<Row> upstream = input.get(0);
@@ -133,7 +139,6 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
       IntervalWindow window = windowFn.assignWindow(row.getDateTime(windowFieldIndex).toInstant());
       Row.Builder builder = Row.withSchema(outputSchema);
       builder.addValues(row.getValues());
-      // TODO: add window_start and window_end;
       builder.addValue(window.start());
       builder.addValue(window.end());
       c.output(builder.build());

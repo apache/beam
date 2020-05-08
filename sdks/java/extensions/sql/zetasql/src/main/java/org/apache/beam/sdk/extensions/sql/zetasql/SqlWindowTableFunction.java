@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFieldImpl;
@@ -34,6 +35,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlRet
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlValidator;
 
+/** Base class for table-valued function windowing operator (TUMBLE, HOP and SESSION). */
 public class SqlWindowTableFunction extends SqlFunction {
   public SqlWindowTableFunction(String name) {
     super(
@@ -102,10 +104,11 @@ public class SqlWindowTableFunction extends SqlFunction {
         RelDataType timestampType = opBinding.getTypeFactory().createSqlType(SqlTypeName.TIMESTAMP);
 
         RelDataTypeField windowStartField =
-            new RelDataTypeFieldImpl("window_start", newFields.size(), timestampType);
+            new RelDataTypeFieldImpl(
+                TVFStreamingUtils.WINDOW_START, newFields.size(), timestampType);
         newFields.add(windowStartField);
         RelDataTypeField windowEndField =
-            new RelDataTypeFieldImpl("window_end", newFields.size(), timestampType);
+            new RelDataTypeFieldImpl(TVFStreamingUtils.WINDOW_END, newFields.size(), timestampType);
         newFields.add(windowEndField);
 
         return new RelRecordType(inputRowType.getStructKind(), newFields);
