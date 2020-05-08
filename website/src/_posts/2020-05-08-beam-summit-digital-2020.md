@@ -46,6 +46,6 @@ As all things Beam, this is a community effort. The door is open for participati
 
 ## Follow up and more information
 
-While we will use the Crowdcast platform to broadcast the event, we will still have a full event website at [https://beamsummit.org](beamsummit.org) with details about the schedule, speakers, FAQ and everything else you need from an event. We are currently working on updating the website and will publish all event details in the next couple of weeks.
+While we will use the Crowdcast platform to broadcast the event, we will still have a full event website at [beamsummit.org](https://beamsummit.org) with details about the schedule, speakers, FAQ and everything else you need from an event. We are currently working on updating the website and will publish all event details in the next couple of weeks.
 
 Please also follow us on [Twitter](https://twitter.com/beamsummit) or [LinkedIn](https://www.linkedin.com/company/beam-summit/) to get event updates.
