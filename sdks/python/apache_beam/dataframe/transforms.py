@@ -18,13 +18,6 @@ from __future__ import absolute_import
 
 import typing
 from typing import TypeVar
-from typing import Any
-from typing import Dict
-from typing import Iterable
-from typing import List
-from typing import Mapping
-from typing import Tuple
-from typing import Union
 
 import pandas as pd
 
@@ -32,7 +25,16 @@ import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
-from apache_beam.pvalue import PCollection
+
+if typing.TYPE_CHECKING:
+  # pylint: disable=ungrouped-imports
+  from typing import Any
+  from typing import Dict
+  from typing import List
+  from typing import Mapping
+  from typing import Tuple
+  from typing import Union
+  from apache_beam.pvalue import PCollection
 
 T = TypeVar('T')
 
@@ -273,9 +275,9 @@ def _flatten(
 
   For example `{a: x, b: (y, z)}` becomes `{(a,): x, (b, 0): y, (b, 1): c}`.
   """
-  if isinstance(valueish, Mapping):
+  if isinstance(valueish, dict):
     return _dict_union(_flatten(v, root + (k, )) for k, v in valueish.items())
-  elif isinstance(valueish, (list, tuple)):
+  elif isinstance(valueish, (tuple, list)):
     return _dict_union(
         _flatten(v, root + (ix, )) for ix, v in enumerate(valueish))
   else:
