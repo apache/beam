@@ -66,9 +66,9 @@ public class SetFns {
    * {@code PCollection<T>} containing intersection of collections done in order for all collections
    * in {@code PCollectionList<T>}.
    *
-   * <p>Intersection follows SET DISTINCT semantics.The elements of the output {@link
-   * PCollection} will have all distinct elements that present in both pipeline is constructed
-   * and next {@link PCollection} in the list and applied to all collections in order.
+   * <p>Intersection follows SET DISTINCT semantics.The elements of the output {@link PCollection}
+   * will have all distinct elements that present in both pipeline is constructed and next {@link
+   * PCollection} in the list and applied to all collections in order.
    *
    * <pre>{@code
    * Pipeline p = ...;
@@ -248,19 +248,19 @@ public class SetFns {
 
   public static class SetImpl<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
-    private final transient PCollection<T> right;
+    private final transient PCollection<T> rightCollection;
     private final PTransform<PCollectionList<T>, PCollection<T>> listTransformFn;
 
     private SetImpl(
         PCollection<T> rightCollection,
         PTransform<PCollectionList<T>, PCollection<T>> listTransformFn) {
-      this.right = rightCollection;
+      this.rightCollection = rightCollection;
       this.listTransformFn = listTransformFn;
     }
 
     @Override
     public PCollection<T> expand(PCollection<T> leftCollection) {
-      return PCollectionList.of(leftCollection).and(right).apply(listTransformFn);
+      return PCollectionList.of(leftCollection).and(rightCollection).apply(listTransformFn);
     }
   }
 
@@ -273,7 +273,7 @@ public class SetFns {
     }
 
     private static <T> PCollection<T> performSetOperationCollectionList(
-            PCollectionList<T> inputs, SerializableBiFunction<Long, Long, Long> fn) {
+        PCollectionList<T> inputs, SerializableBiFunction<Long, Long, Long> fn) {
       List<PCollection<T>> all = inputs.getAll();
       int size = all.size();
       if (size == 1) {
@@ -291,53 +291,53 @@ public class SetFns {
     }
 
     private static <T> PCollection<T> performSetOperation(
-            PCollection<T> leftCollection,
-            PCollection<T> rightCollection,
-            SerializableBiFunction<Long, Long, Long> fn) {
+        PCollection<T> leftCollection,
+        PCollection<T> rightCollection,
+        SerializableBiFunction<Long, Long, Long> fn) {
 
       TupleTag<Void> leftCollectionTag = new TupleTag<>();
       TupleTag<Void> rightCollectionTag = new TupleTag<>();
 
       MapElements<T, KV<T, Void>> elementToVoid =
-              MapElements.via(
-                      new SimpleFunction<T, KV<T, Void>>() {
-                        @Override
-                        public KV<T, Void> apply(T element) {
-                          return KV.of(element, null);
-                        }
-                      });
+          MapElements.via(
+              new SimpleFunction<T, KV<T, Void>>() {
+                @Override
+                public KV<T, Void> apply(T element) {
+                  return KV.of(element, null);
+                }
+              });
 
       String leftCollectionName = leftCollection.getName();
       String rightCollectionName = rightCollection.getName();
       PCollection<KV<T, Void>> left =
-              leftCollection.apply("PrepareLeftKV" + leftCollectionName, elementToVoid);
+          leftCollection.apply("PrepareLeftKV" + leftCollectionName, elementToVoid);
       PCollection<KV<T, Void>> right =
-              rightCollection.apply("PrepareRightKV" + rightCollectionName, elementToVoid);
+          rightCollection.apply("PrepareRightKV" + rightCollectionName, elementToVoid);
 
       PCollection<KV<T, CoGbkResult>> coGbkResults =
-              KeyedPCollectionTuple.of(leftCollectionTag, left)
-                      .and(rightCollectionTag, right)
-                      .apply("CBK" + leftCollectionName, CoGroupByKey.create());
+          KeyedPCollectionTuple.of(leftCollectionTag, left)
+              .and(rightCollectionTag, right)
+              .apply("CBK" + leftCollectionName, CoGroupByKey.create());
       // TODO: lift combiners through the CoGBK.
       return coGbkResults.apply(
-              "FilterSetElement" + leftCollectionName,
-              ParDo.of(
-                      new DoFn<KV<T, CoGbkResult>, T>() {
+          "FilterSetElement" + leftCollectionName,
+          ParDo.of(
+              new DoFn<KV<T, CoGbkResult>, T>() {
 
-                        @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          KV<T, CoGbkResult> elementGroups = c.element();
+                @ProcessElement
+                public void processElement(ProcessContext c) {
+                  KV<T, CoGbkResult> elementGroups = c.element();
 
-                          CoGbkResult value = elementGroups.getValue();
-                          long inFirstSize = Iterables.size(value.getAll(leftCollectionTag));
-                          long inSecondSize = Iterables.size(value.getAll(rightCollectionTag));
+                  CoGbkResult value = elementGroups.getValue();
+                  long inFirstSize = Iterables.size(value.getAll(leftCollectionTag));
+                  long inSecondSize = Iterables.size(value.getAll(rightCollectionTag));
 
-                          T element = elementGroups.getKey();
-                          for (long i = 0L; i < fn.apply(inFirstSize, inSecondSize); i++) {
-                            c.output(element);
-                          }
-                        }
-                      }));
+                  T element = elementGroups.getKey();
+                  for (long i = 0L; i < fn.apply(inFirstSize, inSecondSize); i++) {
+                    c.output(element);
+                  }
+                }
+              }));
     }
 
     @Override
