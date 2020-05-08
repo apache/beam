@@ -257,7 +257,7 @@ func TestSdfNodes(t *testing.T) {
 					Windows:   testWindows,
 				},
 				want: FullValue{
-					Elm:       VetRestriction{ID: "Sdf", CreateTracker: true, ProcessElm: true, Val: 1},
+					Elm:       &VetRestriction{ID: "Sdf", CreateTracker: true, ProcessElm: true, Val: 1},
 					Elm2:      nil,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,
@@ -281,7 +281,7 @@ func TestSdfNodes(t *testing.T) {
 					Windows:   testWindows,
 				},
 				want: FullValue{
-					Elm:       VetRestriction{ID: "KvSdf", CreateTracker: true, ProcessElm: true, Key: 1, Val: 2},
+					Elm:       &VetRestriction{ID: "KvSdf", CreateTracker: true, ProcessElm: true, Key: 1, Val: 2},
 					Elm2:      nil,
 					Timestamp: testTimestamp,
 					Windows:   testWindows,

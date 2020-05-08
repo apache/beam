@@ -248,6 +248,10 @@ type VetRestriction struct {
 	CreateRest, SplitRest, RestSize, CreateTracker, ProcessElm bool
 }
 
+func (r VetRestriction) copy() VetRestriction {
+	return r
+}
+
 // VetRTracker's methods can all be no-ops, we just need it to implement
 // sdf.RTracker and allow validating that it was passed to ProcessElement.
 type VetRTracker struct {
@@ -280,19 +284,14 @@ func (fn *VetSdf) CreateInitialRestriction(i int) *VetRestriction {
 // split restrictions add a suffix of the form ".#" to the ID.
 func (fn *VetSdf) SplitRestriction(i int, rest *VetRestriction) []*VetRestriction {
 	rest.SplitRest = true
-	rest1 := &VetRestriction{
-		ID:            rest.ID + ".1",
-		Val:           i,
-		CreateRest:    rest.CreateRest,
-		SplitRest:     true,
-		RestSize:      rest.RestSize,
-		CreateTracker: rest.CreateTracker,
-		ProcessElm:    rest.ProcessElm,
-	}
-	rest2 := &VetRestriction{}
-	*rest2 = *rest1
-	rest2.ID = rest.ID + ".2"
-	return []*VetRestriction{rest1, rest2}
+	rest.Val = i
+
+	rest1 := rest.copy()
+	rest1.ID += ".1"
+	rest2 := rest.copy()
+	rest2.ID += ".2"
+
+	return []*VetRestriction{&rest1, &rest2}
 }
 
 // RestrictionSize just returns i as the size, as well as flipping appropriate
@@ -311,10 +310,13 @@ func (fn *VetSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
 	return &VetRTracker{rest}
 }
 
-// ProcessElement emits a copy of the restriction in the restriction tracker it
+// ProcessElement emits the restriction from the restriction tracker it
 // received, with the appropriate flags flipped to track that this was called.
-func (fn *VetSdf) ProcessElement(rt *VetRTracker, i int, emit func(VetRestriction)) {
-	rest := *rt.Rest
+// Note that emitting restrictions is discouraged in normal usage. It is only
+// done here to allow validating that ProcessElement is being executed
+// properly.
+func (fn *VetSdf) ProcessElement(rt *VetRTracker, i int, emit func(*VetRestriction)) {
+	rest := rt.Rest
 	rest.Key = nil
 	rest.Val = i
 	rest.ProcessElm = true
@@ -339,20 +341,15 @@ func (fn *VetKvSdf) CreateInitialRestriction(i, j int) *VetRestriction {
 // split restrictions add a suffix of the form ".#" to the ID.
 func (fn *VetKvSdf) SplitRestriction(i, j int, rest *VetRestriction) []*VetRestriction {
 	rest.SplitRest = true
-	rest1 := &VetRestriction{
-		ID:            rest.ID + ".1",
-		Key:           i,
-		Val:           j,
-		CreateRest:    rest.CreateRest,
-		SplitRest:     true,
-		RestSize:      rest.RestSize,
-		CreateTracker: rest.CreateTracker,
-		ProcessElm:    rest.ProcessElm,
-	}
-	rest2 := &VetRestriction{}
-	*rest2 = *rest1
-	rest2.ID = rest.ID + ".2"
-	return []*VetRestriction{rest1, rest2}
+	rest.Key = i
+	rest.Val = j
+
+	rest1 := rest.copy()
+	rest1.ID += ".1"
+	rest2 := rest.copy()
+	rest2.ID += ".2"
+
+	return []*VetRestriction{&rest1, &rest2}
 }
 
 // RestrictionSize just returns the sum of i and j as the size, as well as
@@ -371,10 +368,13 @@ func (fn *VetKvSdf) CreateTracker(rest *VetRestriction) *VetRTracker {
 	return &VetRTracker{rest}
 }
 
-// ProcessElement emits a copy of the restriction in the restriction tracker it
+// ProcessElement emits the restriction from the restriction tracker it
 // received, with the appropriate flags flipped to track that this was called.
-func (fn *VetKvSdf) ProcessElement(rt *VetRTracker, i, j int, emit func(VetRestriction)) {
-	rest := *rt.Rest
+// Note that emitting restrictions is discouraged in normal usage. It is only
+// done here to allow validating that ProcessElement is being executed
+// properly.
+func (fn *VetKvSdf) ProcessElement(rt *VetRTracker, i, j int, emit func(*VetRestriction)) {
+	rest := rt.Rest
 	rest.Key = i
 	rest.Val = j
 	rest.ProcessElm = true
