@@ -621,6 +621,7 @@ public class DefaultJobBundleFactory implements JobBundleFactory {
       try (AutoCloseable envCloser = environment;
           AutoCloseable provisioningServer = serverInfo.getProvisioningServer();
           AutoCloseable retrievalServer = serverInfo.getLegacyRetrievalServer();
+          AutoCloseable retrievalServer = serverInfo.getRetrievalServer();
           AutoCloseable stateServer = serverInfo.getStateServer();
           AutoCloseable dataServer = serverInfo.getDataServer();
           AutoCloseable controlServer = serverInfo.getControlServer();

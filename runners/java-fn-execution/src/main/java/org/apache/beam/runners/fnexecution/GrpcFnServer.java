@@ -44,7 +44,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   }
 
   /**
-   * Create a {@link GrpcFnServer}s for the provided {@link FnService}s running on an arbitrary
+   * Create {@link GrpcFnServer}s for the provided {@link FnService}s running on an arbitrary
    * port.
    */
   public static List<GrpcFnServer<? extends FnService>> allocatePortAndCreateFor(
@@ -61,7 +61,7 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   }
 
   /**
-   * Create a {@link GrpcFnServer}s for the provided {@link FnService}s running on a specified port.
+   * Create {@link GrpcFnServer}s for the provided {@link FnService}s running on a specified port.
    */
   public static List<GrpcFnServer<? extends FnService>> create(
       List<? extends FnService> services, ApiServiceDescriptor endpoint, ServerFactory factory)
