@@ -410,8 +410,7 @@ class BigQueryWrapper(object):
     response = self.client.jobs.Insert(request)
     return response
 
-  def wait_for_bq_job(
-      self, job_reference, sleep_duration_sec=5, max_retries=0):
+  def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
     """Poll job until it is DONE.
 
     Args:
