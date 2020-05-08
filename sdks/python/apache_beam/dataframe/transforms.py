@@ -262,7 +262,7 @@ def _dict_union(dicts):
 
 
 def _flatten(
-    valueish,  # type: Union[T, List[T], Tuple[T], Mapping[Any, T]]
+    valueish,  # type: Union[T, List[T], Tuple[T], Dict[Any, T]]
     root=(),  # type: Tuple[Any, ...]
     ):
   # type: (...) -> Mapping[Tuple[Any, ...], T]
