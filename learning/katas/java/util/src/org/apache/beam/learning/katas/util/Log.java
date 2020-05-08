@@ -29,10 +29,9 @@ import org.slf4j.LoggerFactory;
 
 public class Log {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(Log.class);
+  private static final Logger LOG = LoggerFactory.getLogger(Log.class);
 
-  private Log() {
-  }
+  private Log() {}
 
   public static <T> PTransform<PCollection<T>, PCollection<T>> ofElements() {
     return new LoggingTransform<>();
@@ -56,26 +55,25 @@ public class Log {
 
     @Override
     public PCollection<T> expand(PCollection<T> input) {
-      return input.apply(ParDo.of(new DoFn<T, T>() {
+      return input.apply(
+          ParDo.of(
+              new DoFn<T, T>() {
 
-        @ProcessElement
-        public void processElement(@Element T element, OutputReceiver<T> out,
-            BoundedWindow window) {
+                @ProcessElement
+                public void processElement(
+                    @Element T element, OutputReceiver<T> out, BoundedWindow window) {
 
-          String message = prefix + element.toString();
+                  String message = prefix + element.toString();
 
-          if (!(window instanceof GlobalWindow)) {
-            message = message + "  Window:" + window.toString();
-          }
+                  if (!(window instanceof GlobalWindow)) {
+                    message = message + "  Window:" + window.toString();
+                  }
 
-          LOGGER.info(message);
+                  LOG.info(message);
 
-          out.output(element);
-        }
-
-      }));
+                  out.output(element);
+                }
+              }));
     }
-
   }
-
 }

@@ -20,4 +20,8 @@
  * {@link org.apache.beam.sdk.io.FileSystem} implementation for any Hadoop {@link
  * org.apache.hadoop.fs.FileSystem}.
  */
+@Experimental(Kind.FILESYSTEM)
 package org.apache.beam.sdk.io.hdfs;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

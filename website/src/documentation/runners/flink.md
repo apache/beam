@@ -84,15 +84,13 @@ Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/
 ## Version Compatibility
 
 The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.7.0` the
-minor version is `1.7`.
+The minor version is the first two numbers in the version string, e.g. in `1.8.0` the
+minor version is `1.8`.
 
 We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
-The Flink community typially supports the last two minor versions. When support for a Flink
-version is dropped, it may be deprecated and removed also from Beam, with the exception of
-Beam LTS releases. LTS releases continue to receive bug fixes for long as the LTS support
-period.
+The Flink community supports the last two minor versions. When support for a Flink
+version is dropped, it may be deprecated and removed also from Beam.
 
 To find out which version of Flink is compatible with Beam please see the table below:
 
@@ -103,7 +101,20 @@ To find out which version of Flink is compatible with Beam please see the table 
   <th>Artifact Id</th>
 </tr>
 <tr>
-  <td rowspan="3">2.17.0</td>
+  <td rowspan="3">2.21.0</td>
+  <td>1.10.x</td>
+  <td>beam-runners-flink-1.10</td>
+</tr>
+<tr>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td rowspan="3">2.17.0-2.20.0</td>
   <td>1.9.x</td>
   <td>beam-runners-flink-1.9</td>
 </tr>
@@ -269,26 +280,29 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 </span>
 
 <span class="language-py">
-As of now you will need a copy of Apache Beam's source code. You can
-download it on the [Downloads page]({{ site.baseurl }}/get-started/downloads/).
 
-Pre-built Docker images are available at Docker-Hub:
-[Python 2.7](https://hub.docker.com/r/apachebeam/python2.7_sdk),
-[Python 3.5](https://hub.docker.com/r/apachebeam/python3.5_sdk),
-[Python 3.6](https://hub.docker.com/r/apachebeam/python3.6_sdk),
-[Python 3.7](https://hub.docker.com/r/apachebeam/python3.7_sdk).
+Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.
+
+JobService:
+[Flink 1.7](https://hub.docker.com/r/apache/beam_flink1.7_job_server),
+[Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
+[Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
+
+Beam SDK:
+[Python 2.7](https://hub.docker.com/r/apache/beam_python2.7_sdk),
+[Python 3.5](https://hub.docker.com/r/apache/beam_python3.5_sdk),
+[Python 3.6](https://hub.docker.com/r/apache/beam_python3.6_sdk),
+[Python 3.7](https://hub.docker.com/r/apache/beam_python3.7_sdk).
 
 To run a pipeline on an embedded Flink cluster:
-</span>
+<!-- Span implictly ended -->
 
-<span class="language-py">1. Start the JobService endpoint: `./gradlew :runners:flink:1.9:job-server:runShadow`
+<span class="language-py">1. Start the JobService endpoint: `docker run --net=host apachebeam/flink1.9_job_server:latest`
 </span>
 
 <span class="language-py">
 The JobService is the central instance where you submit your Beam pipeline to.
 The JobService will create a Flink job for the pipeline and execute the job.
-To execute the job on a Flink cluster, the Beam JobService needs to be
-provided with the Flink JobManager address.
 </span>
 
 <span class="language-py">2. Submit the Python pipeline to the above endpoint by using the `PortableRunner`, `job_endpoint` set to `localhost:8099` (this is the default address of the JobService), and `environment_type` set to `LOOPBACK`. For example:
@@ -308,22 +322,22 @@ with beam.Pipeline(options) as p:
 ```
 
 <span class="language-py">
-To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.8/tutorials/local_setup.html):
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.9/getting-started/tutorials/local_setup.html):
 </span>
 
 <span class="language-py">1. Start a Flink cluster which exposes the Rest interface on `localhost:8081` by default.
 </span>
 
-<span class="language-py">2. Start JobService with Flink Rest endpoint: `./gradlew :runners:flink:1.9:job-server:runShadow -PflinkMasterUrl=localhost:8081`.
+<span class="language-py">2. Start JobService with Flink Rest endpoint: `docker run --net=host apachebeam/flink1.9_job_server:latest --flink-master=localhost:8081`.
 </span>
 
 <span class="language-py">3. Submit the pipeline as above.
 Note however that `environment_type=LOOPBACK` is only intended for local testing.
-See [here]({{ site.baseurl }}/roadmap/portability/#sdk-harness-config) for details.
+See [here]({{ site.baseurl }}/documentation/runtime/sdk-harness-config/) for details.
 </span>
 
 <span class="language-py">Steps 2 and 3 can be automated in Python by using the `FlinkRunner`,
-plus the optional `flink_version` and `flink_master`* options, e.g.:
+plus the optional `flink_version` and `flink_master` options, e.g.:
 </span>
 
 ```py
@@ -332,15 +346,13 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
     "--runner=FlinkRunner",
-    "--flink_version=1.8",
+    "--flink_version=1.9",
     "--flink_master=localhost:8081",
     "--environment_type=LOOPBACK"
 ])
-with beam.Pipeline(options) as p:
+with beam.Pipeline(options=options) as p:
     ...
 ```
-
-\* Note: For Beam versions < 2.17.0, use `flink_master_url` instead of `flink_master`.
 
 ## Additional information and caveats
 
@@ -350,7 +362,7 @@ You can monitor a running Flink job using the Flink JobManager Dashboard or its 
 
 ### Streaming Execution
 
-If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the `streaming` setting mentioned below.
+If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the `--streaming` flag.
 
 Note: The Runner will print a warning message when unbounded sources are used and checkpointing is not enabled.
 Many sources like `PubSubIO` rely on their checkpoints to be acknowledged which can only be done when checkpointing is enabled for the `FlinkRunner`. To enable checkpointing, please set <span class="language-java">`checkpointingInterval`</span><span class="language-py">`checkpointing_interval`</span> to the desired checkpointing interval in milliseconds.
@@ -359,283 +371,22 @@ Many sources like `PubSubIO` rely on their checkpoints to be acknowledged which 
 
 When executing your pipeline with the Flink Runner, you can set these pipeline options.
 
-See the reference documentation for the<span class="language-java">
+The following list of Flink-specific pipeline options is generated automatically from the
 [FlinkPipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html)
-</span><span class="language-py">
-[PipelineOptions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)
-</span>interface (and its subinterfaces) for the complete list of pipeline configuration options.
-
+reference class:
 
 <!-- Java Options -->
 <div class="language-java">
-<table class="table table-bordered">
-<tr>
-  <th>Field</th>
-  <th>Description</th>
-  <th>Default Value</th>
-</tr>
-<tr>
-  <td><code>runner</code></td>
-  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
-  <td>Set to <code>FlinkRunner</code> to run using Flink.</td>
-</tr>
-<tr>
-  <td><code>streaming</code></td>
-  <td>Whether streaming mode is enabled or disabled; <code>true</code> if enabled. Set to <code>true</code> if running pipelines with unbounded <code>PCollection</code>s.</td>
-  <td><code>false</code></td>
-</tr>
-<tr>
-  <td><code>flinkMaster</code></td>
-  <td>The url of the Flink JobManager on which to execute pipelines. This can either be the address of a cluster JobManager, in the form <code>"host:port"</code> or one of the special Strings <code>"[local]"</code> or <code>"[auto]"</code>. <code>"[local]"</code> will start a local Flink Cluster in the JVM while <code>"[auto]"</code> will let the system decide where to execute the pipeline based on the environment.</td>
-  <td><code>[auto]</code></td>
-</tr>
-<tr>
-  <td><code>filesToStage</code></td>
-  <td>Jar Files to send to all workers and put on the classpath. Here you have to put the fat jar that contains your program along with all dependencies.</td>
-  <td>empty</td>
-</tr>
-<tr>
-  <td><code>parallelism</code></td>
-  <td>The degree of parallelism to be used when distributing operations onto workers.</td>
-  <td>For local execution: <code>Number of available CPU cores</code>
-            For remote execution: <code>Default parallelism configuerd at remote cluster</code>
-            Otherwise: <code>1</code>
-            </td>
-</tr>
-<tr>
-  <td><code>maxParallelism</code></td>
-  <td>The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
-  <td><code>-1L</code>, meaning same as the parallelism</td>
-</tr>
-<tr>
-  <td><code>checkpointingInterval</code></td>
-  <td>The interval between consecutive checkpoints (i.e. snapshots of the current pipeline state used for fault tolerance).</td>
-  <td><code>-1L</code>, i.e. disabled</td>
-</tr>
-<tr>
-  <td><code>checkpointMode</code></td>
-  <td>The checkpointing mode that defines consistency guarantee.</td>
-  <td><code>EXACTLY_ONCE</code></td>
-</tr>
-<tr>
-  <td><code>checkpointTimeoutMillis</code></td>
-  <td>The maximum time in milliseconds that a checkpoint may take before being discarded</td>
-  <td><code>-1</code>, the cluster default</td>
-</tr>
-<tr>
-  <td><code>minPauseBetweenCheckpoints</code></td>
-  <td>The minimal pause in milliseconds before the next checkpoint is triggered.</td>
-  <td><code>-1</code>, the cluster default</td>
-</tr>
-<tr>
-  <td><code>failOnCheckpointingErrors</code></td>
-  <td>
-  Sets the expected behaviour for tasks in case that they encounter an error in their
-            checkpointing procedure. If this is set to true, the task will fail on checkpointing error.
-            If this is set to false, the task will only decline a the checkpoint and continue running.
-  </td>
-  <td><code>-1</code>, the cluster default</td>
-</tr>
-<tr>
-  <td><code>numberOfExecutionRetries</code></td>
-  <td>Sets the number of times that failed tasks are re-executed. A value of <code>0</code> effectively disables fault tolerance. A value of <code>-1</code> indicates that the system default value (as defined in the configuration) should be used.</td>
-  <td><code>-1</code></td>
-</tr>
-<tr>
-  <td><code>executionRetryDelay</code></td>
-  <td>Sets the delay between executions. A value of <code>-1</code> indicates that the default value should be used.</td>
-  <td><code>-1</code></td>
-</tr>
-<tr>
-  <td><code>objectReuse</code></td>
-  <td>Sets the behavior of reusing objects.</td>
-  <td><code>false</code>, no Object reuse</td>
-</tr>
-<tr>
-  <td><code>stateBackend</code></td>
-  <td>Sets the state backend to use in streaming mode. The default is to read this setting from the Flink config.</td>
-  <td><code>empty</code>, i.e. read from Flink config</td>
-</tr>
-<tr>
-  <td><code>enableMetrics</code></td>
-  <td>Enable/disable Beam metrics in Flink Runner</td>
-  <td>Default: <code>true</code></td>
-</tr>
-<tr>
-  <td><code>externalizedCheckpointsEnabled</code></td>
-  <td>Enables or disables externalized checkpoints. Works in conjunction with CheckpointingInterval</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>retainExternalizedCheckpointsOnCancellation</code></td>
-  <td>Sets the behavior of externalized checkpoints on cancellation.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>maxBundleSize</code></td>
-  <td>The maximum number of elements in a bundle.</td>
-  <td>Default: <code>1000</code></td>
-</tr>
-<tr>
-  <td><code>maxBundleTimeMills</code></td>
-  <td>The maximum time to wait before finalising a bundle (in milliseconds).</td>
-  <td>Default: <code>1000</code></td>
-</tr>
-<tr>
-  <td><code>shutdownSourcesOnFinalWatermark</code></td>
-  <td>If set, shutdown sources when their watermark reaches +Inf.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>latencyTrackingInterval</code></td>
-  <td>Interval in milliseconds for sending latency tracking marks from the sources to the sinks. Interval value <= 0 disables the feature.</td>
-  <td>Default: <code>0</code></td>
-</tr>
-<tr>
-  <td><code>autoWatermarkInterval</code></td>
-  <td>The interval in milliseconds for automatic watermark emission.</td>
-</tr>
-<tr>
-  <td><code>executionModeForBatch</code></td>
-  <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672</td>
-  <td>Default: <code>PIPELINED</code></td>
-</tr>
-<tr>
-  <td><code>savepointPath</code></td>
-  <td>Savepoint restore path. If specified, restores the streaming pipeline from the provided path.</td>
-  <td>Default: None</td>
-</tr>
-<tr>
-  <td><code>allowNonRestoredState</code></td>
-  <td>Flag indicating whether non restored state is allowed if the savepoint contains state for an operator that is no longer part of the pipeline.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-</table>
+{% include flink_java_pipeline_options.html %}
 </div>
-
 <!-- Python Options -->
 <div class="language-py">
-<table class="table table-bordered">
-
-<tr>
-  <td><code>files_to_stage</code></td>
-  <td>Jar-Files to send to all workers and put on the classpath. The default value is all files from the classpath.</td>
-</tr>
-<tr>
-  <td><code>flink_master</code></td>
-  <td>Address of the Flink Master where the Pipeline should be executed. Can either be of the form "host:port" or one of the special values [local], [collection] or [auto].</td>
-  <td>Default: <code>[auto]</code></td>
-</tr>
-<tr>
-  <td><code>parallelism</code></td>
-  <td>The degree of parallelism to be used when distributing operations onto workers. If the parallelism is not set, the configured Flink default is used, or 1 if none can be found.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>max_parallelism</code></td>
-  <td>The pipeline wide maximum degree of parallelism to be used. The maximum parallelism specifies the upper limit for dynamic scaling and the number of key groups used for partitioned state.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>checkpointing_interval</code></td>
-  <td>The interval in milliseconds at which to trigger checkpoints of the running pipeline. Default: No checkpointing.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>checkpointing_mode</code></td>
-  <td>The checkpointing mode that defines consistency guarantee.</td>
-  <td>Default: <code>EXACTLY_ONCE</code></td>
-</tr>
-<tr>
-  <td><code>checkpoint_timeout_millis</code></td>
-  <td>The maximum time in milliseconds that a checkpoint may take before being discarded.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>min_pause_between_checkpoints</code></td>
-  <td>The minimal pause in milliseconds before the next checkpoint is triggered.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>fail_on_checkpointing_errors</code></td>
-  <td>Sets the expected behaviour for tasks in case that they encounter an error in their checkpointing procedure. If this is set to true, the task will fail on checkpointing error. If this is set to false, the task will only decline a the checkpoint and continue running. </td>
-  <td>Default: <code>true</code></td>
-</tr>
-<tr>
-  <td><code>number_of_execution_retries</code></td>
-  <td>Sets the number of times that failed tasks are re-executed. A value of zero effectively disables fault tolerance. A value of -1 indicates that the system default value (as defined in the configuration) should be used.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>execution_retry_delay</code></td>
-  <td>Sets the delay in milliseconds between executions. A value of {@code -1} indicates that the default value should be used.</td>
-  <td>Default: <code>-1</code></td>
-</tr>
-<tr>
-  <td><code>object_reuse</code></td>
-  <td>Sets the behavior of reusing objects.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>state_backend</code></td>
-  <td>Sets the state backend to use in streaming mode. Otherwise the default is read from the Flink config.</td>
-</tr>
-<tr>
-  <td><code>enable_metrics</code></td>
-  <td>Enable/disable Beam metrics in Flink Runner</td>
-  <td>Default: <code>true</code></td>
-</tr>
-<tr>
-  <td><code>externalized_checkpoints_enabled</code></td>
-  <td>Enables or disables externalized checkpoints. Works in conjunction with CheckpointingInterval</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>retain_externalized_checkpoints_on_cancellation</code></td>
-  <td>Sets the behavior of externalized checkpoints on cancellation.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>max_bundle_size</code></td>
-  <td>The maximum number of elements in a bundle.</td>
-  <td>Default: <code>1000</code></td>
-</tr>
-<tr>
-  <td><code>max_bundle_time_mills</code></td>
-  <td>The maximum time to wait before finalising a bundle (in milliseconds).</td>
-  <td>Default: <code>1000</code></td>
-</tr>
-<tr>
-  <td><code>shutdown_sources_on_final_watermark</code></td>
-  <td>If set, shutdown sources when their watermark reaches +Inf.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-<tr>
-  <td><code>latency_tracking_interval</code></td>
-  <td>Interval in milliseconds for sending latency tracking marks from the sources to the sinks. Interval value <= 0 disables the feature.</td>
-  <td>Default: <code>0</code></td>
-</tr>
-<tr>
-  <td><code>auto_watermark_interval</code></td>
-  <td>The interval in milliseconds for automatic watermark emission.</td>
-</tr>
-<tr>
-  <td><code>execution_mode_for_batch</code></td>
-  <td>Flink mode for data exchange of batch pipelines. Reference {@link org.apache.flink.api.common.ExecutionMode}. Set this to BATCH_FORCED if pipelines get blocked, see https://issues.apache.org/jira/browse/FLINK-10672</td>
-  <td>Default: <code>PIPELINED</code></td>
-</tr>
-<tr>
-  <td><code>savepoint_path</code></td>
-  <td>Savepoint restore path. If specified, restores the streaming pipeline from the provided path.</td>
-</tr>
-<tr>
-  <td><code>allow_non_restored_state</code></td>
-  <td>Flag indicating whether non restored state is allowed if the savepoint contains state for an operator that is no longer part of the pipeline.</td>
-  <td>Default: <code>false</code></td>
-</tr>
-
-</table>
+{% include flink_python_pipeline_options.html %}
 </div>
+
+For general Beam pipeline options see the
+[PipelineOptions](https://beam.apache.org/releases/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/options/PipelineOptions.html)
+reference.
 
 ## Capability
 

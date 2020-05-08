@@ -23,7 +23,7 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-toxTask "docs", "docs"
+toxTask "docs", "py37-docs"
 assemble.dependsOn docs
 
 task preCommitPyCommon() {

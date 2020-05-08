@@ -28,6 +28,23 @@
 #             one of a few standard JSON types such as numbers, strings, dicts that map naturally
 #             to the type encoded by the coder.
 #
+# Java code snippet to generate example bytes:
+#   Coder<Timer<String>> coder = Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+#   Instant now = new Instant(1000L);
+#   Timer<String> timer = Timer.of(
+#     "key",
+#     "tag",
+#     Collections.singletonList(GlobalWindow.INSTANCE),
+#     now,
+#     now,
+#     PaneInfo.NO_FIRING);
+#   byte[] bytes = CoderUtils.encodeToByteArray(coder, timer);
+#   String str = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1);
+#   String example = "";
+#   for(int i = 0; i < str.length(); i++){
+#      example += CharUtils.unicodeEscaped(str.charAt(i));
+#   }
+#
 # These choices were made to strike a balance between portability, ease of use, and simple
 # legibility of this file itself.
 #
@@ -207,15 +224,24 @@ examples:
 
 coder:
   urn: "beam:coder:timer:v1"
-  components: [{urn: "beam:coder:bytes:v1"}]
+  components: [{urn: "beam:coder:string_utf8:v1"},
+               {urn: "beam:coder:global_window:v1"}]
 examples:
-  "\0\0\0\0\0\0\0\0\u0003abc": {timestamp: -9223372036854775808, payload: abc}
-  "\x7fÿÿÿÿÿÿ\x01\u0003abc": {timestamp: -255, payload: abc}
-  "\x7fÿÿÿÿÿÿÿ\u0003abc": {timestamp: -1, payload: abc}
-  "\x80\0\0\0\0\0\0\0\u0003abc": {timestamp: 0, payload: abc}
-  "\x80\0\0\0\0\0\0\x01\u0003abc": {timestamp: 1, payload: abc}
-  "\x80\0\0\0\0\0\x01\0\u0003abc": {timestamp: 256, payload: abc}
-  "ÿÿÿÿÿÿÿÿ\u0003abc": {timestamp: 9223372036854775807, payload: abc}
+  "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0000\u0080\u0000\u0000\u0000\u0000\u0000\u0004\u00d2\u0080\u0000\u0000\u0000\u0000\u0000\u0016\u002e\u000f": {
+    userKey: key,
+    dynamicTimerTag: tag,
+    windows: ["global"],
+    clearBit: False,
+    fireTimestamp: 1234,
+    holdTimestamp: 5678,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+  }
+  "\u0003\u006b\u0065\u0079\u0003\u0074\u0061\u0067\u0000\u0000\u0000\u0001\u0001": {
+    userKey: key,
+    dynamicTimerTag: tag,
+    windows: ["global"],
+    clearBit: True,
+  }
 
 ---
 
@@ -259,6 +285,44 @@ examples:
     timestamp: -100,
     pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
     windows: [{end: 1454293425000, span: 3600000}, {end: -9223372036854410, span: 365}]
+  }
+
+---
+
+# ParamWindowedValueCoder with constant value of:
+# timestamp: Instant.ofEpochMilli(1000)
+# windows: [IntervalWindow(10, 20)]
+# pane info: PaneInfo(false, true, PaneInfo.Timing.ON_TIME, 30, 40)
+coder:
+  urn: "beam:coder:param_windowed_value:v1"
+  payload: "\x80\x00\x00\x00\x00\x00\x03è\x00\x00\x00\x01\x80\x00\x00\x00\x00\x00\x00\x14\n&\x1E(\x00"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:interval_window:v1"}]
+examples:
+  "\u0002": {
+    value: 2,
+    timestamp: 1000,
+    pane: {is_first: False, is_last: True, timing: ON_TIME, index: 30, on_time_index: 40},
+    windows: [{end: 20, span: 10}]
+  }
+
+---
+
+# ParamWindowedValueCoder with constant value of:
+# timestamp: BoundedWindow.TIMESTAMP_MIN_VALUE
+# windows: [GlobalWindow.INSTANCE]
+# pane info: PaneInfo.NO_FIRING
+coder:
+  urn: "beam:coder:param_windowed_value:v1"
+  payload: "\x7Fß;dZ\x1C¬\t\x00\x00\x00\x01\x0F\x00"
+  components: [{urn: "beam:coder:varint:v1"},
+               {urn: "beam:coder:global_window:v1"}]
+examples:
+  "\u0002": {
+    value: 2,
+    timestamp: -9223372036854775,
+    pane: {is_first: True, is_last: True, timing: UNKNOWN, index: 0, on_time_index: 0},
+    windows: ["global"]
   }
 
 ---

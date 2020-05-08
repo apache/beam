@@ -81,6 +81,10 @@ markliu:
     name: Mark Liu
     email: markliu@apache.org
     twitter:
+ardagan:
+    name: Mikhail Gryzykhin
+    email: mikhail@apache.org
+    twitter:
 robertwb:
     name: Robert Bradshaw
     email: robertwb@apache.org
@@ -131,3 +135,16 @@ ttanay:
     name: Tanay Tummalapalli
     email: ttanay100@gmail.com
     twitter: ttanay100
+udim:
+    name: Udi Meiri
+    email: udim@apache.org
+    twitter: udim
+boyuanzz:
+    name: Boyuan Zhang
+    email: boyuanz@apache.org
+    twitter:
+amaliujia:
+    name: Rui Wang
+    email: amaliujia@apache.org
+    twitter:
+

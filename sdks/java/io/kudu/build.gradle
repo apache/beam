@@ -32,7 +32,7 @@ test {
   }
 }
 
-def kudu_version = "1.9.0"
+def kudu_version = "1.11.1"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre

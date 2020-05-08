@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -43,6 +45,7 @@ def check_plants(actual):
     details['icons'] = sorted(details['icons'])
     details['durations'] = sorted(details['durations'])
     return name, details
+
   assert_matches_stdout(actual, expected, normalize_element)
 
 

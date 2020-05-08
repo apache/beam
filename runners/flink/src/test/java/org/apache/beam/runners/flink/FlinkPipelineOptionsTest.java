@@ -23,6 +23,7 @@ import static org.hamcrest.core.IsNull.nullValue;
 
 import java.util.Collections;
 import java.util.HashMap;
+import org.apache.beam.repackaged.core.org.apache.commons.lang3.SerializationUtils;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.DoFnOperator;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -37,7 +38,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.commons.lang3.SerializationUtils;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.ExecutionMode;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -75,12 +75,13 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getFlinkMaster(), is("[auto]"));
     assertThat(options.getFilesToStage(), is(nullValue()));
     assertThat(options.getLatencyTrackingInterval(), is(0L));
-    assertThat(options.isShutdownSourcesOnFinalWatermark(), is(false));
+    assertThat(options.getShutdownSourcesAfterIdleMs(), is(-1L));
     assertThat(options.getObjectReuse(), is(false));
     assertThat(options.getCheckpointingMode(), is(CheckpointingMode.EXACTLY_ONCE.name()));
     assertThat(options.getMinPauseBetweenCheckpoints(), is(-1L));
     assertThat(options.getCheckpointingInterval(), is(-1L));
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
+    assertThat(options.getNumConcurrentCheckpoints(), is(1));
     assertThat(options.getFailOnCheckpointingErrors(), is(true));
     assertThat(options.getNumberOfExecutionRetries(), is(-1));
     assertThat(options.getExecutionRetryDelay(), is(-1L));
@@ -91,6 +92,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getExecutionModeForBatch(), is(ExecutionMode.PIPELINED.name()));
     assertThat(options.getSavepointPath(), is(nullValue()));
     assertThat(options.getAllowNonRestoredState(), is(false));
+    assertThat(options.getDisableMetrics(), is(false));
   }
 
   @Test(expected = Exception.class)
@@ -101,7 +103,6 @@ public class FlinkPipelineOptionsTest {
         new TestDoFn(),
         "stepName",
         coder,
-        null,
         Collections.emptyMap(),
         mainTag,
         Collections.emptyList(),
@@ -128,7 +129,6 @@ public class FlinkPipelineOptionsTest {
             new TestDoFn(),
             "stepName",
             coder,
-            null,
             Collections.emptyMap(),
             mainTag,
             Collections.emptyList(),

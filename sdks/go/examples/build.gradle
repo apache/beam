@@ -69,4 +69,9 @@ golang {
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/wordcount github.com/apache/beam/sdks/go/examples/wordcount'
     go 'build -o ./build/bin/${GOOS}_${GOARCH}/yatzy github.com/apache/beam/sdks/go/examples/yatzy'
   }
+
+  // Ignore spurious vet errors during check for [BEAM-8992].
+  goVet {
+    continueOnFailure = true
+  }
 }

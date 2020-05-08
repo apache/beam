@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import typing
@@ -35,8 +37,7 @@ ReadFromPubsubSchema = typing.NamedTuple(
         ('id_label', typing.Optional[unicode]),
         ('with_attributes', bool),
         ('timestamp_attribute', typing.Optional[unicode]),
-    ]
-)
+    ])
 
 
 class ReadFromPubSub(beam.PTransform):
@@ -48,9 +49,14 @@ class ReadFromPubSub(beam.PTransform):
 
   URN = 'beam:external:java:pubsub:read:v1'
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None,
-               expansion_service=None):
+  def __init__(
+      self,
+      topic=None,
+      subscription=None,
+      id_label=None,
+      with_attributes=False,
+      timestamp_attribute=None,
+      expansion_service=None):
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -95,7 +101,8 @@ class ReadFromPubSub(beam.PTransform):
   def expand(self, pbegin):
     pcoll = pbegin.apply(
         ExternalTransform(
-            self.URN, NamedTupleBasedPayloadBuilder(self.params),
+            self.URN,
+            NamedTupleBasedPayloadBuilder(self.params),
             self.expansion_service))
 
     if self.params.with_attributes:
@@ -114,8 +121,7 @@ WriteToPubsubSchema = typing.NamedTuple(
         # this is not implemented yet on the Java side:
         # ('with_attributes', bool),
         ('timestamp_attribute', typing.Optional[unicode]),
-    ]
-)
+    ])
 
 
 class WriteToPubSub(beam.PTransform):
@@ -127,8 +133,13 @@ class WriteToPubSub(beam.PTransform):
 
   URN = 'beam:external:java:pubsub:write:v1'
 
-  def __init__(self, topic, with_attributes=False, id_label=None,
-               timestamp_attribute=None, expansion_service=None):
+  def __init__(
+      self,
+      topic,
+      with_attributes=False,
+      id_label=None,
+      timestamp_attribute=None,
+      expansion_service=None):
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -164,5 +175,4 @@ class WriteToPubSub(beam.PTransform):
         ExternalTransform(
             self.URN,
             NamedTupleBasedPayloadBuilder(self.params),
-            self.expansion_service)
-    )
+            self.expansion_service))

@@ -71,7 +71,7 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -106,6 +106,9 @@ public class CommonCoderTest {
           .put(
               getUrn(StandardCoders.Enum.WINDOWED_VALUE),
               WindowedValue.FullWindowedValueCoder.class)
+          .put(
+              getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE),
+              WindowedValue.ParamWindowedValueCoder.class)
           .put(getUrn(StandardCoders.Enum.ROW), RowCoder.class)
           .build();
 
@@ -252,10 +255,34 @@ public class CommonCoderTest {
       return ((Number) value).longValue();
     } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
-      Coder<?> payloadCoder = (Coder) coder.getCoderArguments().get(0);
+      Coder<?> keyCoder = ((Timer.Coder) coder).getValueCoder();
+      Coder<? extends BoundedWindow> windowCoder = ((Timer.Coder) coder).getWindowCoder();
+      List<BoundedWindow> windows = new ArrayList<>();
+      for (Object window : (List<Object>) kvMap.get("windows")) {
+        windows.add(
+            (BoundedWindow) convertValue(window, coderSpec.getComponents().get(1), windowCoder));
+      }
+      if ((boolean) kvMap.get("clearBit")) {
+        return Timer.cleared(
+            convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
+            (String) kvMap.get("dynamicTimerTag"),
+            windows);
+      }
+      Map<String, Object> paneInfoMap = (Map<String, Object>) kvMap.get("pane");
+      PaneInfo paneInfo =
+          PaneInfo.createPane(
+              (boolean) paneInfoMap.get("is_first"),
+              (boolean) paneInfoMap.get("is_last"),
+              PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
+              (int) paneInfoMap.get("index"),
+              (int) paneInfoMap.get("on_time_index"));
       return Timer.of(
-          new Instant(((Number) kvMap.get("timestamp")).longValue()),
-          convertValue(kvMap.get("payload"), coderSpec.getComponents().get(0), payloadCoder));
+          convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
+          (String) kvMap.get("dynamicTimerTag"),
+          windows,
+          new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
+          new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
+          paneInfo);
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
@@ -272,7 +299,8 @@ public class CommonCoderTest {
       return convertedElements;
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       return GlobalWindow.INSTANCE;
-    } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
+    } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))
+        || s.equals(getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Coder valueCoder = ((WindowedValue.FullWindowedValueCoder) coder).getValueCoder();
       Coder windowCoder = ((WindowedValue.FullWindowedValueCoder) coder).getWindowCoder();
@@ -298,7 +326,8 @@ public class CommonCoderTest {
     } else if (s.equals(getUrn(StandardCoders.Enum.ROW))) {
       Schema schema;
       try {
-        schema = SchemaTranslation.fromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
+        schema =
+            SchemaTranslation.schemaFromProto(SchemaApi.Schema.parseFrom(coderSpec.getPayload()));
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Failed to parse schema payload for row coder", e);
       }
@@ -429,13 +458,15 @@ public class CommonCoderTest {
       assertFalse(expectedValueIterator.hasNext());
 
     } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
-      assertEquals(((Timer) expectedValue).getTimestamp(), ((Timer) actualValue).getTimestamp());
-      assertThat(((Timer) expectedValue).getPayload(), equalTo(((Timer) actualValue).getPayload()));
+      assertEquals((Timer) expectedValue, (Timer) actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       assertEquals(expectedValue, actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.WINDOWED_VALUE))) {
+      assertEquals(expectedValue, actualValue);
+
+    } else if (s.equals(getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE))) {
       assertEquals(expectedValue, actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.DOUBLE))) {

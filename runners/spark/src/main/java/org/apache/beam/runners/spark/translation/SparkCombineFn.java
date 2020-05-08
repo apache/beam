@@ -41,7 +41,6 @@ import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.runners.spark.util.SparkSideInputReader;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -770,7 +769,6 @@ public class SparkCombineFn<InputT, ValueT, AccumT, OutputT> implements Serializ
   }
 
   /** Extracts the stream of accumulated values. */
-  @Internal
   public Stream<WindowedValue<OutputT>> extractOutputStream(
       WindowedAccumulator<?, ?, AccumT, ?> accumulator) {
     return accumulator.extractOutput().stream()

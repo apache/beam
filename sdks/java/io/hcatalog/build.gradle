@@ -59,7 +59,7 @@ dependencies {
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
   testCompile project(":sdks:java:io:common").sourceSets.test.output
-  testCompile library.java.commons_io_2x
+  testCompile library.java.commons_io
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

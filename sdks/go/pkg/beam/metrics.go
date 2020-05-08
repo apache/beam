@@ -21,8 +21,15 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/metrics"
 )
 
+// Implementation Note: The wrapping of the embedded methods
+// is to allow better GoDocs for the methods on the proxy types.
+
 // Counter is a metric that can be incremented and decremented,
 // and is aggregated by the sum.
+//
+// Counters are safe to use in multiple bundles simultaneously, but
+// not generally threadsafe. Your DoFn needs to manage the thread
+// safety of Beam metrics for any additional concurrency it uses.
 type Counter struct {
 	*metrics.Counter
 }
@@ -44,6 +51,10 @@ func NewCounter(namespace, name string) Counter {
 
 // Distribution is a metric that records various statistics about the distribution
 // of reported values.
+//
+// Distributions are safe to use in multiple bundles simultaneously, but
+// not generally threadsafe. Your DoFn needs to manage the thread
+// safety of Beam metrics for any additional concurrency it uses.
 type Distribution struct {
 	*metrics.Distribution
 }
@@ -60,6 +71,10 @@ func NewDistribution(namespace, name string) Distribution {
 
 // Gauge is a metric that can have its new value set, and is aggregated by taking
 // the last reported value.
+//
+// Gauge are safe to use in multiple bundles simultaneously, but
+// not generally threadsafe. Your DoFn needs to manage the thread
+// safety of Beam metrics for any additional concurrency it uses.
 type Gauge struct {
 	*metrics.Gauge
 }

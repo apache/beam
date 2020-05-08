@@ -53,7 +53,7 @@ def sdk_provided_dependencies = [
         library.java.jackson_databind,
         library.java.joda_time,
         library.java.slf4j_api,
-        library.java.vendored_grpc_1_21_0,
+        library.java.vendored_grpc_1_26_0,
 ]
 
 def sdk_provided_shaded_project_dependencies = [
@@ -78,6 +78,7 @@ def excluded_dependencies = [
         library.java.hamcrest_core,                  // Test only
         library.java.hamcrest_library,               // Test only
         library.java.junit,                          // Test only
+        library.java.jsonassert                      // Test only
 ]
 
 applyJavaNature(
@@ -224,6 +225,7 @@ dependencies {
     shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
     shadowTest library.java.hamcrest_core
     shadowTest library.java.hamcrest_library
+    shadowTest library.java.jsonassert
     shadowTest library.java.junit
     shadowTest library.java.mockito_core
 }

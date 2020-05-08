@@ -21,6 +21,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.api.client.json.GenericJson;
 import com.google.api.client.util.Key;
+import java.util.Objects;
 
 /**
  * A representation used by {@link com.google.api.services.dataflow.model.Step}s to reference the
@@ -39,5 +40,22 @@ public final class OutputReference extends GenericJson {
   public OutputReference(String stepName, String outputName) {
     this.stepName = checkNotNull(stepName);
     this.outputName = checkNotNull(outputName);
+  }
+
+  @Override
+  public boolean equals(Object otherObject) {
+    if (!(otherObject instanceof OutputReference)) {
+      return false;
+    }
+    OutputReference other = (OutputReference) otherObject;
+    return Objects.equals(type, other.type)
+        && Objects.equals(stepName, other.stepName)
+        && Objects.equals(outputName, other.outputName)
+        && super.equals(other);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(type, stepName, outputName, super.hashCode());
   }
 }

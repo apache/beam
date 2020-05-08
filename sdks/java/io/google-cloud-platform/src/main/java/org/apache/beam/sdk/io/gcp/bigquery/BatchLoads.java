@@ -120,6 +120,7 @@ class BatchLoads<DestinationT, ElementT>
   private final CreateDisposition createDisposition;
   private Set<SchemaUpdateOption> schemaUpdateOptions;
   private final boolean ignoreUnknownValues;
+  private final boolean useAvroLogicalTypes;
   // Indicates that we are writing to a constant single table. If this is the case, we will create
   // the table, even if there is no data in it.
   private final boolean singletonTable;
@@ -136,6 +137,7 @@ class BatchLoads<DestinationT, ElementT>
   private final Coder<ElementT> elementCoder;
   private final RowWriterFactory<ElementT, DestinationT> rowWriterFactory;
   private String kmsKey;
+  private boolean clusteringEnabled;
 
   // The maximum number of times to retry failed load or copy jobs.
   private int maxRetryJobs = DEFAULT_MAX_RETRY_JOBS;
@@ -151,7 +153,9 @@ class BatchLoads<DestinationT, ElementT>
       boolean ignoreUnknownValues,
       Coder<ElementT> elementCoder,
       RowWriterFactory<ElementT, DestinationT> rowWriterFactory,
-      @Nullable String kmsKey) {
+      @Nullable String kmsKey,
+      boolean clusteringEnabled,
+      boolean useAvroLogicalTypes) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -167,9 +171,11 @@ class BatchLoads<DestinationT, ElementT>
     this.customGcsTempLocation = customGcsTempLocation;
     this.loadJobProjectId = loadJobProjectId;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.elementCoder = elementCoder;
     this.kmsKey = kmsKey;
     this.rowWriterFactory = rowWriterFactory;
+    this.clusteringEnabled = clusteringEnabled;
     schemaUpdateOptions = Collections.emptySet();
   }
 
@@ -319,15 +325,14 @@ class BatchLoads<DestinationT, ElementT>
                     .withOutputTags(multiPartitionsTag, TupleTagList.of(singlePartitionTag)));
     PCollection<KV<TableDestination, String>> tempTables =
         writeTempTables(partitions.get(multiPartitionsTag), loadJobIdPrefixView);
+
     tempTables
         // Now that the load job has happened, we want the rename to happen immediately.
         .apply(
             Window.<KV<TableDestination, String>>into(new GlobalWindows())
                 .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1))))
         .apply(WithKeys.of((Void) null))
-        .setCoder(
-            KvCoder.of(
-                VoidCoder.of(), KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
+        .setCoder(KvCoder.of(VoidCoder.of(), tempTables.getCoder()))
         .apply(GroupByKey.create())
         .apply(Values.create())
         .apply(
@@ -393,7 +398,6 @@ class BatchLoads<DestinationT, ElementT>
 
     tempTables
         .apply("ReifyRenameInput", new ReifyAsIterable<>())
-        .setCoder(IterableCoder.of(KvCoder.of(TableDestinationCoderV2.of(), StringUtf8Coder.of())))
         .apply(
             "WriteRenameUntriggered",
             ParDo.of(
@@ -573,6 +577,9 @@ class BatchLoads<DestinationT, ElementT>
           DynamicDestinationsHelpers.matchTableDynamicDestinations(destinations, bigQueryServices);
     }
 
+    Coder<TableDestination> tableDestinationCoder =
+        clusteringEnabled ? TableDestinationCoderV3.of() : TableDestinationCoderV2.of();
+
     // If WriteBundlesToFiles produced more than DEFAULT_MAX_FILES_PER_PARTITION files or
     // DEFAULT_MAX_BYTES_PER_PARTITION bytes, then
     // the import needs to be split into multiple partitions, and those partitions will be
@@ -597,7 +604,9 @@ class BatchLoads<DestinationT, ElementT>
                 ignoreUnknownValues,
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
-                schemaUpdateOptions));
+                useAvroLogicalTypes,
+                schemaUpdateOptions))
+        .setCoder(KvCoder.of(tableDestinationCoder, StringUtf8Coder.of()));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -632,6 +641,7 @@ class BatchLoads<DestinationT, ElementT>
                 ignoreUnknownValues,
                 kmsKey,
                 rowWriterFactory.getSourceFormat(),
+                useAvroLogicalTypes,
                 schemaUpdateOptions));
   }
 

@@ -59,13 +59,15 @@ public class SplittableParDoExpanderTest {
     }
 
     @GetInitialRestriction
-    public OffsetRange getInitialRange(String element) {
+    public OffsetRange getInitialRange(@Element String element) {
       return new OffsetRange(0, element.length());
     }
 
     @SplitRestriction
     public void splitRange(
-        String element, OffsetRange range, OutputReceiver<OffsetRange> receiver) {
+        @Element String element,
+        @Restriction OffsetRange range,
+        OutputReceiver<OffsetRange> receiver) {
       receiver.output(new OffsetRange(range.getFrom(), (range.getFrom() + range.getTo()) / 2));
       receiver.output(new OffsetRange((range.getFrom() + range.getTo()) / 2, range.getTo()));
     }

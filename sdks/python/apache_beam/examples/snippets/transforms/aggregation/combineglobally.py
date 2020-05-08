@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -42,8 +44,7 @@ def combineglobally_function(test=None):
             {'🥑', '🥕', '🌽', '🍅', '🥥'},
         ])
         | 'Get common items' >> beam.CombineGlobally(get_common_items)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END combineglobally_function]
     if test:
       test(common_items)
@@ -62,10 +63,9 @@ def combineglobally_lambda(test=None):
             {'🍉', '🥕', '🍆', '🍅', '🍍'},
             {'🥑', '🥕', '🌽', '🍅', '🥥'},
         ])
-        | 'Get common items' >> beam.CombineGlobally(
-            lambda sets: set.intersection(*(sets or [set()])))
-        | beam.Map(print)
-    )
+        | 'Get common items' >>
+        beam.CombineGlobally(lambda sets: set.intersection(*(sets or [set()])))
+        | beam.Map(print))
     # [END combineglobally_lambda]
     if test:
       test(common_items)
@@ -173,10 +173,8 @@ def combineglobally_side_inputs_dict(test=None):
             {'🥑', '🥕', '🌽', '🍅', '🥥'},
         ])
         | 'Get common items' >> beam.CombineGlobally(
-            get_custom_common_items,
-            options=beam.pvalue.AsDict(options))
-        | beam.Map(print)
-    )
+            get_custom_common_items, options=beam.pvalue.AsDict(options))
+        | beam.Map(print))
     # [END combineglobally_side_inputs_dict]
     if test:
       test(custom_common_items)
@@ -195,7 +193,7 @@ def combineglobally_combinefn(test=None):
       # input == '🥕'
       if input not in accumulator:
         accumulator[input] = 0  # {'🥕': 0}
-      accumulator[input] += 1   # {'🥕': 1}
+      accumulator[input] += 1  # {'🥕': 1}
       return accumulator
 
     def merge_accumulators(self, accumulators):
@@ -223,11 +221,10 @@ def combineglobally_combinefn(test=None):
   with beam.Pipeline() as pipeline:
     percentages = (
         pipeline
-        | 'Create produce' >> beam.Create([
-            '🥕', '🍅', '🍅', '🥕', '🍆', '🍅', '🍅', '🍅', '🥕', '🍅'])
+        | 'Create produce' >> beam.Create(
+            ['🥕', '🍅', '🍅', '🥕', '🍆', '🍅', '🍅', '🍅', '🥕', '🍅'])
         | 'Get percentages' >> beam.CombineGlobally(PercentagesFn())
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END combineglobally_combinefn]
     if test:
       test(percentages)

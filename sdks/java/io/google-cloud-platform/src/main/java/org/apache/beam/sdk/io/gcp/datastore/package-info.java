@@ -21,4 +21,8 @@
  * href="https://developers.google.com/datastore/">Google Cloud Datastore</a> over different
  * versions of the Cloud Datastore Client libraries.
  */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.gcp.datastore;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

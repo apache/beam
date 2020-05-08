@@ -17,8 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.fn.control;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
+import static org.apache.beam.runners.core.metrics.MonitoringInfoEncodings.encodeInt64Distribution;
+import static org.apache.beam.runners.dataflow.worker.testing.GenericJsonAssert.assertEqualsAsJson;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -28,7 +30,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
+import org.apache.beam.runners.core.metrics.DistributionData;
 import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.TypeUrns;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants.Urns;
 import org.apache.beam.runners.core.metrics.SpecMonitoringInfoValidator;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowStepContext;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
@@ -58,14 +63,17 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
             mockSpecValidator, stepContextMapping);
     Optional<String> error = Optional.of("Error text");
     when(mockSpecValidator.validate(any())).thenReturn(error);
-    assertEquals(null, testObject.transform(null));
+    assertNull(testObject.transform(null));
   }
 
   @Test
   public void testTransformThrowsIfMonitoringInfoWithWrongUrnPrefixReceived() {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
-        MonitoringInfo.newBuilder().setUrn("beam:metric:element_count:v1").build();
+        MonitoringInfo.newBuilder()
+            .setUrn(Urns.ELEMENT_COUNT)
+            .setType(TypeUrns.SUM_INT64_TYPE)
+            .build();
     UserDistributionMonitoringInfoToCounterUpdateTransformer testObject =
         new UserDistributionMonitoringInfoToCounterUpdateTransformer(
             mockSpecValidator, stepContextMapping);
@@ -80,7 +88,8 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user_distribution")
+            .setUrn(Urns.USER_DISTRIBUTION_INT64)
+            .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
             .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
@@ -89,11 +98,12 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
         new UserDistributionMonitoringInfoToCounterUpdateTransformer(
             mockSpecValidator, stepContextMapping);
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
-    assertEquals(null, testObject.transform(monitoringInfo));
+    assertNull(testObject.transform(monitoringInfo));
   }
 
   @Test
-  public void testTransformReturnsValidCounterUpdateWhenValidUserMonitoringInfoReceived() {
+  public void testTransformReturnsValidCounterUpdateWhenValidUserMonitoringInfoReceived()
+      throws Exception {
     Map<String, DataflowStepContext> stepContextMapping = new HashMap<>();
     NameContext nc =
         NameContext.create("anyStageName", "anyOriginalName", "anySystemName", "anyUserName");
@@ -103,10 +113,15 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
 
     MonitoringInfo monitoringInfo =
         MonitoringInfo.newBuilder()
-            .setUrn("beam:metric:user_distribution")
+            .setUrn(Urns.USER_DISTRIBUTION_INT64)
+            .setType(TypeUrns.DISTRIBUTION_INT64_TYPE)
             .putLabels(MonitoringInfoConstants.Labels.NAME, "anyName")
             .putLabels(MonitoringInfoConstants.Labels.NAMESPACE, "anyNamespace")
             .putLabels(MonitoringInfoConstants.Labels.PTRANSFORM, "anyValue")
+            .setPayload(
+                encodeInt64Distribution(
+                    DistributionData.create(
+                        2L /* sum */, 1L /* count */, 3L /* min */, 4L /* max */)))
             .build();
     UserDistributionMonitoringInfoToCounterUpdateTransformer testObject =
         new UserDistributionMonitoringInfoToCounterUpdateTransformer(
@@ -114,15 +129,15 @@ public class UserDistributionMonitoringInfoToCounterUpdateTransformerTest {
     when(mockSpecValidator.validate(any())).thenReturn(Optional.empty());
 
     CounterUpdate result = testObject.transform(monitoringInfo);
-    assertNotEquals(null, result);
+    assertNotNull(result);
 
-    assertEquals(
-        "{cumulative=true, distribution={count={highBits=0, lowBits=0}, "
-            + "max={highBits=0, lowBits=0}, min={highBits=0, lowBits=0}, "
-            + "sum={highBits=0, lowBits=0}}, "
-            + "structuredNameAndMetadata={metadata={kind=DISTRIBUTION}, "
-            + "name={name=anyName, origin=USER, originNamespace=anyNamespace, "
-            + "originalStepName=anyOriginalName}}}",
-        result.toString());
+    assertEqualsAsJson(
+        "{cumulative:true, distribution:{count:{highBits:0, lowBits:1}, "
+            + "max:{highBits:0, lowBits:4}, min:{highBits:0, lowBits:3}, "
+            + "sum:{highBits:0, lowBits:2}}, "
+            + "structuredNameAndMetadata:{metadata:{kind:'DISTRIBUTION'}, "
+            + "name:{name:'anyName', origin:'USER', originNamespace:'anyNamespace', "
+            + "originalStepName:'anyOriginalName'}}}",
+        result);
   }
 }

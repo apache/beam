@@ -383,7 +383,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("Create.Values/Read(CreateSource).out"));
+    assertThat(message, containsString("Create.Values/Read(CreateSource)"));
     assertThat(message, containsString("Expected: <44>"));
     assertThat(message, containsString("but: was <42>"));
   }
@@ -498,7 +498,7 @@ public class PAssertTest implements Serializable {
 
     String message = thrown.getMessage();
 
-    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource).out"));
+    assertThat(message, containsString("GenerateSequence/Read(BoundedCountingSource)"));
     assertThat(message, containsString("Expected: iterable with items [] in any order"));
   }
 

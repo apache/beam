@@ -52,12 +52,10 @@ class NexmarkBuilder {
     suite(context, "NEXMARK IN SQL STREAMING MODE USING ${runner} RUNNER", runner, sdk, options)
   }
 
-  static void batchOnlyJob(context, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
-    Runner runner = Runner.SPARK
-    SDK sdk = SDK.JAVA
+  static void batchOnlyJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
-    options.put('streaming', false)
 
+    options.put('streaming', false)
     suite(context, "NEXMARK IN BATCH MODE USING ${runner} RUNNER", runner, sdk, options)
 
     options.put('queryLanguage', 'sql')
@@ -76,12 +74,12 @@ class NexmarkBuilder {
 
   static void suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options) {
     context.steps {
-      shell("echo *** RUN ${title} ***")
+      shell('echo "*** RUN ${title} ***"')
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         tasks(':sdks:java:testing:nexmark:run')
         commonJobProperties.setGradleSwitches(delegate)
-        switches("-Pnexmark.runner=${runner.getDepenedencyBySDK(sdk)}")
+        switches("-Pnexmark.runner=${runner.getDependencyBySDK(sdk)}")
         switches("-Pnexmark.args=\"${parseOptions(options)}\"")
       }
     }

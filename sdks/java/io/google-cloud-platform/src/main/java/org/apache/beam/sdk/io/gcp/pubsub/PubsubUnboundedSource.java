@@ -727,18 +727,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // Capture the received messages.
       for (PubsubClient.IncomingMessage incomingMessage : receivedMessages) {
         notYetRead.add(incomingMessage);
-        notYetReadBytes += incomingMessage.elementBytes.length;
+        notYetReadBytes += incomingMessage.message().getData().size();
         inFlight.put(
-            incomingMessage.ackId,
+            incomingMessage.ackId(),
             new InFlightState(requestTimeMsSinceEpoch, deadlineMsSinceEpoch));
         numReceived++;
         numReceivedRecently.add(requestTimeMsSinceEpoch, 1L);
         minReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         maxReceivedTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
         minUnreadTimestampMsSinceEpoch.add(
-            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch);
+            requestTimeMsSinceEpoch, incomingMessage.timestampMsSinceEpoch());
       }
     }
 
@@ -837,7 +837,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
       if (current != null) {
         // Current is consumed. It can no longer contribute to holding back the watermark.
-        minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch);
+        minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch());
         current = null;
       }
 
@@ -864,18 +864,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         // Try again later.
         return false;
       }
-      notYetReadBytes -= current.elementBytes.length;
+      notYetReadBytes -= current.message().getData().size();
       checkState(notYetReadBytes >= 0);
       long nowMsSinceEpoch = now();
-      numReadBytes.add(nowMsSinceEpoch, current.elementBytes.length);
-      minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch);
-      if (current.timestampMsSinceEpoch < lastWatermarkMsSinceEpoch) {
+      numReadBytes.add(nowMsSinceEpoch, current.message().getData().size());
+      minReadTimestampMsSinceEpoch.add(nowMsSinceEpoch, current.timestampMsSinceEpoch());
+      if (current.timestampMsSinceEpoch() < lastWatermarkMsSinceEpoch) {
         numLateMessages.add(nowMsSinceEpoch, 1L);
       }
 
       // Current message can be considered 'read' and will be persisted by the next
       // checkpoint. So it is now safe to ACK back to Pubsub.
-      safeToAckIds.add(current.ackId);
+      safeToAckIds.add(current.ackId());
       return true;
     }
 
@@ -884,7 +884,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new PubsubMessage(current.elementBytes, current.attributes, current.recordId);
+      return new PubsubMessage(
+          current.message().getData().toByteArray(),
+          current.message().getAttributesMap(),
+          current.recordId());
     }
 
     @Override
@@ -892,7 +895,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return new Instant(current.timestampMsSinceEpoch);
+      return new Instant(current.timestampMsSinceEpoch());
     }
 
     @Override
@@ -900,7 +903,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current.recordId.getBytes(StandardCharsets.UTF_8);
+      return current.recordId().getBytes(StandardCharsets.UTF_8);
     }
 
     /**
@@ -984,7 +987,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       List<String> snapshotSafeToAckIds = Lists.newArrayList(safeToAckIds);
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
       for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
-        snapshotNotYetReadIds.add(incomingMessage.ackId);
+        snapshotNotYetReadIds.add(incomingMessage.ackId());
       }
       if (outer.subscriptionPath == null) {
         // need to include the subscription in case we resume, as it's not stored in the source.

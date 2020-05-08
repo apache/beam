@@ -42,6 +42,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** Utility to convert types from Calcite Schema types. */
@@ -103,7 +104,7 @@ public class TypeUtils {
 
         return TypeFactory.createStructType(structFields);
       default:
-        throw new RuntimeException("Unsupported RelDataType: " + calciteType);
+        throw new UnsupportedOperationException("Unsupported RelDataType: " + calciteType);
     }
   }
 
@@ -128,11 +129,23 @@ public class TypeUtils {
         .createArrayType(toRelDataType(rexBuilder, arrayType.getElementType(), isNullable), -1);
   }
 
-  private static RelDataType toStructRelDataType(
+  private static List<String> toNameList(List<StructField> fields) {
+    ImmutableList.Builder<String> b = ImmutableList.builder();
+    for (int i = 0; i < fields.size(); i++) {
+      String name = fields.get(i).getName();
+      if ("".equals(name)) {
+        name = "$col" + String.valueOf(i);
+      }
+      b.add(name);
+    }
+    return b.build();
+  }
+
+  public static RelDataType toStructRelDataType(
       RexBuilder rexBuilder, StructType structType, boolean isNullable) {
 
     List<StructField> fields = structType.getFieldList();
-    List<String> fieldNames = fields.stream().map(StructField::getName).collect(toList());
+    List<String> fieldNames = toNameList(fields);
     List<RelDataType> fieldTypes =
         fields.stream()
             .map(f -> toRelDataType(rexBuilder, f.getType(), isNullable))
@@ -149,7 +162,7 @@ public class TypeUtils {
   public static RelDataType toSimpleRelDataType(
       TypeKind kind, RexBuilder rexBuilder, boolean isNullable) {
     if (!ZETA_TO_CALCITE_SIMPLE_TYPES.containsKey(kind)) {
-      throw new RuntimeException("Unsupported column type: " + kind);
+      throw new UnsupportedOperationException("Unsupported column type: " + kind);
     }
 
     RelDataType relDataType = ZETA_TO_CALCITE_SIMPLE_TYPES.get(kind).apply(rexBuilder);

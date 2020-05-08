@@ -23,7 +23,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -33,20 +33,26 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.Visi
  * {@link BeamFnApi.Elements} message when the buffer threshold is surpassed.
  *
  * <p>The default size-based buffer threshold can be overridden by specifying the experiment {@code
- * beam_fn_api_data_buffer_size_limit=<bytes>}
+ * data_buffer_size_limit=<bytes>}
  *
  * <p>The default time-based buffer threshold can be overridden by specifying the experiment {@code
- * beam_fn_api_data_buffer_time_limit=<milliseconds>}
+ * data_buffer_time_limit_ms=<milliseconds>}
  */
 public interface BeamFnDataBufferingOutboundObserver<T> extends CloseableFnDataReceiver<T> {
   // TODO: Consider moving this constant out of this interface
-  /** @deprecated Use BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT instead. */
+  /** @deprecated Use DATA_BUFFER_SIZE_LIMIT instead. */
   @Deprecated String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
 
-  String BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT = "beam_fn_api_data_buffer_size_limit=";
+  /** @deprecated Use DATA_BUFFER_SIZE_LIMIT instead. */
+  @Deprecated String BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT = "beam_fn_api_data_buffer_size_limit=";
+
+  String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";
   @VisibleForTesting int DEFAULT_BUFFER_LIMIT_BYTES = 1_000_000;
 
-  String BEAM_FN_API_DATA_BUFFER_TIME_LIMIT = "beam_fn_api_data_buffer_time_limit=";
+  /** @deprecated Use DATA_BUFFER_TIME_LIMIT_MS instead. */
+  @Deprecated String BEAM_FN_API_DATA_BUFFER_TIME_LIMIT = "beam_fn_api_data_buffer_time_limit=";
+
+  String DATA_BUFFER_TIME_LIMIT_MS = "data_buffer_time_limit_ms=";
   long DEFAULT_BUFFER_LIMIT_TIME_MS = -1L;
 
   static <T> BeamFnDataSizeBasedBufferingOutboundObserver<T> forLocation(
@@ -68,6 +74,9 @@ public interface BeamFnDataBufferingOutboundObserver<T> extends CloseableFnDataR
   static int getSizeLimit(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
+      if (experiment.startsWith(DATA_BUFFER_SIZE_LIMIT)) {
+        return Integer.parseInt(experiment.substring(DATA_BUFFER_SIZE_LIMIT.length()));
+      }
       if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT)) {
         return Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_SIZE_LIMIT.length()));
       }
@@ -81,6 +90,9 @@ public interface BeamFnDataBufferingOutboundObserver<T> extends CloseableFnDataR
   static long getTimeLimit(PipelineOptions options) {
     List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
+      if (experiment.startsWith(DATA_BUFFER_TIME_LIMIT_MS)) {
+        return Long.parseLong(experiment.substring(DATA_BUFFER_TIME_LIMIT_MS.length()));
+      }
       if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_TIME_LIMIT)) {
         return Long.parseLong(experiment.substring(BEAM_FN_API_DATA_BUFFER_TIME_LIMIT.length()));
       }

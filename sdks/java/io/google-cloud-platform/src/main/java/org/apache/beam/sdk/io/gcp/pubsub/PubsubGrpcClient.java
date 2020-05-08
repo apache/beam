@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auth.Credentials;
-import com.google.protobuf.ByteString;
 import com.google.protobuf.Timestamp;
 import com.google.pubsub.v1.AcknowledgeRequest;
 import com.google.pubsub.v1.DeleteSubscriptionRequest;
@@ -51,43 +50,68 @@ import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
-/**
- * A helper class for talking to Pubsub via grpc.
- *
- * <p>CAUTION: Currently uses the application default credentials and does not respect any
- * credentials-related arguments in {@link GcpOptions}.
- */
+/** A helper class for talking to Pubsub via grpc. */
 public class PubsubGrpcClient extends PubsubClient {
-  private static final String PUBSUB_ADDRESS = "pubsub.googleapis.com";
-  private static final int PUBSUB_PORT = 443;
   private static final int LIST_BATCH_SIZE = 1000;
 
   private static final int DEFAULT_TIMEOUT_S = 15;
+
+  private static ManagedChannel channelForRootUrl(String urlString) throws IOException {
+    URL url;
+    try {
+      url = new URL(urlString);
+    } catch (MalformedURLException e) {
+      throw new IllegalArgumentException(
+          String.format("Could not parse pubsub root url \"%s\"", urlString), e);
+    }
+
+    int port = url.getPort();
+
+    if (port < 0) {
+      switch (url.getProtocol()) {
+        case "https":
+          port = 443;
+          break;
+        case "http":
+          port = 80;
+          break;
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "Could not determine port for pubsub root url \"%s\". You must either specify the port or use the protocol \"https\" or \"http\"",
+                  urlString));
+      }
+    }
+
+    return NettyChannelBuilder.forAddress(url.getHost(), port)
+        .negotiationType(NegotiationType.TLS)
+        .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
+        .build();
+  }
 
   private static class PubsubGrpcClientFactory implements PubsubClientFactory {
     @Override
     public PubsubClient newClient(
         @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
         throws IOException {
-      ManagedChannel channel =
-          NettyChannelBuilder.forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
-              .negotiationType(NegotiationType.TLS)
-              .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
-              .build();
-
       return new PubsubGrpcClient(
-          timestampAttribute, idAttribute, DEFAULT_TIMEOUT_S, channel, options.getGcpCredential());
+          timestampAttribute,
+          idAttribute,
+          DEFAULT_TIMEOUT_S,
+          channelForRootUrl(options.getPubsubRootUrl()),
+          options.getGcpCredential());
     }
 
     @Override
@@ -188,21 +212,15 @@ public class PubsubGrpcClient extends PubsubClient {
   public int publish(TopicPath topic, List<OutgoingMessage> outgoingMessages) throws IOException {
     PublishRequest.Builder request = PublishRequest.newBuilder().setTopic(topic.getPath());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
-      PubsubMessage.Builder message =
-          PubsubMessage.newBuilder().setData(ByteString.copyFrom(outgoingMessage.elementBytes));
-
-      if (outgoingMessage.attributes != null) {
-        message.putAllAttributes(outgoingMessage.attributes);
-      }
+      PubsubMessage.Builder message = outgoingMessage.message().toBuilder();
 
       if (timestampAttribute != null) {
-        message
-            .getMutableAttributes()
-            .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+        message.putAttributes(
+            timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch()));
       }
 
-      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-        message.getMutableAttributes().put(idAttribute, outgoingMessage.recordId);
+      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
+        message.putAttributes(idAttribute, outgoingMessage.recordId());
       }
 
       request.addMessages(message);
@@ -234,9 +252,6 @@ public class PubsubGrpcClient extends PubsubClient {
       PubsubMessage pubsubMessage = message.getMessage();
       @Nullable Map<String, String> attributes = pubsubMessage.getAttributes();
 
-      // Payload.
-      byte[] elementBytes = pubsubMessage.getData().toByteArray();
-
       // Timestamp.
       String pubsubTimestampString = null;
       Timestamp timestampProto = pubsubMessage.getPublishTime();
@@ -262,13 +277,8 @@ public class PubsubGrpcClient extends PubsubClient {
       }
 
       incomingMessages.add(
-          new IncomingMessage(
-              elementBytes,
-              attributes,
-              timestampMsSinceEpoch,
-              requestTimeMsSinceEpoch,
-              ackId,
-              recordId));
+          IncomingMessage.of(
+              pubsubMessage, timestampMsSinceEpoch, requestTimeMsSinceEpoch, ackId, recordId));
     }
     return incomingMessages;
   }

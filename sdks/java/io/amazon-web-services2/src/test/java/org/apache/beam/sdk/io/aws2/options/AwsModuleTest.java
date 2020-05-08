@@ -24,6 +24,7 @@ import static org.junit.Assert.assertThat;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
@@ -38,7 +39,9 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
+import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.apache.ProxyConfiguration;
+import software.amazon.awssdk.utils.AttributeMap;
 
 /** Tests {@link AwsModule}. */
 @RunWith(JUnit4.class)
@@ -115,5 +118,28 @@ public class AwsModuleTest {
     assertEquals(8080, deserializedProxyConfiguration.port());
     assertEquals("username", deserializedProxyConfiguration.username());
     assertEquals("password", deserializedProxyConfiguration.password());
+  }
+
+  @Test
+  public void testHttpClientConfigurationSerializationDeserialization() throws Exception {
+
+    AttributeMap attributeMap =
+        AttributeMap.builder()
+            .put(SdkHttpConfigurationOption.CONNECTION_TIMEOUT, Duration.parse("PT100S"))
+            .put(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE, Duration.parse("PT30S"))
+            .put(SdkHttpConfigurationOption.MAX_CONNECTIONS, 15)
+            .build();
+
+    String valueAsJson = objectMapper.writeValueAsString(attributeMap);
+    AttributeMap deserializedAttributeMap = objectMapper.readValue(valueAsJson, AttributeMap.class);
+
+    assertEquals(
+        Duration.parse("PT100S"),
+        deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIMEOUT));
+    assertEquals(
+        Duration.parse("PT30S"),
+        deserializedAttributeMap.get(SdkHttpConfigurationOption.CONNECTION_TIME_TO_LIVE));
+    assertEquals(
+        (Integer) 15, deserializedAttributeMap.get(SdkHttpConfigurationOption.MAX_CONNECTIONS));
   }
 }

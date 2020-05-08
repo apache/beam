@@ -29,10 +29,11 @@ key_size - required option, but its value has no meaning.
 
 Example test run on DataflowRunner:
 
-python setup.py nosetests \
+python -m apache_beam.io.gcp.bigquery_read_perf_test \
     --test-pipeline-options="
     --runner=TestDataflowRunner
     --project=...
+    --region=...
     --staging_location=gs://...
     --temp_location=gs://...
     --sdk_location=.../dist/apache-beam-x.x.x.dev0.tar.gz
@@ -45,16 +46,14 @@ python setup.py nosetests \
     \"num_records\": 1024,
     \"key_size\": 1,
     \"value_size\": 1024,
-    }'" \
-    --tests apache_beam.io.gcp.bigquery_read_perf_test
+    }'"
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
-import base64
 import logging
-import os
-import unittest
 
 from apache_beam import Map
 from apache_beam import ParDo
@@ -80,15 +79,10 @@ except ImportError:
   HttpError = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
 
-
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class BigQueryReadPerfTest(LoadTest):
-  def setUp(self):
-    super(BigQueryReadPerfTest, self).setUp()
+  def __init__(self):
+    super(BigQueryReadPerfTest, self).__init__()
     self.input_dataset = self.pipeline.get_option('input_dataset')
     self.input_table = self.pipeline.get_option('input_table')
     self._check_for_input_data()
@@ -113,32 +107,33 @@ class BigQueryReadPerfTest(LoadTest):
     def format_record(record):
       # Since Synthetic Source returns data as a dictionary, we should skip one
       # of the part
+      import base64
       return {'data': base64.b64encode(record[1])}
 
-    p = TestPipeline()
-    # pylint: disable=expression-not-assigned
-    (p
-     | 'Produce rows' >> Read(SyntheticSource(self.parseTestPipelineOptions()))
-     | 'Format' >> Map(format_record)
-     | 'Write to BigQuery' >> WriteToBigQuery(
-         dataset=self.input_dataset, table=self.input_table,
-         schema=SCHEMA,
-         create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
-         write_disposition=BigQueryDisposition.WRITE_EMPTY))
-    p.run().wait_until_finish()
+    with TestPipeline() as p:
+      (  # pylint: disable=expression-not-assigned
+          p
+          | 'Produce rows' >> Read(
+              SyntheticSource(self.parse_synthetic_source_options()))
+          | 'Format' >> Map(format_record)
+          | 'Write to BigQuery' >> WriteToBigQuery(
+              dataset=self.input_dataset,
+              table=self.input_table,
+              schema=SCHEMA,
+              create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+              write_disposition=BigQueryDisposition.WRITE_EMPTY))
 
   def test(self):
-    output = (self.pipeline
-              | 'Read from BigQuery' >> Read(BigQuerySource(
-                  dataset=self.input_dataset, table=self.input_table))
-              | 'Count messages' >> ParDo(CountMessages(
-                  self.metrics_namespace))
-              | 'Measure time' >> ParDo(MeasureTime(
-                  self.metrics_namespace))
-              | 'Count' >> Count.Globally())
+    output = (
+        self.pipeline
+        | 'Read from BigQuery' >> Read(
+            BigQuerySource(dataset=self.input_dataset, table=self.input_table))
+        | 'Count messages' >> ParDo(CountMessages(self.metrics_namespace))
+        | 'Measure time' >> ParDo(MeasureTime(self.metrics_namespace))
+        | 'Count' >> Count.Globally())
     assert_that(output, equal_to([self.input_options['num_records']]))
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  BigQueryReadPerfTest().run()

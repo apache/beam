@@ -27,11 +27,14 @@ Currently it is possible to have following metrics types:
 * total_bytes_count
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 import time
 import uuid
+from typing import List
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -53,24 +56,21 @@ SUBMIT_TIMESTAMP_LABEL = 'timestamp'
 METRICS_TYPE_LABEL = 'metric'
 VALUE_LABEL = 'value'
 
-SCHEMA = [
-    {'name': ID_LABEL,
-     'field_type': 'STRING',
-     'mode': 'REQUIRED'
-    },
-    {'name': SUBMIT_TIMESTAMP_LABEL,
-     'field_type': 'TIMESTAMP',
-     'mode': 'REQUIRED'
-    },
-    {'name': METRICS_TYPE_LABEL,
-     'field_type': 'STRING',
-     'mode': 'REQUIRED'
-    },
-    {'name': VALUE_LABEL,
-     'field_type': 'FLOAT',
-     'mode': 'REQUIRED'
-    }
-]
+SCHEMA = [{
+    'name': ID_LABEL, 'field_type': 'STRING', 'mode': 'REQUIRED'
+},
+          {
+              'name': SUBMIT_TIMESTAMP_LABEL,
+              'field_type': 'TIMESTAMP',
+              'mode': 'REQUIRED'
+          },
+          {
+              'name': METRICS_TYPE_LABEL,
+              'field_type': 'STRING',
+              'mode': 'REQUIRED'
+          }, {
+              'name': VALUE_LABEL, 'field_type': 'FLOAT', 'mode': 'REQUIRED'
+          }]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -122,11 +122,9 @@ def get_generic_distributions(generic_dists, metric_id):
   Returns:
     list of dictionaries made from :class:`DistributionMetric`
   """
-  return sum(
-      (get_all_distributions_by_type(dist, metric_id)
-       for dist in generic_dists),
-      []
-  )
+  return sum((
+      get_all_distributions_by_type(dist, metric_id) for dist in generic_dists),
+             [])
 
 
 def get_all_distributions_by_type(dist, metric_id):
@@ -140,10 +138,9 @@ def get_all_distributions_by_type(dist, metric_id):
     list of :class:`DistributionMetric` objects
   """
   submit_timestamp = time.time()
-  dist_types = ['mean', 'max', 'min', 'sum']
+  dist_types = ['count', 'max', 'min', 'sum']
   return [
-      get_distribution_dict(dist_type, submit_timestamp,
-                            dist, metric_id)
+      get_distribution_dict(dist_type, submit_timestamp, dist, metric_id)
       for dist_type in dist_types
   ]
 
@@ -170,10 +167,15 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
-  publishers = []
+  publishers = []  # type: List[ConsoleMetricsPublisher]
 
-  def __init__(self, project_name=None, bq_table=None, bq_dataset=None,
-               publish_to_bq=False, filters=None):
+  def __init__(
+      self,
+      project_name=None,
+      bq_table=None,
+      bq_dataset=None,
+      publish_to_bq=False,
+      filters=None):
     """Initializes :class:`MetricsReader` .
 
     Args:
@@ -234,9 +236,8 @@ class MetricsReader(object):
 
 class Metric(object):
   """Metric base class in ready-to-save format."""
-
-  def __init__(self, submit_timestamp, metric_id, value,
-               metric=None, label=None):
+  def __init__(
+      self, submit_timestamp, metric_id, value, metric=None, label=None):
     """Initializes :class:`Metric`
 
     Args:
@@ -254,11 +255,12 @@ class Metric(object):
     self.value = value
 
   def as_dict(self):
-    return {SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
-            ID_LABEL: self.metric_id,
-            VALUE_LABEL: self.value,
-            METRICS_TYPE_LABEL: self.label
-           }
+    return {
+        SUBMIT_TIMESTAMP_LABEL: self.submit_timestamp,
+        ID_LABEL: self.metric_id,
+        VALUE_LABEL: self.value,
+        METRICS_TYPE_LABEL: self.label
+    }
 
 
 class CounterMetric(Metric):
@@ -271,8 +273,8 @@ class CounterMetric(Metric):
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
     value = counter_metric.committed
-    super(CounterMetric, self).__init__(submit_timestamp, metric_id,
-                                        value, counter_metric)
+    super(CounterMetric,
+          self).__init__(submit_timestamp, metric_id, value, counter_metric)
 
 
 class DistributionMetric(Metric):
@@ -308,8 +310,8 @@ class RuntimeMetric(Metric):
     # out of many steps
     label = runtime_list[0].key.metric.namespace + \
             '_' + RUNTIME_METRIC
-    super(RuntimeMetric, self).__init__(submit_timestamp, metric_id,
-                                        value, None, label)
+    super(RuntimeMetric,
+          self).__init__(submit_timestamp, metric_id, value, None, label)
 
   def _prepare_runtime_metrics(self, distributions):
     min_values = []
@@ -395,8 +397,7 @@ class BigQueryClient(object):
     except NotFound:
       raise ValueError(
           'Dataset {} does not exist in your project. '
-          'You have to create table first.'
-          .format(dataset_name))
+          'You have to create table first.'.format(dataset_name))
     return bq_dataset
 
   def save(self, results):

@@ -21,6 +21,7 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
+import InfluxDBCredentialsHelper
 
 def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
     [
@@ -30,11 +31,14 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
             runner         : CommonTestProperties.Runner.DATAFLOW,
             pipelineOptions: [
                     project             : 'apache-beam-testing',
+                    region              : 'us-central1',
                     appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_1",
                     tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                     publishToBigQuery   : true,
                     bigQueryDataset     : datasetName,
                     bigQueryTable       : "java_dataflow_${jobType}_ParDo_1",
+                    influxMeasurement   : "java_${jobType}_ParDo_1",
+                    publishToInfluxDB   : true,
                     sourceOptions       : """
                                             {
                                               "numRecords": 20000000,
@@ -56,11 +60,14 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_2",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_2",
+                            influxMeasurement   : "java_${jobType}_ParDo_2",
+                            publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
                                                       "numRecords": 20000000,
@@ -83,11 +90,14 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_3",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_3",
+                            influxMeasurement   : "java_${jobType}_ParDo_3",
+                            publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
                                                       "numRecords": 20000000,
@@ -110,11 +120,14 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     runner         : CommonTestProperties.Runner.DATAFLOW,
                     pipelineOptions: [
                             project             : 'apache-beam-testing',
+                            region              : 'us-central1',
                             appName             : "load_tests_Java_Dataflow_${jobType}_ParDo_4",
                             tempLocation        : 'gs://temp-storage-for-perf-tests/loadtests',
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_4",
+                            influxMeasurement   : "java_${jobType}_ParDo_4",
+                            publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
                                                       "numRecords": 20000000,
@@ -130,7 +143,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             streaming           : isStreaming
                     ]
             ]
-    ]
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 
@@ -151,10 +164,20 @@ def streamingLoadTestJob = {scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_Batch', 'H 12 * * *', this) {
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_Streaming', 'H 12 * * *', this) {
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
@@ -164,6 +187,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java ParDo Dataflow Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
@@ -173,5 +197,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java ParDo Dataflow Streaming suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }

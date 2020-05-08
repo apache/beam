@@ -95,3 +95,52 @@ func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
 	ret.SetCoder(NewCoder(ret.Type()))
 	return ret, nil
 }
+
+// Reshuffle copies a PCollection of the same kind and using the same element
+// coder, and maintains the same windowing information. Importantly, it allows
+// the result PCollection to be processed with a different sharding, in a
+// different stage than the input PCollection.
+//
+// For example, if a computation needs a lot of parallelism but
+// produces only a small amount of output data, then the computation
+// producing the data can run with as much parallelism as needed,
+// while the output file is written with a smaller amount of
+// parallelism, using the following pattern:
+//
+//   pc := bigHairyComputationNeedingParallelism(scope) // PCollection<string>
+//   resharded := beam.Reshuffle(scope, pc)                // PCollection<string>
+//
+// Another use case is when one has a non-deterministic DoFn followed by one
+// that performs externally-visible side effects. Inserting a Reshuffle
+// between these DoFns ensures that retries of the second DoFn will always be
+// the same, which is necessary to make side effects idempotent.
+//
+// A Reshuffle will force a break in the optimized pipeline. Consequently,
+// this operation should be used sparingly, only after determining that the
+// pipeline without reshuffling is broken in some way and performing an extra
+// operation is worth the cost.
+func Reshuffle(s Scope, col PCollection) PCollection {
+	return Must(TryReshuffle(s, col))
+}
+
+// TryReshuffle inserts a Reshuffle into the pipeline, and returns an error if
+// the pcollection's unable to be reshuffled.
+func TryReshuffle(s Scope, col PCollection) (PCollection, error) {
+	addContext := func(err error, s Scope) error {
+		return errors.WithContextf(err, "inserting Reshard in scope %s", s)
+	}
+	if !s.IsValid() {
+		return PCollection{}, addContext(errors.New("invalid scope"), s)
+	}
+	if !col.IsValid() {
+		return PCollection{}, addContext(errors.New("invalid pcollection"), s)
+	}
+	edge, err := graph.NewReshuffle(s.real, s.scope, col.n)
+	if err != nil {
+		return PCollection{}, addContext(err, s)
+	}
+	col.n.WindowingStrategy()
+	ret := PCollection{edge.Output[0].To}
+	ret.SetCoder(NewCoder(ret.Type()))
+	return ret, nil
+}

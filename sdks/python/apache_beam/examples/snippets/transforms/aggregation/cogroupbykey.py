@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -39,11 +41,11 @@ def cogroupbykey(test=None):
         ('Tomato', 'annual'),
     ])
 
-    plants = (
-        ({'icons': icon_pairs, 'durations': duration_pairs})
-        | 'Merge' >> beam.CoGroupByKey()
-        | beam.Map(print)
-    )
+    plants = (({
+        'icons': icon_pairs, 'durations': duration_pairs
+    })
+              | 'Merge' >> beam.CoGroupByKey()
+              | beam.Map(print))
     # [END cogroupbykey]
     if test:
       test(plants)

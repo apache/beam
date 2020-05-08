@@ -228,7 +228,7 @@ public class DataflowOperationContext implements OperationContext {
 
     protected String getLullMessage(Thread trackedThread, Duration millis) {
       StringBuilder message = new StringBuilder();
-      message.append("Processing stuck");
+      message.append("Operation ongoing");
       if (getStepName() != null) {
         message.append(" in step ").append(getStepName().userName());
       }

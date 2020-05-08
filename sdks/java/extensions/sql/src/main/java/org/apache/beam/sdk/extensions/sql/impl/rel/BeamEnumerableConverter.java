@@ -287,7 +287,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     Object[] convertedColumns = new Object[schema.getFields().size()];
     int i = 0;
     for (Schema.Field field : schema.getFields()) {
-      convertedColumns[i] = fieldToAvatica(field.getType(), row.getValue(i));
+      convertedColumns[i] = fieldToAvatica(field.getType(), row.getBaseValue(i, Object.class));
       ++i;
     }
     return convertedColumns;
@@ -308,7 +308,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
         } else if (logicalId.equals(CharType.IDENTIFIER)) {
           return beamValue;
         } else {
-          throw new IllegalArgumentException("Unknown DateTime type " + logicalId);
+          throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);
         }
       case DATETIME:
         return ((ReadableInstant) beamValue).getMillis();
@@ -383,17 +383,18 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
 
   private static boolean isLimitQuery(BeamRelNode node) {
     return (node instanceof BeamSortRel && ((BeamSortRel) node).isLimitOnly())
-        || (node instanceof BeamCalcRel && ((BeamCalcRel) node).isInputSortRelAndLimitOnly());
+        || (node instanceof AbstractBeamCalcRel
+            && ((AbstractBeamCalcRel) node).isInputSortRelAndLimitOnly());
   }
 
   private static int getLimitCount(BeamRelNode node) {
     if (node instanceof BeamSortRel) {
       return ((BeamSortRel) node).getCount();
-    } else if (node instanceof BeamCalcRel) {
-      return ((BeamCalcRel) node).getLimitCountOfSortRel();
+    } else if (node instanceof AbstractBeamCalcRel) {
+      return ((AbstractBeamCalcRel) node).getLimitCountOfSortRel();
     }
 
-    throw new RuntimeException(
+    throw new IllegalArgumentException(
         "Cannot get limit count from RelNode tree with root " + node.getRelTypeName());
   }
 

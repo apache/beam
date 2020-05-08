@@ -86,9 +86,12 @@ If your pipeline uses an unbounded data source or sink, you must set the `stream
 
 Python [FnApiRunner](https://beam.apache.org/contribute/runner-guide/#the-fn-api) supports multi-threading and multi-processing mode.
 
-#### Setting parallelism
+<strong>Setting parallelism</strong>
 
-Number of threads or subprocesses is defined by setting the `direct_num_workers` option. There are several ways to set this option.
+Number of threads or subprocesses is defined by setting the `direct_num_workers` option. 
+From 2.22.0, `direct_num_workers = 0` is supported. When `direct_num_workers` is set to 0, it will set the number of threads/subprocess to the number of cores of the machine where the pipelien is running.
+
+There are several ways to set this option.
 
 * Passing through CLI when executing a pipeline.
 ```
@@ -107,6 +110,23 @@ from apache_beam.options.pipeline_options import DirectOptions
 pipeline_options = PipelineOptions(xxx)
 pipeline_options.view_as(DirectOptions).direct_num_workers = 2
 ```
+
+
+
+<strong>Setting running mode</strong>
+
+From 2.19, a new option was added to set running mode. We can use `direct_running_mode` option to set the running mode.
+`direct_running_mode` can be one of [`'in_memory'`, `'multi_threading'`, `'multi_processing'`].
+
+<b>in_memory</b>: Runner and workers' communication happens in memory (not through gRPC). This is a default mode.
+
+<b>multi_threading</b>: Runner and workers communicate through gRPC and each worker runs in a thread.
+
+<b>multi_processing</b>: Runner and workers communicate through gRPC and each worker runs in a subprocess.
+
+Same as other options, `direct_running_mode` can be passed through CLI or set with `PipelineOptions`.
+
+For the versions before 2.19.0, the running mode should be set with `FnApiRunner()`. Please refer following examples.
 
 #### Running with multi-threading mode
 

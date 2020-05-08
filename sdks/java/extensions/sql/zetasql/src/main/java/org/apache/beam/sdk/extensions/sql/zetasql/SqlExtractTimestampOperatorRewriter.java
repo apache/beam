@@ -21,16 +21,16 @@ import java.util.List;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 
 /** Rewrites EXTRACT calls by swapping first two arguments to fit for calcite SqlExtractOperator. */
 public class SqlExtractTimestampOperatorRewriter implements SqlOperatorRewriter {
   @Override
   public RexNode apply(RexBuilder rexBuilder, List<RexNode> operands) {
-    Preconditions.checkArgument(
-        operands.size() == 2,
-        "EXTRACT should have two arguments in function call. AT TIME ZONE not supported.");
+    if (operands.size() != 2) {
+      throw new UnsupportedOperationException(
+          "EXTRACT should have two arguments in function call. AT TIME ZONE not supported.");
+    }
 
     SqlOperator op =
         SqlStdOperatorMappingTable.ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR.get("$extract");

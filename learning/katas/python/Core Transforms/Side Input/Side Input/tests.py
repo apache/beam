@@ -22,8 +22,9 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from test_helper import run_common_tests, failed, passed, \
-    get_answer_placeholders, get_file_output
+from test_helper import failed, passed, \
+    get_answer_placeholders, get_file_output, test_is_not_empty, \
+    test_answer_placeholders_text_deleted
 
 
 def test_dofn_process_method():
@@ -64,7 +65,8 @@ def test_output():
 
 
 if __name__ == '__main__':
-    run_common_tests()
+    test_is_not_empty()
+    test_answer_placeholders_text_deleted()
     test_dofn_process_method()
     test_pardo()
     test_output()

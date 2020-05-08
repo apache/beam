@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** A test that verifies that metrics push system works. */
-@Category({UsesMetricsPusher.class})
+@Category({UsesMetricsPusher.class, ValidatesRunner.class})
 @RunWith(JUnit4.class)
 public class MetricsPusherTest {
   private static final Logger LOG = LoggerFactory.getLogger(MetricsPusherTest.class);

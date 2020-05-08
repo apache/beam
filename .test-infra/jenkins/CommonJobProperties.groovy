@@ -23,6 +23,8 @@
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
+  final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
+  final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
@@ -163,6 +165,10 @@ class CommonJobProperties {
     // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
+
+    // Add docker-pull-licenses option to all Jenkins test to add licenses to when build docker images.
+    // as discussed at https://s.apache.org/zt68q
+    context.switches("-Pdocker-pull-licenses")
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -311,7 +317,7 @@ class CommonJobProperties {
         shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
 
         // Clone appropriate perfkit branch
-        shell("git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
+        shell("git clone --single-branch --branch=v1.14.0 https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
 
         // Install Perfkit benchmark requirements.
         shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")

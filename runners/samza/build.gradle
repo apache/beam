@@ -34,7 +34,7 @@ configurations {
   validatesRunner
 }
 
-def samza_version = "1.1.0"
+def samza_version = "1.3.0"
 
 dependencies {
   compile library.java.vendored_guava_26_0_jre
@@ -42,11 +42,11 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.commons_compress
-  compile library.java.commons_io_2x
+  compile library.java.commons_io
   compile library.java.args4j
   compile "org.apache.samza:samza-api:$samza_version"
   compile "org.apache.samza:samza-core_2.11:$samza_version"
@@ -58,7 +58,6 @@ dependencies {
   compile "org.apache.kafka:kafka-clients:0.11.0.2"
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile library.java.commons_lang3
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
@@ -88,6 +87,8 @@ task validatesRunner(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
     excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
 }
 

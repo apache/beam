@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<svg width="1158px" height="333px" viewBox="0 0 1158 333" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>A pipeline that does a relational join of two input collections.</title>
+    <g id="design-your-pipeline-join">
+        <g id="PTransform" transform="translate(160.000000, 0.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="Read-from-database" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="41" y="55">Read from </tspan>
+                <tspan x="41" y="83">database</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(160.000000, 142.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="0" width="194" height="124"></rect>
+            <text id="Read-from-text-file" font-family="Roboto-Regular, Roboto" font-size="24" font-weight="normal" fill="#FFFFFF">
+                <tspan x="40" y="56">Read from </tspan>
+                <tspan x="40" y="84">text file</tspan>
+            </text>
+        </g>
+        <g id="PTransform" transform="translate(496.000000, 39.725000)">
+            <polygon id="Aggregation-PTransform-symbol" fill="#3062A8" points="128.813953 0 261 91.7333333 128.813953 184 0 92.2666667"></polygon>
+            <text id="Join" font-family="Roboto-Regular, Roboto" font-size="28" font-weight="normal" fill="#FFFFFF">
+                <tspan x="98.1689453" y="101.275">Join</tspan>
+            </text>
+        </g>
+        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="815" cy="131" r="37"></circle>
+        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="413" cy="60" r="36"></circle>
+        <text id="Names-+-addrs." font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+            <tspan x="387.570312" y="56">Names</tspan>
+            <tspan x="384.171875" y="75">+ addrs.</tspan>
+        </text>
+        <circle id="PCollection-symbol" stroke="#757575" stroke-width="2" fill="#FFFFFF" cx="413" cy="205" r="36"></circle>
+        <text id="Names-+-orders" font-family="Roboto-Regular, Roboto" font-size="16" font-weight="normal" fill="#000000">
+            <tspan x="387.070312" y="200">Names</tspan>
+            <tspan x="383.132812" y="219">+ orders</tspan>
+        </text>
+        <text id="Names,-orders-+-addr" font-family="Roboto-Regular, Roboto" font-size="15" font-weight="normal" fill="#000000">
+            <tspan x="790.6875" y="120">Names, </tspan>
+            <tspan x="788.468262" y="138">orders + </tspan>
+            <tspan x="795.082031" y="156">addrs.</tspan>
+        </text>
+        <path d="M766,121.5 L766,141.5" id="Directed-edge" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(766.000000, 131.500000) rotate(-90.000000) translate(-766.000000, -131.500000) "></path>
+        <g id="Merge" transform="translate(354.377439, 60.000000)">
+            <path id="Directed-edge" d="M127.622561,73 L116.747561,73 L116.747561,147 L95,147 L95,145 L114.747561,145 L114.747561,71 L127.622561,71 L127.622561,65 L141.622561,72 L127.622561,79 L127.622561,73 Z" fill="#757575" fill-rule="nonzero"></path>
+            <path id="Directed-edge" d="M127.622561,73 L114.747561,73 L114.747561,2 L95.6225614,2 L95.6225614,0 L116.747561,0 L116.747561,71 L127.622561,71 L127.622561,65 L141.622561,72 L127.622561,79 L127.622561,73 Z" fill="#757575" fill-rule="nonzero"></path>
+            <path d="M10.6225614,-9 L10.6225614,11" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(10.622561, 1.000000) rotate(-90.000000) translate(-10.622561, -1.000000) "></path>
+            <path d="M10.6225614,135 L10.6225614,155" id="Line" stroke="#3062A8" stroke-width="2" stroke-linecap="square" transform="translate(10.622561, 145.000000) rotate(-90.000000) translate(-10.622561, -145.000000) "></path>
+        </g>
+        <path id="Directed-edge" d="M146,61.5 L113,61.5 L113,59.5 L146,59.5 L146,53.5 L160,60.5 L146,67.5 L146,61.5 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
+        <path id="Directed-edge" d="M146,205.5 L114,205.5 L114,203.5 L146,203.5 L146,197.5 L160,204.5 L146,211.5 L146,205.5 Z" fill="#E0E0E0" fill-rule="nonzero"></path>
+        <g id="Database" transform="translate(0.000000, 9.000000)">
+            <ellipse id="Oval" fill="#E0E0E0" cx="56.5" cy="83.2631579" rx="56.5" ry="17.8421053"></ellipse>
+            <rect id="Rectangle" fill="#E0E0E0" x="0" y="17.8421053" width="113" height="65.4210526"></rect>
+            <ellipse id="Oval" fill="#EFEFEF" cx="56.5" cy="17.8421053" rx="56.5" ry="17.8421053"></ellipse>
+            <text id="Database-table" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="21" y="60">Database </tspan>
+                <tspan x="21" y="81">table</tspan>
+            </text>
+        </g>
+        <g id="Document" transform="translate(1.000000, 161.000000)">
+            <path d="M0,0 L0,81.1880544 C5.73926173,85.0626848 15.1689615,87 28.2890992,87 C56.5,87 57.2032971,71.8576229 84.878475,71.8576229 C90.6940962,71.8576229 100.067938,74.9677667 113,81.1880544 L113,0 L0,0 Z" id="Document-symbol" fill="#E0E0E0"></path>
+            <text id="Text-file" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#414141">
+                <tspan x="25" y="43">Text file</tspan>
+            </text>
+        </g>
+        <g id="Legend" transform="translate(1.000000, 278.000000)">
+            <rect id="PTransform-symbol" fill="#3062A8" x="0" y="4" width="15" height="15"></rect>
+            <text id="PTransform" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="22" y="17">PTransform</tspan>
+            </text>
+            <text id="Aggregation" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="162" y="17">Aggregating PTransform</tspan>
+            </text>
+            <text id="PCollection" font-family="Roboto-Regular, Roboto" font-size="18" font-weight="normal" fill="#000000">
+                <tspan x="22" y="52">PCollection</tspan>
+            </text>
+            <circle id="PCollection-symbol" fill="#FFFFFF" stroke="#757575" stroke-width="2" cx="7.5" cy="46.5" r="7.5"></circle>
+            <path d="M143.364341,5 L154,12.4782609 L143.364341,20 L133,12.5217391 L143.364341,5 Z" id="Rectangle" fill="#3062A8"></path>
+        </g>
+    </g>
+</svg>

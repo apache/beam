@@ -19,24 +19,27 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import struct
 import sys
 from builtins import chr
 from builtins import object
+from typing import List
 
 
 class OutputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.OutputStream."""
-
   def __init__(self):
-    self.data = []
+    self.data = []  # type: List[bytes]
     self.byte_count = 0
 
   def write(self, b, nested=False):
+    # type: (bytes, bool) -> None
     assert isinstance(b, bytes)
     if nested:
       self.write_var_int64(len(b))
@@ -48,6 +51,7 @@ class OutputStream(object):
     self.byte_count += 1
 
   def write_var_int64(self, v):
+    # type: (int) -> None
     if v < 0:
       v += 1 << 64
       if v <= 0:
@@ -74,12 +78,15 @@ class OutputStream(object):
     self.write(struct.pack('>d', v))
 
   def get(self):
+    # type: () -> bytes
     return b''.join(self.data)
 
   def size(self):
+    # type: () -> int
     return self.byte_count
 
   def _clear(self):
+    # type: () -> None
     self.data = []
     self.byte_count = 0
 
@@ -88,13 +95,13 @@ class ByteCountingOutputStream(OutputStream):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.ByteCountingOutputStream."""
-
   def __init__(self):
     # Note that we don't actually use any of the data initialized by our super.
     super(ByteCountingOutputStream, self).__init__()
     self.count = 0
 
   def write(self, byte_array, nested=False):
+    # type: (bytes, bool) -> None
     blen = len(byte_array)
     if nested:
       self.write_var_int64(blen)
@@ -117,8 +124,8 @@ class InputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A pure Python implementation of stream.InputStream."""
-
   def __init__(self, data):
+    # type: (bytes) -> None
     self.data = data
     self.pos = 0
 
@@ -139,17 +146,22 @@ class InputStream(object):
     return len(self.data) - self.pos
 
   def read(self, size):
+    # type: (int) -> bytes
     self.pos += size
-    return self.data[self.pos - size : self.pos]
+    return self.data[self.pos - size:self.pos]
 
   def read_all(self, nested):
+    # type: (bool) -> bytes
     return self.read(self.read_var_int64() if nested else self.size())
 
   def read_byte_py2(self):
+    # type: () -> int
     self.pos += 1
-    return ord(self.data[self.pos - 1])
+    # mypy tests against python 3.x, where this is an error:
+    return ord(self.data[self.pos - 1])  # type: ignore[arg-type]
 
   def read_byte_py3(self):
+    # type: () -> int
     self.pos += 1
     return self.data[self.pos - 1]
 

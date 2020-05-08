@@ -42,7 +42,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
-import org.apache.beam.sdk.extensions.sql.impl.rel.BeamIOSourceRel;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamPushDownIOSourceRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
@@ -158,7 +158,7 @@ public class BigQueryReadWriteIT implements Serializable {
   }
 
   @Test
-  public void testSQLRead() throws IOException {
+  public void testSQLRead_withExport() throws IOException {
     bigQueryTestingTypes.insertRows(
         SOURCE_SCHEMA_TWO,
         row(
@@ -194,7 +194,13 @@ public class BigQueryReadWriteIT implements Serializable {
             + "TYPE 'bigquery' \n"
             + "LOCATION '"
             + bigQueryTestingTypes.tableSpec()
-            + "'";
+            + "'"
+            + "TBLPROPERTIES "
+            + "'{ "
+            + METHOD_PROPERTY
+            + ": \""
+            + Method.EXPORT.toString()
+            + "\" }'";
     sqlEnv.executeDdl(createTableStatement);
 
     String selectTableStatement = "SELECT * FROM TEST";
@@ -485,7 +491,7 @@ public class BigQueryReadWriteIT implements Serializable {
 
     // Calc is not dropped because BigQuery does not support field reordering yet.
     assertThat(relNode, instanceOf(BeamCalcRel.class));
-    assertThat(relNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    assertThat(relNode.getInput(0), instanceOf(BeamPushDownIOSourceRel.class));
     // IO projects fields in the same order they are defined in the schema.
     assertThat(
         relNode.getInput(0).getRowType().getFieldNames(),
@@ -563,7 +569,7 @@ public class BigQueryReadWriteIT implements Serializable {
     // Predicate should be pushed-down to IO level
     assertNull(((BeamCalcRel) relNode).getProgram().getCondition());
 
-    assertThat(relNode.getInput(0), instanceOf(BeamIOSourceRel.class));
+    assertThat(relNode.getInput(0), instanceOf(BeamPushDownIOSourceRel.class));
     // Unused fields should not be projected by an IO
     assertThat(
         relNode.getInput(0).getRowType().getFieldNames(),

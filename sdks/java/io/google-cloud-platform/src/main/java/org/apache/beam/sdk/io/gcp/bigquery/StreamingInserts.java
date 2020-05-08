@@ -38,6 +38,7 @@ public class StreamingInserts<DestinationT, ElementT>
   private boolean extendedErrorInfo;
   private final boolean skipInvalidRows;
   private final boolean ignoreUnknownValues;
+  private final boolean ignoreInsertIds;
   private final String kmsKey;
   private final Coder<ElementT> elementCoder;
   private final SerializableFunction<ElementT, TableRow> toTableRow;
@@ -56,6 +57,7 @@ public class StreamingInserts<DestinationT, ElementT>
         false,
         false,
         false,
+        false,
         elementCoder,
         toTableRow,
         null);
@@ -70,6 +72,7 @@ public class StreamingInserts<DestinationT, ElementT>
       boolean extendedErrorInfo,
       boolean skipInvalidRows,
       boolean ignoreUnknownValues,
+      boolean ignoreInsertIds,
       Coder<ElementT> elementCoder,
       SerializableFunction<ElementT, TableRow> toTableRow,
       String kmsKey) {
@@ -80,6 +83,7 @@ public class StreamingInserts<DestinationT, ElementT>
     this.extendedErrorInfo = extendedErrorInfo;
     this.skipInvalidRows = skipInvalidRows;
     this.ignoreUnknownValues = ignoreUnknownValues;
+    this.ignoreInsertIds = ignoreInsertIds;
     this.elementCoder = elementCoder;
     this.toTableRow = toTableRow;
     this.kmsKey = kmsKey;
@@ -96,6 +100,7 @@ public class StreamingInserts<DestinationT, ElementT>
         extendedErrorInfo,
         skipInvalidRows,
         ignoreUnknownValues,
+        ignoreInsertIds,
         elementCoder,
         toTableRow,
         kmsKey);
@@ -111,6 +116,7 @@ public class StreamingInserts<DestinationT, ElementT>
         extendedErrorInfo,
         skipInvalidRows,
         ignoreUnknownValues,
+        ignoreInsertIds,
         elementCoder,
         toTableRow,
         kmsKey);
@@ -125,6 +131,7 @@ public class StreamingInserts<DestinationT, ElementT>
         extendedErrorInfo,
         skipInvalidRows,
         ignoreUnknownValues,
+        ignoreInsertIds,
         elementCoder,
         toTableRow,
         kmsKey);
@@ -139,6 +146,22 @@ public class StreamingInserts<DestinationT, ElementT>
         extendedErrorInfo,
         skipInvalidRows,
         ignoreUnknownValues,
+        ignoreInsertIds,
+        elementCoder,
+        toTableRow,
+        kmsKey);
+  }
+
+  StreamingInserts<DestinationT, ElementT> withIgnoreInsertIds(boolean ignoreInsertIds) {
+    return new StreamingInserts<>(
+        createDisposition,
+        dynamicDestinations,
+        bigQueryServices,
+        retryPolicy,
+        extendedErrorInfo,
+        skipInvalidRows,
+        ignoreUnknownValues,
+        ignoreInsertIds,
         elementCoder,
         toTableRow,
         kmsKey);
@@ -153,6 +176,7 @@ public class StreamingInserts<DestinationT, ElementT>
         extendedErrorInfo,
         skipInvalidRows,
         ignoreUnknownValues,
+        ignoreInsertIds,
         elementCoder,
         toTableRow,
         kmsKey);
@@ -167,6 +191,7 @@ public class StreamingInserts<DestinationT, ElementT>
         extendedErrorInfo,
         skipInvalidRows,
         ignoreUnknownValues,
+        ignoreInsertIds,
         elementCoder,
         toTableRow,
         kmsKey);
@@ -188,6 +213,7 @@ public class StreamingInserts<DestinationT, ElementT>
             .withExtendedErrorInfo(extendedErrorInfo)
             .withSkipInvalidRows(skipInvalidRows)
             .withIgnoreUnknownValues(ignoreUnknownValues)
+            .withIgnoreInsertIds(ignoreInsertIds)
             .withElementCoder(elementCoder)
             .withToTableRow(toTableRow));
   }

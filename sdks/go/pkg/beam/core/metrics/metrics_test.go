@@ -36,183 +36,150 @@ func TestRobustness(t *testing.T) {
 	m.Inc(bCtx, 3)
 }
 
-func TestBeamContext(t *testing.T) {
-	t.Run("ptransformID", func(t *testing.T) {
-		ptID := "MY_TRANSFORM"
-		ctx := SetPTransformID(context.Background(), ptID)
-		key := getContextKey(ctx, name{})
-		if key.bundle != bundleIDUnset {
-			t.Errorf("bundleId = %q, want %q", key.bundle, bundleIDUnset)
-		}
-		if key.ptransform != ptID {
-			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptID)
-		}
-
-	})
-
-	t.Run("bundleID", func(t *testing.T) {
-		ctx := SetBundleID(context.Background(), bID)
-		key := getContextKey(ctx, name{})
-		if key.bundle != bID {
-			t.Errorf("bundleId = %q, want %q", key.bundle, bID)
-		}
-		if key.ptransform != ptransformIDUnset {
-			t.Errorf("ptransformId = %q, want %q", key.ptransform, ptransformIDUnset)
-		}
-	})
-}
-
 func ctxWith(b, pt string) context.Context {
 	ctx := context.Background()
-	ctx = SetPTransformID(ctx, pt)
 	ctx = SetBundleID(ctx, b)
+	ctx = SetPTransformID(ctx, pt)
 	return ctx
 }
 
 func TestCounter_Inc(t *testing.T) {
+	ctxA := ctxWith(bID, "A")
+	ctxB := ctxWith(bID, "B")
+
 	tests := []struct {
-		ns, n, key string // Counter name and PTransform context
-		inc        int64
-		value      int64 // Internal variable to check
+		ns, n string // Counter name
+		ctx   context.Context
+		inc   int64
+		value int64 // Internal variable to check
 	}{
-		{ns: "inc1", n: "count", key: "A", inc: 1, value: 1},
-		{ns: "inc1", n: "count", key: "A", inc: 1, value: 2},
-		{ns: "inc1", n: "ticker", key: "A", inc: 1, value: 1},
-		{ns: "inc1", n: "ticker", key: "A", inc: 2, value: 3},
-		{ns: "inc1", n: "count", key: "B", inc: 1, value: 1},
-		{ns: "inc1", n: "count", key: "B", inc: 1, value: 2},
-		{ns: "inc1", n: "ticker", key: "B", inc: 1, value: 1},
-		{ns: "inc1", n: "ticker", key: "B", inc: 2, value: 3},
-		{ns: "inc2", n: "count", key: "A", inc: 1, value: 1},
-		{ns: "inc2", n: "count", key: "A", inc: 1, value: 2},
-		{ns: "inc2", n: "ticker", key: "A", inc: 1, value: 1},
-		{ns: "inc2", n: "ticker", key: "A", inc: 2, value: 3},
-		{ns: "inc2", n: "count", key: "B", inc: 1, value: 1},
-		{ns: "inc2", n: "count", key: "B", inc: 1, value: 2},
-		{ns: "inc2", n: "ticker", key: "B", inc: 1, value: 1},
-		{ns: "inc2", n: "ticker", key: "B", inc: 2, value: 3},
+		{ns: "inc1", n: "count", ctx: ctxA, inc: 1, value: 1},
+		{ns: "inc1", n: "count", ctx: ctxA, inc: 1, value: 2},
+		{ns: "inc1", n: "ticker", ctx: ctxA, inc: 1, value: 1},
+		{ns: "inc1", n: "ticker", ctx: ctxA, inc: 2, value: 3},
+		{ns: "inc1", n: "count", ctx: ctxB, inc: 1, value: 1},
+		{ns: "inc1", n: "count", ctx: ctxB, inc: 1, value: 2},
+		{ns: "inc1", n: "ticker", ctx: ctxB, inc: 1, value: 1},
+		{ns: "inc1", n: "ticker", ctx: ctxB, inc: 2, value: 3},
+		{ns: "inc2", n: "count", ctx: ctxA, inc: 1, value: 1},
+		{ns: "inc2", n: "count", ctx: ctxA, inc: 1, value: 2},
+		{ns: "inc2", n: "ticker", ctx: ctxA, inc: 1, value: 1},
+		{ns: "inc2", n: "ticker", ctx: ctxA, inc: 2, value: 3},
+		{ns: "inc2", n: "count", ctx: ctxB, inc: 1, value: 1},
+		{ns: "inc2", n: "count", ctx: ctxB, inc: 1, value: 2},
+		{ns: "inc2", n: "ticker", ctx: ctxB, inc: 1, value: 1},
+		{ns: "inc2", n: "ticker", ctx: ctxB, inc: 2, value: 3},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("add %d to %s.%s[%q] value: %d", test.inc, test.ns, test.n, test.key, test.value),
+		t.Run(fmt.Sprintf("add %d to %s.%s[%v] value: %d", test.inc, test.ns, test.n, test.ctx, test.value),
 			func(t *testing.T) {
 				m := NewCounter(test.ns, test.n)
-				ctx := ctxWith(bID, test.key)
-				m.Inc(ctx, test.inc)
+				m.Inc(test.ctx, test.inc)
 
-				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				countersMu.Lock()
-				c, ok := counters[key]
-				countersMu.Unlock()
-				if !ok {
-					t.Fatalf("Unable to find Counter for key %v", key)
-				}
+				cs := getCounterSet(test.ctx)
+				c := cs.counters[m.hash]
 				if got, want := c.value, test.value; got != want {
-					t.Errorf("GetCounter(%q,%q).Inc(%s, %d) c.value got %v, want %v", test.ns, test.n, test.key, test.inc, got, want)
+					t.Errorf("GetCounter(%q,%q).Inc(%v, %d) c.value got %v, want %v", test.ns, test.n, test.ctx, test.inc, got, want)
 				}
 			})
 	}
 }
 
 func TestCounter_Dec(t *testing.T) {
+	ctxA := ctxWith(bID, "A")
+	ctxB := ctxWith(bID, "B")
+
 	tests := []struct {
-		ns, n, key string // Counter name and PTransform context
-		dec        int64
-		value      int64 // Internal variable to check
+		ns, n string // Counter name
+		ctx   context.Context
+		dec   int64
+		value int64 // Internal variable to check
 	}{
-		{ns: "dec1", n: "count", key: "A", dec: 1, value: -1},
-		{ns: "dec1", n: "count", key: "A", dec: 1, value: -2},
-		{ns: "dec1", n: "ticker", key: "A", dec: 1, value: -1},
-		{ns: "dec1", n: "ticker", key: "A", dec: 2, value: -3},
-		{ns: "dec1", n: "count", key: "B", dec: 1, value: -1},
-		{ns: "dec1", n: "count", key: "B", dec: 1, value: -2},
-		{ns: "dec1", n: "ticker", key: "B", dec: 1, value: -1},
-		{ns: "dec1", n: "ticker", key: "B", dec: 2, value: -3},
-		{ns: "dec2", n: "count", key: "A", dec: 1, value: -1},
-		{ns: "dec2", n: "count", key: "A", dec: 1, value: -2},
-		{ns: "dec2", n: "ticker", key: "A", dec: 1, value: -1},
-		{ns: "dec2", n: "ticker", key: "A", dec: 2, value: -3},
-		{ns: "dec2", n: "count", key: "B", dec: 1, value: -1},
-		{ns: "dec2", n: "count", key: "B", dec: 1, value: -2},
-		{ns: "dec2", n: "ticker", key: "B", dec: 1, value: -1},
-		{ns: "dec2", n: "ticker", key: "B", dec: 2, value: -3},
+		{ns: "dec1", n: "count", ctx: ctxA, dec: 1, value: -1},
+		{ns: "dec1", n: "count", ctx: ctxA, dec: 1, value: -2},
+		{ns: "dec1", n: "ticker", ctx: ctxA, dec: 1, value: -1},
+		{ns: "dec1", n: "ticker", ctx: ctxA, dec: 2, value: -3},
+		{ns: "dec1", n: "count", ctx: ctxB, dec: 1, value: -1},
+		{ns: "dec1", n: "count", ctx: ctxB, dec: 1, value: -2},
+		{ns: "dec1", n: "ticker", ctx: ctxB, dec: 1, value: -1},
+		{ns: "dec1", n: "ticker", ctx: ctxB, dec: 2, value: -3},
+		{ns: "dec2", n: "count", ctx: ctxA, dec: 1, value: -1},
+		{ns: "dec2", n: "count", ctx: ctxA, dec: 1, value: -2},
+		{ns: "dec2", n: "ticker", ctx: ctxA, dec: 1, value: -1},
+		{ns: "dec2", n: "ticker", ctx: ctxA, dec: 2, value: -3},
+		{ns: "dec2", n: "count", ctx: ctxB, dec: 1, value: -1},
+		{ns: "dec2", n: "count", ctx: ctxB, dec: 1, value: -2},
+		{ns: "dec2", n: "ticker", ctx: ctxB, dec: 1, value: -1},
+		{ns: "dec2", n: "ticker", ctx: ctxB, dec: 2, value: -3},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("subtract %d to %s.%s[%q] value: %d", test.dec, test.ns, test.n, test.key, test.value),
+		t.Run(fmt.Sprintf("subtract %d to %s.%s[%v] value: %d", test.dec, test.ns, test.n, test.ctx, test.value),
 			func(t *testing.T) {
 				m := NewCounter(test.ns, test.n)
-				ctx := ctxWith(bID, test.key)
-				m.Dec(ctx, test.dec)
+				m.Dec(test.ctx, test.dec)
 
-				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				countersMu.Lock()
-				c, ok := counters[key]
-				countersMu.Unlock()
-				if !ok {
-					t.Fatalf("Unable to find Counter for key %v", key)
-				}
+				cs := getCounterSet(test.ctx)
+				c := cs.counters[m.hash]
 				if got, want := c.value, test.value; got != want {
-					t.Errorf("GetCounter(%q,%q).Dec(%s, %d) c.value got %v, want %v", test.ns, test.n, test.key, test.dec, got, want)
+					t.Errorf("GetCounter(%q,%q).Dec(%v, %d) c.value got %v, want %v", test.ns, test.n, test.ctx, test.dec, got, want)
 				}
 			})
 	}
 }
 
 func TestDistribution_Update(t *testing.T) {
+	ctxA := ctxWith(bID, "A")
+	ctxB := ctxWith(bID, "B")
 	tests := []struct {
-		ns, n, key           string // Gauge name and PTransform context
+		ns, n                string // Counter name
+		ctx                  context.Context
 		v                    int64
 		count, sum, min, max int64 // Internal variables to check
 	}{
-		{ns: "update1", n: "latency", key: "A", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update1", n: "latency", key: "A", v: 1, count: 2, sum: 2, min: 1, max: 1},
-		{ns: "update1", n: "latency", key: "A", v: 1, count: 3, sum: 3, min: 1, max: 1},
-		{ns: "update1", n: "size", key: "A", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update1", n: "size", key: "A", v: 2, count: 2, sum: 3, min: 1, max: 2},
-		{ns: "update1", n: "size", key: "A", v: 3, count: 3, sum: 6, min: 1, max: 3},
-		{ns: "update1", n: "size", key: "A", v: -4, count: 4, sum: 2, min: -4, max: 3},
-		{ns: "update1", n: "size", key: "A", v: 1, count: 5, sum: 3, min: -4, max: 3},
-		{ns: "update1", n: "latency", key: "B", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update1", n: "latency", key: "B", v: 1, count: 2, sum: 2, min: 1, max: 1},
-		{ns: "update1", n: "size", key: "B", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update1", n: "size", key: "B", v: 2, count: 2, sum: 3, min: 1, max: 2},
-		{ns: "update2", n: "latency", key: "A", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update2", n: "latency", key: "A", v: 1, count: 2, sum: 2, min: 1, max: 1},
-		{ns: "update2", n: "size", key: "A", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update2", n: "size", key: "A", v: 2, count: 2, sum: 3, min: 1, max: 2},
-		{ns: "update2", n: "latency", key: "B", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update2", n: "latency", key: "B", v: 1, count: 2, sum: 2, min: 1, max: 1},
-		{ns: "update2", n: "size", key: "B", v: 1, count: 1, sum: 1, min: 1, max: 1},
-		{ns: "update2", n: "size", key: "B", v: 2, count: 2, sum: 3, min: 1, max: 2},
-		{ns: "update1", n: "size", key: "A", v: 1, count: 6, sum: 4, min: -4, max: 3},
+		{ns: "update1", n: "latency", ctx: ctxA, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update1", n: "latency", ctx: ctxA, v: 1, count: 2, sum: 2, min: 1, max: 1},
+		{ns: "update1", n: "latency", ctx: ctxA, v: 1, count: 3, sum: 3, min: 1, max: 1},
+		{ns: "update1", n: "size", ctx: ctxA, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update1", n: "size", ctx: ctxA, v: 2, count: 2, sum: 3, min: 1, max: 2},
+		{ns: "update1", n: "size", ctx: ctxA, v: 3, count: 3, sum: 6, min: 1, max: 3},
+		{ns: "update1", n: "size", ctx: ctxA, v: -4, count: 4, sum: 2, min: -4, max: 3},
+		{ns: "update1", n: "size", ctx: ctxA, v: 1, count: 5, sum: 3, min: -4, max: 3},
+		{ns: "update1", n: "latency", ctx: ctxB, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update1", n: "latency", ctx: ctxB, v: 1, count: 2, sum: 2, min: 1, max: 1},
+		{ns: "update1", n: "size", ctx: ctxB, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update1", n: "size", ctx: ctxB, v: 2, count: 2, sum: 3, min: 1, max: 2},
+		{ns: "update2", n: "latency", ctx: ctxA, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update2", n: "latency", ctx: ctxA, v: 1, count: 2, sum: 2, min: 1, max: 1},
+		{ns: "update2", n: "size", ctx: ctxA, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update2", n: "size", ctx: ctxA, v: 2, count: 2, sum: 3, min: 1, max: 2},
+		{ns: "update2", n: "latency", ctx: ctxB, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update2", n: "latency", ctx: ctxB, v: 1, count: 2, sum: 2, min: 1, max: 1},
+		{ns: "update2", n: "size", ctx: ctxB, v: 1, count: 1, sum: 1, min: 1, max: 1},
+		{ns: "update2", n: "size", ctx: ctxB, v: 2, count: 2, sum: 3, min: 1, max: 2},
+		{ns: "update1", n: "size", ctx: ctxA, v: 1, count: 6, sum: 4, min: -4, max: 3},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("add %d to %s.%s[%q] count: %d sum: %d", test.v, test.ns, test.n, test.key, test.count, test.sum),
+		t.Run(fmt.Sprintf("add %d to %s.%s[%q] count: %d sum: %d", test.v, test.ns, test.n, test.ctx, test.count, test.sum),
 			func(t *testing.T) {
 				m := NewDistribution(test.ns, test.n)
-				ctx := ctxWith(bID, test.key)
-				m.Update(ctx, test.v)
+				m.Update(test.ctx, test.v)
 
-				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				distributionsMu.Lock()
-				d, ok := distributions[key]
-				distributionsMu.Unlock()
-				if !ok {
-					t.Fatalf("Unable to find Distribution for key %v", key)
-				}
+				cs := getCounterSet(test.ctx)
+				d := cs.distributions[m.hash]
 				if got, want := d.count, test.count; got != want {
-					t.Errorf("GetDistribution(%q,%q).Update(%s, %d) d.count got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
+					t.Errorf("GetDistribution(%q,%q).Update(%v, %d) d.count got %v, want %v", test.ns, test.n, test.ctx, test.v, got, want)
 				}
 				if got, want := d.sum, test.sum; got != want {
-					t.Errorf("GetDistribution(%q,%q).Update(%s, %d) d.sum got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
+					t.Errorf("GetDistribution(%q,%q).Update(%v, %d) d.sum got %v, want %v", test.ns, test.n, test.ctx, test.v, got, want)
 				}
 				if got, want := d.min, test.min; got != want {
-					t.Errorf("GetDistribution(%q,%q).Update(%s, %d) d.min got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
+					t.Errorf("GetDistribution(%q,%q).Update(%v, %d) d.min got %v, want %v", test.ns, test.n, test.ctx, test.v, got, want)
 				}
 				if got, want := d.max, test.max; got != want {
-					t.Errorf("GetDistribution(%q,%q).Update(%s, %d) d.max got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
+					t.Errorf("GetDistribution(%q,%q).Update(%v, %d) d.max got %v, want %v", test.ns, test.n, test.ctx, test.v, got, want)
 				}
 			})
 	}
@@ -223,74 +190,51 @@ func testclock(t time.Time) func() time.Time {
 }
 
 func TestGauge_Set(t *testing.T) {
+	ctxA := ctxWith(bID, "A")
+	ctxB := ctxWith(bID, "B")
 	tests := []struct {
-		ns, n, key string // Gauge name and PTransform context
-		v          int64
-		t          time.Time
+		ns, n string // Counter name
+		ctx   context.Context
+		v     int64
+		t     time.Time
 	}{
-		{ns: "set1", n: "load", key: "A", v: 1, t: time.Unix(0, 0)},
-		{ns: "set1", n: "load", key: "A", v: 1, t: time.Unix(0, 0)},
-		{ns: "set1", n: "speed", key: "A", v: 1, t: time.Unix(0, 0)},
-		{ns: "set1", n: "speed", key: "A", v: 2, t: time.Unix(0, 0)},
-		{ns: "set1", n: "load", key: "B", v: 1, t: time.Unix(0, 0)},
-		{ns: "set1", n: "load", key: "B", v: 1, t: time.Unix(0, 0)},
-		{ns: "set1", n: "speed", key: "B", v: 1, t: time.Unix(0, 0)},
-		{ns: "set1", n: "speed", key: "B", v: 2, t: time.Unix(0, 0)},
-		{ns: "set2", n: "load", key: "A", v: 1, t: time.Unix(0, 0)},
-		{ns: "set2", n: "load", key: "A", v: 1, t: time.Unix(0, 0)},
-		{ns: "set2", n: "speed", key: "A", v: 1, t: time.Unix(0, 0)},
-		{ns: "set2", n: "speed", key: "A", v: 2, t: time.Unix(0, 0)},
-		{ns: "set2", n: "load", key: "B", v: 1, t: time.Unix(0, 0)},
-		{ns: "set2", n: "load", key: "B", v: 1, t: time.Unix(0, 0)},
-		{ns: "set2", n: "speed", key: "B", v: 1, t: time.Unix(0, 0)},
-		{ns: "set2", n: "speed", key: "B", v: 2, t: time.Unix(0, 0)},
+		{ns: "set1", n: "load", ctx: ctxA, v: 1, t: time.Unix(0, 0)},
+		{ns: "set1", n: "load", ctx: ctxA, v: 1, t: time.Unix(0, 0)},
+		{ns: "set1", n: "speed", ctx: ctxA, v: 1, t: time.Unix(0, 0)},
+		{ns: "set1", n: "speed", ctx: ctxA, v: 2, t: time.Unix(0, 0)},
+		{ns: "set1", n: "load", ctx: ctxB, v: 1, t: time.Unix(0, 0)},
+		{ns: "set1", n: "load", ctx: ctxB, v: 1, t: time.Unix(0, 0)},
+		{ns: "set1", n: "speed", ctx: ctxB, v: 1, t: time.Unix(0, 0)},
+		{ns: "set1", n: "speed", ctx: ctxB, v: 2, t: time.Unix(0, 0)},
+		{ns: "set2", n: "load", ctx: ctxA, v: 1, t: time.Unix(0, 0)},
+		{ns: "set2", n: "load", ctx: ctxA, v: 1, t: time.Unix(0, 0)},
+		{ns: "set2", n: "speed", ctx: ctxA, v: 1, t: time.Unix(0, 0)},
+		{ns: "set2", n: "speed", ctx: ctxA, v: 2, t: time.Unix(0, 0)},
+		{ns: "set2", n: "load", ctx: ctxB, v: 1, t: time.Unix(0, 0)},
+		{ns: "set2", n: "load", ctx: ctxB, v: 1, t: time.Unix(0, 0)},
+		{ns: "set2", n: "speed", ctx: ctxB, v: 1, t: time.Unix(0, 0)},
+		{ns: "set2", n: "speed", ctx: ctxB, v: 2, t: time.Unix(0, 0)},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("set %s.%s[%q] to %d at %v", test.ns, test.n, test.key, test.v, test.t),
+		t.Run(fmt.Sprintf("set %s.%s[%v] to %d at %v", test.ns, test.n, test.ctx, test.v, test.t),
 			func(t *testing.T) {
 				m := NewGauge(test.ns, test.n)
-				ctx := ctxWith(bID, test.key)
 				now = testclock(test.t)
-				m.Set(ctx, test.v)
+				m.Set(test.ctx, test.v)
 
-				key := key{name: name{namespace: test.ns, name: test.n}, bundle: bID, ptransform: test.key}
-				gaugesMu.Lock()
-				g, ok := gauges[key]
-				gaugesMu.Unlock()
-				if !ok {
-					t.Fatalf("Unable to find Gauge for key %v", key)
-				}
+				cs := getCounterSet(test.ctx)
+				g := cs.gauges[m.hash]
 				if got, want := g.v, test.v; got != want {
-					t.Errorf("GetGauge(%q,%q).Set(%s, %d) g.v got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
+					t.Errorf("GetGauge(%q,%q).Set(%v, %d) g.v got %v, want %v", test.ns, test.n, test.ctx, test.v, got, want)
 				}
 				if got, want := g.t, test.t; got != want {
-					t.Errorf("GetGauge(%q,%q).Set(%s, %d) t.t got %v, want %v", test.ns, test.n, test.key, test.v, got, want)
+					t.Errorf("GetGauge(%q,%q).Set(%v, %d) t.t got %v, want %v", test.ns, test.n, test.ctx, test.v, got, want)
 				}
 			})
 	}
 }
 
-type metricType uint8
-
-const (
-	counterType metricType = iota
-	distributionType
-	gaugeType
-)
-
-func (t metricType) String() string {
-	switch t {
-	case counterType:
-		return "Counter"
-	case distributionType:
-		return "Distribution"
-	case gaugeType:
-		return "Gauge"
-	default:
-		panic(fmt.Sprintf("Unknown metric type value: %v", uint8(t)))
-	}
-}
 func TestNameCollisions(t *testing.T) {
 	ns, c, d, g := "collisions", "counter", "distribution", "gauge"
 	// Checks that user code panics if a counter attempts to be defined in the same PTransform
@@ -298,21 +242,23 @@ func TestNameCollisions(t *testing.T) {
 	// metric, and the new metric are actually used, since we don't know the context until
 	// then.
 	// Pre-create and use so that we have existing metrics to collide with.
-	NewCounter(ns, c).Inc(ctxWith(bID, c), 1)
-	NewDistribution(ns, d).Update(ctxWith(bID, d), 1)
-	NewGauge(ns, g).Set(ctxWith(bID, g), 1)
+	ctx := SetBundleID(context.Background(), bID)
+	cctx, dctx, gctx := SetPTransformID(ctx, c), SetPTransformID(ctx, d), SetPTransformID(ctx, g)
+	NewCounter(ns, c).Inc(cctx, 1)
+	NewDistribution(ns, d).Update(dctx, 1)
+	NewGauge(ns, g).Set(gctx, 1)
 	tests := []struct {
-		existing, new metricType
+		existing, new kind
 	}{
-		{existing: counterType, new: counterType},
-		{existing: counterType, new: distributionType},
-		{existing: counterType, new: gaugeType},
-		{existing: distributionType, new: counterType},
-		{existing: distributionType, new: distributionType},
-		{existing: distributionType, new: gaugeType},
-		{existing: gaugeType, new: counterType},
-		{existing: gaugeType, new: distributionType},
-		{existing: gaugeType, new: gaugeType},
+		{existing: kindSumCounter, new: kindSumCounter},
+		{existing: kindSumCounter, new: kindDistribution},
+		{existing: kindSumCounter, new: kindGauge},
+		{existing: kindDistribution, new: kindSumCounter},
+		{existing: kindDistribution, new: kindDistribution},
+		{existing: kindDistribution, new: kindGauge},
+		{existing: kindGauge, new: kindSumCounter},
+		{existing: kindGauge, new: kindDistribution},
+		{existing: kindGauge, new: kindGauge},
 	}
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%s name collides with %s", test.existing, test.new),
@@ -325,27 +271,31 @@ func TestNameCollisions(t *testing.T) {
 						}
 						t.Error("panic expected")
 					} else {
-						t.Log("reusing names is fine when the metrics the same type:", test.existing, test.new)
+						t.Log("reusing names is fine when the metric is the same type:", test.existing, test.new)
 					}
 				}()
 				var name string
+				var ctx context.Context
 				switch test.existing {
-				case counterType:
+				case kindSumCounter:
 					name = c
-				case distributionType:
+					ctx = cctx
+				case kindDistribution:
 					name = d
-				case gaugeType:
+					ctx = dctx
+				case kindGauge:
 					name = g
+					ctx = gctx
 				default:
 					t.Fatalf("unknown existing metricType with value: %v", int(test.existing))
 				}
 				switch test.new {
-				case counterType:
-					NewCounter(ns, name).Inc(ctxWith(bID, name), 1)
-				case distributionType:
-					NewDistribution(ns, name).Update(ctxWith(bID, name), 1)
-				case gaugeType:
-					NewGauge(ns, name).Set(ctxWith(bID, name), 1)
+				case kindSumCounter:
+					NewCounter(ns, name).Inc(ctx, 1)
+				case kindDistribution:
+					NewDistribution(ns, name).Update(ctx, 1)
+				case kindGauge:
+					NewGauge(ns, name).Set(ctx, 1)
 				default:
 					t.Fatalf("unknown new metricType with value: %v", int(test.new))
 				}
@@ -354,66 +304,32 @@ func TestNameCollisions(t *testing.T) {
 	}
 }
 
-func TestClearBundleData(t *testing.T) {
-	Clear()
-	dump := func(t *testing.T) {
-		dumpTo(func(format string, args ...interface{}) {
-			t.Logf(format, args...)
-		})
-	}
-	pt, c, d, g := "clear.bundle.data", "counter", "distribution", "gauge"
-	aBundleID := "aBID"
-	otherBundleID := "otherBID"
-	NewCounter(pt, c).Inc(ctxWith(aBundleID, pt), 1)
-	NewDistribution(pt, d).Update(ctxWith(aBundleID, pt), 1)
-	NewGauge(pt, g).Set(ctxWith(aBundleID, pt), 1)
-
-	NewCounter(pt, c).Inc(ctxWith(otherBundleID, pt), 1)
-	NewDistribution(pt, d).Update(ctxWith(otherBundleID, pt), 1)
-	NewGauge(pt, g).Set(ctxWith(otherBundleID, pt), 1)
-
-	initialAP := ToProto(aBundleID, pt)
-	if got, want := len(initialAP), 3; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - initialAP: %v", aBundleID, pt, got, want, initialAP)
-	}
-	initialOP := ToProto(otherBundleID, pt)
-	if got, want := len(initialOP), 3; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - initialOP: %v", otherBundleID, pt, got, want, initialOP)
-	}
-
-	ClearBundleData(aBundleID)
-
-	newAP := ToProto(aBundleID, pt)
-	if got, want := len(newAP), 0; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - newAP: %v", aBundleID, pt, got, want, newAP)
-	}
-
-	newOP := ToProto(otherBundleID, pt)
-	if got, want := len(newOP), 3; got != want {
-		dump(t)
-		t.Fatalf("len(ToProto(%q, %q)) = %v, want %v - newOP: %v", otherBundleID, pt, got, want, newOP)
-	}
-}
-
-// Run on @lostluck's desktop:
+// Run on @lostluck's desktop (2020/01/21) go1.13.4
 //
-// BenchmarkMetrics/counter_inplace-12         	 5000000	       243 ns/op	     128 B/op	       2 allocs/op
-// BenchmarkMetrics/distribution_inplace-12    	 5000000	       252 ns/op	     160 B/op	       2 allocs/op
-// BenchmarkMetrics/gauge_inplace-12           	 5000000	       266 ns/op	     160 B/op	       2 allocs/op
-// BenchmarkMetrics/counter_predeclared-12     	20000000	        74.3 ns/op	      16 B/op	       1 allocs/op
-// BenchmarkMetrics/distribution_predeclared-12         	20000000	        79.6 ns/op	      48 B/op	       1 allocs/op
-// BenchmarkMetrics/gauge_predeclared-12                	20000000	        92.9 ns/op	      48 B/op	       1 allocs/op
+// Allocs & bytes should be consistent within go versions, but ns/op is relative to the running machine.
+//
+// BenchmarkMetrics/counter_inplace-12              6054129               208 ns/op              48 B/op          1 allocs/op
+// BenchmarkMetrics/distribution_inplace-12         5707147               228 ns/op              48 B/op          1 allocs/op
+// BenchmarkMetrics/gauge_inplace-12                4742331               259 ns/op              48 B/op          1 allocs/op
+// BenchmarkMetrics/counter_predeclared-12         90147133                12.7 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/distribution_predeclared-12            55396678                21.6 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/gauge_predeclared-12                   18535839                60.5 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/counter_raw-12                         159581343                7.18 ns/op            0 B/op          0 allocs/op
+// BenchmarkMetrics/distribution_raw-12                    82724314                14.7 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/gauge_raw-12                           23292386                55.2 ns/op             0 B/op          0 allocs/op
+// BenchmarkMetrics/getStore-12                            309361303                3.78 ns/op            0 B/op          0 allocs/op
+// BenchmarkMetrics/getCounterSet-12                       287720998                3.98 ns/op            0 B/op          0 allocs/op
 func BenchmarkMetrics(b *testing.B) {
-	Clear()
 	pt, c, d, g := "bench.bundle.data", "counter", "distribution", "gauge"
 	aBundleID := "benchBID"
 	ctx := ctxWith(aBundleID, pt)
 	count := NewCounter(pt, c)
 	dist := NewDistribution(pt, d)
-	gauge := NewGauge(pt, g)
+	gaug := NewGauge(pt, g)
+
+	rawCount := &counter{}
+	rawDist := &distribution{}
+	rawGauge := &gauge{}
 	tests := []struct {
 		name string
 		call func()
@@ -423,7 +339,15 @@ func BenchmarkMetrics(b *testing.B) {
 		{"gauge_inplace", func() { NewGauge(pt, g).Set(ctx, 1) }},
 		{"counter_predeclared", func() { count.Inc(ctx, 1) }},
 		{"distribution_predeclared", func() { dist.Update(ctx, 1) }},
-		{"gauge_predeclared", func() { gauge.Set(ctx, 1) }},
+		{"gauge_predeclared", func() { gaug.Set(ctx, 1) }},
+		// These measure the unwrapped metric cell operations, without looking up
+		// the store or counterset, rather than the user facing API.
+		{"counter_raw", func() { rawCount.inc(1) }},
+		{"distribution_raw", func() { rawDist.update(1) }},
+		{"gauge_raw", func() { rawGauge.set(1) }},
+		// This just measures GetStore and getCounterSet
+		{"getStore", func() { GetStore(ctx) }},
+		{"getCounterSet", func() { getCounterSet(ctx) }},
 	}
 	for _, test := range tests {
 		b.Run(test.name, func(b *testing.B) {

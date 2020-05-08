@@ -36,6 +36,7 @@ import java.util.Collection;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -135,9 +136,15 @@ import org.slf4j.LoggerFactory;
  *     .apply(FileIO.readMatches().withCompression(GZIP))
  *     .apply(MapElements
  *         // uses imports from TypeDescriptors
- *         .into(KVs(strings(), strings()))
- *         .via((ReadableFile f) -> KV.of(
- *             f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String())));
+ *         .into(kvs(strings(), strings()))
+ *         .via((ReadableFile f) -> {
+ *           try {
+ *             return KV.of(
+ *                 f.getMetadata().resourceId().toString(), f.readFullyAsUTF8String());
+ *           } catch (IOException ex) {
+ *             throw new RuntimeException("Failed to read the file", ex);
+ *           }
+ *         }));
  * }</pre>
  *
  * <h2>Writing files</h2>
@@ -556,7 +563,7 @@ public class FileIO {
      *
      * <p>This works only in runners supporting {@link Experimental.Kind#SPLITTABLE_DO_FN}.
      */
-    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+    @Experimental(Kind.SPLITTABLE_DO_FN)
     public Match continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
@@ -605,7 +612,7 @@ public class FileIO {
     }
 
     /** Like {@link Match#continuously}. */
-    @Experimental(Experimental.Kind.SPLITTABLE_DO_FN)
+    @Experimental(Kind.SPLITTABLE_DO_FN)
     public MatchAll continuously(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
       return withConfiguration(getConfiguration().continuously(pollInterval, terminationCondition));
@@ -819,7 +826,7 @@ public class FileIO {
 
   /** Implementation of {@link #write} and {@link #writeDynamic}. */
   @AutoValue
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   public abstract static class Write<DestinationT, UserT>
       extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     /** A policy for generating names for shard files. */

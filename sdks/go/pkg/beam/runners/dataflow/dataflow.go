@@ -33,7 +33,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/jobopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow/dataflowlib"
@@ -54,7 +53,7 @@ var (
 	maxNumWorkers        = flag.Int64("max_num_workers", 0, "Maximum number of workers during scaling (optional).")
 	autoscalingAlgorithm = flag.String("autoscaling_algorithm", "", "Autoscaling mode to use (optional).")
 	zone                 = flag.String("zone", "", "GCP zone (optional)")
-	region               = flag.String("region", "", "GCP Region (optional but encouraged)")
+	region               = flag.String("region", "", "GCP Region (required)")
 	network              = flag.String("network", "", "GCP network (optional)")
 	subnetwork           = flag.String("subnetwork", "", "GCP subnetwork (optional)")
 	noUsePublicIPs       = flag.Bool("no_use_public_ips", false, "Workers must not use public IP addresses (optional)")
@@ -94,10 +93,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
 	}
 	if *region == "" {
-		*region = "us-central1"
-		log.Warn(ctx, "--region not set; will default to us-central1. Future releases of Beam will "+
-			"require the user to set the region explicitly. "+
-			"https://cloud.google.com/compute/docs/regions-zones/regions-zones")
+		return errors.New("No Google Cloud region specified. Use --region=<region>. See https://cloud.google.com/dataflow/docs/concepts/regional-endpoints")
 	}
 	if *image == "" {
 		*image = getContainerImage(ctx)
@@ -166,7 +162,8 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	model, err := graphx.Marshal(edges, &graphx.Options{Environment: createEnvironment(ctx)})
+	model, err := graphx.Marshal(edges, &graphx.Options{Environment: graphx.CreateEnvironment(
+		ctx, jobopts.GetEnvironmentUrn(ctx), getContainerImage)})
 	if err != nil {
 		return errors.WithContext(err, "generating model pipeline")
 	}
@@ -214,28 +211,4 @@ func getContainerImage(ctx context.Context) string {
 		return jobopts.GetEnvironmentConfig(ctx)
 	}
 	panic(fmt.Sprintf("Unsupported environment %v", urn))
-}
-
-func createEnvironment(ctx context.Context) pb.Environment {
-	var environment pb.Environment
-	switch urn := jobopts.GetEnvironmentUrn(ctx); urn {
-	case "beam:env:process:v1":
-		// TODO Support process based SDK Harness.
-		panic(fmt.Sprintf("Unsupported environment %v", urn))
-	case "beam:env:docker:v1":
-		fallthrough
-	default:
-		config := *image
-		payload := &pb.DockerPayload{ContainerImage: config}
-		serializedPayload, err := proto.Marshal(payload)
-		if err != nil {
-			panic(errors.Wrapf(err,
-				"Failed to serialize Environment payload %v for config %v", payload, config))
-		}
-		environment = pb.Environment{
-			Urn:     urn,
-			Payload: serializedPayload,
-		}
-	}
-	return environment
 }

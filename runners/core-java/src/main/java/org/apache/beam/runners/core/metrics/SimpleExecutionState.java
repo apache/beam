@@ -97,7 +97,7 @@ public class SimpleExecutionState extends ExecutionState {
     String userStepName =
         this.labelsMetadata.getOrDefault(MonitoringInfoConstants.Labels.PTRANSFORM, null);
     StringBuilder message = new StringBuilder();
-    message.append("Processing stuck");
+    message.append("Operation ongoing");
     if (userStepName != null) {
       message.append(" in step ").append(userStepName);
     }

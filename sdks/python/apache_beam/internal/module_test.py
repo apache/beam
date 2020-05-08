@@ -17,24 +17,23 @@
 
 """Module used to define functions and classes used by the coder unit tests."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import re
 import sys
 from builtins import object
+from typing import Type
 
 
 class TopClass(object):
-
   class NestedClass(object):
-
     def __init__(self, datum):
       self.datum = 'X:%s' % datum
 
   class MiddleClass(object):
-
     class NestedClass(object):
-
       def __init__(self, datum):
         self.datum = 'Y:%s' % datum
 
@@ -49,18 +48,16 @@ def get_lambda_with_closure(message):
 
 class Xyz(object):
   """A class to be pickled."""
-
   def foo(self, s):
     return re.findall(r'\w+', s)
 
 
 def create_class(datum):
   """Creates an unnamable class to be pickled."""
-
   class Z(object):
-
     def get(self):
       return 'Z:%s' % datum
+
   return Z()
 
 
@@ -70,7 +67,7 @@ XYZ_OBJECT = Xyz()
 class RecursiveClass(object):
   """A class that contains a reference to itself."""
 
-  SELF_TYPE = None
+  SELF_TYPE = None  # type: Type[RecursiveClass]
 
   def __init__(self, datum):
     self.datum = 'RecursiveClass:%s' % datum
@@ -81,7 +78,8 @@ RecursiveClass.SELF_TYPE = RecursiveClass
 # pylint: disable=exec-used
 if sys.version_info >= (3, 7):
   # create dataclass to be pickled
-  exec('''
+  exec(
+      '''
 from dataclasses import dataclass
 @dataclass
 class DataClass:

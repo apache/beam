@@ -17,32 +17,44 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.runners.spark.SparkPipelineOptions.prepareFilesToStage;
 
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineTrimmer;
 import org.apache.beam.runners.core.construction.graph.ProtoOverrides;
 import org.apache.beam.runners.core.construction.graph.SplittableParDoExpander;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
+import org.apache.beam.runners.jobsubmission.PortablePipelineJarUtils;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.runners.spark.translation.SparkTranslationContext;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions.RetrievalServiceType;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,7 +94,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     if (pipelineOptions.getFilesToStage() == null) {
       pipelineOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkPipelineRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkPipelineRunner.class.getClassLoader(), pipelineOptions));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. Defaulting to files from the classpath");
     }
@@ -126,5 +139,75 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     result.waitUntilFinish();
     executorService.shutdown();
     return result;
+  }
+
+  /**
+   * Main method to be called only as the entry point to an executable jar with structure as defined
+   * in {@link PortablePipelineJarUtils}.
+   */
+  public static void main(String[] args) throws Exception {
+    // Register standard file systems.
+    FileSystems.setDefaultPipelineOptions(PipelineOptionsFactory.create());
+
+    SparkPipelineRunnerConfiguration configuration = parseArgs(args);
+    String baseJobName =
+        configuration.baseJobName == null
+            ? PortablePipelineJarUtils.getDefaultJobName()
+            : configuration.baseJobName;
+    Preconditions.checkArgument(
+        baseJobName != null,
+        "No default job name found. Job name must be set using --base-job-name.");
+    Pipeline pipeline = PortablePipelineJarUtils.getPipelineFromClasspath(baseJobName);
+    Struct originalOptions = PortablePipelineJarUtils.getPipelineOptionsFromClasspath(baseJobName);
+
+    // Spark pipeline jars distribute and retrieve artifacts via the classpath.
+    PortablePipelineOptions portablePipelineOptions =
+        PipelineOptionsTranslation.fromProto(originalOptions).as(PortablePipelineOptions.class);
+    portablePipelineOptions.setRetrievalServiceType(RetrievalServiceType.CLASSLOADER);
+    String retrievalToken = PortablePipelineJarUtils.getArtifactManifestUri(baseJobName);
+
+    SparkPipelineOptions sparkOptions = portablePipelineOptions.as(SparkPipelineOptions.class);
+    String invocationId =
+        String.format("%s_%s", sparkOptions.getJobName(), UUID.randomUUID().toString());
+    if (sparkOptions.getAppName() == null) {
+      LOG.debug("App name was null. Using invocationId {}", invocationId);
+      sparkOptions.setAppName(invocationId);
+    }
+
+    SparkPipelineRunner runner = new SparkPipelineRunner(sparkOptions);
+    JobInfo jobInfo =
+        JobInfo.create(
+            invocationId,
+            sparkOptions.getJobName(),
+            retrievalToken,
+            PipelineOptionsTranslation.toProto(sparkOptions));
+    try {
+      runner.run(pipeline, jobInfo);
+    } catch (Exception e) {
+      throw new RuntimeException(String.format("Job %s failed.", invocationId), e);
+    }
+    LOG.info("Job {} finished successfully.", invocationId);
+  }
+
+  private static class SparkPipelineRunnerConfiguration {
+    @Option(
+        name = "--base-job-name",
+        usage =
+            "The job to run. This must correspond to a subdirectory of the jar's BEAM-PIPELINE "
+                + "directory. *Only needs to be specified if the jar contains multiple pipelines.*")
+    private String baseJobName = null;
+  }
+
+  private static SparkPipelineRunnerConfiguration parseArgs(String[] args) {
+    SparkPipelineRunnerConfiguration configuration = new SparkPipelineRunnerConfiguration();
+    CmdLineParser parser = new CmdLineParser(configuration);
+    try {
+      parser.parseArgument(args);
+    } catch (CmdLineException e) {
+      LOG.error("Unable to parse command line arguments.", e);
+      parser.printUsage(System.err);
+      throw new IllegalArgumentException("Unable to parse command line arguments.", e);
+    }
+    return configuration;
   }
 }

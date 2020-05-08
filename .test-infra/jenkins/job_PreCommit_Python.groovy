@@ -30,23 +30,6 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
     ]
 )
 builder.build {
-  // Publish all test results to Jenkins. Note that Nose documentation
-  // specifically mentions that it produces JUnit compatible test results.
-  publishers {
-    archiveJunit('**/nosetests*.xml')
-  }
-}
-
-// Temporary job for testing pytest-based testing.
-// TODO(BEAM-3713): Remove this job once nose tests are replaced.
-PrecommitJobBuilder builderPytest = new PrecommitJobBuilder(
-    scope: this,
-    nameBase: 'Python_pytest',
-    gradleTask: ':pythonPreCommitPytest',
-    commitTriggering: false,
-    timeoutMins: 180,
-)
-builderPytest.build {
   // Publish all test results to Jenkins.
   publishers {
     archiveJunit('**/pytest*.xml')

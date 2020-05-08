@@ -17,6 +17,8 @@
 
 """Unit tests for the Pipeline class."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import copy
@@ -26,6 +28,7 @@ from builtins import object
 from builtins import range
 
 import mock
+from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -36,6 +39,7 @@ from apache_beam.pipeline import Pipeline
 from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
+from apache_beam.portability import common_urns
 from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -62,9 +66,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 class FakeSource(NativeSource):
   """Fake source returning a fixed list of values."""
-
   class _Reader(object):
-
     def __init__(self, vals):
       self._vals = vals
       self._output_counter = Metrics.counter('main', 'outputs')
@@ -89,7 +91,6 @@ class FakeSource(NativeSource):
 
 class FakeUnboundedSource(NativeSource):
   """Fake unbounded source. Does not work at runtime"""
-
   def reader(self):
     return None
 
@@ -120,7 +121,6 @@ class ToStringParDo(beam.PTransform):
 
 
 class PipelineTest(unittest.TestCase):
-
   @staticmethod
   def custom_callable(pcoll):
     return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
@@ -130,12 +130,10 @@ class PipelineTest(unittest.TestCase):
   # work and is not related to other aspects of the tests.
 
   class CustomTransform(PTransform):
-
     def expand(self, pcoll):
       return pcoll | '+1' >> FlatMap(lambda x: [x + 1])
 
   class Visitor(PipelineVisitor):
-
     def __init__(self, visited):
       self.visited = visited
       self.enter_composite = []
@@ -151,86 +149,89 @@ class PipelineTest(unittest.TestCase):
       self.leave_composite.append(transform_node)
 
   def test_create(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'label1' >> Create([1, 2, 3])
-    assert_that(pcoll, equal_to([1, 2, 3]))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+      assert_that(pcoll, equal_to([1, 2, 3]))
 
-    # Test if initial value is an iterator object.
-    pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
-    pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
-    assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
-    pipeline.run()
+      # Test if initial value is an iterator object.
+      pcoll2 = pipeline | 'label2' >> Create(iter((4, 5, 6)))
+      pcoll3 = pcoll2 | 'do' >> FlatMap(lambda x: [x + 10])
+      assert_that(pcoll3, equal_to([14, 15, 16]), label='pcoll3')
 
   def test_flatmap_builtin(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'label1' >> Create([1, 2, 3])
-    assert_that(pcoll, equal_to([1, 2, 3]))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'label1' >> Create([1, 2, 3])
+      assert_that(pcoll, equal_to([1, 2, 3]))
 
-    pcoll2 = pcoll | 'do' >> FlatMap(lambda x: [x + 10])
-    assert_that(pcoll2, equal_to([11, 12, 13]), label='pcoll2')
+      pcoll2 = pcoll | 'do' >> FlatMap(lambda x: [x + 10])
+      assert_that(pcoll2, equal_to([11, 12, 13]), label='pcoll2')
 
-    pcoll3 = pcoll2 | 'm1' >> Map(lambda x: [x, 12])
-    assert_that(pcoll3,
-                equal_to([[11, 12], [12, 12], [13, 12]]), label='pcoll3')
+      pcoll3 = pcoll2 | 'm1' >> Map(lambda x: [x, 12])
+      assert_that(
+          pcoll3, equal_to([[11, 12], [12, 12], [13, 12]]), label='pcoll3')
 
-    pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
-    assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
-    pipeline.run()
+      pcoll4 = pcoll3 | 'do2' >> FlatMap(set)
+      assert_that(pcoll4, equal_to([11, 12, 12, 12, 13]), label='pcoll4')
 
   def test_maptuple_builtin(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | Create([('e1', 'e2')])
-    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
-    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | Create([('e1', 'e2')])
+      side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+      side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
 
-    # A test function with a tuple input, an auxiliary parameter,
-    # and some side inputs.
-    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
-        e1, e2, t, s1, s2)
-    assert_that(pcoll | 'NoSides' >> beam.core.MapTuple(fn),
-                equal_to([('e1', 'e2', MIN_TIMESTAMP, None, None)]),
-                label='NoSidesCheck')
-    assert_that(pcoll | 'StaticSides' >> beam.core.MapTuple(fn, 's1', 's2'),
-                equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
-                label='StaticSidesCheck')
-    assert_that(pcoll | 'DynamicSides' >> beam.core.MapTuple(fn, side1, side2),
-                equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
-                label='DynamicSidesCheck')
-    assert_that(pcoll | 'MixedSides' >> beam.core.MapTuple(fn, s2=side2),
-                equal_to([('e1', 'e2', MIN_TIMESTAMP, None, 's2')]),
-                label='MixedSidesCheck')
-    pipeline.run()
+      # A test function with a tuple input, an auxiliary parameter,
+      # and some side inputs.
+      fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+          e1, e2, t, s1, s2)
+      assert_that(
+          pcoll | 'NoSides' >> beam.core.MapTuple(fn),
+          equal_to([('e1', 'e2', MIN_TIMESTAMP, None, None)]),
+          label='NoSidesCheck')
+      assert_that(
+          pcoll | 'StaticSides' >> beam.core.MapTuple(fn, 's1', 's2'),
+          equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
+          label='StaticSidesCheck')
+      assert_that(
+          pcoll | 'DynamicSides' >> beam.core.MapTuple(fn, side1, side2),
+          equal_to([('e1', 'e2', MIN_TIMESTAMP, 's1', 's2')]),
+          label='DynamicSidesCheck')
+      assert_that(
+          pcoll | 'MixedSides' >> beam.core.MapTuple(fn, s2=side2),
+          equal_to([('e1', 'e2', MIN_TIMESTAMP, None, 's2')]),
+          label='MixedSidesCheck')
 
   def test_flatmaptuple_builtin(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | Create([('e1', 'e2')])
-    side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
-    side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | Create([('e1', 'e2')])
+      side1 = beam.pvalue.AsSingleton(pipeline | 'side1' >> Create(['s1']))
+      side2 = beam.pvalue.AsSingleton(pipeline | 'side2' >> Create(['s2']))
 
-    # A test function with a tuple input, an auxiliary parameter,
-    # and some side inputs.
-    fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
-        e1, e2, t, s1, s2)
-    assert_that(pcoll | 'NoSides' >> beam.core.FlatMapTuple(fn),
-                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, None]),
-                label='NoSidesCheck')
-    assert_that(pcoll | 'StaticSides' >> beam.core.FlatMapTuple(fn, 's1', 's2'),
-                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
-                label='StaticSidesCheck')
-    assert_that(pcoll
-                | 'DynamicSides' >> beam.core.FlatMapTuple(fn, side1, side2),
-                equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
-                label='DynamicSidesCheck')
-    assert_that(pcoll | 'MixedSides' >> beam.core.FlatMapTuple(fn, s2=side2),
-                equal_to(['e1', 'e2', MIN_TIMESTAMP, None, 's2']),
-                label='MixedSidesCheck')
-    pipeline.run()
+      # A test function with a tuple input, an auxiliary parameter,
+      # and some side inputs.
+      fn = lambda e1, e2, t=DoFn.TimestampParam, s1=None, s2=None: (
+          e1, e2, t, s1, s2)
+      assert_that(
+          pcoll | 'NoSides' >> beam.core.FlatMapTuple(fn),
+          equal_to(['e1', 'e2', MIN_TIMESTAMP, None, None]),
+          label='NoSidesCheck')
+      assert_that(
+          pcoll | 'StaticSides' >> beam.core.FlatMapTuple(fn, 's1', 's2'),
+          equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+          label='StaticSidesCheck')
+      assert_that(
+          pcoll
+          | 'DynamicSides' >> beam.core.FlatMapTuple(fn, side1, side2),
+          equal_to(['e1', 'e2', MIN_TIMESTAMP, 's1', 's2']),
+          label='DynamicSidesCheck')
+      assert_that(
+          pcoll | 'MixedSides' >> beam.core.FlatMapTuple(fn, s2=side2),
+          equal_to(['e1', 'e2', MIN_TIMESTAMP, None, 's2']),
+          label='MixedSidesCheck')
 
   def test_create_singleton_pcollection(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
-    assert_that(pcoll, equal_to([[1, 2, 3]]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'label' >> Create([[1, 2, 3]])
+      assert_that(pcoll, equal_to([[1, 2, 3]]))
 
   # TODO(BEAM-1555): Test is failing on the service, with FakeSource.
   # @attr('ValidatesRunner')
@@ -246,14 +247,13 @@ class PipelineTest(unittest.TestCase):
     self.assertEqual(outputs_counter.committed, 6)
 
   def test_fake_read(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
-    assert_that(pcoll, equal_to([1, 2, 3]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'read' >> Read(FakeSource([1, 2, 3]))
+      assert_that(pcoll, equal_to([1, 2, 3]))
 
   def test_visit_entire_graph(self):
     pipeline = Pipeline()
-    pcoll1 = pipeline | 'pcoll' >> Create([1, 2, 3])
+    pcoll1 = pipeline | 'pcoll' >> beam.Impulse()
     pcoll2 = pcoll1 | 'do1' >> FlatMap(lambda x: [x + 1])
     pcoll3 = pcoll2 | 'do2' >> FlatMap(lambda x: [x + 1])
     pcoll4 = pcoll2 | 'do3' >> FlatMap(lambda x: [x + 1])
@@ -262,20 +262,18 @@ class PipelineTest(unittest.TestCase):
 
     visitor = PipelineTest.Visitor(visited=[])
     pipeline.visit(visitor)
-    self.assertEqual(set([pcoll1, pcoll2, pcoll3, pcoll4, pcoll5]),
+    self.assertEqual({pcoll1, pcoll2, pcoll3, pcoll4, pcoll5},
                      set(visitor.visited))
-    self.assertEqual(set(visitor.enter_composite),
-                     set(visitor.leave_composite))
-    self.assertEqual(3, len(visitor.enter_composite))
-    self.assertEqual(visitor.enter_composite[2].transform, transform)
-    self.assertEqual(visitor.leave_composite[1].transform, transform)
+    self.assertEqual(set(visitor.enter_composite), set(visitor.leave_composite))
+    self.assertEqual(2, len(visitor.enter_composite))
+    self.assertEqual(visitor.enter_composite[1].transform, transform)
+    self.assertEqual(visitor.leave_composite[0].transform, transform)
 
   def test_apply_custom_transform(self):
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
-    result = pcoll | PipelineTest.CustomTransform()
-    assert_that(result, equal_to([2, 3, 4]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'pcoll' >> Create([1, 2, 3])
+      result = pcoll | PipelineTest.CustomTransform()
+      assert_that(result, equal_to([2, 3, 4]))
 
   def test_reuse_custom_transform_instance(self):
     pipeline = Pipeline()
@@ -292,19 +290,17 @@ class PipelineTest(unittest.TestCase):
         'pvalue | "label" >> transform')
 
   def test_reuse_cloned_custom_transform_instance(self):
-    pipeline = TestPipeline()
-    pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
-    pcoll2 = pipeline | 'pc2' >> Create([4, 5, 6])
-    transform = PipelineTest.CustomTransform()
-    result1 = pcoll1 | transform
-    result2 = pcoll2 | 'new_label' >> transform
-    assert_that(result1, equal_to([2, 3, 4]), label='r1')
-    assert_that(result2, equal_to([5, 6, 7]), label='r2')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll1 = pipeline | 'pc1' >> Create([1, 2, 3])
+      pcoll2 = pipeline | 'pc2' >> Create([4, 5, 6])
+      transform = PipelineTest.CustomTransform()
+      result1 = pcoll1 | transform
+      result2 = pcoll2 | 'new_label' >> transform
+      assert_that(result1, equal_to([2, 3, 4]), label='r1')
+      assert_that(result2, equal_to([5, 6, 7]), label='r2')
 
   def test_transform_no_super_init(self):
     class AddSuffix(PTransform):
-
       def __init__(self, suffix):
         # No call to super(...).__init__
         self.suffix = suffix
@@ -312,9 +308,8 @@ class PipelineTest(unittest.TestCase):
       def expand(self, pcoll):
         return pcoll | Map(lambda x: x + self.suffix)
 
-    self.assertEqual(
-        ['a-x', 'b-x', 'c-x'],
-        sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
+    self.assertEqual(['a-x', 'b-x', 'c-x'],
+                     sorted(['a', 'b', 'c'] | 'AddSuffix' >> AddSuffix('-x')))
 
   @unittest.skip("Fails on some platforms with new urllib3.")
   def test_memory_usage(self):
@@ -329,7 +324,7 @@ class PipelineTest(unittest.TestCase):
       self.skipTest('ru_maxrss is not in standard units.')
 
     def get_memory_usage_in_bytes():
-      return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (2 ** 10)
+      return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (2**10)
 
     def check_memory(value, memory_threshold):
       memory_usage = get_memory_usage_in_bytes()
@@ -344,24 +339,23 @@ class PipelineTest(unittest.TestCase):
 
     # TODO(robertwb): reduce memory usage of FnApiRunner so that this test
     # passes.
-    pipeline = TestPipeline(runner='BundleBasedDirectRunner')
+    with TestPipeline(runner='BundleBasedDirectRunner') as pipeline:
 
-    # Consumed memory should not be proportional to the number of maps.
-    memory_threshold = (
-        get_memory_usage_in_bytes() + (5 * len_elements * num_elements))
+      # Consumed memory should not be proportional to the number of maps.
+      memory_threshold = (
+          get_memory_usage_in_bytes() + (5 * len_elements * num_elements))
 
-    # Plus small additional slack for memory fluctuations during the test.
-    memory_threshold += 10 * (2 ** 20)
+      # Plus small additional slack for memory fluctuations during the test.
+      memory_threshold += 10 * (2**20)
 
-    biglist = pipeline | 'oom:create' >> Create(
-        ['x' * len_elements] * num_elements)
-    for i in range(num_maps):
-      biglist = biglist | ('oom:addone-%d' % i) >> Map(lambda x: x + 'y')
-    result = biglist | 'oom:check' >> Map(check_memory, memory_threshold)
-    assert_that(result, equal_to(
-        ['x' * len_elements + 'y' * num_maps] * num_elements))
-
-    pipeline.run()
+      biglist = pipeline | 'oom:create' >> Create(
+          ['x' * len_elements] * num_elements)
+      for i in range(num_maps):
+        biglist = biglist | ('oom:addone-%d' % i) >> Map(lambda x: x + 'y')
+      result = biglist | 'oom:check' >> Map(check_memory, memory_threshold)
+      assert_that(
+          result,
+          equal_to(['x' * len_elements + 'y' * num_maps] * num_elements))
 
   def test_aggregator_empty_input(self):
     actual = [] | CombineGlobally(max).without_defaults()
@@ -370,22 +364,16 @@ class PipelineTest(unittest.TestCase):
   def test_pipeline_as_context(self):
     def raise_exception(exn):
       raise exn
+
     with self.assertRaises(ValueError):
       with Pipeline() as p:
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
 
-  # TODO(BEAM-1894).
-  # def test_eager_pipeline(self):
-  #   p = Pipeline('EagerRunner')
-  #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
-
   @mock.patch(
       'apache_beam.runners.direct.direct_runner._get_transform_overrides')
   def test_ptransform_overrides(self, file_system_override_mock):
-
     class MyParDoOverride(PTransformOverride):
-
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -405,9 +393,7 @@ class PipelineTest(unittest.TestCase):
       assert_that(pcoll, equal_to([3, 6, 9]))
 
   def test_ptransform_override_type_hints(self):
-
     class NoTypeHintOverride(PTransformOverride):
-
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
@@ -415,22 +401,20 @@ class PipelineTest(unittest.TestCase):
         return ToStringParDo()
 
     class WithTypeHintOverride(PTransformOverride):
-
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
 
       def get_replacement_transform(self, ptransform):
-        return (ToStringParDo()
-                .with_input_types(int)
-                .with_output_types(str))
+        return ToStringParDo().with_input_types(int).with_output_types(str)
 
     for override, expected_type in [(NoTypeHintOverride(), typehints.Any),
                                     (WithTypeHintOverride(), str)]:
       p = TestPipeline()
-      pcoll = (p
-               | beam.Create([1, 2, 3])
-               | 'Operate' >> DoubleParDo()
-               | 'NoOp' >> beam.Map(lambda x: x))
+      pcoll = (
+          p
+          | beam.Create([1, 2, 3])
+          | 'Operate' >> DoubleParDo()
+          | 'NoOp' >> beam.Map(lambda x: x))
 
       p.replace_all([override])
       self.assertEqual(pcoll.producer.inputs[0].element_type, expected_type)
@@ -449,8 +433,10 @@ class PipelineTest(unittest.TestCase):
             yield TaggedOutput('letters', x)
 
         multi = pcoll | 'MyReplacement' >> beam.ParDo(mux_input).with_outputs()
-        letters = multi.letters | 'LettersComposite' >> beam.Map(lambda x: x*3)
-        numbers = multi.numbers | 'NumbersComposite' >> beam.Map(lambda x: x*5)
+        letters = multi.letters | 'LettersComposite' >> beam.Map(
+            lambda x: x * 3)
+        numbers = multi.numbers | 'NumbersComposite' >> beam.Map(
+            lambda x: x * 5)
 
         return {
             'letters': letters,
@@ -470,27 +456,30 @@ class PipelineTest(unittest.TestCase):
       else:
         yield TaggedOutput('letters', x)
 
-    p = TestPipeline()
-    multi = (p
-             | beam.Create([1, 2, 3, 'a', 'b', 'c'])
-             | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
-    letters = multi.letters | 'MyLetters' >> beam.Map(lambda x: x)
-    numbers = multi.numbers | 'MyNumbers' >> beam.Map(lambda x: x)
+    with TestPipeline() as p:
+      multi = (
+          p
+          | beam.Create([1, 2, 3, 'a', 'b', 'c'])
+          | 'MyMultiOutput' >> beam.ParDo(mux_input).with_outputs())
+      letters = multi.letters | 'MyLetters' >> beam.Map(lambda x: x)
+      numbers = multi.numbers | 'MyNumbers' >> beam.Map(lambda x: x)
 
-    # Assert that the PCollection replacement worked correctly and that elements
-    # are flowing through. The replacement transform first multiples by 2 then
-    # the leaf nodes inside the composite multiply by an additional 3 and 5. Use
-    # prime numbers to ensure that each transform is getting executed once.
-    assert_that(letters,
-                equal_to(['a'*2*3, 'b'*2*3, 'c'*2*3]),
-                label='assert letters')
-    assert_that(numbers,
-                equal_to([1*2*5, 2*2*5, 3*2*5]),
-                label='assert numbers')
+      # Assert that the PCollection replacement worked correctly and that
+      # elements are flowing through. The replacement transform first
+      # multiples by 2 then the leaf nodes inside the composite multiply by
+      # an additional 3 and 5. Use prime numbers to ensure that each
+      # transform is getting executed once.
+      assert_that(
+          letters,
+          equal_to(['a' * 2 * 3, 'b' * 2 * 3, 'c' * 2 * 3]),
+          label='assert letters')
+      assert_that(
+          numbers,
+          equal_to([1 * 2 * 5, 2 * 2 * 5, 3 * 2 * 5]),
+          label='assert numbers')
 
-    # Do the replacement and run the element assertions.
-    p.replace_all([MultiOutputOverride()])
-    p.run()
+      # Do the replacement and run the element assertions.
+      p.replace_all([MultiOutputOverride()])
 
     # The following checks the graph to make sure the replacement occurred.
     visitor = PipelineTest.Visitor(visited=[])
@@ -500,11 +489,12 @@ class PipelineTest(unittest.TestCase):
 
     # Assert the replacement is in the composite list and retrieve the
     # AppliedPTransform.
-    self.assertIn(MultiOutputComposite,
-                  [t.transform.__class__ for t in composites])
+    self.assertIn(
+        MultiOutputComposite, [t.transform.__class__ for t in composites])
     multi_output_composite = list(
-        filter(lambda t: t.transform.__class__ == MultiOutputComposite,
-               composites))[0]
+        filter(
+            lambda t: t.transform.__class__ == MultiOutputComposite,
+            composites))[0]
 
     # Assert that all of the replacement PCollections are in the graph.
     for output in multi_output_composite.outputs.values():
@@ -514,7 +504,6 @@ class PipelineTest(unittest.TestCase):
     self.assertNotIn(multi[None], visitor.visited)
     self.assertNotIn(multi.letters, visitor.visited)
     self.assertNotIn(multi.numbers, visitor.visited)
-
 
   def test_kv_ptransform_honor_type_hints(self):
 
@@ -527,25 +516,25 @@ class PipelineTest(unittest.TestCase):
         if count == 0:
           return ["some string"]
         else:
-          self.return_recursive(count-1)
+          self.return_recursive(count - 1)
 
       def process(self, element, counter=DoFn.StateParam(BYTES_STATE)):
         return self.return_recursive(1)
 
-    p = TestPipeline()
-    pcoll = (p
-             | beam.Create([(1, 1), (2, 2), (3, 3)])
-             | beam.GroupByKey()
-             | beam.ParDo(StatefulDoFn()))
-    p.run()
+    with TestPipeline() as p:
+      pcoll = (
+          p
+          | beam.Create([(1, 1), (2, 2), (3, 3)])
+          | beam.GroupByKey()
+          | beam.ParDo(StatefulDoFn()))
     self.assertEqual(pcoll.element_type, typehints.Any)
 
-    p = TestPipeline()
-    pcoll = (p
-             | beam.Create([(1, 1), (2, 2), (3, 3)])
-             | beam.GroupByKey()
-             | beam.ParDo(StatefulDoFn()).with_output_types(str))
-    p.run()
+    with TestPipeline() as p:
+      pcoll = (
+          p
+          | beam.Create([(1, 1), (2, 2), (3, 3)])
+          | beam.GroupByKey()
+          | beam.ParDo(StatefulDoFn()).with_output_types(str))
     self.assertEqual(pcoll.element_type, str)
 
   def test_track_pcoll_unbounded(self):
@@ -600,45 +589,62 @@ class PipelineTest(unittest.TestCase):
 
 
 class DoFnTest(unittest.TestCase):
-
   def test_element(self):
     class TestDoFn(DoFn):
       def process(self, element):
         yield element + 10
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
-    assert_that(pcoll, equal_to([11, 12]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
+      assert_that(pcoll, equal_to([11, 12]))
 
   def test_side_input_no_tag(self):
     class TestDoFn(DoFn):
       def process(self, element, prefix, suffix):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
-    pipeline = TestPipeline()
-    words_list = ['aa', 'bb', 'cc']
-    words = pipeline | 'SomeWords' >> Create(words_list)
-    prefix = 'zyx'
-    suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
-    result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
-        TestDoFn(), prefix, suffix=AsSingleton(suffix))
-    assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      words_list = ['aa', 'bb', 'cc']
+      words = pipeline | 'SomeWords' >> Create(words_list)
+      prefix = 'zyx'
+      suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
+      result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
+          TestDoFn(), prefix, suffix=AsSingleton(suffix))
+      assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
 
   def test_side_input_tagged(self):
     class TestDoFn(DoFn):
       def process(self, element, prefix, suffix=DoFn.SideInputParam):
         return ['%s-%s-%s' % (prefix, element, suffix)]
 
+    with TestPipeline() as pipeline:
+      words_list = ['aa', 'bb', 'cc']
+      words = pipeline | 'SomeWords' >> Create(words_list)
+      prefix = 'zyx'
+      suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
+      result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
+          TestDoFn(), prefix, suffix=AsSingleton(suffix))
+      assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
+
+  @attr('ValidatesRunner')
+  def test_element_param(self):
     pipeline = TestPipeline()
-    words_list = ['aa', 'bb', 'cc']
-    words = pipeline | 'SomeWords' >> Create(words_list)
-    prefix = 'zyx'
-    suffix = pipeline | 'SomeString' >> Create(['xyz'])  # side in
-    result = words | 'DecorateWordsDoFnNoTag' >> ParDo(
-        TestDoFn(), prefix, suffix=AsSingleton(suffix))
-    assert_that(result, equal_to(['zyx-%s-xyz' % x for x in words_list]))
+    input = [1, 2]
+    pcoll = (
+        pipeline
+        | 'Create' >> Create(input)
+        | 'Ele param' >> Map(lambda element=DoFn.ElementParam: element))
+    assert_that(pcoll, equal_to(input))
+    pipeline.run()
+
+  @attr('ValidatesRunner')
+  def test_key_param(self):
+    pipeline = TestPipeline()
+    pcoll = (
+        pipeline
+        | 'Create' >> Create([('a', 1), ('b', 2)])
+        | 'Key param' >> Map(lambda _, key=DoFn.KeyParam: key))
+    assert_that(pcoll, equal_to(['a', 'b']))
     pipeline.run()
 
   def test_window_param(self):
@@ -646,32 +652,31 @@ class DoFnTest(unittest.TestCase):
       def process(self, element, window=DoFn.WindowParam):
         yield (element, (float(window.start), float(window.end)))
 
-    pipeline = TestPipeline()
-    pcoll = (pipeline
-             | Create([1, 7])
-             | Map(lambda x: TimestampedValue(x, x))
-             | WindowInto(windowfn=SlidingWindows(10, 5))
-             | ParDo(TestDoFn()))
-    assert_that(pcoll, equal_to([(1, (-5, 5)), (1, (0, 10)),
-                                 (7, (0, 10)), (7, (5, 15))]))
-    pcoll2 = pcoll | 'Again' >> ParDo(TestDoFn())
-    assert_that(
-        pcoll2,
-        equal_to([
-            ((1, (-5, 5)), (-5, 5)), ((1, (0, 10)), (0, 10)),
-            ((7, (0, 10)), (0, 10)), ((7, (5, 15)), (5, 15))]),
-        label='doubled windows')
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | Create([1, 7])
+          | Map(lambda x: TimestampedValue(x, x))
+          | WindowInto(windowfn=SlidingWindows(10, 5))
+          | ParDo(TestDoFn()))
+      assert_that(
+          pcoll,
+          equal_to([(1, (-5, 5)), (1, (0, 10)), (7, (0, 10)), (7, (5, 15))]))
+      pcoll2 = pcoll | 'Again' >> ParDo(TestDoFn())
+      assert_that(
+          pcoll2,
+          equal_to([((1, (-5, 5)), (-5, 5)), ((1, (0, 10)), (0, 10)),
+                    ((7, (0, 10)), (0, 10)), ((7, (5, 15)), (5, 15))]),
+          label='doubled windows')
 
   def test_timestamp_param(self):
     class TestDoFn(DoFn):
       def process(self, element, timestamp=DoFn.TimestampParam):
         yield timestamp
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
-    assert_that(pcoll, equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'Create' >> Create([1, 2]) | 'Do' >> ParDo(TestDoFn())
+      assert_that(pcoll, equal_to([MIN_TIMESTAMP, MIN_TIMESTAMP]))
 
   def test_timestamp_param_map(self):
     with TestPipeline() as p:
@@ -688,18 +693,18 @@ class DoFnTest(unittest.TestCase):
           label='CheckUngrouped')
       assert_that(
           pc | beam.GroupByKey() | beam.Map(lambda _, p=DoFn.PaneInfoParam: p),
-          equal_to([windowed_value.PaneInfo(
-              is_first=True,
-              is_last=True,
-              timing=windowed_value.PaneInfoTiming.ON_TIME,
-              index=0,
-              nonspeculative_index=0)]),
+          equal_to([
+              windowed_value.PaneInfo(
+                  is_first=True,
+                  is_last=True,
+                  timing=windowed_value.PaneInfoTiming.ON_TIME,
+                  index=0,
+                  nonspeculative_index=0)
+          ]),
           label='CheckGrouped')
 
   def test_incomparable_default(self):
-
     class IncomparableType(object):
-
       def __eq__(self, other):
         raise RuntimeError()
 
@@ -711,23 +716,21 @@ class DoFnTest(unittest.TestCase):
 
     # Ensure that we don't use default values in a context where they must be
     # comparable (see BEAM-8301).
-    pipeline = TestPipeline()
-    pcoll = (pipeline
-             | beam.Create([None])
-             | Map(lambda e, x=IncomparableType(): (e, type(x).__name__)))
-    assert_that(pcoll, equal_to([(None, 'IncomparableType')]))
-    pipeline.run()
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | beam.Create([None])
+          | Map(lambda e, x=IncomparableType(): (e, type(x).__name__)))
+      assert_that(pcoll, equal_to([(None, 'IncomparableType')]))
 
 
 class Bacon(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--slices', type=int)
 
 
 class Eggs(PipelineOptions):
-
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--style', default='scrambled')
@@ -738,16 +741,14 @@ class Breakfast(Bacon, Eggs):
 
 
 class PipelineOptionsTest(unittest.TestCase):
-
   def test_flag_parsing(self):
     options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'])
     self.assertEqual(3, options.slices)
     self.assertEqual('sunny side up', options.style)
 
   def test_keyword_parsing(self):
-    options = Breakfast(
-        ['--slices=3', '--style=sunny side up', '--ignored'],
-        slices=10)
+    options = Breakfast(['--slices=3', '--style=sunny side up', '--ignored'],
+                        slices=10)
     self.assertEqual(10, options.slices)
     self.assertEqual('sunny side up', options.style)
 
@@ -778,23 +779,36 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEqual(
-        set(['from_dictionary', 'get_all_options', 'slices', 'style',
-             'view_as', 'display_data']),
-        set([attr for attr in dir(options) if not attr.startswith('_') and
-             attr != 'next']))
-    self.assertEqual(
-        set(['from_dictionary', 'get_all_options', 'style', 'view_as',
-             'display_data']),
-        set([attr for attr in dir(options.view_as(Eggs))
-             if not attr.startswith('_') and attr != 'next']))
+    self.assertEqual({
+        'from_dictionary',
+        'get_all_options',
+        'slices',
+        'style',
+        'view_as',
+        'display_data'
+    },
+                     {
+                         attr
+                         for attr in dir(options)
+                         if not attr.startswith('_') and attr != 'next'
+                     })
+    self.assertEqual({
+        'from_dictionary',
+        'get_all_options',
+        'style',
+        'view_as',
+        'display_data'
+    },
+                     {
+                         attr
+                         for attr in dir(options.view_as(Eggs))
+                         if not attr.startswith('_') and attr != 'next'
+                     })
 
 
 class RunnerApiTest(unittest.TestCase):
-
   def test_parent_pointer(self):
     class MyPTransform(beam.PTransform):
-
       def expand(self, p):
         self.p = p
         return p | beam.Create([None])
@@ -804,8 +818,18 @@ class RunnerApiTest(unittest.TestCase):
     p = Pipeline.from_runner_api(
         Pipeline.to_runner_api(p, use_fake_coders=True), None, None)
     self.assertIsNotNone(p.transforms_stack[0].parts[0].parent)
-    self.assertEqual(p.transforms_stack[0].parts[0].parent,
-                     p.transforms_stack[0])
+    self.assertEqual(
+        p.transforms_stack[0].parts[0].parent, p.transforms_stack[0])
+
+  def test_requirements(self):
+    p = beam.Pipeline()
+    _ = (
+        p | beam.Create([])
+        | beam.ParDo(lambda x, finalize=beam.DoFn.BundleFinalizerParam: None))
+    proto = p.to_runner_api()
+    self.assertTrue(
+        common_urns.requirements.REQUIRES_BUNDLE_FINALIZATION.urn,
+        proto.requirements)
 
 
 if __name__ == '__main__':

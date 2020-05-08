@@ -30,17 +30,17 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
-import org.apache.beam.runners.core.construction.expansion.ExpansionService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.expansion.service.ExpansionService;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -139,8 +139,18 @@ public class KafkaIOExternalTest {
 
     assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
     assertThat(spec.getTopics(), Matchers.is(topics));
-    assertThat(spec.getKeyDeserializer().getName(), Matchers.is(keyDeserializer));
-    assertThat(spec.getValueDeserializer().getName(), Matchers.is(valueDeserializer));
+    assertThat(
+        spec.getKeyDeserializerProvider()
+            .getDeserializer(spec.getConsumerConfig(), true)
+            .getClass()
+            .getName(),
+        Matchers.is(keyDeserializer));
+    assertThat(
+        spec.getValueDeserializerProvider()
+            .getDeserializer(spec.getConsumerConfig(), false)
+            .getClass()
+            .getName(),
+        Matchers.is(valueDeserializer));
   }
 
   @Test

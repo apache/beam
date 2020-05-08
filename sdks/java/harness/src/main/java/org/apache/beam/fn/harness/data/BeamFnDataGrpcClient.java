@@ -33,7 +33,7 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,14 +74,11 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       LogicalEndpoint inputLocation,
       Coder<T> coder,
       FnDataReceiver<T> consumer) {
-    LOG.debug(
-        "Registering consumer for instruction {} and transform {}",
-        inputLocation.getInstructionId(),
-        inputLocation.getTransformId());
+    LOG.debug("Registering consumer for {}", inputLocation);
 
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
     BeamFnDataInboundObserver<T> inboundObserver =
-        BeamFnDataInboundObserver.forConsumer(coder, consumer);
+        BeamFnDataInboundObserver.forConsumer(inputLocation, coder, consumer);
     client.registerConsumer(inputLocation, inboundObserver);
     return inboundObserver;
   }
@@ -103,10 +100,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
       Coder<T> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
 
-    LOG.debug(
-        "Creating output consumer for instruction {} and transform {}",
-        outputLocation.getInstructionId(),
-        outputLocation.getTransformId());
+    LOG.debug("Creating output consumer for {}", outputLocation);
     return BeamFnDataBufferingOutboundObserver.forLocation(
         options, outputLocation, coder, client.getOutboundObserver());
   }

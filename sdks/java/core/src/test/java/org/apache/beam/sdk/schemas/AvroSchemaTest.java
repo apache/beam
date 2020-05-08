@@ -31,7 +31,6 @@ import org.apache.avro.reflect.AvroIgnore;
 import org.apache.avro.reflect.AvroName;
 import org.apache.avro.reflect.AvroSchema;
 import org.apache.avro.util.Utf8;
-import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
@@ -43,7 +42,6 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -479,16 +477,21 @@ public class AvroSchemaTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testAvroPipelineGroupBy() {
-    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO)).setRowSchema(POJO_SCHEMA);
+    PCollection<Row> input = pipeline.apply(Create.of(ROW_FOR_POJO).withRowSchema(POJO_SCHEMA));
 
-    PCollection<KV<Row, Iterable<Row>>> output = input.apply(Group.byFieldNames("string"));
+    PCollection<Row> output = input.apply(Group.byFieldNames("string"));
+    Schema keySchema = Schema.builder().addStringField("string").build();
+    Schema outputSchema =
+        Schema.builder()
+            .addRowField("key", keySchema)
+            .addIterableField("value", FieldType.row(POJO_SCHEMA))
+            .build();
     PAssert.that(output)
         .containsInAnyOrder(
-            KV.of(
-                Row.withSchema(Schema.of(Field.of("string", FieldType.STRING)))
-                    .addValue("mystring")
-                    .build(),
-                ImmutableList.of(ROW_FOR_POJO)));
+            Row.withSchema(outputSchema)
+                .addValue(Row.withSchema(keySchema).addValue("mystring").build())
+                .addIterable(ImmutableList.of(ROW_FOR_POJO))
+                .build());
 
     pipeline.run();
   }

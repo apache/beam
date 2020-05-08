@@ -29,7 +29,7 @@ p = beam.Pipeline()
 
    | beam.FlatMap(lambda sentence: sentence.split())
    | beam.combiners.Count.PerElement()
-   | beam.Map(lambda (k, v): k + ":" + str(v))
+   | beam.MapTuple(lambda k, v: k + ":" + str(v))
 
    | LogElements())
 

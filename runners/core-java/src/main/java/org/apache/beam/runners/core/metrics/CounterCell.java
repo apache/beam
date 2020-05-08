@@ -19,9 +19,6 @@ package org.apache.beam.runners.core.metrics;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
@@ -34,7 +31,6 @@ import org.apache.beam.sdk.metrics.MetricsContainer;
  * In that case retrieving the underlying cell and reporting directly to it avoids a step of
  * indirection.
  */
-@Experimental(Kind.METRICS)
 public class CounterCell implements Counter, MetricCell<Long> {
 
   private final DirtyState dirty = new DirtyState();
@@ -46,7 +42,6 @@ public class CounterCell implements Counter, MetricCell<Long> {
    * MetricsContainerImpl}, unless they need to define their own version of {@link
    * MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
-  @Internal
   public CounterCell(MetricName name) {
     this.name = name;
   }

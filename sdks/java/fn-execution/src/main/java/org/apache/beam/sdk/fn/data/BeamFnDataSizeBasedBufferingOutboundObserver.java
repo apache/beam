@@ -20,8 +20,8 @@ package org.apache.beam.sdk.fn.data;
 import java.io.IOException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,10 +69,20 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
     closed = true;
     BeamFnApi.Elements.Builder elements = convertBufferForTransmission();
     // This will add an empty data block representing the end of stream.
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId());
+    if (outputLocation.isTimer()) {
+      elements
+          .addTimersBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setTimerFamilyId(outputLocation.getTimerFamilyId())
+          .setIsLast(true);
+    } else {
+      elements
+          .addDataBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setIsLast(true);
+    }
 
     LOG.debug(
         "Closing stream for instruction {} and "
@@ -109,11 +119,20 @@ public class BeamFnDataSizeBasedBufferingOutboundObserver<T>
       return elements;
     }
 
-    elements
-        .addDataBuilder()
-        .setInstructionId(outputLocation.getInstructionId())
-        .setTransformId(outputLocation.getTransformId())
-        .setData(bufferedElements.toByteString());
+    if (outputLocation.isTimer()) {
+      elements
+          .addTimersBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setTimerFamilyId(outputLocation.getTimerFamilyId())
+          .setTimers(bufferedElements.toByteString());
+    } else {
+      elements
+          .addDataBuilder()
+          .setInstructionId(outputLocation.getInstructionId())
+          .setTransformId(outputLocation.getTransformId())
+          .setData(bufferedElements.toByteString());
+    }
 
     byteCounter += bufferedElements.size();
     bufferedElements.reset();

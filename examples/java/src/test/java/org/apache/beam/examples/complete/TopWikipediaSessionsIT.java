@@ -17,13 +17,16 @@
  */
 package org.apache.beam.examples.complete;
 
+import static org.apache.beam.sdk.testing.FileChecksumMatcher.fileContentsHaveChecksum;
+import static org.hamcrest.MatcherAssert.assertThat;
+
 import java.util.Date;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.testing.FileChecksumMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
+import org.apache.beam.sdk.util.NumberedShardedFile;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,9 +63,11 @@ public class TopWikipediaSessionsIT {
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)
             .toString());
-    options.setOnSuccessMatcher(
-        new FileChecksumMatcher(DEFAULT_OUTPUT_CHECKSUM, options.getOutput() + "*-of-*"));
 
     TopWikipediaSessions.run(options);
+
+    assertThat(
+        new NumberedShardedFile(options.getOutput() + "*-of-*"),
+        fileContentsHaveChecksum(DEFAULT_OUTPUT_CHECKSUM));
   }
 }

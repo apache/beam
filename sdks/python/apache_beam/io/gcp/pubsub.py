@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """Google Cloud PubSub sources and sinks.
 
 Cloud Pub/Sub sources and sinks are currently supported only in streaming
@@ -22,10 +23,14 @@ pipelines, during remote execution.
 This API is currently under development and is subject to change.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import re
 from builtins import object
+from typing import Any
+from typing import Optional
 
 from future.utils import iteritems
 from past.builtins import unicode
@@ -44,8 +49,13 @@ try:
 except ImportError:
   pubsub = None
 
-__all__ = ['PubsubMessage', 'ReadFromPubSub', 'ReadStringsFromPubSub',
-           'WriteStringsToPubSub', 'WriteToPubSub']
+__all__ = [
+    'PubsubMessage',
+    'ReadFromPubSub',
+    'ReadStringsFromPubSub',
+    'WriteStringsToPubSub',
+    'WriteToPubSub'
+]
 
 
 class PubsubMessage(object):
@@ -62,11 +72,10 @@ class PubsubMessage(object):
       and service generated attributes (such as id_label and
       timestamp_attribute). May be None.
   """
-
   def __init__(self, data, attributes):
     if data is None and not attributes:
-      raise ValueError('Either data (%r) or attributes (%r) must be set.',
-                       data, attributes)
+      raise ValueError(
+          'Either data (%r) or attributes (%r) must be set.', data, attributes)
     self.data = data
     self.attributes = attributes
 
@@ -75,8 +84,7 @@ class PubsubMessage(object):
 
   def __eq__(self, other):
     return isinstance(other, PubsubMessage) and (
-        self.data == other.data and
-        self.attributes == other.attributes)
+        self.data == other.data and self.attributes == other.attributes)
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
@@ -87,6 +95,8 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_proto_str(proto_msg):
+    # type: (bytes) -> PubsubMessage
+
     """Construct from serialized form of ``PubsubMessage``.
 
     Args:
@@ -121,6 +131,8 @@ class PubsubMessage(object):
 
   @staticmethod
   def _from_message(msg):
+    # type: (Any) -> PubsubMessage
+
     """Construct from ``google.cloud.pubsub_v1.subscriber.message.Message``.
 
     https://googleapis.github.io/google-cloud-python/latest/pubsub/subscriber/api/message.html
@@ -132,10 +144,18 @@ class PubsubMessage(object):
 
 class ReadFromPubSub(PTransform):
   """A ``PTransform`` for reading from Cloud Pub/Sub."""
+
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+              ):
+    # type: (...) -> None
+
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -198,7 +218,6 @@ def ReadStringsFromPubSub(topic=None, subscription=None, id_label=None):
 
 class _ReadStringsFromPubSub(PTransform):
   """This class is deprecated. Use ``ReadFromPubSub`` instead."""
-
   def __init__(self, topic=None, subscription=None, id_label=None):
     super(_ReadStringsFromPubSub, self).__init__()
     self.topic = topic
@@ -206,10 +225,11 @@ class _ReadStringsFromPubSub(PTransform):
     self.id_label = id_label
 
   def expand(self, pvalue):
-    p = (pvalue.pipeline
-         | ReadFromPubSub(self.topic, self.subscription, self.id_label,
-                          with_attributes=False)
-         | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
+    p = (
+        pvalue.pipeline
+        | ReadFromPubSub(
+            self.topic, self.subscription, self.id_label, with_attributes=False)
+        | 'DecodeString' >> Map(lambda b: b.decode('utf-8')))
     p.element_type = unicode
     return p
 
@@ -221,7 +241,6 @@ def WriteStringsToPubSub(topic):
 
 class _WriteStringsToPubSub(PTransform):
   """This class is deprecated. Use ``WriteToPubSub`` instead."""
-
   def __init__(self, topic):
     """Initializes ``_WriteStringsToPubSub``.
 
@@ -229,8 +248,8 @@ class _WriteStringsToPubSub(PTransform):
       topic: Cloud Pub/Sub topic in the form "/topics/<project>/<topic>".
     """
     super(_WriteStringsToPubSub, self).__init__()
-    self._sink = _PubSubSink(topic, id_label=None, with_attributes=False,
-                             timestamp_attribute=None)
+    self._sink = _PubSubSink(
+        topic, id_label=None, with_attributes=False, timestamp_attribute=None)
 
   def expand(self, pcoll):
     pcoll = pcoll | 'EncodeString' >> Map(lambda s: s.encode('utf-8'))
@@ -240,10 +259,17 @@ class _WriteStringsToPubSub(PTransform):
 
 class WriteToPubSub(PTransform):
   """A ``PTransform`` for writing messages to Cloud Pub/Sub."""
+
   # Implementation note: This ``PTransform`` is overridden by Directrunner.
 
-  def __init__(self, topic, with_attributes=False, id_label=None,
-               timestamp_attribute=None):
+  def __init__(self,
+               topic,  # type: str
+               with_attributes=False,  # type: bool
+               id_label=None,  # type: Optional[str]
+               timestamp_attribute=None  # type: Optional[str]
+              ):
+    # type: (...) -> None
+
     """Initializes ``WriteToPubSub``.
 
     Args:
@@ -262,14 +288,16 @@ class WriteToPubSub(PTransform):
     self.with_attributes = with_attributes
     self.id_label = id_label
     self.timestamp_attribute = timestamp_attribute
-    self._sink = _PubSubSink(topic, id_label, with_attributes,
-                             timestamp_attribute)
+    self._sink = _PubSubSink(
+        topic, id_label, with_attributes, timestamp_attribute)
 
   @staticmethod
   def to_proto_str(element):
+    # type: (PubsubMessage) -> bytes
     if not isinstance(element, PubsubMessage):
-      raise TypeError('Unexpected element. Type: %s (expected: PubsubMessage), '
-                      'value: %r' % (type(element), element))
+      raise TypeError(
+          'Unexpected element. Type: %s (expected: PubsubMessage), '
+          'value: %r' % (type(element), element))
     return element._to_proto_str()
 
   def expand(self, pcoll):
@@ -327,8 +355,13 @@ class _PubSubSource(dataflow_io.NativeSource):
       fetches ``PubsubMessage`` protobufs.
   """
 
-  def __init__(self, topic=None, subscription=None, id_label=None,
-               with_attributes=False, timestamp_attribute=None):
+  def __init__(self,
+               topic=None,  # type: Optional[str]
+               subscription=None,  # type: Optional[str]
+               id_label=None,  # type: Optional[str]
+               with_attributes=False,  # type: bool
+               timestamp_attribute=None  # type: Optional[str]
+              ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -355,22 +388,19 @@ class _PubSubSource(dataflow_io.NativeSource):
     return 'pubsub'
 
   def display_data(self):
-    return {'id_label':
-            DisplayDataItem(self.id_label,
-                            label='ID Label Attribute').drop_if_none(),
-            'topic':
-            DisplayDataItem(self.full_topic,
-                            label='Pubsub Topic').drop_if_none(),
-            'subscription':
-            DisplayDataItem(self.full_subscription,
-                            label='Pubsub Subscription').drop_if_none(),
-            'with_attributes':
-            DisplayDataItem(self.with_attributes,
-                            label='With Attributes').drop_if_none(),
-            'timestamp_attribute':
-            DisplayDataItem(self.timestamp_attribute,
-                            label='Timestamp Attribute').drop_if_none(),
-           }
+    return {
+        'id_label': DisplayDataItem(self.id_label,
+                                    label='ID Label Attribute').drop_if_none(),
+        'topic': DisplayDataItem(self.full_topic,
+                                 label='Pubsub Topic').drop_if_none(),
+        'subscription': DisplayDataItem(
+            self.full_subscription, label='Pubsub Subscription').drop_if_none(),
+        'with_attributes': DisplayDataItem(
+            self.with_attributes, label='With Attributes').drop_if_none(),
+        'timestamp_attribute': DisplayDataItem(
+            self.timestamp_attribute,
+            label='Timestamp Attribute').drop_if_none(),
+    }
 
   def reader(self):
     raise NotImplementedError
@@ -385,7 +415,12 @@ class _PubSubSink(dataflow_io.NativeSink):
   This ``NativeSource`` is overridden by a native Pubsub implementation.
   """
 
-  def __init__(self, topic, id_label, with_attributes, timestamp_attribute):
+  def __init__(self,
+               topic,  # type: str
+               id_label,  # type: Optional[str]
+               with_attributes,  # type: bool
+               timestamp_attribute  # type: Optional[str]
+              ):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.id_label = id_label

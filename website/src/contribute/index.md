@@ -38,9 +38,9 @@ There are lots of opportunities to contribute:
  - review proposed design ideas on [dev@beam.apache.org]({{ site.baseurl
 }}/community/contact-us/)
  - improve the documentation
- - contribute [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
- - contribute by testing releases
- - contribute by reviewing [changes](https://github.com/apache/beam/pulls)
+ - file [bug reports](https://issues.apache.org/jira/projects/BEAM/issues)
+ - test releases
+ - review [changes](https://github.com/apache/beam/pulls)
  - write new examples
  - improve your favorite language SDK (Java, Python, Go, etc)
  - improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
@@ -58,7 +58,7 @@ Most importantly, if you have an idea of how to contribute, then do it!
 
 ## Contributing code
 
-Below is a tutorial for contributing [code to Beam](https://github.com/apache/beam), covering our tools and typical process in
+Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.
 
 ### Prerequisites
@@ -67,13 +67,37 @@ To contribute code, you need
 
  - a GitHub account
  - a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed
- - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing website
+ - [Docker](https://www.docker.com/) installed for some tasks including building worker containers and testing this website
    changes locally
- - [Go](https://golang.org) 1.10 or later installed for Go SDK development
- - Python, virtualenv, and tox installed for Python SDK development
+ - [Go](https://golang.org) 1.12 or later installed for Go SDK development
+ - Python 2.7, 3.5, 3.6, and 3.7. Yes, you need all four versions installed.
+    - pip, setuptools, virtualenv, and tox installed for Python development
  - for large contributions, a signed [Individual Contributor License
    Agreement](https://www.apache.org/licenses/icla.pdf) (ICLA) to the Apache
    Software Foundation (ASF).
+
+To install these in a Debian-based distribution:
+
+```
+sudo apt-get install \
+   openjdk-8-jdk \
+   python-setuptools \
+   python-pip \
+   virtualenv \
+   tox \
+   docker-ce
+```
+
+You also need to [install Go](https://golang.org/doc/install).
+
+Once Go is installed, install goavro:
+
+```
+$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+$ go get github.com/linkedin/goavro
+```
+
+gLinux users should configure their machines for sudoless Docker.
 
 ### Connect With the Beam community
 
@@ -182,7 +206,7 @@ To contribute code, you need
 1. If you don't get any response in 3 business days, email the [dev@ mailing list]({{ site.baseurl }}/community/contact-us) to ask for someone to look at your pull
    request.
 
-### Make reviewer's job easier
+### Make the reviewer's job easier
 
 1. Provide context for your changes in the associated JIRA issue and/or PR description.
 

@@ -17,22 +17,25 @@
  */
 package org.apache.beam.runners.fnexecution.environment;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Matchers.anyString;
+import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.concurrent.TimeoutException;
+import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -50,6 +53,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -70,7 +74,7 @@ public class DockerEnvironmentFactoryTest {
 
   @Mock GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   @Mock GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  @Mock GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
 
   @Mock InstructionRequestHandler client;
@@ -124,9 +128,6 @@ public class DockerEnvironmentFactoryTest {
       DockerEnvironmentFactory factory =
           DockerEnvironmentFactory.forServicesWithDocker(
               docker,
-              controlServiceServer,
-              loggingServiceServer,
-              retrievalServiceServer,
               provisioningServiceServer,
               throwsException ? exceptionClientSource : normalClientSource,
               ID_GENERATOR,
@@ -136,6 +137,13 @@ public class DockerEnvironmentFactoryTest {
       }
 
       RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+
+      ArgumentCaptor<List<String>> dockerArgsCaptor = ArgumentCaptor.forClass(List.class);
+      verify(docker).runImage(any(), dockerArgsCaptor.capture(), anyList());
+
+      // Ensure we do not remove the container prematurely which would also remove the logs
+      assertThat(dockerArgsCaptor.getValue(), not(hasItem("--rm")));
+
       handle.close();
 
       verify(docker).killContainer(CONTAINER_ID);
@@ -158,15 +166,11 @@ public class DockerEnvironmentFactoryTest {
     }
 
     @Test(expected = RuntimeException.class)
-    public void logsDockerOutputOnTimeoutException() throws Exception {
+    public void logsDockerOutputOnStartupFailed() throws Exception {
       when(docker.runImage(Mockito.eq(IMAGE_NAME), Mockito.any(), Mockito.any()))
           .thenReturn(CONTAINER_ID);
-      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
-      DockerEnvironmentFactory factory =
-          getFactory(
-              (workerId, timeout) -> {
-                throw new TimeoutException();
-              });
+      when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(false);
+      DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
       factory.createEnvironment(ENVIRONMENT);
 
@@ -188,7 +192,7 @@ public class DockerEnvironmentFactoryTest {
 
     @Test
     public void createsMultipleEnvironments() throws Exception {
-      when(docker.isContainerRunning(anyString())).thenReturn(true);
+      when(docker.isContainerRunning(any())).thenReturn(true);
       DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
       Environment fooEnv = Environments.createDockerEnvironment("foo");
@@ -203,9 +207,6 @@ public class DockerEnvironmentFactoryTest {
     private DockerEnvironmentFactory getFactory(ControlClientPool.Source clientSource) {
       return DockerEnvironmentFactory.forServicesWithDocker(
           docker,
-          controlServiceServer,
-          loggingServiceServer,
-          retrievalServiceServer,
           provisioningServiceServer,
           clientSource,
           ID_GENERATOR,

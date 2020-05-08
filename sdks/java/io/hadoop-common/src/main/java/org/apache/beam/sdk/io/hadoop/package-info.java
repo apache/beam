@@ -17,4 +17,8 @@
  */
 
 /** Classes shared by Hadoop based IOs. */
+@Experimental(Kind.SOURCE_SINK)
 package org.apache.beam.sdk.io.hadoop;
+
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;

@@ -24,8 +24,8 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -88,6 +88,7 @@ public class TestDataflowRunnerTest {
     options = PipelineOptionsFactory.as(TestDataflowPipelineOptions.class);
     options.setAppName("TestAppName");
     options.setProject("test-project");
+    options.setRegion("some-region1");
     options.setTempLocation("gs://test/temp/location");
     options.setTempRoot("gs://test");
     options.setGcpCredential(new TestCredential());

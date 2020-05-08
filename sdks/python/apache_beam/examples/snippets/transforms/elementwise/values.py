@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -35,8 +37,7 @@ def values(test=None):
             ('🥔', 'Potato'),
         ])
         | 'Values' >> beam.Values()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END values]
     if test:
       test(plants)

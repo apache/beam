@@ -17,6 +17,8 @@
 
 """Utility functions for all microbenchmarks."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -44,9 +46,9 @@ def check_compiled(module):
         "'pip install Cython; python setup.py build_ext --inplace'")
 
 
-class BenchmarkConfig(
-    collections.namedtuple(
-        "BenchmarkConfig", ["benchmark", "size", "num_runs"])):
+class BenchmarkConfig(collections.namedtuple("BenchmarkConfig",
+                                             ["benchmark", "size", "num_runs"])
+                      ):
   """
   Attributes:
     benchmark: a callable that takes an int argument - benchmark size,
@@ -65,17 +67,15 @@ class BenchmarkConfig(
       are counted based on the size of the input.
     num_runs: int, number of times to run each benchmark.
   """
-
   def __str__(self):
     return "%s, %s element(s)" % (
         getattr(self.benchmark, '__name__', str(self.benchmark)),
         str(self.size))
 
 
-class LinearRegressionBenchmarkConfig(
-    collections.namedtuple(
-        "LinearRegressionBenchmarkConfig",
-        ["benchmark", "starting_point", "increment", "num_runs"])):
+class LinearRegressionBenchmarkConfig(collections.namedtuple(
+    "LinearRegressionBenchmarkConfig",
+    ["benchmark", "starting_point", "increment", "num_runs"])):
   """
   Attributes:
     benchmark: a callable that takes an int argument - benchmark size,
@@ -99,9 +99,8 @@ class LinearRegressionBenchmarkConfig(
   def __str__(self):
     return "%s, %s element(s) at start, %s growth per run" % (
         getattr(self.benchmark, '__name__', str(self.benchmark)),
-        str(self.starting_point), str(self.increment))
-
-
+        str(self.starting_point),
+        str(self.increment))
 
 
 def run_benchmarks(benchmark_suite, verbose=True):
@@ -118,7 +117,6 @@ def run_benchmarks(benchmark_suite, verbose=True):
     A dictionary of the form string -> list of floats. Keys of the dictionary
     are benchmark names, values are execution times in seconds for each run.
   """
-
   def run(benchmark_fn, size):
     # Contain each run of a benchmark inside a function so that any temporary
     # objects can be garbage-collected after the run.
@@ -151,8 +149,9 @@ def run_benchmarks(benchmark_suite, verbose=True):
       size_series[name].append(size)
       if verbose:
         per_element_cost = time_cost / size
-        print("%s: run %d of %d, per element time cost: %g sec" % (
-            name, run_id + 1, num_runs, per_element_cost))
+        print(
+            "%s: run %d of %d, per element time cost: %g sec" %
+            (name, run_id + 1, num_runs, per_element_cost))
 
       # Incrementing the size of the benchmark run by the step size
       size += step
@@ -182,7 +181,8 @@ def run_benchmarks(benchmark_suite, verbose=True):
 
         print(
             "%s: p. element median time cost: %g sec, relative std: %.2f%%" % (
-                name.ljust(pad_length, " "), per_element_median_cost,
+                name.ljust(pad_length, " "),
+                per_element_median_cost,
                 std * 100 / per_element_median_cost))
 
   return size_series, cost_series

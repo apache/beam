@@ -14,7 +14,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-from test_helper import run_common_tests, failed, passed, get_answer_placeholders, get_file_output
+from test_helper import failed, passed, \
+    get_answer_placeholders, get_file_output, test_is_not_empty, \
+    test_answer_placeholders_text_deleted
 
 
 def test_combine_placeholders():
@@ -35,7 +37,7 @@ def test_output():
     PLAYER_3 = 'Player 3'
 
     answers = [str((PLAYER_1, 115)), str((PLAYER_2, 85)), str((PLAYER_3, 25))]
-    print answers
+    print(answers)
 
     if all(num in output for num in answers):
         passed()
@@ -44,6 +46,7 @@ def test_output():
 
 
 if __name__ == '__main__':
-    run_common_tests()
+    test_is_not_empty()
+    test_answer_placeholders_text_deleted()
     test_combine_placeholders()
     test_output()

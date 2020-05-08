@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -46,8 +48,7 @@ TEST_DATA = [
         },
     },
     {
-        "name":
-            "main",
+        "name": "main",
         "data": [
             OrderedDict([
                 ("a", 1),
@@ -68,35 +69,40 @@ TEST_DATA = [
                 ("e", b""),
             ]),
         ],
-        "type_schema":
-            OrderedDict([
-                ("a", int),
-                ("b", float),
-                ("c", unicode),
-                ("d", np.ndarray),
-                ("e", bytes),
-            ]),
-        "pyarrow_schema":
-            pa.schema([
-                ("a", pa.int64()),
-                ("b", pa.float64()),
-                ("c", pa.string()),
-                ("d", pa.list_(pa.int64())),
-                ("e", pa.binary()),
-            ]) if pa is not None else None,
+        "type_schema": OrderedDict([
+            ("a", int),
+            ("b", float),
+            ("c", unicode),
+            ("d", np.ndarray),
+            ("e", bytes),
+        ]),
+        "pyarrow_schema": pa.schema([
+            ("a", pa.int64()),
+            ("b", pa.float64()),
+            ("c", pa.string()),
+            ("d", pa.list_(pa.int64())),
+            ("e", pa.binary()),
+        ]) if pa is not None else None,
         "avro_schema": {
-            "namespace":
-                "example.avro",
-            "name":
-                "User",
-            "type":
-                "record",
+            "namespace": "example.avro",
+            "name": "User",
+            "type": "record",
             "fields": [
-                {"name": "a", "type": "int"},
-                {"name": "b", "type": "double"},
-                {"name": "c", "type": "string"},
-                {"name": "d", "type": "bytes"},
-                {"name": "e", "type": "bytes"},
+                {
+                    "name": "a", "type": "int"
+                },
+                {
+                    "name": "b", "type": "double"
+                },
+                {
+                    "name": "c", "type": "string"
+                },
+                {
+                    "name": "d", "type": "bytes"
+                },
+                {
+                    "name": "e", "type": "bytes"
+                },
             ],
         },
     },
@@ -106,18 +112,19 @@ TEST_DATA = [
 def nullify_data_and_schemas(test_data):
   """Add a row with all columns set to None and adjust the schemas accordingly.
   """
-
   def nullify_avro_schema(schema):
     """Add a 'null' type to every field."""
     schema = schema.copy()
     new_fields = []
     for field in schema["fields"]:
       if isinstance(field["type"], str):
-        new_fields.append(
-            {"name": field["name"], "type": sorted([field["type"], "null"])})
+        new_fields.append({
+            "name": field["name"], "type": sorted([field["type"], "null"])
+        })
       else:
-        new_fields.append(
-            {"name": field["name"], "type": sorted(field["type"] + ["null"])})
+        new_fields.append({
+            "name": field["name"], "type": sorted(field["type"] + ["null"])
+        })
     schema["fields"] = new_fields
     return schema
 
@@ -130,8 +137,7 @@ def nullify_data_and_schemas(test_data):
     """
     _seen = set()
     columns = [
-        c for test_case in test_data for row in test_case["data"]
-        for c in row
+        c for test_case in test_data for row in test_case["data"] for c in row
         if c not in _seen and not _seen.add(c)
     ]
     return columns
@@ -147,8 +153,8 @@ def nullify_data_and_schemas(test_data):
         OrderedDict([(c, None) for c in columns])
     ]
     test_case["type_schema"] = OrderedDict([
-        (k, typehints.Union[v, type(None)])
-        for k, v in test_case["type_schema"].items()
+        (k, typehints.Union[v, type(None)]) for k,
+        v in test_case["type_schema"].items()
     ])
     test_case["avro_schema"] = nullify_avro_schema(test_case["avro_schema"])
     nullified_test_data.append(test_case)
@@ -159,25 +165,21 @@ TEST_DATA += nullify_data_and_schemas(TEST_DATA)
 
 
 class DatatypeInferenceTest(unittest.TestCase):
-
-  @parameterized.expand([
-      (d["name"], d["data"], d["type_schema"]) for d in TEST_DATA
-  ])
+  @parameterized.expand([(d["name"], d["data"], d["type_schema"])
+                         for d in TEST_DATA])
   def test_infer_typehints_schema(self, _, data, schema):
     typehints_schema = datatype_inference.infer_typehints_schema(data)
     self.assertEqual(typehints_schema, schema)
 
-  @parameterized.expand([
-      (d["name"], d["data"], d["pyarrow_schema"]) for d in TEST_DATA
-  ])
+  @parameterized.expand([(d["name"], d["data"], d["pyarrow_schema"])
+                         for d in TEST_DATA])
   @unittest.skipIf(pa is None, "PyArrow is not installed")
   def test_infer_pyarrow_schema(self, _, data, schema):
     pyarrow_schema = datatype_inference.infer_pyarrow_schema(data)
     self.assertEqual(pyarrow_schema, schema)
 
-  @parameterized.expand([
-      (d["name"], d["data"], d["avro_schema"]) for d in TEST_DATA
-  ])
+  @parameterized.expand([(d["name"], d["data"], d["avro_schema"])
+                         for d in TEST_DATA])
   def test_infer_avro_schema(self, _, data, schema):
     schema = schema.copy()  # Otherwise, it would be mutated by `.pop()`
     avro_schema = datatype_inference.infer_avro_schema(data, use_fastavro=False)
@@ -188,9 +190,8 @@ class DatatypeInferenceTest(unittest.TestCase):
     for field1, field2 in zip(fields1, fields2):
       self.assertDictEqual(field1, field2)
 
-  @parameterized.expand([
-      (d["name"], d["data"], d["avro_schema"]) for d in TEST_DATA
-  ])
+  @parameterized.expand([(d["name"], d["data"], d["avro_schema"])
+                         for d in TEST_DATA])
   def test_infer_fastavro_schema(self, _, data, schema):
     from fastavro import parse_schema
     schema = parse_schema(schema)

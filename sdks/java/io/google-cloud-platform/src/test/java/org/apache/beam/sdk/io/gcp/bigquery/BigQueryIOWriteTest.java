@@ -65,7 +65,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Encoder;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -684,6 +687,35 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
   }
 
+  @Test
+  public void testWriteWithoutInsertId() throws Exception {
+    TableRow row1 = new TableRow().set("name", "a").set("number", 1);
+    TableRow row2 = new TableRow().set("name", "b").set("number", 2);
+    TableRow row3 = new TableRow().set("name", "c").set("number", 3);
+    p.apply(Create.of(row1, row2, row3).withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("name").setType("STRING"),
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .ignoreInsertIds()
+                .withoutValidation());
+    p.run();
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row2, row3));
+    // Verify no insert id is added.
+    assertThat(
+        fakeDatasetService.getAllIds("project-id", "dataset-id", "table-id"), containsInAnyOrder());
+  }
+
   @AutoValue
   abstract static class InputRecord implements Serializable {
 
@@ -748,6 +780,66 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("instantVal", "2019-01-01 00:00:00 UTC"),
             new TableRow()
                 .set("strVal", "test2")
+                .set("longVal", "2")
+                .set("doubleVal", 2.0D)
+                .set("instantVal", "2019-02-01 00:00:00 UTC")));
+  }
+
+  @Test
+  public void testWriteAvroWithCustomWriter() throws Exception {
+    SerializableFunction<AvroWriteRequest<InputRecord>, GenericRecord> formatFunction =
+        r -> {
+          GenericRecord rec = new GenericData.Record(r.getSchema());
+          InputRecord i = r.getElement();
+          rec.put("strVal", i.strVal());
+          rec.put("longVal", i.longVal());
+          rec.put("doubleVal", i.doubleVal());
+          rec.put("instantVal", i.instantVal().getMillis() * 1000);
+          return rec;
+        };
+
+    SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>> customWriterFactory =
+        s ->
+            new GenericDatumWriter<GenericRecord>() {
+              @Override
+              protected void writeString(org.apache.avro.Schema schema, Object datum, Encoder out)
+                  throws IOException {
+                super.writeString(schema, datum.toString() + "_custom", out);
+              }
+            };
+
+    p.apply(
+            Create.of(
+                    InputRecord.create("test", 1, 1.0, Instant.parse("2019-01-01T00:00:00Z")),
+                    InputRecord.create("test2", 2, 2.0, Instant.parse("2019-02-01T00:00:00Z")))
+                .withCoder(INPUT_RECORD_CODER))
+        .apply(
+            BigQueryIO.<InputRecord>write()
+                .to("dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("strVal").setType("STRING"),
+                                new TableFieldSchema().setName("longVal").setType("INTEGER"),
+                                new TableFieldSchema().setName("doubleVal").setType("FLOAT"),
+                                new TableFieldSchema().setName("instantVal").setType("TIMESTAMP"))))
+                .withTestServices(fakeBqServices)
+                .withAvroWriter(formatFunction, customWriterFactory)
+                .withoutValidation());
+    p.run();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow()
+                .set("strVal", "test_custom")
+                .set("longVal", "1")
+                .set("doubleVal", 1.0D)
+                .set("instantVal", "2019-01-01 00:00:00 UTC"),
+            new TableRow()
+                .set("strVal", "test2_custom")
                 .set("longVal", "2")
                 .set("doubleVal", 2.0D)
                 .set("instantVal", "2019-02-01 00:00:00 UTC")));
@@ -1323,7 +1415,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Only one of withFormatFunction or withAvroFormatFunction maybe set, not both");
+        "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not both.");
     p.apply(Create.empty(INPUT_RECORD_CODER))
         .apply(
             BigQueryIO.<InputRecord>write()
@@ -1585,6 +1677,7 @@ public class BigQueryIOWriteTest implements Serializable {
             false,
             null,
             "NEWLINE_DELIMITED_JSON",
+            false,
             Collections.emptySet());
 
     PCollection<KV<TableDestination, String>> writeTablesOutput =

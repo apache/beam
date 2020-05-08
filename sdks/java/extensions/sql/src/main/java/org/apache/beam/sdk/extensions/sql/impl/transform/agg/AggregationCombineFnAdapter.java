@@ -99,10 +99,10 @@ public class AggregationCombineFnAdapter<T> {
     }
   }
 
-  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
-    private static final Schema EMPTY_SCHEMA = Schema.builder().build();
-    private static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
+  public static final Schema EMPTY_SCHEMA = Schema.builder().build();
+  public static final Row EMPTY_ROW = Row.withSchema(EMPTY_SCHEMA).build();
 
+  private static class ConstantEmpty extends CombineFn<Row, Row, Row> {
     public static final ConstantEmpty INSTANCE = new ConstantEmpty();
 
     @Override
@@ -141,7 +141,7 @@ public class AggregationCombineFnAdapter<T> {
   public static CombineFn<?, ?, ?> createCombineFn(
       AggregateCall call, Schema.Field field, String functionName) {
     if (call.isDistinct()) {
-      throw new IllegalArgumentException(
+      throw new UnsupportedOperationException(
           "Does not support " + call.getAggregation().getName() + " DISTINCT");
     }
 
@@ -169,7 +169,7 @@ public class AggregationCombineFnAdapter<T> {
       return ((UdafImpl) ((SqlUserDefinedAggFunction) call.getAggregation()).function)
           .getCombineFn();
     } catch (Exception e) {
-      throw new IllegalStateException(e);
+      throw new UnsupportedOperationException(e);
     }
   }
 }

@@ -1,0 +1,221 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.extensions.sql.zetasql;
+
+import com.google.zetasql.AnalyzerOptions;
+import com.google.zetasql.PreparedExpression;
+import com.google.zetasql.Value;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.IntFunction;
+import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.rel.AbstractBeamCalcRel;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamBigQuerySqlDialect;
+import org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BeamSqlUnparseContext;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelOptCluster;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.RelTraitSet;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.rel2sql.SqlImplementor;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexProgram;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlDialect;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlIdentifier;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+
+/**
+ * BeamRelNode to replace {@code Project} and {@code Filter} node based on the {@code ZetaSQL}
+ * expression evaluator.
+ */
+@Internal
+public class BeamZetaSqlCalcRel extends AbstractBeamCalcRel {
+
+  private static final SqlDialect DIALECT = BeamBigQuerySqlDialect.DEFAULT;
+  private final SqlImplementor.Context context;
+
+  private static String columnName(int i) {
+    return "_" + i;
+  }
+
+  public BeamZetaSqlCalcRel(
+      RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
+    super(cluster, traits, input, program);
+    final IntFunction<SqlNode> fn = i -> new SqlIdentifier(columnName(i), SqlParserPos.ZERO);
+    context = new BeamSqlUnparseContext(fn);
+  }
+
+  @Override
+  public Calc copy(RelTraitSet traitSet, RelNode input, RexProgram program) {
+    return new BeamZetaSqlCalcRel(getCluster(), traitSet, input, program);
+  }
+
+  @Override
+  public PTransform<PCollectionList<Row>, PCollection<Row>> buildPTransform() {
+    return new Transform();
+  }
+
+  private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+    @Override
+    public PCollection<Row> expand(PCollectionList<Row> pinput) {
+      Preconditions.checkArgument(
+          pinput.size() == 1,
+          "%s expected a single input PCollection, but received %d.",
+          BeamZetaSqlCalcRel.class.getSimpleName(),
+          pinput.size());
+      PCollection<Row> upstream = pinput.get(0);
+
+      final List<String> projects =
+          getProgram().getProjectList().stream()
+              .map(BeamZetaSqlCalcRel.this::unparseRexNode)
+              .collect(Collectors.toList());
+      final RexNode condition = getProgram().getCondition();
+
+      boolean verifyRowValues =
+          pinput.getPipeline().getOptions().as(BeamSqlPipelineOptions.class).getVerifyRowValues();
+      Schema outputSchema = CalciteUtils.toSchema(getRowType());
+      CalcFn calcFn =
+          new CalcFn(
+              projects,
+              condition == null ? null : unparseRexNode(condition),
+              upstream.getSchema(),
+              outputSchema,
+              verifyRowValues);
+
+      // validate prepared expressions
+      calcFn.setup();
+
+      return upstream.apply(ParDo.of(calcFn)).setRowSchema(outputSchema);
+    }
+  }
+
+  private String unparseRexNode(RexNode rex) {
+    return context.toSql(getProgram(), rex).toSqlString(DIALECT).getSql();
+  }
+
+  /**
+   * {@code CalcFn} is the executor for a {@link BeamZetaSqlCalcRel} step. The implementation is
+   * based on the {@code ZetaSQL} expression evaluator.
+   */
+  private static class CalcFn extends DoFn<Row, Row> {
+    private final List<String> projects;
+    @Nullable private final String condition;
+    private final Schema inputSchema;
+    private final Schema outputSchema;
+    private final boolean verifyRowValues;
+    private transient List<PreparedExpression> projectExps;
+    @Nullable private transient PreparedExpression conditionExp;
+
+    CalcFn(
+        List<String> projects,
+        @Nullable String condition,
+        Schema inputSchema,
+        Schema outputSchema,
+        boolean verifyRowValues) {
+      Preconditions.checkArgument(projects.size() == outputSchema.getFieldCount());
+      this.projects = ImmutableList.copyOf(projects);
+      this.condition = condition;
+      this.inputSchema = inputSchema;
+      this.outputSchema = outputSchema;
+      this.verifyRowValues = verifyRowValues;
+    }
+
+    @Setup
+    public void setup() {
+      AnalyzerOptions options = SqlAnalyzer.initAnalyzerOptions();
+      for (int i = 0; i < inputSchema.getFieldCount(); i++) {
+        options.addExpressionColumn(
+            columnName(i),
+            ZetaSqlUtils.beamFieldTypeToZetaSqlType(inputSchema.getField(i).getType()));
+      }
+
+      // TODO[BEAM-8630]: use a single PreparedExpression for all condition and projects
+      projectExps = new ArrayList<>();
+      for (String project : projects) {
+        PreparedExpression projectExp = new PreparedExpression(project);
+        projectExp.prepare(options);
+        projectExps.add(projectExp);
+      }
+      if (condition != null) {
+        conditionExp = new PreparedExpression(condition);
+        conditionExp.prepare(options);
+      }
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      Map<String, Value> columns = new HashMap<>();
+      Row row = c.element();
+      for (int i = 0; i < inputSchema.getFieldCount(); i++) {
+        columns.put(
+            columnName(i),
+            ZetaSqlUtils.javaObjectToZetaSqlValue(
+                row.getBaseValue(i, Object.class), inputSchema.getField(i).getType()));
+      }
+
+      // TODO[BEAM-8630]: support parameters in expression evaluation
+      // The map is empty because parameters in the query string have already been substituted.
+      Map<String, Value> params = Collections.emptyMap();
+
+      if (conditionExp != null && !conditionExp.execute(columns, params).getBoolValue()) {
+        return;
+      }
+
+      List<Object> values = Lists.newArrayListWithExpectedSize(outputSchema.getFieldCount());
+      for (int i = 0; i < outputSchema.getFieldCount(); i++) {
+        // TODO[BEAM-8630]: performance optimization by bundling the gRPC calls
+        Value v = projectExps.get(i).execute(columns, params);
+        values.add(
+            ZetaSqlUtils.zetaSqlValueToJavaObject(
+                v, outputSchema.getField(i).getType(), verifyRowValues));
+      }
+      Row outputRow =
+          verifyRowValues
+              ? Row.withSchema(outputSchema).addValues(values).build()
+              : Row.withSchema(outputSchema).attachValues(values);
+      c.output(outputRow);
+    }
+
+    @Teardown
+    public void teardown() {
+      for (PreparedExpression projectExp : projectExps) {
+        projectExp.close();
+      }
+      if (conditionExp != null) {
+        conditionExp.close();
+      }
+    }
+  }
+}

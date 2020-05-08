@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import CommonJobProperties as common
 import Kubernetes
+import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_Kafka_IO"
 
@@ -27,6 +29,7 @@ job(jobName) {
       delegate,
       'Java KafkaIO Performance Test',
       'Run Java KafkaIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
@@ -48,6 +51,9 @@ job(jobName) {
                             """.trim().replaceAll("\\s", ""),
       bigQueryDataset              : 'beam_performance',
       bigQueryTable                : 'kafkaioit_results',
+      influxMeasurement            : 'kafkaioit_results',
+      influxDatabase               : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+      influxHost                   : InfluxDBCredentialsHelper.InfluxDBHostname,
       kafkaBootstrapServerAddresses: "\$KAFKA_BROKER_0:32400,\$KAFKA_BROKER_1:32401,\$KAFKA_BROKER_2:32402",
       kafkaTopic                   : 'beam',
       readTimeout                  : '900',

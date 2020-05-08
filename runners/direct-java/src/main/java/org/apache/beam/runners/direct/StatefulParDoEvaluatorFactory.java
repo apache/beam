@@ -44,12 +44,14 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -70,6 +72,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
       cleanupRegistry;
 
   private final ParDoEvaluatorFactory<KV<K, InputT>, OutputT> delegateFactory;
+
+  private final EvaluationContext evaluationContext;
 
   StatefulParDoEvaluatorFactory(EvaluationContext evaluationContext, PipelineOptions options) {
     this.delegateFactory =
@@ -92,6 +96,8 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
         CacheBuilder.newBuilder()
             .weakValues()
             .build(new CleanupSchedulingLoader(evaluationContext));
+
+    this.evaluationContext = evaluationContext;
   }
 
   @Override
@@ -146,7 +152,13 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             application.getTransform().getSchemaInformation(),
             application.getTransform().getSideInputMapping());
 
-    return new StatefulParDoEvaluator<>(delegateEvaluator);
+    DirectStepContext stepContext =
+        evaluationContext
+            .getExecutionContext(application, inputBundle.getKey())
+            .getStepContext(evaluationContext.getStepName(application));
+
+    stepContext.stateInternals().commit();
+    return new StatefulParDoEvaluator<>(delegateEvaluator, stepContext);
   }
 
   private class CleanupSchedulingLoader
@@ -241,10 +253,14 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     private final List<TimerData> pushedBackTimers = new ArrayList<>();
     private final DirectTimerInternals timerInternals;
 
+    DirectStepContext stepContext;
+
     public StatefulParDoEvaluator(
-        DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator) {
+        DoFnLifecycleManagerRemovingTransformEvaluator<KV<K, InputT>> delegateEvaluator,
+        DirectStepContext stepContext) {
       this.delegateEvaluator = delegateEvaluator;
       this.timerInternals = delegateEvaluator.getParDoEvaluator().getStepContext().timerInternals();
+      this.stepContext = stepContext;
     }
 
     @Override
@@ -268,7 +284,14 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
             timer.getNamespace().getClass().getName());
         WindowNamespace<?> windowNamespace = (WindowNamespace) timer.getNamespace();
         BoundedWindow timerWindow = windowNamespace.getWindow();
-        delegateEvaluator.onTimer(timer, timerWindow);
+
+        delegateEvaluator.onTimer(timer, gbkResult.getValue().key(), timerWindow);
+
+        StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timer);
+
+        stepContext.stateInternals().state(timer.getNamespace(), timerWatermarkHoldTag).clear();
+        stepContext.stateInternals().commit();
+
         if (timerInternals.containsUpdateForTimeBefore(currentInputWatermark)) {
           break;
         }
@@ -278,15 +301,41 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
     @Override
     public TransformResult<KeyedWorkItem<K, KV<K, InputT>>> finishBundle() throws Exception {
+
       TransformResult<KV<K, InputT>> delegateResult = delegateEvaluator.finishBundle();
+      boolean isTimerDeclared = false;
+      for (TimerData timerData : delegateResult.getTimerUpdate().getSetTimers()) {
+        StateTag<WatermarkHoldState> timerWatermarkHoldTag = setTimerTag(timerData);
+
+        stepContext
+            .stateInternals()
+            .state(timerData.getNamespace(), timerWatermarkHoldTag)
+            .add(timerData.getOutputTimestamp());
+        isTimerDeclared = true;
+      }
+
+      CopyOnAccessInMemoryStateInternals state;
+      Instant watermarkHold;
+
+      if (isTimerDeclared && delegateResult.getState() != null) { // For both State and Timer Holds
+        state = delegateResult.getState();
+        watermarkHold = stepContext.commitState().getEarliestWatermarkHold();
+      } else if (isTimerDeclared) { // For only Timer holds
+        state = stepContext.commitState();
+        watermarkHold = state.getEarliestWatermarkHold();
+      } else { // For only State ( non Timer ) holds
+        state = delegateResult.getState();
+        watermarkHold = delegateResult.getWatermarkHold();
+      }
+
       TimerUpdate timerUpdate =
           delegateResult.getTimerUpdate().withPushedBackTimers(pushedBackTimers);
       pushedBackTimers.clear();
       StepTransformResult.Builder<KeyedWorkItem<K, KV<K, InputT>>> regroupedResult =
           StepTransformResult.<KeyedWorkItem<K, KV<K, InputT>>>withHold(
-                  delegateResult.getTransform(), delegateResult.getWatermarkHold())
+                  delegateResult.getTransform(), watermarkHold)
               .withTimerUpdate(timerUpdate)
-              .withState(delegateResult.getState())
+              .withState(state)
               .withMetricUpdates(delegateResult.getLogicalMetricUpdates())
               .addOutput(Lists.newArrayList(delegateResult.getOutputBundles()));
 
@@ -305,5 +354,12 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
 
       return regroupedResult.build();
     }
+  }
+
+  private static StateTag<WatermarkHoldState> setTimerTag(TimerData timerData) {
+    return StateTags.makeSystemTagInternal(
+        StateTags.watermarkStateInternal(
+            "timer-" + timerData.getTimerId() + "+" + timerData.getTimerFamilyId(),
+            TimestampCombiner.EARLIEST));
   }
 }

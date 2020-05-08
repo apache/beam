@@ -168,10 +168,16 @@ public class Utils {
   static DoFn<?, ?> getDoFn(AppliedPTransform<?, ?, ?> appliedTransform) {
     try {
       DoFn<?, ?> doFn = ParDoTranslation.getDoFn(appliedTransform);
-      if (DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable()) {
+      if (DoFnSignatures.isSplittable(doFn)) {
         throw new IllegalStateException(
             "Not expected to directly translate splittable DoFn, should have been overridden: "
                 + doFn); // todo
+      }
+      if (DoFnSignatures.requiresTimeSortedInput(doFn)) {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s doesn't current support @RequiresTimeSortedInput annotation.",
+                JetRunner.class.getSimpleName()));
       }
       return doFn;
     } catch (IOException e) {

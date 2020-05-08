@@ -1,0 +1,137 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+
+package test.option.v1;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FileOptions {
+    double fileoption_double = 66666700;
+    float fileoption_float = 66666701;
+    int32 fileoption_int32 = 66666702;
+    int64 fileoption_int64 = 66666703;
+    uint32 fileoption_uint32 = 66666704;
+    uint64 fileoption_uint64 = 66666705;
+    sint32 fileoption_sint32 = 66666706;
+    sint64 fileoption_sint64 = 66666707;
+    fixed32 fileoption_fixed32 = 66666708;
+    fixed64 fileoption_fixed64 = 66666709;
+    sfixed32 fileoption_sfixed32 = 66666710;
+    sfixed64 fileoption_sfixed64 = 66666711;
+    bool fileoption_bool = 66666712;
+    string fileoption_string = 66666713;
+    bytes fileoption_bytes = 66666714;
+    OptionMessage fileoption_message = 66666715;
+    OptionEnum fileoption_enum = 66666716;
+}
+
+extend google.protobuf.MessageOptions {
+    double messageoption_double = 66666700;
+    float messageoption_float = 66666701;
+    int32 messageoption_int32 = 66666702;
+    int64 messageoption_int64 = 66666703;
+    uint32 messageoption_uint32 = 66666704;
+    uint64 messageoption_uint64 = 66666705;
+    sint32 messageoption_sint32 = 66666706;
+    sint64 messageoption_sint64 = 66666707;
+    fixed32 messageoption_fixed32 = 66666708;
+    fixed64 messageoption_fixed64 = 66666709;
+    sfixed32 messageoption_sfixed32 = 66666710;
+    sfixed64 messageoption_sfixed64 = 66666711;
+    bool messageoption_bool = 66666712;
+    string messageoption_string = 66666713;
+    bytes messageoption_bytes = 66666714;
+    OptionMessage messageoption_message = 66666715;
+    OptionEnum messageoption_enum = 66666716;
+
+    repeated double messageoption_repeated_double = 66666800;
+    repeated float messageoption_repeated_float = 66666801;
+    repeated int32 messageoption_repeated_int32 = 66666802;
+    repeated int64 messageoption_repeated_int64 = 66666803;
+    repeated uint32 messageoption_repeated_uint32 = 66666804;
+    repeated uint64 messageoption_repeated_uint64 = 66666805;
+    repeated sint32 messageoption_repeated_sint32 = 66666806;
+    repeated sint64 messageoption_repeated_sint64 = 66666807;
+    repeated fixed32 messageoption_repeated_fixed32 = 66666808;
+    repeated fixed64 messageoption_repeated_fixed64 = 66666809;
+    repeated sfixed32 messageoption_repeated_sfixed32 = 66666810;
+    repeated sfixed64 messageoption_repeated_sfixed64 = 66666811;
+    repeated bool messageoption_repeated_bool = 66666812;
+    repeated string messageoption_repeated_string = 66666813;
+    repeated bytes messageoption_repeated_bytes = 66666814;
+    repeated OptionMessage messageoption_repeated_message = 66666815;
+    repeated OptionEnum messageoption_repeated_enum = 66666816;
+}
+
+extend google.protobuf.FieldOptions {
+    double fieldoption_double = 66666700;
+    float fieldoption_float = 66666701;
+    int32 fieldoption_int32 = 66666702;
+    int64 fieldoption_int64 = 66666703;
+    uint32 fieldoption_uint32 = 66666704;
+    uint64 fieldoption_uint64 = 66666705;
+    sint32 fieldoption_sint32 = 66666706;
+    sint64 fieldoption_sint64 = 66666707;
+    fixed32 fieldoption_fixed32 = 66666708;
+    fixed64 fieldoption_fixed64 = 66666709;
+    sfixed32 fieldoption_sfixed32 = 66666710;
+    sfixed64 fieldoption_sfixed64 = 66666711;
+    bool fieldoption_bool = 66666712;
+    string fieldoption_string = 66666713;
+    bytes fieldoption_bytes = 66666714;
+    OptionMessage fieldoption_message = 66666715;
+    OptionEnum fieldoption_enum = 66666716;
+
+    repeated double fieldoption_repeated_double = 66666800;
+    repeated float fieldoption_repeated_float = 66666801;
+    repeated int32 fieldoption_repeated_int32 = 66666802;
+    repeated int64 fieldoption_repeated_int64 = 66666803;
+    repeated uint32 fieldoption_repeated_uint32 = 66666804;
+    repeated uint64 fieldoption_repeated_uint64 = 66666805;
+    repeated sint32 fieldoption_repeated_sint32 = 66666806;
+    repeated sint64 fieldoption_repeated_sint64 = 66666807;
+    repeated fixed32 fieldoption_repeated_fixed32 = 66666808;
+    repeated fixed64 fieldoption_repeated_fixed64 = 66666809;
+    repeated sfixed32 fieldoption_repeated_sfixed32 = 66666810;
+    repeated sfixed64 fieldoption_repeated_sfixed64 = 66666811;
+    repeated bool fieldoption_repeated_bool = 66666812;
+    repeated string fieldoption_repeated_string = 66666813;
+    repeated bytes fieldoption_repeated_bytes = 66666814;
+    repeated OptionMessage fieldoption_repeated_message = 66666815;
+    repeated OptionEnum fieldoption_repeated_enum = 66666816;
+}
+
+enum OptionEnum {
+    DEFAULT = 0;
+    ENUM1 = 1;
+    ENUM2 = 2;
+}
+
+message OptionMessage {
+    string string = 1;
+    repeated string repeated_string = 2;
+
+    int32 int32 = 3;
+    repeated int32 repeated_int32 = 4;
+
+    int64 int64 = 5;
+
+    OptionEnum test_enum = 6;
+}

@@ -17,6 +17,8 @@
 
 """Test for the BigQuery side input example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -30,28 +32,34 @@ from apache_beam.testing.util import equal_to
 
 
 class BigQuerySideInputTest(unittest.TestCase):
-
   def test_create_groups(self):
     with TestPipeline() as p:
 
       group_ids_pcoll = p | 'CreateGroupIds' >> beam.Create(['A', 'B', 'C'])
-      corpus_pcoll = p | 'CreateCorpus' >> beam.Create(
-          [{'f': 'corpus1'}, {'f': 'corpus2'}, {'f': 'corpus3'}])
-      words_pcoll = p | 'CreateWords' >> beam.Create(
-          [{'f': 'word1'}, {'f': 'word2'}, {'f': 'word3'}])
+      corpus_pcoll = p | 'CreateCorpus' >> beam.Create([{
+          'f': 'corpus1'
+      }, {
+          'f': 'corpus2'
+      }])
+      words_pcoll = p | 'CreateWords' >> beam.Create([{
+          'f': 'word1'
+      }, {
+          'f': 'word2'
+      }])
       ignore_corpus_pcoll = p | 'CreateIgnoreCorpus' >> beam.Create(['corpus1'])
       ignore_word_pcoll = p | 'CreateIgnoreWord' >> beam.Create(['word1'])
 
-      groups = bigquery_side_input.create_groups(group_ids_pcoll,
-                                                 corpus_pcoll,
-                                                 words_pcoll,
-                                                 ignore_corpus_pcoll,
-                                                 ignore_word_pcoll)
+      groups = bigquery_side_input.create_groups(
+          group_ids_pcoll,
+          corpus_pcoll,
+          words_pcoll,
+          ignore_corpus_pcoll,
+          ignore_word_pcoll)
 
-      assert_that(groups, equal_to(
-          [('A', 'corpus2', 'word2'),
-           ('B', 'corpus2', 'word2'),
-           ('C', 'corpus2', 'word2')]))
+      assert_that(
+          groups,
+          equal_to([('A', 'corpus2', 'word2'), ('B', 'corpus2', 'word2'),
+                    ('C', 'corpus2', 'word2')]))
 
 
 if __name__ == '__main__':

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.fnexecution.control;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -26,7 +27,10 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
@@ -41,7 +45,7 @@ import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.data.GrpcDataService;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory.Provider;
@@ -55,10 +59,11 @@ import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.Struct;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
 import org.junit.Before;
@@ -67,6 +72,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -80,7 +86,7 @@ public class DefaultJobBundleFactoryTest {
   @Mock private InstructionRequestHandler instructionHandler;
   @Mock GrpcFnServer<FnApiControlClientPoolService> controlServer;
   @Mock GrpcFnServer<GrpcLoggingService> loggingServer;
-  @Mock GrpcFnServer<ArtifactRetrievalService> retrievalServer;
+  @Mock GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer;
   @Mock GrpcFnServer<StaticGrpcProvisionService> provisioningServer;
   @Mock private GrpcFnServer<GrpcDataService> dataServer;
   @Mock private GrpcFnServer<GrpcStateService> stateServer;
@@ -92,7 +98,7 @@ public class DefaultJobBundleFactoryTest {
   private final EnvironmentFactory.Provider envFactoryProvider =
       (GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
           GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-          GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+          GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
           GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
           ControlClientPool clientPool,
           IdGenerator idGenerator) -> envFactory;
@@ -356,13 +362,40 @@ public class DefaultJobBundleFactoryTest {
   }
 
   @Test
+  public void closesFnServices() throws Exception {
+    InOrder inOrder =
+        Mockito.inOrder(
+            loggingServer,
+            controlServer,
+            dataServer,
+            stateServer,
+            retrievalServer,
+            provisioningServer,
+            remoteEnvironment);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        createDefaultJobBundleFactory(envFactoryProviderMap)) {
+      bundleFactory.forStage(getExecutableStage(environment));
+    }
+
+    // Close logging service first to avoid spaming the logs
+    inOrder.verify(loggingServer).close();
+    inOrder.verify(controlServer).close();
+    inOrder.verify(dataServer).close();
+    inOrder.verify(stateServer).close();
+    inOrder.verify(retrievalServer).close();
+    inOrder.verify(provisioningServer).close();
+    inOrder.verify(remoteEnvironment).close();
+  }
+
+  @Test
   public void cachesEnvironment() throws Exception {
     try (DefaultJobBundleFactory bundleFactory =
         createDefaultJobBundleFactory(envFactoryProviderMap)) {
       StageBundleFactory bf1 = bundleFactory.forStage(getExecutableStage(environment));
       StageBundleFactory bf2 = bundleFactory.forStage(getExecutableStage(environment));
       // NOTE: We hang on to stage bundle references to ensure their underlying environments are not
-      // garbage collected. For additional safety, we print the factories to ensure the referernces
+      // garbage collected. For additional safety, we print the factories to ensure the references
       // are not optimized away.
       System.out.println("bundle factory 1:" + bf1);
       System.out.println("bundle factory 1:" + bf2);
@@ -393,6 +426,78 @@ public class DefaultJobBundleFactoryTest {
       verify(envFactory).createEnvironment(envFoo);
       verifyNoMoreInteractions(envFactory);
     }
+  }
+
+  @Test
+  public void loadBalancesBundles() throws Exception {
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    portableOptions.setSdkWorkerParallelism(2);
+    portableOptions.setLoadBalanceBundles(true);
+    Struct pipelineOptions = PipelineOptionsTranslation.toProto(portableOptions);
+
+    try (DefaultJobBundleFactory bundleFactory =
+        new DefaultJobBundleFactory(
+            JobInfo.create("testJob", "testJob", "token", pipelineOptions),
+            envFactoryProviderMap,
+            stageIdGenerator,
+            serverInfo)) {
+      OutputReceiverFactory orf = mock(OutputReceiverFactory.class);
+      StateRequestHandler srh = mock(StateRequestHandler.class);
+      when(srh.getCacheTokens()).thenReturn(Collections.emptyList());
+      StageBundleFactory sbf = bundleFactory.forStage(getExecutableStage(environment));
+      RemoteBundle b1 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+      verify(envFactory, Mockito.times(1)).createEnvironment(environment);
+      final RemoteBundle b2 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+      verify(envFactory, Mockito.times(2)).createEnvironment(environment);
+
+      long tms = System.currentTimeMillis();
+      AtomicBoolean closed = new AtomicBoolean();
+      // close to free up environment for another bundle
+      TimerTask closeBundleTask =
+          new TimerTask() {
+            @Override
+            public void run() {
+              try {
+                b2.close();
+                closed.set(true);
+              } catch (Exception e) {
+                throw new RuntimeException(e);
+              }
+            }
+          };
+      new Timer().schedule(closeBundleTask, 100);
+
+      RemoteBundle b3 = sbf.getBundle(orf, srh, BundleProgressHandler.ignored());
+      // ensure we waited for close
+      Assert.assertTrue(System.currentTimeMillis() - tms >= 100 && closed.get());
+
+      verify(envFactory, Mockito.times(2)).createEnvironment(environment);
+      b3.close();
+      b1.close();
+    }
+  }
+
+  @Test
+  public void rejectsStateCachingWithLoadBalancing() throws Exception {
+    PortablePipelineOptions portableOptions =
+        PipelineOptionsFactory.as(PortablePipelineOptions.class);
+    portableOptions.setLoadBalanceBundles(true);
+    ExperimentalOptions options = portableOptions.as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(options, "state_cache_size=1");
+    Struct pipelineOptions = PipelineOptionsTranslation.toProto(options);
+
+    Exception e =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new DefaultJobBundleFactory(
+                        JobInfo.create("testJob", "testJob", "token", pipelineOptions),
+                        envFactoryProviderMap,
+                        stageIdGenerator,
+                        serverInfo)
+                    .close());
+    Assert.assertThat(e.getMessage(), containsString("state_cache_size"));
   }
 
   private DefaultJobBundleFactory createDefaultJobBundleFactory(

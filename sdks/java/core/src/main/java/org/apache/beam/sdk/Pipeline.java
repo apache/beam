@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -143,9 +145,6 @@ public class Pipeline {
 
   /** Constructs a pipeline from the provided {@link PipelineOptions}. */
   public static Pipeline create(PipelineOptions options) {
-    // TODO: fix runners that mutate PipelineOptions in this method, then remove this line
-    PipelineRunner.fromOptions(options);
-
     Pipeline pipeline = new Pipeline(options);
     LOG.debug("Creating {}", pipeline);
     return pipeline;
@@ -330,6 +329,7 @@ public class Pipeline {
     return coderRegistry;
   }
 
+  @Experimental(Kind.SCHEMAS)
   public SchemaRegistry getSchemaRegistry() {
     if (schemaRegistry == null) {
       schemaRegistry = SchemaRegistry.createDefault();

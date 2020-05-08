@@ -537,7 +537,7 @@ public class PipelineOptionsFactory {
    * @see PipelineOptionsFactory#register(Class)
    * @see Cache#Cache()
    */
-  @Experimental(Experimental.Kind.UNSPECIFIED)
+  @Experimental
   public static synchronized void resetCache() {
     CACHE.set(new Cache());
   }
@@ -564,7 +564,7 @@ public class PipelineOptionsFactory {
     out.format(
         "%nUse --help=<OptionsName> for detailed help. For example:%n"
             + "  --help=DataflowPipelineOptions <short names valid for registered options>%n"
-            + "  --help=org.apache.beam.sdk.options.DataflowPipelineOptions%n");
+            + "  --help=org.apache.beam.runners.dataflow.options.DataflowPipelineOptions%n");
   }
 
   /**

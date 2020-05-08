@@ -180,7 +180,7 @@ public class RenameFields {
                   new DoFn<T, Row>() {
                     @ProcessElement
                     public void processElement(@Element Row row, OutputReceiver<Row> o) {
-                      o.output(Row.withSchema(outputSchema).attachValues(row.getValues()).build());
+                      o.output(Row.withSchema(outputSchema).attachValues(row.getValues()));
                     }
                   }))
           .setRowSchema(outputSchema);

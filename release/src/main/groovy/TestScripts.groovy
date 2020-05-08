@@ -32,6 +32,7 @@ class TestScripts {
      static String repoUrl
      static String ver
      static String gcpProject
+     static String gcpRegion
      static String gcsBucket
      static String bqDataset
      static String pubsubTopic
@@ -42,6 +43,7 @@ class TestScripts {
      cli.ver(args:1, 'SDL Version')
      cli.repourl(args:1, 'Repository URL')
      cli.gcpProject(args:1, 'Google Cloud Project')
+     cli.gcpRegion(args:1, 'Google Cloud Region')
      cli.gcsBucket(args:1, 'Google Cloud Storage Bucket')
      cli.bqDataset(args:1, "BigQuery Dataset")
      cli.pubsubTopic(args:1, "PubSub Topic")
@@ -54,6 +56,10 @@ class TestScripts {
      if (options.gcpProject) {
        var.gcpProject = options.gcpProject
        println "GCS Project: ${var.gcpProject}"
+     }
+     if (options.gcpRegion) {
+       var.gcpRegion = options.gcpRegion
+       println "GCS Region: ${var.gcpRegion}"
      }
      if (options.gcsBucket) {
        var.gcsBucket = options.gcsBucket
@@ -75,6 +81,10 @@ class TestScripts {
 
    def gcpProject() {
      return var.gcpProject
+   }
+
+  def gcpRegion() {
+     return var.gcpRegion
    }
 
    def gcsBucket() {
@@ -207,7 +217,7 @@ class TestScripts {
        String maven_home = System.getenv("MAVEN_HOME") ?: '/home/jenkins/tools/maven/apache-maven-3.5.4'
        println "Using maven ${maven_home}"
        def mvnPath = "${maven_home}/bin"
-       def setPath = "export PATH=${mvnPath}:${path} && "
+       def setPath = "export PATH=\"${mvnPath}:${path}\" && "
        return _execute(setPath + cmd)
    }
 

@@ -65,6 +65,10 @@ var (
 	// Strict mode applies additional validation to user pipelines before
 	// executing them and fails early if the pipelines don't pass.
 	Strict = flag.Bool("beam_strict", false, "Apply additional validation to pipelines.")
+
+	// Flag to retain docker containers created by the runner. If false, then
+	// containers are deleted once the job ends, even if it failed.
+	RetainDockerContainers = flag.Bool("retain_docker_containers", false, "Retain Docker containers created by the runner.")
 )
 
 // GetEndpoint returns the endpoint, if non empty and exits otherwise. Runners
@@ -108,7 +112,7 @@ func GetEnvironmentUrn(ctx context.Context) string {
 // Convenience function.
 func GetEnvironmentConfig(ctx context.Context) string {
 	if *EnvironmentConfig == "" {
-		*EnvironmentConfig = os.ExpandEnv("apachebeam/go_sdk:latest")
+		*EnvironmentConfig = os.ExpandEnv("apache/beam_go_sdk:latest")
 		log.Infof(ctx, "No environment config specified. Using default config: '%v'", *EnvironmentConfig)
 	}
 	return *EnvironmentConfig

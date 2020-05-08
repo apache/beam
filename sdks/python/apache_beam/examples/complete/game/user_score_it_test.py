@@ -23,12 +23,15 @@ Usage:
   python setup.py nosetests --test-pipeline-options=" \
       --runner=TestDataflowRunner \
       --project=... \
+      --region=... \
       --staging_location=gs://... \
       --temp_location=gs://... \
       --output=gs://... \
       --sdk_location=... \
 
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
@@ -56,9 +59,8 @@ class UserScoreIT(unittest.TestCase):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.uuid = str(uuid.uuid4())
 
-    self.output = '/'.join([self.test_pipeline.get_option('output'),
-                            self.uuid,
-                            'results'])
+    self.output = '/'.join(
+        [self.test_pipeline.get_option('output'), self.uuid, 'results'])
 
   @attr('IT')
   def test_user_score_it(self):
@@ -66,14 +68,14 @@ class UserScoreIT(unittest.TestCase):
     state_verifier = PipelineStateMatcher(PipelineState.DONE)
     arg_sleep_secs = self.test_pipeline.get_option('sleep_secs')
     sleep_secs = int(arg_sleep_secs) if arg_sleep_secs is not None else None
-    file_verifier = FileChecksumMatcher(self.output + '/*-of-*',
-                                        self.DEFAULT_EXPECTED_CHECKSUM,
-                                        sleep_secs)
+    file_verifier = FileChecksumMatcher(
+        self.output + '/*-of-*', self.DEFAULT_EXPECTED_CHECKSUM, sleep_secs)
 
-    extra_opts = {'input': self.DEFAULT_INPUT_FILE,
-                  'output': self.output + '/user-score',
-                  'on_success_matcher': all_of(state_verifier,
-                                               file_verifier)}
+    extra_opts = {
+        'input': self.DEFAULT_INPUT_FILE,
+        'output': self.output + '/user-score',
+        'on_success_matcher': all_of(state_verifier, file_verifier)
+    }
 
     # Register clean up before pipeline execution
     self.addCleanup(delete_files, [self.output + '*'])

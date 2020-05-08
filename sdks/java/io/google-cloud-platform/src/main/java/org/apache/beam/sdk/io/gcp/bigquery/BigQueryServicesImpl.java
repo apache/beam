@@ -76,6 +76,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.extensions.gcp.auth.NullCredentialInitializer;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
@@ -713,7 +714,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnkownValues)
+        boolean ignoreUnkownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
@@ -733,7 +735,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
       List<ValueInSingleWindow<TableRow>> rowsToPublish = rowList;
-      List<String> idsToPublish = insertIdList;
+      List<String> idsToPublish = null;
+      if (!ignoreInsertIds) {
+        idsToPublish = insertIdList;
+      }
       while (true) {
         List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<>() : null;
@@ -741,7 +746,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         int strideIndex = 0;
         // Upload in batches.
         List<TableDataInsertAllRequest.Rows> rows = new ArrayList<>();
-        int dataSize = 0;
+        long dataSize = 0L;
 
         List<Future<List<TableDataInsertAllResponse.InsertErrors>>> futures = new ArrayList<>();
         List<Integer> strideIndices = new ArrayList<>();
@@ -755,7 +760,12 @@ class BigQueryServicesImpl implements BigQueryServices {
           out.setJson(row.getUnknownKeys());
           rows.add(out);
 
-          dataSize += row.toString().length();
+          try {
+            dataSize += TableRowJsonCoder.of().getEncodedElementByteSize(row);
+          } catch (Exception ex) {
+            throw new RuntimeException("Failed to convert the row to JSON", ex);
+          }
+
           if (dataSize >= maxRowBatchSize
               || rows.size() >= maxRowsPerBatch
               || i == rowsToPublish.size() - 1) {
@@ -796,7 +806,7 @@ class BigQueryServicesImpl implements BigQueryServices {
 
             retTotalDataSize += dataSize;
 
-            dataSize = 0;
+            dataSize = 0L;
             strideIndex = i + 1;
             rows = new ArrayList<>();
           }
@@ -866,7 +876,8 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<ValueInSingleWindow<T>> failedInserts,
         ErrorContainer<T> errorContainer,
         boolean skipInvalidRows,
-        boolean ignoreUnknownValues)
+        boolean ignoreUnknownValues,
+        boolean ignoreInsertIds)
         throws IOException, InterruptedException {
       return insertAll(
           ref,
@@ -878,7 +889,8 @@ class BigQueryServicesImpl implements BigQueryServices {
           failedInserts,
           errorContainer,
           skipInvalidRows,
-          ignoreUnknownValues);
+          ignoreUnknownValues,
+          ignoreInsertIds);
     }
 
     @Override
@@ -1007,7 +1019,7 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  @Experimental(Experimental.Kind.SOURCE_SINK)
+  @Experimental(Kind.SOURCE_SINK)
   static class StorageClientImpl implements StorageClient {
 
     private static final HeaderProvider USER_AGENT_HEADER_PROVIDER =

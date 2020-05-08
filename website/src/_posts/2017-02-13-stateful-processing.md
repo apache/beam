@@ -230,7 +230,7 @@ imagine: The state you should store is the next index.
 This presents a good opportunity to talk about big data and parallelism,
 because the algorithm in those bullet points is not parallelizable at all! If
 you wanted to apply this logic over an entire `PCollection`, you would have to
-process each element of the `PCollection` one-at-a-time... this is obvious a
+process each element of the `PCollection` one-at-a-time... this is obviously a
 bad idea.  State in Beam is tightly scoped so that most of the time a stateful
 `ParDo` transform should still be possible for a runner to execute in parallel,
 though you still have to be thoughtful about it.

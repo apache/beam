@@ -43,6 +43,11 @@ task copyDockerfileDependencies(type: Copy) {
   }
 }
 
+task copyLicenseScrips(type: Copy){
+  from ("../license_scripts")
+  into "build/target/license_scripts"
+}
+
 task copyLauncherDependencies(type: Copy) {
   from configurations.sdkHarnessLauncher
   into "build/target/launcher"
@@ -53,14 +58,17 @@ task copyLauncherDependencies(type: Copy) {
 
 docker {
   name containerImageName(
-          name: "python3.6_sdk",
+          name: project.docker_image_default_repo_prefix + "python3.6_sdk",
           root: project.rootProject.hasProperty(["docker-repository-root"]) ?
-                  project.rootProject["docker-repository-root"] : "apachebeam",
+                  project.rootProject["docker-repository-root"] :
+                  project.docker_image_default_repo_root,
           tag: project.rootProject.hasProperty(["docker-tag"]) ?
-                  project.rootProject["docker-tag"] : project['python_sdk_version'])
+                  project.rootProject["docker-tag"] : project.sdk_version)
   files "../Dockerfile", "./build"
-  buildArgs(['py_version': "3.6"])
+  buildArgs(['py_version': "3.6",
+             'pull_licenses': project.rootProject.hasProperty(["docker-pull-licenses"])])
 }
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
+dockerPrepare.dependsOn copyLicenseScrips

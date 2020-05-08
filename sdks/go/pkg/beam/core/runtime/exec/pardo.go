@@ -75,7 +75,11 @@ func (n *ParDo) Up(ctx context.Context) error {
 	n.status = Up
 	n.inv = newInvoker(n.Fn.ProcessElementFn())
 
-	if _, err := InvokeWithoutEventTime(ctx, n.Fn.SetupFn(), nil); err != nil {
+	// We can't cache the context during Setup since it runs only once per bundle.
+	// Subsequent bundles might run this same node, and the context here would be
+	// incorrectly refering to the older bundleId.
+	setupCtx := metrics.SetPTransformID(ctx, n.PID)
+	if _, err := InvokeWithoutEventTime(setupCtx, n.Fn.SetupFn(), nil); err != nil {
 		return n.fail(err)
 	}
 
@@ -116,13 +120,26 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...Re
 	if n.status != Active {
 		return errors.Errorf("invalid status for pardo %v: %v, want Active", n.UID, n.status)
 	}
+
+	return n.processMainInput(&MainInput{Key: *elm, Values: values})
+}
+
+// processMainInput processes an element that has been converted into a
+// MainInput. Splitting this away from ProcessElement allows other nodes to wrap
+// a ParDo's ProcessElement functionality with their own construction of
+// MainInputs.
+func (n *ParDo) processMainInput(mainIn *MainInput) error {
+	elm := &mainIn.Key
+
 	// If the function observes windows, we must invoke it for each window. The expected fast path
 	// is that either there is a single window or the function doesn't observes windows.
-
 	if !mustExplodeWindows(n.inv.fn, elm, len(n.Side) > 0) {
-		val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, &MainInput{Key: *elm, Values: values})
+		val, err := n.invokeProcessFn(n.ctx, elm.Windows, elm.Timestamp, mainIn)
 		if err != nil {
 			return n.fail(err)
+		}
+		if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+			return rtErrHelper(mainIn.RTracker.GetError())
 		}
 
 		// Forward direct output, if any. It is always a main output.
@@ -133,9 +150,13 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...Re
 		for _, w := range elm.Windows {
 			wElm := FullValue{Elm: elm.Elm, Elm2: elm.Elm2, Timestamp: elm.Timestamp, Windows: []typex.Window{w}}
 
-			val, err := n.invokeProcessFn(n.ctx, wElm.Windows, wElm.Timestamp, &MainInput{Key: wElm, Values: values})
+			val, err := n.invokeProcessFn(n.ctx, wElm.Windows, wElm.Timestamp,
+				&MainInput{Key: wElm, Values: mainIn.Values, RTracker: mainIn.RTracker})
 			if err != nil {
 				return n.fail(err)
+			}
+			if mainIn.RTracker != nil && !mainIn.RTracker.IsDone() {
+				return rtErrHelper(mainIn.RTracker.GetError())
 			}
 
 			// Forward direct output, if any. It is always a main output.
@@ -145,6 +166,13 @@ func (n *ParDo) ProcessElement(ctx context.Context, elm *FullValue, values ...Re
 		}
 	}
 	return nil
+}
+
+func rtErrHelper(err error) error {
+	if err != nil {
+		return err
+	}
+	return errors.New("DoFn terminated without fully processing restriction")
 }
 
 // mustExplodeWindows returns true iif we need to call the function

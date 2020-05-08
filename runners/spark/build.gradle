@@ -30,6 +30,7 @@ description = "Apache Beam :: Runners :: Spark"
  */
 evaluationDependsOn(":sdks:java:core")
 evaluationDependsOn(":sdks:java:io:hadoop-format")
+evaluationDependsOn(":runners:core-java")
 
 configurations {
   validatesRunner
@@ -60,6 +61,7 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile project(":runners:core-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
@@ -70,14 +72,12 @@ dependencies {
   provided library.java.spark_streaming
   provided library.java.spark_network_common
   provided library.java.hadoop_common
-  provided library.java.commons_lang3
-  provided library.java.commons_io_2x
+  provided library.java.commons_io
   provided library.java.hamcrest_core
   provided library.java.hamcrest_library
   provided "com.esotericsoftware.kryo:kryo:2.21"
   runtimeOnly library.java.jackson_module_scala
   runtimeOnly "org.scala-lang:scala-library:2.11.8"
-  compile "org.scala-lang.modules:scala-java8-compat_2.11:0.9.0"
   testCompile project(":sdks:java:io:kafka")
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // SparkStateInternalsTest extends abstract StateInternalsTest
@@ -91,6 +91,7 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.zookeeper:zookeeper:3.4.11"
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(":sdks:java:io:hadoop-format")
   validatesRunner project(":sdks:java:io:hadoop-format").sourceSets.test.output
   validatesRunner project(path: ":examples:java", configuration: "testRuntime")
@@ -122,26 +123,34 @@ task validatesRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(
+            project(":sdks:java:core").sourceSets.test.output.classesDirs,
+            project(":runners:core-java").sourceSets.test.output.classesDirs,
+        )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
-  // Only one SparkContext may be running in a JVM (SPARK-2243)
+
+          // Only one SparkContext may be running in a JVM (SPARK-2243)
   forkEvery 1
   maxParallelForks 4
   useJUnit {
     includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
     // SDF
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   jvmArgs '-Xmx3g'
 }
@@ -179,7 +188,10 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
   systemProperty "spark.ui.showConsoleProgress", "false"
 
   classpath = configurations.validatesRunner
-  testClassesDirs += files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  testClassesDirs = files(
+          project(":sdks:java:core").sourceSets.test.output.classesDirs,
+          project(":runners:core-java").sourceSets.test.output.classesDirs,
+  )
   testClassesDirs += files(project.sourceSets.test.output.classesDirs)
 
   // Only one SparkContext may be running in a JVM (SPARK-2243)
@@ -195,28 +207,32 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
     // SDF
-    excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     // Portability
     excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCrossLanguageTransforms'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
   }
   filter {
-    // Exclude failed tests. They must be included back once correspondent transform will be fixed. 
+    // Combine with context not implemented
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineFnsTest.testComposedCombineWithContext'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContext'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$CombineWithContextTests.testSimpleCombineWithContextEmpty'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testFixedWindowsCombineWithContext'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombineWithContext'
     excludeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSlidingWindowsCombineWithContext'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testEmptyFlattenAsSideInput'
+    // multiple coders bug BEAM-8894
     excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenMultipleCoders'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmpty'
-    excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenPCollectionsEmptyThenParDo'
+    //SDF
     excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testLifecycleMethodsBounded'
+    excludeTestsMatching 'org.apache.beam.sdk.transforms.SplittableDoFnTest.testPairWithIndexWindowedTimestampedBounded'
   }
 }
 
@@ -225,7 +241,7 @@ task validatesRunner {
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
-  // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass. 
+  // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass.
   // Otherwise, it breaks Spark runner ValidatesRunner tests.
   //dependsOn validatesStructuredStreamingRunnerBatch
 }

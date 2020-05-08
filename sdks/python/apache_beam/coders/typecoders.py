@@ -63,13 +63,23 @@ example, the above function can be decorated::
 
 See apache_beam.typehints.decorators module for more details.
 """
+
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Type
 
 from past.builtins import unicode
 
 from apache_beam.coders import coders
+from apache_beam.coders.coders import CoderElementType
+from apache_beam.coders.coders import ExternalCoder
 from apache_beam.typehints import typehints
 
 __all__ = ['registry']
@@ -77,10 +87,9 @@ __all__ = ['registry']
 
 class CoderRegistry(object):
   """A coder registry for typehint/coder associations."""
-
   def __init__(self, fallback_coder=None):
-    self._coders = {}
-    self.custom_types = []
+    self._coders = {}  # type: Dict[Any, Type[coders.Coder]]
+    self.custom_types = []  # type: List[Any]
     self.register_standard_coders(fallback_coder)
 
   def register_standard_coders(self, fallback_coder):
@@ -91,26 +100,32 @@ class CoderRegistry(object):
     self._register_coder_internal(bool, coders.BooleanCoder)
     self._register_coder_internal(unicode, coders.StrUtf8Coder)
     self._register_coder_internal(typehints.TupleConstraint, coders.TupleCoder)
+    self._register_coder_internal(CoderElementType, ExternalCoder)
     # Default fallback coders applied in that order until the first matching
     # coder found.
     default_fallback_coders = [coders.ProtoCoder, coders.FastPrimitivesCoder]
     self._fallback_coder = fallback_coder or FirstOf(default_fallback_coders)
 
   def _register_coder_internal(self, typehint_type, typehint_coder_class):
+    # type: (Any, Type[coders.Coder]) -> None
     self._coders[typehint_type] = typehint_coder_class
 
   def register_coder(self, typehint_type, typehint_coder_class):
+    # type: (Any, Type[coders.Coder]) -> None
     if not isinstance(typehint_coder_class, type):
-      raise TypeError('Coder registration requires a coder class object. '
-                      'Received %r instead.' % typehint_coder_class)
+      raise TypeError(
+          'Coder registration requires a coder class object. '
+          'Received %r instead.' % typehint_coder_class)
     if typehint_type not in self.custom_types:
       self.custom_types.append(typehint_type)
     self._register_coder_internal(typehint_type, typehint_coder_class)
 
   def get_coder(self, typehint):
+    # type: (Any) -> coders.Coder
     coder = self._coders.get(
-        typehint.__class__ if isinstance(typehint, typehints.TypeConstraint)
-        else typehint, None)
+        typehint.__class__
+        if isinstance(typehint, typehints.TypeConstraint) else typehint,
+        None)
     if isinstance(typehint, typehints.TypeConstraint) and coder is not None:
       return coder.from_type_hint(typehint, self)
     if coder is None:
@@ -120,8 +135,9 @@ class CoderRegistry(object):
         raise RuntimeError(
             'Coder registry has no fallback coder. This can happen if the '
             'fast_coders module could not be imported.')
-      if isinstance(typehint, (typehints.IterableTypeConstraint,
-                               typehints.ListConstraint)):
+      if isinstance(
+          typehint,
+          (typehints.IterableTypeConstraint, typehints.ListConstraint)):
         return coders.IterableCoder.from_type_hint(typehint, self)
       elif typehint is None:
         # In some old code, None is used for Any.
@@ -146,13 +162,14 @@ class CoderRegistry(object):
 
   def verify_deterministic(self, key_coder, op_name, silent=True):
     if not key_coder.is_deterministic():
-      error_msg = ('The key coder "%s" for %s '
-                   'is not deterministic. This may result in incorrect '
-                   'pipeline output. This can be fixed by adding a type '
-                   'hint to the operation preceding the GroupByKey step, '
-                   'and for custom key classes, by writing a '
-                   'deterministic custom Coder. Please see the '
-                   'documentation for more details.' % (key_coder, op_name))
+      error_msg = (
+          'The key coder "%s" for %s '
+          'is not deterministic. This may result in incorrect '
+          'pipeline output. This can be fixed by adding a type '
+          'hint to the operation preceding the GroupByKey step, '
+          'and for custom key classes, by writing a '
+          'deterministic custom Coder. Please see the '
+          'documentation for more details.' % (key_coder, op_name))
       return key_coder.as_deterministic_coder(op_name, error_msg)
     else:
       return key_coder
@@ -162,8 +179,8 @@ class FirstOf(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   A class used to get the first matching coder from a list of coders."""
-
   def __init__(self, coders):
+    # type: (Iterable[Type[coders.Coder]]) -> None
     self._coders = coders
 
   def from_type_hint(self, typehint, registry):
@@ -172,12 +189,13 @@ class FirstOf(object):
       try:
         return coder.from_type_hint(typehint, self)
       except Exception as e:
-        msg = ('%s could not provide a Coder for type %s: %s' %
-               (coder, typehint, e))
+        msg = (
+            '%s could not provide a Coder for type %s: %s' %
+            (coder, typehint, e))
         messages.append(msg)
 
-    raise ValueError('Cannot provide coder for %s: %s' %
-                     (typehint, ';'.join(messages)))
+    raise ValueError(
+        'Cannot provide coder for %s: %s' % (typehint, ';'.join(messages)))
 
 
 registry = CoderRegistry()

@@ -20,6 +20,8 @@
 For experimental usage only; no backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
@@ -28,7 +30,6 @@ from builtins import object
 class BeamPlugin(object):
   """Plugin base class to be extended by dependent users such as FileSystem.
   Any instantiated subclass will be imported at worker startup time."""
-
   @classmethod
   def get_all_subclasses(cls):
     """Get all the subclasses of the BeamPlugin class."""
@@ -43,4 +44,5 @@ class BeamPlugin(object):
     """Get full import paths of the BeamPlugin subclass."""
     def fullname(o):
       return o.__module__ + "." + o.__name__
+
     return [fullname(o) for o in cls.get_all_subclasses()]

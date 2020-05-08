@@ -17,7 +17,7 @@
 # under the License.
 #
 
-type: edu
+type: theory
 files:
 - name: task.py
   visible: true

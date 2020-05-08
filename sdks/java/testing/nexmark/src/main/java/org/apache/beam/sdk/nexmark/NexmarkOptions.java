@@ -77,6 +77,12 @@ public interface NexmarkOptions
 
   void setQuery(String query);
 
+  @Description("Skip the execution of the given queries (comma separated)")
+  @Nullable
+  String getSkipQueries();
+
+  void setSkipQueries(String queries);
+
   @Description("Prefix for output files if using text output for results or running Query 10.")
   @Nullable
   String getOutputPath();

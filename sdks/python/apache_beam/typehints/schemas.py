@@ -41,6 +41,8 @@ unicode     <-----> STRING
 ByteString  <-----> BYTES
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import sys
@@ -61,6 +63,7 @@ from apache_beam.typehints.native_type_compatibility import _match_is_named_tupl
 from apache_beam.typehints.native_type_compatibility import _match_is_optional
 from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import extract_optional_type
+from apache_beam.utils import proto_utils
 
 
 # Registry of typings for a schema by UUID
@@ -83,7 +86,6 @@ class SchemaTypeRegistry(object):
 
 SCHEMA_REGISTRY = SchemaTypeRegistry()
 
-
 # Bi-directional mappings
 _PRIMITIVES = (
     (np.int8, schema_pb2.BYTE),
@@ -94,8 +96,7 @@ _PRIMITIVES = (
     (np.float64, schema_pb2.DOUBLE),
     (unicode, schema_pb2.STRING),
     (bool, schema_pb2.BOOLEAN),
-    (bytes if sys.version_info.major >= 3 else ByteString,
-     schema_pb2.BYTES),
+    (bytes if sys.version_info.major >= 3 else ByteString, schema_pb2.BYTES),
 )
 
 PRIMITIVE_TO_ATOMIC_TYPE = dict((typ, atomic) for typ, atomic in _PRIMITIVES)
@@ -130,9 +131,7 @@ def typing_to_runner_api(type_):
       schema = schema_pb2.Schema(fields=fields, id=type_id)
       SCHEMA_REGISTRY.add(type_, schema)
 
-    return schema_pb2.FieldType(
-        row_type=schema_pb2.RowType(
-            schema=schema))
+    return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
 
   # All concrete types (other than NamedTuple sub-classes) should map to
   # a supported primitive type.
@@ -143,8 +142,7 @@ def typing_to_runner_api(type_):
     raise ValueError(
         "type 'str' is not supported in python 2. Please use 'unicode' or "
         "'typing.ByteString' instead to unambiguously indicate if this is a "
-        "UTF-8 string or a byte array."
-    )
+        "UTF-8 string or a byte array.")
 
   elif _match_is_exactly_mapping(type_):
     key_type, value_type = map(typing_to_runner_api, _get_args(type_))
@@ -181,32 +179,48 @@ def typing_from_runner_api(fieldtype_proto):
     try:
       return ATOMIC_TYPE_TO_PRIMITIVE[fieldtype_proto.atomic_type]
     except KeyError:
-      raise ValueError("Unsupported atomic type: {0}".format(
-          fieldtype_proto.atomic_type))
+      raise ValueError(
+          "Unsupported atomic type: {0}".format(fieldtype_proto.atomic_type))
   elif type_info == "array_type":
     return Sequence[typing_from_runner_api(
         fieldtype_proto.array_type.element_type)]
   elif type_info == "map_type":
-    return Mapping[
-        typing_from_runner_api(fieldtype_proto.map_type.key_type),
-        typing_from_runner_api(fieldtype_proto.map_type.value_type)
-    ]
+    return Mapping[typing_from_runner_api(fieldtype_proto.map_type.key_type),
+                   typing_from_runner_api(fieldtype_proto.map_type.value_type)]
   elif type_info == "row_type":
     schema = fieldtype_proto.row_type.schema
     user_type = SCHEMA_REGISTRY.get_typing_by_id(schema.id)
     if user_type is None:
       from apache_beam import coders
+
       type_name = 'BeamSchema_{}'.format(schema.id.replace('-', '_'))
-      user_type = NamedTuple(type_name,
-                             [(field.name, typing_from_runner_api(field.type))
-                              for field in schema.fields])
+      user_type = NamedTuple(
+          type_name,
+          [(field.name, typing_from_runner_api(field.type))
+           for field in schema.fields])
+
       user_type.id = schema.id
+
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      def __reduce__(self):
+        return (
+            _hydrate_namedtuple_instance,
+            (schema.SerializeToString(), tuple(self)))
+
+      setattr(user_type, '__reduce__', __reduce__)
+
       SCHEMA_REGISTRY.add(user_type, schema)
       coders.registry.register_coder(user_type, coders.RowCoder)
     return user_type
 
   elif type_info == "logical_type":
     pass  # TODO
+
+
+def _hydrate_namedtuple_instance(encoded_schema, values):
+  return named_tuple_from_schema(
+      proto_utils.parse_Bytes(encoded_schema, schema_pb2.Schema))(*values)
 
 
 def named_tuple_from_schema(schema):

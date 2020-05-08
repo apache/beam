@@ -34,6 +34,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
@@ -42,11 +43,13 @@ import org.apache.beam.runners.fnexecution.control.OutputReceiverFactory;
 import org.apache.beam.runners.fnexecution.control.ProcessBundleDescriptors;
 import org.apache.beam.runners.fnexecution.control.RemoteBundle;
 import org.apache.beam.runners.fnexecution.control.StageBundleFactory;
+import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.state.StateRequestHandler;
 import org.apache.beam.runners.spark.metrics.MetricsContainerStepMapAccumulator;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
@@ -85,7 +88,7 @@ public class SparkExecutableStageFunctionTest {
     MockitoAnnotations.initMocks(this);
     when(contextFactory.get(any())).thenReturn(stageContext);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(remoteBundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
         ImmutableMap.of("input", Mockito.mock(FnDataReceiver.class));
@@ -106,7 +109,7 @@ public class SparkExecutableStageFunctionTest {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
-    when(stageBundleFactory.getBundle(any(), any(), any())).thenReturn(bundle);
+    when(stageBundleFactory.getBundle(any(), any(), any(), any())).thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
     FnDataReceiver<WindowedValue<?>> receiver = Mockito.mock(FnDataReceiver.class);
@@ -143,6 +146,7 @@ public class SparkExecutableStageFunctionTest {
           @Override
           public RemoteBundle getBundle(
               OutputReceiverFactory receiverFactory,
+              TimerReceiverFactory timerReceiverFactory,
               StateRequestHandler stateRequestHandler,
               BundleProgressHandler progressHandler) {
             return new RemoteBundle() {
@@ -158,6 +162,21 @@ public class SparkExecutableStageFunctionTest {
                     input -> {
                       /* Ignore input*/
                     });
+              }
+
+              @Override
+              public Map<KV<String, String>, FnDataReceiver<Timer>> getTimerReceivers() {
+                return Collections.emptyMap();
+              }
+
+              @Override
+              public void requestProgress() {
+                throw new UnsupportedOperationException();
+              }
+
+              @Override
+              public void split(double fractionOfRemainder) {
+                throw new UnsupportedOperationException();
               }
 
               @Override
@@ -199,7 +218,7 @@ public class SparkExecutableStageFunctionTest {
   public void testStageBundleClosed() throws Exception {
     SparkExecutableStageFunction<Integer, ?> function = getFunction(Collections.emptyMap());
     function.call(Collections.emptyIterator());
-    verify(stageBundleFactory).getBundle(any(), any(), any());
+    verify(stageBundleFactory).getBundle(any(), any(), any(), any());
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);

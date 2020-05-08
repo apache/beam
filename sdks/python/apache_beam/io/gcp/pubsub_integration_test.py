@@ -14,9 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 Integration test for Google Cloud Pub/Sub.
 """
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -60,13 +63,15 @@ class PubSubIntegrationTest(unittest.TestCase):
           # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
           # IT pipeline writes back the timestamp of each element (as reported
           # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
-          PubsubMessage(b'data002', {
-              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-          }),
+          PubsubMessage(
+              b'data002', {
+                  TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              }),
           PubsubMessage(b'data003\xab\xac', {}),
-          PubsubMessage(b'data004\xab\xac', {
-              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-          })
+          PubsubMessage(
+              b'data004\xab\xac', {
+                  TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              })
       ],
       'TestDataflowRunner': [
           # Use ID_LABEL attribute to deduplicate messages with the same ID.
@@ -76,43 +81,53 @@ class PubSubIntegrationTest(unittest.TestCase):
           # For those elements that have the TIMESTAMP_ATTRIBUTE attribute, the
           # IT pipeline writes back the timestamp of each element (as reported
           # by Beam), as a TIMESTAMP_ATTRIBUTE + '_out' attribute.
-          PubsubMessage(b'data002', {
-              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-          }),
+          PubsubMessage(
+              b'data002', {
+                  TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              }),
           PubsubMessage(b'data003\xab\xac', {ID_LABEL: 'foo2'}),
           PubsubMessage(b'data003\xab\xac', {ID_LABEL: 'foo2'}),
           PubsubMessage(b'data003\xab\xac', {ID_LABEL: 'foo2'}),
-          PubsubMessage(b'data004\xab\xac', {
-              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-          })
+          PubsubMessage(
+              b'data004\xab\xac', {
+                  TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+              })
       ],
   }
   EXPECTED_OUTPUT_MESSAGES = {
       'TestDirectRunner': [
           PubsubMessage(b'data001-seen', {'processed': 'IT'}),
-          PubsubMessage(b'data002-seen', {
-              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
-              'processed': 'IT',
-          }),
+          PubsubMessage(
+              b'data002-seen',
+              {
+                  TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+                  TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+                  'processed': 'IT',
+              }),
           PubsubMessage(b'data003\xab\xac-seen', {'processed': 'IT'}),
-          PubsubMessage(b'data004\xab\xac-seen', {
-              TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
-              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
-              'processed': 'IT',
-          })
+          PubsubMessage(
+              b'data004\xab\xac-seen',
+              {
+                  TIMESTAMP_ATTRIBUTE: '2018-07-11T02:02:50.149000Z',
+                  TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+                  'processed': 'IT',
+              })
       ],
       'TestDataflowRunner': [
           PubsubMessage(b'data001-seen', {'processed': 'IT'}),
-          PubsubMessage(b'data002-seen', {
-              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
-              'processed': 'IT',
-          }),
+          PubsubMessage(
+              b'data002-seen',
+              {
+                  TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+                  'processed': 'IT',
+              }),
           PubsubMessage(b'data003\xab\xac-seen', {'processed': 'IT'}),
-          PubsubMessage(b'data004\xab\xac-seen', {
-              TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
-              'processed': 'IT',
-          })
+          PubsubMessage(
+              b'data004\xab\xac-seen',
+              {
+                  TIMESTAMP_ATTRIBUTE + '_out': '2018-07-11T02:02:50.149000Z',
+                  'processed': 'IT',
+              })
       ],
   }
 
@@ -139,10 +154,10 @@ class PubSubIntegrationTest(unittest.TestCase):
         self.output_topic.name)
 
   def tearDown(self):
-    test_utils.cleanup_subscriptions(self.sub_client,
-                                     [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(self.pub_client,
-                              [self.input_topic, self.output_topic])
+    test_utils.cleanup_subscriptions(
+        self.sub_client, [self.input_sub, self.output_sub])
+    test_utils.cleanup_topics(
+        self.pub_client, [self.input_topic, self.output_topic])
 
   def _test_streaming(self, with_attributes):
     """Runs IT pipeline with message verifier.
@@ -172,11 +187,12 @@ class PubSubIntegrationTest(unittest.TestCase):
         timeout=MESSAGE_MATCHER_TIMEOUT_S,
         with_attributes=with_attributes,
         strip_attributes=strip_attributes)
-    extra_opts = {'input_subscription': self.input_sub.name,
-                  'output_topic': self.output_topic.name,
-                  'wait_until_finish_duration': TEST_PIPELINE_DURATION_MS,
-                  'on_success_matcher': all_of(state_verifier,
-                                               pubsub_msg_verifier)}
+    extra_opts = {
+        'input_subscription': self.input_sub.name,
+        'output_topic': self.output_topic.name,
+        'wait_until_finish_duration': TEST_PIPELINE_DURATION_MS,
+        'on_success_matcher': all_of(state_verifier, pubsub_msg_verifier)
+    }
 
     # Generate input data and inject to PubSub.
     for msg in self.INPUT_MESSAGES[self.runner_name]:

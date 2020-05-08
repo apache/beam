@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -37,8 +39,7 @@ def combineperkey_simple(test=None):
             ('🍅', 3),
         ])
         | 'Sum' >> beam.CombinePerKey(sum)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END combineperkey_simple]
     if test:
       test(total)
@@ -64,8 +65,7 @@ def combineperkey_function(test=None):
             ('🍅', 3),
         ])
         | 'Saturated sum' >> beam.CombinePerKey(saturated_sum)
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END combineperkey_function]
     if test:
       test(saturated_total)
@@ -86,10 +86,9 @@ def combineperkey_lambda(test=None):
             ('🍅', 5),
             ('🍅', 3),
         ])
-        | 'Saturated sum' >> beam.CombinePerKey(
-            lambda values: min(sum(values), 8))
-        | beam.Map(print)
-    )
+        | 'Saturated sum' >>
+        beam.CombinePerKey(lambda values: min(sum(values), 8))
+        | beam.Map(print))
     # [END combineperkey_lambda]
     if test:
       test(saturated_total)
@@ -111,10 +110,8 @@ def combineperkey_multiple_arguments(test=None):
             ('🍅', 3),
         ])
         | 'Saturated sum' >> beam.CombinePerKey(
-            lambda values, max_value: min(sum(values), max_value),
-            max_value=8)
-        | beam.Map(print)
-    )
+            lambda values, max_value: min(sum(values), max_value), max_value=8)
+        | beam.Map(print))
     # [END combineperkey_multiple_arguments]
     if test:
       test(saturated_total)
@@ -138,10 +135,10 @@ def combineperkey_side_inputs_singleton(test=None):
             ('🍅', 3),
         ])
         | 'Saturated sum' >> beam.CombinePerKey(
-            lambda values, max_value: min(sum(values), max_value),
+            lambda values,
+            max_value: min(sum(values), max_value),
             max_value=beam.pvalue.AsSingleton(max_value))
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END combineperkey_side_inputs_singleton]
     if test:
       test(saturated_total)
@@ -175,10 +172,8 @@ def combineperkey_side_inputs_iter(test=None):
             ('🍅', 3),
         ])
         | 'Bounded sum' >> beam.CombinePerKey(
-            bounded_sum,
-            data_range=beam.pvalue.AsIter(data_range))
-        | beam.Map(print)
-    )
+            bounded_sum, data_range=beam.pvalue.AsIter(data_range))
+        | beam.Map(print))
     # [END combineperkey_side_inputs_iter]
     if test:
       test(bounded_total)
@@ -215,13 +210,12 @@ def combineperkey_side_inputs_dict(test=None):
             ('🍅', 3),
         ])
         | 'Bounded sum' >> beam.CombinePerKey(
-            bounded_sum,
-            data_range=beam.pvalue.AsDict(data_range))
-        | beam.Map(print)
-    )
+            bounded_sum, data_range=beam.pvalue.AsDict(data_range))
+        | beam.Map(print))
     # [END combineperkey_side_inputs_dict]
     if test:
       test(bounded_total)
+
 
 def combineperkey_combinefn(test=None):
   # [START combineperkey_combinefn]
@@ -263,8 +257,7 @@ def combineperkey_combinefn(test=None):
             ('🍅', 3),
         ])
         | 'Average' >> beam.CombinePerKey(AverageFn())
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END combineperkey_combinefn]
     if test:
       test(average)

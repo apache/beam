@@ -17,9 +17,6 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
-
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -37,9 +34,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.apache.flink.api.common.JobExecutionResult;
-import org.apache.flink.client.program.DetachedEnvironment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,31 +60,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   public static FlinkRunner fromOptions(PipelineOptions options) {
     FlinkPipelineOptions flinkOptions =
         PipelineOptionsValidator.validate(FlinkPipelineOptions.class, options);
-    ArrayList<String> missing = new ArrayList<>();
-
-    if (flinkOptions.getAppName() == null) {
-      missing.add("appName");
-    }
-    if (missing.size() > 0) {
-      throw new IllegalArgumentException(
-          "Missing required values: " + Joiner.on(',').join(missing));
-    }
-
-    if (flinkOptions.getFilesToStage() == null) {
-      flinkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(FlinkRunner.class.getClassLoader()));
-      LOG.info(
-          "PipelineOptions.filesToStage was not specified. "
-              + "Defaulting to files from the classpath: will stage {} files. "
-              + "Enable logging at DEBUG level to see which files will be staged.",
-          flinkOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", flinkOptions.getFilesToStage());
-    }
-
     return new FlinkRunner(flinkOptions);
   }
 
-  private FlinkRunner(FlinkPipelineOptions options) {
+  protected FlinkRunner(FlinkPipelineOptions options) {
     this.options = options;
     this.ptransformViewsWithNonDeterministicKeyCoders = new HashSet<>();
   }
@@ -119,7 +93,13 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
   }
 
   static PipelineResult createPipelineResult(JobExecutionResult result, PipelineOptions options) {
-    if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
+    // The package of DetachedJobExecutionResult has been changed in 1.10.
+    // Refer to https://github.com/apache/flink/commit/c36b35e6876ecdc717dade653e8554f9d8b543c9 for
+    // more details.
+    String resultClassName = result.getClass().getCanonicalName();
+    if (resultClassName.equals(
+            "org.apache.flink.client.program.DetachedEnvironment.DetachedJobExecutionResult")
+        || resultClassName.equals("org.apache.flink.core.execution.DetachedJobExecutionResult")) {
       LOG.info("Pipeline submitted in Detached mode");
       // no metricsPusher because metrics are not supported in detached mode
       return new FlinkDetachedRunnerResult();

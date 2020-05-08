@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta;
 
 import java.util.List;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexCall;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 
 /** This interface defines Beam SQL Table Filter. */
@@ -31,4 +32,27 @@ public interface BeamSqlTableFilter {
    *     not supported at all.
    */
   List<RexNode> getNotSupported();
+
+  /**
+   * This is primarily used by the cost based optimization to determine the benefit of performing
+   * predicate push-down for an IOSourceRel.
+   *
+   * @return number of supported filters.
+   */
+  int numSupported();
+
+  /**
+   * Count a number of {@code RexNode}s involved in all supported filters.
+   *
+   * @param filterNodes {@code List<RexNode>} supported filters.
+   * @return number of expressions involved in all supported filters.
+   */
+  static int expressionsInFilter(List<RexNode> filterNodes) {
+    int childSum =
+        filterNodes.stream()
+            .filter(n -> n instanceof RexCall)
+            .mapToInt(n -> expressionsInFilter(((RexCall) n).getOperands()))
+            .sum();
+    return filterNodes.size() + childSum;
+  }
 }

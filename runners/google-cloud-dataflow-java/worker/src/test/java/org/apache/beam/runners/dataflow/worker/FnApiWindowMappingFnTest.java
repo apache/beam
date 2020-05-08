@@ -27,10 +27,11 @@ import java.util.concurrent.CompletionStage;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest.RequestCase;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -62,7 +63,7 @@ import org.junit.runners.JUnit4;
 public class FnApiWindowMappingFnTest {
   private static final ApiServiceDescriptor DATA_SERVICE =
       ApiServiceDescriptor.newBuilder().setUrl("test://data").build();
-  private static final SdkFunctionSpec WINDOW_MAPPING_SPEC =
+  private static final FunctionSpec WINDOW_MAPPING_SPEC =
       ParDoTranslation.translateWindowMappingFn(
           new GlobalWindows().getDefaultWindowMappingFn(),
           SdkComponents.create(PipelineOptionsFactory.create()));
@@ -168,6 +169,9 @@ public class FnApiWindowMappingFnTest {
       }
       throw new AssertionError(String.format("Unexpected request %s", request));
     }
+
+    @Override
+    public void registerProcessBundleDescriptor(ProcessBundleDescriptor descriptor) {}
 
     @Override
     public void close() {}

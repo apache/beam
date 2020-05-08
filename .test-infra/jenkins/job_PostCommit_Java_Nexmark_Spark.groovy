@@ -17,6 +17,8 @@
  */
 
 import CommonJobProperties as commonJobProperties
+import CommonTestProperties.Runner
+import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
 import NexmarkBigqueryProperties
 import NexmarkBuilder as Nexmark
@@ -33,7 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Gradle goals for this job.
   steps {
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING SPARK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -48,7 +50,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--manageResources=false',
               '--monitorJobs=true'].join(' '))
     }
-    shell('echo *** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***')
+    shell('echo "*** RUN NEXMARK SQL IN BATCH MODE USING SPARK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -57,6 +59,39 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=SparkRunner',
+              '--queryLanguage=sql',
+              '--streaming=false',
+              '--suite=SMOKE',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true'].join(' '))
+    }
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING SPARK STRUCTURED STREAMING RUNNER ***"')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:testing:nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":runners:spark"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=SparkStructuredStreamingRunner',
+              '--streaming=false',
+              '--suite=SMOKE',
+               // Skip query 3 (SparkStructuredStreamingRunner does not support State/Timers yet)
+              '--skipQueries=3',
+              '--streamTimeout=60' ,
+              '--manageResources=false',
+              '--monitorJobs=true'].join(' '))
+    }
+    shell('echo "*** RUN NEXMARK SQL IN BATCH MODE USING SPARK STRUCTURED STREAMING RUNNER ***"')
+    gradle {
+      rootBuildScriptDir(commonJobProperties.checkoutDir)
+      tasks(':sdks:java:testing:nexmark:run')
+      commonJobProperties.setGradleSwitches(delegate)
+      switches('-Pnexmark.runner=":runners:spark"' +
+              ' -Pnexmark.args="' +
+              [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
+              '--runner=SparkStructuredStreamingRunner',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
@@ -78,7 +113,14 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Sp
           'suite'        : 'SMOKE',
           'streamTimeout': 60
   ]
-
   // Spark doesn't run streaming jobs, therefore run only batch variants.
-  Nexmark.batchOnlyJob(delegate, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+  Nexmark.batchOnlyJob(delegate, Runner.SPARK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
+
+  def final SPARK_STRUCTURED_STREAMING_JOB_SPECIFIC_OPTIONS = [
+          'suite'        : 'SMOKE',
+          'streamTimeout': 60,
+          // Skip query 3 (SparkStructuredStreamingRunner does not support State/Timers yet)
+          'skipQueries'  : 3,
+  ]
+  Nexmark.batchOnlyJob(delegate, Runner.SPARK_STRUCTURED_STREAMING, SDK.JAVA, SPARK_STRUCTURED_STREAMING_JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)
 }

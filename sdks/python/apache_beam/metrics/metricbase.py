@@ -32,11 +32,11 @@ Available classes:
 - MetricName - Namespace and name used to refer to a Metric.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 from builtins import object
-
-from apache_beam.portability.api import beam_fn_api_pb2
 
 __all__ = ['Metric', 'Counter', 'Distribution', 'Gauge', 'MetricName']
 
@@ -63,28 +63,17 @@ class MetricName(object):
     self.name = name
 
   def __eq__(self, other):
-    return (self.namespace == other.namespace and
-            self.name == other.name)
+    return self.namespace == other.namespace and self.name == other.name
 
   def __ne__(self, other):
     # TODO(BEAM-5949): Needed for Python 2 compatibility.
     return not self == other
 
   def __str__(self):
-    return 'MetricName(namespace={}, name={})'.format(
-        self.namespace, self.name)
+    return 'MetricName(namespace={}, name={})'.format(self.namespace, self.name)
 
   def __hash__(self):
     return hash((self.namespace, self.name))
-
-  # TODO: this proto structure is deprecated
-  def to_runner_api(self):
-    return beam_fn_api_pb2.Metrics.User.MetricName(
-        namespace=self.namespace, name=self.name)
-
-  @staticmethod
-  def from_runner_api(proto):
-    return MetricName(proto.namespace, proto.name)
 
 
 class Metric(object):
@@ -107,7 +96,6 @@ class Distribution(Metric):
 
   Allows statistics about the distribution of a variable to be collected during
   pipeline execution."""
-
   def update(self, value):
     raise NotImplementedError
 
@@ -117,6 +105,5 @@ class Gauge(Metric):
 
   Allows tracking of the latest value of a variable during pipeline
   execution."""
-
   def set(self, value):
     raise NotImplementedError

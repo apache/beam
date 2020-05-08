@@ -17,6 +17,8 @@
 
 """PipelineRunner, an abstract base runner object."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import importlib
@@ -26,9 +28,18 @@ import shelve
 import shutil
 import tempfile
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import Optional
+
+if TYPE_CHECKING:
+  from apache_beam import pvalue
+  from apache_beam import PTransform
+  from apache_beam.options.pipeline_options import PipelineOptions
+  from apache_beam.pipeline import AppliedPTransform
+  from apache_beam.pipeline import Pipeline
+  from apache_beam.pipeline import PipelineVisitor
 
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
-
 
 _ALL_KNOWN_RUNNERS = (
     'apache_beam.runners.dataflow.dataflow_runner.DataflowRunner',
@@ -45,8 +56,7 @@ _ALL_KNOWN_RUNNERS = (
 
 _KNOWN_RUNNER_NAMES = [path.split('.')[-1] for path in _ALL_KNOWN_RUNNERS]
 
-_RUNNER_MAP = {path.split('.')[-1].lower(): path
-               for path in _ALL_KNOWN_RUNNERS}
+_RUNNER_MAP = {path.split('.')[-1].lower(): path for path in _ALL_KNOWN_RUNNERS}
 
 # Allow this alias, but don't make public.
 _RUNNER_MAP['pythonrpcdirectrunner'] = (
@@ -57,6 +67,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def create_runner(runner_name):
+  # type: (str) -> PipelineRunner
+
   """For internal use only; no backwards-compatibility guarantees.
 
   Creates a runner instance from a runner class name.
@@ -97,8 +109,8 @@ def create_runner(runner_name):
   else:
     raise ValueError(
         'Unexpected pipeline runner: %s. Valid values are %s '
-        'or the fully qualified name of a PipelineRunner subclass.' % (
-            runner_name, ', '.join(_KNOWN_RUNNER_NAMES)))
+        'or the fully qualified name of a PipelineRunner subclass.' %
+        (runner_name, ', '.join(_KNOWN_RUNNER_NAMES)))
 
 
 class PipelineRunner(object):
@@ -113,7 +125,12 @@ class PipelineRunner(object):
   materialized values in order to reduce footprint.
   """
 
-  def run(self, transform, options=None):
+  def run(self,
+          transform,  # type: PTransform
+          options=None  # type: Optional[PipelineOptions]
+         ):
+    # type: (...) -> PipelineResult
+
     """Run the given transform or callable with this runner.
 
     Blocks until the pipeline is complete.  See also `PipelineRunner.run_async`.
@@ -122,7 +139,12 @@ class PipelineRunner(object):
     result.wait_until_finish()
     return result
 
-  def run_async(self, transform, options=None):
+  def run_async(self,
+                transform,  # type: PTransform
+                options=None  # type: Optional[PipelineOptions]
+               ):
+    # type: (...) -> PipelineResult
+
     """Run the given transform or callable with this runner.
 
     May return immediately, executing the pipeline in the background.
@@ -141,31 +163,24 @@ class PipelineRunner(object):
       transform(PBegin(p))
     return p.run()
 
-  def run_pipeline(self, pipeline, options):
+  def run_pipeline(
+      self,
+      pipeline,  # type: Pipeline
+      options  # type: PipelineOptions
+  ):
+    # type: (...) -> PipelineResult
+
     """Execute the entire pipeline or the sub-DAG reachable from a node.
 
     Runners should override this method.
     """
+    raise NotImplementedError
 
-    # Imported here to avoid circular dependencies.
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.pipeline import PipelineVisitor
-
-    class RunVisitor(PipelineVisitor):
-
-      def __init__(self, runner):
-        self.runner = runner
-
-      def visit_transform(self, transform_node):
-        try:
-          self.runner.run_transform(transform_node, options)
-        except:
-          _LOGGER.error('Error while visiting %s', transform_node.full_label)
-          raise
-
-    pipeline.visit(RunVisitor(self))
-
-  def apply(self, transform, input, options):
+  def apply(self,
+            transform,  # type: PTransform
+            input,  # type: Optional[pvalue.PValue]
+            options  # type: PipelineOptions
+           ):
     """Runner callback for a pipeline.apply call.
 
     Args:
@@ -184,11 +199,38 @@ class PipelineRunner(object):
     raise NotImplementedError(
         'Execution of [%s] not implemented in runner %s.' % (transform, self))
 
+  def visit_transforms(
+      self,
+      pipeline,  # type: Pipeline
+      options  # type: PipelineOptions
+  ):
+    # type: (...) -> None
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.pipeline import PipelineVisitor
+
+    class RunVisitor(PipelineVisitor):
+      def __init__(self, runner):
+        # type: (PipelineRunner) -> None
+        self.runner = runner
+
+      def visit_transform(self, transform_node):
+        try:
+          self.runner.run_transform(transform_node, options)
+        except:
+          _LOGGER.error('Error while visiting %s', transform_node.full_label)
+          raise
+
+    pipeline.visit(RunVisitor(self))
+
   def apply_PTransform(self, transform, input, options):
     # The base case of apply is to call the transform's expand.
     return transform.expand(input)
 
-  def run_transform(self, transform_node, options):
+  def run_transform(self,
+                    transform_node,  # type: AppliedPTransform
+                    options  # type: PipelineOptions
+                   ):
     """Runner callback for a pipeline.run call.
 
     Args:
@@ -203,8 +245,8 @@ class PipelineRunner(object):
       if m:
         return m(transform_node, options)
     raise NotImplementedError(
-        'Execution of [%s] not implemented in runner %s.' % (
-            transform_node.transform, self))
+        'Execution of [%s] not implemented in runner %s.' %
+        (transform_node.transform, self))
 
   def is_fnapi_compatible(self):
     """Whether to enable the beam_fn_api experiment by default."""
@@ -215,7 +257,6 @@ class PValueCache(object):
   """For internal use only; no backwards-compatibility guarantees.
 
   Local cache for arbitrary information computed for PValue objects."""
-
   def __init__(self, use_disk_backed_cache=False):
     # Cache of values computed while a runner executes a pipeline. This is a
     # dictionary of PValues and their computed values. Note that in principle
@@ -276,8 +317,7 @@ class PValueCache(object):
       tag = None
     else:
       tag = tag_or_value
-    self._cache[
-        self.to_cache_key(transform, tag)] = value
+    self._cache[self.to_cache_key(transform, tag)] = value
 
   def get_pvalue(self, pvalue):
     """Gets the value associated with a PValue from the cache."""
@@ -285,8 +325,8 @@ class PValueCache(object):
     try:
       return self._cache[self.key(pvalue)]
     except KeyError:
-      if (pvalue.tag is not None
-          and self.to_cache_key(pvalue.real_producer, None) in self._cache):
+      if (pvalue.tag is not None and
+          self.to_cache_key(pvalue.real_producer, None) in self._cache):
         # This is an undeclared, empty output of a DoFn executed
         # in the local runner before this output was referenced.
         return []
@@ -306,6 +346,7 @@ class PValueCache(object):
     return self.to_cache_key(pobj.real_producer, pobj.tag)
 
 
+# FIXME: replace with PipelineState(str, enum.Enum)
 class PipelineState(object):
   """State of the Pipeline, as returned by :attr:`PipelineResult.state`.
 
@@ -323,21 +364,21 @@ class PipelineState(object):
   UPDATED = 'UPDATED'  # replaced by another job (terminal state)
   DRAINING = 'DRAINING'  # still processing, no longer reading data
   DRAINED = 'DRAINED'  # draining completed (terminal state)
-  PENDING = 'PENDING' # the job has been created but is not yet running.
-  CANCELLING = 'CANCELLING' # job has been explicitly cancelled and is
-                            # in the process of stopping
-  UNRECOGNIZED = 'UNRECOGNIZED' # the job state reported by a runner cannot be
-                                # interpreted by the SDK.
+  PENDING = 'PENDING'  # the job has been created but is not yet running.
+  CANCELLING = 'CANCELLING'  # job has been explicitly cancelled and is
+  # in the process of stopping
+  UNRECOGNIZED = 'UNRECOGNIZED'  # the job state reported by a runner cannot be
+  # interpreted by the SDK.
 
   @classmethod
   def is_terminal(cls, state):
-    return state in [cls.DONE, cls.FAILED, cls.CANCELLED,
-                     cls.UPDATED, cls.DRAINED]
+    return state in [
+        cls.DONE, cls.FAILED, cls.CANCELLED, cls.UPDATED, cls.DRAINED
+    ]
 
 
 class PipelineResult(object):
   """A :class:`PipelineResult` provides access to info about a pipeline."""
-
   def __init__(self, state):
     self._state = state
 
@@ -355,9 +396,9 @@ class PipelineResult(object):
         is finished.
 
     Raises:
-      ~exceptions.IOError: If there is a persistent problem getting job
+      IOError: If there is a persistent problem getting job
         information.
-      ~exceptions.NotImplementedError: If the runner does not support this
+      NotImplementedError: If the runner does not support this
         operation.
 
     Returns:
@@ -369,9 +410,9 @@ class PipelineResult(object):
     """Cancels the pipeline execution.
 
     Raises:
-      ~exceptions.IOError: If there is a persistent problem getting job
+      IOError: If there is a persistent problem getting job
         information.
-      ~exceptions.NotImplementedError: If the runner does not support this
+      NotImplementedError: If the runner does not support this
         operation.
 
     Returns:
@@ -384,7 +425,7 @@ class PipelineResult(object):
     query metrics from the runner.
 
     Raises:
-      ~exceptions.NotImplementedError: If the runner does not support this
+      NotImplementedError: If the runner does not support this
         operation.
     """
     raise NotImplementedError
@@ -392,6 +433,6 @@ class PipelineResult(object):
   # pylint: disable=unused-argument
   def aggregated_values(self, aggregator_or_name):
     """Return a dict of step names to values of the Aggregator."""
-    _LOGGER.warning('%s does not implement aggregated_values',
-                    self.__class__.__name__)
+    _LOGGER.warning(
+        '%s does not implement aggregated_values', self.__class__.__name__)
     return {}

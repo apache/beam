@@ -355,9 +355,17 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
   }
 
   private void processUserTimer(TimerData timer) throws Exception {
-    if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())) {
+    if (fnSignature.timerDeclarations().containsKey(timer.getTimerId())
+        || fnSignature.timerFamilyDeclarations().containsKey(timer.getTimerFamilyId())) {
       BoundedWindow window = ((WindowNamespace) timer.getNamespace()).getWindow();
-      fnRunner.onTimer(timer.getTimerId(), window, timer.getTimestamp(), timer.getDomain());
+      fnRunner.onTimer(
+          timer.getTimerId(),
+          timer.getTimerFamilyId(),
+          this.stepContext.stateInternals().getKey(),
+          window,
+          timer.getTimestamp(),
+          timer.getOutputTimestamp(),
+          timer.getDomain());
     }
   }
 

@@ -22,58 +22,27 @@ apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
 def pythonRootDir = "${rootDir}/sdks/python"
+def runScriptsDir = "${rootDir}/sdks/python/scripts"
 
 /*************************************************************************************************/
 
 addPortableWordCountTasks()
 
 task preCommitPy2() {
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
-  dependsOn portableWordCountBatch
-  dependsOn portableWordCountStreaming
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
+  dependsOn portableWordCountFlinkRunnerBatch
+  dependsOn portableWordCountFlinkRunnerStreaming
 }
 
 task postCommitPy2() {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server:shadowJar'
-  dependsOn portableWordCountFlinkRunnerBatch
-  dependsOn portableWordCountFlinkRunnerStreaming
+  dependsOn 'postCommitPy2IT'
   dependsOn ':runners:spark:job-server:shadowJar'
   dependsOn portableWordCountSparkRunnerBatch
 }
 
 // TODO: Move the rest of this file into ../common.gradle.
-
-// Before running this, you need to:
-//
-// 1. Build the SDK container:
-//
-//    ./gradlew -p sdks/python/container buildAll
-//
-// 2. Either a) or b)
-//  a) If you want the Job Server to run in a Docker container:
-//
-//    ./gradlew :runners:flink:1.9:job-server-container:docker
-//
-//  b) Otherwise, start a local JobService, for example, the Portable Flink runner
-//    (in a separate shell since it continues to run):
-//
-//    ./gradlew :runners:flink:1.9:job-server:runShadow
-//
-// Then you can run this example:
-//
-//  Docker (2a):
-//
-//    ./gradlew :sdks:python:test-suites:portable:py2:portableWordCount
-//
-//  Local JobService (2b):
-//
-//    ./gradlew :sdks:python:test-suites:portable:py2:portableWordCount -PjobEndpoint=localhost:8099
-//
-task portableWordCount {
-  dependsOn project.hasProperty("streaming") ? portableWordCountStreaming : portableWordCountBatch
-}
 
 /*************************************************************************************************/
 
@@ -89,14 +58,14 @@ task crossLanguagePythonJavaDirect {
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_java ${options.join(' ')}"
     }
   }
 }
 
 task crossLanguagePythonJavaFlink {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -106,21 +75,20 @@ task crossLanguagePythonJavaFlink {
     def options = [
         "--runner=PortableRunner",
         "--parallelism=2",
-        "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_port=8096",
         "--expansion_service_jar=${testServiceExpansionJar}",
     ]
     exec {
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_test ${options.join(' ')}"
+      args '-c', ". ${envdir}/bin/activate && cd ${pythonRootDir} && pip install -e .[test] && python -m apache_beam.transforms.external_java ${options.join(' ')}"
     }
   }
 }
 
 task crossLanguagePortableWordCount {
   dependsOn 'setupVirtualenv'
-  dependsOn ':runners:flink:1.9:job-server-container:docker'
+  dependsOn ':runners:flink:1.10:job-server-container:docker'
   dependsOn ':sdks:python:container:py2:docker'
   dependsOn ':sdks:java:container:docker'
   dependsOn ':sdks:java:testing:expansion-service:buildTestExpansionServiceJar'
@@ -132,7 +100,6 @@ task crossLanguagePortableWordCount {
         "--output=/tmp/py-wordcount-portable",
         "--runner=PortableRunner",
         "--parallelism=2",
-        "--shutdown_sources_on_final_watermark",
         "--environment_cache_millis=10000",
         "--expansion_service_jar=${testServiceExpansionJar}",
         // Writes to local filesystem might fail for multiple SDK workers.
@@ -146,9 +113,58 @@ task crossLanguagePortableWordCount {
   }
 }
 
+task postCommitPy2IT {
+  dependsOn 'installGcpTest'
+  dependsOn 'setupVirtualenv'
+  dependsOn ':runners:flink:1.10:job-server:shadowJar'
+
+  doLast {
+    def tests = [
+        "apache_beam.io.gcp.bigquery_read_it_test",
+    ]
+    def testOpts = ["--tests=${tests.join(',')}"]
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "suite": "postCommitIT-flink-py2",
+        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
+    }
+  }
+}
+
 task crossLanguageTests {
   dependsOn "crossLanguagePythonJavaFlink"
   dependsOn "crossLanguagePortableWordCount"
+}
+
+task installChicagoTaxiExampleRequirements {
+  dependsOn 'installGcpTest'
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+task chicagoTaxiExample {
+  dependsOn 'installChicagoTaxiExampleRequirements'
+
+  def gcsRoot = findProperty('gcsRoot')
+  def pipelineOptions = findProperty('pipelineOptions') ?: ""
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} PortableRunner ${pipelineOptions}"
+    }
+  }
 }
 
 /*************************************************************************************************/
@@ -184,6 +200,7 @@ task sparkValidatesRunner() {
         "environment_type"    : "PROCESS",
         "spark_job_server_jar": project(":runners:spark:job-server:").shadowJar.archivePath,
         "environment_config": environment_config,
+        "environment_cache_millis": 10000,
     ]
     def argString = mapToArgString(argMap)
 

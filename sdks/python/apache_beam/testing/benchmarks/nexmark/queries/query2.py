@@ -24,6 +24,8 @@ This query selects auctions (items) that have a particular id.
 It illustrates a simple filter.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import apache_beam as beam
@@ -33,10 +35,11 @@ from apache_beam.testing.benchmarks.nexmark.nexmark_util import display
 
 
 def load(raw_events, metadata=None):
-  return (raw_events
-          | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
-          | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
-              lambda event: (isinstance(event, nexmark_model.Auction)
-                             and event.id == metadata.get('auction_id')))
-          | 'DisplayQuery2' >> beam.Map(display)
-         )  # pylint: disable=expression-not-assigned
+  return (
+      raw_events
+      | 'ParseEventFn' >> beam.ParDo(ParseEventFn())
+      | 'FilterInAuctionsWithSelectedId' >> beam.Filter(
+          lambda event: (
+              isinstance(event, nexmark_model.Auction) and event.id == metadata.
+              get('auction_id')))
+      | 'DisplayQuery2' >> beam.Map(display))  # pylint: disable=expression-not-assigned

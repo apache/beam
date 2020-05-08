@@ -21,11 +21,11 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 func TestLogger(t *testing.T) {
-	ch := make(chan *pb.LogEntry, 1)
+	ch := make(chan *fnpb.LogEntry, 1)
 	l := logger{out: ch}
 
 	instID := "INST"
@@ -45,7 +45,7 @@ func TestLogger(t *testing.T) {
 	if got, want := e.GetLogLocation(), "logging_test.go:34"; !strings.HasSuffix(got, want) {
 		t.Errorf("incorrect LogLocation: got %v, want suffix %v", got, want)
 	}
-	if got, want := e.GetSeverity(), pb.LogEntry_Severity_INFO; got != want {
+	if got, want := e.GetSeverity(), fnpb.LogEntry_Severity_INFO; got != want {
 		t.Errorf("incorrect Severity: got %v, want %v", got, want)
 	}
 }

@@ -108,7 +108,7 @@ public class CombineTranslationTest {
       assertEquals(
           combineFn,
           SerializableUtils.deserializeFromByteArray(
-              combineProto.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn"));
+              combineProto.getCombineFn().getPayload().toByteArray(), "CombineFn"));
     }
   }
 
@@ -151,7 +151,7 @@ public class CombineTranslationTest {
       assertEquals(
           combineFn,
           SerializableUtils.deserializeFromByteArray(
-              combineProto.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn"));
+              combineProto.getCombineFn().getPayload().toByteArray(), "CombineFn"));
     }
 
     @Test

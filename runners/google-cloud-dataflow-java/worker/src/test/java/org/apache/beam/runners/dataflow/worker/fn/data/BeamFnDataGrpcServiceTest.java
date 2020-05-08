@@ -51,22 +51,22 @@ import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.BindableService;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.CallOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Channel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ClientCall;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ClientInterceptor;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Metadata;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Metadata.Key;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.MethodDescriptor;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.Server;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ServerInterceptors;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessServerBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.BindableService;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.CallOptions;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Channel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ClientCall;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ClientInterceptor;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ForwardingClientCall.SimpleForwardingClientCall;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Metadata;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Metadata.Key;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.MethodDescriptor;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ServerInterceptors;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessServerBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -129,7 +129,7 @@ public class BeamFnDataGrpcServiceTest {
       CloseableFnDataReceiver<WindowedValue<String>> consumer =
           service
               .getDataService(DEFAULT_CLIENT)
-              .send(LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID), CODER);
+              .send(LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID), CODER);
 
       consumer.accept(valueInGlobalWindow("A" + i));
       consumer.accept(valueInGlobalWindow("B" + i));
@@ -202,7 +202,7 @@ public class BeamFnDataGrpcServiceTest {
         CloseableFnDataReceiver<WindowedValue<String>> consumer =
             service
                 .getDataService(Integer.toString(client))
-                .send(LogicalEndpoint.of(instructionId, TRANSFORM_ID), CODER);
+                .send(LogicalEndpoint.data(instructionId, TRANSFORM_ID), CODER);
 
         consumer.accept(valueInGlobalWindow("A" + instructionId));
         consumer.accept(valueInGlobalWindow("B" + instructionId));
@@ -259,7 +259,7 @@ public class BeamFnDataGrpcServiceTest {
           service
               .getDataService(DEFAULT_CLIENT)
               .receive(
-                  LogicalEndpoint.of(Integer.toString(i), TRANSFORM_ID),
+                  LogicalEndpoint.data(Integer.toString(i), TRANSFORM_ID),
                   CODER,
                   serverInboundValue::add));
     }
@@ -295,7 +295,10 @@ public class BeamFnDataGrpcServiceTest {
                             ByteString.copyFrom(
                                 encodeToByteArray(CODER, valueInGlobalWindow("C" + id))))))
         .addData(
-            BeamFnApi.Elements.Data.newBuilder().setInstructionId(id).setTransformId(TRANSFORM_ID))
+            BeamFnApi.Elements.Data.newBuilder()
+                .setInstructionId(id)
+                .setTransformId(TRANSFORM_ID)
+                .setIsLast(true))
         .build();
   }
 

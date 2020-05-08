@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static org.apache.beam.sdk.io.gcp.pubsub.TestPubsub.createTopicName;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
@@ -30,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.IncomingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.state.BagState;
@@ -152,6 +152,9 @@ public class TestPubsubSignal implements TestRule {
       if (resultTopicPath != null) {
         pubsub.deleteTopic(resultTopicPath);
       }
+      if (startTopicPath != null) {
+        pubsub.deleteTopic(startTopicPath);
+      }
     } finally {
       pubsub.close();
       pubsub = null;
@@ -251,7 +254,7 @@ public class TestPubsubSignal implements TestRule {
       try {
         signal = pubsub.pull(DateTime.now().getMillis(), signalSubscriptionPath, 1, false);
         pubsub.acknowledge(
-            signalSubscriptionPath, signal.stream().map(m -> m.ackId).collect(toList()));
+            signalSubscriptionPath, signal.stream().map(IncomingMessage::ackId).collect(toList()));
         break;
       } catch (StatusRuntimeException e) {
         if (!Status.DEADLINE_EXCEEDED.equals(e.getStatus())) {
@@ -271,7 +274,7 @@ public class TestPubsubSignal implements TestRule {
               signalSubscriptionPath, duration.getStandardSeconds()));
     }
 
-    return new String(signal.get(0).elementBytes, UTF_8);
+    return signal.get(0).message().getData().toStringUtf8();
   }
 
   private void sleep(long t) {

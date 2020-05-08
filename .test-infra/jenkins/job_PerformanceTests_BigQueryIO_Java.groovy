@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-
 import CommonJobProperties as common
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -33,10 +33,12 @@ def jobConfigs = [
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                         writeMethod           : 'STREAMING_INSERTS',
+                        writeFormat           : 'JSON',
                         testBigQueryDataset   : 'beam_performance',
-                        testBigQueryTable     : 'bqio_write_10GB_java',
+                        testBigQueryTable     : 'bqio_write_10GB_java_stream_' + now,
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
+                        influxMeasurement     : 'bqio_10GB_results_java_stream',
                         sourceOptions         : """
                                             {
                                               "numRecords": "10485760",
@@ -51,19 +53,50 @@ def jobConfigs = [
                 ]
         ],
         [
-                title        : 'BigQueryIO Batch Performance Test Java 10 GB',
-                triggerPhrase: 'Run BigQueryIO Batch Performance Test Java',
-                name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java',
+                title        : 'BigQueryIO Batch Performance Test Java 10 GB JSON',
+                triggerPhrase: 'Run BigQueryIO Batch Performance Test Java Json',
+                name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Json',
                 itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
                 properties: [
                         project               : 'apache-beam-testing',
                         tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
                         tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
                         writeMethod           : 'FILE_LOADS',
+                        writeFormat           : 'JSON',
                         testBigQueryDataset   : 'beam_performance',
-                        testBigQueryTable     : 'bqio_write_10GB_java',
+                        testBigQueryTable     : 'bqio_write_10GB_java_json_' + now,
                         metricsBigQueryDataset: 'beam_performance',
-                        metricsBigQueryTable  : 'bqio_10GB_results_java_batch',
+                        metricsBigQueryTable  : 'bqio_10GB_results_java_batch_json',
+                        influxMeasurement     : 'bqio_10GB_results_java_batch_json',
+                        sourceOptions         : """
+                                            {
+                                              "numRecords": "10485760",
+                                              "keySizeBytes": "1",
+                                              "valueSizeBytes": "1024"
+                                            }
+                                      """.trim().replaceAll("\\s", ""),
+                        runner                : "DataflowRunner",
+                        maxNumWorkers         : '5',
+                        numWorkers            : '5',
+                        autoscalingAlgorithm  : 'NONE',
+                ]
+        ],
+        [
+                title        : 'BigQueryIO Batch Performance Test Java 10 GB AVRO',
+                triggerPhrase: 'Run BigQueryIO Batch Performance Test Java Avro',
+                name      : 'beam_BiqQueryIO_Batch_Performance_Test_Java_Avro',
+                itClass      : 'org.apache.beam.sdk.bigqueryioperftests.BigQueryIOIT',
+                properties: [
+                        project               : 'apache-beam-testing',
+                        tempLocation          : 'gs://temp-storage-for-perf-tests/loadtests',
+                        tempRoot              : 'gs://temp-storage-for-perf-tests/loadtests',
+                        writeMethod           : 'FILE_LOADS',
+                        writeFormat           : 'AVRO',
+                        testBigQueryDataset   : 'beam_performance',
+                        testBigQueryTable     : 'bqio_write_10GB_java_avro_' + now,
+                        metricsBigQueryDataset: 'beam_performance',
+                        metricsBigQueryTable  : 'bqio_10GB_results_java_batch_avro',
+                        influxMeasurement     : 'bqio_10GB_results_java_batch_avro',
                         sourceOptions         : """
                                             {
                                               "numRecords": "10485760",
@@ -90,7 +123,13 @@ private void createPostCommitJob(jobConfig) {
         publishers {
             archiveJunit('**/build/test-results/**/*.xml')
         }
-        
+        InfluxDBCredentialsHelper.useCredentials(delegate)
+        additionalPipelineArgs = [
+            influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+            influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+        ]
+        jobConfig.properties.putAll(additionalPipelineArgs)
+
         steps {
             gradle {
                 rootBuildScriptDir(common.checkoutDir)

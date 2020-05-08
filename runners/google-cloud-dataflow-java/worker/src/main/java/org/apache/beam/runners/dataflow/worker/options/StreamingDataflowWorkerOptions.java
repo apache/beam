@@ -69,6 +69,12 @@ public interface StreamingDataflowWorkerOptions extends DataflowWorkerHarnessOpt
 
   void setActiveWorkRefreshPeriodMillis(int value);
 
+  @Description("Necessary duration for a commit to be considered stuck and invalidated.")
+  @Default.Integer(10 * 60 * 1000)
+  int getStuckCommitDurationMillis();
+
+  void setStuckCommitDurationMillis(int value);
+
   @Description(
       "Period for sending 'global get config' requests to the service. The duration is "
           + "specified as seconds in 'PTx.yS' format, e.g. 'PT5.125S'."

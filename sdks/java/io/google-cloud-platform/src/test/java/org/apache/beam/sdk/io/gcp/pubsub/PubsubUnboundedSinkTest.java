@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
@@ -83,8 +84,12 @@ public class PubsubUnboundedSinkTest implements Serializable {
   @Test
   public void saneCoder() throws Exception {
     OutgoingMessage message =
-        new OutgoingMessage(
-            DATA.getBytes(StandardCharsets.UTF_8), ImmutableMap.of(), TIMESTAMP, getRecordId(DATA));
+        OutgoingMessage.of(
+            com.google.pubsub.v1.PubsubMessage.newBuilder()
+                .setData(ByteString.copyFromUtf8(DATA))
+                .build(),
+            TIMESTAMP,
+            getRecordId(DATA));
     CoderProperties.coderDecodeEncodeEqual(PubsubUnboundedSink.CODER, message);
     CoderProperties.coderSerializable(PubsubUnboundedSink.CODER);
   }
@@ -93,8 +98,13 @@ public class PubsubUnboundedSinkTest implements Serializable {
   public void sendOneMessage() throws IOException {
     List<OutgoingMessage> outgoing =
         ImmutableList.of(
-            new OutgoingMessage(
-                DATA.getBytes(StandardCharsets.UTF_8), ATTRIBUTES, TIMESTAMP, getRecordId(DATA)));
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFromUtf8(DATA))
+                    .putAllAttributes(ATTRIBUTES)
+                    .build(),
+                TIMESTAMP,
+                getRecordId(DATA)));
     int batchSize = 1;
     int batchBytes = 1;
     try (PubsubTestClientFactory factory =
@@ -121,9 +131,10 @@ public class PubsubUnboundedSinkTest implements Serializable {
   public void sendOneMessageWithoutAttributes() throws IOException {
     List<OutgoingMessage> outgoing =
         ImmutableList.of(
-            new OutgoingMessage(
-                DATA.getBytes(StandardCharsets.UTF_8),
-                null /* attributes */,
+            OutgoingMessage.of(
+                com.google.pubsub.v1.PubsubMessage.newBuilder()
+                    .setData(ByteString.copyFromUtf8(DATA))
+                    .build(),
                 TIMESTAMP,
                 getRecordId(DATA)));
     try (PubsubTestClientFactory factory =
@@ -157,9 +168,10 @@ public class PubsubUnboundedSinkTest implements Serializable {
     for (int i = 0; i < batchSize * 10; i++) {
       String str = String.valueOf(i);
       outgoing.add(
-          new OutgoingMessage(
-              str.getBytes(StandardCharsets.UTF_8),
-              ImmutableMap.of(),
+          OutgoingMessage.of(
+              com.google.pubsub.v1.PubsubMessage.newBuilder()
+                  .setData(ByteString.copyFromUtf8(str))
+                  .build(),
               TIMESTAMP,
               getRecordId(str)));
       data.add(str);
@@ -198,9 +210,10 @@ public class PubsubUnboundedSinkTest implements Serializable {
       }
       String str = sb.toString();
       outgoing.add(
-          new OutgoingMessage(
-              str.getBytes(StandardCharsets.UTF_8),
-              ImmutableMap.of(),
+          OutgoingMessage.of(
+              com.google.pubsub.v1.PubsubMessage.newBuilder()
+                  .setData(ByteString.copyFromUtf8(str))
+                  .build(),
               TIMESTAMP,
               getRecordId(str)));
       data.add(str);

@@ -81,7 +81,7 @@ abstract class NaiveSpannerRead
 
     @Setup
     public void setup() throws Exception {
-      spannerAccessor = config.connectToSpanner();
+      spannerAccessor = SpannerAccessor.create(config);
     }
 
     @Teardown

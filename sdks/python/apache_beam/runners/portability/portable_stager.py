@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-"""A :class:`FileHandler` to work with :class:`ArtifactStagingServiceStub`.
+
+"""A :class:`FileHandler` to work with :class:`LegacyArtifactStagingServiceStub`.
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 from __future__ import division
@@ -22,6 +25,8 @@ from __future__ import print_function
 
 import hashlib
 import os
+from typing import Iterator
+from typing import List
 
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
@@ -30,7 +35,7 @@ from apache_beam.runners.portability.stager import Stager
 
 class PortableStager(Stager):
   """An implementation of :class:`Stager` to stage files on
-  ArtifactStagingService.
+  LegacyArtifactStagingService.
 
   The class keeps track of pushed files and commit manifest once all files are
   uploaded.
@@ -38,26 +43,27 @@ class PortableStager(Stager):
   Note: This class is not thread safe and user of this class should ensure
   thread safety.
   """
-
   def __init__(self, artifact_service_channel, staging_session_token):
-    """Creates a new Stager to stage file to ArtifactStagingService.
+    """Creates a new Stager to stage file to LegacyArtifactStagingService.
 
     Args:
       artifact_service_channel: Channel used to interact with
-        ArtifactStagingService. User owns the channel and should close it when
+        LegacyArtifactStagingService. User owns the channel and should close it when
         finished.
       staging_session_token: A token to stage artifacts on
-        ArtifactStagingService. The token is provided by the JobService prepare
+        LegacyArtifactStagingService. The token is provided by the JobService prepare
         call.
     """
     super(PortableStager, self).__init__()
     self._artifact_staging_stub = beam_artifact_api_pb2_grpc.\
-        ArtifactStagingServiceStub(channel=artifact_service_channel)
+        LegacyArtifactStagingServiceStub(channel=artifact_service_channel)
     self._staging_session_token = staging_session_token
-    self._artifacts = []
+    self._artifacts = []  # type: List[beam_artifact_api_pb2.ArtifactMetadata]
 
   def stage_artifact(self, local_path_to_artifact, artifact_name):
-    """Stage a file to ArtifactStagingService.
+    # type: (str, str) -> None
+
+    """Stage a file to LegacyArtifactStagingService.
 
     Args:
       local_path_to_artifact: Path of file to be uploaded.
@@ -69,6 +75,7 @@ class PortableStager(Stager):
           .format(local_path_to_artifact))
 
     def artifact_request_generator():
+      # type: () -> Iterator[beam_artifact_api_pb2.PutArtifactRequest]
       artifact_metadata = beam_artifact_api_pb2.ArtifactMetadata(
           name=artifact_name,
           sha256=_get_file_hash(local_path_to_artifact),

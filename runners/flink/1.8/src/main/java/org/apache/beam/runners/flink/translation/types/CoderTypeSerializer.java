@@ -19,6 +19,8 @@ package org.apache.beam.runners.flink.translation.types;
 
 import java.io.EOFException;
 import java.io.IOException;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.translation.wrappers.DataInputViewWrapper;
 import org.apache.beam.runners.flink.translation.wrappers.DataOutputViewWrapper;
 import org.apache.beam.sdk.coders.Coder;
@@ -41,9 +43,26 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
 
   private final Coder<T> coder;
 
+  /**
+   * {@link SerializablePipelineOptions} deserialization will cause {@link
+   * org.apache.beam.sdk.io.FileSystems} registration needed for {@link
+   * org.apache.beam.sdk.transforms.Reshuffle} translation.
+   */
+  @SuppressWarnings("unused")
+  @Nullable
+  private final SerializablePipelineOptions pipelineOptions;
+
   public CoderTypeSerializer(Coder<T> coder) {
     Preconditions.checkNotNull(coder);
     this.coder = coder;
+    this.pipelineOptions = null;
+  }
+
+  public CoderTypeSerializer(
+      Coder<T> coder, @Nullable SerializablePipelineOptions pipelineOptions) {
+    Preconditions.checkNotNull(coder);
+    this.coder = coder;
+    this.pipelineOptions = pipelineOptions;
   }
 
   @Override

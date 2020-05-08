@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,7 +34,6 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.batch.Pipel
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.PipelineTranslatorStreaming;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
-import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.metrics.MetricsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -66,7 +65,6 @@ import org.slf4j.LoggerFactory;
  * SparkStructuredStreamingPipelineResult result = (SparkStructuredStreamingPipelineResult) p.run();
  * }
  */
-@Experimental(value = Experimental.Kind.WITH_EXCEPTIONS)
 public final class SparkStructuredStreamingRunner
     extends PipelineRunner<SparkStructuredStreamingPipelineResult> {
 
@@ -109,9 +107,11 @@ public final class SparkStructuredStreamingRunner
     SparkStructuredStreamingPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkStructuredStreamingPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage() == null) {
+    if (sparkOptions.getFilesToStage() == null
+        && !PipelineTranslator.isLocalSparkMaster(sparkOptions)) {
       sparkOptions.setFilesToStage(
-          detectClassPathResourcesToStage(SparkStructuredStreamingRunner.class.getClassLoader()));
+          detectClassPathResourcesToStage(
+              SparkStructuredStreamingRunner.class.getClassLoader(), options));
       LOG.info(
           "PipelineOptions.filesToStage was not specified. "
               + "Defaulting to files from the classpath: will stage {} files. "

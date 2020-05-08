@@ -67,7 +67,6 @@ dependencies {
   compile library.java.avro
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compile library.java.commons_lang3
   compile library.java.kafka_clients
   provided library.java.junit
   provided library.java.hamcrest_core
@@ -103,7 +102,7 @@ if (shouldProvideSpark) {
 //
 // Parameters:
 //   -Pnexmark.runner
-//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.9"
+//       Specify a runner subproject, such as ":runners:spark" or ":runners:flink:1.10"
 //       Defaults to ":runners:direct-java"
 //
 //   -Pnexmark.args

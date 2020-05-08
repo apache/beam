@@ -111,23 +111,27 @@ spotless {
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
-  //systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
+  // Change log level to debug:
+  // systemProperty "org.slf4j.simpleLogger.defaultLogLevel", "debug"
+  // Change log level to debug only for the package and nested packages:
+  // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.flink.translation.wrappers.streaming", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
   // TODO Running tests of all Flink versions in parallel can be too harsh on Jenkins memory
   // Run them serially for now, to avoid "Exit code 137", i.e. Jenkins host killing the Gradle test process
-  if (project.path == ":runners:flink:1.8") {
-    mustRunAfter(":runners:flink:1.7:test")
-  } else if (project.path == ":runners:flink:1.9") {
-    mustRunAfter(":runners:flink:1.7:test")
+  if (project.path == ":runners:flink:1.9") {
     mustRunAfter(":runners:flink:1.8:test")
+  } else if (project.path == ":runners:flink:1.10") {
+    mustRunAfter(":runners:flink:1.8:test")
+    mustRunAfter(":runners:flink:1.9:test")
   }
 }
 
 configurations {
   validatesRunner
+  miniCluster
 }
 
 dependencies {
@@ -137,12 +141,12 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
-  compile library.java.vendored_grpc_1_21_0
+  compile library.java.vendored_grpc_1_26_0
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
   compile library.java.joda_time
-  compile library.java.commons_compress
   compile library.java.args4j
   compile "org.apache.flink:flink-clients_2.11:$flink_version"
   compile "org.apache.flink:flink-core:$flink_version"
@@ -153,7 +157,6 @@ dependencies {
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   // FlinkStateInternalsTest extends abstract StateInternalsTest
   testCompile project(path: ":runners:core-java", configuration: "testRuntime")
-  testCompile library.java.commons_lang3
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
@@ -170,6 +173,7 @@ dependencies {
   validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
   validatesRunner project(path: ":runners:core-java", configuration: "testRuntime")
   validatesRunner project(project.path)
+  miniCluster "org.apache.flink:flink-runtime-web_2.11:$flink_version"
 }
 
 class ValidatesRunnerConfig {
@@ -190,7 +194,10 @@ def createValidatesRunnerTask(Map m) {
         ])
     systemProperty "beamTestPipelineOptions", pipelineOptions
     classpath = configurations.validatesRunner
-    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs, project(":runners:core-java").sourceSets.test.output.classesDirs)
+    testClassesDirs = files(
+      project(":sdks:java:core").sourceSets.test.output.classesDirs,
+      project(":runners:core-java").sourceSets.test.output.classesDirs,
+    )
     // maxParallelForks decreased from 4 in order to avoid OOM errors
     maxParallelForks 2
     useJUnit {
@@ -199,11 +206,14 @@ def createValidatesRunnerTask(Map m) {
       excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
       excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       if (config.streaming) {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
         excludeCategories 'org.apache.beam.sdk.testing.UsesImpulse'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'  // BEAM-8598
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
@@ -221,5 +231,31 @@ tasks.register('validatesRunner') {
   dependsOn validatesRunnerStreaming
 }
 
-// Generates :runners:flink:1.9:runQuickstartJavaFlinkLocal
+// Generates :runners:flink:1.10:runQuickstartJavaFlinkLocal
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart', runner: 'FlinkLocal')
+
+/**
+ * Updates the documentation with the current pipeline options.
+ */
+def createPipelineOptionsTableTask(String target) {
+  tasks.register("generatePipelineOptionsTable${target}", JavaExec) {
+    group = 'Website'
+    description = "Generates a table with pipeline options for the Flink Runner documentation page"
+    classpath = sourceSets.test.runtimeClasspath
+    main = 'org.apache.beam.runners.flink.website.PipelineOptionsTableGenerator'
+    args = [target]
+    standardOutput = new ByteArrayOutputStream()
+    doLast {
+      def dest = file("${project(':website').getProjectDir()}/src/_includes/flink_${target.toLowerCase()}_pipeline_options.html")
+      if (!dest.exists()) {
+        throw new GradleException("Pipeline options file is not in expected location: ${dest}")
+      }
+      dest.write(standardOutput.toString())
+    }
+  }
+}
+createPipelineOptionsTableTask('Java')
+createPipelineOptionsTableTask('Python')
+// Update the pipeline options documentation before running the tests
+test.dependsOn(generatePipelineOptionsTableJava)
+test.dependsOn(generatePipelineOptionsTablePython)

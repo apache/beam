@@ -22,8 +22,9 @@ limitations under the License.
 
 ## Next Java LTS version support (Java 11 / 18.9)
 
-Work to support the next LTS release of Java is in progress. For more details about the scope and info on the various tasks please see the JIRA ticket.
+Work to support the next LTS release of Java is in progress. For more details
+about the scope and info on the various tasks please see the JIRA ticket.
 
 - JIRA: [BEAM-2530](https://issues.apache.org/jira/browse/BEAM-2530)
-- Contact: [Ismaël Mejía](mailto:iemejia@gmail.com)
+- Contact: [Michał Walenia](mailto:mwalenia@apache.org)
 

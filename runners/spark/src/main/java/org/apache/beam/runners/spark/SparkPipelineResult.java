@@ -26,7 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.Pipeline;
@@ -155,9 +155,10 @@ public abstract class SparkPipelineResult implements PipelineResult {
     }
 
     @Override
-    public JobApi.MetricResults portableMetrics() throws UnsupportedOperationException {
-      LOG.warn("Collecting monitoring infos is not implemented yet in Spark portable runner.");
-      return JobApi.MetricResults.newBuilder().build();
+    public JobApi.MetricResults portableMetrics() {
+      return JobApi.MetricResults.newBuilder()
+          .addAllAttempted(MetricsAccumulator.getInstance().value().getMonitoringInfos())
+          .build();
     }
   }
 

@@ -22,10 +22,11 @@ language: English
 summary: "This course provides a series of katas to get familiar with Apache Beam.\
   \ \n\nApache Beam website – https://beam.apache.org/"
 programming_language: Python
-programming_language_version: 2.7
+programming_language_version: 3.7
 content:
 - Introduction
 - Core Transforms
 - Common Transforms
 - IO
+- Windowing
 - Examples

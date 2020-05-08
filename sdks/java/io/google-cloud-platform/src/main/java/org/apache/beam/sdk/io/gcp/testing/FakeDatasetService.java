@@ -32,9 +32,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.ErrorContainer;
@@ -48,6 +48,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
+@Internal
 public class FakeDatasetService implements DatasetService, Serializable {
   // Table information must be static, as each ParDo will get a separate instance of
   // FakeDatasetServices, and they must all modify the same storage.
@@ -87,6 +88,13 @@ public class FakeDatasetService implements DatasetService, Serializable {
       throws InterruptedException, IOException {
     synchronized (tables) {
       return getTableContainer(projectId, datasetId, tableId).getRows();
+    }
+  }
+
+  public List<String> getAllIds(String projectId, String datasetId, String tableId)
+      throws InterruptedException, IOException {
+    synchronized (tables) {
+      return getTableContainer(projectId, datasetId, tableId).getIds();
     }
   }
 
@@ -215,7 +223,15 @@ public class FakeDatasetService implements DatasetService, Serializable {
               PaneInfo.ON_TIME_AND_ONLY_FIRING));
     }
     return insertAll(
-        ref, windowedRows, insertIdList, InsertRetryPolicy.alwaysRetry(), null, null, false, false);
+        ref,
+        windowedRows,
+        insertIdList,
+        InsertRetryPolicy.alwaysRetry(),
+        null,
+        null,
+        false,
+        false,
+        false);
   }
 
   @Override
@@ -227,17 +243,17 @@ public class FakeDatasetService implements DatasetService, Serializable {
       List<ValueInSingleWindow<T>> failedInserts,
       ErrorContainer<T> errorContainer,
       boolean skipInvalidRows,
-      boolean ignoreUnknownValues)
+      boolean ignoreUnknownValues,
+      boolean ignoreInsertIds)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
     synchronized (tables) {
+      if (ignoreInsertIds) {
+        insertIdList = null;
+      }
+
       if (insertIdList != null) {
         assertEquals(rowList.size(), insertIdList.size());
-      } else {
-        insertIdList = Lists.newArrayListWithExpectedSize(rowList.size());
-        for (int i = 0; i < rowList.size(); ++i) {
-          insertIdList.add(Integer.toString(ThreadLocalRandom.current().nextInt()));
-        }
       }
 
       long dataSize = 0;
@@ -258,7 +274,11 @@ public class FakeDatasetService implements DatasetService, Serializable {
           }
         }
         if (shouldInsert) {
-          dataSize += tableContainer.addRow(row, insertIdList.get(i));
+          if (insertIdList == null) {
+            dataSize += tableContainer.addRow(row, null);
+          } else {
+            dataSize += tableContainer.addRow(row, insertIdList.get(i));
+          }
         } else {
           errorContainer.add(
               failedInserts, allErrors.get(allErrors.size() - 1), ref, rowList.get(i));

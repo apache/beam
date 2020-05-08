@@ -21,9 +21,11 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyDouble;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -39,12 +41,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.fn.harness.HandlesSplits.SplitResult;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.BundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.DelayedBundleApplication;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.DesiredSplit;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse.ChannelSplit;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
@@ -65,7 +73,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
@@ -156,6 +163,7 @@ public class BeamFnDataReadRunnerTest {
             PipelineOptionsFactory.create(),
             mockBeamFnDataClient,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance(bundleId)::get,
@@ -168,7 +176,9 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* splitListener */);
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(teardownFunctions, empty());
 
@@ -180,7 +190,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId, pTransformId)),
+            eq(LogicalEndpoint.data(bundleId, pTransformId)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -203,17 +213,14 @@ public class BeamFnDataReadRunnerTest {
     when(mockBeamFnDataClient.receive(any(), any(), any(), any()))
         .thenReturn(bundle1Future)
         .thenReturn(bundle2Future);
-    List<WindowedValue<String>> valuesA = new ArrayList<>();
-    List<WindowedValue<String>> valuesB = new ArrayList<>();
-    FnDataReceiver<WindowedValue<String>> consumers =
-        MultiplexingFnDataReceiver.forConsumers(ImmutableList.of(valuesA::add, valuesB::add));
+    List<WindowedValue<String>> values = new ArrayList<>();
+    FnDataReceiver<WindowedValue<String>> consumers = values::add;
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner =
         new BeamFnDataReadRunner<>(
             INPUT_TRANSFORM_ID,
             RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
             bundleId::get,
-            CODER_SPEC,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
             consumers);
@@ -224,7 +231,7 @@ public class BeamFnDataReadRunnerTest {
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -245,19 +252,17 @@ public class BeamFnDataReadRunnerTest {
 
     readRunner.blockTillReadFinishes();
     future.get();
-    assertThat(valuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
-    assertThat(valuesB, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
+    assertThat(values, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
     // Process for bundle id 1
     bundleId.set("1");
-    valuesA.clear();
-    valuesB.clear();
+    values.clear();
     readRunner.registerInputLocation();
 
     verify(mockBeamFnDataClient)
         .receive(
             eq(PORT_SPEC.getApiServiceDescriptor()),
-            eq(LogicalEndpoint.of(bundleId.get(), INPUT_TRANSFORM_ID)),
+            eq(LogicalEndpoint.data(bundleId.get(), INPUT_TRANSFORM_ID)),
             eq(CODER),
             consumerCaptor.capture());
 
@@ -278,8 +283,7 @@ public class BeamFnDataReadRunnerTest {
 
     readRunner.blockTillReadFinishes();
     future.get();
-    assertThat(valuesA, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
-    assertThat(valuesB, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
+    assertThat(values, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
 
     verifyNoMoreInteractions(mockBeamFnDataClient);
   }
@@ -295,5 +299,189 @@ public class BeamFnDataReadRunnerTest {
       }
     }
     fail("Expected registrar not found.");
+  }
+
+  @Test
+  public void testSplittingWhenNoElementsProcessed() throws Exception {
+    List<WindowedValue<String>> outputValues = new ArrayList<>();
+    BeamFnDataReadRunner<String> readRunner = createReadRunner(outputValues::add);
+
+    ProcessBundleSplitRequest request =
+        ProcessBundleSplitRequest.newBuilder()
+            .putDesiredSplits(
+                "pTransformId",
+                DesiredSplit.newBuilder()
+                    .setEstimatedInputElements(10)
+                    .setFractionOfRemainder(0.5)
+                    .build())
+            .build();
+    ProcessBundleSplitResponse.Builder responseBuilder = ProcessBundleSplitResponse.newBuilder();
+    readRunner.trySplit(request, responseBuilder);
+
+    ProcessBundleSplitResponse expected =
+        ProcessBundleSplitResponse.newBuilder()
+            .addChannelSplits(
+                ChannelSplit.newBuilder()
+                    .setLastPrimaryElement(4)
+                    .setFirstResidualElement(5)
+                    .build())
+            .build();
+    assertEquals(expected, responseBuilder.build());
+
+    // Ensure that we process the correct number of elements after splitting.
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("D"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("E"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("F"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("G"));
+    assertThat(
+        outputValues,
+        contains(
+            valueInGlobalWindow("A"),
+            valueInGlobalWindow("B"),
+            valueInGlobalWindow("C"),
+            valueInGlobalWindow("D"),
+            valueInGlobalWindow("E")));
+  }
+
+  @Test
+  public void testSplittingWhenSomeElementsProcessed() throws Exception {
+    List<WindowedValue<String>> outputValues = new ArrayList<>();
+    BeamFnDataReadRunner<String> readRunner = createReadRunner(outputValues::add);
+
+    ProcessBundleSplitRequest request =
+        ProcessBundleSplitRequest.newBuilder()
+            .putDesiredSplits(
+                "pTransformId",
+                DesiredSplit.newBuilder()
+                    .setEstimatedInputElements(10)
+                    .setFractionOfRemainder(0.5)
+                    .build())
+            .build();
+    ProcessBundleSplitResponse.Builder responseBuilder = ProcessBundleSplitResponse.newBuilder();
+
+    // Process 2 elements then split
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+    readRunner.trySplit(request, responseBuilder);
+
+    ProcessBundleSplitResponse expected =
+        ProcessBundleSplitResponse.newBuilder()
+            .addChannelSplits(
+                ChannelSplit.newBuilder()
+                    .setLastPrimaryElement(5)
+                    .setFirstResidualElement(6)
+                    .build())
+            .build();
+    assertEquals(expected, responseBuilder.build());
+
+    // Ensure that we process the correct number of elements after splitting.
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("D"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("E"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("F"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("G"));
+    assertThat(
+        outputValues,
+        contains(
+            valueInGlobalWindow("A"),
+            valueInGlobalWindow("B"),
+            valueInGlobalWindow("C"),
+            valueInGlobalWindow("D"),
+            valueInGlobalWindow("E"),
+            valueInGlobalWindow("F")));
+  }
+
+  @Test
+  public void testSplittingDownstreamReceiver() throws Exception {
+    SplitResult splitResult =
+        SplitResult.of(
+            BundleApplication.newBuilder().setInputId("primary").build(),
+            DelayedBundleApplication.newBuilder()
+                .setApplication(BundleApplication.newBuilder().setInputId("residual").build())
+                .build());
+    SplittingReceiver splittingReceiver = mock(SplittingReceiver.class);
+    when(splittingReceiver.getProgress()).thenReturn(0.3);
+    when(splittingReceiver.trySplit(anyDouble())).thenReturn(splitResult);
+    BeamFnDataReadRunner<String> readRunner = createReadRunner(splittingReceiver);
+
+    ProcessBundleSplitRequest request =
+        ProcessBundleSplitRequest.newBuilder()
+            .putDesiredSplits(
+                "pTransformId",
+                DesiredSplit.newBuilder()
+                    .setEstimatedInputElements(10)
+                    .setFractionOfRemainder(0.05)
+                    .build())
+            .build();
+    ProcessBundleSplitResponse.Builder responseBuilder = ProcessBundleSplitResponse.newBuilder();
+
+    // We will be "processing" the 'C' element, aka 2nd index
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("A"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("B"));
+    readRunner.forwardElementToConsumer(valueInGlobalWindow("C"));
+    readRunner.trySplit(request, responseBuilder);
+
+    ProcessBundleSplitResponse expected =
+        ProcessBundleSplitResponse.newBuilder()
+            .addPrimaryRoots(splitResult.getPrimaryRoot())
+            .addResidualRoots(splitResult.getResidualRoot())
+            .addChannelSplits(
+                ChannelSplit.newBuilder()
+                    .setLastPrimaryElement(1)
+                    .setFirstResidualElement(3)
+                    .build())
+            .build();
+    assertEquals(expected, responseBuilder.build());
+  }
+
+  private abstract static class SplittingReceiver
+      implements FnDataReceiver<WindowedValue<String>>, HandlesSplits {}
+
+  private BeamFnDataReadRunner<String> createReadRunner(
+      FnDataReceiver<WindowedValue<String>> consumer) throws Exception {
+    String bundleId = "57";
+
+    MetricsContainerStepMap metricsContainerRegistry = new MetricsContainerStepMap();
+    PCollectionConsumerRegistry consumers =
+        new PCollectionConsumerRegistry(
+            metricsContainerRegistry, mock(ExecutionStateTracker.class));
+    String localOutputId = "outputPC";
+    String pTransformId = "pTransformId";
+    consumers.register(localOutputId, pTransformId, consumer);
+    PTransformFunctionRegistry startFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "start");
+    PTransformFunctionRegistry finishFunctionRegistry =
+        new PTransformFunctionRegistry(
+            mock(MetricsContainerStepMap.class), mock(ExecutionStateTracker.class), "finish");
+    List<ThrowingRunnable> teardownFunctions = new ArrayList<>();
+
+    RunnerApi.PTransform pTransform =
+        RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
+
+    return new BeamFnDataReadRunner.Factory<String>()
+        .createRunnerForPTransform(
+            PipelineOptionsFactory.create(),
+            mockBeamFnDataClient,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
+            pTransformId,
+            pTransform,
+            Suppliers.ofInstance(bundleId)::get,
+            ImmutableMap.of(
+                localOutputId,
+                RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
+            COMPONENTS.getCodersMap(),
+            COMPONENTS.getWindowingStrategiesMap(),
+            consumers,
+            startFunctionRegistry,
+            finishFunctionRegistry,
+            teardownFunctions::add,
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
   }
 }

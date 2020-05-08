@@ -18,20 +18,21 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import com.google.zetasql.ZetaSQLFunction.FunctionSignatureId;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.fun.SqlStdOperatorTable;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** SqlStdOperatorMappingTable. */
 @Internal
 public class SqlStdOperatorMappingTable {
   static final List<FunctionSignatureId> ZETASQL_BUILTIN_FUNCTION_WHITELIST =
-      Arrays.asList(
+      ImmutableList.of(
           FunctionSignatureId.FN_AND,
+          FunctionSignatureId.FN_ANY_VALUE,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
           FunctionSignatureId.FN_MULTIPLY_DOUBLE,
@@ -78,8 +79,6 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_MOD_NUMERIC,
           FunctionSignatureId.FN_CASE_NO_VALUE,
           FunctionSignatureId.FN_CASE_WITH_VALUE,
-          FunctionSignatureId.FN_TIMESTAMP_ADD,
-          // TODO: FunctionSignatureId.FN_TIMESTAMP_SUB,
           FunctionSignatureId.FN_FLOOR_DOUBLE,
           FunctionSignatureId.FN_FLOOR_NUMERIC,
           FunctionSignatureId.FN_CEIL_DOUBLE,
@@ -92,13 +91,34 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_IF,
           FunctionSignatureId.FN_IFNULL,
           FunctionSignatureId.FN_NULLIF,
+
+          // Timestamp functions
+          FunctionSignatureId.FN_CURRENT_TIMESTAMP, // current_timestamp
+          FunctionSignatureId.FN_EXTRACT_FROM_TIMESTAMP, // $extract
+          FunctionSignatureId.FN_STRING_FROM_TIMESTAMP, // string
+          FunctionSignatureId.FN_TIMESTAMP_FROM_STRING, // timestamp
+          FunctionSignatureId.FN_TIMESTAMP_FROM_DATE, // timestamp
+          // FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME // timestamp
+          FunctionSignatureId.FN_TIMESTAMP_ADD, // timestamp_add
+          FunctionSignatureId.FN_TIMESTAMP_SUB, // timestamp_sub
+          FunctionSignatureId.FN_TIMESTAMP_DIFF, // timestamp_diff
+          FunctionSignatureId.FN_TIMESTAMP_TRUNC, // timestamp_trunc
+          FunctionSignatureId.FN_FORMAT_TIMESTAMP, // format_timestamp
+          FunctionSignatureId.FN_PARSE_TIMESTAMP, // parse_timestamp
+          FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_SECONDS, // timestamp_seconds
+          FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_MILLIS, // timestamp_millis
+          // FunctionSignatureId.FN_TIMESTAMP_FROM_INT64_MICROS, // timestamp_micros
+          FunctionSignatureId.FN_UNIX_SECONDS_FROM_TIMESTAMP, // unix_seconds
+          FunctionSignatureId.FN_UNIX_MILLIS_FROM_TIMESTAMP, // unix_millis
+          // FunctionSignatureId.FN_UNIX_MICROS_FROM_TIMESTAMP, // unix_micros
+          FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_SECONDS_INT64, // timestamp_from_unix_seconds
+          FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MILLIS_INT64, // timestamp_from_unix_millis
+          // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MICROS_INT64, // timestamp_from_unix_micros
+
+          // Date/Time/Datetime functions
           FunctionSignatureId.FN_EXTRACT_FROM_DATE,
           FunctionSignatureId.FN_EXTRACT_FROM_DATETIME,
           FunctionSignatureId.FN_EXTRACT_FROM_TIME,
-          FunctionSignatureId.FN_EXTRACT_FROM_TIMESTAMP,
-          FunctionSignatureId.FN_TIMESTAMP_FROM_STRING,
-          FunctionSignatureId.FN_TIMESTAMP_FROM_DATE,
-          // TODO: FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME
           FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY
           // TODO: FunctionSignatureId.FN_DATE_FROM_TIMESTAMP
           );
@@ -106,7 +126,7 @@ public class SqlStdOperatorMappingTable {
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
   // We should remove them from this table and add generic way to provide custom
   // implementation. (Ex.: timestamp_add)
-  public static final ImmutableMap<String, SqlOperator> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR =
+  public static final Map<String, SqlOperator> ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR =
       ImmutableMap.<String, SqlOperator>builder()
           // grouped window function
           .put("TUMBLE", SqlStdOperatorTable.TUMBLE)
@@ -185,7 +205,7 @@ public class SqlStdOperatorMappingTable {
           .put("min", SqlStdOperatorTable.MIN)
           .put("avg", SqlStdOperatorTable.AVG)
           .put("sum", SqlStdOperatorTable.SUM)
-          // .put("any_value", SqlStdOperatorTable.ANY_VALUE)
+          .put("any_value", SqlStdOperatorTable.ANY_VALUE)
           .put("count", SqlStdOperatorTable.COUNT)
 
           // aggregate UDF
@@ -304,10 +324,6 @@ public class SqlStdOperatorMappingTable {
           // .put("time_sub", SqlStdOperatorTable.MINUS_DATE)
 
           // timestamp functions
-          .put(
-              "timestamp_add",
-              SqlStdOperatorTable.DATETIME_PLUS) // overridden in ZetaSQLPlannerImpl
-          // .put("timestamp_sub", SqlStdOperatorTable.MINUS_DATE)
           .put("$extract", SqlStdOperatorTable.EXTRACT)
           .put("timestamp", SqlOperators.TIMESTAMP_OP)
 
@@ -335,19 +351,7 @@ public class SqlStdOperatorMappingTable {
           .put("nullif", SqlStdOperatorTable.CASE)
           .build();
 
-  // argument one and two should compose of a interval.
-  public static final ImmutableSet<String> FUNCTION_FAMILY_DATE_ADD =
-      ImmutableSet.of(
-          "date_add",
-          "date_sub",
-          "datetime_add",
-          "datetime_sub",
-          "time_add",
-          "time_sub",
-          "timestamp_add",
-          "timestamp_sub");
-
-  public static final ImmutableMap<String, SqlOperatorRewriter>
+  public static final Map<String, SqlOperatorRewriter>
       ZETASQL_FUNCTION_TO_CALCITE_SQL_OPERATOR_REWRITER =
           ImmutableMap.<String, SqlOperatorRewriter>builder()
               .put("$case_with_value", new SqlCaseWithValueOperatorRewriter())

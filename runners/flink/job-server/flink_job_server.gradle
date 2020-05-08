@@ -122,7 +122,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
-      "--shutdownSourcesOnFinalWatermark",
   ]
   if (streaming) {
     pipelineOptions += "--streaming"
@@ -148,10 +147,14 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithMultipleStages'
+        excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithOutputTimestamp'
       } else {
+        excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
       }
       //SplitableDoFnTests
@@ -170,31 +173,111 @@ task validatesPortableRunner() {
   dependsOn validatesPortableRunnerStreaming
 }
 
-project.ext.validatesCrossLanguageRunner = createCrossLanguageValidatesRunnerTask(
-  jobServerDriver: "org.apache.beam.runners.flink.FlinkJobServerDriver",
-  jobServerConfig: "--clean-artifacts-per-job,--job-host=localhost,--job-port=0,--artifact-port=0",
+def jobPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+def artifactPort = BeamModulePlugin.startingExpansionPortNumber.getAndDecrement()
+
+def setupTask = project.tasks.create(name: "flinkJobServerSetup", type: Exec) {
+  dependsOn shadowJar
+  def pythonDir = project.project(":sdks:python").projectDir
+  def flinkJobServerJar = shadowJar.archivePath
+
+  executable 'sh'
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name} && $pythonDir/scripts/run_job_server.sh start --group_id ${project.name} --job_port ${jobPort} --artifact_port ${artifactPort} --job_server_jar ${flinkJobServerJar}"
+}
+
+def cleanupTask = project.tasks.create(name: "flinkJobServerCleanup", type: Exec) {
+  def pythonDir = project.project(":sdks:python").projectDir
+
+  executable 'sh'
+  args '-c', "$pythonDir/scripts/run_job_server.sh stop --group_id ${project.name}"
+}
+
+createCrossLanguageValidatesRunnerTask(
+  startJobServer: setupTask,
+  cleanupJobServer: cleanupTask,
+  jobEndpoint: "localhost:${jobPort}",
   testClasspathConfiguration: configurations.validatesPortableRunner,
   numParallelTests: 1,
   pipelineOpts: [
     "--parallelism=2",
-    "--shutdownSourcesOnFinalWatermark",
   ]
 )
 
-task testPipelineJar() {
-  dependsOn shadowJar
-  dependsOn ":sdks:python:container:py35:docker"
-  doLast{
-    exec {
-      executable "sh"
-      def options = [
-        "--flink_job_server_jar ${shadowJar.archivePath}",
-        "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
-        "--python_root_dir ${project.rootDir}/sdks/python",
-        "--python_version 3.5",
-        "--python_container_image apachebeam/python3.5_sdk:${project['python_sdk_version']}",
-      ]
-      args "-c", "../../job-server/test_pipeline_jar.sh ${options.join(' ')}"
+def addTestJavaJarCreator(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testJavaJarCreatorPy${pyBuildPath}") {
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--runner FlinkRunner",
+                "--job_server_jar ${shadowJar.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + "${project.docker_image_default_repo_prefix}"
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
+        ]
+        args "-c", "../../../portability/test_pipeline_jar.sh ${options.join(' ')}"
+      }
     }
   }
+}
+
+// miniCluster jar starts an embedded Flink cluster intended for use in testing.
+task miniCluster(type: Jar, dependsOn: shadowJar) {
+  archiveBaseName = "${project.archivesBaseName}-mini-cluster"
+  dependencies {
+    runtime project(path: flinkRunnerProject, configuration: "miniCluster")
+  }
+  from zipTree(shadowJar.archivePath).matching {
+    // If these classes aren't excluded from the mini cluster jar, they will be loaded instead of
+    // the corresponding classes in the submitted job jar, preventing pipeline resources from
+    // loading successfully.
+    exclude "**/FlinkPipelineRunner*"
+    exclude "**/PortablePipelineJarUtils*"
+  }
+  manifest {
+    attributes('Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint')
+  }
+  zip64 true // jar needs to contain more than 65535 files
+}
+
+def addTestFlinkUberJarPy(String pyVersion) {
+  def pyBuildPath = pyVersion.startsWith("2") ? "2" : pyVersion.replaceAll("\\.", "")
+  project.tasks.create(name: "testFlinkUberJarPy${pyBuildPath}") {
+    dependsOn miniCluster
+    dependsOn shadowJar
+    dependsOn ":sdks:python:container:py${pyBuildPath}:docker"
+    doLast{
+      exec {
+        executable "sh"
+        def options = [
+                "--flink_job_server_jar ${shadowJar.archivePath}",
+                "--flink_mini_cluster_jar ${miniCluster.archivePath}",
+                "--env_dir ${project.rootProject.buildDir}/gradleenv/${project.path.hashCode()}",
+                "--python_root_dir ${project.rootDir}/sdks/python",
+                "--python_version ${pyVersion}",
+                "--python_container_image ${project.docker_image_default_repo_root}/"
+                        + "${project.docker_image_default_repo_prefix}"
+                        + "python${pyVersion}_sdk:${project.sdk_version}",
+        ]
+        args "-c", "../../job-server/test_flink_uber_jar.sh ${options.join(' ')}"
+      }
+    }
+  }
+}
+
+["2.7", "3.5", "3.6", "3.7"].each{ pyVersion ->
+  addTestJavaJarCreator(pyVersion)
+  addTestFlinkUberJarPy(pyVersion)
+}
+
+task testPipelineJar() {
+  dependsOn testJavaJarCreatorPy37
+  dependsOn testFlinkUberJarPy36
+  dependsOn testFlinkUberJarPy37
 }

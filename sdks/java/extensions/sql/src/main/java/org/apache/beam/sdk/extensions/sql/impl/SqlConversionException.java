@@ -24,6 +24,10 @@ public class SqlConversionException extends RuntimeException {
     super(cause);
   }
 
+  public SqlConversionException(String message) {
+    super(message);
+  }
+
   public SqlConversionException(String message, Throwable cause) {
     super(message, cause);
   }

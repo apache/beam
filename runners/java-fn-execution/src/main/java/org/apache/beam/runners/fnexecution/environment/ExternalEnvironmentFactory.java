@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnExternalWorkerPoolGrpc;
@@ -26,7 +27,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -34,6 +35,7 @@ import org.apache.beam.runners.fnexecution.logging.GrpcLoggingService;
 import org.apache.beam.runners.fnexecution.provisioning.StaticGrpcProvisionService;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.channel.ManagedChannelFactory;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +51,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   public static ExternalEnvironmentFactory create(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator) {
@@ -64,7 +66,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
   private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
   private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
+  private final GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -72,7 +74,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
   private ExternalEnvironmentFactory(
       GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
       GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+      GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource) {
@@ -107,9 +109,10 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             .build();
 
     LOG.debug("Requesting worker ID {}", workerId);
+    final ManagedChannel managedChannel =
+        ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint());
     BeamFnApi.StartWorkerResponse startWorkerResponse =
-        BeamFnExternalWorkerPoolGrpc.newBlockingStub(
-                ManagedChannelFactory.createDefault().forDescriptor(externalPayload.getEndpoint()))
+        BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
             .startWorker(startWorkerRequest);
     if (!startWorkerResponse.getError().isEmpty()) {
       throw new RuntimeException(startWorkerResponse.getError());
@@ -127,6 +130,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
             workerId);
       } catch (InterruptedException interruptEx) {
         Thread.currentThread().interrupt();
+        managedChannel.shutdownNow();
         throw new RuntimeException(interruptEx);
       }
     }
@@ -145,17 +149,23 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
 
       @Override
       public void close() throws Exception {
-        finalInstructionHandler.close();
-        BeamFnApi.StopWorkerRequest stopWorkerRequest =
-            BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
-        LOG.debug("Closing worker ID {}", workerId);
-        BeamFnApi.StopWorkerResponse stopWorkerResponse =
-            BeamFnExternalWorkerPoolGrpc.newBlockingStub(
-                    ManagedChannelFactory.createDefault()
-                        .forDescriptor(externalPayload.getEndpoint()))
-                .stopWorker(stopWorkerRequest);
-        if (!stopWorkerResponse.getError().isEmpty()) {
-          throw new RuntimeException(stopWorkerResponse.getError());
+        try {
+          finalInstructionHandler.close();
+          BeamFnApi.StopWorkerRequest stopWorkerRequest =
+              BeamFnApi.StopWorkerRequest.newBuilder().setWorkerId(workerId).build();
+          LOG.debug("Closing worker ID {}", workerId);
+          BeamFnApi.StopWorkerResponse stopWorkerResponse =
+              BeamFnExternalWorkerPoolGrpc.newBlockingStub(managedChannel)
+                  .stopWorker(stopWorkerRequest);
+          if (!stopWorkerResponse.getError().isEmpty()) {
+            throw new RuntimeException(stopWorkerResponse.getError());
+          }
+        } finally {
+          managedChannel.shutdown();
+          managedChannel.awaitTermination(10, TimeUnit.SECONDS);
+          if (!managedChannel.isTerminated()) {
+            managedChannel.shutdownNow();
+          }
         }
       }
     };
@@ -167,7 +177,7 @@ public class ExternalEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

@@ -16,6 +16,8 @@
 #
 
 """Unit tests for the typecoders module."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -29,7 +31,6 @@ from apache_beam.typehints import typehints
 
 
 class CustomClass(object):
-
   def __init__(self, n):
     self.number = n
 
@@ -45,7 +46,6 @@ class CustomClass(object):
 
 
 class CustomCoder(coders.Coder):
-
   def encode(self, value):
     return str(value.number)
 
@@ -60,7 +60,6 @@ class CustomCoder(coders.Coder):
 
 
 class TypeCodersTest(unittest.TestCase):
-
   def setUp(self):
     try:
       utils.check_compiled('apache_beam.coders')
@@ -72,14 +71,15 @@ class TypeCodersTest(unittest.TestCase):
     with self.assertRaises(TypeError) as e:
       # When registering a coder the coder class must be specified.
       typecoders.registry.register_coder(CustomClass, coder)
-    self.assertEqual(e.exception.message,
-                     'Coder registration requires a coder class object. '
-                     'Received %r instead.' % coder)
+    self.assertEqual(
+        e.exception.message,
+        'Coder registration requires a coder class object. '
+        'Received %r instead.' % coder)
 
   def test_get_coder_with_custom_coder(self):
     typecoders.registry.register_coder(CustomClass, CustomCoder)
-    self.assertEqual(CustomCoder,
-                     typecoders.registry.get_coder(CustomClass).__class__)
+    self.assertEqual(
+        CustomCoder, typecoders.registry.get_coder(CustomClass).__class__)
 
   def test_get_coder_with_composite_custom_coder(self):
     typecoders.registry.register_coder(CustomClass, CustomCoder)
@@ -90,8 +90,8 @@ class TypeCodersTest(unittest.TestCase):
         revived_coder.decode(revived_coder.encode((CustomClass(123), 'abc'))))
 
   def test_get_coder_with_standard_coder(self):
-    self.assertEqual(coders.BytesCoder,
-                     typecoders.registry.get_coder(bytes).__class__)
+    self.assertEqual(
+        coders.BytesCoder, typecoders.registry.get_coder(bytes).__class__)
 
   def test_fallbackcoder(self):
     coder = typecoders.registry.get_coder(typehints.Any)
@@ -106,30 +106,26 @@ class TypeCodersTest(unittest.TestCase):
   def test_standard_int_coder(self):
     real_coder = typecoders.registry.get_coder(int)
     expected_coder = coders.VarIntCoder()
-    self.assertEqual(
-        real_coder.encode(0x0404), expected_coder.encode(0x0404))
+    self.assertEqual(real_coder.encode(0x0404), expected_coder.encode(0x0404))
     self.assertEqual(0x0404, real_coder.decode(real_coder.encode(0x0404)))
     self.assertEqual(
         real_coder.encode(0x040404040404),
         expected_coder.encode(0x040404040404))
-    self.assertEqual(0x040404040404,
-                     real_coder.decode(real_coder.encode(0x040404040404)))
+    self.assertEqual(
+        0x040404040404, real_coder.decode(real_coder.encode(0x040404040404)))
 
   def test_standard_str_coder(self):
     real_coder = typecoders.registry.get_coder(bytes)
     expected_coder = coders.BytesCoder()
-    self.assertEqual(
-        real_coder.encode(b'abc'), expected_coder.encode(b'abc'))
+    self.assertEqual(real_coder.encode(b'abc'), expected_coder.encode(b'abc'))
     self.assertEqual(b'abc', real_coder.decode(real_coder.encode(b'abc')))
 
   def test_standard_bool_coder(self):
     real_coder = typecoders.registry.get_coder(bool)
     expected_coder = coders.BooleanCoder()
-    self.assertEqual(
-        real_coder.encode(True), expected_coder.encode(True))
+    self.assertEqual(real_coder.encode(True), expected_coder.encode(True))
     self.assertEqual(True, real_coder.decode(real_coder.encode(True)))
-    self.assertEqual(
-        real_coder.encode(False), expected_coder.encode(False))
+    self.assertEqual(real_coder.encode(False), expected_coder.encode(False))
     self.assertEqual(False, real_coder.decode(real_coder.encode(False)))
 
   def test_iterable_coder(self):
@@ -148,8 +144,8 @@ class TypeCodersTest(unittest.TestCase):
     # IterableCoder.decode() always returns a list.  Its implementation,
     # IterableCoderImpl, *can* return a non-list if it is provided a read_state
     # object, but this is not possible using the atomic IterableCoder interface.
-    self.assertIs(list,
-                  type(expected_coder.decode(expected_coder.encode(values))))
+    self.assertIs(
+        list, type(expected_coder.decode(expected_coder.encode(values))))
 
 
 if __name__ == '__main__':

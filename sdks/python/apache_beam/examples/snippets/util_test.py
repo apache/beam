@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import unittest
@@ -40,14 +42,23 @@ class UtilTest(unittest.TestCase):
       actual = (
           pipeline
           | beam.Create([
-              {'a': '🍓', 'b': True},
-              {'a': '🥕', 'b': 42},
-              {'a': '🍆', 'b': '"hello"'},
-              {'a': '🍅', 'b': [1, 2, 3]},
-              {'a': '🥔', 'b': 'B'},
+              {
+                  'a': '🍓', 'b': True
+              },
+              {
+                  'a': '🥕', 'b': 42
+              },
+              {
+                  'a': '🍆', 'b': '"hello"'
+              },
+              {
+                  'a': '🍅', 'b': [1, 2, 3]
+              },
+              {
+                  'a': '🥔', 'b': 'B'
+              },
           ])
-          | beam.Map(str)
-      )
+          | beam.Map(str))
       util.assert_matches_stdout(actual, expected)
 
   def test_assert_matches_stdout_string(self):
@@ -56,8 +67,7 @@ class UtilTest(unittest.TestCase):
       actual = (
           pipeline
           | beam.Create(['🍓', '🥕', '🍆', '🍅', '🥔'])
-          | beam.Map(str)
-      )
+          | beam.Map(str))
       util.assert_matches_stdout(actual, expected)
 
   def test_assert_matches_stdout_sorted_keys(self):
@@ -65,9 +75,12 @@ class UtilTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       actual = (
           pipeline
-          | beam.Create([{'list': [2, 1]}, {'list': [4, 3]}])
-          | beam.Map(str)
-      )
+          | beam.Create([{
+              'list': [2, 1]
+          }, {
+              'list': [4, 3]
+          }])
+          | beam.Map(str))
       util.assert_matches_stdout(
           actual, expected, lambda elem: {'sorted': sorted(elem['list'])})
 

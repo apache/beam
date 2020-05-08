@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
 This is Combine load test with Synthetic Source. Besides of the standard
 input options there are additional options:
@@ -29,11 +30,12 @@ will be stored,
 will be stored,
 * input_options - options for Synthetic Sources.
 
-Example test run on DirectRunner:
+Example test run:
 
-python setup.py nosetests \
+python -m apache_beam.testing.load_tests.combine_test \
     --test-pipeline-options="
     --project=big-query-project
+    --region=...
     --publish_to_big_query=true
     --metrics_dataset=python_load_tests
     --metrics_table=combine
@@ -42,135 +44,74 @@ python setup.py nosetests \
     --input_options='{
     \"num_records\": 300,
     \"key_size\": 5,
-    \"value_size\":15,
-    \"bundle_size_distribution_type\": \"const\",
-    \"bundle_size_distribution_param\": 1,
-    \"force_initial_num_bundles\": 0
-    }'" \
-    --tests apache_beam.testing.load_tests.combine_test
+    \"value_size\": 15
+    }'"
 
 or:
 
-./gradlew -PloadTest.args='
+./gradlew -PloadTest.args="
     --publish_to_big_query=true
     --project=...
-    --metrics_dataset=python_load_test
-    --metrics_table=combine
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=DirectRunner
-    --fanout=1
-    --top_count=1000' \
--PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
--Prunner=DirectRunner :sdks:python:apache_beam:testing:load-tests:run
-
-To run test on other runner (ex. Dataflow):
-
-python setup.py nosetests \
-    --test-pipeline-options="
-        --runner=TestDataflowRunner
-        --fanout=1
-        --top_count=1000
-        --project=...
-        --staging_location=gs://...
-        --temp_location=gs://...
-        --sdk_location=./dist/apache-beam-x.x.x.dev0.tar.gz
-        --publish_to_big_query=true
-        --metrics_dataset=python_load_tests
-        --metrics_table=combine
-        --input_options='{
-        \"num_records\": 1000,
-        \"key_size\": 5,
-        \"value_size\":15,
-        \"bundle_size_distribution_type\": \"const\",
-        \"bundle_size_distribution_param\": 1,
-        \"force_initial_num_bundles\": 0
-        }'" \
-    --tests apache_beam.testing.load_tests.combine_test
-
-or:
-
-./gradlew -PloadTest.args='
-    --publish_to_big_query=true
-    --project=...
+    --region=...
     --metrics_dataset=python_load_tests
     --metrics_table=combine
-    --temp_location=gs://...
-    --input_options=\'
-      {"num_records": 1,
-      "key_size": 1,
-      "value_size":1,
-      "bundle_size_distribution_type": "const",
-      "bundle_size_distribution_param": 1,
-      "force_initial_num_bundles": 1}\'
-    --runner=TestDataflowRunner
+    --top_count=1000
     --fanout=1
-    --top_count=1000' \
--PloadTest.mainClass=
-apache_beam.testing.load_tests.combine_test \
--Prunner=
-TestDataflowRunner :sdks:python:apache_beam:testing:load-tests:run
+    --input_options='{
+      \"num_records\": 1,
+      \"key_size\": 1,
+      \"value_size\": 1}'
+    --runner=DirectRunner" \
+-PloadTest.mainClass=apache_beam.testing.load_tests.combine_test \
+-Prunner=DirectRunner :sdks:python:apache_beam:testing:load_tests:run
 """
+
+# pytype: skip-file
 
 from __future__ import absolute_import
 
 import logging
-import os
-import unittest
+import sys
 
 import apache_beam as beam
-from apache_beam.testing import synthetic_pipeline
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
-
-load_test_enabled = False
-if os.environ.get('LOAD_TEST_ENABLED') == 'true':
-  load_test_enabled = True
+from apache_beam.testing.synthetic_pipeline import SyntheticSource
 
 
-@unittest.skipIf(not load_test_enabled, 'Enabled only for phrase triggering.')
 class CombineTest(LoadTest):
-  def setUp(self):
-    super(CombineTest, self).setUp()
-    self.fanout = self.pipeline.get_option('fanout')
-    if self.fanout is None:
-      self.fanout = 1
-    else:
-      self.fanout = int(self.fanout)
-
+  def __init__(self):
+    super(CombineTest, self).__init__()
+    self.fanout = self.get_option_or_default('fanout', 1)
     try:
       self.top_count = int(self.pipeline.get_option('top_count'))
     except (TypeError, ValueError):
-      self.fail('You should set \"--top_count\" option to use TOP combiners')
+      logging.error(
+          'You should set \"--top_count\" option to use TOP '
+          'combiners')
+      sys.exit(1)
 
   class _GetElement(beam.DoFn):
     def process(self, element):
       yield element
 
-  def testCombineGlobally(self):
-    input = (self.pipeline
-             | beam.io.Read(synthetic_pipeline.SyntheticSource(
-                 self.parseTestPipelineOptions()))
-             | 'Measure time: Start' >> beam.ParDo(
-                 MeasureTime(self.metrics_namespace))
-            )
+  def test(self):
+    input = (
+        self.pipeline
+        | beam.io.Read(SyntheticSource(self.parse_synthetic_source_options()))
+        | 'Measure time: Start' >> beam.ParDo(
+            MeasureTime(self.metrics_namespace)))
 
     for branch in range(self.fanout):
-      # pylint: disable=expression-not-assigned
-      (input
-       | 'Combine with Top %i' % branch >> beam.CombineGlobally(
-           beam.combiners.TopCombineFn(self.top_count))
-       | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
-       | 'Measure time: End %i' % branch >> beam.ParDo(
-           MeasureTime(self.metrics_namespace))
-      )
+      (  # pylint: disable=expression-not-assigned
+          input
+          | 'Combine with Top %i' % branch >> beam.CombineGlobally(
+              beam.combiners.TopCombineFn(self.top_count))
+          | 'Consume %i' % branch >> beam.ParDo(self._GetElement())
+          | 'Measure time: End %i' % branch >> beam.ParDo(
+              MeasureTime(self.metrics_namespace)))
 
 
 if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.DEBUG)
-  unittest.main()
+  logging.basicConfig(level=logging.INFO)
+  CombineTest().run()

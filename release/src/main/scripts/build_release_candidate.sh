@@ -45,7 +45,11 @@ PYTHON_ARTIFACTS_DIR=python
 BEAM_ROOT_DIR=beam
 WEBSITE_ROOT_DIR=beam-site
 
+DOCKER_IMAGE_DEFAULT_REPO_ROOT=apache
+DOCKER_IMAGE_DEFAULT_REPO_PREFIX=beam_
+
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
+FLINK_VER=("1.8" "1.9" "1.10")
 
 echo "================Setting Up Environment Variables==========="
 echo "Which release version are you working on: "
@@ -172,6 +176,7 @@ if [[ $confirmation = "y" ]]; then
   cd sdks/python
   virtualenv ${LOCAL_PYTHON_VIRTUALENV}
   source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  pip install -r build-requirements.txt
   python setup.py sdist --format=zip
   cd dist
 
@@ -220,23 +225,32 @@ if [[ $confirmation = "y" ]]; then
   echo '-------------------Generating and Pushing Python images-----------------'
   ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc${RC_NUM}
   for ver in "${PYTHON_VER[@]}"; do
-     docker push apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM} &
+    docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM} &
   done
 
   echo '-------------------Generating and Pushing Java images-----------------'
-  ./gradlew :sdks:java:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
 
-  echo '-------------------Generating and Pushing Go images-----------------'
-  ./gradlew :sdks:go:container:dockerPush -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  echo '-------------Generating and Pushing Flink job server images-------------'
+  echo "Building containers for the following Flink versions:" "${FLINK_VER[@]}"
+  for ver in "${FLINK_VER[@]}"; do
+    ./gradlew ":runners:flink:${ver}:job-server-container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
+  done
+
+  echo '-------------Generating and Pushing Spark job server image-------------'
+  ./gradlew ":runners:spark:job-server:container:dockerPush" -Pdocker-tag="${RELEASE}_rc${RC_NUM}"
 
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 
   echo '-------------------Clean up images at local-----------------'
   for ver in "${PYTHON_VER[@]}"; do
-     docker rmi -f apachebeam/${ver}_sdk:${RELEASE}_rc${RC_NUM}
+     docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM}
   done
-  docker rmi -f apachebeam/java_sdk:${RELEASE}_rc${RC_NUM}
-  docker rmi -f apachebeam/go_sdk:${RELEASE}_rc${RC_NUM}
+  docker rmi -f ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}java_sdk:${RELEASE}_rc${RC_NUM}
+  for ver in "${FLINK_VER[@]}"; do
+    docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}flink${ver}_job_server:${RELEASE}_rc${RC_NUM}"
+  done
+  docker rmi -f "${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}spark_job_server:${RELEASE}_rc${RC_NUM}"
 fi
 
 echo "[Current Step]: Update beam-site"
@@ -262,7 +276,7 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  cd sdks/python && tox -e docs
+  cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 

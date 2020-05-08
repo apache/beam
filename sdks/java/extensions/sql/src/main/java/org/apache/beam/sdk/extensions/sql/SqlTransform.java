@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.HashMap;
@@ -24,15 +25,18 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv.BeamSqlEnvBuilder;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.schema.BeamPCollectionTable;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.provider.ReadOnlyTableProvider;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -87,6 +91,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   abstract String queryString();
 
+  abstract QueryParameters queryParameters();
+
   abstract List<UdfDefinition> udfDefinitions();
 
   abstract List<UdafDefinition> udafDefinitions();
@@ -122,7 +128,8 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     sqlEnvBuilder.setPipelineOptions(input.getPipeline().getOptions());
 
     BeamSqlEnv sqlEnv = sqlEnvBuilder.build();
-    return BeamSqlRelUtils.toPCollection(input.getPipeline(), sqlEnv.parseQuery(queryString()));
+    return BeamSqlRelUtils.toPCollection(
+        input.getPipeline(), sqlEnv.parseQuery(queryString(), queryParameters()));
   }
 
   @SuppressWarnings("unchecked")
@@ -177,6 +184,7 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   public static SqlTransform query(String queryString) {
     return builder()
         .setQueryString(queryString)
+        .setQueryParameters(QueryParameters.ofNone())
         .setUdafDefinitions(Collections.emptyList())
         .setUdfDefinitions(Collections.emptyList())
         .setTableProviderMap(Collections.emptyMap())
@@ -192,6 +200,14 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
   public SqlTransform withDefaultTableProvider(String name, TableProvider tableProvider) {
     return withTableProvider(name, tableProvider).toBuilder().setDefaultTableProvider(name).build();
+  }
+
+  public SqlTransform withNamedParameters(Map<String, ?> parameters) {
+    return toBuilder().setQueryParameters(QueryParameters.ofNamed(parameters)).build();
+  }
+
+  public SqlTransform withPositionalParameters(List<?> parameters) {
+    return toBuilder().setQueryParameters(QueryParameters.ofPositional(parameters)).build();
   }
 
   public SqlTransform withAutoUdfUdafLoad(boolean autoUdfUdafLoad) {
@@ -242,8 +258,11 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
   }
 
   @AutoValue.Builder
-  abstract static class Builder {
+  abstract static class Builder
+      implements ExternalTransformBuilder<External.Configuration, PInput, PCollection<Row>> {
     abstract Builder setQueryString(String queryString);
+
+    abstract Builder setQueryParameters(QueryParameters queryParameters);
 
     abstract Builder setUdfDefinitions(List<UdfDefinition> udfDefinitions);
 
@@ -256,6 +275,19 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
     abstract Builder setDefaultTableProvider(@Nullable String defaultTableProvider);
 
     abstract SqlTransform build();
+
+    @Override
+    public PTransform<PInput, PCollection<Row>> buildExternal(
+        External.Configuration configuration) {
+      return builder()
+          .setQueryString(configuration.query)
+          .setQueryParameters(QueryParameters.ofNone())
+          .setUdafDefinitions(Collections.emptyList())
+          .setUdfDefinitions(Collections.emptyList())
+          .setTableProviderMap(Collections.emptyMap())
+          .setAutoUdfUdafLoad(false)
+          .build();
+    }
   }
 
   @AutoValue
@@ -279,6 +311,26 @@ public abstract class SqlTransform extends PTransform<PInput, PCollection<Row>> 
 
     static UdafDefinition of(String udafName, Combine.CombineFn combineFn) {
       return new AutoValue_SqlTransform_UdafDefinition(udafName, combineFn);
+    }
+  }
+
+  @AutoService(ExternalTransformRegistrar.class)
+  public static class External implements ExternalTransformRegistrar {
+
+    private static final String URN = "beam:external:java:sql:v1";
+
+    @Override
+    public Map<String, Class<? extends ExternalTransformBuilder>> knownBuilders() {
+      return org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap.of(
+          URN, AutoValue_SqlTransform.Builder.class);
+    }
+
+    public static class Configuration {
+      String query;
+
+      public void setQuery(String query) {
+        this.query = query;
+      }
     }
   }
 }

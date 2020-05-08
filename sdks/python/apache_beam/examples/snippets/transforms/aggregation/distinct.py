@@ -16,6 +16,8 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -36,8 +38,7 @@ def distinct(test=None):
             '🍅',
         ])
         | 'Deduplicate elements' >> beam.Distinct()
-        | beam.Map(print)
-    )
+        | beam.Map(print))
     # [END distinct]
     if test:
       test(unique_elements)

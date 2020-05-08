@@ -120,9 +120,9 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
   }
 
   /**
-   * Coder for {@link KeyedTimerData}. Note we don't use the {@link
-   * org.apache.beam.runners.core.TimerInternals.TimerDataCoder} here directly since we want to
-   * en/decode timestamp first so the timers will be sorted in the state.
+   * Coder for {@link KeyedTimerData}. Note we don't use the {@link TimerInternals.TimerDataCoderV2}
+   * here directly since we want to en/decode timestamp first so the timers will be sorted in the
+   * state.
    */
   public static class KeyedTimerDataCoder<K> extends StructuredCoder<KeyedTimerData<K>> {
     private static final StringUtf8Coder STRING_CODER = StringUtf8Coder.of();

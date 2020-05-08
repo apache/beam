@@ -129,8 +129,8 @@ public class ApexGroupByKeyOperator<K, V>
     this.keyCoder = ((KvCoder<K, V>) input.getCoder()).getKeyCoder();
     this.valueCoder = ((KvCoder<K, V>) input.getCoder()).getValueCoder();
     this.stateInternalsFactory = stateBackend.newStateInternalsFactory(keyCoder);
-    TimerInternals.TimerDataCoder timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    TimerInternals.TimerDataCoderV2 timerCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.timerInternals = new ApexTimerInternals<>(timerCoder);
   }
 

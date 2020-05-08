@@ -25,7 +25,7 @@
 #   1. Please set all variables in script.config before running this script.
 #   2. Please babysit this script until first pipeline starts.
 
-
+cd $(dirname $0)
 . script.config
 
 
@@ -140,6 +140,7 @@ if [[ -z `which gcloud` ]]; then
 
     gcloud init
     gcloud config set project ${USER_GCP_PROJECT}
+    gcloud config set compute/region ${USER_GCP_REGION}
 
     echo "-----------------Setting Up Service Account-----------------"
     if [[ ! -z "${USER_SERVICE_ACCOUNT_EMAIL}" ]]; then
@@ -209,7 +210,7 @@ if [[ "$java_quickstart_flink_local" = true ]]; then
   echo "*************************************************************"
   echo "* Running Java Quickstart with Flink local runner"
   echo "*************************************************************"
-  ./gradlew :runners:flink:1.9:runQuickstartJavaFlinkLocal \
+  ./gradlew :runners:flink:1.10:runQuickstartJavaFlinkLocal \
   -Prepourl=${REPO_URL} \
   -Pver=${RELEASE_VER}
 else
@@ -253,7 +254,7 @@ if [[ ("$java_mobile_game_direct" = true || "$java_mobile_game_dataflow" = true)
   echo "Will create Pubsub topic: ${MOBILE_GAME_PUBSUB_TOPIC}"
 
   echo "-----------------Creating BigQuery Dataset-----------------"
-  bq mk --project=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
+  bq mk --project_id=${USER_GCP_PROJECT} ${MOBILE_GAME_DATASET}
 
   echo "-----------------Creating Pubsub Topic-----------------"
   gcloud pubsub topics create --project=${USER_GCP_PROJECT} ${MOBILE_GAME_PUBSUB_TOPIC}
@@ -422,7 +423,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "----------------Starting Leaderboard with DirectRunner-----------------------"
     if [[ "$python_leaderboard_direct" = true ]]; then
       LEADERBOARD_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DIRECT_DATASET}
       echo "export LEADERBOARD_DIRECT_DATASET=${LEADERBOARD_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -457,7 +458,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "----------------Starting Leaderboard with DataflowRunner---------------------"
     if [[ "$python_leaderboard_dataflow" = true ]]; then
       LEADERBOARD_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${LEADERBOARD_DF_DATASET}
       echo "export LEADERBOARD_DF_DATASET=${LEADERBOARD_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -468,6 +469,7 @@ if [[ ("$python_leaderboard_direct" = true \
       . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
       python -m apache_beam.examples.complete.game.leader_board \
       --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${LEADERBOARD_DF_DATASET} \
       --runner DataflowRunner \
@@ -494,7 +496,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "------------------Starting GameStats with DirectRunner-----------------------"
     if [[ "$python_gamestats_direct" = true ]]; then
       GAMESTATS_DIRECT_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DIRECT_DATASET}
       echo "export GAMESTATS_DIRECT_DATASET=${GAMESTATS_DIRECT_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -530,7 +532,7 @@ if [[ ("$python_leaderboard_direct" = true \
     echo "-------------------Starting GameStats with DataflowRunner--------------------"
     if [[ "$python_gamestats_dataflow" = true ]]; then
       GAMESTATS_DF_DATASET=${USER}_python_validations_$(date +%m%d)_$RANDOM
-      bq mk --project=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
+      bq mk --project_id=${USER_GCP_PROJECT} ${GAMESTATS_DF_DATASET}
       echo "export GAMESTATS_DF_DATASET=${GAMESTATS_DF_DATASET}" >> ~/.bashrc
 
       echo "This is a streaming job. This task will be launched in a separate terminal."
@@ -542,6 +544,7 @@ if [[ ("$python_leaderboard_direct" = true \
       . ${LOCAL_BEAM_DIR}/beam_env_${py_version}/bin/activate
       python -m apache_beam.examples.complete.game.game_stats \
       --project=${USER_GCP_PROJECT} \
+      --region=${USER_GCP_REGION} \
       --topic projects/${USER_GCP_PROJECT}/topics/${SHARED_PUBSUB_TOPIC} \
       --dataset ${GAMESTATS_DF_DATASET} \
       --runner DataflowRunner \

@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
  * <p>Note that file matching should only occur once the file system is in a stable state and
  * guaranteed to provide a consistent result during file pattern matching.
  */
+@Internal
 public class FilePatternMatchingShardedFile implements ShardedFile {
 
   private static final Logger LOG = LoggerFactory.getLogger(FilePatternMatchingShardedFile.class);

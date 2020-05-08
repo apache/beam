@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WriteFilesPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
@@ -46,7 +45,7 @@ import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -66,7 +65,7 @@ public class WriteFilesTranslation {
     return payloadForWriteFilesLike(
         new WriteFilesLike() {
           @Override
-          public SdkFunctionSpec translateSink(SdkComponents newComponents) {
+          public FunctionSpec translateSink(SdkComponents newComponents) {
             // TODO: register the environment
             return toProto(transform.getSink());
           }
@@ -96,31 +95,27 @@ public class WriteFilesTranslation {
         components);
   }
 
-  private static SdkFunctionSpec toProto(FileBasedSink<?, ?, ?> sink) {
+  private static FunctionSpec toProto(FileBasedSink<?, ?, ?> sink) {
     return toProto(CUSTOM_JAVA_FILE_BASED_SINK_URN, sink);
   }
 
-  private static SdkFunctionSpec toProto(String urn, Serializable serializable) {
-    return SdkFunctionSpec.newBuilder()
-        .setSpec(
-            FunctionSpec.newBuilder()
-                .setUrn(urn)
-                .setPayload(
-                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(serializable)))
-                .build())
+  private static FunctionSpec toProto(String urn, Serializable serializable) {
+    return FunctionSpec.newBuilder()
+        .setUrn(urn)
+        .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(serializable)))
         .build();
   }
 
   @VisibleForTesting
-  static FileBasedSink<?, ?, ?> sinkFromProto(SdkFunctionSpec sinkProto) throws IOException {
+  static FileBasedSink<?, ?, ?> sinkFromProto(FunctionSpec sinkProto) throws IOException {
     checkArgument(
-        sinkProto.getSpec().getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_URN),
+        sinkProto.getUrn().equals(CUSTOM_JAVA_FILE_BASED_SINK_URN),
         "Cannot extract %s instance from %s with URN %s",
         FileBasedSink.class.getSimpleName(),
         FunctionSpec.class.getSimpleName(),
-        sinkProto.getSpec().getUrn());
+        sinkProto.getUrn());
 
-    byte[] serializedSink = sinkProto.getSpec().getPayload().toByteArray();
+    byte[] serializedSink = sinkProto.getPayload().toByteArray();
 
     return (FileBasedSink<?, ?, ?>)
         SerializableUtils.deserializeFromByteArray(
@@ -252,7 +247,7 @@ public class WriteFilesTranslation {
     }
 
     @Override
-    public SdkFunctionSpec translateSink(SdkComponents newComponents) {
+    public FunctionSpec translateSink(SdkComponents newComponents) {
       // TODO: re-register the environment with the new components
       return payload.getSink();
     }
@@ -304,7 +299,7 @@ public class WriteFilesTranslation {
 
   /** These methods drive to-proto translation from Java and from rehydrated WriteFiles. */
   private interface WriteFilesLike {
-    SdkFunctionSpec translateSink(SdkComponents newComponents);
+    FunctionSpec translateSink(SdkComponents newComponents);
 
     Map<String, RunnerApi.SideInput> translateSideInputs(SdkComponents components);
 

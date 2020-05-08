@@ -75,7 +75,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
@@ -187,8 +186,8 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
     this.inputCoder = inputCoder;
     this.outputCoders = outputCoders;
 
-    TimerInternals.TimerDataCoder timerCoder =
-        TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
+    TimerInternals.TimerDataCoderV2 timerCoder =
+        TimerInternals.TimerDataCoderV2.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
     this.doFnSchemaInformation = doFnSchemaInformation;
     this.sideInputMapping = sideInputMapping;
@@ -384,7 +383,13 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
       checkArgument(namespace instanceof WindowNamespace);
       BoundedWindow window = ((WindowNamespace<?>) namespace).getWindow();
       pushbackDoFnRunner.onTimer(
-          timerData.getTimerId(), window, timerData.getTimestamp(), timerData.getDomain());
+          timerData.getTimerId(),
+          timerData.getTimerFamilyId(),
+          null,
+          window,
+          timerData.getTimestamp(),
+          timerData.getOutputTimestamp(),
+          timerData.getDomain());
     }
     pushbackDoFnRunner.finishBundle();
   }
@@ -506,7 +511,13 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
 
       doFnRunner =
           DoFnRunners.defaultStatefulDoFnRunner(
-              doFn, doFnRunner, windowingStrategy, cleanupTimer, stateCleaner);
+              doFn,
+              inputCoder,
+              doFnRunner,
+              stepContext,
+              windowingStrategy,
+              cleanupTimer,
+              stateCleaner);
     }
 
     pushbackDoFnRunner =
@@ -520,8 +531,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator
           (StateInternalsFactory<byte[]>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({"rawtypes", "unchecked"})
-      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object, Object>> splittableDoFn =
-          (ProcessFn) doFn;
+      ProcessFn<InputT, OutputT, Object, Object, Object> splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
       TimerInternalsFactory<byte[]> timerInternalsFactory = key -> currentKeyTimerInternals;
       splittableDoFn.setTimerInternalsFactory(timerInternalsFactory);

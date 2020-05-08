@@ -36,7 +36,7 @@ import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,7 +142,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         inputLocation.getInstructionId(),
         inputLocation.getTransformId());
     final BeamFnDataInboundObserver<T> observer =
-        BeamFnDataInboundObserver.forConsumer(coder, listener);
+        BeamFnDataInboundObserver.forConsumer(inputLocation, coder, listener);
     if (connectedClient.isDone()) {
       try {
         connectedClient.get().registerConsumer(inputLocation, observer);

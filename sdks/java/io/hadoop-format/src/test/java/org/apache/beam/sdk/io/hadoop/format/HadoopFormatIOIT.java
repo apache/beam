@@ -40,6 +40,7 @@ import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.beam.sdk.testutils.metrics.IOITMetrics;
 import org.apache.beam.sdk.testutils.metrics.MetricsReader;
 import org.apache.beam.sdk.testutils.metrics.TimeMonitor;
+import org.apache.beam.sdk.testutils.publishing.InfluxDBSettings;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -99,6 +100,7 @@ public class HadoopFormatIOIT {
   private static SerializableConfiguration hadoopConfiguration;
   private static String bigQueryDataset;
   private static String bigQueryTable;
+  private static InfluxDBSettings settings;
 
   @Rule public TestPipeline writePipeline = TestPipeline.create();
   @Rule public TestPipeline readPipeline = TestPipeline.create();
@@ -114,6 +116,12 @@ public class HadoopFormatIOIT {
     tableName = DatabaseTestHelper.getTestTableName("HadoopFormatIOIT");
     bigQueryDataset = options.getBigQueryDataset();
     bigQueryTable = options.getBigQueryTable();
+    settings =
+        InfluxDBSettings.builder()
+            .withHost(options.getInfluxHost())
+            .withDatabase(options.getInfluxDatabase())
+            .withMeasurement(options.getInfluxMeasurement())
+            .get();
 
     executeWithRetry(HadoopFormatIOIT::createTable);
     setupHadoopConfiguration(options);
@@ -214,32 +222,40 @@ public class HadoopFormatIOIT {
     IOITMetrics writeMetrics =
         new IOITMetrics(writeSuppliers, writeResult, NAMESPACE, uuid, timestamp);
     readMetrics.publish(bigQueryDataset, bigQueryTable);
+    readMetrics.publishToInflux(settings);
     writeMetrics.publish(bigQueryDataset, bigQueryTable);
+    writeMetrics.publishToInflux(settings);
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getWriteSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
+    suppliers.add(getTimeMetric(uuid, timestamp, "write_time"));
     suppliers.add(
-        reader -> {
-          long writeStart = reader.getStartTimeMetric("write_time");
-          long writeEnd = reader.getEndTimeMetric("write_time");
-          return NamedTestResult.create(
-              uuid, timestamp, "write_time", (writeEnd - writeStart) / 1e3);
-        });
+        reader ->
+            NamedTestResult.create(
+                uuid,
+                timestamp,
+                "data_size",
+                DatabaseTestHelper.getPostgresTableSize(dataSource, tableName)
+                    .orElseThrow(() -> new IllegalStateException("Unable to fetch table size"))));
     return suppliers;
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(
       String uuid, String timestamp) {
     Set<Function<MetricsReader, NamedTestResult>> suppliers = new HashSet<>();
-    suppliers.add(
-        reader -> {
-          long readStart = reader.getStartTimeMetric("read_time");
-          long readEnd = reader.getEndTimeMetric("read_time");
-          return NamedTestResult.create(uuid, timestamp, "read_time", (readEnd - readStart) / 1e3);
-        });
+    suppliers.add(getTimeMetric(uuid, timestamp, "read_time"));
     return suppliers;
+  }
+
+  private Function<MetricsReader, NamedTestResult> getTimeMetric(
+      final String uuid, final String timestamp, final String metricName) {
+    return reader -> {
+      long startTime = reader.getStartTimeMetric(metricName);
+      long endTime = reader.getEndTimeMetric(metricName);
+      return NamedTestResult.create(uuid, timestamp, metricName, (endTime - startTime) / 1e3);
+    };
   }
 
   /**

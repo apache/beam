@@ -103,6 +103,7 @@ class WriteTables<DestinationT>
   private final boolean ignoreUnknownValues;
   @Nullable private final String kmsKey;
   private final String sourceFormat;
+  private final boolean useAvroLogicalTypes;
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -294,6 +295,7 @@ class WriteTables<DestinationT>
       boolean ignoreUnknownValues,
       String kmsKey,
       String sourceFormat,
+      boolean useAvroLogicalTypes,
       Set<SchemaUpdateOption> schemaUpdateOptions) {
 
     this.tempTable = tempTable;
@@ -310,6 +312,7 @@ class WriteTables<DestinationT>
     this.ignoreUnknownValues = ignoreUnknownValues;
     this.kmsKey = kmsKey;
     this.sourceFormat = sourceFormat;
+    this.useAvroLogicalTypes = useAvroLogicalTypes;
     this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
@@ -364,7 +367,8 @@ class WriteTables<DestinationT>
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat(sourceFormat)
-            .setIgnoreUnknownValues(ignoreUnknownValues);
+            .setIgnoreUnknownValues(ignoreUnknownValues)
+            .setUseAvroLogicalTypes(useAvroLogicalTypes);
     if (schemaUpdateOptions != null) {
       List<String> options =
           schemaUpdateOptions.stream().map(Enum::name).collect(Collectors.toList());

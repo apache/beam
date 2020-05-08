@@ -42,6 +42,7 @@ var (
 	id              = flag.String("id", "", "Local identifier (required in worker mode).")
 	loggingEndpoint = flag.String("logging_endpoint", "", "Local logging gRPC endpoint (required in worker mode).")
 	controlEndpoint = flag.String("control_endpoint", "", "Local control gRPC endpoint (required in worker mode).")
+	statusEndpoint  = flag.String("status_endpoint", "", "Local status gRPC endpoint (optional in worker mode).")
 	semiPersistDir  = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional in worker mode).")
 	options         = flag.String("options", "", "JSON-encoded pipeline options (required in worker mode).")
 )

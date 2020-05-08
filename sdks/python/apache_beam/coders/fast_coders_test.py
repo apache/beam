@@ -16,11 +16,12 @@
 #
 
 """Unit tests for compiled implementation of coder impls."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
 import unittest
-
 
 # Run all the standard coder test cases.
 from apache_beam.coders.coders_test_common import *
@@ -28,7 +29,6 @@ from apache_beam.tools import utils
 
 
 class FastCoders(unittest.TestCase):
-
   def test_using_fast_impl(self):
     try:
       utils.check_compiled('apache_beam.coders')

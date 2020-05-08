@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.common;
 
 import com.google.auto.service.AutoService;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -26,6 +27,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** A registrar containing the default GCP options. */
 @AutoService(PipelineOptionsRegistrar.class)
+@Internal
 public class GcpIoPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
   @Override
   public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {

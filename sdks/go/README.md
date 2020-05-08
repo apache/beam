@@ -87,7 +87,7 @@ purse: 6
 To run wordcount on dataflow runner do:
 
 ```
-$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
+$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<YOUR_GCP_REGION> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
 ```
 
 The output is a GCS file in this case:
@@ -108,8 +108,7 @@ Crown'd: 1
 
 
 See [BUILD.md](./BUILD.md) for how to build Go code in general. See
-[CONTAINERS.md](../CONTAINERS.md) for how to build and push the Go
-SDK harness container image.
+[container documentation](https://beam.apache.org/documentation/runtime/environments/#building-container-images) for how to build and push the Go SDK harness container image.
 
 ## Issues
 

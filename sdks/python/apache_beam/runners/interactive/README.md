@@ -68,7 +68,7 @@ exploration much faster and easier. It provides nice features including
     |                          | Caching locally | Caching on GCS |
     | ------------------------ | --------------- | -------------- |
     | Running on local machine | supported       | supported      |
-    | Running on Flink         | /               | supported      |
+    | Running on Flink         | supported       | supported      |
 
 ## Getting Started
 
@@ -84,23 +84,24 @@ a quick reference). For a more general and complete getting started guide, see
 *   Install [GraphViz](https://www.graphviz.org/download/) with your favorite
     system package manager.
 
--   Install [Jupyter](https://jupyter.org/). You can either use the one that's
-    included in [Anaconda](https://www.anaconda.com/download/) or
+-   Install [JupyterLab](https://jupyter.org/install.html). You can use
+    either **conda** or **pip**.
 
-    ```bash
-    $ pip2 install --upgrade jupyter
-    ```
+    * conda
+        ```bash
+        conda install -c conda-forge jupyterlab
+        ```
+    * pip
+        ```bash
+        pip install jupyterlab
+        ```
 
-    Make sure you have **Python2 Jupyter** since Apache Beam only supports
-    Python 2 at the time being.
-
--   Install, create and activate your [virtualenv](https://virtualenv.pypa.io/).
+-   Install, create and activate your [venv](https://docs.python.org/3/library/venv.html).
     (optional but recommended)
 
     ```bash
-    $ pip2 install --upgrade virtualenv
-    $ virtualenv -p python2 beam_venv_dir
-    $ source beam_venv_dir/bin/activate
+    python3 -m venv /path/to/beam_venv_dir
+    source /path/to/beam_venv_dir/bin/activate
     ```
 
     If you are using shells other than bash (e.g. fish, csh), check
@@ -110,34 +111,51 @@ a quick reference). For a more general and complete getting started guide, see
     **CHECK** that the virtual environment is activated by running
 
     ```bash
-    $ echo $VIRTUAL_ENV  # This should point to beam_venv_dir
-    # or
-    $ which python  # This sould point to beam_venv_dir/bin/python
+    which python  # This sould point to beam_venv_dir/bin/python
     ```
 
 *   Set up Apache Beam Python. **Make sure the virtual environment is activated
     when you run `setup.py`**
 
 *   ```bash
-    $ git clone https://github.com/apache/beam
-    $ cd beam/sdks/python
-    $ python setup.py install
+    git clone https://github.com/apache/beam
+    cd beam/sdks/python
+    python setup.py install
     ```
 
--   Install a IPython kernel for the virtual environment you've just created.
+-   Install an IPython kernel for the virtual environment you've just created.
     **Make sure the virtual environment is activate when you do this.** You can
-    skip this step if not using virtualenv.
+    skip this step if not using venv.
 
     ```bash
-    $ python -m pip install ipykernel
-    $ python -m ipykernel install --user --name beam_venv_kernel --display-name "Python (beam_venv)"
+    pip install ipykernel
+    python -m ipykernel install --user --name beam_venv_kernel --display-name "Python3 (beam_venv)"
     ```
 
     **CHECK** that IPython kernel `beam_venv_kernel` is available for Jupyter to
     use.
 
     ```bash
-    $ jupyter kernelspec list
+    jupyter kernelspec list
+    ```
+
+-   Extend JupyterLab through labextension. **Note**: labextension is different from nbextension
+    from pre-lab jupyter notebooks.
+
+    All jupyter labextensions need nodejs
+
+    ```bash
+    # Homebrew users do
+    brew install node
+    # Or Conda users do
+    conda install -c conda-forge nodejs
+    ```
+
+    Enable ipywidgets
+
+    ```bash
+    pip install ipywidgets
+    jupyter labextension install @jupyter-widgets/jupyterlab-manager
     ```
 
 ### Start the notebook
@@ -145,19 +163,36 @@ a quick reference). For a more general and complete getting started guide, see
 To start the notebook, simply run
 
 ```bash
-$ jupyter notebook
+jupyter lab
 ```
 
+Optionally increase the iopub broadcast data rate limit of jupyterlab
+
+```bash
+jupyter lab --NotebookApp.iopub_data_rate_limit=10000000
+```
+
+
 This automatically opens your default web browser pointing to
-http://localhost:8888.
+http://localhost:8888/lab.
 
-You can create a new notebook file by clicking `New` > `Notebook: Python
-(beam_venv)`.
+You can create a new notebook file by clicking `Python3 (beam_venv)` from the launcher
+page of jupyterlab.
 
-Or after you've already opend a notebook, change the kernel by clicking
-`Kernel` > `Change Kernel` > `Python (beam_venv)`.
+Or after you've already opened a notebook, change the kernel by clicking
+`Kernel` > `Change Kernel` > `Python3 (beam_venv)`.
 
 Voila! You can now run Beam pipelines interactively in your Jupyter notebook!
+
+In the notebook, you can use `tab` key on the keyboard for auto-completion.
+To turn on greedy auto-completion, you can run such ipython magic
+
+```
+%config IPCompleter.greedy=True
+```
+
+You can also use `shift` + `tab` keys on the keyboard for a popup of docstrings at the
+current cursor position.
 
 **See [Interactive Beam Example.ipynb](examples/Interactive%20Beam%20Example.ipynb)
 for more examples.**
@@ -219,48 +254,20 @@ as the underlying runner.
 
 You can choose to run Interactive Beam on Flink with the following settings.
 
-*   Install [docker](https://www.docker.com/).
-
-*   Build the SDK container and start the local FlinkService.
-
-    ```bash
-    $ ./gradlew -p sdks/python/container/py35 docker  # Optionally replace py35 with the Python version of your choice
-    $ ./gradlew :runners:flink:1.9:job-server:runShadow  # Blocking
-    ```
-
-*   Run `$ jupyter notebook` in another terminal.
-
 *   Use
-    [`portable_runner.PortableRunner()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/portable_runner.py)
-    as the underlying runner, while providing a
-    [`pipeline_options.PortableOptions()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/options/pipeline_options.py)
-    to the pipeline as follows.
+    [`flink_runner.FlinkRunner()`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/portability/flink_runner.py)
+    as the underlying runner.
 
     ```python
-    options = pipeline_options.PipelineOptions()
-    options.view_as(pipeline_options.PortableOptions).job_endpoint = 'localhost:8099'
-    options.view_as(pipeline_options.SetupOptions).sdk_location = 'container'
-    options.view_as(pipeline_options.DebugOptions).experiments = 'beam_fn_api'
-
-    cache_dir = 'gs://bucket-name/dir'
-    underlying_runner = portable_runner.PortableRunner()
-    runner = interactive_runner.InteractiveRunner(underlying_runner=underlying_runner, cache_dir=cache_dir)
-    p = beam.Pipeline(runner=runner, options=options)
+    p = beam.Pipeline(interactive_runner.InteractiveRunner(underlying_runner=flink_runner.FlinkRunner()))
     ```
 
-**Note**: Python Flink Runner (combination of PortableRunner and FlinkService)
-is being actively developed now, so these setups and commands are subject to
-changes. This guide and
+**Note**: This guide and
 [Interactive Beam Running on Flink.ipynb](examples/Interactive%20Beam%20Running%20on%20Flink.ipynb)
 capture the status of the world when it's last updated.
-
-## TL;DR;
-
-You can now interactively run Beam Python pipeline! Check out the Youtube demo
-
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/c5CjA1e3Cqw/0.jpg)](https://www.youtube.com/watch?v=c5CjA1e3Cqw)
 
 ## More Information
 
 *   [Apache Beam Python SDK Quickstart](https://beam.apache.org/get-started/quickstart-py/)
-*   [Interactive Beam Design Doc](https://docs.google.com/document/d/10bTc97GN5Wk-nhwncqNq9_XkJFVVy0WLT4gPFqP6Kmw/edit?usp=sharing)
+*   [Interactive Beam Design Doc V2](https://docs.google.com/document/d/1DYWrT6GL_qDCXhRMoxpjinlVAfHeVilK5Mtf8gO6zxQ/edit?usp=sharing)
+*   [Interactive Beam Design Doc V1](https://docs.google.com/document/d/10bTc97GN5Wk-nhwncqNq9_XkJFVVy0WLT4gPFqP6Kmw/edit?usp=sharing)

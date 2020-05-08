@@ -11,7 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 """Trainer for the chicago_taxi demo."""
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -50,16 +53,10 @@ def train_and_maybe_evaluate(hparams):
   tf_transform_output = tft.TFTransformOutput(hparams.tf_transform_dir)
 
   train_input = lambda: model.input_fn(
-      hparams.train_files,
-      tf_transform_output,
-      batch_size=TRAIN_BATCH_SIZE
-  )
+      hparams.train_files, tf_transform_output, batch_size=TRAIN_BATCH_SIZE)
 
   eval_input = lambda: model.input_fn(
-      hparams.eval_files,
-      tf_transform_output,
-      batch_size=EVAL_BATCH_SIZE
-  )
+      hparams.eval_files, tf_transform_output, batch_size=EVAL_BATCH_SIZE)
 
   train_spec = tf.estimator.TrainSpec(
       train_input, max_steps=hparams.train_steps)
@@ -169,16 +166,15 @@ def main():
       default=100,
       type=int)
   parser.add_argument(
-      '--schema-file',
-      help='File holding the schema for the input data')
+      '--schema-file', help='File holding the schema for the input data')
 
   args = parser.parse_args()
 
   # Set python level verbosity
-  tf.logging.set_verbosity(args.verbosity)
+  tf.compat.v1.logging.set_verbosity(args.verbosity)
   # Set C++ Graph Execution level verbosity
   os.environ['TF_CPP_MIN_LOG_LEVEL'] = str(
-      tf.logging.__dict__[args.verbosity] / 10)
+      getattr(tf.compat.v1.logging, args.verbosity) / 10)
 
   # Run the training job
   hparams = tf.contrib.training.HParams(**args.__dict__)

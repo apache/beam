@@ -15,6 +15,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -26,7 +28,6 @@ from apache_beam.testing.extra_assertions import ExtraAssertionsMixin
 
 
 class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
-
   def test_assert_array_count_equal_strings(self):
     data1 = [u"±♠Ωℑ", u"hello", "world"]
     data2 = ["hello", u"±♠Ωℑ", u"world"]
@@ -34,7 +35,9 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
 
   def test_assert_array_count_equal_mixed(self):
     data1 = [
-        {'a': 1, 123: 1.234},
+        {
+            'a': 1, 123: 1.234
+        },
         ['d', 1],
         u"±♠Ωℑ",
         np.zeros((3, 6)),
@@ -46,7 +49,9 @@ class ExtraAssertionsMixinTest(ExtraAssertionsMixin, unittest.TestCase):
         None,
     ]
     data2 = [
-        {123: 1.234, 'a': 1},
+        {
+            123: 1.234, 'a': 1
+        },
         ('a', 'b', 'c'),
         ['d', 1],
         None,

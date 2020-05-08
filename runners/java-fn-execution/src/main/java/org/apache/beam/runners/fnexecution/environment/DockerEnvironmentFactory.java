@@ -30,7 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -57,28 +57,15 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   static DockerEnvironmentFactory forServicesWithDocker(
       DockerCommand docker,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       ControlClientPool.Source clientSource,
       IdGenerator idGenerator,
       PipelineOptions pipelineOptions) {
     return new DockerEnvironmentFactory(
-        docker,
-        controlServiceServer,
-        loggingServiceServer,
-        retrievalServiceServer,
-        provisioningServiceServer,
-        idGenerator,
-        clientSource,
-        pipelineOptions);
+        docker, provisioningServiceServer, idGenerator, clientSource, pipelineOptions);
   }
 
   private final DockerCommand docker;
-  private final GrpcFnServer<FnApiControlClientPoolService> controlServiceServer;
-  private final GrpcFnServer<GrpcLoggingService> loggingServiceServer;
-  private final GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer;
   private final GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer;
   private final IdGenerator idGenerator;
   private final ControlClientPool.Source clientSource;
@@ -86,17 +73,11 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
 
   private DockerEnvironmentFactory(
       DockerCommand docker,
-      GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
-      GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-      GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
       GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
       IdGenerator idGenerator,
       ControlClientPool.Source clientSource,
       PipelineOptions pipelineOptions) {
     this.docker = docker;
-    this.controlServiceServer = controlServiceServer;
-    this.loggingServiceServer = loggingServiceServer;
-    this.retrievalServiceServer = retrievalServiceServer;
     this.provisioningServiceServer = provisioningServiceServer;
     this.idGenerator = idGenerator;
     this.clientSource = clientSource;
@@ -119,10 +100,7 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     String containerImage = dockerPayload.getContainerImage();
     // TODO: https://issues.apache.org/jira/browse/BEAM-4148 The default service address will not
     // work for Docker for Mac.
-    String loggingEndpoint = loggingServiceServer.getApiServiceDescriptor().getUrl();
-    String artifactEndpoint = retrievalServiceServer.getApiServiceDescriptor().getUrl();
     String provisionEndpoint = provisioningServiceServer.getApiServiceDescriptor().getUrl();
-    String controlEndpoint = controlServiceServer.getApiServiceDescriptor().getUrl();
 
     ImmutableList.Builder<String> dockerOptsBuilder =
         ImmutableList.<String>builder()
@@ -133,20 +111,14 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
             // host networking on Mac)
             .add("--env=DOCKER_MAC_CONTAINER=" + System.getenv("DOCKER_MAC_CONTAINER"));
 
-    Boolean retainDockerContainer =
+    final boolean retainDockerContainer =
         pipelineOptions.as(ManualDockerEnvironmentOptions.class).getRetainDockerContainers();
-    if (!retainDockerContainer) {
-      dockerOptsBuilder.add("--rm");
-    }
 
     String semiPersistDir = pipelineOptions.as(RemoteEnvironmentOptions.class).getSemiPersistDir();
     ImmutableList.Builder<String> argsBuilder =
         ImmutableList.<String>builder()
             .add(String.format("--id=%s", workerId))
-            .add(String.format("--logging_endpoint=%s", loggingEndpoint))
-            .add(String.format("--artifact_endpoint=%s", artifactEndpoint))
-            .add(String.format("--provision_endpoint=%s", provisionEndpoint))
-            .add(String.format("--control_endpoint=%s", controlEndpoint));
+            .add(String.format("--provision_endpoint=%s", provisionEndpoint));
     if (semiPersistDir != null) {
       argsBuilder.add(String.format("--semi_persist_dir=%s", semiPersistDir));
     }
@@ -159,25 +131,31 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
       containerId = docker.runImage(containerImage, dockerOptsBuilder.build(), argsBuilder.build());
       LOG.debug("Created Docker Container with Container ID {}", containerId);
       // Wait on a client from the gRPC server.
-      try {
-        instructionHandler = clientSource.take(workerId, Duration.ofMinutes(1));
-      } catch (TimeoutException timeoutEx) {
-        RuntimeException runtimeException =
-            new RuntimeException(
-                String.format(
-                    "Docker container %s failed to start up successfully within 1 minute.",
-                    containerImage),
-                timeoutEx);
+      while (instructionHandler == null) {
         try {
-          String containerLogs = docker.getContainerLogs(containerId);
-          LOG.error("Docker container {} logs:\n{}", containerId, containerLogs);
-        } catch (Exception getLogsException) {
-          runtimeException.addSuppressed(getLogsException);
+          // If the docker is not alive anymore, we abort.
+          if (!docker.isContainerRunning(containerId)) {
+            IllegalStateException illegalStateException =
+                new IllegalStateException(
+                    String.format("No container running for id %s", containerId));
+            try {
+              String containerLogs = docker.getContainerLogs(containerId);
+              LOG.error("Docker container {} logs:\n{}", containerId, containerLogs);
+            } catch (Exception getLogsException) {
+              illegalStateException.addSuppressed(getLogsException);
+            }
+            throw illegalStateException;
+          }
+          instructionHandler = clientSource.take(workerId, Duration.ofSeconds(5));
+        } catch (TimeoutException timeoutEx) {
+          LOG.info(
+              "Still waiting for startup of environment {} for worker id {}",
+              dockerPayload.getContainerImage(),
+              workerId);
+        } catch (InterruptedException interruptEx) {
+          Thread.currentThread().interrupt();
+          throw new RuntimeException(interruptEx);
         }
-        throw runtimeException;
-      } catch (InterruptedException interruptEx) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException(interruptEx);
       }
     } catch (Exception e) {
       if (containerId != null) {
@@ -265,15 +243,12 @@ public class DockerEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServiceServer,
         GrpcFnServer<GrpcLoggingService> loggingServiceServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServiceServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServiceServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServiceServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {
       return DockerEnvironmentFactory.forServicesWithDocker(
           DockerCommand.getDefault(),
-          controlServiceServer,
-          loggingServiceServer,
-          retrievalServiceServer,
           provisioningServiceServer,
           clientPool.getSource(),
           idGenerator,

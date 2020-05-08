@@ -15,9 +15,12 @@
 # limitations under the License.
 #
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
+import re
 import unittest
 from builtins import range
 
@@ -26,14 +29,15 @@ import grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners.common import NameContext
 from apache_beam.runners.worker import log_handler
+from apache_beam.runners.worker import statesampler
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def __init__(self):
     self.log_records_received = []
 
@@ -46,7 +50,6 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
 
 class FnApiLogRecordHandlerTest(unittest.TestCase):
-
   def setUp(self):
     self.test_logging_service = BeamFnLoggingServicer()
     self.server = grpc.server(UnboundedThreadPoolExecutor())
@@ -79,17 +82,61 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     num_received_log_entries = 0
     for outer in self.test_logging_service.log_records_received:
       for log_entry in outer.log_entries:
-        self.assertEqual(beam_fn_api_pb2.LogEntry.Severity.INFO,
-                         log_entry.severity)
-        self.assertEqual('%s: %s' % (msg, num_received_log_entries),
-                         log_entry.message)
-        self.assertEqual(u'log_handler_test._verify_fn_log_handler',
-                         log_entry.log_location)
+        self.assertEqual(
+            beam_fn_api_pb2.LogEntry.Severity.INFO, log_entry.severity)
+        self.assertEqual(
+            '%s: %s' % (msg, num_received_log_entries), log_entry.message)
+        self.assertTrue(
+            re.match(r'.*/log_handler_test.py:\d+', log_entry.log_location),
+            log_entry.log_location)
         self.assertGreater(log_entry.timestamp.seconds, 0)
         self.assertGreaterEqual(log_entry.timestamp.nanos, 0)
         num_received_log_entries += 1
 
     self.assertEqual(num_received_log_entries, num_log_entries)
+
+  def assertContains(self, haystack, needle):
+    self.assertTrue(
+        needle in haystack, 'Expected %r to contain %r.' % (haystack, needle))
+
+  def test_exc_info(self):
+    try:
+      raise ValueError('some message')
+    except ValueError:
+      _LOGGER.error('some error', exc_info=True)
+
+    self.fn_log_handler.close()
+
+    log_entry = self.test_logging_service.log_records_received[0].log_entries[0]
+    self.assertContains(log_entry.message, 'some error')
+    self.assertContains(log_entry.trace, 'some message')
+    self.assertContains(log_entry.trace, 'log_handler_test.py')
+
+  def test_context(self):
+    try:
+      with statesampler.instruction_id('A'):
+        tracker = statesampler.for_test()
+        with tracker.scoped_state(NameContext('name', 'tid'), 'stage'):
+          _LOGGER.info('message a')
+      with statesampler.instruction_id('B'):
+        _LOGGER.info('message b')
+      _LOGGER.info('message c')
+
+      self.fn_log_handler.close()
+      a, b, c = sum(
+          [list(logs.log_entries)
+           for logs in self.test_logging_service.log_records_received], [])
+
+      self.assertEqual(a.instruction_id, 'A')
+      self.assertEqual(b.instruction_id, 'B')
+      self.assertEqual(c.instruction_id, '')
+
+      self.assertEqual(a.transform_id, 'tid')
+      self.assertEqual(b.transform_id, '')
+      self.assertEqual(c.transform_id, '')
+
+    finally:
+      statesampler.set_current_tracker(None)
 
 
 # Test cases.
@@ -101,13 +148,14 @@ data = {
 
 
 def _create_test(name, num_logs):
-  setattr(FnApiLogRecordHandlerTest, 'test_%s' % name,
-          lambda self: self._verify_fn_log_handler(num_logs))
+  setattr(
+      FnApiLogRecordHandlerTest,
+      'test_%s' % name,
+      lambda self: self._verify_fn_log_handler(num_logs))
 
 
 for test_name, num_logs_entries in data.items():
   _create_test(test_name, num_logs_entries)
-
 
 if __name__ == '__main__':
   unittest.main()

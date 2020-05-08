@@ -19,12 +19,16 @@
 
 """Python worker logging."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import json
 import logging
 import threading
 import traceback
+from typing import Any
+from typing import Dict
 
 from apache_beam.runners.worker import statesampler
 
@@ -35,7 +39,6 @@ from apache_beam.runners.worker import statesampler
 # context information that changes while work items get executed:
 # work_item_id, step_name, stage_name.
 class _PerThreadWorkerData(threading.local):
-
   def __init__(self):
     super(_PerThreadWorkerData, self).__init__()
     # in the list, as going up and down all the way to zero incurs several
@@ -54,7 +57,6 @@ per_thread_worker_data = _PerThreadWorkerData()
 
 class PerThreadLoggingContext(object):
   """A context manager to add per thread attributes."""
-
   def __init__(self, **kwargs):
     self.kwargs = kwargs
     self.stack = per_thread_worker_data.stack
@@ -74,7 +76,6 @@ class PerThreadLoggingContext(object):
 
 class JsonLogFormatter(logging.Formatter):
   """A JSON formatter class as expected by the logging standard module."""
-
   def __init__(self, job_id, worker_id):
     super(JsonLogFormatter, self).__init__()
     self.job_id = job_id
@@ -115,10 +116,10 @@ class JsonLogFormatter(logging.Formatter):
         Python thread object. Nevertheless having this value can allow to
         filter log statement from only one specific thread.
     """
-    output = {}
+    output = {}  # type: Dict[str, Any]
     output['timestamp'] = {
-        'seconds': int(record.created),
-        'nanos': int(record.msecs * 1000000)}
+        'seconds': int(record.created), 'nanos': int(record.msecs * 1000000)
+    }
     # ERROR. INFO, DEBUG log levels translate into the same for severity
     # property. WARNING becomes WARN.
     output['severity'] = (

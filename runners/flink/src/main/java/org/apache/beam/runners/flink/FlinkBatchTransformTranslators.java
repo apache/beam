@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
 import org.apache.beam.runners.flink.translation.functions.FlinkDoFnFunction;
+import org.apache.beam.runners.flink.translation.functions.FlinkIdentityFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMergingNonShuffleReduceFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkMultiOutputPruningFunction;
 import org.apache.beam.runners.flink.translation.functions.FlinkPartialReduceFunction;
@@ -60,6 +61,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -77,15 +79,21 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
+import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.DataSet;
+import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.operators.FlatMapOperator;
 import org.apache.flink.api.java.operators.GroupCombineOperator;
 import org.apache.flink.api.java.operators.GroupReduceOperator;
 import org.apache.flink.api.java.operators.Grouping;
+import org.apache.flink.api.java.operators.MapOperator;
 import org.apache.flink.api.java.operators.MapPartitionOperator;
 import org.apache.flink.api.java.operators.SingleInputUdfOperator;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.optimizer.Optimizer;
+import org.joda.time.Instant;
 
 /**
  * Translators for transforming {@link PTransform PTransforms} to Flink {@link DataSet DataSets}.
@@ -306,11 +314,29 @@ class FlinkBatchTransformTranslators {
     @Override
     public void translateNode(
         Reshuffle<K, InputT> transform, FlinkBatchTranslationContext context) {
-
-      DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
+      final DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
           context.getInputDataSet(context.getInput(transform));
-
-      context.setOutputDataSet(context.getOutput(transform), inputDataSet.rebalance());
+      // Construct an instance of CoderTypeInformation which contains the pipeline options.
+      // This will be used to initialized FileSystems.
+      final CoderTypeInformation<WindowedValue<KV<K, InputT>>> outputType =
+          ((CoderTypeInformation<WindowedValue<KV<K, InputT>>>) inputDataSet.getType())
+              .withPipelineOptions(context.getPipelineOptions());
+      // We insert a NOOP here to initialize the FileSystems via the above CoderTypeInformation.
+      // The output type coder may be relying on file system access. The shuffled data may have to
+      // be deserialized on a different machine using this coder where FileSystems has not been
+      // initialized.
+      final DataSet<WindowedValue<KV<K, InputT>>> retypedDataSet =
+          new MapOperator<>(
+              inputDataSet,
+              outputType,
+              FlinkIdentityFunction.of(),
+              getCurrentTransformName(context));
+      final Configuration partitionOptions = new Configuration();
+      partitionOptions.setString(
+          Optimizer.HINT_SHIP_STRATEGY, Optimizer.HINT_SHIP_STRATEGY_REPARTITION);
+      context.setOutputDataSet(
+          context.getOutput(transform),
+          retypedDataSet.map(FlinkIdentityFunction.of()).withParameters(partitionOptions));
     }
   }
 
@@ -491,8 +517,9 @@ class FlinkBatchTransformTranslators {
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
+      DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
       checkState(
-          !DoFnSignatures.signatureForDoFn(doFn).processElement().isSplittable(),
+          !signature.processElement().isSplittable(),
           "Not expected to directly translate splittable DoFn, should have been overridden: %s",
           doFn);
       DataSet<WindowedValue<InputT>> inputDataSet =
@@ -597,8 +624,16 @@ class FlinkBatchTransformTranslators {
 
         // Based on the fact that the signature is stateful, DoFnSignatures ensures
         // that it is also keyed.
-        Grouping<WindowedValue<InputT>> grouping =
-            inputDataSet.groupBy(new KvKeySelector(inputCoder.getKeyCoder()));
+        Coder<Object> keyCoder = (Coder) inputCoder.getKeyCoder();
+        final Grouping<WindowedValue<InputT>> grouping;
+        if (signature.processElement().requiresTimeSortedInput()) {
+          grouping =
+              inputDataSet
+                  .groupBy((KeySelector) new KvKeySelector<>(keyCoder))
+                  .sortGroup(new KeyWithValueTimestampSelector<>(), Order.ASCENDING);
+        } else {
+          grouping = inputDataSet.groupBy((KeySelector) new KvKeySelector<>(keyCoder));
+        }
 
         outputDataSet = new GroupReduceOperator(grouping, typeInformation, doFnWrapper, fullName);
 
@@ -646,6 +681,15 @@ class FlinkBatchTransformTranslators {
           new FlatMapOperator<>(taggedDataSet, outputType, pruningFunction, collection.getName());
 
       context.setOutputDataSet(collection, pruningOperator);
+    }
+  }
+
+  private static class KeyWithValueTimestampSelector<K, V>
+      implements KeySelector<WindowedValue<KV<K, V>>, Instant> {
+
+    @Override
+    public Instant getKey(WindowedValue<KV<K, V>> in) throws Exception {
+      return in.getTimestamp();
     }
   }
 

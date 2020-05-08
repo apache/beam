@@ -37,21 +37,23 @@ import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.StaticFactoryMethodInstr
 import org.apache.beam.sdk.schemas.utils.ByteBuddyUtils.TypeConversionsFactory;
 import org.apache.beam.sdk.schemas.utils.ReflectUtils.ClassWithSchema;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.ByteBuddy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.DynamicType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.FixedValue;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.Implementation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.Removal;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.StackManipulation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import org.apache.beam.vendor.bytebuddy.v1_9_3.net.bytebuddy.matcher.ElementMatchers;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.ByteBuddy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.asm.AsmVisitorWrapper;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.description.method.MethodDescription.ForLoadedMethod;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.DynamicType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.dynamic.scaffold.InstrumentedType;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.FixedValue;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.Implementation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.Removal;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.StackManipulation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodInvocation;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodReturn;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.jar.asm.ClassWriter;
+import org.apache.beam.vendor.bytebuddy.v1_10_8.net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
 
 /** A set of utilities to generate getter and setter classes for JavaBean objects. */
@@ -102,7 +104,7 @@ public class JavaBeanUtils {
   public static List<FieldValueTypeInformation> getFieldTypes(
       Class<?> clazz, Schema schema, FieldValueTypeSupplier fieldValueTypeSupplier) {
     return CACHED_FIELD_TYPES.computeIfAbsent(
-        new ClassWithSchema(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
+        ClassWithSchema.create(clazz, schema), c -> fieldValueTypeSupplier.get(clazz, schema));
   }
 
   // The list of getters for a class is cached, so we only create the classes the first time
@@ -121,7 +123,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_GETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return types.stream()
@@ -130,7 +132,7 @@ public class JavaBeanUtils {
         });
   }
 
-  private static <T> FieldValueGetter createGetter(
+  public static <T> FieldValueGetter createGetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     DynamicType.Builder<FieldValueGetter> builder =
         ByteBuddyUtils.subclassGetterInterface(
@@ -140,6 +142,7 @@ public class JavaBeanUtils {
     builder = implementGetterMethods(builder, typeInformation, typeConversionsFactory);
     try {
       return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
               ReflectHelpers.findClassLoader(
@@ -184,7 +187,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_SETTERS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return types.stream()
@@ -193,16 +196,17 @@ public class JavaBeanUtils {
         });
   }
 
-  private static FieldValueSetter createSetter(
+  public static FieldValueSetter createSetter(
       FieldValueTypeInformation typeInformation, TypeConversionsFactory typeConversionsFactory) {
     DynamicType.Builder<FieldValueSetter> builder =
         ByteBuddyUtils.subclassSetterInterface(
             BYTE_BUDDY,
             typeInformation.getMethod().getDeclaringClass(),
             typeConversionsFactory.createTypeConversion(false).convert(typeInformation.getType()));
-    builder = implementSetterMethods(builder, typeInformation.getMethod(), typeConversionsFactory);
+    builder = implementSetterMethods(builder, typeInformation, typeConversionsFactory);
     try {
       return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
               ReflectHelpers.findClassLoader(
@@ -222,14 +226,13 @@ public class JavaBeanUtils {
 
   private static DynamicType.Builder<FieldValueSetter> implementSetterMethods(
       DynamicType.Builder<FieldValueSetter> builder,
-      Method method,
+      FieldValueTypeInformation fieldValueTypeInformation,
       TypeConversionsFactory typeConversionsFactory) {
-    FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
     return builder
         .method(ElementMatchers.named("name"))
-        .intercept(FixedValue.reference(javaTypeInformation.getName()))
+        .intercept(FixedValue.reference(fieldValueTypeInformation.getName()))
         .method(ElementMatchers.named("set"))
-        .intercept(new InvokeSetterInstruction(method, typeConversionsFactory));
+        .intercept(new InvokeSetterInstruction(fieldValueTypeInformation, typeConversionsFactory));
   }
 
   // The list of constructors for a class is cached, so we only create the classes the first time
@@ -244,7 +247,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createConstructorCreator(
@@ -268,6 +271,7 @@ public class JavaBeanUtils {
                   new ConstructorCreateInstruction(
                       types, clazz, constructor, typeConversionsFactory));
       return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
@@ -291,7 +295,7 @@ public class JavaBeanUtils {
       FieldValueTypeSupplier fieldValueTypeSupplier,
       TypeConversionsFactory typeConversionsFactory) {
     return CACHED_CREATORS.computeIfAbsent(
-        new ClassWithSchema(clazz, schema),
+        ClassWithSchema.create(clazz, schema),
         c -> {
           List<FieldValueTypeInformation> types = fieldValueTypeSupplier.get(clazz, schema);
           return createStaticCreator(clazz, creator, schema, types, typeConversionsFactory);
@@ -315,6 +319,7 @@ public class JavaBeanUtils {
                       types, clazz, creator, typeConversionsFactory));
 
       return builder
+          .visit(new AsmVisitorWrapper.ForDeclaredMethods().writerFlags(ClassWriter.COMPUTE_FRAMES))
           .make()
           .load(
               ReflectHelpers.findClassLoader(clazz.getClassLoader()),
@@ -377,11 +382,13 @@ public class JavaBeanUtils {
   // Implements a method to write a public set out on an object.
   private static class InvokeSetterInstruction implements Implementation {
     // Setter method that will be invoked
-    private Method method;
+    private FieldValueTypeInformation fieldValueTypeInformation;
     private final TypeConversionsFactory typeConversionsFactory;
 
-    InvokeSetterInstruction(Method method, TypeConversionsFactory typeConversionsFactory) {
-      this.method = method;
+    InvokeSetterInstruction(
+        FieldValueTypeInformation fieldValueTypeInformation,
+        TypeConversionsFactory typeConversionsFactory) {
+      this.fieldValueTypeInformation = fieldValueTypeInformation;
       this.typeConversionsFactory = typeConversionsFactory;
     }
 
@@ -393,13 +400,13 @@ public class JavaBeanUtils {
     @Override
     public ByteCodeAppender appender(final Target implementationTarget) {
       return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        FieldValueTypeInformation javaTypeInformation = FieldValueTypeInformation.forSetter(method);
         // this + method parameters.
         int numLocals = 1 + instrumentedMethod.getParameters().size();
 
         // The instruction to read the field.
         StackManipulation readField = MethodVariableAccess.REFERENCE.loadFrom(2);
 
+        Method method = fieldValueTypeInformation.getMethod();
         boolean setterMethodReturnsVoid = method.getReturnType().equals(Void.TYPE);
         // Read the object onto the stack.
         StackManipulation stackManipulation =
@@ -409,7 +416,7 @@ public class JavaBeanUtils {
                 // Do any conversions necessary.
                 typeConversionsFactory
                     .createSetterConversions(readField)
-                    .convert(javaTypeInformation.getType()),
+                    .convert(fieldValueTypeInformation.getType()),
                 // Now update the field and return void.
                 MethodInvocation.invoke(new ForLoadedMethod(method)));
         if (!setterMethodReturnsVoid) {

@@ -162,6 +162,7 @@ public class SplittableParDoExpander {
               FunctionSpec.newBuilder()
                   .setUrn(PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN)
                   .setPayload(splittableParDo.getSpec().getPayload()));
+          pairWithRestriction.setEnvironmentId(splittableParDo.getEnvironmentId());
           rval.getComponentsBuilder()
               .putTransforms(pairWithRestrictionId, pairWithRestriction.build());
         }
@@ -180,6 +181,7 @@ public class SplittableParDoExpander {
               FunctionSpec.newBuilder()
                   .setUrn(PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN)
                   .setPayload(splittableParDo.getSpec().getPayload()));
+          splitAndSize.setEnvironmentId(splittableParDo.getEnvironmentId());
           rval.getComponentsBuilder().putTransforms(splitAndSizeId, splitAndSize.build());
         }
 
@@ -201,6 +203,7 @@ public class SplittableParDoExpander {
                   .setUrn(
                       PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN)
                   .setPayload(splittableParDo.getSpec().getPayload()));
+          processSizedElementsAndRestrictions.setEnvironmentId(splittableParDo.getEnvironmentId());
           rval.getComponentsBuilder()
               .putTransforms(
                   processSizedElementsAndRestrictionsId,

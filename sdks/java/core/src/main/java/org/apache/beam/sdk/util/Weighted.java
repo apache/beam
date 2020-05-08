@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.util;
 
+import org.apache.beam.sdk.annotations.Internal;
+
 /** Interface representing an object that has a weight, in unspecified units. */
+@Internal
 public interface Weighted {
   /** Returns the weight of the object. */
   long getWeight();

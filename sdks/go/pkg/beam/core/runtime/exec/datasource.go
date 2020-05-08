@@ -37,11 +37,13 @@ type DataSource struct {
 	Coder *coder.Coder
 	Out   Node
 
-	source   DataManager
-	state    StateReader
-	index    int64
-	splitIdx int64
-	start    time.Time
+	source DataManager
+	state  StateReader
+	// TODO(lostluck) 2020/02/06: refactor to support more general PCollection metrics on nodes.
+	outputPID string // The index is the output count for the PCollection.
+	index     int64
+	splitIdx  int64
+	start     time.Time
 
 	mu sync.Mutex
 }
@@ -137,7 +139,7 @@ func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv Elemen
 	switch {
 	case size >= 0:
 		// Single chunk streams are fully read in and buffered in memory.
-		var buf []FullValue
+		buf := make([]FullValue, 0, size)
 		buf, err = readStreamToBuffer(cv, r, int64(size), buf)
 		if err != nil {
 			return nil, err
@@ -156,10 +158,12 @@ func (n *DataSource) makeReStream(ctx context.Context, key *FullValue, cv Elemen
 			case chunk == 0: // End of stream, return buffer.
 				return &FixedReStream{Buf: buf}, nil
 			case chunk > 0: // Non-zero chunk, read that many elements from the stream, and buffer them.
-				buf, err = readStreamToBuffer(cv, r, chunk, buf)
+				chunkBuf := make([]FullValue, 0, chunk)
+				chunkBuf, err = readStreamToBuffer(cv, r, chunk, chunkBuf)
 				if err != nil {
 					return nil, err
 				}
+				buf = append(buf, chunkBuf...)
 			case chunk == -1: // State backed iterable!
 				chunk, err := coder.DecodeVarInt(r)
 				if err != nil {
@@ -237,9 +241,12 @@ func (n *DataSource) incrementIndexAndCheckSplit() bool {
 }
 
 // ProgressReportSnapshot captures the progress reading an input source.
+//
+// TODO(lostluck) 2020/02/06: Add a visitor pattern for collecting progress
+// metrics from downstream Nodes.
 type ProgressReportSnapshot struct {
-	ID, Name string
-	Count    int64
+	ID, Name, PID string
+	Count         int64
 }
 
 // Progress returns a snapshot of the source's progress.
@@ -256,13 +263,13 @@ func (n *DataSource) Progress() ProgressReportSnapshot {
 	if c < 0 {
 		c = 0
 	}
-	return ProgressReportSnapshot{ID: n.SID.PtransformID, Name: n.Name, Count: c}
+	return ProgressReportSnapshot{PID: n.outputPID, ID: n.SID.PtransformID, Name: n.Name, Count: c}
 }
 
 // Split takes a sorted set of potential split indices, selects and actuates
 // split on an appropriate split index, and returns the selected split index
 // if successful. Returns an error when unable to split.
-func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
+func (n *DataSource) Split(splits []int64, frac float64) (int64, error) {
 	if splits == nil {
 		return 0, fmt.Errorf("failed to split: requested splits were empty")
 	}
@@ -275,7 +282,7 @@ func (n *DataSource) Split(splits []int64, frac float32) (int64, error) {
 	// the promised split index to this value.
 	for _, s := range splits {
 		// // Never split on the first element, or the current element.
-		if s > 0 && s > c && s < n.splitIdx {
+		if s > 0 && s > c && s <= n.splitIdx {
 			n.splitIdx = s
 			fs := n.splitIdx
 			n.mu.Unlock()

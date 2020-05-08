@@ -50,6 +50,22 @@ const (
 	urnCoGBKList   = "beam:go:coder:cogbklist:v1" // CoGBK representation. Not a coder.
 )
 
+func knownStandardCoders() []string {
+	return []string{
+		urnBytesCoder,
+		urnBoolCoder,
+		urnVarIntCoder,
+		urnDoubleCoder,
+		urnLengthPrefixCoder,
+		urnKVCoder,
+		urnIterableCoder,
+		urnStateBackedIterableCoder,
+		urnWindowedValueCoder,
+		urnGlobalWindow,
+		urnIntervalWindow,
+	}
+}
+
 // MarshalCoders marshals a list of coders into model coders.
 func MarshalCoders(coders []*coder.Coder) ([]string, map[string]*pb.Coder) {
 	b := NewCoderMarshaller()

@@ -25,7 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 
 /**
- * Options which can be used to configure a Flink PortablePipelineRunner.
+ * Options which can be used to configure the Flink Runner.
  *
  * <p>Avoid using `org.apache.flink.*` members below. This allows including the flink runner without
  * requiring flink on the classpath (e.g. to use with the direct runner).
@@ -111,6 +111,13 @@ public interface FlinkPipelineOptions
   void setMinPauseBetweenCheckpoints(Long minPauseInterval);
 
   @Description(
+      "The maximum number of concurrent checkpoints. Defaults to 1 (=no concurrent checkpoints).")
+  @Default.Integer(1)
+  int getNumConcurrentCheckpoints();
+
+  void setNumConcurrentCheckpoints(int maxConcurrentCheckpoints);
+
+  @Description(
       "Sets the expected behaviour for tasks in case that they encounter an error in their "
           + "checkpointing procedure. If this is set to true, the task will fail on checkpointing error. "
           + "If this is set to false, the task will only decline a the checkpoint and continue running. ")
@@ -118,6 +125,17 @@ public interface FlinkPipelineOptions
   Boolean getFailOnCheckpointingErrors();
 
   void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
+
+  @Description(
+      "Shuts down sources which have been idle for the configured time of milliseconds. Once a source has been "
+          + "shut down, checkpointing is not possible anymore. Shutting down the sources eventually leads to pipeline "
+          + "shutdown (=Flink job finishes) once all input has been processed. Unless explicitly set, this will "
+          + "default to Long.MAX_VALUE when checkpointing is enabled and to 0 when checkpointing is disabled. "
+          + "See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue.")
+  @Default.Long(-1L)
+  Long getShutdownSourcesAfterIdleMs();
+
+  void setShutdownSourcesAfterIdleMs(Long timeoutMs);
 
   @Description(
       "Sets the number of times that failed tasks are re-executed. "
@@ -153,11 +171,11 @@ public interface FlinkPipelineOptions
 
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
 
-  @Description("Enable/disable Beam metrics in Flink Runner")
-  @Default.Boolean(true)
-  Boolean getEnableMetrics();
+  @Description("Disable Beam metrics in Flink Runner")
+  @Default.Boolean(false)
+  Boolean getDisableMetrics();
 
-  void setEnableMetrics(Boolean enableMetrics);
+  void setDisableMetrics(Boolean enableMetrics);
 
   /** Enables or disables externalized checkpoints. */
   @Description(
@@ -185,20 +203,6 @@ public interface FlinkPipelineOptions
   Long getMaxBundleTimeMills();
 
   void setMaxBundleTimeMills(Long time);
-
-  /**
-   * Whether to shutdown sources when their watermark reaches {@code +Inf}. For production use cases
-   * you want this to be disabled because Flink will currently (versions {@literal <=} 1.5) stop
-   * doing checkpoints when any operator (which includes sources) is finished.
-   *
-   * <p>Please see <a href="https://issues.apache.org/jira/browse/FLINK-2491">FLINK-2491</a> for
-   * progress on this issue.
-   */
-  @Description("If set, shutdown sources when their watermark reaches +Inf.")
-  @Default.Boolean(false)
-  Boolean isShutdownSourcesOnFinalWatermark();
-
-  void setShutdownSourcesOnFinalWatermark(Boolean shutdownOnFinalWatermark);
 
   @Description(
       "Interval in milliseconds for sending latency tracking marks from the sources to the sinks. "
@@ -248,4 +252,10 @@ public interface FlinkPipelineOptions
   Boolean isAutoBalanceWriteFilesShardingEnabled();
 
   void setAutoBalanceWriteFilesShardingEnabled(Boolean autoBalanceWriteFilesShardingEnabled);
+
+  @Description(
+      "If not null, reports the checkpoint duration of each ParDo stage in the provided metric namespace.")
+  String getReportCheckpointDuration();
+
+  void setReportCheckpointDuration(String metricNamespace);
 }

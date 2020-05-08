@@ -17,6 +17,8 @@
 
 """Test for the distrib_optimization example."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -38,16 +40,11 @@ FILE_CONTENTS = 'OP01,8,12,0,12\n' \
                 'OP05,19,1,7,10'
 
 EXPECTED_MAPPING = {
-    'OP01': 'A',
-    'OP02': 'B',
-    'OP03': 'B',
-    'OP04': 'C',
-    'OP05': 'A'
+    'OP01': 'A', 'OP02': 'B', 'OP03': 'B', 'OP04': 'C', 'OP05': 'A'
 }
 
 
 class DistribOptimizationTest(unittest.TestCase):
-
   def create_file(self, path, contents):
     logging.info('Creating temp file: %s', path)
     with open(path, 'w') as f:
@@ -63,17 +60,16 @@ class DistribOptimizationTest(unittest.TestCase):
     scipy_mock = MagicMock()
     result_mock = MagicMock(x=np.ones(3))
     scipy_mock.optimize.minimize = MagicMock(return_value=result_mock)
-    modules = {
-        'scipy': scipy_mock,
-        'scipy.optimize': scipy_mock.optimize
-    }
+    modules = {'scipy': scipy_mock, 'scipy.optimize': scipy_mock.optimize}
 
     with patch.dict('sys.modules', modules):
       from apache_beam.examples.complete import distribopt
-      distribopt.run(
-          ['--input=%s/input.txt' % temp_folder,
-           '--output', os.path.join(temp_folder, 'result')],
-          save_main_session=False)
+      distribopt.run([
+          '--input=%s/input.txt' % temp_folder,
+          '--output',
+          os.path.join(temp_folder, 'result')
+      ],
+                     save_main_session=False)
 
     # Load result file and compare.
     with open_shards(os.path.join(temp_folder, 'result-*-of-*')) as result_file:

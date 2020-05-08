@@ -25,14 +25,15 @@ This behavior is triggered by specifying the --setup_file command line option
 when running the workflow for remote execution.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
 import subprocess
-from distutils.command.build import build as _build
+from distutils.command.build import build as _build  # type: ignore
 
-# TODO: (BEAM-8411): re-enable lint check.
-import setuptools  # pylint: disable-all
+import setuptools
 
 
 # This class handles the pip install mechanism.
@@ -74,13 +75,11 @@ class build(_build):  # pylint: disable=invalid-name
 # TODO(BEAM-3237): Output from the custom commands are missing from the logs.
 # The output of custom commands (including failures) will be logged in the
 # worker-startup log.
-CUSTOM_COMMANDS = [
-    ['echo', 'Custom command worked!']]
+CUSTOM_COMMANDS = [['echo', 'Custom command worked!']]
 
 
 class CustomCommands(setuptools.Command):
   """A setuptools Command class able to run arbitrary commands."""
-
   def initialize_options(self):
     pass
 
@@ -91,7 +90,9 @@ class CustomCommands(setuptools.Command):
     print('Running command: %s' % command_list)
     p = subprocess.Popen(
         command_list,
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
     # Can use communicate(input='y\n'.encode()) if the command run requires
     # some confirmation.
     stdout_data, _ = p.communicate()
@@ -111,8 +112,7 @@ class CustomCommands(setuptools.Command):
 # restriction is specified.
 REQUIRED_PACKAGES = [
     'numpy',
-    ]
-
+]
 
 setuptools.setup(
     name='juliaset',
@@ -124,5 +124,4 @@ setuptools.setup(
         # Command class instantiated and run during pip install scenarios.
         'build': build,
         'CustomCommands': CustomCommands,
-        }
-    )
+    })

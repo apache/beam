@@ -17,6 +17,8 @@
 
 """A word-counting workflow."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import logging
@@ -50,7 +52,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
-
   def setUp(self):
     """Creates all required topics and subs."""
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -88,34 +89,33 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
 
   def tearDown(self):
     """Delete all created topics and subs."""
-    test_utils.cleanup_subscriptions(self.sub_client,
-                                     [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(self.pub_client,
-                              [self.input_topic, self.output_topic])
+    test_utils.cleanup_subscriptions(
+        self.sub_client, [self.input_sub, self.output_sub])
+    test_utils.cleanup_topics(
+        self.pub_client, [self.input_topic, self.output_topic])
 
   def run_pipeline(self):
     # Waits for messages to appear in output topic.
     expected_msg = [msg.encode('utf-8') for msg in MESSAGES_TO_PUBLISH]
-    pubsub_msg_verifier = PubSubMessageMatcher(self.project,
-                                               self.output_sub.name,
-                                               expected_msg,
-                                               timeout=600)
+    pubsub_msg_verifier = PubSubMessageMatcher(
+        self.project, self.output_sub.name, expected_msg, timeout=600)
 
     # Checks that pipeline initializes to RUNNING state.
     state_verifier = PipelineStateMatcher(PipelineState.RUNNING)
 
-    extra_opts = {'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
-                  'on_success_matcher': all_of(state_verifier,
-                                               pubsub_msg_verifier),
-                  'experiment': 'beam_fn_api',
-                  'input_subscription': self.input_sub.name,
-                  'output_topic': self.output_topic.name,
-                 }
+    extra_opts = {
+        'wait_until_finish_duration': WAIT_UNTIL_FINISH_DURATION,
+        'on_success_matcher': all_of(state_verifier, pubsub_msg_verifier),
+        'experiment': 'beam_fn_api',
+        'input_subscription': self.input_sub.name,
+        'output_topic': self.output_topic.name,
+    }
 
     argv = self.test_pipeline.get_full_options_as_args(**extra_opts)
     return dataflow_exercise_streaming_metrics_pipeline.run(argv)
 
-  @attr('IT', 'ValidatesRunner')
+  # Need not run streaming test in batch mode.
+  @attr('IT', 'ValidatesRunner', 'sickbay-batch')
   def test_streaming_pipeline_returns_expected_user_metrics_fnapi_it(self):
     """
     Runs streaming Dataflow job and verifies that user metrics are reported
@@ -131,15 +131,10 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
         # System metrics
         MetricResultMatcher(
             name='ElementCount',
-            labels={"output_user_name": "generate_metrics-out0",
-                    "original_name": "generate_metrics-out0-ElementCount"},
-            attempted=len(MESSAGES_TO_PUBLISH),
-            committed=len(MESSAGES_TO_PUBLISH),
-        ),
-        MetricResultMatcher(
-            name='ElementCount',
-            labels={"output_user_name": "ReadFromPubSub/Read-out0",
-                    "original_name": "ReadFromPubSub/Read-out0-ElementCount"},
+            labels={
+                "output_user_name": "generate_metrics-out0",
+                "original_name": "generate_metrics-out0-ElementCount"
+            },
             attempted=len(MESSAGES_TO_PUBLISH),
             committed=len(MESSAGES_TO_PUBLISH),
         ),
@@ -149,8 +144,7 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
             namespace=METRIC_NAMESPACE,
             step='generate_metrics',
             attempted=len(MESSAGES_TO_PUBLISH) * 2,
-            committed=len(MESSAGES_TO_PUBLISH) * 2
-        ),
+            committed=len(MESSAGES_TO_PUBLISH) * 2),
         MetricResultMatcher(
             name='msg_len_dist_metric_name',
             namespace=METRIC_NAMESPACE,
@@ -159,15 +153,12 @@ class ExerciseStreamingMetricsPipelineTest(unittest.TestCase):
                 sum_value=len(''.join(MESSAGES_TO_PUBLISH)),
                 count_value=len(MESSAGES_TO_PUBLISH),
                 min_value=len(MESSAGES_TO_PUBLISH[0]),
-                max_value=len(MESSAGES_TO_PUBLISH[1])
-            ),
+                max_value=len(MESSAGES_TO_PUBLISH[1])),
             committed=DistributionMatcher(
                 sum_value=len(''.join(MESSAGES_TO_PUBLISH)),
                 count_value=len(MESSAGES_TO_PUBLISH),
                 min_value=len(MESSAGES_TO_PUBLISH[0]),
-                max_value=len(MESSAGES_TO_PUBLISH[1])
-            )
-        ),
+                max_value=len(MESSAGES_TO_PUBLISH[1]))),
     ]
 
     metrics = result.metrics().all_metrics()

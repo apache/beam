@@ -22,7 +22,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
 
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.TimerInternals.TimerDataCoder;
+import org.apache.beam.runners.core.TimerInternals.TimerDataCoderV2;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -40,13 +40,13 @@ public class TimerInternalsTest {
   @Test
   public void testTimerDataCoder() throws Exception {
     CoderProperties.coderDecodeEncodeEqual(
-        TimerDataCoder.of(GlobalWindow.Coder.INSTANCE),
+        TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE),
         TimerData.of(
             "arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME));
 
     Coder<IntervalWindow> windowCoder = IntervalWindow.getCoder();
     CoderProperties.coderDecodeEncodeEqual(
-        TimerDataCoder.of(windowCoder),
+        TimerDataCoderV2.of(windowCoder),
         TimerData.of(
             "another-id",
             StateNamespaces.window(
@@ -57,7 +57,7 @@ public class TimerInternalsTest {
 
   @Test
   public void testCoderIsSerializableWithWellKnownCoderType() {
-    CoderProperties.coderSerializable(TimerDataCoder.of(GlobalWindow.Coder.INSTANCE));
+    CoderProperties.coderSerializable(TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE));
   }
 
   @Test

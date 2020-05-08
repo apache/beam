@@ -31,6 +31,7 @@ import com.google.zetasql.ZetaSQLBuiltinFunctionOptions;
 import com.google.zetasql.ZetaSQLFunctions.FunctionEnums.Mode;
 import com.google.zetasql.ZetaSQLOptions.ErrorMessageMode;
 import com.google.zetasql.ZetaSQLOptions.LanguageFeature;
+import com.google.zetasql.ZetaSQLOptions.ParameterMode;
 import com.google.zetasql.ZetaSQLOptions.ProductMode;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
@@ -39,6 +40,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
+import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
+import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
@@ -46,7 +50,6 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDat
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
@@ -57,14 +60,16 @@ class SqlAnalyzer {
       ImmutableList.of(
           // TODO: support optional function argument (for window_offset).
           "CREATE FUNCTION TUMBLE(ts TIMESTAMP, window_size STRING) AS (1);",
-          "CREATE FUNCTION TUMBLE_START(window_size STRING) AS (1);",
-          "CREATE FUNCTION TUMBLE_END(window_size STRING) AS (1);",
+          "CREATE FUNCTION TUMBLE_START(window_size STRING) RETURNS TIMESTAMP AS (null);",
+          "CREATE FUNCTION TUMBLE_END(window_size STRING) RETURNS TIMESTAMP AS (null);",
           "CREATE FUNCTION HOP(ts TIMESTAMP, emit_frequency STRING, window_size STRING) AS (1);",
-          "CREATE FUNCTION HOP_START(emit_frequency STRING, window_size STRING) AS (1);",
-          "CREATE FUNCTION HOP_END(emit_frequency STRING, window_size STRING) AS (1);",
+          "CREATE FUNCTION HOP_START(emit_frequency STRING, window_size STRING) "
+              + "RETURNS TIMESTAMP AS (null);",
+          "CREATE FUNCTION HOP_END(emit_frequency STRING, window_size STRING) "
+              + "RETURNS TIMESTAMP AS (null);",
           "CREATE FUNCTION SESSION(ts TIMESTAMP, session_gap STRING) AS (1);",
-          "CREATE FUNCTION SESSION_START(session_gap STRING) AS (1);",
-          "CREATE FUNCTION SESSION_END(session_gap STRING) AS (1);");
+          "CREATE FUNCTION SESSION_START(session_gap STRING) RETURNS TIMESTAMP AS (null);",
+          "CREATE FUNCTION SESSION_END(session_gap STRING) RETURNS TIMESTAMP AS (null);");
 
   private final Builder builder;
 
@@ -72,9 +77,9 @@ class SqlAnalyzer {
     this.builder = builder;
   }
 
-  /** Static factory method to create the builder with query parameters. */
-  static Builder withQueryParams(Map<String, Value> params) {
-    return new Builder().withQueryParams(ImmutableMap.copyOf(params));
+  /** Static factory method to create the builder. */
+  static Builder getBuilder() {
+    return new Builder();
   }
 
   /**
@@ -116,11 +121,19 @@ class SqlAnalyzer {
     return options;
   }
 
-  private static AnalyzerOptions initAnalyzerOptions(Map<String, Value> queryParams) {
+  private static AnalyzerOptions initAnalyzerOptions(QueryParameters queryParams) {
     AnalyzerOptions options = initAnalyzerOptions();
 
-    for (Map.Entry<String, Value> entry : queryParams.entrySet()) {
-      options.addQueryParameter(entry.getKey(), entry.getValue().getType());
+    if (queryParams.getKind() == Kind.NAMED) {
+      options.setParameterMode(ParameterMode.PARAMETER_NAMED);
+      for (Map.Entry<String, Value> entry : ((Map<String, Value>) queryParams.named()).entrySet()) {
+        options.addQueryParameter(entry.getKey(), entry.getValue().getType());
+      }
+    } else if (queryParams.getKind() == Kind.POSITIONAL) {
+      options.setParameterMode(ParameterMode.PARAMETER_POSITIONAL);
+      for (Value param : (List<Value>) queryParams.positional()) {
+        options.addPositionalQueryParameter(param.getType());
+      }
     }
 
     return options;
@@ -181,7 +194,7 @@ class SqlAnalyzer {
         TableResolution.resolveCalciteTable(builder.topLevelSchema, tablePath);
 
     if (calciteTable == null) {
-      throw new RuntimeException(
+      throw new SqlConversionException(
           "Wasn't able to find resolve the path "
               + tablePath
               + " in "
@@ -233,7 +246,7 @@ class SqlAnalyzer {
   /** Builder for SqlAnalyzer. */
   static class Builder {
 
-    private Map<String, Value> queryParams;
+    private QueryParameters queryParams;
     private QueryTrait queryTrait;
     private SchemaPlus topLevelSchema;
     private JavaTypeFactory typeFactory;
@@ -241,8 +254,8 @@ class SqlAnalyzer {
     private Builder() {}
 
     /** Query parameters. */
-    Builder withQueryParams(Map<String, Value> params) {
-      this.queryParams = ImmutableMap.copyOf(params);
+    Builder withQueryParams(QueryParameters params) {
+      this.queryParams = params;
       return this;
     }
 

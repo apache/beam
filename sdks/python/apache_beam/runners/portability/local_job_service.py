@@ -14,8 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+# pytype: skip-file
+
 from __future__ import absolute_import
 
+import concurrent.futures
 import logging
 import os
 import queue
@@ -26,9 +29,12 @@ import threading
 import time
 import traceback
 from builtins import object
+from typing import TYPE_CHECKING
+from typing import List
+from typing import Optional
 
 import grpc
-from google.protobuf import text_format
+from google.protobuf import text_format  # type: ignore # not in typeshed
 
 from apache_beam.metrics import monitoring_infos
 from apache_beam.portability.api import beam_artifact_api_pb2
@@ -40,8 +46,13 @@ from apache_beam.portability.api import beam_provision_api_pb2
 from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
-from apache_beam.runners.portability import fn_api_runner
+from apache_beam.runners.portability.fn_api_runner import fn_runner
+from apache_beam.runners.portability.fn_api_runner import worker_handlers
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+
+if TYPE_CHECKING:
+  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
+  from apache_beam.portability.api import beam_runner_api_pb2
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,50 +75,85 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     inline calls rather than GRPC (for speed) or launch completely separate
     subprocesses for the runner and worker(s).
     """
-
   def __init__(self, staging_dir=None):
     super(LocalJobServicer, self).__init__()
     self._cleanup_staging_dir = staging_dir is None
     self._staging_dir = staging_dir or tempfile.mkdtemp()
-    self._artifact_service = artifact_service.BeamFilesystemArtifactService(
-        self._staging_dir)
-    self._artifact_staging_endpoint = None
+    self._legacy_artifact_service = (
+        artifact_service.BeamFilesystemArtifactService(self._staging_dir))
+    self._artifact_service = artifact_service.ArtifactStagingService(
+        artifact_service.BeamFilesystemHandler(self._staging_dir).file_writer)
+    self._artifact_staging_endpoint = None  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
 
-  def create_beam_job(self, preparation_id, job_name, pipeline, options):
+  def create_beam_job(self,
+                      preparation_id,  # stype: str
+                      job_name,  # type: str
+                      pipeline,  # type: beam_runner_api_pb2.Pipeline
+                      options  # type: struct_pb2.Struct
+                     ):
+    # type: (...) -> BeamJob
     # TODO(angoenka): Pass an appropriate staging_session_token. The token can
     # be obtained in PutArtifactResponse from JobService
     if not self._artifact_staging_endpoint:
       # The front-end didn't try to stage anything, but the worker may
       # request what's here so we should at least store an empty manifest.
-      self._artifact_service.CommitManifest(
+      self._legacy_artifact_service.CommitManifest(
           beam_artifact_api_pb2.CommitManifestRequest(
               staging_session_token=preparation_id,
               manifest=beam_artifact_api_pb2.Manifest()))
-    provision_info = fn_api_runner.ExtendedProvisionInfo(
+    self._artifact_service.register_job(
+        staging_token=preparation_id,
+        dependency_sets={
+            id: env.dependencies
+            for (id, env) in pipeline.components.environments.items()
+        })
+    provision_info = fn_runner.ExtendedProvisionInfo(
         beam_provision_api_pb2.ProvisionInfo(
-            job_id=preparation_id,
-            job_name=job_name,
             pipeline_options=options,
-            retrieval_token=self._artifact_service.retrieval_token(
+            retrieval_token=self._legacy_artifact_service.retrieval_token(
                 preparation_id)),
-        self._staging_dir)
+        self._staging_dir,
+        job_name=job_name)
     return BeamJob(
         preparation_id,
         pipeline,
         options,
         provision_info,
-        self._artifact_staging_endpoint)
+        self._artifact_staging_endpoint,
+        self._artifact_service)
+
+  def get_bind_address(self):
+    """Return the address used to open the port on the gRPC server.
+
+    This is often, but not always the same as the service address.  For
+    example, to make the service accessible to external machines, override this
+    to return '[::]' and override `get_service_address()` to return a publicly
+    accessible host name.
+    """
+    return self.get_service_address()
+
+  def get_service_address(self):
+    """Return the host name at which this server will be accessible.
+
+    In particular, this is provided to the client upon connection as the
+    artifact staging endpoint.
+    """
+    return 'localhost'
 
   def start_grpc_server(self, port=0):
     self._server = grpc.server(UnboundedThreadPoolExecutor())
-    port = self._server.add_insecure_port('localhost:%d' % port)
+    port = self._server.add_insecure_port(
+        '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
+    beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
+        self._legacy_artifact_service, self._server)
     beam_artifact_api_pb2_grpc.add_ArtifactStagingServiceServicer_to_server(
         self._artifact_service, self._server)
+    hostname = self.get_service_address()
     self._artifact_staging_endpoint = endpoints_pb2.ApiServiceDescriptor(
-        url='localhost:%d' % port)
+        url='%s:%d' % (hostname, port))
     self._server.start()
-    _LOGGER.info('Grpc server started on port %s', port)
+    _LOGGER.info('Grpc server started at %s on port %d' % (hostname, port))
     return port
 
   def stop(self, timeout=1):
@@ -127,8 +173,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     # Filter out system metrics
     user_monitoring_info_list = [
         x for x in monitoring_info_list
-        if monitoring_infos._is_user_monitoring_info(x) or
-        monitoring_infos._is_user_distribution_monitoring_info(x)
+        if monitoring_infos.is_user_monitoring_info(x)
     ]
 
     return beam_job_api_pb2.GetJobMetricsResponse(
@@ -139,8 +184,11 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
     """
-
-  def __init__(self, worker_command_line, control_address, worker_id=None):
+  def __init__(
+      self,
+      worker_command_line,  # type: bytes
+      control_address,
+      worker_id=None):
     self._worker_command_line = worker_command_line
     self._control_address = control_address
     self._worker_id = worker_id
@@ -161,17 +209,13 @@ class SubprocessSdkWorker(object):
     env_dict = dict(
         os.environ,
         CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
-        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor
-    )
+        LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor)
     # only add worker_id when it is set.
     if self._worker_id:
       env_dict['WORKER_ID'] = self._worker_id
 
-    with fn_api_runner.SUBPROCESS_LOCK:
-      p = subprocess.Popen(
-          self._worker_command_line,
-          shell=True,
-          env=env_dict)
+    with worker_handlers.SUBPROCESS_LOCK:
+      p = subprocess.Popen(self._worker_command_line, shell=True, env=env_dict)
     try:
       p.wait()
       if p.returncode:
@@ -190,17 +234,20 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     """
 
   def __init__(self,
-               job_id,
+               job_id,  # type: str
                pipeline,
                options,
-               provision_info,
-               artifact_staging_endpoint):
-    super(BeamJob, self).__init__(
-        job_id, provision_info.provision_info.job_name, pipeline, options)
+               provision_info,  # type: fn_runner.ExtendedProvisionInfo
+               artifact_staging_endpoint,  # type: Optional[endpoints_pb2.ApiServiceDescriptor]
+               artifact_service,  # type: artifact_service.ArtifactStagingService
+              ):
+    super(BeamJob,
+          self).__init__(job_id, provision_info.job_name, pipeline, options)
     self._provision_info = provision_info
     self._artifact_staging_endpoint = artifact_staging_endpoint
-    self._state_queues = []
-    self._log_queues = []
+    self._artifact_service = artifact_service
+    self._state_queues = []  # type: List[queue.Queue]
+    self._log_queues = []  # type: List[queue.Queue]
     self.daemon = True
     self.result = None
 
@@ -226,8 +273,9 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
   def _run_job(self):
     self.set_state(beam_job_api_pb2.JobState.RUNNING)
     with JobLogHandler(self._log_queues):
+      self._update_dependencies()
       try:
-        result = fn_api_runner.FnApiRunner(
+        result = fn_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
                 self._pipeline_proto)
         _LOGGER.info('Successfully completed job.')
@@ -238,6 +286,18 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
         _LOGGER.exception(traceback)
         self.set_state(beam_job_api_pb2.JobState.FAILED)
         raise
+
+  def _update_dependencies(self):
+    try:
+      for env_id, deps in self._artifact_service.resolved_deps(
+          self._job_id, timeout=0).items():
+        # Slice assignment not supported for repeated fields.
+        env = self._pipeline_proto.components.environments[env_id]
+        del env.dependencies[:]
+        env.dependencies.extend(deps)
+      self._provision_info.provision_info.ClearField('retrieval_token')
+    except concurrent.futures.TimeoutError:
+      pass  # TODO(BEAM-9577): Require this once all SDKs support it.
 
   def cancel(self):
     if not self.is_terminal_state(self.state):
@@ -273,7 +333,6 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
 
 
 class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
-
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
@@ -320,8 +379,8 @@ class JobLogHandler(logging.Handler):
     if self._logged_thread is threading.current_thread():
       msg = beam_job_api_pb2.JobMessage(
           message_id=self._next_id(),
-          time=time.strftime('%Y-%m-%d %H:%M:%S.',
-                             time.localtime(record.created)),
+          time=time.strftime(
+              '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)),
           importance=self.LOG_LEVEL_MAP[record.levelno],
           message_text=self.format(record))
 

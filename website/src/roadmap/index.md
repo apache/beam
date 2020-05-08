@@ -55,9 +55,10 @@ interest.
 
 ## Python 3 support
 
-The Python SDK is near to supporting Python 3. See details on 
+Apache Beam 2.14.0 and higher support Python 3.5, 3.6, and 3.7. We continue to [improve](https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050) the experience for Python 3 users and plan to phase out Python 2 support ([BEAM-8371](https://issues.apache.org/jira/browse/BEAM-8371)):
+
+See details on 
 the [Python SDK's Roadmap]({{site.baseurl}}/roadmap/python-sdk/#python-3-support).
-This is also a great opportunity for lightweight contribution!
 
 ## Java 11 support
 

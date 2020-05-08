@@ -62,7 +62,7 @@ import org.apache.beam.runners.core.construction.NativeTransforms;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PCollectionNode;
 import org.apache.beam.runners.core.construction.graph.PipelineNode.PTransformNode;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -414,7 +414,9 @@ public class QueryablePipeline {
   private Set<String> getLocalTimerNames(PTransform transform) {
     if (PAR_DO_TRANSFORM_URN.equals(transform.getSpec().getUrn())) {
       try {
-        return ParDoPayload.parseFrom(transform.getSpec().getPayload()).getTimerSpecsMap().keySet();
+        return ParDoPayload.parseFrom(transform.getSpec().getPayload())
+            .getTimerFamilySpecsMap()
+            .keySet();
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException(e);
       }

@@ -90,8 +90,8 @@ object BigQueryTornadoes {
         @ProcessElement
         fun processElement(c: ProcessContext) {
             val row = TableRow()
-                    .set("month", c.element().getKey())
-                    .set("tornado_count", c.element().getValue())
+                    .set("month", c.element().key)
+                    .set("tornado_count", c.element().value)
             c.output(row)
         }
     }
@@ -157,16 +157,12 @@ object BigQueryTornadoes {
         val rowsFromBigQuery: PCollection<TableRow>
 
         if (options.readMethod == Method.DIRECT_READ) {
-            // Build the read options proto for the read operation.
-            val tableReadOptions = TableReadOptions.newBuilder()
-                    .addAllSelectedFields(Lists.newArrayList("month", "tornado"))
-                    .build()
 
             rowsFromBigQuery = p.apply(
                     BigQueryIO.readTableRows()
                             .from(options.input)
                             .withMethod(Method.DIRECT_READ)
-                            .withReadOptions(tableReadOptions))
+                            .withSelectedFields(Lists.newArrayList("month", "tornado")))
         } else {
             rowsFromBigQuery = p.apply(
                     BigQueryIO.readTableRows()

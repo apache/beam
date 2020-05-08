@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.LongStream;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.streaming.StreamSources;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
@@ -65,12 +66,14 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.OutputTag;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,7 +117,6 @@ public class UnboundedSourceWrapperTest {
     public void testValueEmission() throws Exception {
       final int numElementsPerShard = 20;
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-      options.setShutdownSourcesOnFinalWatermark(true);
 
       final long[] numElementsReceived = {0L};
       final int[] numWatermarksReceived = {0};
@@ -240,6 +242,7 @@ public class UnboundedSourceWrapperTest {
      * <p>This test verifies that watermarks are correctly forwarded.
      */
     @Test(timeout = 30_000)
+    @Ignore("https://issues.apache.org/jira/browse/BEAM-9164")
     public void testWatermarkEmission() throws Exception {
       final int numElements = 500;
       PipelineOptions options = PipelineOptionsFactory.create();
@@ -625,6 +628,8 @@ public class UnboundedSourceWrapperTest {
     private static void testSourceDoesNotShutdown(boolean shouldHaveReaders) throws Exception {
       final int parallelism = 2;
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+      // Make sure we do not shut down
+      options.setShutdownSourcesAfterIdleMs(Long.MAX_VALUE);
 
       TestCountingSource source = new TestCountingSource(20).withoutSplitting();
 
@@ -711,7 +716,6 @@ public class UnboundedSourceWrapperTest {
               CountingSource.upTo(1000));
 
       FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
-      options.setShutdownSourcesOnFinalWatermark(true);
 
       UnboundedSourceWrapper<
               Long, UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter.Checkpoint<Long>>
@@ -774,6 +778,34 @@ public class UnboundedSourceWrapperTest {
               LongStream.concat(LongStream.range(0, 250), LongStream.range(500, 750))
                   .boxed()
                   .toArray()));
+    }
+
+    @Test
+    public void testAccumulatorRegistrationOnOperatorClose() throws Exception {
+      FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+
+      TestCountingSource source = new TestCountingSource(20).withoutSplitting();
+
+      UnboundedSourceWrapper<KV<Integer, Integer>, TestCountingSource.CounterMark> sourceWrapper =
+          new UnboundedSourceWrapper<>("noReader", options, source, 2);
+
+      StreamingRuntimeContext mock = Mockito.mock(StreamingRuntimeContext.class);
+      Mockito.when(mock.getNumberOfParallelSubtasks()).thenReturn(1);
+      Mockito.when(mock.getExecutionConfig()).thenReturn(new ExecutionConfig());
+      Mockito.when(mock.getIndexOfThisSubtask()).thenReturn(0);
+      sourceWrapper.setRuntimeContext(mock);
+
+      sourceWrapper.open(new Configuration());
+
+      String metricContainerFieldName = "metricContainer";
+      FlinkMetricContainer monitoredContainer =
+          Mockito.spy(
+              (FlinkMetricContainer)
+                  Whitebox.getInternalState(sourceWrapper, metricContainerFieldName));
+      Whitebox.setInternalState(sourceWrapper, metricContainerFieldName, monitoredContainer);
+
+      sourceWrapper.close();
+      Mockito.verify(monitoredContainer).registerMetricsForPipelineResult();
     }
   }
 

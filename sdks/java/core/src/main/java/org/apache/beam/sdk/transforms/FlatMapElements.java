@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.WithFailures.ExceptionElement;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -71,7 +72,7 @@ public class FlatMapElements<InputT, OutputT>
    * PCollection<String> lines = ...;
    * PCollection<String> words = lines.apply(FlatMapElements.via(
    *     new InferableFunction<String, List<String>>() {
-   *       public Integer apply(String line) throws Exception {
+   *       public List<String> apply(String line) throws Exception {
    *         return Arrays.asList(line.split(" "));
    *       }
    *     });
@@ -130,7 +131,7 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /** Like {@link #via(ProcessFunction)}, but allows access to additional context. */
-  @Experimental(Experimental.Kind.CONTEXTFUL)
+  @Experimental(Kind.CONTEXTFUL)
   public <NewInputT> FlatMapElements<NewInputT, OutputT> via(
       Contextful<Fn<NewInputT, Iterable<OutputT>>> fn) {
     return new FlatMapElements<>(
@@ -196,7 +197,7 @@ public class FlatMapElements<InputT, OutputT>
    * <p>See {@link WithFailures} documentation for usage patterns of the returned {@link
    * WithFailures.Result}.
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <NewFailureT> FlatMapWithFailures<InputT, OutputT, NewFailureT> exceptionsInto(
       TypeDescriptor<NewFailureT> failureTypeDescriptor) {
     return new FlatMapWithFailures<>(
@@ -227,7 +228,7 @@ public class FlatMapElements<InputT, OutputT>
    * PCollection<String> failures = result.failures();
    * }</pre>
    */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public <FailureT> FlatMapWithFailures<InputT, OutputT, FailureT> exceptionsVia(
       InferableFunction<ExceptionElement<InputT>, FailureT> exceptionHandler) {
     return new FlatMapWithFailures<>(
@@ -240,7 +241,7 @@ public class FlatMapElements<InputT, OutputT>
   }
 
   /** A {@code PTransform} that adds exception handling to {@link FlatMapElements}. */
-  @Experimental(Experimental.Kind.WITH_EXCEPTIONS)
+  @Experimental(Kind.WITH_EXCEPTIONS)
   public static class FlatMapWithFailures<InputT, OutputT, FailureT>
       extends PTransform<PCollection<InputT>, WithFailures.Result<PCollection<OutputT>, FailureT>> {
 

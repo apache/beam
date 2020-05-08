@@ -38,14 +38,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
-import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
-import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.LegacyArtifactStagingServiceGrpc;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.vendor.grpc.v1p21p0.com.google.protobuf.ByteString;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.ManagedChannel;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.inprocess.InProcessChannelBuilder;
-import org.apache.beam.vendor.grpc.v1p21p0.io.grpc.stub.StreamObserver;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.inprocess.InProcessChannelBuilder;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Charsets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Assert;
@@ -56,8 +56,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Tests for {@link ClassLoaderArtifactRetrievalService} and {@link
- * JavaFilesystemArtifactStagingService}.
+ * Tests for {@link ClassLoaderLegacyArtifactRetrievalService} and {@link
+ * JavaFilesystemLegacyArtifactStagingService}.
  */
 @RunWith(JUnit4.class)
 public class ClassLoaderArtifactServiceTest {
@@ -72,16 +72,17 @@ public class ClassLoaderArtifactServiceTest {
 
     String getStagingToken(String nonce);
 
-    ArtifactStagingServiceGrpc.ArtifactStagingServiceStub createStagingStub() throws Exception;
-
-    ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub createStagingBlockingStub()
+    LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub createStagingStub()
         throws Exception;
 
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub createRetrievalStub()
+    LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub
+        createStagingBlockingStub() throws Exception;
+
+    LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceStub createRetrievalStub()
         throws Exception;
 
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub createRetrievalBlockingStub()
-        throws Exception;
+    LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub
+        createRetrievalBlockingStub() throws Exception;
   }
 
   /**
@@ -95,17 +96,18 @@ public class ClassLoaderArtifactServiceTest {
 
       // These are initialized when the staging service is requested.
       FileSystem jarFilesystem;
-      JavaFilesystemArtifactStagingService stagingService;
-      GrpcFnServer<JavaFilesystemArtifactStagingService> stagingServer;
-      ClassLoaderArtifactRetrievalService retrievalService;
-      GrpcFnServer<ClassLoaderArtifactRetrievalService> retrievalServer;
+      JavaFilesystemLegacyArtifactStagingService stagingService;
+      GrpcFnServer<JavaFilesystemLegacyArtifactStagingService> stagingServer;
+      ClassLoaderLegacyArtifactRetrievalService retrievalService;
+      GrpcFnServer<ClassLoaderLegacyArtifactRetrievalService> retrievalServer;
 
       // These are initialized when the retrieval service is requested, closing the jar file
       // created above.
-      ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingStub;
-      ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub stagingBlockingStub;
-      ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub;
-      ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalBlockingStub;
+      LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub stagingStub;
+      LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub stagingBlockingStub;
+      LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceStub retrievalStub;
+      LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub
+          retrievalBlockingStub;
 
       @Override
       public void close() throws Exception {
@@ -140,19 +142,19 @@ public class ClassLoaderArtifactServiceTest {
         jarFilesystem =
             FileSystems.newFileSystem(
                 URI.create("jar:file:" + jarPath.toString()), ImmutableMap.of());
-        JavaFilesystemArtifactStagingService stagingService =
-            new JavaFilesystemArtifactStagingService(jarFilesystem, "/path/to/root");
-        GrpcFnServer<JavaFilesystemArtifactStagingService> stagingServer =
+        JavaFilesystemLegacyArtifactStagingService stagingService =
+            new JavaFilesystemLegacyArtifactStagingService(jarFilesystem, "/path/to/root");
+        GrpcFnServer<JavaFilesystemLegacyArtifactStagingService> stagingServer =
             GrpcFnServer.allocatePortAndCreateFor(stagingService, InProcessServerFactory.create());
         ManagedChannel stagingChannel =
             InProcessChannelBuilder.forName(stagingServer.getApiServiceDescriptor().getUrl())
                 .build();
-        stagingStub = ArtifactStagingServiceGrpc.newStub(stagingChannel);
-        stagingBlockingStub = ArtifactStagingServiceGrpc.newBlockingStub(stagingChannel);
+        stagingStub = LegacyArtifactStagingServiceGrpc.newStub(stagingChannel);
+        stagingBlockingStub = LegacyArtifactStagingServiceGrpc.newBlockingStub(stagingChannel);
       }
 
       @Override
-      public ArtifactStagingServiceGrpc.ArtifactStagingServiceStub createStagingStub()
+      public LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub createStagingStub()
           throws Exception {
         if (stagingStub == null) {
           startStagingService();
@@ -161,7 +163,7 @@ public class ClassLoaderArtifactServiceTest {
       }
 
       @Override
-      public ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub
+      public LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub
           createStagingBlockingStub() throws Exception {
         if (stagingBlockingStub == null) {
           startStagingService();
@@ -172,7 +174,7 @@ public class ClassLoaderArtifactServiceTest {
       public void startupRetrievalService() throws Exception {
         jarFilesystem.close();
         retrievalService =
-            new ClassLoaderArtifactRetrievalService(
+            new ClassLoaderLegacyArtifactRetrievalService(
                 new URLClassLoader(new URL[] {jarPath.toUri().toURL()}));
         retrievalServer =
             GrpcFnServer.allocatePortAndCreateFor(
@@ -180,13 +182,14 @@ public class ClassLoaderArtifactServiceTest {
         ManagedChannel retrievalChannel =
             InProcessChannelBuilder.forName(retrievalServer.getApiServiceDescriptor().getUrl())
                 .build();
-        retrievalStub = ArtifactRetrievalServiceGrpc.newStub(retrievalChannel);
-        retrievalBlockingStub = ArtifactRetrievalServiceGrpc.newBlockingStub(retrievalChannel);
+        retrievalStub = LegacyArtifactRetrievalServiceGrpc.newStub(retrievalChannel);
+        retrievalBlockingStub =
+            LegacyArtifactRetrievalServiceGrpc.newBlockingStub(retrievalChannel);
       }
 
       @Override
-      public ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub createRetrievalStub()
-          throws Exception {
+      public LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceStub
+          createRetrievalStub() throws Exception {
         if (retrievalStub == null) {
           startupRetrievalService();
         }
@@ -194,7 +197,7 @@ public class ClassLoaderArtifactServiceTest {
       }
 
       @Override
-      public ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub
+      public LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub
           createRetrievalBlockingStub() throws Exception {
         if (retrievalBlockingStub == null) {
           startupRetrievalService();
@@ -205,7 +208,7 @@ public class ClassLoaderArtifactServiceTest {
   }
 
   private ArtifactApi.ArtifactMetadata putArtifact(
-      ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingStub,
+      LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub stagingStub,
       String stagingSessionToken,
       String name,
       String contents)
@@ -260,7 +263,7 @@ public class ClassLoaderArtifactServiceTest {
   }
 
   private String commitManifest(
-      ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub stagingStub,
+      LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub stagingStub,
       String stagingToken,
       List<ArtifactApi.ArtifactMetadata> artifacts) {
     return stagingStub
@@ -273,13 +276,13 @@ public class ClassLoaderArtifactServiceTest {
   }
 
   private String getArtifact(
-      ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub,
+      LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceStub retrievalStub,
       String retrievalToken,
       String name)
       throws ExecutionException, InterruptedException {
     CompletableFuture<String> result = new CompletableFuture<>();
     retrievalStub.getArtifact(
-        ArtifactApi.GetArtifactRequest.newBuilder()
+        ArtifactApi.LegacyGetArtifactRequest.newBuilder()
             .setRetrievalToken(retrievalToken)
             .setName(name)
             .build(),
@@ -312,8 +315,9 @@ public class ClassLoaderArtifactServiceTest {
   private String stageArtifacts(
       ArtifactServicePair service, String stagingToken, Map<String, String> artifacts)
       throws Exception {
-    ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stagingStub = service.createStagingStub();
-    ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub stagingBlockingStub =
+    LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceStub stagingStub =
+        service.createStagingStub();
+    LegacyArtifactStagingServiceGrpc.LegacyArtifactStagingServiceBlockingStub stagingBlockingStub =
         service.createStagingBlockingStub();
     List<ArtifactApi.ArtifactMetadata> artifactMetadatas = new ArrayList<>();
     for (Map.Entry<String, String> entry : artifacts.entrySet()) {
@@ -326,10 +330,10 @@ public class ClassLoaderArtifactServiceTest {
   private void checkArtifacts(
       ArtifactServicePair service, String retrievalToken, Map<String, String> artifacts)
       throws Exception {
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceStub retrievalStub =
+    LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceStub retrievalStub =
         service.createRetrievalStub();
-    ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalBlockingStub =
-        service.createRetrievalBlockingStub();
+    LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub
+        retrievalBlockingStub = service.createRetrievalBlockingStub();
     ArtifactApi.Manifest manifest =
         retrievalBlockingStub
             .getManifest(

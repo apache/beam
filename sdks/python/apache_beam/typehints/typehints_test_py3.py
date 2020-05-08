@@ -18,6 +18,8 @@
 """Unit tests for the type-hint objects and decorators with Python 3 syntax not
 supported by 2.7."""
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -26,9 +28,6 @@ import unittest
 from apache_beam.transforms.core import DoFn
 from apache_beam.typehints import KV
 from apache_beam.typehints import Iterable
-from apache_beam.typehints import decorators
-
-decorators._enable_from_callable = True
 
 
 class TestParDoAnnotations(unittest.TestCase):
@@ -37,9 +36,10 @@ class TestParDoAnnotations(unittest.TestCase):
       def process(self, element: float, side_input: str) -> \
           Iterable[KV[str, float]]:
         pass
+
     th = MyDoFn().get_type_hints()
     self.assertEqual(th.input_types, ((float, str), {}))
-    self.assertEqual(th.output_types, ((KV[str, float],), {}))
+    self.assertEqual(th.output_types, ((KV[str, float], ), {}))
 
   def test_pep484_annotations(self):
     class MyDoFn(DoFn):
@@ -48,8 +48,8 @@ class TestParDoAnnotations(unittest.TestCase):
 
     print(MyDoFn().get_type_hints())
     th = MyDoFn().get_type_hints()
-    self.assertEqual(th.input_types, ((int,), {}))
-    self.assertEqual(th.output_types, ((str,), {}))
+    self.assertEqual(th.input_types, ((int, ), {}))
+    self.assertEqual(th.output_types, ((str, ), {}))
 
 
 if __name__ == '__main__':

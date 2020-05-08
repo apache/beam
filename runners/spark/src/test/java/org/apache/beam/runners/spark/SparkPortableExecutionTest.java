@@ -20,15 +20,13 @@ package org.apache.beam.runners.spark;
 import java.io.File;
 import java.io.Serializable;
 import java.nio.file.FileSystems;
-import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.Environments;
-import org.apache.beam.runners.core.construction.JavaReadViaImpulse;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.fnexecution.jobsubmission.JobInvocation;
+import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -82,7 +80,7 @@ public class SparkPortableExecutionTest implements Serializable {
 
   @Test(timeout = 120_000)
   public void testExecution() throws Exception {
-    PipelineOptions options = PipelineOptionsFactory.create();
+    PipelineOptions options = PipelineOptionsFactory.fromArgs("--experiments=beam_fn_api").create();
     options.setRunner(CrashingRunner.class);
     options
         .as(PortablePipelineOptions.class)
@@ -147,10 +145,6 @@ public class SparkPortableExecutionTest implements Serializable {
     PAssert.that(result)
         .containsInAnyOrder(
             KV.of("foo", ImmutableList.of(4L, 3L, 3L)), KV.of("bar", ImmutableList.of(23L)));
-
-    // This is line below required to convert the PAssert's read to an impulse, which is expected
-    // by the GreedyPipelineFuser.
-    p.replaceAll(Collections.singletonList(JavaReadViaImpulse.boundedOverride()));
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p);
 

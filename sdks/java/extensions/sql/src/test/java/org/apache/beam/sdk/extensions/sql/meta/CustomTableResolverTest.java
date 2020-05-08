@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.sql.meta;
 import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.TableName;
@@ -32,6 +33,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,7 +106,7 @@ public class CustomTableResolverTest implements Serializable {
   }
 
   @Test
-  public void testSimpleId() throws Exception {
+  public void testSimpleId() {
     CustomResolutionTestTableProvider tableProvider = new CustomResolutionTestTableProvider();
     tableProvider.createTable(
         Table.builder().name("testtable").schema(BASIC_SCHEMA).type("test").build());
@@ -139,10 +141,24 @@ public class CustomTableResolverTest implements Serializable {
     TestBoundedTable testTable = TestBoundedTable.of(BASIC_SCHEMA).addRows(1, "one");
 
     assertThrows(
-        IllegalArgumentException.class,
-        () -> testTable.buildIOReader(pipeline.begin(), () -> null, ImmutableList.of()));
+        UnsupportedOperationException.class,
+        () ->
+            testTable.buildIOReader(
+                pipeline.begin(),
+                new BeamSqlTableFilter() {
+                  @Override
+                  public List<RexNode> getNotSupported() {
+                    return null;
+                  }
+
+                  @Override
+                  public int numSupported() {
+                    return 0;
+                  }
+                },
+                ImmutableList.of()));
     assertThrows(
-        IllegalArgumentException.class,
+        UnsupportedOperationException.class,
         () ->
             testTable.buildIOReader(
                 pipeline.begin(),

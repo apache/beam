@@ -23,13 +23,14 @@ import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.fn.harness.FnHarness;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -123,8 +124,23 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
           }
         });
 
-    // TODO: find some way to populate the actual ID in FnHarness.main()
-    InstructionRequestHandler handler = clientSource.take("", Duration.ofMinutes(1L));
+    InstructionRequestHandler handler = null;
+    // Wait on a client from the gRPC server.
+    while (handler == null) {
+      try {
+        // If the thread is not alive anymore, we abort.
+        if (executor.isShutdown()) {
+          throw new IllegalStateException("FnHarness startup failed");
+        }
+        // TODO: find some way to populate the actual ID in FnHarness.main()
+        handler = clientSource.take("", Duration.ofSeconds(5L));
+      } catch (TimeoutException timeoutEx) {
+        LOG.info("Still waiting for startup of FnHarness");
+      } catch (InterruptedException interruptEx) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(interruptEx);
+      }
+    }
     return RemoteEnvironment.forHandler(environment, handler);
   }
 
@@ -141,7 +157,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServer,
         GrpcFnServer<GrpcLoggingService> loggingServer,
-        GrpcFnServer<ArtifactRetrievalService> retrievalServer,
+        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

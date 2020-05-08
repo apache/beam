@@ -26,14 +26,14 @@ func Distinct(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("filter.Distinct")
 
 	pre := beam.ParDo(s, mapFn, col)
-	post := beam.GroupByKey(s, pre)
-	return beam.ParDo(s, keyFn, post)
+	post := beam.CombinePerKey(s, mergeFn, pre)
+	return beam.DropValue(s, post)
 }
 
 func mapFn(elm beam.T) (beam.T, int) {
 	return elm, 1
 }
 
-func keyFn(key beam.T, _ func(*int) bool) beam.T {
-	return key
+func mergeFn(_, _ int) int {
+	return 1
 }

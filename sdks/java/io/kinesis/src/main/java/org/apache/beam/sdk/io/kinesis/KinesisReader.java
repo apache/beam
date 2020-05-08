@@ -40,6 +40,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
   private final WatermarkPolicyFactory watermarkPolicyFactory;
+  private final RateLimitPolicyFactory rateLimitPolicyFactory;
   private final Duration upToDateThreshold;
   private final Duration backlogBytesCheckThreshold;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
@@ -53,6 +54,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
       WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
       Duration upToDateThreshold,
       Integer maxCapacityPerShard) {
     this(
@@ -60,6 +62,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         initialCheckpointGenerator,
         source,
         watermarkPolicyFactory,
+        rateLimitPolicyFactory,
         upToDateThreshold,
         Duration.standardSeconds(30),
         maxCapacityPerShard);
@@ -70,6 +73,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       CheckpointGenerator initialCheckpointGenerator,
       KinesisSource source,
       WatermarkPolicyFactory watermarkPolicyFactory,
+      RateLimitPolicyFactory rateLimitPolicyFactory,
       Duration upToDateThreshold,
       Duration backlogBytesCheckThreshold,
       Integer maxCapacityPerShard) {
@@ -77,6 +81,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
     this.watermarkPolicyFactory = watermarkPolicyFactory;
+    this.rateLimitPolicyFactory = rateLimitPolicyFactory;
     this.source = source;
     this.upToDateThreshold = upToDateThreshold;
     this.backlogBytesCheckThreshold = backlogBytesCheckThreshold;
@@ -185,6 +190,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         kinesis,
         initialCheckpointGenerator.generate(kinesis),
         watermarkPolicyFactory,
+        rateLimitPolicyFactory,
         maxCapacityPerShard);
   }
 }

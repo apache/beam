@@ -48,7 +48,7 @@ task sdist {
       args '-c', ". ${envdir}/bin/activate && python setup.py -q sdist --formats zip,gztar --dist-dir ${buildDir}"
     }
 
-    def collection = fileTree(buildDir){ include "**/*${project['python_sdk_version']}*.tar.gz" exclude 'srcs/**'}
+    def collection = fileTree(buildDir){ include "**/*${project.sdk_version}*.tar.gz" exclude 'srcs/**'}
 
     // we need a fixed name for the artifact
     copy { from collection.singleFile; into buildDir; rename { tarball } }
@@ -89,11 +89,12 @@ task depSnapshot {
 
 task dependencyUpdates {
   dependsOn ':dependencyUpdates'
+  dependsOn setupVirtualenv
 
   doLast {
     exec {
       executable 'sh'
-      args '-c', "./scripts/run_dependency_check.sh"
+      args '-c', ". ${envdir}/bin/activate && ./scripts/run_dependency_check.sh"
     }
   }
 }
@@ -101,4 +102,16 @@ task dependencyUpdates {
 task buildSnapshot() {
   dependsOn 'sdist'
   dependsOn 'depSnapshot'
+}
+
+task startPortableRunner {
+  dependsOn 'buildPython'
+
+  doLast {
+    def jobPort = project.findProperty("jobPort") ?: 8099
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && python -m apache_beam.runners.portability.local_job_service_main --job_port ${jobPort}"
+    }
+  }
 }

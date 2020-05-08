@@ -20,6 +20,8 @@
 This module is experimental. No backwards-compatibility guarantees.
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -27,6 +29,12 @@ from __future__ import print_function
 import collections
 import logging
 import threading
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Tuple
+from typing import Union
 
 import pydot
 
@@ -44,7 +52,7 @@ class PipelineGraph(object):
   """Creates a DOT representing the pipeline. Thread-safe. Runner agnostic."""
 
   def __init__(self,
-               pipeline,
+               pipeline,  # type: Union[beam_runner_api_pb2.Pipeline, beam.Pipeline]
                default_vertex_attrs={'shape': 'box'},
                default_edge_attrs=None,
                render_option=None):
@@ -67,7 +75,7 @@ class PipelineGraph(object):
           rendered. See display.pipeline_graph_renderer for available options.
     """
     self._lock = threading.Lock()
-    self._graph = None
+    self._graph = None  # type: pydot.Dot
     self._pipeline_instrument = None
     if isinstance(pipeline, beam.Pipeline):
       self._pipeline_instrument = inst.PipelineInstrument(pipeline)
@@ -80,14 +88,15 @@ class PipelineGraph(object):
     elif isinstance(pipeline, beam.Pipeline):
       self._pipeline_proto = pipeline.to_runner_api()
     else:
-      raise TypeError('pipeline should either be a %s or %s, while %s is given'
-                      % (beam_runner_api_pb2.Pipeline, beam.Pipeline,
-                         type(pipeline)))
+      raise TypeError(
+          'pipeline should either be a %s or %s, while %s is given' %
+          (beam_runner_api_pb2.Pipeline, beam.Pipeline, type(pipeline)))
 
     # A dict from PCollection ID to a list of its consuming Transform IDs
-    self._consumers = collections.defaultdict(list)
+    self._consumers = collections.defaultdict(
+        list)  # type: DefaultDict[str, List[str]]
     # A dict from PCollection ID to its producing Transform ID
-    self._producers = {}
+    self._producers = {}  # type: Dict[str, str]
 
     for transform_id, transform_proto in self._top_level_transforms():
       for pcoll_id in transform_proto.inputs.values():
@@ -102,28 +111,31 @@ class PipelineGraph(object):
       default_vertex_attrs['fontcolor'] = 'blue'
 
     vertex_dict, edge_dict = self._generate_graph_dicts()
-    self._construct_graph(vertex_dict,
-                          edge_dict,
-                          default_vertex_attrs,
-                          default_edge_attrs)
+    self._construct_graph(
+        vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs)
 
     self._renderer = pipeline_graph_renderer.get_renderer(render_option)
 
   def get_dot(self):
+    # type: () -> str
     return self._get_graph().to_string()
 
   def display_graph(self):
+    """Displays the graph generated."""
     rendered_graph = self._renderer.render_pipeline_graph(self)
     if ie.current_env().is_in_notebook:
       try:
         from IPython.core import display
         display.display(display.HTML(rendered_graph))
       except ImportError:  # Unlikely to happen when is_in_notebook.
-        logging.warning('Failed to import IPython display module when current '
-                        'environment is in a notebook. Cannot display the '
-                        'pipeline graph.')
+        logging.warning(
+            'Failed to import IPython display module when current '
+            'environment is in a notebook. Cannot display the '
+            'pipeline graph.')
 
   def _top_level_transforms(self):
+    # type: () -> Iterator[Tuple[str, beam_runner_api_pb2.PTransform]]
+
     """Yields all top level PTransforms (subtransforms of the root PTransform).
 
     Yields: (str, PTransform proto) ID, proto pair of top level PTransforms.
@@ -190,8 +202,7 @@ class PipelineGraph(object):
         if pcoll_id not in self._consumers:
           self._edge_to_vertex_pairs[pcoll_id].append(
               (self._decorate(transform.unique_name), pcoll_node))
-          edge_dict[(self._decorate(transform.unique_name),
-                     pcoll_node)] = {}
+          edge_dict[(self._decorate(transform.unique_name), pcoll_node)] = {}
         else:
           for consumer in self._consumers[pcoll_id]:
             producer_name = self._decorate(transform.unique_name)
@@ -217,8 +228,8 @@ class PipelineGraph(object):
     with self._lock:
       return self._graph
 
-  def _construct_graph(self, vertex_dict, edge_dict,
-                       default_vertex_attrs, default_edge_attrs):
+  def _construct_graph(
+      self, vertex_dict, edge_dict, default_vertex_attrs, default_edge_attrs):
     """Constructs the pydot.Dot object for the pipeline graph.
 
     Args:

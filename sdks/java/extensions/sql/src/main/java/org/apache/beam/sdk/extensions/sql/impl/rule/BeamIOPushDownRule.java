@@ -134,11 +134,6 @@ public class BeamIOPushDownRule extends RelOptRule {
     }
 
     FieldAccessDescriptor resolved = FieldAccessDescriptor.withFieldNames(usedFields);
-    if (beamSqlTable.supportsProjects().withFieldReordering()) {
-      // Only needs to be done when field reordering is supported, otherwise IO should project
-      // fields in the same order they are defined in the schema and let Calc do the reordering.
-      resolved = resolved.withOrderByFieldInsertionOrder();
-    }
     resolved = resolved.resolve(beamSqlTable.getSchema());
 
     if (canDropCalc(program, beamSqlTable.supportsProjects(), tableFilter)) {
@@ -212,7 +207,7 @@ public class BeamIOPushDownRule extends RelOptRule {
       } else if (node instanceof RexLiteral) {
         // Does not contain information about columns utilized by a Calc
       } else {
-        throw new RuntimeException(
+        throw new UnsupportedOperationException(
             "Unexpected RexNode encountered: " + node.getClass().getSimpleName());
       }
     }

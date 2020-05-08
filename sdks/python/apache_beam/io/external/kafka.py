@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
 """
   PTransforms for supporting Kafka in Python pipelines. These transforms do not
   run a Kafka client in Python. Instead, they expand to ExternalTransforms
@@ -35,12 +36,15 @@
   - https://beam.apache.org/roadmap/portability/
 """
 
+# pytype: skip-file
+
 from __future__ import absolute_import
 
 import typing
 
 from past.builtins import unicode
 
+from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
@@ -51,8 +55,11 @@ ReadFromKafkaSchema = typing.NamedTuple(
         ('topics', typing.List[unicode]),
         ('key_deserializer', unicode),
         ('value_deserializer', unicode),
-    ]
-)
+    ])
+
+
+def default_io_expansion_service():
+  return BeamJarExpansionService('sdks:java:io:expansion-service:shadowJar')
 
 
 class ReadFromKafka(ExternalTransform):
@@ -69,16 +76,18 @@ class ReadFromKafka(ExternalTransform):
   """
 
   # Returns the key/value data as raw byte arrays
-  byte_array_deserializer = 'org.apache.kafka.common.serialization.' \
-                            'ByteArrayDeserializer'
+  byte_array_deserializer = (
+      'org.apache.kafka.common.serialization.ByteArrayDeserializer')
 
   URN = 'beam:external:java:kafka:read:v1'
 
-  def __init__(self, consumer_config,
-               topics,
-               key_deserializer=byte_array_deserializer,
-               value_deserializer=byte_array_deserializer,
-               expansion_service=None):
+  def __init__(
+      self,
+      consumer_config,
+      topics,
+      key_deserializer=byte_array_deserializer,
+      value_deserializer=byte_array_deserializer,
+      expansion_service=None):
     """
     Initializes a read operation from Kafka.
 
@@ -106,10 +115,8 @@ class ReadFromKafka(ExternalTransform):
                 topics=topics,
                 key_deserializer=key_deserializer,
                 value_deserializer=value_deserializer,
-            )
-        ),
-        expansion_service
-    )
+            )),
+        expansion_service or default_io_expansion_service())
 
 
 WriteToKafkaSchema = typing.NamedTuple(
@@ -119,8 +126,7 @@ WriteToKafkaSchema = typing.NamedTuple(
         ('topic', unicode),
         ('key_serializer', unicode),
         ('value_serializer', unicode),
-    ]
-)
+    ])
 
 
 class WriteToKafka(ExternalTransform):
@@ -134,20 +140,22 @@ class WriteToKafka(ExternalTransform):
   """
 
   # Default serializer which passes raw bytes to Kafka
-  byte_array_serializer = 'org.apache.kafka.common.serialization.' \
-                          'ByteArraySerializer'
+  byte_array_serializer = (
+      'org.apache.kafka.common.serialization.ByteArraySerializer')
 
   URN = 'beam:external:java:kafka:write:v1'
 
-  def __init__(self, producer_config,
-               topic,
-               key_serializer=byte_array_serializer,
-               value_serializer=byte_array_serializer,
-               expansion_service=None):
+  def __init__(
+      self,
+      producer_config,
+      topic,
+      key_serializer=byte_array_serializer,
+      value_serializer=byte_array_serializer,
+      expansion_service=None):
     """
     Initializes a write operation to Kafka.
 
-    :param consumer_config: A dictionary containing the producer configuration.
+    :param producer_config: A dictionary containing the producer configuration.
     :param topic: A Kafka topic name.
     :param key_deserializer: A fully-qualified Java class name of a Kafka
                              Serializer for the topic's key, e.g.
@@ -171,7 +179,5 @@ class WriteToKafka(ExternalTransform):
                 topic=topic,
                 key_serializer=key_serializer,
                 value_serializer=value_serializer,
-            )
-        ),
-        expansion_service
-    )
+            )),
+        expansion_service or default_io_expansion_service())
