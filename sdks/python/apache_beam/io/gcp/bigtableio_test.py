@@ -63,7 +63,7 @@ class BigtableioTest(unittest.TestCase):
 
   def _mock_row_keys(self, key_count):
     key = namedtuple('key', 'row_key')
-    return [key(row_key=i) for i in range (key_count)]
+    return [key(row_key=i) for i in range(key_count)]
 
   def test_BigtableReadFn_constructor(self):
     counter = Metrics.counter(bigtableio._BigtableReadFn.__class__, 'Rows Read')
