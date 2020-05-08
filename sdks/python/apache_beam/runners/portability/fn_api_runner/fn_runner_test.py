@@ -231,10 +231,7 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
-      side = (
-          p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
-          # TODO(BEAM-4782): Obviate the need for this map.
-          | beam.Map(lambda kv: (kv[0], kv[1])))
+      side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | beam.Map(
               lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)),
@@ -245,10 +242,7 @@ class FnApiRunnerTest(unittest.TestCase):
     # twice as side input.
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
-      side = (
-          p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
-          # TODO(BEAM-4782): Obviate the need for this map.
-          | beam.Map(lambda kv: (kv[0], kv[1])))
+      side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | 'first map' >> beam.Map(
               lambda k,
