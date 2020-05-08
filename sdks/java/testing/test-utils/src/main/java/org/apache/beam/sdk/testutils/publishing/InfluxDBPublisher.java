@@ -66,7 +66,7 @@ public final class InfluxDBPublisher {
       builder.setDefaultCredentialsProvider(provider);
     }
 
-    final HttpPost postRequest = new HttpPost(settings.host + "write?db=" + settings.database);
+    final HttpPost postRequest = new HttpPost(settings.host + "/write?db=" + settings.database);
 
     final StringBuilder metricBuilder = new StringBuilder();
     results.stream()

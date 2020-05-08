@@ -22,10 +22,11 @@ import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import Flink
 import Docker
+import InfluxDBCredentialsHelper
 
 String now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
-def scenarios = { datasetName, sdkHarnessImageTag -> [
+def scenarios = { datasetName -> [
         [
                 title          : 'CoGroupByKey Python Load test: 2GB of 100B records with a single key',
                 test           : 'apache_beam.testing.load_tests.co_group_by_key_test',
@@ -37,6 +38,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_flink_batch_cogbk_1",
+                        influx_measurement   : 'python_batch_cogbk_1',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -52,7 +54,6 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         iterations           : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -67,6 +68,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_flink_batch_cogbk_2',
+                        influx_measurement   : 'python_batch_cogbk_2',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -82,7 +84,6 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         iterations           : 1,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
@@ -97,6 +98,7 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_flink_batch_cogbk_3",
+                        influx_measurement   : 'python_batch_cogbk_3',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -112,11 +114,11 @@ def scenarios = { datasetName, sdkHarnessImageTag -> [
                         iterations           : 4,
                         parallelism          : 5,
                         job_endpoint         : 'localhost:8099',
-                        environment_config   : sdkHarnessImageTag,
                         environment_type     : 'DOCKER',
                 ]
         ],
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def loadTest = { scope, triggeringContext ->
   Docker publisher = new Docker(scope, loadTestsBuilder.DOCKER_CONTAINER_REGISTRY)
@@ -124,7 +126,8 @@ def loadTest = { scope, triggeringContext ->
 
   def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
   def numberOfWorkers = 5
-  List<Map> testScenarios = scenarios(datasetName, pythonHarnessImageTag)
+  additionalPipelineArgs << [environment_config: pythonHarnessImageTag]
+  List<Map> testScenarios = scenarios(datasetName)
 
   publisher.publish(':sdks:python:container:py37:docker', 'beam_python3.7_sdk')
   publisher.publish(':runners:flink:1.10:job-server-container:docker', 'beam_flink1.10_job_server')
@@ -140,6 +143,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python CoGBK Flink Batch suite',
         this
 ) {
+  additionalPipelineArgs = [:]
   loadTest(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
