@@ -18,6 +18,13 @@ from __future__ import absolute_import
 
 import typing
 from typing import TypeVar
+from typing import Any
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Mapping
+from typing import Tuple
+from typing import Union
 
 import pandas as pd
 
@@ -25,14 +32,7 @@ import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
-
-if typing.TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import Any
-  from typing import Dict
-  from typing import Tuple
-  from typing import Union
-  from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import PCollection
 
 T = TypeVar('T')
 
@@ -262,10 +262,10 @@ def _dict_union(dicts):
 
 
 def _flatten(
-    valueish,  # type: Union[T, Tuple[T, ...], Dict[Any, T]]
+    valueish,  # type: Union[T, List[T], Tuple[T], Mapping[Any, T]]
     root=(),  # type: Tuple[Any, ...]
     ):
-  # type: (...) -> Dict[Tuple[Any, ...], T]
+  # type: (...) -> Mapping[Tuple[Any, ...], T]
 
   """Given a nested structure of dicts, tuples, and lists, return a flat
   dictionary where the values are the leafs and the keys are the "paths" to
@@ -273,9 +273,9 @@ def _flatten(
 
   For example `{a: x, b: (y, z)}` becomes `{(a,): x, (b, 0): y, (b, 1): c}`.
   """
-  if isinstance(valueish, dict):
+  if isinstance(valueish, Mapping):
     return _dict_union(_flatten(v, root + (k, )) for k, v in valueish.items())
-  elif isinstance(valueish, (tuple, list)):
+  elif isinstance(valueish, (list, tuple)):
     return _dict_union(
         _flatten(v, root + (ix, )) for ix, v in enumerate(valueish))
   else:

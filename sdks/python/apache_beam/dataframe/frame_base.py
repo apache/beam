@@ -18,17 +18,14 @@ from __future__ import absolute_import
 
 import inspect
 import typing
+from typing import Any
+from typing import Dict
+from typing import Tuple
+from typing import Union
 
 import pandas as pd
 
 from apache_beam.dataframe import expressions
-
-if typing.TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import Any
-  from typing import Dict
-  from typing import Tuple
-  from typing import Union
 
 
 class DeferredFrame(object):
