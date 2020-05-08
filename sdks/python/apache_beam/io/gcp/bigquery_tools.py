@@ -56,6 +56,7 @@ from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
+from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -175,6 +176,7 @@ def parse_table_reference(table, dataset=None, project=None):
   Returns:
     A TableReference object from the bigquery API. The object has the following
     attributes: projectId, datasetId, and tableId.
+    If the input is a TableReference object, a new object will be returned.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
@@ -182,7 +184,10 @@ def parse_table_reference(table, dataset=None, project=None):
   """
 
   if isinstance(table, bigquery.TableReference):
-    return table
+    return bigquery.TableReference(
+        projectId=table.projectId,
+        datasetId=table.datasetId,
+        tableId=table.tableId)
   elif callable(table):
     return table
   elif isinstance(table, value_provider.ValueProvider):
@@ -690,6 +695,7 @@ class BigQueryWrapper(object):
       job_id,
       table_reference,
       destination_format,
+      project=None,
       include_header=True,
       compression=ExportCompression.NONE):
     """Starts a job to export data from BigQuery.
@@ -697,10 +703,10 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
-    job_reference = bigquery.JobReference(
-        jobId=job_id, projectId=table_reference.projectId)
+    job_project = project or table_reference.projectId
+    job_reference = bigquery.JobReference(jobId=job_id, projectId=job_project)
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=table_reference.projectId,
+        projectId=job_project,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 extract=bigquery.JobConfigurationExtract(
@@ -1178,6 +1184,9 @@ class RowAsDictJsonCoder(coders.Coder):
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))
+
+  def to_type_hint(self):
+    return Any
 
 
 class JsonRowWriter(io.IOBase):

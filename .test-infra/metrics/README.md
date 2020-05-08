@@ -17,18 +17,20 @@
     under the License.
 -->
 # BeamMonitoring
-This folder contains resources required to deploy the Beam community metrics
-stack.
+This folder contains resources required to deploy the Beam metrics stack.
 
-[Beam community dashboard is available here.](https://s.apache.org/beam-community-metrics)
-
-Whole stack can be deployed on your local machine as well.
-
-This includes
-* Python scripts for ingesting data from sources (Jenkins, JIRA,
+There are two types of metrics in Beam:
+* Community metrics. The stack includes:
+  * Python scripts for ingesting data from sources (Jenkins, JIRA,
   GitHub)
-* Postgres analytics database
-* [Grafana](https://grafana.com) dashboarding UI
+  * Postgres analytics database
+
+* Test Results, i.e. metrics published by tests (IO Performance tests, Load tests and Nexmark tests). Beam uses InfluxDB time series database to store test metrics.
+  
+
+Both types of metrics are presented in [Grafana dashboard available here.](http://metrics.beam.apache.org)
+
+Both stacks can be deployed on your local machine.
 
 All components run within Docker containers. These are composed together via
 docker-compose for local hosting, and Kubernetes for the production instance on
@@ -91,16 +93,18 @@ machine:
 
 * Grafana: http://localhost:3000
 * Postgres DB: localhost:5432
+* InfluxDB: http://localhost:8086
 
 If you're deploying for the first time on your machine, follow the wiki instructions
 on how to manually [configure
 Grafana](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics#CommunityMetrics-GrafanaUI).
 
-Grafana and Postgres containers persist data to Docker volumes, which will be
+Grafana, Postgres and InfluxDB containers persist data to Docker volumes, which will be
 restored on subsequent runs. To start from a clean state, you must also wipe out
 these volumes. (List volumes via `docker volume ls`)
 
 ## Kubernetes setup
 
-Kubernetes deployment instructions are maintained in the
-[wiki](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics).
+Kubernetes deployment instructions are maintained in the wiki:
+* [Community metrics](https://cwiki.apache.org/confluence/display/BEAM/Community+Metrics)
+* [Test Results Monitoring](https://cwiki.apache.org/confluence/display/BEAM/Test+Results+Monitoring)

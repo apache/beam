@@ -15,39 +15,34 @@
  # limitations under the License.
 
 set -e
+
+ROOT=$(pwd)
+SCRIPT_DIR="${ROOT}/sdks/java/container/license_scripts"
+ENV_DIR="${ROOT}/sdks/java/container/build/virtualenv"
+LICENSE_DIR="${ROOT}/sdks/java/container/build/target/third_party_licenses"
+
 # reports are generated at ~/beam/java_third_party_licenses
 ./gradlew generateLicenseReport --rerun-tasks
 
-# install packages needed for pull_licenses_java.py
-pip install "beautifulsoup4>=4.9.0,<5.0"
-pip install "future>=0.16.0,<1.0.0"
-pip install "pyyaml>=3.12,<6.0.0"
-pip install "tenacity>=5.0.2,<6.0"
+# activate virtualenv
+virtualenv ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+
+# install packages
+${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
 
 # pull licenses, notices and source code
-if [ "$1" = 'true' ]; then
-  echo "Executing python sdks/java/container/license_scripts/pull_licenses_java.py --pull_licenses"
-  python sdks/java/container/license_scripts/pull_licenses_java.py --pull_licenses
-else
-  echo "Executing python sdks/java/container/license_scripts/pull_licenses_java.py"
-  python sdks/java/container/license_scripts/pull_licenses_java.py
-fi
+FLAGS="--license_dir=${ROOT}/java_third_party_licenses \
+       --dep_url_yaml=${SCRIPT_DIR}/dep_urls_java.yaml "
 
-echo "Uninstall python packages used by pull_licenses_java.py."
-pip uninstall -y beautifulsoup4
-pip uninstall -y future
-pip uninstall -y PyYAML
-pip uninstall -y tenacity
+echo "Executing ${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS"
+${ENV_DIR}/bin/python ${SCRIPT_DIR}/pull_licenses_java.py $FLAGS
 
-mkdir -p sdks/java/container/third_party_licenses
-if [ "$1" = 'true' ]; then
-  echo "Copy licenses to sdks/java/container/third_party_licenses/."
-  cp -r java_third_party_licenses/*.jar sdks/java/container/third_party_licenses/
-  cp -r java_third_party_licenses/*.csv sdks/java/container/third_party_licenses/
-else
-  # create an empty file to avoid no file/dir existing error
-  echo "Create empty file."
-  touch sdks/java/container/third_party_licenses/empty
-fi
-rm -rf java_third_party_licenses
+if [ -d "$LICENSE_DIR" ]; then rm -rf $LICENSE_DIR; fi
+mkdir -p ${LICENSE_DIR}
+echo "Copy licenses to ${LICENSE_DIR}."
+cp -r ${ROOT}/java_third_party_licenses/*.jar ${LICENSE_DIR}/
+cp -r ${ROOT}/java_third_party_licenses/*.csv ${LICENSE_DIR}/
+gzip -r ${LICENSE_DIR}/*
+
+rm -rf ${ROOT}/java_third_party_licenses
 echo "Finished license_scripts.sh"

@@ -18,19 +18,28 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.client.util.Base64;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HL7v2MessagePages;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 
 class HL7v2IOTestUtil {
+  public static final long HL7V2_INDEXING_TIMEOUT_MINUTES = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
   public static final String HEALTHCARE_DATASET_TEMPLATE =
       "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
@@ -81,20 +90,58 @@ class HL7v2IOTestUtil {
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
-    for (String msgId :
-        client
-            .getHL7v2MessageStream(hl7v2Store)
-            .map(HL7v2Message::getName)
-            .collect(Collectors.toList())) {
-      client.deleteHL7v2Message(msgId);
+    for (Stream<HL7v2Message> page : new HL7v2MessagePages(client, hl7v2Store)) {
+      for (String msgId : page.map(HL7v2Message::getName).collect(Collectors.toList())) {
+        client.deleteHL7v2Message(msgId);
+      }
+    }
+  }
+
+  /** Utiliy for waiting on HL7v2 Store indexing to be complete see BEAM-9779. */
+  public static void waitForHL7v2Indexing(
+      HealthcareApiClient client, String hl7v2Store, long expectedNumMessages, Duration timeout)
+      throws InterruptedException, TimeoutException {
+
+    Instant start = Instant.now();
+    long sleepMs = 50;
+    long numListedMessages = 0;
+    while (new Duration(start, Instant.now()).isShorterThan(timeout)) {
+      numListedMessages = 0;
+      // count messages in HL7v2 Store.
+      for (Stream<HL7v2Message> page :
+          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store)) {
+        numListedMessages += page.count();
+      }
+      if (numListedMessages == expectedNumMessages) {
+        return;
+      }
+      // exponential backoff.
+      sleepMs *= 2;
+      // exit if next sleep will violate timeout
+      if (new Duration(start, Instant.now()).plus(sleepMs).isShorterThan(timeout)) {
+        Sleeper.DEFAULT.sleep(sleepMs);
+      } else {
+        throw new TimeoutException(
+            String.format(
+                "Timed out waiting for %s to reach %s messages. last list request returned %s messages.",
+                hl7v2Store, expectedNumMessages, numListedMessages));
+      }
     }
   }
 
   /** Populate the test messages into the HL7v2 store. */
-  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store) throws IOException {
+  static void writeHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
+      throws IOException, InterruptedException, TimeoutException {
     for (HL7v2Message msg : MESSAGES) {
       client.createHL7v2Message(hl7v2Store, msg.toModel());
     }
+    // [BEAM-9779] HL7v2 indexing is asyncronous. Block until indexing completes to stabilize this
+    // IT.
+    HL7v2IOTestUtil.waitForHL7v2Indexing(
+        client,
+        hl7v2Store,
+        MESSAGES.size(),
+        Duration.standardMinutes(HL7V2_INDEXING_TIMEOUT_MINUTES));
   }
 
   /**
@@ -170,10 +217,11 @@ class HL7v2IOTestUtil {
     public void listMessages(ProcessContext context) throws IOException {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
-      this.client
-          .getHL7v2MessageStream(hl7v2Store, this.filter)
-          .map(HL7v2Message::getName)
-          .forEach(context::output);
+      HttpHealthcareApiClient.HL7v2MessagePages pages =
+          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
+      for (Stream<HL7v2Message> page : pages) {
+        page.map(HL7v2Message::getName).forEach(context::output);
+      }
     }
   }
 

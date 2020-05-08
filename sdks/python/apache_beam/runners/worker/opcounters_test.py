@@ -67,7 +67,7 @@ class TransformIoCounterTest(unittest.TestCase):
     sampler.stop()
     sampler.commit_counters()
 
-    actual_counter_names = set([c.name for c in counter_factory.get_counters()])
+    actual_counter_names = {c.name for c in counter_factory.get_counters()}
     expected_counter_names = set([
         # Counter names for STEP 1
         counters.CounterName(

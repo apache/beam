@@ -25,7 +25,9 @@ import java.nio.channels.Channels;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.ArtifactResolver;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.DefaultArtifactResolver;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
@@ -51,13 +53,24 @@ public class ArtifactRetrievalService
             BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)));
   }
 
+  private final ArtifactResolver resolver;
+
   private final int bufferSize;
 
   public ArtifactRetrievalService() {
     this(DEFAULT_BUFFER_SIZE);
   }
 
+  public ArtifactRetrievalService(ArtifactResolver resolver) {
+    this(resolver, DEFAULT_BUFFER_SIZE);
+  }
+
   public ArtifactRetrievalService(int bufferSize) {
+    this(DefaultArtifactResolver.INSTANCE, bufferSize);
+  }
+
+  public ArtifactRetrievalService(ArtifactResolver resolver, int bufferSize) {
+    this.resolver = resolver;
     this.bufferSize = bufferSize;
   }
 
@@ -67,7 +80,7 @@ public class ArtifactRetrievalService
       StreamObserver<ArtifactApi.ResolveArtifactsResponse> responseObserver) {
     responseObserver.onNext(
         ArtifactApi.ResolveArtifactsResponse.newBuilder()
-            .addAllReplacements(request.getArtifactsList())
+            .addAllReplacements(resolver.resolveArtifacts(request.getArtifactsList()))
             .build());
     responseObserver.onCompleted();
   }

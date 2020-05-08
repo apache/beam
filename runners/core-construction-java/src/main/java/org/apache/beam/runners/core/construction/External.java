@@ -19,13 +19,21 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactRetrievalServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
@@ -43,6 +51,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannelBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -205,7 +214,7 @@ public class External {
             String.format("expansion service error: %s", response.getError()));
       }
 
-      expandedComponents = response.getComponents();
+      expandedComponents = resolveArtifacts(response.getComponents());
       expandedTransform = response.getTransform();
 
       RehydratedComponents rehydratedComponents =
@@ -244,6 +253,81 @@ public class External {
       externalCoderIdMap = ImmutableMap.copyOf(externalCoderIdMapBuilder);
 
       return toOutputCollection(outputMapBuilder.build());
+    }
+
+    private RunnerApi.Components resolveArtifacts(RunnerApi.Components components) {
+      if (components.getEnvironmentsMap().values().stream()
+          .allMatch(env -> env.getDependenciesCount() == 0)) {
+        return components;
+      }
+
+      ManagedChannel channel =
+          ManagedChannelBuilder.forTarget(endpoint.getUrl())
+              .usePlaintext()
+              .maxInboundMessageSize(Integer.MAX_VALUE)
+              .build();
+      try {
+        RunnerApi.Components.Builder componentsBuilder = components.toBuilder();
+        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub =
+            ArtifactRetrievalServiceGrpc.newBlockingStub(channel);
+        for (Map.Entry<String, RunnerApi.Environment> env :
+            componentsBuilder.getEnvironmentsMap().entrySet()) {
+          componentsBuilder.putEnvironments(
+              env.getKey(), resolveArtifacts(retrievalStub, env.getValue()));
+        }
+        return componentsBuilder.build();
+      } catch (IOException exn) {
+        throw new RuntimeException(exn);
+      } finally {
+        channel.shutdown();
+      }
+    }
+
+    private RunnerApi.Environment resolveArtifacts(
+        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
+        RunnerApi.Environment environment)
+        throws IOException {
+      return environment
+          .toBuilder()
+          .clearDependencies()
+          .addAllDependencies(resolveArtifacts(retrievalStub, environment.getDependenciesList()))
+          .build();
+    }
+
+    private List<RunnerApi.ArtifactInformation> resolveArtifacts(
+        ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
+        List<RunnerApi.ArtifactInformation> artifacts)
+        throws IOException {
+      List<RunnerApi.ArtifactInformation> resolved = new ArrayList<>();
+      for (RunnerApi.ArtifactInformation artifact :
+          retrievalStub
+              .resolveArtifacts(
+                  ArtifactApi.ResolveArtifactsRequest.newBuilder()
+                      .addAllArtifacts(artifacts)
+                      .build())
+              .getReplacementsList()) {
+        RunnerApi.ArtifactInformation.Builder newArtifact = artifact.toBuilder();
+        Path path = Files.createTempFile("beam-artifact", "");
+        try (FileOutputStream fout = new FileOutputStream(path.toFile())) {
+          for (Iterator<ArtifactApi.GetArtifactResponse> it =
+                  retrievalStub.getArtifact(
+                      ArtifactApi.GetArtifactRequest.newBuilder().setArtifact(artifact).build());
+              it.hasNext(); ) {
+            it.next().getData().writeTo(fout);
+          }
+        }
+        resolved.add(
+            artifact
+                .toBuilder()
+                .setTypeUrn("beam:artifact:type:file:v1")
+                .setTypePayload(
+                    RunnerApi.ArtifactFilePayload.newBuilder()
+                        .setPath(path.toString())
+                        .build()
+                        .toByteString())
+                .build());
+      }
+      return resolved;
     }
 
     boolean isJavaSDKCompatible(RunnerApi.Components components, String coderId) {

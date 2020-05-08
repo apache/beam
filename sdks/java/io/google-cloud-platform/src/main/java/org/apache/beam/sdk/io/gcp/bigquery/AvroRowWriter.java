@@ -20,28 +20,27 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileWriter;
-import org.apache.avro.generic.GenericDatumWriter;
-import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.MimeTypes;
 
-class AvroRowWriter<T> extends BigQueryRowWriter<T> {
-  private final DataFileWriter<GenericRecord> writer;
+class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
+  private final DataFileWriter<AvroT> writer;
   private final Schema schema;
-  private final SerializableFunction<AvroWriteRequest<T>, GenericRecord> toAvroRecord;
+  private final SerializableFunction<AvroWriteRequest<T>, AvroT> toAvroRecord;
 
   AvroRowWriter(
       String basename,
       Schema schema,
-      SerializableFunction<AvroWriteRequest<T>, GenericRecord> toAvroRecord)
+      SerializableFunction<AvroWriteRequest<T>, AvroT> toAvroRecord,
+      SerializableFunction<Schema, DatumWriter<AvroT>> writerFactory)
       throws Exception {
     super(basename, MimeTypes.BINARY);
 
     this.schema = schema;
     this.toAvroRecord = toAvroRecord;
     this.writer =
-        new DataFileWriter<GenericRecord>(new GenericDatumWriter<>())
-            .create(schema, getOutputStream());
+        new DataFileWriter<>(writerFactory.apply(schema)).create(schema, getOutputStream());
   }
 
   @Override

@@ -76,6 +76,7 @@ from past.builtins import unicode
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -94,6 +95,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils import subprocess_server
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
 
@@ -119,7 +121,7 @@ class Pipeline(object):
   All the transforms applied to the pipeline must have distinct full labels.
   If same transform instance needs to be applied then the right shift operator
   should be used to designate new names
-  (e.g. ``input | "label" >> my_tranform``).
+  (e.g. ``input | "label" >> my_transform``).
   """
 
   # TODO: BEAM-9001 - set environment ID in all transforms and allow runners to
@@ -210,6 +212,8 @@ class Pipeline(object):
       if not 'beam_fn_api' in experiments:
         experiments.append('beam_fn_api')
         self._options.view_as(DebugOptions).experiments = experiments
+
+    self.local_tempdir = tempfile.mkdtemp(prefix='beam-pipeline-temp')
 
     # Default runner to be used.
     self.runner = runner
@@ -419,10 +423,9 @@ class Pipeline(object):
         if replace_output:
           output_replacements[transform_node] = []
           for original, replacement in output_map.items():
-            if (original.tag in transform_node.outputs and
-                transform_node.outputs[original.tag] in output_map):
-              output_replacements[transform_node].append(
-                  (replacement, original.tag))
+            for tag, output in transform_node.outputs.items():
+              if output == original:
+                output_replacements[transform_node].append((tag, replacement))
 
         if replace_input:
           new_input = [
@@ -444,8 +447,8 @@ class Pipeline(object):
     self.visit(InputOutputUpdater(self))
 
     for transform in output_replacements:
-      for output in output_replacements[transform]:
-        transform.replace_output(output[0], tag=output[1])
+      for tag, output in output_replacements[transform]:
+        transform.replace_output(output, tag=tag)
 
     for transform in input_replacements:
       transform.inputs = input_replacements[transform]
@@ -491,43 +494,62 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=True):
-    # type: (bool) -> PipelineResult
+  def run(self, test_runner_api='AUTO'):
+    # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
 
-    # When possible, invoke a round trip through the runner API.
-    if test_runner_api and self._verify_runner_api_compatible():
-      return Pipeline.from_runner_api(
-          self.to_runner_api(use_fake_coders=True), self.runner,
-          self._options).run(False)
+    try:
+      if test_runner_api == 'AUTO':
+        # Don't pay the cost of a round-trip if we're going to be going through
+        # the FnApi anyway...
+        test_runner_api = (
+            not self.runner.is_fnapi_compatible() and (
+                self.runner.__class__.__name__ != 'SwitchingDirectRunner' or
+                self._options.view_as(StandardOptions).streaming))
 
-    if self._options.view_as(TypeOptions).runtime_type_check:
-      from apache_beam.typehints import typecheck
-      self.visit(typecheck.TypeCheckVisitor())
+      # When possible, invoke a round trip through the runner API.
+      if test_runner_api and self._verify_runner_api_compatible():
+        return Pipeline.from_runner_api(
+            self.to_runner_api(use_fake_coders=True),
+            self.runner,
+            self._options).run(False)
 
-    if self._options.view_as(SetupOptions).save_main_session:
-      # If this option is chosen, verify we can pickle the main session early.
-      tmpdir = tempfile.mkdtemp()
-      try:
-        pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
-      finally:
-        shutil.rmtree(tmpdir)
-    return self.runner.run_pipeline(self, self._options)
+      if self._options.view_as(TypeOptions).runtime_type_check:
+        from apache_beam.typehints import typecheck
+        self.visit(typecheck.TypeCheckVisitor())
+
+      if self._options.view_as(SetupOptions).save_main_session:
+        # If this option is chosen, verify we can pickle the main session early.
+        tmpdir = tempfile.mkdtemp()
+        try:
+          pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
+        finally:
+          shutil.rmtree(tmpdir)
+      return self.runner.run_pipeline(self, self._options)
+    finally:
+      shutil.rmtree(self.local_tempdir, ignore_errors=True)
 
   def __enter__(self):
     # type: () -> Pipeline
+    self._extra_context = subprocess_server.JavaJarServer.beam_services(
+        self._options.view_as(CrossLanguageOptions).beam_services)
+    self._extra_context.__enter__()
     return self
 
-  def __exit__(self,
-               exc_type,  # type: Optional[Type[BaseException]]
-               exc_val,  # type: Optional[BaseException]
-               exc_tb  # type: Optional[TracebackType]
-              ):
+  def __exit__(
+      self,
+      exc_type,  # type: Optional[Type[BaseException]]
+      exc_val,  # type: Optional[BaseException]
+      exc_tb  # type: Optional[TracebackType]
+  ):
     # type: (...) -> None
 
-    if not exc_type:
-      self.run().wait_until_finish()
+    try:
+      if not exc_type:
+        self.run().wait_until_finish()
+    finally:
+      self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
   def visit(self, visitor):
     # type: (PipelineVisitor) -> None
@@ -557,7 +579,7 @@ class Pipeline(object):
       transform,  # type: ptransform.PTransform
       pvalueish=None,  # type: Optional[pvalue.PValue]
       label=None  # type: Optional[str]
-    ):
+  ):
     # type: (...) -> pvalue.PValue
 
     """Applies a custom transform using the pvalueish specified.
@@ -777,12 +799,13 @@ class Pipeline(object):
     self.visit(Visitor())
     return Visitor.ok
 
-  def to_runner_api(self,
-                    return_context=False,  # type: bool
-                    context=None,  # type: Optional[PipelineContext]
-                    use_fake_coders=False,  # type: bool
-                    default_environment=None  # type: Optional[environments.Environment]
-                   ):
+  def to_runner_api(
+      self,
+      return_context=False,  # type: bool
+      context=None,  # type: Optional[PipelineContext]
+      use_fake_coders=False,  # type: bool
+      default_environment=None  # type: Optional[environments.Environment]
+  ):
     # type: (...) -> beam_runner_api_pb2.Pipeline
 
     """For internal use only; no backwards-compatibility guarantees."""
@@ -845,12 +868,13 @@ class Pipeline(object):
       return proto
 
   @staticmethod
-  def from_runner_api(proto,  # type: beam_runner_api_pb2.Pipeline
-                      runner,  # type: PipelineRunner
-                      options,  # type: PipelineOptions
-                      return_context=False,  # type: bool
-                      allow_proto_holders=False  # type: bool
-                     ):
+  def from_runner_api(
+      proto,  # type: beam_runner_api_pb2.Pipeline
+      runner,  # type: PipelineRunner
+      options,  # type: PipelineOptions
+      return_context=False,  # type: bool
+      allow_proto_holders=False  # type: bool
+  ):
     # type: (...) -> Pipeline
 
     """For internal use only; no backwards-compatibility guarantees."""
@@ -863,8 +887,10 @@ class Pipeline(object):
     root_transform_id, = proto.root_transform_ids
     p.transforms_stack = [context.transforms.get_by_id(root_transform_id)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
-    p.applied_labels = set(
-        [t.unique_name for t in proto.components.transforms.values()])
+    p.applied_labels = {
+        t.unique_name
+        for t in proto.components.transforms.values()
+    }
     for id in proto.components.pcollections:
       pcollection = context.pcollections.get_by_id(id)
       pcollection.pipeline = p
@@ -929,15 +955,15 @@ class AppliedPTransform(object):
   A transform node representing an instance of applying a PTransform
   (used internally by Pipeline for bookeeping purposes).
   """
-
-  def __init__(self,
-               parent,  # type:  Optional[AppliedPTransform]
-               transform,  # type: Optional[ptransform.PTransform]
-               full_label,  # type: str
-               inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
-               environment_id=None,  # type: Optional[str]
-               input_tags_to_preserve=None,  # type: Dict[pvalue.PCollection, str]
-              ):
+  def __init__(
+      self,
+      parent,  # type:  Optional[AppliedPTransform]
+      transform,  # type: Optional[ptransform.PTransform]
+      full_label,  # type: str
+      inputs,  # type: Optional[Sequence[Union[pvalue.PBegin, pvalue.PCollection]]]
+      environment_id=None,  # type: Optional[str]
+      input_tags_to_preserve=None,  # type: Dict[pvalue.PCollection, str]
+  ):
     # type: (...) -> None
     self.parent = parent
     self.transform = transform
@@ -960,10 +986,11 @@ class AppliedPTransform(object):
     return "%s(%s, %s)" % (
         self.__class__.__name__, self.full_label, type(self.transform).__name__)
 
-  def replace_output(self,
-                     output,  # type: Union[pvalue.PValue, pvalue.DoOutputsTuple]
-                     tag=None  # type: Union[str, int, None]
-                    ):
+  def replace_output(
+      self,
+      output,  # type: Union[pvalue.PValue, pvalue.DoOutputsTuple]
+      tag=None  # type: Union[str, int, None]
+  ):
     # type: (...) -> None
 
     """Replaces the output defined by the given tag with the given output.
@@ -982,10 +1009,11 @@ class AppliedPTransform(object):
     else:
       raise TypeError("Unexpected output type: %s" % output)
 
-  def add_output(self,
-                 output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
-                 tag  # type: Union[str, int, None]
-                ):
+  def add_output(
+      self,
+      output,  # type: Union[pvalue.DoOutputsTuple, pvalue.PValue]
+      tag  # type: Union[str, int, None]
+  ):
     # type: (...) -> None
     if isinstance(output, pvalue.DoOutputsTuple):
       self.add_output(output[tag], tag)
@@ -1012,11 +1040,12 @@ class AppliedPTransform(object):
     return bool(self.parts) or all(
         pval.producer is not self for pval in self.outputs.values())
 
-  def visit(self,
-            visitor,  # type: PipelineVisitor
-            pipeline,  # type: Pipeline
-            visited  # type: Set[pvalue.PValue]
-           ):
+  def visit(
+      self,
+      visitor,  # type: PipelineVisitor
+      pipeline,  # type: Pipeline
+      visited  # type: Set[pvalue.PValue]
+  ):
     # type: (...) -> None
 
     """Visits all nodes reachable from the current node."""
@@ -1098,9 +1127,10 @@ class AppliedPTransform(object):
 
     from apache_beam.portability.api import beam_runner_api_pb2
 
-    def transform_to_runner_api(transform,  # type: Optional[ptransform.PTransform]
-                                context  # type: PipelineContext
-                               ):
+    def transform_to_runner_api(
+        transform,  # type: Optional[ptransform.PTransform]
+        context  # type: PipelineContext
+    ):
       # type: (...) -> Optional[beam_runner_api_pb2.FunctionSpec]
       if transform is None:
         return None
@@ -1151,9 +1181,10 @@ class AppliedPTransform(object):
         display_data=None)
 
   @staticmethod
-  def from_runner_api(proto,  # type: beam_runner_api_pb2.PTransform
-                      context  # type: PipelineContext
-                     ):
+  def from_runner_api(
+      proto,  # type: beam_runner_api_pb2.PTransform
+      context  # type: PipelineContext
+  ):
     # type: (...) -> AppliedPTransform
 
     if common_urns.primitives.PAR_DO.urn == proto.spec.urn:

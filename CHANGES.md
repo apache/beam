@@ -24,7 +24,7 @@
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
 ## I/Os
 
@@ -52,7 +52,7 @@
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-* New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* New highly anticipated feature Y added to Java SDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
 ## I/Os
 
@@ -60,11 +60,12 @@
 
 ## New Features / Improvements
 
-* --direct_num_workers=0 is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
+* --direct_num_workers=0 is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline ([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
+* Python SDK now has experimental support for SqlTransform ([BEAM-8603](https://issues.apache.org/jira/browse/BEAM-8603)).
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* The Python SDK now requires `--job_endpoint` to be set when using `--runner=PortableRunner` ([BEAM-9860](https://issues.apache.org/jira/browse/BEAM-9860)). Users seeking the old default behavior should set `--runner=FlinkRunner` instead.
 
 ## Deprecations
 
@@ -121,6 +122,9 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
     values as strings) into Python native types that are written to Avro
     (Python's date, datetime types, decimal, etc). For more information
     see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
+* Added integration of Java SDK with Google Cloud AI VideoIntelligence service 
+([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
+
  
 ## Breaking Changes
 
@@ -180,6 +184,7 @@ Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://iss
 * Fixed exception when running in IPython notebook (Python) ([BEAM-X9277](https://issues.apache.org/jira/browse/BEAM-9277)).
 * Fixed Flink uberjar job termination bug. ([BEAM-9225](https://issues.apache.org/jira/browse/BEAM-9225))
 * Fixed SyntaxError in process worker startup ([BEAM-9503](https://issues.apache.org/jira/browse/BEAM-9503))
+* Key should be available in @OnTimer methods (Java) ([BEAM-1819](https://issues.apache.org/jira/browse/BEAM-1819)).
 
 ## Known Issues
 

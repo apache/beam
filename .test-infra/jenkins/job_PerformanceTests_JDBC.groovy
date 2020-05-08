@@ -15,19 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import CommonJobProperties as common
 import Kubernetes
+import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_JDBC"
 
 job(jobName) {
   common.setTopLevelMainJobProperties(delegate)
   common.setAutoJob(delegate, 'H */6 * * *')
-
   common.enablePhraseTriggeringFromPullRequest(
           delegate,
           'Java JdbcIO Performance Test',
           'Run Java JdbcIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
@@ -44,6 +46,9 @@ job(jobName) {
           numberOfRecords      : '5000000',
           bigQueryDataset      : 'beam_performance',
           bigQueryTable        : 'jdbcioit_results',
+          influxMeasurement    : 'jdbcioit_results',
+          influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+          influxHost           : InfluxDBCredentialsHelper.InfluxDBHostname,
           postgresUsername     : 'postgres',
           postgresPassword     : 'uuinkks',
           postgresDatabaseName : 'postgres',

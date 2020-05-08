@@ -156,11 +156,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     StateInternals stateInternals = stepContext.stateInternals();
     TimerInternals timerInternals = stepContext.timerInternals();
 
-    Instant outputWatermark =
+    Instant inputWatermark =
         MoreObjects.firstNonNull(
-            timerInternals.currentOutputWatermarkTime(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+            timerInternals.currentInputWatermarkTime(), BoundedWindow.TIMESTAMP_MIN_VALUE);
 
-    if (!outputWatermark.isAfter(
+    if (!inputWatermark.isAfter(
         value.getTimestamp().plus(windowingStrategy.getAllowedLateness()))) {
 
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);
@@ -196,9 +196,10 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
@@ -224,7 +225,8 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
             window,
             stepContext.timerInternals().currentInputWatermarkTime());
       } else {
-        doFnRunner.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
+        doFnRunner.onTimer(
+            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
       }
     }
   }

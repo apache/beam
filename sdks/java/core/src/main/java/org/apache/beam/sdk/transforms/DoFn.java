@@ -480,6 +480,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  /**
+   * Parameter annotation for dereferencing input element key in {@link
+   * org.apache.beam.sdk.values.KV} pair.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface Key {}
+
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})

@@ -351,6 +351,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+    state_spec = userstate.CombiningValueStateSpec('num_called', sum)
 
     class TimerDoFn(beam.DoFn):
       def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
@@ -359,7 +360,14 @@ class FnApiRunnerTest(unittest.TestCase):
         timer.set(2 * ts)
 
       @userstate.on_timer(timer_spec)
-      def process_timer(self):
+      def process_timer(
+          self,
+          ts=beam.DoFn.TimestampParam,
+          timer=beam.DoFn.TimerParam(timer_spec),
+          state=beam.DoFn.StateParam(state_spec)):
+        if state.read() == 0:
+          state.add(1)
+          timer.set(timestamp.Timestamp(micros=2 * ts.micros))
         yield 'fired'
 
     with self.create_pipeline() as p:
@@ -369,7 +377,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(TimerDoFn())
           | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
 
-      expected = [('fired', ts) for ts in (20, 200)]
+      expected = [('fired', ts) for ts in (20, 200, 40, 400)]
       assert_that(actual, equal_to(expected))
 
   def test_pardo_timers_clear(self):
@@ -1227,8 +1235,8 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_metrics(self):
@@ -1247,8 +1255,8 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
         direct_num_workers=2, direct_running_mode='multi_threading')
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_metrics(self):
@@ -1275,7 +1283,8 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
         options=pipeline_options)
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_register_finalizations(self):

@@ -710,13 +710,6 @@ class PTransformTest(unittest.TestCase):
       result = pcoll.apply(beam.Distinct())
       assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
 
-  def test_remove_duplicates(self):
-    with TestPipeline() as pipeline:
-      pcoll = pipeline | 'Start' >> beam.Create(
-          [6, 3, 1, 1, 9, 'pleat', 'pleat', 'kazoo', 'navel'])
-      result = pcoll.apply(beam.RemoveDuplicates())
-      assert_that(result, equal_to([1, 3, 6, 9, 'pleat', 'kazoo', 'navel']))
-
   def test_chained_ptransforms(self):
     with TestPipeline() as pipeline:
       t = (

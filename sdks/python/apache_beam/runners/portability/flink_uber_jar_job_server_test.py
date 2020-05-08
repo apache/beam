@@ -56,6 +56,42 @@ class FlinkUberJarJobServerTest(unittest.TestCase):
     self.assertEqual(job_server.flink_version(), "3.1")
 
   @requests_mock.mock()
+  def test_get_job_metrics(self, http_mock):
+    response = {
+        "user-task-accumulators": [{
+            "name": "__metricscontainers",
+            "type": "MetricsAccumulator",
+            "value": "{\"metrics\": {\"attempted\": [{\"urn\": "
+            "\"metric_urn\", \"type\": \"beam:metrics:sum_int64:v1\", "
+            "\"payload\": \"AA==\", \"labels\": "
+            "{\"PTRANSFORM\": \"ptransform_id\"}}]}}"
+        }]
+    }
+    http_mock.get(
+        'http://flink/v1/jobs/flink_job_id/accumulators', json=response)
+    options = pipeline_options.FlinkRunnerOptions()
+    job_server = flink_uber_jar_job_server.FlinkUberJarJobServer(
+        'http://flink', options)
+    job = flink_uber_jar_job_server.FlinkBeamJob(
+        'http://flink', None, 'job_id', 'job_name', None, options)
+    job._flink_job_id = 'flink_job_id'
+    job_server._jobs['job_id'] = job
+    request = beam_job_api_pb2.GetJobMetricsRequest(job_id='job_id')
+    expected = beam_job_api_pb2.GetJobMetricsResponse(
+        metrics=beam_job_api_pb2.MetricResults(
+            attempted=[{
+                "urn": "metric_urn",
+                "type": "beam:metrics:sum_int64:v1",
+                "payload": b'\000',
+                "labels": {
+                    "PTRANSFORM": "ptransform_id"
+                }
+            }]))
+
+    actual = job_server.GetJobMetrics(request)
+    self.assertEqual(actual, expected)
+
+  @requests_mock.mock()
   def test_end_to_end(self, http_mock):
     with temp_name(suffix='fake.jar') as fake_jar:
       # Create the jar file with some trivial contents.

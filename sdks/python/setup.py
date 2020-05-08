@@ -153,7 +153,7 @@ REQUIRED_PACKAGES = [
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.12.1,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<=0.12.0',
+    'httplib2>=0.8,<0.16.0',
     'mock>=1.0.1,<3.0.0',
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
@@ -229,6 +229,8 @@ INTERACTIVE_BEAM_TEST = [
     'selenium>=3.141.0,<4',
     'needle>=0.5.0,<1',
     'chromedriver-binary>=80,<81',
+    # use a fixed major version of PIL for different python versions
+    'pillow>=7.1.1,<8',
 ]
 
 AWS_REQUIREMENTS = [

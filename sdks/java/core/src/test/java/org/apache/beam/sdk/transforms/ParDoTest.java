@@ -91,6 +91,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
@@ -4968,6 +4969,140 @@ public class ParDoTest implements Serializable {
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(3, 42);
       pipeline.run();
+    }
+  }
+
+  /** Tests to validate Key in OnTimer. */
+  @RunWith(JUnit4.class)
+  public static class KeyTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimer() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key String key, OutputReceiver<Integer> r) {
+              r.output(Integer.parseInt(key));
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline.apply(Create.of(KV.of("1", 37), KV.of("2", 3))).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(1, 2);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimerWithGenericKey() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<KV<String, String>, Integer>, Integer> fn =
+          new DoFn<KV<KV<String, String>, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key KV<String, String> key, OutputReceiver<Integer> r) {
+              r.output(Integer.parseInt(key.getKey()));
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(Create.of(KV.of(KV.of("1", "1"), 37), KV.of(KV.of("1", "1"), 3)))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(1);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimerWithWrongKeyType() throws Exception {
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("@Key argument is expected to be type of");
+      thrown.expectMessage(", but found ");
+
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
+          };
+
+      pipeline.apply(Create.of(KV.of("1", 37), KV.of("1", 4), KV.of("2", 3))).apply(ParDo.of(fn));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimerWithoutKV() throws Exception {
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("@Key argument is expected to be use with input element of type KV.");
+
+      final String timerId = "foo";
+
+      DoFn<String, Integer> fn =
+          new DoFn<String, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
+          };
+
+      pipeline.apply(Create.of("1")).apply(ParDo.of(fn));
     }
   }
 }

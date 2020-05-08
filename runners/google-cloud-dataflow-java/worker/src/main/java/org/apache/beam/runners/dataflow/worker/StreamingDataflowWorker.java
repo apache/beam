@@ -118,6 +118,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Commi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -1160,6 +1161,10 @@ public class StreamingDataflowWorker {
     // Note that TimerOrElementCoder is a backwards-compatibility class
     // that is really a FakeKeyedWorkItemCoder
     Coder<?> valueCoder = ((WindowedValueCoder<?>) readCoder).getValueCoder();
+
+    if (valueCoder instanceof KvCoder<?, ?>) {
+      return ((KvCoder<?, ?>) valueCoder).getKeyCoder();
+    }
     if (!(valueCoder instanceof WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<?, ?>)) {
       return null;
     }

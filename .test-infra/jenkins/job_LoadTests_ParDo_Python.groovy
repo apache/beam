@@ -19,6 +19,7 @@
 import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -35,6 +36,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_1',
+                        influx_measurement   : 'python_batch_pardo_1',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -58,6 +60,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_2',
+                        influx_measurement   : 'python_batch_pardo_2',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -81,6 +84,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_3',
+                        influx_measurement   : 'python_batch_pardo_3',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -104,6 +108,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_pardo_4',
+                        influx_measurement   : 'python_batch_pardo_4',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -115,7 +120,8 @@ def loadTestConfigurations = { datasetName -> [
                         autoscaling_algorithm: 'NONE',
                 ]
         ],
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python ParDo load tests on Dataflow runner in batch mode')
@@ -133,9 +139,15 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python ParDo Dataflow Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Batch', 'H 13 * * *', this) {
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }

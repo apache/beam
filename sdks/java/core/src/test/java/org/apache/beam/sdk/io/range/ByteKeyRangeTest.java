@@ -361,8 +361,11 @@ public class ByteKeyRangeTest {
     assertThat("Too many hash collisions", collisions, lessThan(totalUnequalTests / 2));
   }
 
-  /** Asserts the two keys are equal except trailing zeros. */
-  private static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
+  /**
+   * Asserts the two keys are equal except trailing zeros. Note that this can only be used for
+   * testing split logic. *
+   */
+  public static void assertEqualExceptPadding(ByteKey expected, ByteKey key) {
     ByteBuffer shortKey = expected.getValue();
     ByteBuffer longKey = key.getValue();
     if (shortKey.remaining() > longKey.remaining()) {

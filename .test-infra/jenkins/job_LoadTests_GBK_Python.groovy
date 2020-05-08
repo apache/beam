@@ -18,6 +18,7 @@
 
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -34,6 +35,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_1',
+                        influx_measurement   : 'python_batch_gbk_1',
                         input_options        : '\'{"num_records": 200000000,' +
                                 '"key_size": 1,' +
                                 '"value_size": 9}\'',
@@ -55,6 +57,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_2',
+                        influx_measurement   : 'python_batch_gbk_2',
                         input_options        : '\'{"num_records": 20000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
@@ -76,6 +79,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_3',
+                        influx_measurement   : 'python_batch_gbk_3',
                         input_options        : '\'{"num_records": 20000,' +
                                 '"key_size": 10000,' +
                                 '"value_size": 90000}\'',
@@ -97,6 +101,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_4',
+                        influx_measurement   : 'python_batch_gbk_4',
                         input_options        : '\'{"num_records": 5000000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
@@ -118,6 +123,7 @@ def loadTestConfigurations = { datasetName -> [
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_gbk_5',
+                        influx_measurement   : 'python_batch_gbk_5',
                         input_options        : '\'{"num_records": 2500000,' +
                                 '"key_size": 10,' +
                                 '"value_size": 90}\'',
@@ -127,7 +133,8 @@ def loadTestConfigurations = { datasetName -> [
                         autoscaling_algorithm: "NONE"
                 ]
         ],
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
         'beam_LoadTests_Python_GBK_Dataflow_Batch',
@@ -135,12 +142,18 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python GBK Dataflow Batch suite',
         this
 ) {
-        def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.PR)
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
+    additionalPipelineArgs = [:]
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.PR)
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
-        def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.POST_COMMIT)
-        loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
+    def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', CommonTestProperties.TriggeringContext.POST_COMMIT)
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, loadTestConfigurations(datasetName), "GBK", "batch")
 }
 

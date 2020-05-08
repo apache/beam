@@ -38,6 +38,7 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -48,6 +49,7 @@ public class BeamBuiltinAggregations {
   public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
+              .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
               .put("COUNT", typeName -> Count.combineFn())
               .put("MAX", BeamBuiltinAggregations::createMax)
               .put("MIN", BeamBuiltinAggregations::createMin)

@@ -18,6 +18,7 @@ package passert
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -35,7 +36,7 @@ func Equals(s beam.Scope, col beam.PCollection, values ...interface{}) beam.PCol
 		return equals(subScope, col, other)
 	}
 
-	other := beam.Create(s, values...)
+	other := beam.Create(subScope, values...)
 	return equals(subScope, col, other)
 }
 
@@ -96,5 +97,6 @@ func readToStrings(iter func(*beam.T) bool) []string {
 	for iter(&inVal) {
 		out = append(out, fmt.Sprint(inVal))
 	}
+	sort.Strings(out)
 	return out
 }

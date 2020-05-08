@@ -81,18 +81,19 @@ class LimitOffsetScanToOrderByLimitConverter extends RelConverter<ResolvedLimitO
 
   /** Collation is a sort order, as in ORDER BY DESCENDING/ASCENDING. */
   private static RelCollation getRelCollation(ResolvedOrderByScan node) {
+    final long inputOffset = node.getColumnList().get(0).getId();
     List<RelFieldCollation> fieldCollations =
         node.getOrderByItemList().stream()
-            .map(LimitOffsetScanToOrderByLimitConverter::orderByItemToFieldCollation)
+            .map(item -> orderByItemToFieldCollation(item, inputOffset))
             .collect(toList());
     return RelCollationImpl.of(fieldCollations);
   }
 
-  private static RelFieldCollation orderByItemToFieldCollation(ResolvedOrderByItem item) {
-    // TODO: might need a column ref mapping here.
+  private static RelFieldCollation orderByItemToFieldCollation(
+      ResolvedOrderByItem item, long inputOffset) {
     Direction sortDirection = item.getIsDescending() ? DESCENDING : ASCENDING;
-    int fieldIndex = (int) item.getColumnRef().getColumn().getId();
-    return new RelFieldCollation(fieldIndex, sortDirection);
+    final long fieldIndex = item.getColumnRef().getColumn().getId() - inputOffset;
+    return new RelFieldCollation((int) fieldIndex, sortDirection);
   }
 
   private RelNode convertOrderByScanToLogicalScan(ResolvedOrderByScan node, RelNode input) {
