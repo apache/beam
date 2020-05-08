@@ -114,9 +114,9 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testUnion() {
 
-    PAssert.that(left.apply("strings", SetFns.union(right)))
+    PAssert.that(left.apply("strings", SetFns.distinctUnion(right)))
         .containsInAnyOrder("a", "b", "c", "d", "e", "f", "g", "h");
-    PAssert.that(leftRow.apply("rows", SetFns.union(rightRow)))
+    PAssert.that(leftRow.apply("rows", SetFns.distinctUnion(rightRow)))
         .containsInAnyOrder(toRows("a", "b", "c", "d", "e", "f", "g", "h"));
 
     p.run();

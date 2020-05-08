@@ -22,7 +22,10 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
-import org.apache.beam.sdk.values.*;
+import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
 public class SetFns {
@@ -159,7 +162,7 @@ public class SetFns {
    *     left.apply(SetFns.union(right)); // results will be PCollection<String> containing: "1","2","3","4"
    * }</pre>
    */
-  public static <T> SetImpl<T> union(PCollection<T> rightCollection) {
+  public static <T> SetImpl<T> distinctUnion(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     SerializableBiFunction<Long, Long, Long> unionFn =
         (numberOfElementsinLeft, numberOfElementsinRight) -> 1L;
