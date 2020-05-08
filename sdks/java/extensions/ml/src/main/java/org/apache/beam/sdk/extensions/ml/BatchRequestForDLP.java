@@ -19,6 +19,12 @@ package org.apache.beam.sdk.extensions.ml;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -26,10 +32,9 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
-import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
-import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,26 +42,19 @@ import org.slf4j.LoggerFactory;
  * DoFn batching the input PCollection into bigger requests in order to better utilize the Cloud DLP
  * service.
  */
+@Experimental
 class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
   public static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
+  private final Counter numberOfElementsBagged =
+      Metrics.counter(BatchRequestForDLP.class, "numberOfElementsBagged");
   private final Integer batchSize;
-  public static final Integer DLP_PAYLOAD_LIMIT = 52400;
 
   public BatchRequestForDLP(Integer batchSize) {
-    if (batchSize > DLP_PAYLOAD_LIMIT) {
-      throw new IllegalArgumentException(
-          "DLP batch size exceeds payload limit.\n"
-              + "Batch size should be smaller than "
-              + DLP_PAYLOAD_LIMIT);
-    }
     this.batchSize = batchSize;
   }
 
   @StateId("elementsBag")
   private final StateSpec<BagState<KV<String, String>>> elementsBag = StateSpecs.bag();
-
-  @StateId("elementsSize")
-  private final StateSpec<ValueState<Integer>> elementsSize = StateSpecs.value();
 
   @TimerId("eventTimer")
   private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
@@ -65,58 +63,39 @@ class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
   public void process(
       @Element KV<String, String> element,
       @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
-      @StateId("elementsSize") ValueState<Integer> elementsSize,
-      @Timestamp Instant elementTs,
       @TimerId("eventTimer") Timer eventTimer,
-      OutputReceiver<KV<String, String>> output) {
-    eventTimer.set(elementTs);
-    Integer currentElementSize =
-        (element.getValue() == null) ? 0 : element.getValue().getBytes(UTF_8).length;
-    Integer currentBufferSize = (elementsSize.read() == null) ? 0 : elementsSize.read();
-    boolean clearBuffer = (currentElementSize + currentBufferSize) > batchSize;
-    if (clearBuffer) {
-      KV<String, String> inspectBufferedData = emitResult(elementsBag.read());
-      output.output(inspectBufferedData);
-      LOG.info(
-          "****CLEAR BUFFER Key {} **** Current Content Size {}",
-          inspectBufferedData.getKey(),
-          inspectBufferedData.getValue().getBytes(UTF_8).length);
-      clearState(elementsBag, elementsSize);
-    } else {
-      elementsBag.add(element);
-      elementsSize.write(currentElementSize + currentBufferSize);
-    }
+      BoundedWindow w) {
+    elementsBag.add(element);
+    eventTimer.set(w.maxTimestamp());
   }
 
   @OnTimer("eventTimer")
   public void onTimer(
       @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
-      @StateId("elementsSize") ValueState<Integer> elementsSize,
-      OutputReceiver<KV<String, String>> output) {
-    // Process left over records less than  batch size
-    KV<String, String> inspectBufferedData = emitResult(elementsBag.read());
-    output.output(inspectBufferedData);
-    LOG.info(
-        "****Timer Triggered Key {} **** Current Content Size {}",
-        inspectBufferedData.getKey(),
-        inspectBufferedData.getValue().getBytes(UTF_8).length);
-    clearState(elementsBag, elementsSize);
-  }
-
-  private static KV<String, String> emitResult(Iterable<KV<String, String>> bufferData) {
-    StringBuilder builder = new StringBuilder();
-    String fileName =
-        (bufferData.iterator().hasNext()) ? bufferData.iterator().next().getKey() : "UNKNOWN_FILE";
-    bufferData.forEach(
-        e -> {
-          builder.append(e.getValue());
-        });
-    return KV.of(fileName, builder.toString());
-  }
-
-  private static void clearState(
-      BagState<KV<String, String>> elementsBag, ValueState<Integer> elementsSize) {
-    elementsBag.clear();
-    elementsSize.clear();
+      OutputReceiver<KV<String, Iterable<String>>> output) {
+    String key = elementsBag.read().iterator().next().getKey();
+    AtomicInteger bufferSize = new AtomicInteger();
+    List<String> rows = new ArrayList<>();
+    elementsBag
+        .read()
+        .forEach(
+            element -> {
+              int elementSize = element.getValue().getBytes(UTF_8).length;
+              boolean clearBuffer = bufferSize.intValue() + elementSize > batchSize;
+              if (clearBuffer) {
+                numberOfElementsBagged.inc(rows.size());
+                LOG.debug("Clear Buffer {} , Key {}", bufferSize.intValue(), element.getKey());
+                output.output(KV.of(element.getKey(), rows));
+                rows.clear();
+                bufferSize.set(0);
+              }
+              rows.add(element.getValue());
+              bufferSize.getAndAdd(element.getValue().getBytes(UTF_8).length);
+            });
+    if (!rows.isEmpty()) {
+      LOG.debug("Remaining rows {}", rows.size());
+      numberOfElementsBagged.inc(rows.size());
+      output.output(KV.of(key, rows));
+    }
   }
 }
