@@ -464,7 +464,7 @@ class SDFProcessElementInvoker(object):
       with self._checkpoint_lock:
         if checkpoint_state.checkpointed:
           return
-      checkpoint_state.residual_restriction = tracker.checkpoint()
+      checkpoint_state.residual_restriction = tracker.try_claim(0)
       checkpoint_state.checkpointed = object()
 
     output_processor.reset()
