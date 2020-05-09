@@ -457,7 +457,7 @@ public class SetFns {
   private static class SetImplCollections<T>
       extends PTransform<PCollectionList<T>, PCollection<T>> {
 
-    private final transient SerializableBiFunction<Long, Long, Long> fn;
+    private final SerializableBiFunction<Long, Long, Long> fn;
 
     private SetImplCollections(SerializableBiFunction<Long, Long, Long> fn) {
       this.fn = fn;
@@ -470,6 +470,7 @@ public class SetFns {
       if (size == 1) {
         return input.get(0); // Handle only one PCollection in list. Coder is already specified
       }
+
       MapElements<T, KV<T, Void>> elementToVoid =
           MapElements.via(
               new SimpleFunction<T, KV<T, Void>>() {
