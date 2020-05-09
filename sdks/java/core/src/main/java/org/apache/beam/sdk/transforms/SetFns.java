@@ -466,10 +466,6 @@ public class SetFns {
     @Override
     public PCollection<T> expand(PCollectionList<T> input) {
       List<PCollection<T>> all = input.getAll();
-      int size = all.size();
-      if (size == 1) {
-        return input.get(0); // Handle only one PCollection in list. Coder is already specified
-      }
 
       MapElements<T, KV<T, Void>> elementToVoid =
           MapElements.via(
