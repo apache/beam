@@ -29,6 +29,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -40,8 +41,7 @@ import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.splittabledofn.OrderedTimeRange;
-import org.apache.beam.sdk.transforms.splittabledofn.OrderedTimeRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -549,28 +549,26 @@ public class HL7v2IO {
     }
 
     @GetInitialRestriction
-    public OrderedTimeRange getEarliestToLatestRestriction(@Element String hl7v2Store)
+    public OffsetRange getEarliestToLatestRestriction(@Element String hl7v2Store)
         throws IOException {
       from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter);
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
       to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter).plus(1);
-      return new OrderedTimeRange(from, to);
+      return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
     @NewTracker
-    public OrderedTimeRangeTracker newTracker(@Restriction OrderedTimeRange timeRange) {
+    public OffsetRangeTracker newTracker(@Restriction OffsetRange timeRange) {
       return timeRange.newTracker();
     }
 
     @SplitRestriction
-    public void split(
-        @Restriction OrderedTimeRange timeRange, OutputReceiver<OrderedTimeRange> out) {
-      // TODO(jaketf) How to pick optimal values for desiredNumOffsetsPerSplit ?
-      List<OrderedTimeRange> splits =
-          timeRange.split(initialSplitDuration, DEFAULT_MIN_SPLIT_DURATION);
-      Instant from = timeRange.getFrom();
-      Instant to = timeRange.getTo();
+    public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out) {
+      List<OffsetRange> splits =
+          timeRange.split(initialSplitDuration.getMillis(), DEFAULT_MIN_SPLIT_DURATION.getMillis());
+      Instant from = Instant.ofEpochMilli(timeRange.getFrom());
+      Instant to = Instant.ofEpochMilli(timeRange.getTo());
       Duration totalDuration = new Duration(from, to);
       LOG.info(
           String.format(
@@ -587,7 +585,7 @@ public class HL7v2IO {
               splits.size(),
               splits.get(splits.size() - 1).toString()));
 
-      for (OrderedTimeRange s : splits) {
+      for (OffsetRange s : splits) {
         out.output(s);
       }
     }
@@ -604,9 +602,9 @@ public class HL7v2IO {
         RestrictionTracker tracker,
         OutputReceiver<HL7v2Message> outputReceiver)
         throws IOException {
-      OrderedTimeRange currentRestriction = (OrderedTimeRange) tracker.currentRestriction();
-      Instant startRestriction = currentRestriction.getFrom();
-      Instant endRestriction = currentRestriction.getTo();
+      OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
+      Instant startRestriction = Instant.ofEpochMilli(currentRestriction.getFrom());
+      Instant endRestriction = Instant.ofEpochMilli(currentRestriction.getTo());
       HttpHealthcareApiClient.HL7v2MessagePages pages =
           new HttpHealthcareApiClient.HL7v2MessagePages(
               client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
@@ -661,7 +659,7 @@ public class HL7v2IO {
 
       // We've paginated through all messages for this restriction but the last message may be
       // before the end of the restriction
-      tracker.tryClaim(currentRestriction.getTo().getMillis() - 1);
+      tracker.tryClaim(currentRestriction.getTo());
     }
   }
 
