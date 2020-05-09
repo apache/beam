@@ -22,6 +22,7 @@ import static org.apache.beam.runners.core.construction.ParDoTranslation.transla
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
 import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerFamilySpecOrThrow;
+import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -249,6 +250,16 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                         keyCoder,
                         windowCoder);
                 timerFamilySpecs.put(timerFamily.getKey(), spec);
+              }
+              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
+                  signature.timerDeclarations().entrySet()) {
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerSpecOrThrow(timer.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
+                timerFamilySpecs.put(timer.getKey(), spec);
               }
               return timerFamilySpecs;
             }
