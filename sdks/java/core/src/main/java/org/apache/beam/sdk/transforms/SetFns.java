@@ -157,7 +157,7 @@ public class SetFns {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.intersectAll()); // results will be PCollection<String> containing: "1","2","3","3"
+   *     .apply(SetFns.intersectAll()); // results will be PCollection<String> containing: "1"
    *
    * }</pre>
    *
@@ -294,7 +294,7 @@ public class SetFns {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.exceptAll()); // results will be PCollection<String> containing: "1","2","3","3","5"
+   *     .apply(SetFns.exceptAll()); // results will be PCollection<String> containing: "1","2","3","3"
    *
    * }</pre>
    *
