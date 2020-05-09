@@ -24,6 +24,7 @@ from __future__ import division
 from __future__ import print_function
 
 import base64
+import bisect
 import collections
 import json
 import logging
@@ -216,15 +217,12 @@ class DataInputOperation(RunnerIOOperation):
           input_stream, True)
       self.output(decoded_value)
 
-  def try_split(self, fraction_of_remainder, total_buffer_size):
+  def try_split(
+      self, fraction_of_remainder, total_buffer_size, allowed_split_points):
     # type: (...) -> Optional[Tuple[int, Optional[operations.SdfSplitResultsPrimary], Optional[operations.SdfSplitResultsResidual], int]]
     with self.splitting_lock:
       if not self.started:
         return None
-      if total_buffer_size < self.index + 1:
-        total_buffer_size = self.index + 1
-      elif self.stop and total_buffer_size > self.stop:
-        total_buffer_size = self.stop
       if self.index == -1:
         # We are "finished" with the (non-existent) previous element.
         current_element_progress = 1.0
@@ -237,30 +235,71 @@ class DataInputOperation(RunnerIOOperation):
           current_element_progress = (
               current_element_progress_object.fraction_completed)
       # Now figure out where to split.
-      # The units here (except for keep_of_element_remainder) are all in
-      # terms of number of (possibly fractional) elements.
-      remainder = total_buffer_size - self.index - current_element_progress
-      keep = remainder * fraction_of_remainder
-      if current_element_progress < 1:
-        keep_of_element_remainder = keep / (1 - current_element_progress)
-        # If it's less than what's left of the current element,
-        # try splitting at the current element.
-        if keep_of_element_remainder < 1:
-          split = self.receivers[0].try_split(
-              keep_of_element_remainder
-          )  # type: Optional[Tuple[operations.SdfSplitResultsPrimary, operations.SdfSplitResultsResidual]]
-          if split:
-            element_primary, element_residual = split
-            self.stop = self.index + 1
-            return self.index - 1, element_primary, element_residual, self.stop
-      # Otherwise, split at the closest element boundary.
-      # pylint: disable=round-builtin
-      stop_index = (
-          self.index + max(1, int(round(current_element_progress + keep))))
-      if stop_index < self.stop:
-        self.stop = stop_index
-        return self.stop - 1, None, None, self.stop
-    return None
+      split = self._compute_split(
+          self.index,
+          current_element_progress,
+          self.stop,
+          fraction_of_remainder,
+          total_buffer_size,
+          allowed_split_points,
+          self.receivers[0].try_split)
+      if split:
+        self.stop = split[-1]
+      return split
+
+  @staticmethod
+  def _compute_split(
+      index,
+      current_element_progress,
+      stop,
+      fraction_of_remainder,
+      total_buffer_size,
+      allowed_split_points=(),
+      try_split=lambda fraction: None):
+    def is_valid_split_point(index):
+      return not allowed_split_points or index in allowed_split_points
+
+    if total_buffer_size < index + 1:
+      total_buffer_size = index + 1
+    elif total_buffer_size > stop:
+      total_buffer_size = stop
+    # The units here (except for keep_of_element_remainder) are all in
+    # terms of number of (possibly fractional) elements.
+    remainder = total_buffer_size - index - current_element_progress
+    keep = remainder * fraction_of_remainder
+    if current_element_progress < 1:
+      keep_of_element_remainder = keep / (1 - current_element_progress)
+      # If it's less than what's left of the current element,
+      # try splitting at the current element.
+      if (keep_of_element_remainder < 1 and is_valid_split_point(index) and
+          is_valid_split_point(index + 1)):
+        split = try_split(
+            keep_of_element_remainder
+        )  # type: Optional[Tuple[operations.SdfSplitResultsPrimary, operations.SdfSplitResultsResidual]]
+        if split:
+          element_primary, element_residual = split
+          return index - 1, element_primary, element_residual, index + 1
+    # Otherwise, split at the closest element boundary.
+    # pylint: disable=round-builtin
+    stop_index = index + max(1, int(round(current_element_progress + keep)))
+    if allowed_split_points and stop_index not in allowed_split_points:
+      allowed_split_points = sorted(allowed_split_points)
+      closest = bisect.bisect(allowed_split_points, stop_index)
+      if closest == 0:
+        stop_index = allowed_split_points[0]
+      elif closest == len(allowed_split_points):
+        stop_index = allowed_split_points[-1]
+      else:
+        prev = allowed_split_points[closest - 1]
+        next = allowed_split_points[closest]
+        if index < prev and stop_index - prev < next - stop_index:
+          stop_index = prev
+        else:
+          stop_index = next
+    if index < stop_index < stop:
+      return stop_index - 1, None, None, stop_index
+    else:
+      return None
 
   def finish(self):
     # type: () -> None
@@ -955,7 +994,8 @@ class BundleProcessor(object):
           if desired_split:
             split = op.try_split(
                 desired_split.fraction_of_remainder,
-                desired_split.estimated_input_elements)
+                desired_split.estimated_input_elements,
+                desired_split.allowed_split_points)
             if split:
               (
                   primary_end,
