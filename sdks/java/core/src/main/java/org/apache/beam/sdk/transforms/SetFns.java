@@ -19,7 +19,9 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
@@ -50,15 +52,15 @@ public class SetFns {
    * PCollection<String> right = p.apply(Create.of("1", "3", "4","4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.intersect(right)); // results will be PCollection<String> containing: "1","3","4"
+   *     left.apply(SetFns.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
    *
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> intersect(PCollection<T> rightCollection) {
+  public static <T> SetImpl<T> intersectDistinct(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    return new SetImpl<>(rightCollection, intersect());
+    return new SetImpl<>(rightCollection, intersectDistinct());
   }
 
   /**
@@ -87,14 +89,14 @@ public class SetFns {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.intersect()); // results will be PCollection<String> containing: "3","4"
+   *     .apply(SetFns.intersectDistinct()); // results will be PCollection<String> containing: "3","4"
    *
    * }</pre>
    *
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> intersect() {
+  public static <T> SetImplCollections<T> intersectDistinct() {
     SerializableBiFunction<Long, Long, Long> intersectFn =
         (numberOfElementsinLeft, numberOfElementsinRight) ->
             (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? 1L : 0L;
@@ -185,14 +187,14 @@ public class SetFns {
    * PCollection<String> right = p.apply(Create.of("1","1", "3", "4","4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.except(right)); // results will be PCollection<String> containing: "2","5"
+   *     left.apply(SetFns.exceptDistinct(right)); // results will be PCollection<String> containing: "2","5"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> except(PCollection<T> rightCollection) {
+  public static <T> SetImpl<T> exceptDistinct(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    return new SetImpl<>(rightCollection, except());
+    return new SetImpl<>(rightCollection, exceptDistinct());
   }
 
   /**
@@ -222,14 +224,14 @@ public class SetFns {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.except()); // results will be PCollection<String> containing: "5"
+   *     .apply(SetFns.exceptDistinct()); // results will be PCollection<String> containing: "5"
    *
    * }</pre>
    *
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> except() {
+  public static <T> SetImplCollections<T> exceptDistinct() {
     SerializableBiFunction<Long, Long, Long> exceptFn =
         (numberOfElementsinLeft, numberOfElementsinRight) ->
             numberOfElementsinLeft > 0 && numberOfElementsinRight == 0 ? 1L : 0L;
@@ -325,14 +327,14 @@ public class SetFns {
    * PCollection<String> right = p.apply(Create.of("1", "3", "4","4"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.distinctUnion(right)); // results will be PCollection<String> containing: "1","2","3","4"
+   *     left.apply(SetFns.unionDistinct(right)); // results will be PCollection<String> containing: "1","2","3","4"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> distinctUnion(PCollection<T> rightCollection) {
+  public static <T> SetImpl<T> unionDistinct(PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
-    return new SetImpl<>(rightCollection, distinctUnion());
+    return new SetImpl<>(rightCollection, unionDistinct());
   }
 
   /**
@@ -357,14 +359,14 @@ public class SetFns {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.distinctUnion()); // results will be PCollection<String> containing: "1","2","3","4","5"
+   *     .apply(SetFns.unionDistinct()); // results will be PCollection<String> containing: "1","2","3","4","5"
    *
    * }</pre>
    *
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> distinctUnion() {
+  public static <T> SetImplCollections<T> unionDistinct() {
     SerializableBiFunction<Long, Long, Long> unionFn =
         (numberOfElementsinLeft, numberOfElementsinRight) -> 1L;
     return new SetImplCollections<>(unionFn);
@@ -434,7 +436,7 @@ public class SetFns {
     return Flatten.pCollections();
   }
 
-  public static class SetImpl<T> extends PTransform<PCollection<T>, PCollection<T>> {
+  private static class SetImpl<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
     private final transient PCollection<T> rightCollection;
     private final PTransform<PCollectionList<T>, PCollection<T>> listTransformFn;
@@ -452,7 +454,8 @@ public class SetFns {
     }
   }
 
-  public static class SetImplCollections<T> extends PTransform<PCollectionList<T>, PCollection<T>> {
+  private static class SetImplCollections<T>
+      extends PTransform<PCollectionList<T>, PCollection<T>> {
 
     private final transient SerializableBiFunction<Long, Long, Long> fn;
 
@@ -466,26 +469,7 @@ public class SetFns {
       int size = all.size();
       if (size == 1) {
         return inputs.get(0); // Handle only one PCollection in list. Coder is already specified
-      } else {
-        PCollection<T> accum = inputs.get(0);
-        List<PCollection<T>> tail = all.subList(1, size);
-
-        for (PCollection<T> second : tail) {
-          accum = performSetOperation(accum, second, fn);
-        }
-
-        return accum.setCoder(accum.getCoder());
       }
-    }
-
-    private static <T> PCollection<T> performSetOperation(
-        PCollection<T> leftCollection,
-        PCollection<T> rightCollection,
-        SerializableBiFunction<Long, Long, Long> fn) {
-
-      TupleTag<Void> leftCollectionTag = new TupleTag<>();
-      TupleTag<Void> rightCollectionTag = new TupleTag<>();
-
       MapElements<T, KV<T, Void>> elementToVoid =
           MapElements.via(
               new SimpleFunction<T, KV<T, Void>>() {
@@ -495,37 +479,53 @@ public class SetFns {
                 }
               });
 
-      String leftCollectionName = leftCollection.getName();
-      String rightCollectionName = rightCollection.getName();
-      PCollection<KV<T, Void>> left =
-          leftCollection.apply("PrepareLeftKV" + leftCollectionName, elementToVoid);
-      PCollection<KV<T, Void>> right =
-          rightCollection.apply("PrepareRightKV" + rightCollectionName, elementToVoid);
+      PCollection<T> first = all.get(0);
+      Pipeline pipeline = first.getPipeline();
+      String firstName = first.getName();
+
+      List<TupleTag<Void>> allTags = new ArrayList<>();
+      KeyedPCollectionTuple<T> keyedPCollectionTuple = KeyedPCollectionTuple.empty(pipeline);
+
+      for (PCollection<T> col : all) {
+        TupleTag<Void> tag = new TupleTag<>();
+
+        PCollection<KV<T, Void>> kvOfElementAndVoid =
+            col.apply("PrepareKVs" + col.getName(), elementToVoid);
+
+        allTags.add(tag);
+        keyedPCollectionTuple = keyedPCollectionTuple.and(tag, kvOfElementAndVoid);
+      }
 
       PCollection<KV<T, CoGbkResult>> coGbkResults =
-          KeyedPCollectionTuple.of(leftCollectionTag, left)
-              .and(rightCollectionTag, right)
-              .apply("CBK" + leftCollectionName, CoGroupByKey.create());
+          keyedPCollectionTuple.apply("CBKAll" + firstName, CoGroupByKey.create());
+
       // TODO: lift combiners through the CoGBK.
-      return coGbkResults.apply(
-          "FilterSetElement" + leftCollectionName,
-          ParDo.of(
-              new DoFn<KV<T, CoGbkResult>, T>() {
+      PCollection<T> results =
+          coGbkResults.apply(
+              "FilterSetElement" + firstName,
+              ParDo.of(
+                  new DoFn<KV<T, CoGbkResult>, T>() {
 
-                @ProcessElement
-                public void processElement(ProcessContext c) {
-                  KV<T, CoGbkResult> elementGroups = c.element();
+                    @ProcessElement
+                    public void processElement(ProcessContext c) {
+                      KV<T, CoGbkResult> elementGroups = c.element();
+                      CoGbkResult value = elementGroups.getValue();
+                      T element = elementGroups.getKey();
 
-                  CoGbkResult value = elementGroups.getValue();
-                  long inFirstSize = Iterables.size(value.getAll(leftCollectionTag));
-                  long inSecondSize = Iterables.size(value.getAll(rightCollectionTag));
+                      long numberOfOutputs = Iterables.size(value.getAll(allTags.get(0)));
+                      List<TupleTag<Void>> tail = allTags.subList(1, allTags.size());
 
-                  T element = elementGroups.getKey();
-                  for (long i = 0L; i < fn.apply(inFirstSize, inSecondSize); i++) {
-                    c.output(element);
-                  }
-                }
-              }));
+                      for (TupleTag<Void> tag : tail) {
+                        long nextSize = Iterables.size(value.getAll(tag));
+                        numberOfOutputs = fn.apply(numberOfOutputs, nextSize);
+                      }
+                      for (long i = 0L; i < numberOfOutputs; i++) {
+                        c.output(element);
+                      }
+                    }
+                  }));
+
+      return results.setCoder(first.getCoder());
     }
 
     @Override
