@@ -5,9 +5,9 @@ date:   2020-05-08 00:00:01 -0800
 excerpt_separator: <!--more-->
 categories: blog
 authors:
-  - Pedro Galvan
-  - Matthias Baetens
-  - Maximilian Michels
+  - pedro
+  - mbaetens
+  - mxm
 
 ---
 <!--
