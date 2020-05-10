@@ -20,6 +20,58 @@
     <generator>Jekyll v3.6.3</generator>
     
       <item>
+        <title>Beam Digital Summit is Coming, and it's Coming Fast!</title>
+        <description>&lt;!--
+Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+
+&lt;p&gt;As some of you are already aware, the 2020 edition of the Beam Summit will be completely &lt;strong&gt;digital and free&lt;/strong&gt;. And as you would expect from the Apache Beam community, it is coming in fast; the Beam Digital Summit will be from &lt;strong&gt;June 15th to 19th&lt;/strong&gt;, one moth away! The conference will be spread across the course of one week with a couple of hours of program each day.&lt;/p&gt;
+
+&lt;!--more--&gt;
+
+&lt;p&gt;While we would have loved to see all of you in person, we have to accept that 2020 will not be the year for that. So, we are looking at this as an opportunity to have a bigger and more inclusive event, where people who would normally not be able to travel to the summit will now be able to join, learn and share with the rest of the community.&lt;/p&gt;
+
+&lt;h2 id=&quot;providing-you-the-best-experience-possible&quot;&gt;Providing you the best experience possible&lt;/h2&gt;
+
+&lt;p&gt;We are going to great lengths to ensure that we provide the Beam community with the best possible experience in an online event. From audio/video quality, to an adequate schedule for our community, to making it as easy as possible to register to the event and join the sessions, to setting up ways for the community to interact and network with each other. The team behind the organization of the Beam Summit has been working on these things, and we are also teaming up with an event production company with experience in online events who are bringing in their knowledge.&lt;/p&gt;
+
+&lt;p&gt;So, what we want to say with this is: We will have a great event! And if you have any ideas on how to make it better, please let us know.&lt;/p&gt;
+
+&lt;h2 id=&quot;ways-to-participate-and-help&quot;&gt;Ways to participate and help&lt;/h2&gt;
+
+&lt;p&gt;As all things Beam, this is a community effort. The door is open for participation:&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Submit a proposal to talk. Please check out the &lt;strong&gt;&lt;a href=&quot;https://sessionize.com/beam-digital-summit-2020/&quot;&gt;Call for Papers&lt;/a&gt;&lt;/strong&gt; and submit a talk. The deadline for submissions is &lt;em&gt;May 20th&lt;/em&gt;!&lt;/li&gt;
+  &lt;li&gt;Register to join as an attendee. Registration is now open at the &lt;strong&gt;&lt;a href=&quot;https://crowdcast.io/e/beamsummit&quot;&gt;registration page&lt;/a&gt;&lt;/strong&gt;. Registration is free!&lt;/li&gt;
+  &lt;li&gt;Consider sponsoring the event. If your company is interested in engaging with members of the community please check out our &lt;a href=&quot;https://drive.google.com/open?id=1EbijvZKpkWwWyMryLY9sJfyZzZk1k44v&quot;&gt;sponsoring prospectus&lt;/a&gt;.&lt;/li&gt;
+  &lt;li&gt;Help us get the word out. Please make sure to let your colleagues and friends in the data engineering field (and beyond!) know about the Beam Summit.&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;follow-up-and-more-information&quot;&gt;Follow up and more information&lt;/h2&gt;
+
+&lt;p&gt;While we will use the Crowdcast platform to broadcast the event, we will still have a full event website at &lt;a href=&quot;https://beamsummit.org&quot;&gt;beamsummit.org&lt;/a&gt; with details about the schedule, speakers, FAQ and everything else you need from an event. We are currently working on updating the website and will publish all event details in the next couple of weeks.&lt;/p&gt;
+
+&lt;p&gt;Please also follow us on &lt;a href=&quot;https://twitter.com/beamsummit&quot;&gt;Twitter&lt;/a&gt; or &lt;a href=&quot;https://www.linkedin.com/company/beam-summit/&quot;&gt;LinkedIn&lt;/a&gt; to get event updates.&lt;/p&gt;
+</description>
+        <pubDate>Fri, 08 May 2020 01:00:01 -0700</pubDate>
+        <link>https://beam.apache.org/blog/2020/05/08/beam-summit-digital-2020.html</link>
+        <guid isPermaLink="true">https://beam.apache.org/blog/2020/05/08/beam-summit-digital-2020.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
+    
+      <item>
         <title>Apache Beam 2.20.0</title>
         <description>&lt;!--
 Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
@@ -1214,88 +1266,6 @@ Google Cloud Dataflow Runners Drain feature does not support looping timers (Lin
         <pubDate>Tue, 11 Jun 2019 01:00:01 -0700</pubDate>
         <link>https://beam.apache.org/blog/2019/06/11/looping-timers.html</link>
         <guid isPermaLink="true">https://beam.apache.org/blog/2019/06/11/looping-timers.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Apache Beam 2.13.0</title>
-        <description>&lt;!--
-Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-
-&lt;p&gt;We are happy to present the new 2.13.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href=&quot;/get-started/downloads/#2130-2019-05-21&quot;&gt;download page&lt;/a&gt; for this release.&lt;!--more--&gt;
-For more information on changes in 2.13.0, check out the
-&lt;a href=&quot;https://jira.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345166&quot;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h2 id=&quot;highlights&quot;&gt;Highlights&lt;/h2&gt;
-
-&lt;h3 id=&quot;ios&quot;&gt;I/Os&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Support reading query results with the BigQuery storage API.&lt;/li&gt;
-  &lt;li&gt;Support KafkaIO to be configured externally for use with other SDKs.&lt;/li&gt;
-  &lt;li&gt;BigQuery IO now supports BYTES datatype on Python 3.&lt;/li&gt;
-  &lt;li&gt;Avro IO support enabled on Python 3.&lt;/li&gt;
-  &lt;li&gt;For Python 3 pipelines, the default Avro library used by Beam AvroIO and Dataflow workers was switched from avro-python3 to fastavro.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;new-features--improvements&quot;&gt;New Features / Improvements&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Flink 1.8 support added.&lt;/li&gt;
-  &lt;li&gt;Support to run word count on Portable Spark runner.&lt;/li&gt;
-  &lt;li&gt;ElementCount metrics in FnApi Dataflow Runner.&lt;/li&gt;
-  &lt;li&gt;Support to create BinaryCombineFn from lambdas.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;breaking-changes&quot;&gt;Breaking Changes&lt;/h3&gt;
-&lt;ul&gt;
-  &lt;li&gt;When writing BYTES Datatype into Bigquery with Beam Bigquery IO on Python DirectRunner, users need to base64-encode bytes values before passing them to Bigquery IO. Accordingly, when reading bytes data from BigQuery, the IO will also return base64-encoded bytes. This change only affects Bigquery IO on Python DirectRunner. New DirectRunner behavior is consistent with treatment of Bytes by Beam Java Bigquery IO, and Python Dataflow Runner.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h3 id=&quot;bugfixes&quot;&gt;Bugfixes&lt;/h3&gt;
-
-&lt;ul&gt;
-  &lt;li&gt;Various bug fixes and performance improvements.&lt;/li&gt;
-&lt;/ul&gt;
-
-&lt;h2 id=&quot;list-of-contributors&quot;&gt;List of Contributors&lt;/h2&gt;
-
-&lt;p&gt;According to git shortlog, the following people contributed to the 2.13.0 release. Thank you to all contributors!&lt;/p&gt;
-
-&lt;p&gt;Aaron Li, Ahmet Altay, Aizhamal Nurmamat kyzy, Alex Amato, Alexey Romanenko, 
-Andrew Pilloud, Ankur Goenka, Anton Kedin, apstndb, Boyuan Zhang, Brian Hulette, 
-Brian Quinlan, Chamikara Jayalath, Cyrus Maden, Daniel Chen, Daniel Oliveira, 
-David Cavazos, David Moravek, David Yan, EdgarLGB, Etienne Chauchot, frederik2, 
-Gleb Kanterov, Harshit Dwivedi, Harsh Vardhan, Heejong Lee, Hennadiy Leontyev, 
-Henri-Mayeul de Benque, Ismaël Mejía, Jae-woo Kim, Jamie Kirkpatrick, Jan Lukavský, 
-Jason Kuster, Jean-Baptiste Onofré, JohnZZGithub, Jozef Vilcek, Juta, Kenneth Jung, 
-Kenneth Knowles, Kyle Weaver, Łukasz Gajowy, Luke Cwik, Mark Liu, Mathieu Blanchard, 
-Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia, Mike Kaplinskiy, 
-Mike Pedersen, Mikhail Gryzykhin, Mikhail-Ivanov, Niklas Hansson, pabloem, 
-Pablo Estrada, Pranay Nanda, Reuven Lax, Richard Moorhead, Robbe Sneyders, 
-Robert Bradshaw, Robert Burke, Roman van der Krogt, rosetn, Rui Wang, Ryan Yuan, 
-Sam Whittle, sudhan499, Sylwester Kardziejonek, Ted, Thomas Weise, Tim Robertson, 
-ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Xinyu Liu, Yifan Zou, 
-yoshiki.obata, Yueyang Qiu&lt;/p&gt;
-</description>
-        <pubDate>Fri, 07 Jun 2019 01:00:01 -0700</pubDate>
-        <link>https://beam.apache.org/blog/2019/05/22/beam-2.13.0.html</link>
-        <guid isPermaLink="true">https://beam.apache.org/blog/2019/05/22/beam-2.13.0.html</guid>
         
         
         <category>blog</category>
