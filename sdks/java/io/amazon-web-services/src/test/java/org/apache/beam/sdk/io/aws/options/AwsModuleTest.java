@@ -199,4 +199,19 @@ public class AwsModuleTest {
     assertEquals("username", valueDes.getProxyUsername());
     assertEquals("password", valueDes.getProxyPassword());
   }
+
+  @Test
+  public void testAwsHttpClientConfigurationSerializationDeserialization() throws Exception {
+    ClientConfiguration clientConfiguration = new ClientConfiguration();
+    clientConfiguration.setConnectionTimeout(100);
+    clientConfiguration.setConnectionMaxIdleMillis(1000);
+    clientConfiguration.setSocketTimeout(300);
+
+    final String valueAsJson = objectMapper.writeValueAsString(clientConfiguration);
+    final ClientConfiguration clientConfigurationDeserialized =
+        objectMapper.readValue(valueAsJson, ClientConfiguration.class);
+    assertEquals(100, clientConfigurationDeserialized.getConnectionTimeout());
+    assertEquals(1000, clientConfigurationDeserialized.getConnectionMaxIdleMillis());
+    assertEquals(300, clientConfigurationDeserialized.getSocketTimeout());
+  }
 }

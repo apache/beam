@@ -47,7 +47,6 @@ public class GroupByWithNullValuesTest implements Serializable {
 
     options.setRunner(TestFlinkRunner.class);
     options.setStreaming(true);
-    options.setShutdownSourcesOnFinalWatermark(true);
 
     Pipeline pipeline = Pipeline.create(options);
     PCollection<Integer> result =

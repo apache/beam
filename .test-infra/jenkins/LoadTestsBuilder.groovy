@@ -39,7 +39,7 @@ class LoadTestsBuilder {
     options.put('runner', runner.option)
 
     context.steps {
-      shell("echo *** ${title} ***")
+      shell('echo "*** ${title} ***"')
       gradle {
         rootBuildScriptDir(commonJobProperties.checkoutDir)
         setGradleTask(delegate, runner, sdk, options, mainClass)
@@ -49,8 +49,13 @@ class LoadTestsBuilder {
   }
 
   static String parseOptions(Map<String, ?> options) {
-    options.collect {
-      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
+    options.collect { entry ->
+      // Flags are indicated by null values
+      if (entry.value == null) {
+        "--${entry.key}"
+      } else {
+        "--${entry.key}=$entry.value".replace('\"', '\\\"').replace('\'', '\\\'')
+      }
     }.join(' ')
   }
 

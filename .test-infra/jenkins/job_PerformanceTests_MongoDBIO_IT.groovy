@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import CommonJobProperties as common
 import Kubernetes
+import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_MongoDBIO_IT"
 
@@ -27,6 +29,7 @@ job(jobName) {
           delegate,
           'Java MongoDBIO Performance Test',
           'Run Java MongoDBIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfigPath = common.getKubeconfigLocationForNamespace(namespace)
@@ -42,6 +45,9 @@ job(jobName) {
           numberOfRecords     : '10000000',
           bigQueryDataset     : 'beam_performance',
           bigQueryTable       : 'mongodbioit_results',
+          influxMeasurement   : 'mongodbioit_results',
+          influxDatabase      : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+          influxHost          : InfluxDBCredentialsHelper.InfluxDBHostname,
           mongoDBDatabaseName : 'beam',
           mongoDBHostName     : "\$${mongoHostName}",
           mongoDBPort         : 27017,

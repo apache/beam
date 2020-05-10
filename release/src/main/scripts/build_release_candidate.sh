@@ -176,6 +176,7 @@ if [[ $confirmation = "y" ]]; then
   cd sdks/python
   virtualenv ${LOCAL_PYTHON_VIRTUALENV}
   source ${LOCAL_PYTHON_VIRTUALENV}/bin/activate
+  pip install -r build-requirements.txt
   python setup.py sdist --format=zip
   cd dist
 
@@ -275,7 +276,7 @@ if [[ $confirmation = "y" ]]; then
   git clone ${GIT_REPO_URL}
   cd ${BEAM_ROOT_DIR}
   git checkout ${RELEASE_BRANCH}
-  cd sdks/python && tox -e docs
+  cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
   GENERATED_PYDOC=~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}/${BEAM_ROOT_DIR}/sdks/python/target/docs/_build
   rm -rf ${GENERATED_PYDOC}/.doctrees
 

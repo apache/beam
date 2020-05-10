@@ -144,6 +144,14 @@ public class OffsetRangeTrackerTest {
   }
 
   @Test
+  public void testDoneBeforeClaim() throws Exception {
+    expected.expectMessage(
+        "Last attempted offset should not be null. No work was claimed in non-empty range [100, 200)");
+    OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
+    tracker.checkDone();
+  }
+
+  @Test
   public void testCheckDoneAfterTryClaimPastEndOfRange() {
     OffsetRangeTracker tracker = new OffsetRangeTracker(new OffsetRange(100, 200));
     assertTrue(tracker.tryClaim(150L));

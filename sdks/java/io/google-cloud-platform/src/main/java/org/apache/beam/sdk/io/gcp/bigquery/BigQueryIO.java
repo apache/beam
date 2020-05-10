@@ -51,7 +51,9 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumWriter;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -294,14 +296,16 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>{@link BigQueryIO.Write#withAvroFormatFunction(SerializableFunction)} (recommended) to
  *       write data using avro records.
+ *   <li>{@link BigQueryIO.Write#withAvroWriter} to write avro data using a user-specified {@link
+ *       DatumWriter} (and format function).
  *   <li>{@link BigQueryIO.Write#withFormatFunction(SerializableFunction)} to write data as json
  *       encoded {@link TableRow TableRows}.
  * </ul>
  *
- * If {@link BigQueryIO.Write#withAvroFormatFunction(SerializableFunction)} is used, the table
- * schema MUST be specified using one of the {@link Write#withJsonSchema(String)}, {@link
- * Write#withJsonSchema(ValueProvider)}, {@link Write#withSchemaFromView(PCollectionView)} methods,
- * or {@link Write#to(DynamicDestinations)}.
+ * If {@link BigQueryIO.Write#withAvroFormatFunction(SerializableFunction)} or {@link
+ * BigQueryIO.Write#withAvroWriter} is used, the table schema MUST be specified using one of the
+ * {@link Write#withJsonSchema(String)}, {@link Write#withJsonSchema(ValueProvider)}, {@link
+ * Write#withSchemaFromView(PCollectionView)} methods, or {@link Write#to(DynamicDestinations)}.
  *
  * <pre>{@code
  * class Quote {
@@ -487,6 +491,9 @@ public class BigQueryIO {
    * PCollection<TableRow>} directly to BigQueryIO.Write.
    */
   static final SerializableFunction<TableRow, TableRow> IDENTITY_FORMATTER = input -> input;
+
+  static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
+      GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
 
   private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
       DEFAULT_AVRO_SCHEMA_FACTORY =
@@ -1763,7 +1770,7 @@ public class BigQueryIO {
     abstract SerializableFunction<T, TableRow> getFormatFunction();
 
     @Nullable
-    abstract SerializableFunction<AvroWriteRequest<T>, GenericRecord> getAvroFormatFunction();
+    abstract RowWriterFactory.AvroRowWriterFactory<T, ?, ?> getAvroRowWriterFactory();
 
     @Nullable
     abstract SerializableFunction<TableSchema, org.apache.avro.Schema> getAvroSchemaFactory();
@@ -1851,8 +1858,8 @@ public class BigQueryIO {
 
       abstract Builder<T> setFormatFunction(SerializableFunction<T, TableRow> formatFunction);
 
-      abstract Builder<T> setAvroFormatFunction(
-          SerializableFunction<AvroWriteRequest<T>, GenericRecord> avroFormatFunction);
+      abstract Builder<T> setAvroRowWriterFactory(
+          RowWriterFactory.AvroRowWriterFactory<T, ?, ?> avroRowWriterFactory);
 
       abstract Builder<T> setAvroSchemaFactory(
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory);
@@ -2056,13 +2063,43 @@ public class BigQueryIO {
     }
 
     /**
-     * Formats the user's type into a {@link GenericRecord} to be written to BigQuery.
+     * Formats the user's type into a {@link GenericRecord} to be written to BigQuery. The
+     * GenericRecords are written as avro using the standard {@link GenericDatumWriter}.
      *
      * <p>This is mutually exclusive with {@link #withFormatFunction}, only one may be set.
      */
     public Write<T> withAvroFormatFunction(
         SerializableFunction<AvroWriteRequest<T>, GenericRecord> avroFormatFunction) {
-      return toBuilder().setAvroFormatFunction(avroFormatFunction).setOptimizeWrites(true).build();
+      return withAvroWriter(avroFormatFunction, GENERIC_DATUM_WRITER_FACTORY);
+    }
+
+    /**
+     * Writes the user's type as avro using the supplied {@link DatumWriter}.
+     *
+     * <p>This is mutually exclusive with {@link #withFormatFunction}, only one may be set.
+     *
+     * <p>Overwrites {@link #withAvroFormatFunction} if it has been set.
+     */
+    public Write<T> withAvroWriter(
+        SerializableFunction<org.apache.avro.Schema, DatumWriter<T>> writerFactory) {
+      return withAvroWriter(AvroWriteRequest::getElement, writerFactory);
+    }
+
+    /**
+     * Convert's the user's type to an avro record using the supplied avroFormatFunction. Records
+     * are then written using the supplied writer instances returned from writerFactory.
+     *
+     * <p>This is mutually exclusive with {@link #withFormatFunction}, only one may be set.
+     *
+     * <p>Overwrites {@link #withAvroFormatFunction} if it has been set.
+     */
+    public <AvroT> Write<T> withAvroWriter(
+        SerializableFunction<AvroWriteRequest<T>, AvroT> avroFormatFunction,
+        SerializableFunction<org.apache.avro.Schema, DatumWriter<AvroT>> writerFactory) {
+      return toBuilder()
+          .setOptimizeWrites(true)
+          .setAvroRowWriterFactory(RowWriterFactory.avroRecords(avroFormatFunction, writerFactory))
+          .build();
     }
 
     /**
@@ -2484,7 +2521,7 @@ public class BigQueryIO {
       if (method != Method.FILE_LOADS) {
         // we only support writing avro for FILE_LOADS
         checkArgument(
-            getAvroFormatFunction() == null,
+            getAvroRowWriterFactory() == null,
             "Writing avro formatted data is only supported for FILE_LOADS, however "
                 + "the method was %s",
             method);
@@ -2546,8 +2583,8 @@ public class BigQueryIO {
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
       boolean optimizeWrites = getOptimizeWrites();
       SerializableFunction<T, TableRow> formatFunction = getFormatFunction();
-      SerializableFunction<AvroWriteRequest<T>, GenericRecord> avroFormatFunction =
-          getAvroFormatFunction();
+      RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT> avroRowWriterFactory =
+          (RowWriterFactory.AvroRowWriterFactory<T, ?, DestinationT>) getAvroRowWriterFactory();
 
       boolean hasSchema =
           getJsonSchema() != null
@@ -2559,8 +2596,8 @@ public class BigQueryIO {
         optimizeWrites = true;
 
         checkArgument(
-            avroFormatFunction == null,
-            "avroFormatFunction is unsupported when using Beam schemas.");
+            avroRowWriterFactory == null,
+            "avro avroFormatFunction is unsupported when using Beam schemas.");
 
         if (formatFunction == null) {
           // If no format function set, then we will automatically convert the input type to a
@@ -2593,10 +2630,10 @@ public class BigQueryIO {
       Method method = resolveMethod(input);
       if (optimizeWrites) {
         RowWriterFactory<T, DestinationT> rowWriterFactory;
-        if (avroFormatFunction != null) {
+        if (avroRowWriterFactory != null) {
           checkArgument(
               formatFunction == null,
-              "Only one of withFormatFunction or withAvroFormatFunction maybe set, not both.");
+              "Only one of withFormatFunction or withAvroFormatFunction/withAvroWriter maybe set, not both.");
 
           SerializableFunction<TableSchema, org.apache.avro.Schema> avroSchemaFactory =
               getAvroSchemaFactory();
@@ -2607,9 +2644,7 @@ public class BigQueryIO {
                     + "is set but no avroSchemaFactory is defined.");
             avroSchemaFactory = DEFAULT_AVRO_SCHEMA_FACTORY;
           }
-          rowWriterFactory =
-              RowWriterFactory.avroRecords(
-                  avroFormatFunction, avroSchemaFactory, dynamicDestinations);
+          rowWriterFactory = avroRowWriterFactory.prepare(dynamicDestinations, avroSchemaFactory);
         } else if (formatFunction != null) {
           rowWriterFactory = RowWriterFactory.tableRows(formatFunction);
         } else {
@@ -2634,7 +2669,7 @@ public class BigQueryIO {
             rowWriterFactory,
             method);
       } else {
-        checkArgument(avroFormatFunction == null);
+        checkArgument(avroRowWriterFactory == null);
         checkArgument(
             formatFunction != null,
             "A function must be provided to convert the input type into a TableRow or "

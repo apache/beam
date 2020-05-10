@@ -845,10 +845,13 @@ class BundleManager(object):
           (result_future.is_done() and result_future.get().error)):
         if isinstance(output, beam_fn_api_pb2.Elements.Timers) and not dry_run:
           with BundleManager._lock:
-            self.bundle_context_manager.get_buffer(
+            timer_buffer = self.bundle_context_manager.get_buffer(
                 expected_output_timers[(
                     output.transform_id, output.timer_family_id)],
-                output.transform_id).append(output.timers)
+                output.transform_id)
+            if timer_buffer.cleared:
+              timer_buffer.reset()
+            timer_buffer.append(output.timers)
         if isinstance(output, beam_fn_api_pb2.Elements.Data) and not dry_run:
           with BundleManager._lock:
             self.bundle_context_manager.get_buffer(

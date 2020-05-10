@@ -525,7 +525,7 @@ def head(pcoll, n=5, include_window_info=False):
   results = []
   for e in elements:
     results.append(e)
-    if len(results) >= n and n > 0:
+    if len(results) >= n > 0:
       break
 
   return elements_to_df(results, include_window_info=include_window_info)

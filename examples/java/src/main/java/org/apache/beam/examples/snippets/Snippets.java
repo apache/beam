@@ -51,10 +51,13 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
@@ -68,7 +71,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -783,6 +785,74 @@ public class Snippets {
               DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
 
+    }
+  }
+
+  public static class PeriodicallyUpdatingSideInputs {
+
+    public static PCollection<Long> main(
+        Pipeline p,
+        Instant startAt,
+        Instant stopAt,
+        Duration interval1,
+        Duration interval2,
+        String fileToRead) {
+      // [START PeriodicallyUpdatingSideInputs]
+      PCollectionView<List<Long>> sideInput =
+          p.apply(
+                  "SIImpulse",
+                  PeriodicImpulse.create()
+                      .startAt(startAt)
+                      .stopAt(stopAt)
+                      .withInterval(interval1)
+                      .applyWindowing())
+              .apply(
+                  "FileToRead",
+                  ParDo.of(
+                      new DoFn<Instant, String>() {
+                        @DoFn.ProcessElement
+                        public void process(@Element Instant notUsed, OutputReceiver<String> o) {
+                          o.output(fileToRead);
+                        }
+                      }))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches())
+              .apply(TextIO.readFiles())
+              .apply(
+                  ParDo.of(
+                      new DoFn<String, String>() {
+                        @ProcessElement
+                        public void process(@Element String src, OutputReceiver<String> o) {
+                          o.output(src);
+                        }
+                      }))
+              .apply(Combine.globally(Count.<String>combineFn()).withoutDefaults())
+              .apply(View.asList());
+
+      PCollection<Instant> mainInput =
+          p.apply(
+              "MIImpulse",
+              PeriodicImpulse.create()
+                  .startAt(startAt.minus(Duration.standardSeconds(1)))
+                  .stopAt(stopAt.minus(Duration.standardSeconds(1)))
+                  .withInterval(interval2)
+                  .applyWindowing());
+
+      // Consume side input. GenerateSequence generates test data.
+      // Use a real source (like PubSubIO or KafkaIO) in production.
+      PCollection<Long> result =
+          mainInput.apply(
+              "generateOutput",
+              ParDo.of(
+                      new DoFn<Instant, Long>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output((long) c.sideInput(sideInput).size());
+                        }
+                      })
+                  .withSideInputs(sideInput));
+      // [END PeriodicallyUpdatingSideInputs]
+      return result;
     }
   }
 }

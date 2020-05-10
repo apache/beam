@@ -20,6 +20,7 @@ import CommonTestProperties
 import CronJobBuilder
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def loadTestConfigurations = { mode, isStreaming, datasetName ->
     [
@@ -34,6 +35,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_sparkstructuredstreaming_${mode}_GBK_1",
+                            influxMeasurement     : "java_${mode}_GBK_1",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 200000000,
@@ -57,6 +60,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_2",
+                            influxMeasurement     : "java_${mode}_GBK_2",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
@@ -81,6 +86,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_3",
+                            influxMeasurement     : "java_${mode}_GBK_3",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000,
@@ -105,6 +112,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_4",
+                            influxMeasurement     : "java_${mode}_GBK_4",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 5000000,
@@ -128,6 +137,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_5",
+                            influxMeasurement     : "java_${mode}_GBK_5",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 2500000,
@@ -151,6 +162,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_6",
+                            influxMeasurement     : "java_${mode}_GBK_6",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
@@ -176,6 +189,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_7",
+                            influxMeasurement     : "java_${mode}_GBK_7",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
@@ -190,14 +205,20 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             streaming             : isStreaming
                     ]
             ]
-    ]
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def batchLoadTestJob = { scope, triggeringContext ->
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     loadTestsBuilder.loadTests(scope, CommonTestProperties.SDK.JAVA, loadTestConfigurations('batch', false, datasetName), "GBK", "batch")
 }
+
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_SparkStructuredStreaming_Batch', 'H 12 * * *', this) {
+    InfluxDBCredentialsHelper.useCredentials(delegate)
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
@@ -207,5 +228,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java GBK SparkStructuredStreaming Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }

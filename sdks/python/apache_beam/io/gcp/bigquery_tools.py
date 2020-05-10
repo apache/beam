@@ -56,6 +56,7 @@ from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
+from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -694,6 +695,7 @@ class BigQueryWrapper(object):
       job_id,
       table_reference,
       destination_format,
+      project=None,
       include_header=True,
       compression=ExportCompression.NONE):
     """Starts a job to export data from BigQuery.
@@ -701,10 +703,10 @@ class BigQueryWrapper(object):
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
-    job_reference = bigquery.JobReference(
-        jobId=job_id, projectId=table_reference.projectId)
+    job_project = project or table_reference.projectId
+    job_reference = bigquery.JobReference(jobId=job_id, projectId=job_project)
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=table_reference.projectId,
+        projectId=job_project,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 extract=bigquery.JobConfigurationExtract(
@@ -1182,6 +1184,9 @@ class RowAsDictJsonCoder(coders.Coder):
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))
+
+  def to_type_hint(self):
+    return Any
 
 
 class JsonRowWriter(io.IOBase):

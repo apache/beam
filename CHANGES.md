@@ -65,7 +65,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* The Python SDK now requires `--job_endpoint` to be set when using `--runner=PortableRunner` ([BEAM-9860](https://issues.apache.org/jira/browse/BEAM-9860)). Users seeking the old default behavior should set `--runner=FlinkRunner` instead.
 
 ## Deprecations
 
@@ -123,6 +123,9 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
     values as strings) into Python native types that are written to Avro
     (Python's date, datetime types, decimal, etc). For more information
     see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
+* Added integration of Java SDK with Google Cloud AI VideoIntelligence service 
+([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
+
  
 ## Breaking Changes
 

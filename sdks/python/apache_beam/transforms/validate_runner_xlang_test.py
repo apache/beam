@@ -25,7 +25,6 @@ from nose.plugins.attrib import attr
 from past.builtins import unicode
 
 import apache_beam as beam
-from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -136,86 +135,45 @@ class CrossLanguageTestPipelines(object):
 
 @attr('UsesCrossLanguageTransforms')
 @unittest.skipUnless(
-    os.environ.get('EXPANSION_JAR'),
-    "EXPANSION_JAR environment variable is not set.")
-@unittest.skipUnless(
     os.environ.get('EXPANSION_PORT'),
     "EXPANSION_PORT environment var is not provided.")
 class ValidateRunnerXlangTest(unittest.TestCase):
-  expansion_jar = os.environ.get('EXPANSION_JAR')
+  def create_pipeline(self):
+    test_pipeline = TestPipeline()
+    test_pipeline.not_use_test_runner_api = True
+    return test_pipeline
 
   def test_prefix(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_prefix(test_pipeline)
+    CrossLanguageTestPipelines().run_prefix(
+        test_pipeline or self.create_pipeline())
 
   def test_multi_input_output_with_sideinput(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
     CrossLanguageTestPipelines().run_multi_input_output_with_sideinput(
-        test_pipeline)
+        test_pipeline or self.create_pipeline())
 
   def test_group_by_key(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_group_by_key(test_pipeline)
+    CrossLanguageTestPipelines().run_group_by_key(
+        test_pipeline or self.create_pipeline())
 
   def test_cogroup_by_key(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_cogroup_by_key(test_pipeline)
+    CrossLanguageTestPipelines().run_cogroup_by_key(
+        test_pipeline or self.create_pipeline())
 
   def test_combine_globally(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_combine_globally(test_pipeline)
+    CrossLanguageTestPipelines().run_combine_globally(
+        test_pipeline or self.create_pipeline())
 
   def test_combine_per_key(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_combine_per_key(test_pipeline)
+    CrossLanguageTestPipelines().run_combine_per_key(
+        test_pipeline or self.create_pipeline())
 
   def test_flatten(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_flatten(test_pipeline)
+    CrossLanguageTestPipelines().run_flatten(
+        test_pipeline or self.create_pipeline())
 
   def test_partition(self, test_pipeline=None):
-    if not test_pipeline:
-      test_pipeline = TestPipeline()
-      test_pipeline.get_pipeline_options().view_as(
-          DebugOptions).experiments.append(
-              'jar_packages=' + ValidateRunnerXlangTest.expansion_jar)
-      test_pipeline.not_use_test_runner_api = True
-    CrossLanguageTestPipelines().run_partition(test_pipeline)
+    CrossLanguageTestPipelines().run_partition(
+        test_pipeline or self.create_pipeline())
 
 
 if __name__ == '__main__':

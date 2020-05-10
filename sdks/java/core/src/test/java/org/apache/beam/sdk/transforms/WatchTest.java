@@ -72,6 +72,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -306,6 +307,7 @@ public class WatchTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+  @Ignore("https://issues.apache.org/jira/browse/BEAM-8035")
   public void testMultiplePollsWithManyResults() {
     final long numResults = 3000;
     List<Integer> all = Lists.newArrayList();

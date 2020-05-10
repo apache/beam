@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -60,6 +61,24 @@ public class DefaultArtifactResolver implements ArtifactResolver {
   @Override
   public void register(ResolutionFn fn) {
     fns.add(fn);
+  }
+
+  @Override
+  public List<RunnerApi.ArtifactInformation> resolveArtifacts(
+      List<RunnerApi.ArtifactInformation> artifacts) {
+    for (ResolutionFn fn : Lists.reverse(fns)) {
+      List<RunnerApi.ArtifactInformation> moreResolved = new ArrayList<>();
+      for (RunnerApi.ArtifactInformation artifact : artifacts) {
+        Optional<List<RunnerApi.ArtifactInformation>> resolved = fn.resolve(artifact);
+        if (resolved.isPresent()) {
+          moreResolved.addAll(resolved.get());
+        } else {
+          moreResolved.add(artifact);
+        }
+      }
+      artifacts = moreResolved;
+    }
+    return artifacts;
   }
 
   @Override

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.expansion.service;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Server;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.netty.NettyServerBuilder;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
@@ -48,6 +49,7 @@ public class ExpansionServer implements AutoCloseable {
     this.server =
         NettyServerBuilder.forAddress(new InetSocketAddress(host, port))
             .addService(service)
+            .addService(new ArtifactRetrievalService())
             .build()
             .start();
     this.port = server.getPort();

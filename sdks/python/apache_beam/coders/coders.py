@@ -590,7 +590,7 @@ class _TimerCoder(FastCoder):
 
   For internal use."""
   def __init__(self, key_coder, window_coder):
-    # type: (Coder) -> None
+    # type: (Coder, Coder) -> None
     self._key_coder = key_coder
     self._window_coder = window_coder
 

@@ -159,7 +159,6 @@ task javaPreCommitBeamZetaSQL() {
 
 task javaPreCommitPortabilityApi() {
   dependsOn ":runners:google-cloud-dataflow-java:worker:build"
-  dependsOn ":runners:google-cloud-dataflow-java:examples:verifyPortabilityApi"
 }
 
 task javaPostCommit() {
@@ -173,10 +172,6 @@ task sqlPostCommit() {
   dependsOn ":sdks:java:extensions:sql:postCommit"
   dependsOn ":sdks:java:extensions:sql:jdbc:postCommit"
   dependsOn ":sdks:java:extensions:sql:datacatalog:postCommit"
-}
-
-task javaPostCommitPortabilityApi () {
-  dependsOn ":runners:google-cloud-dataflow-java:postCommitPortabilityApi"
 }
 
 task goPreCommit() {
@@ -346,6 +341,15 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     }).join(',')
     doLast {
       println "NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually."
+    }
+  }
+}
+if (project.hasProperty('compileAndRunTestsWithJava11')) {
+  project.javaPreCommitPortabilityApi.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
+} else {
+  allprojects {
+    tasks.withType(Test) {
+      exclude '**/JvmVerification.class'
     }
   }
 }
