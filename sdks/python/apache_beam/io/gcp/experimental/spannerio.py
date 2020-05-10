@@ -185,7 +185,7 @@ from apache_beam.pvalue import PBegin
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms import PTransform
 from apache_beam.transforms import ptransform_fn
-from apache_beam.transforms.combiners import ToList
+from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
@@ -984,7 +984,7 @@ class WriteMutation(object):
         })
 
 
-@with_input_types(typing.List[MutationGroup])
+@with_input_types(typing.Union[MutationGroup, TaggedOutput])
 @with_output_types(MutationGroup)
 class _BatchFn(DoFn):
   """
@@ -995,6 +995,7 @@ class _BatchFn(DoFn):
     self._max_number_rows = max_number_rows
     self._max_number_cells = max_number_cells
 
+  def start_bundle(self):
     self._batch = MutationGroup()
     self._size_in_bytes = 0
     self._rows = 0
@@ -1007,30 +1008,31 @@ class _BatchFn(DoFn):
     self._cells = 0
 
   def process(self, element):
-    for elem in element:
-      mg_info = elem.info
-      if mg_info['byte_size'] + self._size_in_bytes > \
-          self._max_batch_size_bytes \
-          or mg_info['cells'] + self._cells > self._max_number_cells \
-          or mg_info['rows'] + self._rows > self._max_number_rows:
-        # Batch is full, output the batch and resetting the count.
-        if self._batch:
-          yield self._batch
-        self._reset_count()
-      self._batch.extend(elem)
+    mg_info = element.info
 
-      # total byte size of the mutation group.
-      self._size_in_bytes += mg_info['byte_size']
+    if mg_info['byte_size'] + self._size_in_bytes > self._max_batch_size_bytes \
+        or mg_info['cells'] + self._cells > self._max_number_cells \
+        or mg_info['rows'] + self._rows > self._max_number_rows:
+      # Batch is full, output the batch and resetting the count.
+      if self._batch:
+        yield self._batch
+      self._reset_count()
 
-      # total rows in the mutation group.
-      self._rows += mg_info['rows']
+    self._batch.extend(element)
 
-      # total cells in the mutation group.
-      self._cells += mg_info['cells']
+    # total byte size of the mutation group.
+    self._size_in_bytes += mg_info['byte_size']
 
-    if self._batch:
-      yield self._batch
-    self._reset_count()
+    # total rows in the mutation group.
+    self._rows += mg_info['rows']
+
+    # total cells in the mutation group.
+    self._cells += mg_info['cells']
+
+  def finish_bundle(self):
+    if self._batch is not None:
+      yield window.GlobalWindows.windowed_value(self._batch)
+      self._batch = None
 
 
 @with_input_types(MutationGroup)
@@ -1133,7 +1135,6 @@ class _WriteGroup(PTransform):
 
     batching_batchables = (
         filter_batchable_mutations['batchable']
-        | 'combine to list' >> ToList()
         | ParDo(
             _BatchFn(
                 max_batch_size_bytes=self._max_batch_size_bytes,

@@ -25,7 +25,6 @@ import uuid
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
-from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where spanner library is not available.
@@ -47,7 +46,7 @@ _TEST_INSTANCE_ID = 'beam-test'
 
 
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
-class SpannerWriteTest(unittest.TestCase):
+class SpannerWriteIntegrationTest(unittest.TestCase):
   TEST_DATABASE = None
   _database_prefix = 'pybeam-write-{}'
   _SPANNER_CLIENT = None
@@ -73,6 +72,22 @@ class SpannerWriteTest(unittest.TestCase):
         ])
     operation = database.create()
     _LOGGER.info('Creating database: Done! %s' % str(operation.result()))
+
+  @classmethod
+  def _count_data(cls, prefix):
+    instance = cls._SPANNER_INSTANCE
+    database = instance.database(cls.TEST_DATABASE)
+    count = None
+    with database.snapshot() as snapshot:
+      results = snapshot.execute_sql(
+          'SELECT COUNT(*) FROM Users WHERE UserId '
+          'LIKE "{}%"'.format(prefix))
+      try:
+        count = list(results)[0][0]
+      except IndexError:
+        raise ValueError(
+            "Spanner Count rows results not found for %s." % prefix)
+    return count
 
   @classmethod
   def setUpClass(cls):
@@ -114,12 +129,7 @@ class SpannerWriteTest(unittest.TestCase):
 
     res = p.run()
     res.wait_until_finish()
-    metric_results = res.metrics().query(
-        MetricsFilter().with_name('SpannerBatches'))
-    batches_counter = metric_results['counters'][0]
-
-    self.assertEqual(batches_counter.committed, 2)
-    self.assertEqual(batches_counter.attempted, 2)
+    self.assertEqual(self._count_data(_prefex), len(mutations))
 
   @attr('IT')
   def test_spanner_update(self):
@@ -155,13 +165,7 @@ class SpannerWriteTest(unittest.TestCase):
 
     res = p.run()
     res.wait_until_finish()
-
-    metric_results = res.metrics().query(
-        MetricsFilter().with_name('SpannerBatches'))
-    batches_counter = metric_results['counters'][0]
-
-    self.assertEqual(batches_counter.committed, 2)
-    self.assertEqual(batches_counter.attempted, 2)
+    self.assertEqual(self._count_data(_prefex), 2)
 
   @attr('IT')
   def test_spanner_error(self):

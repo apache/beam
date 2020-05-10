@@ -499,7 +499,6 @@ class SpannerWriteTest(unittest.TestCase):
       # and each bach should contains 25 mutations.
       res = (
           p | beam.Create(mutation_group)
-          | 'combine to list' >> beam.combiners.ToList()
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1450,
@@ -523,7 +522,6 @@ class SpannerWriteTest(unittest.TestCase):
       # either to lower value or zero
       res = (
           p | beam.Create(mutation_group)
-          | 'combine to list' >> beam.combiners.ToList()
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1450,
@@ -552,7 +550,6 @@ class SpannerWriteTest(unittest.TestCase):
       # (contains 5 mutation groups each).
       res = (
           p | beam.Create(mutation_group)
-          | 'combine to list' >> beam.combiners.ToList()
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1048576,
@@ -585,7 +582,6 @@ class SpannerWriteTest(unittest.TestCase):
       # total_batches = Total Number of Cells / Max Cells
       res = (
           p | beam.Create(mutation_group)
-          | 'combine to list' >> beam.combiners.ToList()
           | beam.ParDo(
               _BatchFn(
                   max_batch_size_bytes=1048576,

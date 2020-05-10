@@ -48,7 +48,7 @@ _TEST_INSTANCE_ID = 'beam-test'
 
 
 @unittest.skipIf(spanner is None, 'GCP dependencies are not installed.')
-class SpannerReadTest(unittest.TestCase):
+class SpannerReadIntegrationTest(unittest.TestCase):
   TEST_DATABASE = None
   _database_prefix = "pybeam-read-{}"
   _data = None
@@ -77,7 +77,7 @@ class SpannerReadTest(unittest.TestCase):
     _LOGGER.info("Creating database: Done! %s" % str(operation.result()))
 
   @classmethod
-  def _add_dummy_interies(cls):
+  def _add_dummy_entries(cls):
     _LOGGER.info("Dummy Data: Adding dummy data...")
     instance = cls._SPANNER_INSTANCE
     database = instance.database(cls.TEST_DATABASE)
@@ -100,7 +100,7 @@ class SpannerReadTest(unittest.TestCase):
     _LOGGER.info(".... Spanner Client created!")
     cls._SPANNER_INSTANCE = spanner_client.instance(cls.instance)
     cls._create_database()
-    cls._add_dummy_interies()
+    cls._add_dummy_entries()
     _LOGGER.info("Spanner Read IT Setup Complete...")
 
   @attr('IT')
