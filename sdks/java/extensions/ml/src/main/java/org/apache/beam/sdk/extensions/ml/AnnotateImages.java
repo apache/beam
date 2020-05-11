@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
@@ -38,7 +39,8 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * Parent class for transform utilizing Cloud Vision API.
+ * Parent class for transform utilizing Cloud Vision API. https://cloud.google.com/vision/docs/batch
+ * Max batch size limit is imposed by the API for synchronous requests.
  *
  * @param <T> Type of input PCollection.
  */
@@ -53,8 +55,14 @@ abstract class AnnotateImages<T>
   protected final List<Feature> featureList;
   private long batchSize;
 
+  /**
+   * @param contextSideInput Sice input optionally containting a map of elements to {@link
+   *     ImageContext} objects with metadata for the analysis.
+   * @param featureList list of features to be extracted from the image.
+   * @param batchSize
+   */
   public AnnotateImages(
-      PCollectionView<Map<T, ImageContext>> contextSideInput,
+      @Nullable PCollectionView<Map<T, ImageContext>> contextSideInput,
       List<Feature> featureList,
       long batchSize) {
     this.contextSideInput = contextSideInput;
@@ -79,7 +87,7 @@ abstract class AnnotateImages<T>
     } else if (batchSize < MIN_BATCH_SIZE) {
       throw new IllegalArgumentException(
           String.format(
-              "Min batch size not reached.%n" + "Batch size needs to be larger than %d",
+              "Min batch size not reached.%n" + "Batch size needs to be larger or equal than %d",
               MIN_BATCH_SIZE));
     }
   }
@@ -112,7 +120,7 @@ abstract class AnnotateImages<T>
    * @param ctx optional image context.
    * @return A valid {@link AnnotateImageRequest} object.
    */
-  public abstract AnnotateImageRequest mapToRequest(T input, ImageContext ctx);
+  public abstract AnnotateImageRequest mapToRequest(T input, @Nullable ImageContext ctx);
 
   /**
    * The {@link DoFn} performing the calls to Cloud Vision API. Input PCollection contains lists of
@@ -134,8 +142,8 @@ abstract class AnnotateImages<T>
       this.imageAnnotatorClient = imageAnnotatorClient;
     }
 
-    @StartBundle
-    public void startBundle() throws IOException {
+    @Setup
+    public void setup() throws IOException {
       imageAnnotatorClient = ImageAnnotatorClient.create();
     }
 
@@ -150,7 +158,7 @@ abstract class AnnotateImages<T>
     }
 
     /**
-     * Performs the call itself. Default access for testing.
+     * Performs the call to the Cloud Vision API using a client library. Default access for testing.
      *
      * @param requests request list.
      * @return response list.

@@ -25,6 +25,7 @@ import com.google.cloud.vision.v1.ImageSource;
 import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -48,9 +49,11 @@ public class CloudVision {
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
    * GCS addresses.
    *
-   * @param contextSideInput optional side input with contexts for select images.
+   * @param contextSideInput optional side input with contexts for select images. The {@link
+   *     ImageContext} objects provide additional metadata for the annotation API. This way users
+   *     can
    * @param features annotation features that should be passed to the API
-   * @param batchSize request batch size to be sent to API. Max 5.
+   * @param batchSize request batch size to be sent to API. Max 5, at least 1.
    * @return the PTransform.
    */
   public static AnnotateImagesFromGcsUri annotateImagesFromGcsUri(
@@ -66,7 +69,7 @@ public class CloudVision {
    *
    * @param contextSideInput optional side input with contexts for select images.
    * @param features annotation features that should be passed to the API
-   * @param batchSize request batch size to be sent to API. Max 5.
+   * @param batchSize request batch size to be sent to API. Max 5, at least 1.
    * @return the PTransform.
    */
   public static AnnotateImagesFromBytes annotateImagesFromBytes(
@@ -81,7 +84,7 @@ public class CloudVision {
    * their GCS addresses in Strings and {@link ImageContext} for each image.
    *
    * @param features annotation features that should be passed to the API
-   * @param batchSize request batch size to be sent to API. Max 5.
+   * @param batchSize request batch size to be sent to API. Max 5, at least 1.
    * @return the PTransform.
    */
   public static AnnotateImagesFromBytesWithContext annotateImagesFromBytesWithContext(
@@ -94,7 +97,7 @@ public class CloudVision {
    * their String-encoded contents and {@link ImageContext} for each image.
    *
    * @param features annotation features that should be passed to the API
-   * @param batchSize request batch size to be sent to API. Max 5.
+   * @param batchSize request batch size to be sent to API. Max 5, at least 1.
    * @return the PTransform.
    */
   public static AnnotateImagesFromGcsUriWithContext annotateImagesFromGcsUriWithContext(
@@ -103,9 +106,9 @@ public class CloudVision {
   }
 
   /**
-   * Implementation of {@link AnnotateImages} that accepts {@link String} (image URI on GCS) with
-   * optional {@link org.apache.beam.sdk.transforms.DoFn.SideInput} with a {@link Map} of {@link
-   * ImageContext} to the image.
+   * Accepts {@link String} (image URI on GCS) with optional {@link
+   * org.apache.beam.sdk.transforms.DoFn.SideInput} with a {@link Map} of {@link ImageContext} to
+   * the image.
    */
   public static class AnnotateImagesFromGcsUri extends AnnotateImages<String> {
 
@@ -125,7 +128,7 @@ public class CloudVision {
      * @return a valid request.
      */
     @Override
-    public AnnotateImageRequest mapToRequest(String uri, ImageContext ctx) {
+    public AnnotateImageRequest mapToRequest(String uri, @Nullable ImageContext ctx) {
       AnnotateImageRequest.Builder builder = AnnotateImageRequest.newBuilder();
       if (ctx != null) {
         builder.setImageContext(ctx);
@@ -139,9 +142,9 @@ public class CloudVision {
   }
 
   /**
-   * Implementation of {@link AnnotateImages} that accepts {@link ByteString} (encoded image
-   * contents) with optional {@link org.apache.beam.sdk.transforms.DoFn.SideInput} with a {@link
-   * Map} of {@link ImageContext} to the image.
+   * Accepts {@link ByteString} (encoded image contents) with optional {@link
+   * org.apache.beam.sdk.transforms.DoFn.SideInput} with a {@link Map} of {@link ImageContext} to
+   * the image.
    */
   public static class AnnotateImagesFromBytes extends AnnotateImages<ByteString> {
 
@@ -161,7 +164,7 @@ public class CloudVision {
      * @return a valid request.
      */
     @Override
-    public AnnotateImageRequest mapToRequest(ByteString input, ImageContext ctx) {
+    public AnnotateImageRequest mapToRequest(ByteString input, @Nullable ImageContext ctx) {
       AnnotateImageRequest.Builder builder = AnnotateImageRequest.newBuilder();
       if (ctx != null) {
         builder.setImageContext(ctx);
@@ -174,9 +177,8 @@ public class CloudVision {
   }
 
   /**
-   * Implementation of {@link AnnotateImages} that accepts {@link KV}s of {@link String} (GCS URI to
-   * the image) and {@link ImageContext}. It's possible to add {@link ImageContext} to each image to
-   * be annotated.
+   * Accepts {@link KV}s of {@link String} (GCS URI to the image) and {@link ImageContext}. It's
+   * possible to add {@link ImageContext} to each image to be annotated.
    */
   public static class AnnotateImagesFromGcsUriWithContext
       extends AnnotateImages<KV<String, ImageContext>> {
@@ -190,11 +192,12 @@ public class CloudVision {
      * {@link AnnotateImageRequest}.
      *
      * @param input Input element.
-     * @param ctx optional image context.
+     * @param ctx optional image context, ignored here since the input holds context.
      * @return a valid request.
      */
     @Override
-    public AnnotateImageRequest mapToRequest(KV<String, ImageContext> input, ImageContext ctx) {
+    public AnnotateImageRequest mapToRequest(
+        KV<String, ImageContext> input, @Nullable ImageContext ctx) {
       ImageSource imageSource = ImageSource.newBuilder().setGcsImageUri(input.getKey()).build();
       Image image = Image.newBuilder().setSource(imageSource).build();
       AnnotateImageRequest.Builder builder =
@@ -207,9 +210,8 @@ public class CloudVision {
   }
 
   /**
-   * Implementation of {@link AnnotateImages} that accepts {@link KV}s of {@link ByteString}
-   * (encoded image contents) and {@link ImageContext}. It's possible to add {@link ImageContext} to
-   * each image to be annotated.
+   * Accepts {@link KV}s of {@link ByteString} (encoded image contents) and {@link ImageContext}.
+   * It's possible to add {@link ImageContext} to each image to be annotated.
    */
   public static class AnnotateImagesFromBytesWithContext
       extends AnnotateImages<KV<ByteString, ImageContext>> {
@@ -227,7 +229,8 @@ public class CloudVision {
      * @return valid request element.
      */
     @Override
-    public AnnotateImageRequest mapToRequest(KV<ByteString, ImageContext> input, ImageContext ctx) {
+    public AnnotateImageRequest mapToRequest(
+        KV<ByteString, ImageContext> input, @Nullable ImageContext ctx) {
       Image image = Image.newBuilder().setContent(input.getKey()).build();
       AnnotateImageRequest.Builder builder =
           AnnotateImageRequest.newBuilder().setImage(image).addAllFeatures(featureList);
