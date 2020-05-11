@@ -142,7 +142,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_Combine_Flink_Batch', 'H 15 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
