@@ -354,8 +354,8 @@ public class FlattenTest implements Serializable {
   @Test
   @Category(ValidatesRunner.class)
   public void testFlattenWithDifferentInputAndOutputCoders() {
-    // This test exists to prevent a regression in Dataflow. It is important
-    // that Flatten is followed by a GroupByKey.
+    // This test exists to prevent a regression in Dataflow. It tests a
+    // GroupByKey preceded by a Flatten with an SDK-specific input coder.
     PCollection<KV<String, String>> output = p.apply(Create.of(LINES)).apply(WithKeys.of("a"));
     output.setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, String>>() {}));
 
@@ -375,6 +375,29 @@ public class FlattenTest implements Serializable {
                       }
                     }));
     PAssert.that(output3).containsInAnyOrder(LINES);
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenWithDifferentInputAndOutputCoders2() {
+    // This test exists to prevent a regression in Dataflow. It tests a
+    // GroupByKey followed by a Flatten with an SDK-specific output coder.
+    PCollection<KV<String, Iterable<String>>> flatten_input =
+        p.apply(Create.of(LINES))
+            .apply(WithKeys.of("a"))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(GroupByKey.create());
+    PCollection<String> output =
+        PCollectionList.of(flatten_input)
+            .apply(Flatten.pCollections())
+            .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, Iterable<String>>>() {}))
+            .apply(Values.create())
+            .setCoder(IterableCoder.of(StringUtf8Coder.of()))
+            .apply(
+                FlatMapElements.into(TypeDescriptors.strings())
+                    .via((Iterable<String> values) -> values));
+    PAssert.that(output).containsInAnyOrder(LINES);
     p.run();
   }
 
