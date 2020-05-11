@@ -49,8 +49,9 @@ class LoadTestOptions(PipelineOptions):
         'written.')
     parser.add_argument(
         '--influx_measurement',
-        help='An InfluxDB measurement where metrics should be published to. If '
-        'empty, reporting to InfluxDB will be disabled.')
+        help='An InfluxDB measurement where metrics should be published to. '
+        'Measurement can be thought of as a SQL table. If empty, reporting to '
+        'InfluxDB will be disabled.')
     parser.add_argument(
         '--influx_db_name',
         help='InfluxDB database name. If empty, reporting to InfluxDB will be '

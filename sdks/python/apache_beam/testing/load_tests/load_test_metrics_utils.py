@@ -424,7 +424,7 @@ class InfluxDBMetricsPublisherOptions(object):
       self,
       measurement,  # type: str
       db_name,  # type: str
-      hostname='http://localhost:8086',  # type: str
+      hostname,  # type: str
       user=None,  # type: Optional[str]
       password=None  # type: Optional[str]
     ):
