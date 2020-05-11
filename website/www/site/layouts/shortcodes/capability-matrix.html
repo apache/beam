@@ -50,7 +50,10 @@
     {{ end }}
 {{ end }}
 
-{{ $cap_data := index .Page.Params (.Get "cap-data") }}
+{{ $cap_data := index $.Site.Data.capability_matrix (.Get "cap-data") }}
+{{ if eq (.Get "cap-data") "capability-matrix-snapshot" }}
+    {{ $cap_data = index $.Site.Data.capability_matrix_snapshot (.Get "cap-data") }}
+{{ end }}
 {{ $cap_style := .Get "cap-style" }}
 {{ $cap_view := .Get "cap-view" }}
 {{ $cap_other_view := .Get "cap-other-view" }}

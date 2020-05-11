@@ -72,9 +72,11 @@ www/
 
 ## Configuration walkthrough
 
+If you prefer to experience locally instead of using our gradle commands, this [Hugo installation](https://gohugo.io/getting-started/installing/) is a good start.
+
 When we mention the `config file` in this documentation, we mean the Hugo configuration file located at `/www/site/config.toml`.
 
-Most of the setup are self-explained in the comments. Please refer to [Hugo documentation](https://gohugo.io/getting-started/configuration/) for more details.
+Most of the setup are self-explained in the comments. Please refer to the [Hugo documentation](https://gohugo.io/getting-started/configuration/) for more details.
 
 You should notice at `[params]`, they are considered as global variables. For instance, when you'd like to replace the release latest version, make a change on `release_latest = ""` to replace it everywhere in the project.
 
@@ -145,7 +147,7 @@ title: "Your page title"
 
 Below frontmatter, put your page content. The filename will also serve as URL for your page as `/about`.
 
-Second, define your page layout in the `layout` section with the same structure `/www/site/layout/about/{your_template}`. Hugo will help you to pick up the template behind the scene. Please refer to [Hugo documentation](https://gohugo.io/templates/) for the usage of templates.
+Second, define your page layout in the `layout` section with the same structure `/www/site/layout/about/{your_template}`. Hugo will help you to pick up the template behind the scene. Please refer to the [Hugo documentation](https://gohugo.io/templates/) for the usage of templates.
 
 You can also create a new page with pre-filled frontmatter, for instance, in `/www/site/` run:
 
@@ -161,7 +163,7 @@ $ hugo new -c content/pl about/_index.md
 
 ## How to write in Hugo
 
-This section will guide you how to use Hugo shortcodes in Apache Beam website. Please refer to [Hugo documentation](https://gohugo.io/content-management/shortcodes/) for more details of usage.
+This section will guide you how to use Hugo shortcodes in Apache Beam website. Please refer to the [Hugo documentation](https://gohugo.io/content-management/shortcodes/) for more details of usage.
 
 ### Define TableOfContents
 
@@ -285,7 +287,7 @@ To render capability matrix, please take a look at [this example](/www/site/cont
 
 In order to add a new language into Apache Beam website, please follow this guide. You could take a look at an [example branch](https://github.com/PolideaInternal/beam/tree/example/i18n/) to see how we completely translate the whole website.
 
-For more details of syntax, please refer to [Hugo documentation](https://gohugo.io/content-management/multilingual/). Below is a step-by-step instructions of translating our website to Polish as an example.
+For more details of syntax, please refer to the [Hugo documentation](https://gohugo.io/content-management/multilingual/). Below is a step-by-step instructions of translating our website to Polish as an example.
 
 1. Configuring a new language
   

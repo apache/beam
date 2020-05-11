@@ -94,7 +94,6 @@ rat {
     "website/www/site/assets/scss/bootstrap/**/*",
     "website/www/site/static/js/bootstrap*.js",
     "website/www/site/static/js/bootstrap/**/*",
-    "website/www/site/static/.htaccess",
     "website/www/site/themes",
     "website/www/yarn.lock",
     "website/www/package.json",

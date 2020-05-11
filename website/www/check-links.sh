@@ -38,7 +38,7 @@ if ! command -v lynx; then
     echo "This script requires lynx to work properly."
     echo
     echo "For more information, look at: http://lynx.browser.org/"
-    exit
+    exit 1
 fi
 
 MY_DIR="$(cd "$(dirname "$0")" && pwd)"

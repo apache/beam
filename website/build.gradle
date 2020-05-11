@@ -68,7 +68,7 @@ task createDockerContainer(type: Exec) {
     def extraOptions = ''
     if (gradle.taskGraph.hasTask(":${project.name}:serveWebsite")) {
       // Publish port 1313 where Hugo serves website from
-      extraOptions = "--publish 1313:1313"
+      extraOptions = "--publish 127.0.0.1:1313:1313"
     }
 
     // Jenkins websites node: run as root. Files written to /repo will get
@@ -92,16 +92,20 @@ task startDockerContainer(type: Exec) {
     "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
 }
 
+// Clone Docsy submodule which is our Hugo theme
 task initGitSubmodules(type: Exec) {
     commandLine 'docker', 'exec',
                 "${->startDockerContainer.containerId()}", 'git',  'submodule', 'update', '--init',  '--recursive'
 }
 
+// Install yarn dependencies
 task installDependencies(type: Exec) {
     commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
                 "${->startDockerContainer.containerId()}", 'yarn', 'install'
 }
 
+// Run build_github_samples.sh to fetch github content
+// which is used by github_sample shortcodes to inject snippets into codeblocks
 task buildGithubSamples(type: Exec) {
   commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
               "${->startDockerContainer.containerId()}", 'yarn', 'build_github_samples'
@@ -132,7 +136,6 @@ clean.dependsOn cleanWebsite
 class BuildTaskConfiguration {
   String name
   boolean useTestConfig = false
-  boolean useBranchRepoConfig = false
   String baseUrl = ''
   String dockerWorkDir = ''
 }
@@ -143,9 +146,6 @@ def createBuildTask = {
     finalizedBy stopAndRemoveDockerContainer
 
     def configs = "$dockerSourceDir/site/config.toml"
-    if (config.useBranchRepoConfig) {
-      configs += ",/tmp/_config_branch_repo.toml"
-    }
     def baseUrlFlag = config.baseUrl ? "--baseURL /${config.baseUrl}" : ""
     commandLine 'docker', 'exec',
       "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',

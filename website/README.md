@@ -51,7 +51,7 @@ Websites tests may be run using this command:
 
 `$ ./gradlew :website:testWebsite`
 
-For more detailed description, please refer to [contribution guide](CONTRIBUTE.md).
+For a more detailed description, please refer to the [contribution guide](CONTRIBUTE.md).
 
 ## Deployment
 
@@ -63,4 +63,4 @@ https://beam.apache.org/.
 
 ## Contribution guide
 
-If you'd like to contribute to the Apache Airflow website project, read our [contribution guide](CONTRIBUTE.md) where you can find detailed instructions on how to work with the website.
+If you'd like to contribute to the Apache Beam website, read our [contribution guide](CONTRIBUTE.md) where you can find detailed instructions on how to work with the website.

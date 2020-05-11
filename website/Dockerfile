@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+# This image contains Hugo and dependencies required to build and test the Beam
+# website. It is used by tasks in build.gradle.
+
 FROM debian:stretch-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
@@ -26,6 +29,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_CTYPE=C.UTF-8 \
     LC_MESSAGES=C.UTF-8
 
+# Install deps being used by sh files
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
@@ -38,6 +42,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install node environment
 RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -46,6 +51,7 @@ RUN curl -sL https://deb.nodesource.com/setup_10.x | bash - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install yarn
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
     && echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list \
     && apt-get update \
@@ -54,6 +60,7 @@ RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Install hugo extended version v0.68.3
 RUN HUGOHOME="$(mktemp -d)" \
     && export HUGOHOME \
     && curl -sL https://github.com/gohugoio/hugo/releases/download/v0.68.3/hugo_extended_0.68.3_Linux-64bit.tar.gz > "${HUGOHOME}/hugo.tar.gz" \

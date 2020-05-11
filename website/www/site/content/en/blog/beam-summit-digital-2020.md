@@ -2,13 +2,12 @@
 layout: post
 title:  "Beam Digital Summit is Coming, and it's Coming Fast!"
 date:   2020-05-08 00:00:01 -0800
-excerpt_separator: <!--more-->
-categories: blog
+categories: 
+  - blog
 authors:
   - pedro
   - mbaetens
   - mxm
-
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
