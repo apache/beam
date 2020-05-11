@@ -213,6 +213,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 
 	m.updateIfCombineComposite(s, transform)
@@ -244,7 +245,6 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 		AccumulatorCoderId: acID,
 	}
 	transform.Spec = &pipepb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
-	transform.EnvironmentId = m.addDefaultEnv()
 }
 
 func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
@@ -277,7 +277,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	var transformEnvID = ""
 	switch edge.Edge.Op {
 	case graph.Impulse:
-		// TODO(herohde) 7/18/2018: Encode data?
 		spec = &pipepb.FunctionSpec{Urn: URNImpulse}
 
 	case graph.ParDo:
@@ -366,6 +365,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
+		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNFlatten}
 
 	case graph.CoGBK:
@@ -375,6 +375,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		payload := &pipepb.WindowIntoPayload{
 			WindowFn: makeWindowFn(edge.Edge.WindowFn),
 		}
+		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
 
 	case graph.External:
@@ -450,10 +451,11 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pipepb.PTransform{
-		UniqueName: flattenID,
-		Spec:       &pipepb.FunctionSpec{Urn: URNFlatten},
-		Inputs:     inputs,
-		Outputs:    map[string]string{"i0": out},
+		UniqueName:    flattenID,
+		Spec:          &pipepb.FunctionSpec{Urn: URNFlatten},
+		Inputs:        inputs,
+		Outputs:       map[string]string{"i0": out},
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	m.transforms[flattenID] = flatten
 	subtransforms = append(subtransforms, flattenID)
@@ -505,6 +507,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	m.transforms[cogbkID] = &pipepb.PTransform{
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	return cogbkID
 }
@@ -669,6 +672,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 		Spec: &pipepb.FunctionSpec{
 			Urn: URNReshuffle,
 		},
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	return reshuffleID
 }

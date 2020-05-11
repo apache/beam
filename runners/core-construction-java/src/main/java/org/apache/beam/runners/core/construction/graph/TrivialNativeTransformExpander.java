@@ -23,20 +23,22 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO(BEAM-6327): Remove the need for this.
-
-/** PipelineTrimmer removes subcomponents of native transforms that shouldn't be fused. */
-public class PipelineTrimmer {
-  private static final Logger LOG = LoggerFactory.getLogger(PipelineTrimmer.class);
+/**
+ * TrivialNativeTransformExpander is used to replace transforms with known URNs with their native
+ * equivalent.
+ */
+public class TrivialNativeTransformExpander {
+  private static final Logger LOG = LoggerFactory.getLogger(TrivialNativeTransformExpander.class);
 
   /**
-   * Remove subcomponents of native transforms that shouldn't be fused.
+   * Replaces transforms with the known URN with a native equivalent stripping the environment and
+   * removing any sub-transforms from the returned pipeline.
    *
    * @param pipeline the pipeline to be trimmed
    * @param knownUrns set of URNs for the runner's native transforms
    * @return the trimmed pipeline
    */
-  public static Pipeline trim(Pipeline pipeline, Set<String> knownUrns) {
+  public static Pipeline forKnownUrns(Pipeline pipeline, Set<String> knownUrns) {
     return makeKnownUrnsPrimitives(pipeline, knownUrns);
   }
 
@@ -46,8 +48,17 @@ public class PipelineTrimmer {
     for (String ptransformId : pipeline.getComponents().getTransformsMap().keySet()) {
       if (knownUrns.contains(
           pipeline.getComponents().getTransformsOrThrow(ptransformId).getSpec().getUrn())) {
-        LOG.debug("Removing descendants of known PTransform {}" + ptransformId);
+        LOG.debug(
+            "Removing descendants and environment of known native PTransform {}" + ptransformId);
         removeDescendants(trimmedPipeline, ptransformId);
+
+        RunnerApi.PTransform nativeTransform =
+            pipeline.getComponents().getTransformsOrThrow(ptransformId);
+        trimmedPipeline
+            .getComponentsBuilder()
+            .putTransforms(
+                ptransformId,
+                nativeTransform.toBuilder().clearSubtransforms().clearEnvironmentId().build());
       }
     }
     return trimmedPipeline.build();
@@ -61,9 +72,6 @@ public class PipelineTrimmer {
         removeDescendants(pipeline, childId);
         pipeline.getComponentsBuilder().removeTransforms(childId);
       }
-      pipeline
-          .getComponentsBuilder()
-          .putTransforms(parentId, parentProto.toBuilder().clearSubtransforms().build());
     }
   }
 }
