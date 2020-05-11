@@ -25,10 +25,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -47,6 +49,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -448,7 +451,8 @@ public class HL7v2IO {
 
     private final String filter;
     private transient HealthcareApiClient client;
-
+    private Distribution messageListingLatencyMs =
+        Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-pagination-latency-ms");
     /**
      * Instantiates a new List HL7v2 fn.
      *
@@ -478,7 +482,14 @@ public class HL7v2IO {
     public void listMessages(ProcessContext context) throws IOException {
       String hl7v2Store = context.element();
       // Output all elements of all pages.
-      this.client.getHL7v2MessageStream(hl7v2Store, this.filter).forEach(context::output);
+      HttpHealthcareApiClient.HL7v2MessagePages pages =
+          new HttpHealthcareApiClient.HL7v2MessagePages(client, hl7v2Store, this.filter);
+      long reqestTime = Instant.now().getMillis();
+      for (List<HL7v2Message> page : pages) {
+        messageListingLatencyMs.update(Instant.now().getMillis() - reqestTime);
+        page.forEach(context::output);
+        reqestTime = Instant.now().getMillis();
+      }
     }
   }
 
@@ -621,6 +632,8 @@ public class HL7v2IO {
       // TODO when the healthcare API releases a bulk import method this should use that to improve
       // throughput.
 
+      private Distribution messageIngestLatencyMs =
+          Metrics.distribution(WriteHL7v2Fn.class, "message-ingest-latency-ms");
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
       private final String hl7v2Store;
@@ -660,7 +673,10 @@ public class HL7v2IO {
       @ProcessElement
       public void writeMessages(ProcessContext context) {
         HL7v2Message msg = context.element();
-        long startTime = System.currentTimeMillis();
+        // all fields but data and labels should be null for ingest.
+        Message model = new Message();
+        model.setData(msg.getData());
+        model.setLabels(msg.getLabels());
         switch (writeMethod) {
           case BATCH_IMPORT:
             // TODO once healthcare API exposes batch import API add that functionality here to
@@ -669,7 +685,9 @@ public class HL7v2IO {
           case INGEST:
           default:
             try {
-              client.ingestHL7v2Message(hl7v2Store, msg.toModel());
+              long requestTimestamp = Instant.now().getMillis();
+              client.ingestHL7v2Message(hl7v2Store, model);
+              messageIngestLatencyMs.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();
               LOG.warn(

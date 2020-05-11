@@ -47,20 +47,14 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.Spliterator;
-import java.util.Spliterators;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -113,13 +107,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     this.client = client;
     this.httpClient = HttpClients.createDefault();
     initClient();
-  }
-
-  @VisibleForTesting
-  static <T, X extends Collection<T>> Stream<T> flattenIteratorCollectionsToStream(
-      Iterator<X> iterator) {
-    Spliterator<Collection<T>> spliterator = Spliterators.spliteratorUnknownSize(iterator, 0);
-    return StreamSupport.stream(spliterator, false).flatMap(Collection::stream);
   }
 
   public JsonFactory getJsonFactory() {
@@ -191,6 +178,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             .messages()
             .list(hl7v2Store)
             .set("view", "full")
+            .setPageSize(1000)
             .setPageToken(pageToken);
 
     if (Strings.isNullOrEmpty(filter)) {
@@ -198,35 +186,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     } else {
       return baseRequest.setFilter(filter).execute();
     }
-  }
-
-  /**
-   * Gets message id page iterator.
-   *
-   * @param hl7v2Store the HL7v2 store
-   * @return the message id page iterator
-   * @throws IOException the io exception
-   */
-  @Override
-  public Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException {
-    return getHL7v2MessageStream(hl7v2Store, null);
-  }
-
-  /**
-   * Get a {@link Stream} of message IDs from flattening the pages of a new {@link
-   * HL7v2MessagePages}.
-   *
-   * @param hl7v2Store the HL7v2 store
-   * @param filter the filter
-   * @return the message id Stream
-   * @throws IOException the io exception
-   */
-  @Override
-  public Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, @Nullable String filter)
-      throws IOException {
-    Iterator<List<HL7v2Message>> iterator =
-        new HL7v2MessagePages(this, hl7v2Store, filter).iterator();
-    return flattenIteratorCollectionsToStream(iterator);
   }
 
   /**
@@ -574,7 +533,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
           return response.getHl7V2Messages().stream()
               .map(HL7v2Message::fromModel)
               .collect(Collectors.toList());
-
         } catch (IOException e) {
           this.pageToken = null;
           throw new NoSuchElementException(

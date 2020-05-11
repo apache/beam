@@ -76,6 +76,7 @@ from past.builtins import unicode
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -94,6 +95,7 @@ from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils import proto_utils
+from apache_beam.utils import subprocess_server
 from apache_beam.utils.annotations import deprecated
 from apache_beam.utils.interactive_utils import alter_label_if_ipython
 
@@ -490,10 +492,18 @@ class Pipeline(object):
     for override in replacements:
       self._check_replacement(override)
 
-  def run(self, test_runner_api=True):
-    # type: (bool) -> PipelineResult
+  def run(self, test_runner_api='AUTO'):
+    # type: (Union[bool, str]) -> PipelineResult
 
     """Runs the pipeline. Returns whatever our runner returns after running."""
+
+    if test_runner_api == 'AUTO':
+      # Don't pay the cost of a round-trip if we're going to be going through
+      # the FnApi anyway...
+      test_runner_api = (
+          not self.runner.is_fnapi_compatible() and (
+              self.runner.__class__.__name__ != 'SwitchingDirectRunner' or
+              self._options.view_as(StandardOptions).streaming))
 
     # When possible, invoke a round trip through the runner API.
     if test_runner_api and self._verify_runner_api_compatible():
@@ -516,6 +526,9 @@ class Pipeline(object):
 
   def __enter__(self):
     # type: () -> Pipeline
+    self._extra_context = subprocess_server.JavaJarServer.beam_services(
+        self._options.view_as(CrossLanguageOptions).beam_services)
+    self._extra_context.__enter__()
     return self
 
   def __exit__(self,
@@ -525,8 +538,11 @@ class Pipeline(object):
               ):
     # type: (...) -> None
 
-    if not exc_type:
-      self.run().wait_until_finish()
+    try:
+      if not exc_type:
+        self.run().wait_until_finish()
+    finally:
+      self._extra_context.__exit__(exc_type, exc_val, exc_tb)
 
   def visit(self, visitor):
     # type: (PipelineVisitor) -> None

@@ -88,7 +88,7 @@ sudo apt-get install \
    docker-ce
 ```
 
-You also need to [install Go](https://golang.org/doc/install]).
+You also need to [install Go](https://golang.org/doc/install).
 
 Once Go is installed, install goavro:
 

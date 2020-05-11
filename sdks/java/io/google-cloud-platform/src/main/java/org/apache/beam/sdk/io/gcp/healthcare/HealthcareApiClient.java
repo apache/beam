@@ -27,7 +27,6 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
 import java.text.ParseException;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 
@@ -56,26 +55,9 @@ public interface HealthcareApiClient {
   Hl7V2Store getHL7v2Store(String storeName) throws IOException;
 
   /**
-   * Gets HL7v2 message id page iterator.
-   *
-   * @param hl7v2Store the HL7v2 store
-   * @return the HL7v2 message id page iterator
-   * @throws IOException the io exception
-   */
-  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store) throws IOException;
 
   Operation pollOperation(Operation operation, Long sleepMs)
       throws InterruptedException, IOException;
-
-  /**
-   * Gets hl 7 v 2 message id page iterator.
-   *
-   * @param hl7v2Store the hl 7 v 2 store
-   * @param filter the filter
-   * @return the hl 7 v 2 message id page iterator
-   * @throws IOException the io exception
-   */
-  Stream<HL7v2Message> getHL7v2MessageStream(String hl7v2Store, String filter) throws IOException;
 
   /**
    * Make hl 7 v 2 list request list messages response.
@@ -111,6 +93,9 @@ public interface HealthcareApiClient {
 
   Operation importFhirResource(
       String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
+
+  Operation pollOperation(Operation operation, Long sleepMs)
+      throws InterruptedException, IOException;
 
   /**
    * Execute fhir bundle http body.
