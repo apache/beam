@@ -127,6 +127,15 @@ public interface FlinkPipelineOptions
   void setFailOnCheckpointingErrors(Boolean failOnCheckpointingErrors);
 
   @Description(
+      "If set, finishes the current bundle and flushes all output before checkpointing the state of the operators. "
+          + "By default, starts checkpointing immediately and buffers any remaining bundle output as part of the checkpoint. "
+          + "The setting may affect the checkpoint alignment.")
+  @Default.Boolean(false)
+  boolean getFinishBundleBeforeCheckpointing();
+
+  void setFinishBundleBeforeCheckpointing(boolean finishBundleBeforeCheckpointing);
+
+  @Description(
       "Shuts down sources which have been idle for the configured time of milliseconds. Once a source has been "
           + "shut down, checkpointing is not possible anymore. Shutting down the sources eventually leads to pipeline "
           + "shutdown (=Flink job finishes) once all input has been processed. Unless explicitly set, this will "
@@ -175,7 +184,7 @@ public interface FlinkPipelineOptions
   @Default.Boolean(false)
   Boolean getDisableMetrics();
 
-  void setDisableMetrics(Boolean enableMetrics);
+  void setDisableMetrics(Boolean disableMetrics);
 
   /** Enables or disables externalized checkpoints. */
   @Description(
