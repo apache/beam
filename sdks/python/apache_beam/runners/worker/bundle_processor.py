@@ -283,6 +283,7 @@ class DataInputOperation(RunnerIOOperation):
     # pylint: disable=round-builtin
     stop_index = index + max(1, int(round(current_element_progress + keep)))
     if allowed_split_points and stop_index not in allowed_split_points:
+      # Choose the closest allowed split point.
       allowed_split_points = sorted(allowed_split_points)
       closest = bisect.bisect(allowed_split_points, stop_index)
       if closest == 0:
