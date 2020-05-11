@@ -42,8 +42,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/examples/stringsplit/offsetrange"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
@@ -112,15 +112,15 @@ func (fn *StringSplitFn) CreateTracker(rest offsetrange.Restriction) *offsetrang
 //
 // Example: If BufSize is 100, then a restriction of 75 to 325 should emit the
 // following substrings: [100, 200], [200, 300], [300, 400]
-func (fn *StringSplitFn) ProcessElement(rt *offsetrange.Tracker, elem string, emit func(string)) {
-	log.Debugf(context.Background(), "StringSplit ProcessElement: Tracker = %v", rt)
+func (fn *StringSplitFn) ProcessElement(ctx context.Context, rt *offsetrange.Tracker, elem string, emit func(string)) {
+	log.Debugf(ctx, "StringSplit ProcessElement: Tracker = %v", rt)
 	i := rt.Rest.Start
 	if rem := i % fn.BufSize; rem != 0 {
 		i += fn.BufSize - rem // Skip to next multiple of BufSize.
 	}
 	strEnd := int64(len(elem))
 
-	for ok := rt.TryClaim(i); ok == true; ok = rt.TryClaim(i) {
+	for rt.TryClaim(i) == true {
 		if i+fn.BufSize > strEnd {
 			emit(elem[i:])
 		} else {
