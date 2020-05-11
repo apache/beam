@@ -60,6 +60,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
@@ -125,6 +127,68 @@ public class ZetaSQLDialectSpecTest {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("field1")
+            .addDateTimeField("field2")
+            .addStringField("field3")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(
+                    1243L,
+                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
+                    "string")
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  // Verify that we can set the query planner via withQueryPlannerClass
+  @Test
+  public void testWithQueryPlannerClass() {
+    String sql =
+        "SELECT CAST (1243 as INT64), "
+            + "CAST ('2018-09-15 12:59:59.000000+00' as TIMESTAMP), "
+            + "CAST ('string' as STRING);";
+
+    PCollection<Row> stream =
+        pipeline.apply(SqlTransform.query(sql).withQueryPlannerClass(ZetaSQLQueryPlanner.class));
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("field1")
+            .addDateTimeField("field2")
+            .addStringField("field3")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(
+                    1243L,
+                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
+                    "string")
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  // Verify that we can set the query planner via pipeline options
+  @Test
+  public void testPlannerNamePipelineOption() {
+    pipeline
+        .getOptions()
+        .as(BeamSqlPipelineOptions.class)
+        .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
+
+    String sql =
+        "SELECT CAST (1243 as INT64), "
+            + "CAST ('2018-09-15 12:59:59.000000+00' as TIMESTAMP), "
+            + "CAST ('string' as STRING);";
+
+    PCollection<Row> stream = pipeline.apply(SqlTransform.query(sql));
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
