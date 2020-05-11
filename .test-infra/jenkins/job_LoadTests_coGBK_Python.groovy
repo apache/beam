@@ -160,7 +160,6 @@ def batchLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Batch', 'H 16 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
