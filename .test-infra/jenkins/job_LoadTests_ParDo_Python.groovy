@@ -144,7 +144,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_ParDo_Dataflow_Batch', 'H 13 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
