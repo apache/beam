@@ -270,7 +270,7 @@ func monitoring(p *exec.Plan) ([]*pipepb.MonitoringInfo, map[string][]byte) {
 			panic(err)
 		}
 
-    // TODO(BEAM-9934): This metric should account for elements in multiple windows.
+		// TODO(BEAM-9934): This metric should account for elements in multiple windows.
 		payloads[getShortID(metrics.PCollectionLabels(snapshot.PID), urnElementCount)] = payload
 		monitoringInfo = append(monitoringInfo,
 			&pipepb.MonitoringInfo{

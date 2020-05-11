@@ -57,7 +57,7 @@ USER_METRIC_URNS = set(
 WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
 WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
 DATA_CHANNEL_READ_INDEX = (
-    common_urns.monitoring_info_specs.DATA_CHANNEL_READ_INDEX.urn)
+    common_urns.monitoring_info_specs.DATA_CHANNEL_READ_INDEX.spec.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
