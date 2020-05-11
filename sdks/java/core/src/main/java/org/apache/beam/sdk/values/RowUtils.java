@@ -519,7 +519,7 @@ class RowUtils {
       Object retValue = null;
       FieldOverride override = override(rowPosition);
       if (override != null) {
-        retValue = override.getOverrideValue();
+        retValue = logicalType.toInputType(logicalType.toBaseType(override.getOverrideValue()));
       } else if (value != null) {
         retValue = logicalType.toInputType(logicalType.toBaseType(value));
       }
