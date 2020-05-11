@@ -276,7 +276,7 @@ public class FhirIO {
 
     @Override
     public FhirIO.Read.Result expand(PCollection<String> input) {
-      return input.apply("Fetch Fhir messages", new FhirIO.Read.FetchString());
+      return input.apply("Fetch Fhir messages", new FetchResourceJsonString());
     }
 
     /**
@@ -297,16 +297,17 @@ public class FhirIO {
      *       error message and stacktrace.
      * </ul>
      */
-    public static class FetchString extends PTransform<PCollection<String>, FhirIO.Read.Result> {
+    public static class FetchResourceJsonString
+        extends PTransform<PCollection<String>, FhirIO.Read.Result> {
 
       /** Instantiates a new Fetch Fhir message DoFn. */
-      public FetchString() {}
+      public FetchResourceJsonString() {}
 
       @Override
       public FhirIO.Read.Result expand(PCollection<String> resourceIds) {
         return new FhirIO.Read.Result(
             resourceIds.apply(
-                ParDo.of(new FhirIO.Read.FetchString.StringGetFn())
+                ParDo.of(new FetchResourceJsonString.StringGetFn())
                     .withOutputTags(FhirIO.Read.OUT, TupleTagList.of(FhirIO.Read.DEAD_LETTER))));
       }
 
@@ -314,12 +315,12 @@ public class FhirIO {
       public static class StringGetFn extends DoFn<String, String> {
 
         private Counter failedMessageGets =
-            Metrics.counter(FhirIO.Read.FetchString.StringGetFn.class, "failed-message-reads");
+            Metrics.counter(FetchResourceJsonString.StringGetFn.class, "failed-message-reads");
         private static final Logger LOG =
-            LoggerFactory.getLogger(FhirIO.Read.FetchString.StringGetFn.class);
+            LoggerFactory.getLogger(FetchResourceJsonString.StringGetFn.class);
         private final Counter successfulStringGets =
             Metrics.counter(
-                FhirIO.Read.FetchString.StringGetFn.class, "successful-hl7v2-message-gets");
+                FetchResourceJsonString.StringGetFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
         private ObjectMapper mapper;
 
@@ -564,6 +565,20 @@ public class FhirIO {
           .build();
     }
 
+    public static Write fhirStoresImport(
+        ValueProvider<String> fhirStore,
+        ValueProvider<String> gcsTempPath,
+        ValueProvider<String> gcsDeadLetterPath,
+        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+      return new AutoValue_FhirIO_Write.Builder()
+          .setFhirStore(fhirStore.get())
+          .setWriteMethod(Write.WriteMethod.IMPORT)
+          .setContentStructure(contentStructure)
+          .setImportGcsTempPath(gcsTempPath.get())
+          .setImportGcsDeadLetterPath(gcsDeadLetterPath.get())
+          .build();
+    }
+
     /**
      * Execute Bundle Method executes a batch of requests as a single transaction @see <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>.
@@ -599,7 +614,7 @@ public class FhirIO {
       PCollection<HealthcareIOError<String>> failedImports;
       switch (this.getWriteMethod()) {
         case IMPORT:
-          LOG.warn(
+          LOG.info(
               "Make sure the Cloud Healthcare Service Agent has permissions when using import:"
                   + " https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions");
           String tempPath = getImportGcsTempPath().orElseThrow(IllegalArgumentException::new);
@@ -709,6 +724,102 @@ public class FhirIO {
           .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
     }
 
+    /** The Write bundles to new line delimited json files. */
+    static class WriteBundlesToFilesFn extends DoFn<String, ResourceId> {
+
+      private final String fhirStore;
+      private final String tempGcsPath;
+      private final String deadLetterGcsPath;
+      private ObjectMapper mapper;
+      private ResourceId resourceId;
+      private WritableByteChannel ndJsonChannel;
+      private BoundedWindow window;
+
+      private transient HealthcareApiClient client;
+      private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFilesFn.class);
+
+      /**
+       * Instantiates a new Import fn.
+       *
+       * @param fhirStore the fhir store
+       * @param tempGcsPath the temp gcs path
+       * @param deadLetterGcsPath the dead letter gcs path
+       */
+      WriteBundlesToFilesFn(String fhirStore, String tempGcsPath, String deadLetterGcsPath) {
+        this.fhirStore = fhirStore;
+        this.tempGcsPath = tempGcsPath;
+        this.deadLetterGcsPath = deadLetterGcsPath;
+      }
+
+      /**
+       * Init client.
+       *
+       * @throws IOException the io exception
+       */
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      /**
+       * Init batch.
+       *
+       * @throws IOException the io exception
+       */
+      @StartBundle
+      public void initFile() throws IOException {
+        // Write each bundle to newline delimited JSON file.
+        String filename = String.format("fhirImportBatch-%s.ndjson", UUID.randomUUID().toString());
+        ResourceId tempDir = FileSystems.matchNewResource(this.tempGcsPath, true);
+        this.resourceId = tempDir.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+        this.ndJsonChannel = FileSystems.create(resourceId, "application/ld+json");
+        if (mapper == null) {
+          this.mapper = new ObjectMapper();
+        }
+      }
+
+      /**
+       * Add to batch.
+       *
+       * @param context the context
+       * @throws IOException the io exception
+       */
+      @ProcessElement
+      public void addToFile(ProcessContext context, BoundedWindow window) throws IOException {
+        this.window = window;
+        String httpBody = context.element();
+        try {
+          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
+          Object data = this.mapper.readValue(httpBody, Object.class);
+          String ndJson = this.mapper.writeValueAsString(data) + "\n";
+          this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
+        } catch (JsonProcessingException e) {
+          String resource =
+              String.format(
+                  "Failed to parse payload: %s as json at: %s : %s."
+                      + "Dropping message from batch import.",
+                  httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
+          LOG.warn(resource);
+          context.output(
+              Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
+        }
+      }
+
+      /**
+       * Close file.
+       *
+       * @param context the context
+       * @throws IOException the io exception
+       */
+      @FinishBundle
+      public void closeFile(FinishBundleContext context) throws IOException {
+        // Write the file with all elements in this bundle to GCS.
+        ndJsonChannel.close();
+        context.output(resourceId, window.maxTimestamp(), window);
+      }
+    }
+
+    /** Import batches of new line delimited json files to FHIR Store. */
     static class ImportFn
         extends DoFn<KV<Integer, Iterable<ResourceId>>, HealthcareIOError<String>> {
 
@@ -802,100 +913,6 @@ public class FhirIO {
       BUNDLE_PRETTY,
       /** The entire file is one JSON resource. The JSON can span multiple lines. */
       RESOURCE_PRETTY
-    }
-
-    /** The type Import fn. */
-    static class WriteBundlesToFilesFn extends DoFn<String, ResourceId> {
-
-      private final String fhirStore;
-      private final String tempGcsPath;
-      private final String deadLetterGcsPath;
-      private ObjectMapper mapper;
-      private ResourceId resourceId;
-      private WritableByteChannel ndJsonChannel;
-      private BoundedWindow window;
-
-      private transient HealthcareApiClient client;
-      private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFilesFn.class);
-
-      /**
-       * Instantiates a new Import fn.
-       *
-       * @param fhirStore the fhir store
-       * @param tempGcsPath the temp gcs path
-       * @param deadLetterGcsPath the dead letter gcs path
-       */
-      WriteBundlesToFilesFn(String fhirStore, String tempGcsPath, String deadLetterGcsPath) {
-        this.fhirStore = fhirStore;
-        this.tempGcsPath = tempGcsPath;
-        this.deadLetterGcsPath = deadLetterGcsPath;
-      }
-
-      /**
-       * Init client.
-       *
-       * @throws IOException the io exception
-       */
-      @Setup
-      public void initClient() throws IOException {
-        this.client = new HttpHealthcareApiClient();
-      }
-
-      /**
-       * Init batch.
-       *
-       * @throws IOException the io exception
-       */
-      @StartBundle
-      public void initFile() throws IOException {
-        // Write each bundle to newline delimited JSON file.
-        String filename = String.format("/fhirImportBatch-%s.ndjson", UUID.randomUUID().toString());
-        this.resourceId = FileSystems.matchNewResource(this.tempGcsPath + filename, false);
-        this.ndJsonChannel = FileSystems.create(resourceId, "application/ld+json");
-        if (mapper == null) {
-          this.mapper = new ObjectMapper();
-        }
-      }
-
-      /**
-       * Add to batch.
-       *
-       * @param context the context
-       * @throws IOException the io exception
-       */
-      @ProcessElement
-      public void addToFile(ProcessContext context, BoundedWindow window) throws IOException {
-        this.window = window;
-        String httpBody = context.element();
-        try {
-          // This will error if not valid JSON an convert Pretty JSON to raw JSON.
-          Object data = this.mapper.readValue(httpBody, Object.class);
-          String ndJson = this.mapper.writeValueAsString(data) + "\n";
-          this.ndJsonChannel.write(ByteBuffer.wrap(ndJson.getBytes(StandardCharsets.UTF_8)));
-        } catch (JsonProcessingException e) {
-          String resource =
-              String.format(
-                  "Failed to parse payload: %s as json at: %s : %s."
-                      + "Dropping message from batch import.",
-                  httpBody.toString(), e.getLocation().getCharOffset(), e.getMessage());
-          LOG.warn(resource);
-          context.output(
-              Write.FAILED_BODY, HealthcareIOError.of(httpBody, new IOException(resource)));
-        }
-      }
-
-      /**
-       * Close file.
-       *
-       * @param context the context
-       * @throws IOException the io exception
-       */
-      @FinishBundle
-      public void closeFile(FinishBundleContext context) throws IOException {
-        // Write the file with all elements in this bundle to GCS.
-        ndJsonChannel.close();
-        context.output(resourceId, window.maxTimestamp(), window);
-      }
     }
   }
 

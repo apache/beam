@@ -59,6 +59,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.http.HttpEntity;
@@ -81,6 +82,10 @@ import org.slf4j.LoggerFactory;
  * serializable in the HTTP client.
  */
 public class HttpHealthcareApiClient implements HealthcareApiClient, Serializable {
+  private static final String USER_AGENT =
+      String.format(
+          "apache-beam-io-google-cloud-platform-healthcare/%s",
+          ReleaseInfo.getReleaseInfo().getSdkVersion());
   private static final String FHIRSTORE_HEADER_CONTENT_TYPE = "application/fhir+json";
   private static final String FHIRSTORE_HEADER_ACCEPT = "application/fhir+json; charset=utf-8";
   private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
@@ -351,6 +356,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         RequestBuilder.post()
             .setUri(uri)
             .setEntity(requestEntity)
+            .addHeader("User-Agent", USER_AGENT)
             .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
             .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
             .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT)
@@ -370,7 +376,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   /**
    * Wraps {@link HttpResponse} in an exception with a statusCode field for use with {@link
-   * HealthcareIOError}
+   * HealthcareIOError}.
    */
   public static class HealthcareHttpException extends Exception {
     private final Integer statusCode;
@@ -387,7 +393,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
 
     /**
-     * Create Exception of {@link HttpResponse}
+     * Create Exception of {@link HttpResponse}.
      *
      * @param response the HTTP response
      * @return the healthcare http exception
@@ -420,7 +426,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     public void initialize(HttpRequest request) throws IOException {
       super.initialize(request);
       HttpHeaders requestHeaders = request.getHeaders();
-      requestHeaders.setUserAgent("apache-beam-healthcare-io");
+      requestHeaders.setUserAgent(USER_AGENT);
       if (!credentials.hasRequestMetadata()) {
         return;
       }
