@@ -59,57 +59,81 @@ class SplitTest(unittest.TestCase):
     return self.split(*args, sdf=True, **kwargs)
 
   def test_simple_split(self):
+    # Split as close to the beginning as possible.
     self.assertEqual(self.split(0, 0, 0, 16), simple_split(1))
+    # The closest split is at 4, even when just above or below it.
     self.assertEqual(self.split(0, 0, 0.24, 16), simple_split(4))
     self.assertEqual(self.split(0, 0, 0.25, 16), simple_split(4))
     self.assertEqual(self.split(0, 0, 0.26, 16), simple_split(4))
+    # Split the *remainder* in half.
     self.assertEqual(self.split(0, 0, 0.5, 16), simple_split(8))
     self.assertEqual(self.split(2, 0, 0.5, 16), simple_split(9))
     self.assertEqual(self.split(6, 0, 0.5, 16), simple_split(11))
 
-  def test_split_with_element_progres(self):
+  def test_split_with_element_progress(self):
+    # Progress into the active element influences where the split of the
+    # remainder falls.
     self.assertEqual(self.split(0, 0.5, 0.25, 4), simple_split(1))
     self.assertEqual(self.split(0, 0.9, 0.25, 4), simple_split(2))
     self.assertEqual(self.split(1, 0.0, 0.25, 4), simple_split(2))
     self.assertEqual(self.split(1, 0.1, 0.25, 4), simple_split(2))
 
   def test_split_with_element_allowed_splits(self):
+    # The desired split point is at 4.
     self.assertEqual(
         self.split(0, 0, 0.25, 16, allowed=(2, 3, 4, 5)), simple_split(4))
+    # If we can't split at 4, choose the closest possible split point.
     self.assertEqual(
         self.split(0, 0, 0.25, 16, allowed=(2, 3, 5)), simple_split(5))
     self.assertEqual(
         self.split(0, 0, 0.25, 16, allowed=(2, 3, 6)), simple_split(3))
 
+    # Also test the case where all possible split points lie above or below
+    # the desired split point.
     self.assertEqual(
         self.split(0, 0, 0.25, 16, allowed=(5, 6, 7)), simple_split(5))
     self.assertEqual(
         self.split(0, 0, 0.25, 16, allowed=(1, 2, 3)), simple_split(3))
 
+    # We have progressed beyond all possible split points, so can't split.
     self.assertEqual(self.split(5, 0, 0.25, 16, allowed=(1, 2, 3)), None)
 
   def test_sdf_split(self):
+    # Split between future elements at element boundaries.
     self.assertEqual(self.sdf_split(0, 0, 0.51, 4), simple_split(2))
     self.assertEqual(self.sdf_split(0, 0, 0.49, 4), simple_split(2))
     self.assertEqual(self.sdf_split(0, 0, 0.26, 4), simple_split(1))
     self.assertEqual(self.sdf_split(0, 0, 0.25, 4), simple_split(1))
+
+    # If the split falls inside the first, splittable element, split there.
     self.assertEqual(
         self.sdf_split(0, 0, 0.20, 4), (-1, 'Primary(0.8)', 'Residual(0.2)', 1))
+    # The choice of split depends on the progress into the first element.
     self.assertEqual(
-        self.sdf_split(0, 0, 0.12, 4), (-1, 'Primary(0.5)', 'Residual(0.5)', 1))
+        self.sdf_split(0, 0, .125, 4), (-1, 'Primary(0.5)', 'Residual(0.5)', 1))
+    # Here we are far enough into the first element that splitting at 0.2 of the
+    # remainder falls outside the first element.
     self.assertEqual(self.sdf_split(0, .5, 0.2, 4), simple_split(1))
 
+    # Verify the above logic when we are partially throug the stream.
     self.assertEqual(self.sdf_split(2, 0, 0.6, 4), simple_split(3))
     self.assertEqual(self.sdf_split(2, 0.9, 0.6, 4), simple_split(4))
+    self.assertEqual(
+        self.sdf_split(2, 0.5, 0.2, 4), (1, 'Primary(0.6)', 'Residual(0.4)', 3))
 
   def test_sdf_split_with_allowed_splits(self):
+    # This is where we would like to split, when all split points are available.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 2, 3, 4, 5)),
         (1, 'Primary(0.6)', 'Residual(0.4)', 3))
+    # We can't split element at index 2, because 3 is not a split point.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 2, 4, 5)), simple_split(4))
+    # We can't even split element at index 4 as above, because 4 is also not a
+    # split point.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 2, 5)), simple_split(5))
+    # We can't split element at index 2, because 2 is not a split point.
     self.assertEqual(
         self.sdf_split(2, 0, 0.2, 5, allowed=(1, 3, 4, 5)), simple_split(3))
 
