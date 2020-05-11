@@ -738,7 +738,7 @@ class _CustomBigQuerySource(BoundedSource):
         job_id=uuid.uuid4().hex,
         kms_key=self.kms_key)
     job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref)
+    bq.wait_for_bq_job(job_ref, max_retries=0)
     return bq._get_temp_table(self._get_project())
 
   def _export_files(self, bq):
@@ -754,7 +754,7 @@ class _CustomBigQuerySource(BoundedSource):
                                      bigquery_tools.FileFormat.JSON,
                                      project=self._get_project(),
                                      include_header=False)
-    bq.wait_for_bq_job(job_ref)
+    bq.wait_for_bq_job(job_ref, max_retries=0)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
     if isinstance(self.table_reference, vp.ValueProvider):
