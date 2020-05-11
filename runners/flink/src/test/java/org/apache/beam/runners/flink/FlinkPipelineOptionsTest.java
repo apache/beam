@@ -83,6 +83,7 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getCheckpointTimeoutMillis(), is(-1L));
     assertThat(options.getNumConcurrentCheckpoints(), is(1));
     assertThat(options.getFailOnCheckpointingErrors(), is(true));
+    assertThat(options.getFinishBundleBeforeCheckpointing(), is(false));
     assertThat(options.getNumberOfExecutionRetries(), is(-1));
     assertThat(options.getExecutionRetryDelay(), is(-1L));
     assertThat(options.getRetainExternalizedCheckpointsOnCancellation(), is(false));
