@@ -29,6 +29,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'textioit_results',
+                        influxMeasurement   : 'textioit_results',
                         numberOfRecords     : '25000000',
                         expectedHash        : 'f8453256ccf861e8a312c125dfe0e436',
                         datasetSize         : '1062290000',
@@ -45,6 +46,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'compressed_textioit_results',
+                        influxMeasurement   : 'compressed_textioit_results',
                         numberOfRecords     : '450000000',
                         expectedHash        : '8a3de973354abc6fba621c6797cc0f06',
                         datasetSize         : '1097840000',
@@ -62,6 +64,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset            : 'beam_performance',
                         bigQueryTable              : 'many_files_textioit_results',
+                        influxMeasurement          : 'many_files_textioit_results',
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
                         numberOfRecords            : '25000000',
@@ -85,6 +88,7 @@ def jobs = [
                         datasetSize         : '1089730000',
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'avroioit_results',
+                        influxMeasurement   : 'avroioit_results',
                         numWorkers          : '5',
                         autoscalingAlgorithm: 'NONE'
                 ]
@@ -98,6 +102,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'tfrecordioit_results',
+                        influxMeasurement   : 'tfrecordioit_results',
                         numberOfRecords     : '18000000',
                         expectedHash        : '543104423f8b6eb097acb9f111c19fe4',
                         datasetSize         : '1019380000',
@@ -114,6 +119,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'xmlioit_results',
+                        influxMeasurement   : 'xmlioit_results',
                         numberOfRecords     : '12000000',
                         expectedHash        : 'b3b717e7df8f4878301b20f314512fb3',
                         datasetSize         : '1076590000',
@@ -131,6 +137,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'parquetioit_results',
+                        influxMeasurement   : 'parquetioit_results',
                         numberOfRecords     : '225000000',
                         expectedHash        : '2f9f5ca33ea464b25109c0297eb6aecb',
                         datasetSize         : '1087370000',
@@ -147,6 +154,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'textioit_hdfs_results',
+                        influxMeasurement   : 'textioit_hdfs_results',
                         numberOfRecords     : '25000000',
                         expectedHash        : 'f8453256ccf861e8a312c125dfe0e436',
                         datasetSize         : '1062290000',
@@ -164,6 +172,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'compressed_textioit_hdfs_results',
+                        influxMeasurement   : 'compressed_textioit_hdfs_results',
                         numberOfRecords     : '450000000',
                         expectedHash        : '8a3de973354abc6fba621c6797cc0f06',
                         datasetSize         : '1097840000',
@@ -181,6 +190,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset            : 'beam_performance',
                         bigQueryTable              : 'many_files_textioit_hdfs_results',
+                        influxMeasurement          : 'many_files_textioit_hdfs_results',
                         reportGcsPerformanceMetrics: 'true',
                         gcsPerformanceMetrics      : 'true',
                         numberOfRecords            : '25000000',
@@ -201,6 +211,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'avroioit_hdfs_results',
+                        influxMeasurement   : 'avroioit_hdfs_results',
                         numberOfRecords     : '225000000',
                         expectedHash        : '2f9f5ca33ea464b25109c0297eb6aecb',
                         datasetSize         : '1089730000',
@@ -231,6 +242,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'xmlioit_hdfs_results',
+                        influxMeasurement   : 'xmlioit_hdfs_results',
                         numberOfRecords     : '12000000',
                         expectedHash        : 'b3b717e7df8f4878301b20f314512fb3',
                         datasetSize         : '1076590000',
@@ -248,6 +260,7 @@ def jobs = [
                 pipelineOptions    : [
                         bigQueryDataset     : 'beam_performance',
                         bigQueryTable       : 'parquetioit_hdfs_results',
+                        influxMeasurement   : 'parquetioit_hdfs_results',
                         numberOfRecords     : '225000000',
                         expectedHash        : '2f9f5ca33ea464b25109c0297eb6aecb',
                         datasetSize         : '1087370000',
