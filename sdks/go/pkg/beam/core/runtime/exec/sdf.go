@@ -46,7 +46,7 @@ func (n *PairWithRestriction) Up(ctx context.Context) error {
 	fn := (*graph.SplittableDoFn)(n.Fn).CreateInitialRestrictionFn()
 	var err error
 	if n.inv, err = newCreateInitialRestrictionInvoker(fn); err != nil {
-		return errors.WithContextf(err, "PairWithRestriction transform with UID %v", n.ID())
+		return errors.WithContextf(err, "%v", n)
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func (n *PairWithRestriction) ProcessElement(ctx context.Context, elm *FullValue
 	return n.Out.ProcessElement(ctx, &output, values...)
 }
 
-// FinishBundle does some teardown for the end of the bundle.
+// FinishBundle resets the invokers.
 func (n *PairWithRestriction) FinishBundle(ctx context.Context) error {
 	n.inv.Reset()
 	return n.Out.FinishBundle(ctx)
@@ -93,7 +93,7 @@ func (n *PairWithRestriction) Down(ctx context.Context) error {
 
 // String outputs a human-readable description of this transform.
 func (n *PairWithRestriction) String() string {
-	return fmt.Sprintf("SDF.PairWithRestriction[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out))
+	return fmt.Sprintf("SDF.PairWithRestriction[%v] UID:%v Out:%v", path.Base(n.Fn.Name()), n.UID, IDs(n.Out))
 }
 
 // SplitAndSizeRestrictions is an executor for the expanded SDF step of the
@@ -120,12 +120,12 @@ func (n *SplitAndSizeRestrictions) Up(ctx context.Context) error {
 	fn := (*graph.SplittableDoFn)(n.Fn).SplitRestrictionFn()
 	var err error
 	if n.splitInv, err = newSplitRestrictionInvoker(fn); err != nil {
-		return errors.WithContextf(err, "SplitAndSizeRestrictions transform with UID %v", n.ID())
+		return errors.WithContextf(err, "%v", n)
 	}
 
 	fn = (*graph.SplittableDoFn)(n.Fn).RestrictionSizeFn()
 	if n.sizeInv, err = newRestrictionSizeInvoker(fn); err != nil {
-		return errors.WithContextf(err, "SplitAndSizeRestrictions transform with UID %v", n.ID())
+		return errors.WithContextf(err, "%v", n)
 	}
 
 	return nil
@@ -171,7 +171,7 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 	splitRests := n.splitInv.Invoke(mainElm, rest)
 	if len(splitRests) == 0 {
 		err := errors.Errorf("initial splitting returned 0 restrictions.")
-		return errors.WithContextf(err, "SplitAndSizeRestrictions transform with UID %v", n.ID())
+		return errors.WithContextf(err, "%v", n)
 	}
 
 	for _, splitRest := range splitRests {
@@ -191,7 +191,7 @@ func (n *SplitAndSizeRestrictions) ProcessElement(ctx context.Context, elm *Full
 	return nil
 }
 
-// FinishBundle does some teardown for the end of the bundle.
+// FinishBundle resets the invokers.
 func (n *SplitAndSizeRestrictions) FinishBundle(ctx context.Context) error {
 	n.splitInv.Reset()
 	n.sizeInv.Reset()
@@ -205,7 +205,7 @@ func (n *SplitAndSizeRestrictions) Down(ctx context.Context) error {
 
 // String outputs a human-readable description of this transform.
 func (n *SplitAndSizeRestrictions) String() string {
-	return fmt.Sprintf("SDF.SplitAndSizeRestrictions[%v] Out:%v", path.Base(n.Fn.Name()), IDs(n.Out))
+	return fmt.Sprintf("SDF.SplitAndSizeRestrictions[%v] UID:%v Out:%v", path.Base(n.Fn.Name()), n.UID, IDs(n.Out))
 }
 
 // ProcessSizedElementsAndRestrictions is an executor for the expanded SDF step
@@ -219,22 +219,22 @@ type ProcessSizedElementsAndRestrictions struct {
 	inv *ctInvoker
 }
 
-// ID just defers to the ParDo's ID method.
+// ID calls the ParDo's ID method.
 func (n *ProcessSizedElementsAndRestrictions) ID() UnitID {
 	return n.PDo.ID()
 }
 
-// Up performs some one-time setup and then defers to the ParDo's Up method.
+// Up performs some one-time setup and then calls the ParDo's Up method.
 func (n *ProcessSizedElementsAndRestrictions) Up(ctx context.Context) error {
 	fn := (*graph.SplittableDoFn)(n.PDo.Fn).CreateTrackerFn()
 	var err error
 	if n.inv, err = newCreateTrackerInvoker(fn); err != nil {
-		return errors.WithContextf(err, "ProcessSizedElementsAndRestrictions transform with UID %v", n.ID())
+		return errors.WithContextf(err, "%v", n)
 	}
 	return n.PDo.Up(ctx)
 }
 
-// StartBundle just defers to the ParDo's StartBundle method.
+// StartBundle calls the ParDo's StartBundle method.
 func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, id string, data DataContext) error {
 	return n.PDo.StartBundle(ctx, id, data)
 }
@@ -263,7 +263,8 @@ func (n *ProcessSizedElementsAndRestrictions) StartBundle(ctx context.Context, i
 // but currently ignored. Output is forwarded to the underlying ParDo's outputs.
 func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	if n.PDo.status != Active {
-		return errors.Errorf("invalid status for ParDo %v: %v, want Active", n.PDo.UID, n.PDo.status)
+		err := errors.Errorf("invalid status %v, want Active", n.PDo.status)
+		return errors.WithContextf(err, "%v", n)
 	}
 
 	rest := elm.Elm.(*FullValue).Elm2
@@ -297,19 +298,109 @@ func (n *ProcessSizedElementsAndRestrictions) ProcessElement(ctx context.Context
 	return n.PDo.processMainInput(mainIn)
 }
 
-// FinishBundle does some teardown for the end of the bundle and then defers to
-// the ParDo's FinishBundle method.
+// FinishBundle resets the invokers and then calls the ParDo's FinishBundle method.
 func (n *ProcessSizedElementsAndRestrictions) FinishBundle(ctx context.Context) error {
 	n.inv.Reset()
 	return n.PDo.FinishBundle(ctx)
 }
 
-// Down just defers to the ParDo's Down method.
+// Down calls the ParDo's Down method.
 func (n *ProcessSizedElementsAndRestrictions) Down(ctx context.Context) error {
 	return n.PDo.Down(ctx)
 }
 
 // String outputs a human-readable description of this transform.
 func (n *ProcessSizedElementsAndRestrictions) String() string {
-	return fmt.Sprintf("SDF.ProcessSizedElementsAndRestrictions[%v] Out:%v", path.Base(n.PDo.Fn.Name()), IDs(n.PDo.Out...))
+	return fmt.Sprintf("SDF.ProcessSizedElementsAndRestrictions[%v] UID:%v Out:%v", path.Base(n.PDo.Fn.Name()), n.PDo.ID(), IDs(n.PDo.Out...))
+}
+
+// SdfFallback is an executor used when an SDF isn't expanded into steps by the
+// runner, indicating that the runner doesn't support splitting. It executes all
+// the SDF steps together in one unit.
+type SdfFallback struct {
+	PDo *ParDo
+
+	initRestInv *cirInvoker
+	splitInv    *srInvoker
+	trackerInv  *ctInvoker
+}
+
+// ID calls the ParDo's ID method.
+func (n *SdfFallback) ID() UnitID {
+	return n.PDo.UID
+}
+
+// Up performs some one-time setup and then calls the ParDo's Up method.
+func (n *SdfFallback) Up(ctx context.Context) error {
+	sdf := (*graph.SplittableDoFn)(n.PDo.Fn)
+	addContext := func(err error) error {
+		return errors.WithContextf(err, "%v", n)
+	}
+	var err error
+	if n.initRestInv, err = newCreateInitialRestrictionInvoker(sdf.CreateInitialRestrictionFn()); err != nil {
+		return addContext(err)
+	}
+	if n.splitInv, err = newSplitRestrictionInvoker(sdf.SplitRestrictionFn()); err != nil {
+		return addContext(err)
+	}
+	if n.trackerInv, err = newCreateTrackerInvoker(sdf.CreateTrackerFn()); err != nil {
+		return addContext(err)
+	}
+	return n.PDo.Up(ctx)
+}
+
+// StartBundle calls the ParDo's StartBundle method.
+func (n *SdfFallback) StartBundle(ctx context.Context, id string, data DataContext) error {
+	return n.PDo.StartBundle(ctx, id, data)
+}
+
+// ProcessElement performs all the work from the steps above in one transform.
+// This means creating initial restrictions, performing initial splits on those
+// restrictions, and then creating restriction trackers and processing each
+// restriction with the underlying ParDo. This executor skips the sizing step
+// because sizing information is unnecessary for unexpanded SDFs.
+func (n *SdfFallback) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
+	if n.PDo.status != Active {
+		err := errors.Errorf("invalid status %v, want Active", n.PDo.status)
+		return errors.WithContextf(err, "%v", n)
+	}
+
+	rest := n.initRestInv.Invoke(elm)
+	splitRests := n.splitInv.Invoke(elm, rest)
+	if len(splitRests) == 0 {
+		err := errors.Errorf("initial splitting returned 0 restrictions.")
+		return errors.WithContextf(err, "%v", n)
+	}
+
+	for _, splitRest := range splitRests {
+		rt := n.trackerInv.Invoke(splitRest)
+		mainIn := &MainInput{
+			Key:      *elm,
+			Values:   values,
+			RTracker: rt,
+		}
+		if err := n.PDo.processMainInput(mainIn); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// FinishBundle resets the invokers and then calls the ParDo's FinishBundle method.
+func (n *SdfFallback) FinishBundle(ctx context.Context) error {
+	n.initRestInv.Reset()
+	n.splitInv.Reset()
+	n.trackerInv.Reset()
+	return n.PDo.FinishBundle(ctx)
+}
+
+// Down calls the ParDo's Down method.
+func (n *SdfFallback) Down(ctx context.Context) error {
+	return n.PDo.Down(ctx)
+}
+
+// String outputs a human-readable description of this transform.
+func (n *SdfFallback) String() string {
+	return fmt.Sprintf("SDF.SdfFallback[%v] UID:%v Out:%v", path.Base(n.PDo.Fn.Name()), n.PDo.ID(), IDs(n.PDo.Out...))
 }
