@@ -54,6 +54,17 @@ class StreamingCacheTest(unittest.TestCase):
     cache.write([TestStreamFileRecord()], 'my_label')
     self.assertTrue(cache.exists('my_label'))
 
+  def test_empty(self):
+    CACHED_PCOLLECTION_KEY = repr(CacheKey('arbitrary_key', '', '', ''))
+
+    cache = StreamingCache(cache_dir=None)
+    self.assertFalse(cache.exists(CACHED_PCOLLECTION_KEY))
+    cache.write([], CACHED_PCOLLECTION_KEY)
+    reader, _ = cache.read(CACHED_PCOLLECTION_KEY)
+
+    # Assert that an empty reader returns an empty list.
+    self.assertFalse([e for e in reader])
+
   def test_single_reader(self):
     """Tests that we expect to see all the correctly emitted TestStreamPayloads.
     """
