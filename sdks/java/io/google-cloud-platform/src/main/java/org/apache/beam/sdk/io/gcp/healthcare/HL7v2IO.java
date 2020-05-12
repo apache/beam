@@ -512,7 +512,6 @@ public class HL7v2IO {
 
     private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
     private String filter;
-    // TODO(jaketf) what are reasonable defaults here?
     // These control the initial restriction split which means that the list of integer pairs
     // must comfortably fit in memory.
     private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
