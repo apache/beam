@@ -402,9 +402,18 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody fhirCreate(String fhirStore, String type, String resource, boolean ifNoneExist)
+  public HttpBody fhirCreate(String fhirStore, String type, String resource,
+      @Nullable  String ifNoneExist)
       throws IOException, HealthcareHttpException {
-    return executeFhirHttpRequest(FhirHttpRequest.of(fhirStore, resource).setPathSuffix("/" + type));
+    Map<String, String> headers = new HashMap<>();
+    if (Strings.isNullOrEmpty(ifNoneExist)) {
+      headers.put("If-None-Exist", ifNoneExist);
+    }
+    return executeFhirHttpRequest(
+        FhirHttpRequest.of(fhirStore, resource)
+            .setPathSuffix("/" + type)
+            .setHeaders(headers)
+    );
   }
 
   @Override

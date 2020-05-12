@@ -57,6 +57,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -1109,29 +1110,28 @@ public class FhirIO {
   public static class Create extends PTransform<PCollection<String>, Write.Result> {
     private final String fhirStore;
     private final String type;
-    private final boolean ifNoneExist;
+    private SerializableFunction ifNoneExistFunction;
 
-    /**
-     * Instantiates a new Execute bundles.
-     *  @param fhirStore the fhir store
-     * @param type
-     * @param ifNoneExist
-     */
-    Create(ValueProvider<String> fhirStore, String type, boolean ifNoneExist) {
+    Create(ValueProvider<String> fhirStore, String type) {
       this.fhirStore = fhirStore.get();
       this.type = type;
-      this.ifNoneExist = ifNoneExist;
     }
 
-    /**
-     * Instantiates a new Execute bundles.
-     *
-     * @param fhirStore the fhir store
-     */
-    Create(String fhirStore, String type, boolean ifNoneExist) {
+    Create(String fhirStore, String type) {
       this.fhirStore = fhirStore;
       this.type = type;
-      this.ifNoneExist = ifNoneExist;
+    }
+
+    /** This should be function that reads an resource string and extracts an
+     * If-None-Exists query for conditional create.
+     * Typically this will just be extracting an ID.
+     *
+     * https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create
+     * */
+    public Create withIfNotExistFunction(
+        SerializableFunction<String, String> ifNoneExistFunction){
+      this.ifNoneExistFunction = ifNoneExistFunction;
+      return this;
     }
 
     @Override
@@ -1139,7 +1139,7 @@ public class FhirIO {
       return Write.Result.in(
           input.getPipeline(),
           input
-              .apply(ParDo.of(new CreateFn(fhirStore, type, ifNoneExist)))
+              .apply(ParDo.of(new CreateFn(fhirStore, type, ifNoneExistFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
@@ -1152,19 +1152,21 @@ public class FhirIO {
       /** The Fhir store. */
       private final String fhirStore;
       private final String type;
-      private final boolean ifNoneExist;
+      private SerializableFunction<String, String> ifNoneExistFunction;
 
       /**
        * Instantiates a new Write Fhir fn.
-       *  @param fhirStore the Fhir store
+       * @param fhirStore the Fhir store
        * @param type
-       * @param ifNoneExist
+       * @param ifNoneExistFunction
        */
-      CreateFn(String fhirStore, String type, boolean ifNoneExist) {
+      CreateFn(String fhirStore, String type,
+          SerializableFunction ifNoneExistFunction) {
         this.fhirStore = fhirStore;
         this.type = type;
-        this.ifNoneExist = ifNoneExist;
+        this.ifNoneExistFunction = ifNoneExistFunction;
       }
+
 
       /**
        * Initialize healthcare client.
@@ -1187,7 +1189,12 @@ public class FhirIO {
         try {
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
-          client.fhirCreate(fhirStore, type, body, ifNoneExist);
+          if (ifNoneExistFunction != null){
+            String ifNoneExistQuery = ifNoneExistFunction.apply(body);
+            client.fhirCreate(fhirStore, type, body, ifNoneExistQuery);
+          } else{
+            client.fhirCreate(fhirStore, type, body, null);
+          }
         } catch (IOException | HealthcareHttpException e) {
           failedBundles.inc();
           context.output(HealthcareIOError.of(body, e));
@@ -1332,6 +1339,7 @@ public class FhirIO {
         this.fhirStore = fhirStore;
         this.type = type;
       }
+
 
       /**
        * Initialize healthcare client.

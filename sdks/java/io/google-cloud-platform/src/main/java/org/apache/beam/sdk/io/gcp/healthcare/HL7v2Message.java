@@ -22,8 +22,10 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import java.io.IOException;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.DefaultCoder;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
+@DefaultCoder(HL7v2MessageCoder.class)
 public class HL7v2Message {
   private static final String schematizedDataKey = "schematizedData";
   private static final String schematizedDataPrefix = "{data=";

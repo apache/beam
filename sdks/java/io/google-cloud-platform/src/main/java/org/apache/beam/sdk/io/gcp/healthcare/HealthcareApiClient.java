@@ -106,7 +106,7 @@ public interface HealthcareApiClient {
   HttpBody executeFhirBundle(String fhirStore, String bundle)
       throws IOException, HealthcareHttpException;
 
-  HttpBody fhirCreate(String fhirStore, String type, String resource, boolean ifNoneExist)
+  HttpBody fhirCreate(String fhirStore, String type, String resource, @Nullable String ifNoneExist)
       throws IOException, HealthcareHttpException;
 
   HttpBody fhirConditionalUpdate(String fhirStore, String relativeResourceName, String resource)
