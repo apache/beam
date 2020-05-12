@@ -102,7 +102,7 @@ public class FhirIOWriteIT {
             .apply(Create.of(BUNDLES.get(version)))
             .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
 
-    PAssert.that(writeResult.getFailedInsertsWithErr()).empty();
+    PAssert.that(writeResult.getFailedBodies()).empty();
 
     pipeline.run().waitUntilFinish();
   }
@@ -120,7 +120,7 @@ public class FhirIOWriteIT {
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
 
-    PAssert.that(result.getFailedInsertsWithErr()).empty();
+    PAssert.that(result.getFailedBodies()).empty();
 
     pipeline.run().waitUntilFinish();
   }

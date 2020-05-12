@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -280,7 +279,7 @@ public class HL7v2IO {
         this.pct = pct;
         this.messages = pct.get(OUT).setCoder(new HL7v2MessageCoder());
         this.failedReads =
-            pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+            pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
 
       public PCollection<HealthcareIOError<String>> getFailedReads() {
@@ -586,7 +585,7 @@ public class HL7v2IO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        failedInsertsWithErr.setCoder(new HealthcareIOErrorCoder<>(new HL7v2MessageCoder()));
+        failedInsertsWithErr.setCoder(HealthcareIOErrorCoder.of(HL7v2MessageCoder.of()));
         return ImmutableMap.of(FAILED, failedInsertsWithErr);
       }
 
@@ -623,7 +622,7 @@ public class HL7v2IO {
       PCollection<HealthcareIOError<HL7v2Message>> failedInserts =
           input
               .apply(ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
-              .setCoder(new HealthcareIOErrorCoder<>(new HL7v2MessageCoder()));
+              .setCoder(HealthcareIOErrorCoder.of(HL7v2MessageCoder.of()));
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 

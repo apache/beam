@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -107,7 +108,7 @@ import org.slf4j.LoggerFactory;
  *     A {@link PCollection} of {@link String} can be ingested into an Fhir store using {@link
  *     FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This
  *     will return a {@link FhirIO.Write.Result} on which you can call {@link
- *     FhirIO.Write.Result#getFailedInsertsWithErr()} to retrieve a {@link PCollection} of {@link
+ *     FhirIO.Write.Result#getFailedBodies()} to retrieve a {@link PCollection} of {@link
  *     HealthcareIOError} containing the {@link String} that failed to be ingested and the
  *     exception.
  *     <p>Example
@@ -232,7 +233,7 @@ public class FhirIO {
         this.pct = pct;
         this.resources = pct.get(OUT);
         this.failedReads =
-            pct.get(DEAD_LETTER).setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+            pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
 
       /**
@@ -406,26 +407,43 @@ public class FhirIO {
     /** The type Result. */
     public static class Result implements POutput {
       private final Pipeline pipeline;
-      private final PCollection<HealthcareIOError<String>> failedInsertsWithErr;
+      private final PCollection<HealthcareIOError<String>> failedBodies;
+      private final PCollection<HealthcareIOError<String>> failedFiles;
 
       /**
        * Creates a {@link FhirIO.Write.Result} in the given {@link Pipeline}. @param pipeline the
        * pipeline
        *
-       * @param failedInserts the failed inserts
+       * @param failedBodies the failed inserts
        * @return the result
        */
-      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<String>> failedInserts) {
-        return new Result(pipeline, failedInserts);
+      static Result in(Pipeline pipeline, PCollection<HealthcareIOError<String>> failedBodies) {
+        return new Result(pipeline, failedBodies, null);
+      }
+
+      static Result in(
+          Pipeline pipeline,
+          PCollection<HealthcareIOError<String>> failedBodies,
+          PCollection<HealthcareIOError<String>> failedFiles) {
+        return new Result(pipeline, failedBodies, failedFiles);
       }
 
       /**
-       * Gets failed inserts with err.
+       * Gets failed bodies with err.
        *
        * @return the failed inserts with err
        */
-      public PCollection<HealthcareIOError<String>> getFailedInsertsWithErr() {
-        return this.failedInsertsWithErr;
+      public PCollection<HealthcareIOError<String>> getFailedBodies() {
+        return this.failedBodies;
+      }
+
+      /**
+       * Gets failed file imports with err.
+       *
+       * @return the failed GCS uri with err
+       */
+      public PCollection<HealthcareIOError<String>> getFailedFiles() {
+        return this.failedFiles;
       }
 
       @Override
@@ -435,8 +453,8 @@ public class FhirIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        failedInsertsWithErr.setCoder(new HealthcareIOErrorCoder<String>(StringUtf8Coder.of()));
-        return ImmutableMap.of(Write.FAILED_BODY, failedInsertsWithErr);
+        failedBodies.setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+        return ImmutableMap.of(Write.FAILED_BODY, failedBodies, Write.FAILED_FILES, failedFiles);
       }
 
       @Override
@@ -444,9 +462,17 @@ public class FhirIO {
           String transformName, PInput input, PTransform<?, ?> transform) {}
 
       private Result(
-          Pipeline pipeline, PCollection<HealthcareIOError<String>> failedInsertsWithErr) {
+          Pipeline pipeline,
+          PCollection<HealthcareIOError<String>> failedBodies,
+          @Nullable PCollection<HealthcareIOError<String>> failedFiles) {
         this.pipeline = pipeline;
-        this.failedInsertsWithErr = failedInsertsWithErr;
+        this.failedBodies = failedBodies;
+        if (failedFiles == null) {
+          failedFiles =
+              (PCollection<HealthcareIOError<String>>)
+                  pipeline.apply(Create.empty(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+        }
+        this.failedFiles = failedFiles;
       }
     }
 
@@ -622,11 +648,7 @@ public class FhirIO {
           FhirIO.Import.ContentStructure contentStructure =
               getContentStructure().orElseThrow(IllegalArgumentException::new);
 
-          failedBundles =
-              input
-                  .apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure))
-                  .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
-          // fall through
+          return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
         case EXECUTE_BUNDLE:
         default:
           failedBundles =
@@ -642,14 +664,13 @@ public class FhirIO {
    * Writes each bundle of elements to a new-line delimited JSON file on GCS and issues a
    * fhirStores.import Request for that file.
    */
-  public static class Import
-      extends PTransform<PCollection<String>, PCollection<HealthcareIOError<String>>> {
+  public static class Import extends Write {
 
     private final String fhirStore;
     private final String tempGcsPath;
     private final String deadLetterGcsPath;
     private final ContentStructure contentStructure;
-    private final int batchSize = 10000;
+    private static final int DEFAULT_FILES_PER_BATCH = 10000;
 
     /**
      * Instantiates a new Import.
@@ -698,30 +719,57 @@ public class FhirIO {
     }
 
     @Override
-    public PCollection<HealthcareIOError<String>> expand(PCollection<String> input) {
-      // write bundles of String to GCS
+    String getFhirStore() {
+      return fhirStore;
+    }
+
+    @Override
+    WriteMethod getWriteMethod() {
+      return WriteMethod.IMPORT;
+    }
+
+    @Override
+    Optional<ContentStructure> getContentStructure() {
+      return Optional.of(contentStructure);
+    }
+
+    @Override
+    Optional<String> getImportGcsTempPath() {
+      return Optional.of(tempGcsPath);
+    }
+
+    @Override
+    Optional<String> getImportGcsDeadLetterPath() {
+      return Optional.of(deadLetterGcsPath);
+    }
+
+    @Override
+    public Write.Result expand(PCollection<String> input) {
+      // Write bundles of String to GCS
       PCollectionTuple writeResults =
           input.apply(
               "Write nd json to GCS",
               ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempGcsPath, deadLetterGcsPath))
                   .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
+      PCollection<HealthcareIOError<String>> failedBodies =
+          writeResults
+              .get(Write.FAILED_BODY)
+              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       int numShards = 100;
-      PCollection<HealthcareIOError<String>> importResults =
+      PCollection<HealthcareIOError<String>> failedFiles =
           writeResults
               .get(Write.TEMP_FILES)
               .apply(
                   "Shard files", // to paralelize group into batches
                   WithKeys.of(ThreadLocalRandom.current().nextInt(0, numShards)))
-              .apply("File Batches", GroupIntoBatches.ofSize(batchSize))
+              .apply("File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
               .apply(
                   ParDo.of(
                       new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)))
-              .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
 
-      return writeResults
-          .get(Write.FAILED_BODY)
-          .setCoder(new HealthcareIOErrorCoder<>(StringUtf8Coder.of()));
+      return Write.Result.in(input.getPipeline(), failedBodies, failedFiles);
     }
 
     /** The Write bundles to new line delimited json files. */
@@ -861,8 +909,11 @@ public class FhirIO {
        * GCS URI.
        */
       @ProcessElement
-      public void importBatch(ProcessContext context) throws IOException {
-        Iterable<ResourceId> batch = context.element().getValue();
+      public void importBatch(
+          @Element KV<Integer, Iterable<ResourceId>> element,
+          OutputReceiver<HealthcareIOError<String>> output)
+          throws IOException {
+        Iterable<ResourceId> batch = element.getValue();
         List<ResourceId> tempDestinations = new ArrayList<>();
         List<ResourceId> deadLetterDestinations = new ArrayList<>();
         assert batch != null;
@@ -873,7 +924,7 @@ public class FhirIO {
               FileSystems.matchNewResource(deadLetterGcsPath, true)
                   .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
         }
-        FileSystems.rename(ImmutableList.copyOf(batch), tempDestinations);
+        FileSystems.copy(ImmutableList.copyOf(batch), tempDestinations);
         ResourceId importUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_FILE);
         try {
           // Blocking fhirStores.import request.
@@ -881,7 +932,8 @@ public class FhirIO {
           Operation operation =
               client.importFhirResource(fhirStore, importUri.toString(), contentStructure.name());
           client.pollOperation(operation, 500L);
-          // Clean up temp file on GCS.
+          // Clean up temp files on GCS as they we successfully imported to FHIR store and no longer
+          // needed.
           FileSystems.delete(tempDestinations);
         } catch (IOException | InterruptedException e) {
           ResourceId deadLetterResourceId = FileSystems.matchNewResource(deadLetterGcsPath, true);
@@ -890,6 +942,12 @@ public class FhirIO {
                   "Failed to import %s with error: %s. Moving to deadletter path %s",
                   importUri.toString(), e.getMessage(), deadLetterResourceId.toString()));
           FileSystems.rename(tempDestinations, deadLetterDestinations);
+          output.output(HealthcareIOError.of(importUri.toString(), e));
+        } finally {
+          // If we've reached this point files have either been successfully import to FHIR store
+          // or moved to Dead Letter Queue.
+          // Clean up original files for this batch on GCS.
+          FileSystems.delete(ImmutableList.copyOf(batch));
         }
       }
     }

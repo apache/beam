@@ -70,7 +70,7 @@ public class FhirIOTest {
             FhirIO.Write.executeBundles(
                 "projects/foo/locations/us-central1/datasets/bar/hl7V2Stores/baz"));
 
-    PCollection<HealthcareIOError<String>> failedInserts = writeResult.getFailedInsertsWithErr();
+    PCollection<HealthcareIOError<String>> failedInserts = writeResult.getFailedBodies();
 
     PAssert.thatSingleton(failedInserts)
         .satisfies(

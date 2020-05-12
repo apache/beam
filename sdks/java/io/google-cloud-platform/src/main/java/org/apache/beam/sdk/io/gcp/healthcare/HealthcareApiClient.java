@@ -55,12 +55,10 @@ public interface HealthcareApiClient {
   Hl7V2Store getHL7v2Store(String storeName) throws IOException;
 
   /**
-
-  Operation pollOperation(Operation operation, Long sleepMs)
-      throws InterruptedException, IOException;
-
-  /**
-   * Make hl 7 v 2 list request list messages response.
+   * Operation pollOperation(Operation operation, Long sleepMs) throws InterruptedException,
+   * IOException;
+   *
+   * <p>/** Make hl 7 v 2 list request list messages response.
    *
    * @param hl7v2Store the hl 7 v 2 store
    * @param filter the filter
