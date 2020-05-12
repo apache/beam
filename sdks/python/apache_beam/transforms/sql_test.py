@@ -119,20 +119,23 @@ class SqlTransformTest(unittest.TestCase):
       enrich = (
           p | "Create enrich" >> beam.Create(
               [Enrich(1, "a"), Enrich(2, "b"), Enrich(26, "z")]))
-      rows = (
-          p | "Create rows" >> beam.Create([
+      simple = (
+          p | "Create simple" >> beam.Create([
               SimpleRow(1, "foo", 3.14),
               SimpleRow(26, "bar", 1.11),
               SimpleRow(1, "baz", 2.34)
           ]))
       out = ({
-          'rows': rows, 'enrich': enrich
+          'simple': simple, 'enrich': enrich
       }
              | SqlTransform(
                  """
               SELECT
-                `rows`.`int` AS `int`, `enrich`.`metadata` AS `metadata`
-              FROM `rows` JOIN `enrich` ON `rows`.`int` = enrich.`int`"""))
+                simple.`int` AS `int`,
+                enrich.metadata AS metadata
+              FROM simple
+              JOIN enrich
+              ON simple.`int` = enrich.`int`"""))
       assert_that(out, equal_to([(1, "a"), (26, "z"), (1, "a")]))
 
 
