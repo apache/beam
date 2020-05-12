@@ -37,7 +37,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_1",
-                            influxMeasurement     : "java_${mode}_CoGBK_1",
+                            influxMeasurement     : "java_${mode}_cogbk_1",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -73,7 +73,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_2",
-                            influxMeasurement     : "java_${mode}_CoGBK_2",
+                            influxMeasurement     : "java_${mode}_cogbk_2",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -110,7 +110,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_3",
-                            influxMeasurement     : "java_${mode}_CoGBK_3",
+                            influxMeasurement     : "java_${mode}_cogbk_3",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -147,7 +147,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_4",
-                            influxMeasurement     : "java_${mode}_CoGBK_4",
+                            influxMeasurement     : "java_${mode}_cogbk_4",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
