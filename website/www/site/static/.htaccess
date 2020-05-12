@@ -1,8 +1,3 @@
-Redirect Permanent /contribute/project/team/ https://home.apache.org/phonebook.html?pmc=beam
-Redirect Permanent /contribute/team/ https://home.apache.org/phonebook.html?pmc=beam
-Redirect Permanent /contribute/design-documents/ https://cwiki.apache.org/confluence/display/BEAM/Design+Documents
-Redirect Permanent /community/ /community/contact-us/
-
 RewriteEngine On
 
 # This is a 301 (permanent) redirect from HTTP to HTTPS.

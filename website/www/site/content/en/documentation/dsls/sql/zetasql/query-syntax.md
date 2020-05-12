@@ -21,7 +21,7 @@ limitations under the License.
 <p>Query statements scan one or more tables, streams, or expressions and return
   the computed result rows.</p>
 
-<h2 id="sql-syntax">SQL Syntax</h2>
+## SQL Syntax
 
 <pre>
 <span class="var">query_statement</span>:
@@ -71,7 +71,7 @@ limitations under the License.
   the preceding item can repeat in a comma-separated list.</li>
 </ul>
 
-<h2 id="select-list">SELECT list</h2>
+## SELECT list
 
 <p>Syntax:</p>
 
@@ -91,7 +91,7 @@ corresponding <code>FROM</code> clause.</p>
 <li><code>expression</code></li>
 </ul>
 
-<h3 id="select">SELECT *</h3>
+### SELECT *
 
 <p><code>SELECT *</code>, often referred to as <em>select star</em>, produces one output column for
 each column that is visible after executing the full query.</p>
@@ -104,7 +104,7 @@ each column that is visible after executing the full query.</p>
 | apple | carrot    |
 +-------+-----------+</code></pre>
 
-<h3 id="select-expression">SELECT <code>expression</code></h3>
+### SELECT <code>expression</code>
 <p><strong>Caution:</strong> In the top-level
   <code>SELECT</code>, you must either use an explicitly selected column name,
   or if you are using an expression, you must use an explicit alias.</p>
@@ -117,7 +117,7 @@ according to the rules for implicit aliases, if possible.
 Otherwise, the column is anonymous and you cannot refer to it by name elsewhere
 in the query.</p>
 
-<h3 id="select-modifiers">SELECT modifiers</h3>
+### SELECT modifiers
 
 <p>You can modify the results returned from a <code>SELECT</code> query, as follows.</p>
 
@@ -126,18 +126,18 @@ in the query.</p>
 <p>A <code>SELECT ALL</code> statement returns all rows, including duplicate rows.
 <code>SELECT ALL</code> is the default behavior of <code>SELECT</code>.</p>
 
-<h3 id="aliases">Aliases</h3>
+### Aliases
 
 <p>See <a href="#using_aliases">Aliases</a> for information on syntax and visibility for
 <code>SELECT</code> list aliases.</p>
 
-<h2 id="from-clause">FROM clause</h2>
+## FROM clause
 
 <p>The <code>FROM</code> clause indicates the tables or streams from which to retrieve rows, and
 specifies how to join those rows together to produce a single stream of
 rows for processing in the rest of the query.</p>
 
-<h3 id="syntax">Syntax</h3>
+### Syntax
 
 <pre>
 <span class="var">from_item</span>: {
@@ -193,7 +193,7 @@ for the duration of the query, unless you qualify the table name, e.g.
 
 <p><a id="subqueries"></a></p>
 
-<h3>Subqueries</h3>
+### Subqueries
 
 <p>A subquery is a query that appears inside another statement, and is written
 inside parentheses. These are also referred to as "sub-SELECTs" or
@@ -228,16 +228,16 @@ FROM
 FROM
 ( SELECT * FROM Roster) AS r;</code></pre>
 
-<h3 id="aliases_1">Aliases</h3>
+### Aliases
 
 <p>See <a href="#using_aliases">Aliases</a> for information on syntax and visibility for
 <code>FROM</code> clause aliases.</p>
 
 <p><a id="join_types"></a></p>
 
-<h2 id="join-types">JOIN types</h2>
+## JOIN types
 
-<h3 id="syntax_1">Syntax</h3>
+### Syntax
 
 <pre>
 <span class="var">join</span>:
@@ -264,14 +264,14 @@ is supported. Joins must use the following form:</p>
 </pre>
 </aside>
 
-<h3 id="inner-join">[INNER] JOIN</h3>
+### [INNER] JOIN
 
 <p>An <code>INNER JOIN</code>, or simply <code>JOIN</code>, effectively calculates the Cartesian product
 of the two <code>from_item</code>s and discards all rows that do not meet the join
 condition. "Effectively" means that it is possible to implement an <code>INNER JOIN</code>
 without actually calculating the Cartesian product.</p>
 
-<h3 id="full-outer-join">FULL [OUTER] JOIN</h3>
+### FULL [OUTER] JOIN
 
 <p>A <code>FULL OUTER JOIN</code> (or simply <code>FULL JOIN</code>) returns all fields for all rows in
 both <code>from_item</code>s that meet the join condition.</p>
@@ -283,7 +283,7 @@ returned, even if they do not meet the join condition.</p>
 join to any row in the other <code>from_item</code>, the row will return with NULLs
 for all columns from the other <code>from_item</code>.</p>
 
-<h3 id="left-outer-join">LEFT [OUTER] JOIN</h3>
+### LEFT [OUTER] JOIN
 
 <p>The result of a <code>LEFT OUTER JOIN</code> (or simply <code>LEFT JOIN</code>) for two
 <code>from_item</code>s always retains all rows of the left <code>from_item</code> in the
@@ -296,14 +296,14 @@ in the <em>right</em> <code>from_item</code>, the row will return with NULLs for
 columns from the right <code>from_item</code>.  Rows from the right <code>from_item</code> that
 do not join to any row in the left <code>from_item</code> are discarded.</p>
 
-<h3 id="right-outer-join">RIGHT [OUTER] JOIN</h3>
+### RIGHT [OUTER] JOIN
 
 <p>The result of a <code>RIGHT OUTER JOIN</code> (or simply <code>RIGHT JOIN</code>) is similar and
 symmetric to that of <code>LEFT OUTER JOIN</code>.</p>
 
 <p><a id="on_clause"></a></p>
 
-<h3 id="on-clause">ON clause</h3>
+### ON clause
 
 <p>The <code>ON</code> clause contains a <code>bool_expression</code>. A combined row (the result of
 joining two rows) meets the join condition if <code>bool_expression</code> returns
@@ -317,7 +317,7 @@ ON Roster.LastName = PlayerStats.LastName;</code></pre>
 
 <p><a id="sequences_of_joins"></a></p>
 
-<h3 id="sequences-of-joins">Sequences of JOINs</h3>
+### Sequences of JOINs
 
 <p>The <code>FROM</code> clause can contain multiple <code>JOIN</code> clauses in sequence.</p>
 
@@ -330,9 +330,9 @@ right, but you can insert parentheses to group them in a different order.</p>
 
 <p><a id="where_clause"></a></p>
 
-<h2 id="where-clause">WHERE clause</h2>
+## WHERE clause
 
-<h3 id="syntax_2">Syntax</h3>
+### Syntax
 
 <pre class="codehilite"><code>WHERE bool_expression</code></pre>
 
@@ -357,9 +357,9 @@ clause.</p>
 
 <p><a id="group_by_clause"></a></p>
 
-<h2 id="group-by-clause">GROUP BY clause</h2>
+## GROUP BY clause
 
-<h3 id="syntax_3">Syntax</h3>
+### Syntax
 
 <pre>
 GROUP BY <span class="var">expression</span> [, ...]
@@ -408,9 +408,9 @@ GROUP BY last_name;</code></pre>
 
 <p><a id="having_clause"></a></p>
 
-<h2 id="having-clause">HAVING clause</h2>
+## HAVING clause
 
-<h3 id="syntax_4">Syntax</h3>
+### Syntax
 
 <pre class="codehilite"><code>HAVING bool_expression</code></pre>
 
@@ -451,7 +451,7 @@ HAVING ps &gt; 0;</code></pre>
 
 <p><a id="mandatory_aggregation"></a></p>
 
-<h3 id="mandatory-aggregation">Mandatory aggregation</h3>
+### Mandatory aggregation
 
 <p>Aggregation does not have to be present in the <code>HAVING</code> clause itself, but
 aggregation must be present in at least one of the following forms:</p>
@@ -484,9 +484,9 @@ HAVING SUM(PointsScored) &gt; 15;</code></pre>
 
 <p><a id="limit-clause_and_offset_clause"></a></p>
 
-<h2 id="limit-clause-and-offset-clause">LIMIT clause and OFFSET clause</h2>
+## LIMIT clause and OFFSET clause
 
-<h3 id="syntax_6">Syntax</h3>
+### Syntax
 
 <pre class="codehilite"><code>[ ORDER BY expression [{ASC | DESC}] [,...] ] LIMIT count [ OFFSET skip_rows ]</code></pre>
 
@@ -526,7 +526,7 @@ operators are used after <code>ORDER BY</code>.</p>
 
 <p><a id="with_clause"></a></p>
 
-<h2 id="with-clause">WITH clause</h2>
+## WITH clause
 
 <p>The <code>WITH</code> clause binds the results of one or more named subqueries to temporary
 table names.  Each introduced table name is visible in subsequent <code>SELECT</code>
@@ -563,7 +563,7 @@ SELECT * FROM subQ2;</code></pre>
 
 <p><a name="using_aliases"></a></p>
 
-<h2 id="aliases_2">Aliases</h2>
+## Aliases
 
 <p>An alias is a temporary name given to a table, column, or expression present in
 a query. You can introduce explicit aliases in the <code>SELECT</code> list or <code>FROM</code>
@@ -571,7 +571,7 @@ clause.</p>
 
 <p><a id="explicit_alias_syntax"></a></p>
 
-<h3 id="explicit-alias-syntax">Explicit alias syntax</h3>
+### Explicit alias syntax
 
 <p>You can introduce explicit aliases in either the <code>FROM</code> clause or the <code>SELECT</code>
 list.</p>
@@ -595,7 +595,7 @@ FROM Singers s;</code></pre>
 
 <p><a id="alias_visibility"></a></p>
 
-<h3 id="explicit-alias-visibility">Explicit alias visibility</h3>
+### Explicit alias visibility
 
 <p>After you introduce an explicit alias in a query, there are restrictions on
 where else in the query you can reference that alias. These restrictions on
@@ -658,7 +658,7 @@ ORDER BY last;</code></pre>
 
 <p><a id="aliases_clauses"></a></p>
 
-<h3 id="explicit-aliases-in-group-by-order-by-and-having-clauses">Explicit aliases in GROUP BY, ORDER BY, and HAVING clauses</h3>
+### Explicit aliases in GROUP BY, ORDER BY, and HAVING clauses
 
 <p>These three clauses, <code>GROUP BY</code>, <code>ORDER BY</code>, and <code>HAVING</code>, can refer to only the
 following values:</p>
@@ -692,7 +692,7 @@ ORDER BY s2id DESC LIMIT 10;</code></pre>
 
 <p><a id="ambiguous_aliases"></a></p>
 
-<h3 id="ambiguous-aliases">Ambiguous aliases</h3>
+### Ambiguous aliases
 
 <p>Beam SQL provides an error if a name is ambiguous, meaning it can
 resolve to more than one unique object.</p>
@@ -750,9 +750,13 @@ GROUP BY BirthYear;</code></pre>
 underlying column, <code>Singers.BirthYear</code>.</p>
 
 <p><a id="appendix_a_examples_with_sample_data"></a></p>
-<h2 id="appendix-a-examples-with-sample-data">Appendix A: examples with sample data</h2>
+
+## Appendix A: examples with sample data
+
 <p><a id="sample_tables"></a></p>
-<h3 id="sample-tables">Sample tables</h3>
+
+### Sample tables
+
 <p>The following three tables contain sample data about athletes, their schools,
 and the points they score during the season. These tables will be used to
 illustrate the behavior of different query clauses.</p>
@@ -871,7 +875,9 @@ number of points scored by the athlete in that game (PointsScored).</p>
 <p>The TeamMascot table includes a list of unique school IDs (SchoolID) and the
 mascot for that school (Mascot).</p>
 <p><a id="join_types_examples"></a></p>
-<h3 id="join-types_1">JOIN types</h3>
+
+### JOIN types
+
 <p>1) [INNER] JOIN</p>
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT * FROM Roster JOIN TeamMascot
@@ -1075,7 +1081,7 @@ ON Roster.SchoolID = TeamMascot.SchoolID;</code></pre>
 </table>
 {{< /table >}}
 
-<h3 id="group-by-clause_1">GROUP BY clause</h3>
+### GROUP BY clause
 <p>Example:</p>
 <pre class="codehilite"><code>SELECT LastName, SUM(PointsScored)
 FROM PlayerStats
@@ -1107,7 +1113,9 @@ GROUP BY LastName;</code></pre>
 {{< /table >}}
 
 <p><a id="set_operators"></a></p>
-<h3 id="set-operators">Set operators</h3>
+
+### Set operators
+
 <p><a id="union"></a></p>
 <h4 id="union_1">UNION</h4>
 <p>The <code>UNION</code> operator combines the result sets of two or more <code>SELECT</code> statements

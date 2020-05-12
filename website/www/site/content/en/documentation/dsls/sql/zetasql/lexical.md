@@ -25,7 +25,7 @@ tab, newline) or comments.</p>
 
 <p><a id="identifiers"></a></p>
 
-<h2>Identifiers</h2>
+## Identifiers
 
 <p>Identifiers are names that are associated with columns, tables, and other
 database objects.</p>
@@ -75,14 +75,14 @@ defined below.</p>
 
 <p><a id="literals"></a></p>
 
-<h2>Literals</h2>
+## Literals
 
 <p>A literal represents a constant value of a built-in data type. Some, but not
 all, data types can be expressed as literals.</p>
 
 <p><a id="string_and_bytes_literals"></a></p>
 
-<h3 id="string-and-bytes-literals">String and Bytes Literals</h3>
+### String and Bytes Literals
 
 <p>Both string and bytes literals must be <em>quoted</em>, either with single (<code>'</code>) or
 double (<code>"</code>) quotation marks, or <em>triple-quoted</em> with groups of three single
@@ -206,7 +206,7 @@ Any sequence not in this table produces an error.</p>
 
 <p><a id="integer_literals"></a></p>
 
-<h3 id="integer-literals">Integer Literals</h3>
+### Integer Literals
 
 <p>Integer literals are either a sequence of decimal digits (0 through
 9) or a hexadecimal value that is prefixed with "<code>0x</code>". Integers can be prefixed
@@ -222,7 +222,7 @@ by "<code>+</code>" or "<code>-</code>" to represent positive and negative value
 
 <p><a id="floating_point_literals"></a></p>
 
-<h3 id="floating-point-literals">Floating Point Literals</h3>
+### Floating Point Literals
 
 <p>Syntax options:</p>
 
@@ -250,7 +250,7 @@ representation of NaN or infinity.</p>
 
 <p><a id="array_literals"></a></p>
 
-<h3 id="array-literals">Array Literals</h3>
+### Array Literals
 
 <p>Array literals are a comma-separated lists of elements
 enclosed in square brackets. The <code>ARRAY</code> keyword is optional, and an explicit
@@ -264,7 +264,7 @@ ARRAY[1, 2, 3]
 ARRAY&lt;string&gt;['x', 'y', 'xy']
 </code></pre>
 
-<h3 id="timestamp-literals">Timestamp literals</h3>
+### Timestamp literals
 
 <p>Syntax:</p>
 
@@ -337,7 +337,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 
 <p><a id="case_sensitivity"></a></p>
 
-<h2 id="case-sensitivity">Case Sensitivity</h2>
+## Case Sensitivity
 
 <p>Beam SQL follows these rules for case sensitivity:</p>
 
@@ -402,7 +402,7 @@ TIMESTAMP '2014-09-27 12:30:00 America/Argentina/Buenos_Aires'</code></pre>
 
 <p><a id="reserved_keywords"></a></p>
 
-<h2 id="reserved-keywords">Reserved Keywords</h2>
+## Reserved Keywords
 
 <p>Keywords are a group of tokens that have special meaning in the Beam SQL
 language, and  have the following characteristics:</p>
@@ -528,17 +528,17 @@ WITHIN<br/>
 
 <p><a id="terminating_semicolons"></a></p>
 
-<h2 id="terminating-semicolons">Terminating Semicolons</h2>
+## Terminating Semicolons
 
 <p>Statements can optionally use a terminating semicolon (<code>;</code>) in the context of a query string submitted through an Application Programming Interface (API). Some interactive tools require statements to have a terminating semicolon.
 In a request containing multiple statements, statements must be separated by semicolons, but the semicolon is optional for the final statement.</p>
 
-<h2 id="comments">Comments</h2>
+## Comments
 
 <p>Comments are sequences of characters that are ignored by the parser. Beam SQL
 supports the following types of comments.</p>
 
-<h3 id="single-line-comments">Single line comments</h3>
+### Single line comments
 
 <p>Single line comments are supported by prepending <code>#</code> or <code>--</code> before the
 comment.</p>
@@ -553,7 +553,7 @@ comment.</p>
 
 <p>Comment includes all characters from the '<code>--</code>' sequence to the end of the line. You can optionally add a space after the '<code>--</code>'.</p>
 
-<h3 id="multiline-comments">Multiline comments</h3>
+### Multiline comments
 
 <p>Multiline comments are supported by enclosing the comment using <code>/* &lt;comment&gt; */</code>.</p>
 

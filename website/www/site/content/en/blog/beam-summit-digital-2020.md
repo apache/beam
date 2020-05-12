@@ -2,6 +2,8 @@
 layout: post
 title:  "Beam Digital Summit is Coming, and it's Coming Fast!"
 date:   2020-05-08 00:00:01 -0800
+aliases:
+  - /blog/2020/05/08/beam-summit-digital-2020.html
 categories: 
   - blog
 authors:
@@ -26,7 +28,7 @@ As some of you are already aware, the 2020 edition of the Beam Summit will be co
 <!--more-->
 
 <img class="center-block"
-    src="{{ site.baseurl }}/images/blog/beamsummit/beamsummit-digital.png"
+    src="/images/blog/beamsummit/beamsummit-digital.png"
     alt="Beam Summit Digital 2020">
 
 While we would have loved to see all of you in person, we have to accept that 2020 will not be the year for that. So, we are looking at this as an opportunity to have a bigger and more inclusive event, where people who would normally not be able to travel to the summit will now be able to join, learn and share with the rest of the community.

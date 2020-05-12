@@ -72,6 +72,30 @@ for match in matches:
   print('Fixing links in: ' + match)
   mf = open(match)
   soup = BeautifulSoup(mf)
+
+  # Iterates over every <meta> which is used for aliases - redirected links
+  for meta in soup.findAll('meta'):
+    try:
+      content = meta['content']
+      alias = content.replace('0; url=', '')
+      if re.match(linkMatch, alias) is not None:
+        if alias.endswith('/'):
+          # /internal/link/
+          meta['content'] = content + 'index.html'
+        else:
+          # /internal/link
+          meta['content'] = content + '/index.html'
+        mf.close()
+
+        html = unicode(soup).encode('utf-8')
+        # Write back to the file.
+        with open(match, "wb") as f:
+          print('Replacing ' + content + ' with: ' + meta['content'])
+          f.write(html)
+    except KeyError as e:
+      # Some <meta> tags don't have url.
+      continue
+
   # Iterates over every <a>
   for a in soup.findAll('a'):
     try:

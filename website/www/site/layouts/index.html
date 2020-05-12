@@ -42,7 +42,7 @@
             <div class="hero__blog__cards">
 
               {{ range ( where site.RegularPages "Section" "blog" | first 3 ) }}
-                  <a class="hero__blog__cards__card" href="{{ .Permalink }}">
+                  <a class="hero__blog__cards__card" href="{{ .RelPermalink }}">
                     <div class="hero__blog__cards__card__title">{{ .Title }}</div>
                     <div class="hero__blog__cards__card__date">{{ .Date.Format "Jan 2, 2006" }}</div>
                   </a>

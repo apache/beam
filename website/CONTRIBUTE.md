@@ -34,6 +34,7 @@ This guide consists of:
   - [Table](#table)
   - [Github sample](#github-sample)
   - [Others](#others)
+- [What to be replaced in Jekyll](#what-to-be-replaced-in-jekyll)
 - [Translation guide](#translation-guide)
 
 ## Project structure
@@ -283,6 +284,61 @@ To get branch of the repository in markdown:
 
 To render capability matrix, please take a look at [this example](/www/site/content/en/documentation/runners/capability-matrix/#beam-capability-matrix).
 
+## What to be replaced in Jekyll
+
+This section will briefly let you know the replaced features of Jekyll in terms of writing a new blog post or documentation in Hugo.
+
+1. Redirect to:
+
+The `redirect_to` feature will no longer be used since Hugo doesn't support it. You can solve this in Hugo by replacing the external URLs directly in links, instead of using markdown file to be the third-person.
+
+Currently, there are 3 removed `redirect_to` links which were used in Jekyll:
+
+```
+/contribute/project/team/         # https://home.apache.org/phonebook.html?pmc=beam
+/contribute/team/                 # https://home.apache.org/phonebook.html?pmc=beam
+/contribute/design-documents/     # https://cwiki.apache.org/confluence/display/BEAM/Design+Documents
+```
+
+2. Redirect from:
+
+Fortunately, Hugo supports `redirect_from` with `aliases` in the frontmatter.
+
+```
+aliases:
+  - /path/example.html
+```
+
+3. IALs:
+
+IALs feature is used in Jekyll to add a class to markdown paragraph, `{:.myclass}` as an example. And to show this matter, we use Hugo shortcodes to [add a class to inline texts](#adding-class-to-markdown-text) or [blocks](#code-highlighting).
+
+4. Filenames of blog posts:
+
+In Jekyll, filenames included the typical date prefix as part of the filename and it will cause some issues when we'd like to change the date later. Hugo prefers to get rid of them and add date as metadata in frontmatter.
+
+5. Relative URLs:
+
+`{{ site.baseurl }}` will no longer be used, since Hugo handle the relative or absolute path in the config file.
+
+6. Global variables:
+
+The `param` - global variables are placed in the [config file](#configuration-walkthrough).
+
+In Jekyll:
+
+```
+{{ site.release_latest }}
+{{ site.branch_repo }}
+```
+
+In Hugo:
+
+```
+{{< param release_latest >}}
+{{< param branch_repo >}}
+```
+
 ## Translation guide
 
 In order to add a new language into Apache Beam website, please follow this guide. You could take a look at an [example branch](https://github.com/PolideaInternal/beam/tree/example/i18n/) to see how we completely translate the whole website.
@@ -306,11 +362,11 @@ weight = 2
 
 The `www/site/content/pl` directory will be your main workspace of contents here. Therefore, you need to translate all of the markdown files inside `/www/site/content/en` and place them into your workspace. Remember to keep the same project structure for both, since they're sharing the same layouts.
 
-2. Localizing our strings
+3. Localizing our strings
 
 Some of the texts are placed into layouts which are html files, you need to translate all of these phrases inside `www/site/i18n`. Afterwards from our templates, Hugo's `i18n` function does the localization job. Please follow [our example](https://github.com/PolideaInternal/beam/tree/example/i18n/website/www/site/i18n) to understand the structure.
 
-3. Data files
+4. Data files
 
 Consider the following structure for your data directories `/www/site/data` where `en` and `pl` are your website’s languages’ respective codes.
 
@@ -331,7 +387,7 @@ Now from your template:
 {{ end }}
 ```
 
-4. Section menus
+5. Section menus
 
 Similar to markdown content translation, there are two separated section menus `/www/site/layouts/partials/section-menu` corresponding to your languages. Your job is to take the section menus in `en` directory, translate and place them inside your `pl` directory.
 

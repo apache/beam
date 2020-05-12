@@ -22,7 +22,7 @@ limitations under the License.
 Beam ZetaSQL supports standard SQL scalar data types as well as extensions including arrays, maps, and nested rows. This page documents the ZetaSQL data types supported in Beam ZetaSQL.
 </p>
 
-<h2 id="data-type-properties">Data type properties</h2>
+## Data type properties
 
 <p>The following table contains data type properties and the data types that
 each property applies to:</p>
@@ -95,11 +95,11 @@ Types</a> for an explanation of join conditions.
 </table>
 {{< /table >}}
 
-<h2 id="numeric-types">Numeric types</h2>
+## Numeric types
 
 <p>Numeric types include integer types and floating point types.</p>
 
-<h3 id="integer-type">Integer type</h3>
+### Integer type
 
 <p>Integers are numeric values that do not have fractional components.</p>
 
@@ -122,7 +122,7 @@ Types</a> for an explanation of join conditions.
 </table>
 {{< /table >}}
 
-<h3 id="floating-point-type">Floating point type</h3>
+### Floating point type
 
 <p>Floating point values are approximate numeric values with fractional components.</p>
 
@@ -145,7 +145,7 @@ Types</a> for an explanation of join conditions.
 </table>
 {{< /table >}}
 
-<h2 id="boolean-type">Boolean type</h2>
+## Boolean type
 
 {{< table >}}
 <table>
@@ -165,7 +165,7 @@ Types</a> for an explanation of join conditions.
 </table>
 {{< /table >}}
 
-<h2 id="string-type">String type</h2>
+## String type
 
 {{< table >}}
 <table>
@@ -194,7 +194,7 @@ defined on Unicode characters. Comparisons for less than and <code>ORDER BY</cod
 character by character, and lower unicode code points are considered lower
 characters.</p>
 
-<h2 id="bytes-type">Bytes type</h2>
+## Bytes type
 
 {{< table >}}
 <table>
@@ -216,7 +216,7 @@ characters.</p>
 <p>STRING and BYTES are separate types that cannot be used interchangeably. Casts between STRING and BYTES enforce
 that the bytes are encoded using UTF-8.</p>
 
-<h2 id="timestamp-type">Timestamp type</h2>
+## Timestamp type
 
 Caution: SQL has millisecond `TIMESTAMP` precision. If a
 `TIMESTAMP` field has sub-millisecond precision, SQL
@@ -246,7 +246,7 @@ precision.</td>
 <p>A timestamp represents an absolute point in time, independent of any time zone
 or convention such as Daylight Savings Time.</p>
 
-<h3 id="canonical-format_2">Canonical format</h3>
+### Canonical format
 <pre class="codehilite"><code>YYYY-[M]M-[D]D[( |T)[H]H:[M]M:[S]S[.DDD]][time zone]</code></pre>
 <ul>
 <li><code>YYYY</code>: Four-digit year</li>
@@ -264,7 +264,9 @@ or convention such as Daylight Savings Time.</p>
 The timestamp value itself does not store a specific time zone.  A
 string-formatted timestamp may include a time zone.  When a time zone is not
 explicitly specified, the default time zone, UTC, is used.</p>
-<h3 id="time-zones">Time zones</h3>
+
+### Time zones
+
 <p>Time zones are represented by strings in one of these two canonical formats:</p>
 <ul>
 <li>Offset from Coordinated Universal Time (UTC), or the letter <code>Z</code> for UTC</li>
@@ -317,7 +319,8 @@ are done using Unix-style timestamps, which do not reflect leap seconds. Leap
 seconds are only observable through functions that measure real-world time. In
 these functions, it is possible for a timestamp second to be skipped or repeated
 when there is a leap second.</p>
-<h2 id="array-type">Array type</h2>
+
+## Array type
 
 {{< table >}}
 <table>
@@ -342,7 +345,9 @@ ARRAYs will return an error. Instead a STRUCT must be inserted between the
 ARRAYs using the <code>SELECT AS STRUCT</code> construct.</p>
 <p>An empty ARRAY and a <code>NULL</code> ARRAY are two distinct values. ARRAYs can contain
 <code>NULL</code> elements.</p>
-<h3 id="declaring-an-array-type">Declaring an ARRAY type</h3>
+
+### Declaring an ARRAY type
+
 <p>ARRAY types are declared using the angle brackets (<code>&lt;</code> and <code>&gt;</code>). The type
 of the elements of an ARRAY can be arbitrarily complex with the exception that
 an ARRAY cannot directly contain another ARRAY.</p>
@@ -398,7 +403,7 @@ the two ARRAYs because ARRAYs cannot hold other ARRAYs directly.</td>
 </tbody></table>
 {{< /table >}}
 
-<h2 id="struct-type">Struct type</h2>
+## Struct type
 
 {{< table >}}
 <table>
@@ -418,7 +423,8 @@ the two ARRAYs because ARRAYs cannot hold other ARRAYs directly.</td>
 </table>
 {{< /table >}}
 
-<h3 id="declaring-a-struct-type">Declaring a STRUCT type</h3>
+### Declaring a STRUCT type
+
 <p>STRUCT types are declared using the angle brackets (<code>&lt;</code> and <code>&gt;</code>). The type of
 the elements of a STRUCT can be arbitrarily complex.</p>
 <h4 id="format_2">Format</h4>
@@ -464,7 +470,7 @@ STRUCT&lt;inner_array ARRAY&lt;INT64&gt;&gt;
 </tbody></table>
 {{< /table >}}
 
-<h3 id="limited-comparisons-for-struct">Limited comparisons for STRUCT</h3>
+### Limited comparisons for STRUCT
 <p>STRUCTs can be directly compared using equality operators:</p>
 <ul>
 <li>Equal (<code>=</code>)</li>
