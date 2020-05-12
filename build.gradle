@@ -316,7 +316,7 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
 
   configurations { linkageCheckerJava }
   dependencies {
-    linkageCheckerJava "com.google.cloud.tools:dependencies:1.1.4"
+    linkageCheckerJava "com.google.cloud.tools:dependencies:1.4.0"
   }
 
   // We need to evaluate all the projects first so that we can find depend on all the
@@ -331,14 +331,22 @@ if (project.hasProperty('javaLinkageArtifactIds')) {
     dependsOn project.getTasksByName('publishMavenJavaPublicationToMavenLocal', true /* recursively */)
     classpath = project.configurations.linkageCheckerJava
     main = 'com.google.cloud.tools.opensource.classpath.LinkageCheckerMain'
-    args '-a', project.javaLinkageArtifactIds.split(',').collect({
+    def arguments = ['-a', project.javaLinkageArtifactIds.split(',').collect({
       if (it.contains(':')) {
         "${project.ext.mavenGroupId}:${it}"
       } else {
         // specify the version if not provided
         "${project.ext.mavenGroupId}:${it}:${project.version}"
       }
-    }).join(',')
+    }).join(',')]
+    
+    // Exclusion file filters out existing linkage errors before a change
+    if (project.hasProperty('javaLinkageWriteBaseline')) {
+      arguments += ['--output-exclusion-file', project.getProperty('javaLinkageWriteBaseline')]
+    } else if (project.hasProperty('javaLinkageReadBaseline')) {
+      arguments += ['--exclusion-file', project.getProperty('javaLinkageReadBaseline')]
+    }
+    args arguments
     doLast {
       println "NOTE: This task published artifacts into your local Maven repository. You may want to remove them manually."
     }
