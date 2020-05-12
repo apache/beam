@@ -35,7 +35,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     publishToBigQuery   : true,
                     bigQueryDataset     : datasetName,
                     bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_1",
-                    influxMeasurement   : "java_${jobType}_ParDo_1",
+                    influxMeasurement   : "java_${jobType}_pardo_1",
                     publishToInfluxDB   : true,
                     sourceOptions       : """
                                             {
@@ -61,7 +61,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_2",
-                            influxMeasurement   : "java_${jobType}_ParDo_2",
+                            influxMeasurement   : "java_${jobType}_pardo_2",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -88,7 +88,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_3",
-                            influxMeasurement   : "java_${jobType}_ParDo_3",
+                            influxMeasurement   : "java_${jobType}_pardo_3",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -115,7 +115,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_sparkstructuredstreaming_${jobType}_ParDo_4",
-                            influxMeasurement   : "java_${jobType}_ParDo_4",
+                            influxMeasurement   : "java_${jobType}_pardo_4",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {

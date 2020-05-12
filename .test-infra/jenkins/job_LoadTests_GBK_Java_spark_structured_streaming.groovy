@@ -35,7 +35,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_sparkstructuredstreaming_${mode}_GBK_1",
-                            influxMeasurement     : "java_${mode}_GBK_1",
+                            influxMeasurement     : "java_${mode}_gbk_1",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -60,7 +60,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_2",
-                            influxMeasurement     : "java_${mode}_GBK_2",
+                            influxMeasurement     : "java_${mode}_gbk_2",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -86,7 +86,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_3",
-                            influxMeasurement     : "java_${mode}_GBK_3",
+                            influxMeasurement     : "java_${mode}_gbk_3",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -112,7 +112,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_4",
-                            influxMeasurement     : "java_${mode}_GBK_4",
+                            influxMeasurement     : "java_${mode}_gbk_4",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -137,7 +137,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_5",
-                            influxMeasurement     : "java_${mode}_GBK_5",
+                            influxMeasurement     : "java_${mode}_gbk_5",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -162,7 +162,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_6",
-                            influxMeasurement     : "java_${mode}_GBK_6",
+                            influxMeasurement     : "java_${mode}_gbk_6",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -189,7 +189,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_SparkStructuredStreaming_${mode}_GBK_7",
-                            influxMeasurement     : "java_${mode}_GBK_7",
+                            influxMeasurement     : "java_${mode}_gbk_7",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
