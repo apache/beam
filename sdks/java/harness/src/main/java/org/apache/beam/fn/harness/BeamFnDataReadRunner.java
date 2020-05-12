@@ -17,11 +17,13 @@
  */
 package org.apache.beam.fn.harness;
 
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables.getOnlyElement;
 
 import com.google.auto.service.AutoService;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -57,7 +59,6 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,6 +212,7 @@ public class BeamFnDataReadRunner<OutputT> {
     }
 
     long totalBufferSize = desiredSplit.getEstimatedInputElements();
+    List<Long> allowedSplitPoints = new ArrayList<>(desiredSplit.getAllowedSplitPointsList());
 
     HandlesSplits splittingConsumer = null;
     if (consumer instanceof HandlesSplits) {
@@ -249,10 +251,6 @@ public class BeamFnDataReadRunner<OutputT> {
         }
       }
 
-      checkArgument(
-          desiredSplit.getAllowedSplitPointsList().isEmpty(),
-          "TODO: BEAM-3836, support split point restrictions.");
-
       // Now figure out where to split.
       //
       // The units here (except for keepOfElementRemainder) are all in terms of number or
@@ -269,7 +267,10 @@ public class BeamFnDataReadRunner<OutputT> {
         // See if the amount we need to keep falls within the current element's remainder and if
         // so, attempt to split it.
         double keepOfElementRemainder = keep / (1 - currentElementProgress);
-        if (keepOfElementRemainder < 1) {
+        // If both index and index are allowed split point, we can split at index.
+        if (keepOfElementRemainder < 1
+            && isValidSplitPoint(allowedSplitPoints, index)
+            && isValidSplitPoint(allowedSplitPoints, index + 1)) {
           SplitResult splitResult =
               splittingConsumer != null ? splittingConsumer.trySplit(keepOfElementRemainder) : null;
           if (splitResult != null) {
@@ -285,10 +286,28 @@ public class BeamFnDataReadRunner<OutputT> {
         }
       }
 
-      // Otherwise, split at the closest element boundary.
-      int newStopIndex =
-          Ints.checkedCast(index + Math.max(1, Math.round(currentElementProgress + keep)));
-      if (newStopIndex < stopIndex) {
+      // Otherwise, split at the closest allowed element boundary.
+      long newStopIndex = index + Math.max(1, Math.round(currentElementProgress + keep));
+      if (!isValidSplitPoint(allowedSplitPoints, newStopIndex)) {
+        // Choose the closest allowed split point.
+        Collections.sort(allowedSplitPoints);
+        int closestSplitPointIndex =
+            -(Collections.binarySearch(allowedSplitPoints, newStopIndex) + 1);
+        if (closestSplitPointIndex == 0) {
+          newStopIndex = allowedSplitPoints.get(0);
+        } else if (closestSplitPointIndex == allowedSplitPoints.size()) {
+          newStopIndex = allowedSplitPoints.get(closestSplitPointIndex - 1);
+        } else {
+          long prevPoint = allowedSplitPoints.get(closestSplitPointIndex - 1);
+          long nextPoint = allowedSplitPoints.get(closestSplitPointIndex);
+          if (index < prevPoint && newStopIndex - prevPoint < nextPoint - newStopIndex) {
+            newStopIndex = prevPoint;
+          } else {
+            newStopIndex = nextPoint;
+          }
+        }
+      }
+      if (newStopIndex < stopIndex && newStopIndex > index) {
         stopIndex = newStopIndex;
         response
             .addChannelSplitsBuilder()
@@ -309,5 +328,9 @@ public class BeamFnDataReadRunner<OutputT> {
       started = false;
       index += 1;
     }
+  }
+
+  private boolean isValidSplitPoint(List<Long> allowedSplitPoints, long index) {
+    return allowedSplitPoints.isEmpty() || allowedSplitPoints.contains(index);
   }
 }
