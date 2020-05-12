@@ -606,7 +606,8 @@ class _CustomBigQuerySource(BoundedSource):
       coder=None,
       use_standard_sql=False,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      bigquery_job_labels=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -634,6 +635,7 @@ class _CustomBigQuerySource(BoundedSource):
     self.kms_key = kms_key
     self.split_result = None
     self.options = pipeline_options
+    self.bigquery_job_labels = bigquery_job_labels or {}
 
   def display_data(self):
     return {
@@ -641,6 +643,7 @@ class _CustomBigQuerySource(BoundedSource):
         'query': str(self.query),
         'project': str(self.project),
         'use_legacy_sql': self.use_legacy_sql,
+        'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
     }
 
   def estimate_size(self):
@@ -667,7 +670,8 @@ class _CustomBigQuerySource(BoundedSource):
           self.flatten_results,
           job_id=uuid.uuid4().hex,
           dry_run=True,
-          kms_key=self.kms_key)
+          kms_key=self.kms_key,
+          labels=self.bigquery_job_labels)
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
@@ -736,7 +740,8 @@ class _CustomBigQuerySource(BoundedSource):
         self.use_legacy_sql,
         self.flatten_results,
         job_id=uuid.uuid4().hex,
-        kms_key=self.kms_key)
+        kms_key=self.kms_key,
+        job_labels=self.bigquery_job_labels)
     job_ref = job.jobReference
     bq.wait_for_bq_job(job_ref, max_retries=0)
     return bq._get_temp_table(self._get_project())
@@ -753,8 +758,9 @@ class _CustomBigQuerySource(BoundedSource):
                                      self.table_reference,
                                      bigquery_tools.FileFormat.JSON,
                                      project=self._get_project(),
-                                     include_header=False)
-    bq.wait_for_bq_job(job_ref, max_retries=0)
+                                     include_header=False,
+                                     job_labels=self.bigquery_job_labels)
+    bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
     if isinstance(self.table_reference, vp.ValueProvider):
@@ -1589,7 +1595,11 @@ class ReadFromBigQuery(PTransform):
       bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
-   """
+    bigquery_job_labels (dict): A dictionary with string labels to be passed
+      to BigQuery export and query jobs created by this transform. See:
+      https://cloud.google.com/bigquery/docs/reference/rest/v2/\
+              Job#JobConfiguration
+  """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
