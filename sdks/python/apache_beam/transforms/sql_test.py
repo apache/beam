@@ -40,6 +40,9 @@ SimpleRow = typing.NamedTuple(
     "SimpleRow", [("int", int), ("str", unicode), ("flt", float)])
 coders.registry.register_coder(SimpleRow, coders.RowCoder)
 
+Enrich = typing.NamedTuple("Enrich", [("int", int), ("metadata", unicode)])
+coders.registry.register_coder(Enrich, coders.RowCoder)
+
 
 @attr('UsesSqlExpansionService')
 @unittest.skipIf(
@@ -110,6 +113,30 @@ class SqlTransformTest(unittest.TestCase):
                 AVG(`flt`) AS `avg`
               FROM PCOLLECTION GROUP BY `str`"""))
       assert_that(out, equal_to([("foo", 3, 3, 2), ("bar", 4, 8, 1.414)]))
+
+  def test_tagged_join(self):
+    with TestPipeline() as p:
+      enrich = (
+          p | "Create enrich" >> beam.Create(
+              [Enrich(1, "a"), Enrich(2, "b"), Enrich(26, "z")]))
+      simple = (
+          p | "Create simple" >> beam.Create([
+              SimpleRow(1, "foo", 3.14),
+              SimpleRow(26, "bar", 1.11),
+              SimpleRow(1, "baz", 2.34)
+          ]))
+      out = ({
+          'simple': simple, 'enrich': enrich
+      }
+             | SqlTransform(
+                 """
+              SELECT
+                simple.`int` AS `int`,
+                enrich.metadata AS metadata
+              FROM simple
+              JOIN enrich
+              ON simple.`int` = enrich.`int`"""))
+      assert_that(out, equal_to([(1, "a"), (26, "z"), (1, "a")]))
 
 
 if __name__ == "__main__":
