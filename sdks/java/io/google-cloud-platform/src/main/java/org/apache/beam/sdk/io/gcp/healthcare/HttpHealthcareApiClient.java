@@ -47,6 +47,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.extensions.gcp.util.RetryHttpRequestInitializer;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.FhirHttpRequest.Method;
 import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.http.HttpEntity;
@@ -85,7 +87,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
   private transient CloudHealthcare client;
-  private transient HttpClient httpClient;
+  public transient HttpClient httpClient;
   private transient GoogleCredentials credentials;
 
   /**
@@ -283,7 +285,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       throws InterruptedException, IOException {
     LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
     while (operation.getDone() == null || !operation.getDone()) {
-      // Update the status of the operation with another request.
+      // ConditionalUpdate the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.
       operation =
           client.projects().locations().datasets().operations().get(operation.getName()).execute();
@@ -291,19 +293,65 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     return operation;
   }
 
-  @Override
-  public HttpBody executeFhirBundle(String fhirStore, String bundle)
-      throws IOException, HealthcareHttpException {
+  static class FhirHttpRequest {
+    private final String fhirStore;
+    private final String payload;
+    private Method method;
+    private String pathSuffix;
+    private Map<String, String> headers;
+
+
+    enum Method {
+      POST,
+      PUT
+    }
+
+    FhirHttpRequest(String fhirStore, @Nullable String payload) {
+      this.fhirStore = fhirStore;
+      this.payload = payload;
+      this.method =  Method.POST;
+      this.headers = new HashMap<>();
+    }
+
+    public static FhirHttpRequest of(String fhirStore, String payload) {
+      return new FhirHttpRequest(fhirStore, payload);
+    }
+
+    public FhirHttpRequest setPathSuffix(String pathSuffix){
+      this.pathSuffix = pathSuffix;
+      return this;
+    }
+
+    public FhirHttpRequest setHeaders(Map<String, String> headers){
+      this.headers = headers;
+      return this;
+    }
+
+    public FhirHttpRequest setMethod(Method method){
+      this.method = method;
+      return this;
+    }
+
+
+
+  }
+
+  public HttpBody executeFhirHttpRequest(FhirHttpRequest fhirHttpRequest) throws IOException, HealthcareHttpException {
     if (httpClient == null || client == null) {
       initClient();
     }
 
     credentials.refreshIfExpired();
-    StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
+    StringEntity requestEntity = new StringEntity(fhirHttpRequest.payload, ContentType.APPLICATION_JSON);
     URI uri;
     try {
+      String baseFhirUri= client.getRootUrl() + "v1beta1/" + fhirHttpRequest.fhirStore + "/fhir";
+      String uriString = baseFhirUri;
+      if (!Strings.isNullOrEmpty(fhirHttpRequest.pathSuffix)){
+        uriString += fhirHttpRequest.pathSuffix;
+      }
       uri =
-          new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir")
+          new URIBuilder(uriString)
               .setParameter("access_token", credentials.getAccessToken().getTokenValue())
               .build();
     } catch (URISyntaxException e) {
@@ -311,8 +359,17 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       throw new IllegalArgumentException(e);
     }
 
-    HttpUriRequest request =
-        RequestBuilder.post()
+    RequestBuilder requestBuilder;
+    switch (fhirHttpRequest.method){
+      case PUT:
+        requestBuilder = RequestBuilder.put();
+        break;
+      case POST:
+      default:
+        requestBuilder = RequestBuilder.post();
+    }
+
+    HttpUriRequest request = requestBuilder
             .setUri(uri)
             .setEntity(requestEntity)
             .addHeader("User-Agent", USER_AGENT)
@@ -320,6 +377,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
             .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT)
             .build();
+
+    // Add headers
+    for (Map.Entry<String, String> header: fhirHttpRequest.headers.entrySet()){
+      request.addHeader(header.getKey(), header.getValue());
+    }
 
     HttpResponse response = httpClient.execute(request);
     HttpEntity responseEntity = response.getEntity();
@@ -331,6 +393,36 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     HttpBody responseModel = new HttpBody();
     responseModel.setData(content);
     return responseModel;
+  }
+
+  @Override
+  public HttpBody executeFhirBundle(String fhirStore, String bundle)
+      throws IOException, HealthcareHttpException {
+    return executeFhirHttpRequest(FhirHttpRequest.of(fhirStore, bundle));
+  }
+
+  @Override
+  public HttpBody fhirCreate(String fhirStore, String type, String resource, boolean ifNoneExist)
+      throws IOException, HealthcareHttpException {
+    return executeFhirHttpRequest(FhirHttpRequest.of(fhirStore, resource).setPathSuffix("/" + type));
+  }
+
+  @Override
+  public HttpBody fhirConditionalUpdate(String fhirStore, String type, String resource)
+      throws IOException, HealthcareHttpException {
+    return executeFhirHttpRequest(
+        FhirHttpRequest.of(fhirStore, resource)
+            .setPathSuffix("/" + type)
+            .setMethod(Method.PUT));
+  }
+
+  @Override
+  public HttpBody fhirUpdate(String fhirStore, String relativeResourceName, String resource)
+      throws IOException, HealthcareHttpException {
+    return executeFhirHttpRequest(
+        FhirHttpRequest.of(fhirStore, resource)
+            .setPathSuffix("/" + relativeResourceName)
+            .setMethod(Method.PUT));
   }
 
   /**
@@ -352,7 +444,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
 
     /**
-     * Create Exception of {@link HttpResponse}.
+     * ConditionalUpdate Exception of {@link HttpResponse}.
      *
      * @param response the HTTP response
      * @return the healthcare http exception
@@ -408,7 +500,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   private void initClient() throws IOException {
 
     credentials = GoogleCredentials.getApplicationDefault();
-    // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
+    // ConditionalUpdate a HttpRequestInitializer, which will provide a baseline configuration to all requests.
     HttpRequestInitializer requestInitializer =
         new AuthenticatedRetryInitializer(
             credentials.createScoped(

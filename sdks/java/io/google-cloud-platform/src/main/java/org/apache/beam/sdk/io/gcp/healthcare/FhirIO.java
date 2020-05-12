@@ -46,12 +46,13 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ConditionalUpdate.ConditionalUpdateFn;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles.ExecuteBundlesFn;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -221,7 +222,7 @@ public class FhirIO {
       PCollectionTuple pct;
 
       /**
-       * Create FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
+       * ConditionalUpdate FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
        *
        * @param pct the pct
        * @return the read result
@@ -479,7 +480,7 @@ public class FhirIO {
         if (failedFiles == null) {
           failedFiles =
               (PCollection<HealthcareIOError<String>>)
-                  pipeline.apply(Create.empty(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+                  pipeline.apply(org.apache.beam.sdk.transforms.Create.empty(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
         }
         this.failedFiles = failedFiles;
       }
@@ -577,7 +578,7 @@ public class FhirIO {
     }
 
     /**
-     * Create Method creates a single FHIR resource. @see <a
+     * ConditionalUpdate Method creates a single FHIR resource. @see <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create></a>
      *
      * @param fhirStore the hl 7 v 2 store
@@ -664,7 +665,7 @@ public class FhirIO {
               input
                   .apply(
                       "Execute FHIR Bundles",
-                      ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore())))
+                      ParDo.of(new ExecuteBundlesFn(this.getFhirStore())))
                   .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
       return Result.in(input.getPipeline(), failedBundles);
@@ -675,7 +676,7 @@ public class FhirIO {
    * Writes each bundle of elements to a new-line delimited JSON file on GCS and issues a
    * fhirStores.import Request for that file. This is intended for batch use only to facilitate
    * large backfills to empty FHIR stores and should not be used with unbounded PCollections. If
-   * your use case is streaming checkout using {@link ExecuteBundles} to more safely execute bundles
+   * your use case is streaming checkout using {@link ConditionalUpdate} to more safely execute bundles
    * as transactions which is safer practice for a use on a "live" FHIR store.
    */
   public static class Import extends Write {
@@ -796,7 +797,7 @@ public class FhirIO {
       // failed / rescheduled ImportFn::importBatch.
       input
           .getPipeline()
-          .apply(Create.of(Collections.singletonList(tempGcsPath)))
+          .apply(org.apache.beam.sdk.transforms.Create.of(Collections.singletonList(tempGcsPath)))
           .apply("Wait On File Writing", Wait.on(failedBodies))
           .apply("Wait On FHIR Importing", Wait.on(failedFiles))
           .apply(
@@ -1097,6 +1098,263 @@ public class FhirIO {
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
           client.executeFhirBundle(fhirStore, body);
+        } catch (IOException | HealthcareHttpException e) {
+          failedBundles.inc();
+          context.output(HealthcareIOError.of(body, e));
+        }
+      }
+    }
+  }
+
+  public static class Create extends PTransform<PCollection<String>, Write.Result> {
+    private final String fhirStore;
+    private final String type;
+    private final boolean ifNoneExist;
+
+    /**
+     * Instantiates a new Execute bundles.
+     *  @param fhirStore the fhir store
+     * @param type
+     * @param ifNoneExist
+     */
+    Create(ValueProvider<String> fhirStore, String type, boolean ifNoneExist) {
+      this.fhirStore = fhirStore.get();
+      this.type = type;
+      this.ifNoneExist = ifNoneExist;
+    }
+
+    /**
+     * Instantiates a new Execute bundles.
+     *
+     * @param fhirStore the fhir store
+     */
+    Create(String fhirStore, String type, boolean ifNoneExist) {
+      this.fhirStore = fhirStore;
+      this.type = type;
+      this.ifNoneExist = ifNoneExist;
+    }
+
+    @Override
+    public FhirIO.Write.Result expand(PCollection<String> input) {
+      return Write.Result.in(
+          input.getPipeline(),
+          input
+              .apply(ParDo.of(new CreateFn(fhirStore, type, ifNoneExist)))
+              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+    }
+
+    /** The type Write Fhir fn. */
+    static class CreateFn extends DoFn<String, HealthcareIOError<String>> {
+
+      private Counter failedBundles = Metrics.counter(CreateFn.class, "failed-bundles");
+      private transient HealthcareApiClient client;
+      private final ObjectMapper mapper = new ObjectMapper();
+      /** The Fhir store. */
+      private final String fhirStore;
+      private final String type;
+      private final boolean ifNoneExist;
+
+      /**
+       * Instantiates a new Write Fhir fn.
+       *  @param fhirStore the Fhir store
+       * @param type
+       * @param ifNoneExist
+       */
+      CreateFn(String fhirStore, String type, boolean ifNoneExist) {
+        this.fhirStore = fhirStore;
+        this.type = type;
+        this.ifNoneExist = ifNoneExist;
+      }
+
+      /**
+       * Initialize healthcare client.
+       *
+       * @throws IOException the io exception
+       */
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      /**
+       * Execute Bundles.
+       *
+       * @param context the context
+       */
+      @ProcessElement
+      public void create(ProcessContext context) {
+        String body = context.element();
+        try {
+          // Validate that data was set to valid JSON.
+          mapper.readTree(body);
+          client.fhirCreate(fhirStore, type, body, ifNoneExist);
+        } catch (IOException | HealthcareHttpException e) {
+          failedBundles.inc();
+          context.output(HealthcareIOError.of(body, e));
+        }
+      }
+    }
+  }
+
+  public static class Update extends PTransform<PCollection<String>, Write.Result> {
+    private final String fhirStore;
+    private final String resourceName;
+
+    /**
+     * Instantiates a new Execute bundles.
+     *  @param fhirStore the fhir store
+     * @param resourceName
+     * @param conditional
+     */
+    Update(ValueProvider<String> fhirStore, String resourceName, boolean conditional) {
+      this.fhirStore = fhirStore.get();
+      this.resourceName = resourceName;
+    }
+
+    /**
+     * Instantiates a new Execute bundles.
+     *
+     * @param fhirStore the fhir store
+     */
+    Update(String fhirStore, String resourceName, boolean conditional) {
+      this.fhirStore = fhirStore;
+      this.resourceName = resourceName;
+    }
+
+    @Override
+    public FhirIO.Write.Result expand(PCollection<String> input) {
+      return Write.Result.in(
+          input.getPipeline(),
+          input
+              .apply(ParDo.of(new UpdateFn(fhirStore, resourceName)))
+              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+    }
+
+    /** The type Write Fhir fn. */
+    static class UpdateFn extends DoFn<String, HealthcareIOError<String>> {
+
+      private Counter failedBundles = Metrics.counter(UpdateFn.class, "failed-bundles");
+      private transient HealthcareApiClient client;
+      private final ObjectMapper mapper = new ObjectMapper();
+      /** The Fhir store. */
+      private final String fhirStore;
+      private final String resourceName;
+
+      /**
+       * Instantiates a new Write Fhir fn.
+       *  @param fhirStore the Fhir store
+       * @param resourceName
+       */
+      UpdateFn(String fhirStore, String resourceName) {
+        this.fhirStore = fhirStore;
+        this.resourceName = resourceName;
+      }
+
+      /**
+       * Initialize healthcare client.
+       *
+       * @throws IOException the io exception
+       */
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      /**
+       * ConditionalUpdate resources.
+       *
+       * @param context the context
+       */
+      @ProcessElement
+      public void update(ProcessContext context) {
+        String body = context.element();
+        try {
+          // Validate that data was set to valid JSON.
+          mapper.readTree(body);
+          client.fhirUpdate(fhirStore, resourceName, body);
+        } catch (IOException | HealthcareHttpException e) {
+          failedBundles.inc();
+          context.output(HealthcareIOError.of(body, e));
+        }
+      }
+    }
+  }
+
+  public static class ConditionalUpdate extends PTransform<PCollection<String>, Write.Result> {
+    private final String fhirStore;
+    private final String type;
+
+    /**
+     * Instantiates a new Execute bundles.
+     *  @param fhirStore the fhir store
+     * @param type
+     */
+    ConditionalUpdate(ValueProvider<String> fhirStore, String type, boolean conditional) {
+      this.fhirStore = fhirStore.get();
+      this.type = type;
+    }
+
+    /**
+     * Instantiates a new Execute bundles.
+     *
+     * @param fhirStore the fhir store
+     */
+    ConditionalUpdate(String fhirStore, String type, boolean conditional) {
+      this.fhirStore = fhirStore;
+      this.type = type;
+    }
+
+    @Override
+    public FhirIO.Write.Result expand(PCollection<String> input) {
+      return Write.Result.in(
+          input.getPipeline(),
+          input
+              .apply(ParDo.of(new ConditionalUpdateFn(fhirStore, type)))
+              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
+    }
+
+    /** The type Write Fhir fn. */
+    static class ConditionalUpdateFn extends DoFn<String, HealthcareIOError<String>> {
+
+      private Counter failedBundles = Metrics.counter(ConditionalUpdateFn.class, "failed-bundles");
+      private transient HealthcareApiClient client;
+      private final ObjectMapper mapper = new ObjectMapper();
+      /** The Fhir store. */
+      private final String fhirStore;
+      private final String type;
+
+      /**
+       * Instantiates a new Write Fhir fn.
+       *  @param fhirStore the Fhir store
+       * @param type
+       */
+      ConditionalUpdateFn(String fhirStore, String type) {
+        this.fhirStore = fhirStore;
+        this.type = type;
+      }
+
+      /**
+       * Initialize healthcare client.
+       *
+       * @throws IOException the io exception
+       */
+      @Setup
+      public void initClient() throws IOException {
+        this.client = new HttpHealthcareApiClient();
+      }
+
+      /**
+       * ConditionalUpdate resources.
+       *
+       * @param context the context
+       */
+      @ProcessElement
+      public void conditionalUpdate(ProcessContext context) {
+        String body = context.element();
+        try {
+          // Validate that data was set to valid JSON.
+          mapper.readTree(body);
+          client.fhirConditionalUpdate(fhirStore, type, body);
         } catch (IOException | HealthcareHttpException e) {
           failedBundles.inc();
           context.output(HealthcareIOError.of(body, e));

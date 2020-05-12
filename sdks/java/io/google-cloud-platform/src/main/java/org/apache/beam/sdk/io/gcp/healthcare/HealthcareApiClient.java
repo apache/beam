@@ -80,7 +80,7 @@ public interface HealthcareApiClient {
   IngestMessageResponse ingestHL7v2Message(String hl7v2Store, Message msg) throws IOException;
 
   /**
-   * Create hl 7 v 2 message message.
+   * ConditionalUpdate hl 7 v 2 message message.
    *
    * @param hl7v2Store the hl 7 v 2 store
    * @param msg the msg
@@ -104,6 +104,15 @@ public interface HealthcareApiClient {
    * @throws IOException the io exception
    */
   HttpBody executeFhirBundle(String fhirStore, String bundle)
+      throws IOException, HealthcareHttpException;
+
+  HttpBody fhirCreate(String fhirStore, String type, String resource, boolean ifNoneExist)
+      throws IOException, HealthcareHttpException;
+
+  HttpBody fhirConditionalUpdate(String fhirStore, String relativeResourceName, String resource)
+      throws IOException, HealthcareHttpException;
+
+  HttpBody fhirUpdate(String fhirStore, String type, String resource)
       throws IOException, HealthcareHttpException;
 
   /**
