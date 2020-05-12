@@ -80,7 +80,7 @@ import org.slf4j.LoggerFactory;
  * href="https://cloud.google.com/healthcare/docs/concepts/fhir">Google Cloud Healthcare Fhir API.
  * </a>
  *
- * <p>Read
+ * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIO.Read} supports use cases where you have a
  * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
