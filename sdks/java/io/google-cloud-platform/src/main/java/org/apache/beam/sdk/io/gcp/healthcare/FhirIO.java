@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
@@ -27,6 +29,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +38,12 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
@@ -48,10 +56,12 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
@@ -116,7 +126,7 @@ import org.slf4j.LoggerFactory;
  * Pipeline pipeline = ...
  *
  * // Tail the FHIR store by retrieving resources based on Pub/Sub notifications.
- * FHIRIO.Read.Result readResult = p
+ * FhirIO.Read.Result readResult = p
  *   .apply("Read FHIR notifications",
  *     PubsubIO.readStrings().fromSubscription(options.getNotificationSubscription()))
  *   .apply(FhirIO.readResources());
@@ -126,7 +136,7 @@ import org.slf4j.LoggerFactory;
  * // message IDs that couldn't be retrieved + error context
  * PCollection<HealthcareIOError<String>> failedReads = readResult.getFailedReads();
  *
- * failedReads.apply("Write Message IDs of Failed Reads to BigQuery",
+ * failedReads.apply("Write Message IDs / Stacktrace for Failed Reads to BigQuery",
  *     BigQueryIO
  *         .write()
  *         .to(option.getBQFhirExecuteBundlesDeadLetterTable())
@@ -211,10 +221,10 @@ public class FhirIO {
       PCollectionTuple pct;
 
       /**
-       * Of fhir io . read . result.
+       * Create FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
        *
        * @param pct the pct
-       * @return the fhir io . read . result
+       * @return the read result
        * @throws IllegalArgumentException the illegal argument exception
        */
       public static FhirIO.Read.Result of(PCollectionTuple pct) throws IllegalArgumentException {
@@ -453,7 +463,6 @@ public class FhirIO {
 
       @Override
       public Map<TupleTag<?>, PValue> expand() {
-        failedBodies.setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
         return ImmutableMap.of(Write.FAILED_BODY, failedBodies, Write.FAILED_FILES, failedFiles);
       }
 
@@ -652,9 +661,11 @@ public class FhirIO {
         case EXECUTE_BUNDLE:
         default:
           failedBundles =
-              input.apply(
-                  "Execute FHIR Bundles",
-                  ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore())));
+              input
+                  .apply(
+                      "Execute FHIR Bundles",
+                      ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore())))
+                  .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
       return Result.in(input.getPipeline(), failedBundles);
     }
@@ -662,7 +673,10 @@ public class FhirIO {
 
   /**
    * Writes each bundle of elements to a new-line delimited JSON file on GCS and issues a
-   * fhirStores.import Request for that file.
+   * fhirStores.import Request for that file. This is intended for batch use only to facilitate
+   * large backfills to empty FHIR stores and should not be used with unbounded PCollections. If
+   * your use case is streaming checkout using {@link ExecuteBundles} to more safely execute bundles
+   * as transactions which is safer practice for a use on a "live" FHIR store.
    */
   public static class Import extends Write {
 
@@ -671,6 +685,7 @@ public class FhirIO {
     private final String deadLetterGcsPath;
     private final ContentStructure contentStructure;
     private static final int DEFAULT_FILES_PER_BATCH = 10000;
+    private static final Logger LOG = LoggerFactory.getLogger(Import.class);
 
     /**
      * Instantiates a new Import.
@@ -745,20 +760,25 @@ public class FhirIO {
 
     @Override
     public Write.Result expand(PCollection<String> input) {
+      checkState(
+          input.isBounded() == IsBounded.BOUNDED,
+          "FhirIO.Import should only be used on unbounded PCollections as it is"
+              + "intended for batch use only.");
+
       // Write bundles of String to GCS
-      PCollectionTuple writeResults =
+      PCollectionTuple writeTmpFileResults =
           input.apply(
               "Write nd json to GCS",
               ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempGcsPath, deadLetterGcsPath))
                   .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
       PCollection<HealthcareIOError<String>> failedBodies =
-          writeResults
+          writeTmpFileResults
               .get(Write.FAILED_BODY)
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       int numShards = 100;
       PCollection<HealthcareIOError<String>> failedFiles =
-          writeResults
+          writeTmpFileResults
               .get(Write.TEMP_FILES)
               .apply(
                   "Shard files", // to paralelize group into batches
@@ -768,6 +788,38 @@ public class FhirIO {
                   ParDo.of(
                       new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
+
+      // Wait til window closes for failedBodies and failedFiles to ensure we are done processing
+      // anything under tempGcsPath because it has been successfully imported to FHIR store or
+      // copies have been moved to the dead letter path.
+      // Clean up all of tempGcsPath. This will handle removing phantom temporary objects from
+      // failed / rescheduled ImportFn::importBatch.
+      input
+          .getPipeline()
+          .apply(Create.of(Collections.singletonList(tempGcsPath)))
+          .apply("Wait On File Writing", Wait.on(failedBodies))
+          .apply("Wait On FHIR Importing", Wait.on(failedFiles))
+          .apply(
+              "Match tempGcsPath",
+              FileIO.matchAll().withEmptyMatchTreatment(EmptyMatchTreatment.ALLOW))
+          .apply(
+              "Delete tempGcsPath",
+              ParDo.of(
+                  new DoFn<Metadata, Void>() {
+                    private final Logger LOG = LoggerFactory.getLogger(Import.class);
+
+                    @ProcessElement
+                    public void delete(@Element Metadata path) {
+                      try {
+                        FileSystems.delete(
+                            Collections.singleton(path.resourceId()),
+                            StandardMoveOptions.IGNORE_MISSING_FILES);
+                      } catch (IOException e) {
+                        LOG.error("error cleaning up tempGcsDir: %s", e);
+                      }
+                    }
+                  }))
+          .setCoder(VoidCoder.of());
 
       return Write.Result.in(input.getPipeline(), failedBodies, failedFiles);
     }
@@ -999,7 +1051,10 @@ public class FhirIO {
     @Override
     public FhirIO.Write.Result expand(PCollection<String> input) {
       return Write.Result.in(
-          input.getPipeline(), input.apply(ParDo.of(new ExecuteBundlesFn(fhirStore))));
+          input.getPipeline(),
+          input
+              .apply(ParDo.of(new ExecuteBundlesFn(fhirStore)))
+              .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
     /** The type Write Fhir fn. */

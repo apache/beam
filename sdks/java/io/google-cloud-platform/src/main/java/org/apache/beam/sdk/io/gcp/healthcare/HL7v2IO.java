@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -313,6 +314,8 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<String> input) {
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input.apply("Fetch HL7v2 messages", new FetchHL7v2Message());
     }
 
@@ -342,6 +345,8 @@ public class HL7v2IO {
 
       @Override
       public Result expand(PCollection<String> msgIds) {
+        CoderRegistry coderRegistry = msgIds.getPipeline().getCoderRegistry();
+        coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
         return new Result(
             msgIds.apply(
                 ParDo.of(new FetchHL7v2Message.HL7v2MessageGetFn())
@@ -437,6 +442,8 @@ public class HL7v2IO {
 
     @Override
     public PCollection<HL7v2Message> expand(PBegin input) {
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input
           .apply(Create.of(this.hl7v2Stores))
           .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter)))
@@ -519,6 +526,8 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<HL7v2Message> messages) {
+      CoderRegistry coderRegistry = messages.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));
     }
 
