@@ -671,7 +671,7 @@ class _CustomBigQuerySource(BoundedSource):
           job_id=uuid.uuid4().hex,
           dry_run=True,
           kms_key=self.kms_key,
-          labels=self.bigquery_job_labels)
+          job_labels=self.bigquery_job_labels)
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
