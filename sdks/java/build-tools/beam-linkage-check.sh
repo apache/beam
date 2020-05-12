@@ -121,3 +121,6 @@ if [ "${ACCUMULATED_RESULT}" = "0" ]; then
 else
   echo "There's new linkage errors. See above for details."
 fi
+
+# CI-friendly way to tell the result
+exit $ACCUMULATED_RESULT
