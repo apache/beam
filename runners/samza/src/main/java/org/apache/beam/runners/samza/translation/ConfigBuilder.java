@@ -94,6 +94,8 @@ public class ConfigBuilder {
       config.put(JOB_ID, options.getJobInstance());
       config.put(MAX_CONCURRENCY, String.valueOf(options.getMaxBundleSize()));
 
+      // remove config overrides before serialization (LISAMZA-15259)
+      options.setConfigOverride(new HashMap<>());
       config.put(
           "beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
