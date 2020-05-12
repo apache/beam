@@ -420,6 +420,8 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 					u = n
 					if urn == urnProcessSizedElementsAndRestrictions {
 						u = &ProcessSizedElementsAndRestrictions{PDo: n}
+					} else if dofn.IsSplittable() {
+						u = &SdfFallback{PDo: n}
 					}
 				}
 
