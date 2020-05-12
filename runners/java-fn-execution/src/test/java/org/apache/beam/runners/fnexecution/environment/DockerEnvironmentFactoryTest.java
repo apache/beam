@@ -136,7 +136,7 @@ public class DockerEnvironmentFactoryTest {
         expectedException.expect(Exception.class);
       }
 
-      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT, "workerId");
 
       ArgumentCaptor<List<String>> dockerArgsCaptor = ArgumentCaptor.forClass(List.class);
       verify(docker).runImage(any(), dockerArgsCaptor.capture(), anyList());
@@ -159,7 +159,7 @@ public class DockerEnvironmentFactoryTest {
       when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
       DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
-      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT, "workerId");
 
       assertThat(handle.getInstructionRequestHandler(), is(client));
       assertThat(handle.getEnvironment(), equalTo(ENVIRONMENT));
@@ -172,7 +172,7 @@ public class DockerEnvironmentFactoryTest {
       when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(false);
       DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
-      factory.createEnvironment(ENVIRONMENT);
+      factory.createEnvironment(ENVIRONMENT, "workerId");
 
       verify(docker).getContainerLogs(CONTAINER_ID);
     }
@@ -184,7 +184,7 @@ public class DockerEnvironmentFactoryTest {
       when(docker.isContainerRunning(Mockito.eq(CONTAINER_ID))).thenReturn(true);
       DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
-      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT);
+      RemoteEnvironment handle = factory.createEnvironment(ENVIRONMENT, "workerId");
       handle.close();
 
       verify(docker).getContainerLogs(CONTAINER_ID);
@@ -196,11 +196,11 @@ public class DockerEnvironmentFactoryTest {
       DockerEnvironmentFactory factory = getFactory((workerId, timeout) -> client);
 
       Environment fooEnv = Environments.createDockerEnvironment("foo");
-      RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv);
+      RemoteEnvironment fooHandle = factory.createEnvironment(fooEnv, "workerId");
       assertThat(fooHandle.getEnvironment(), is(equalTo(fooEnv)));
 
       Environment barEnv = Environments.createDockerEnvironment("bar");
-      RemoteEnvironment barHandle = factory.createEnvironment(barEnv);
+      RemoteEnvironment barHandle = factory.createEnvironment(barEnv, "workerId");
       assertThat(barHandle.getEnvironment(), is(equalTo(barEnv)));
     }
 
