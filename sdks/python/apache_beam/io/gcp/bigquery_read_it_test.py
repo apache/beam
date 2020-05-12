@@ -274,7 +274,9 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
     with beam.Pipeline(argv=self.args) as p:
       result = (
           p | 'read' >> beam.io.ReadFromBigQuery(
-              query=self.query, use_standard_sql=True, project=self.project,
+              query=self.query,
+              use_standard_sql=True,
+              project=self.project,
               bigquery_job_labels={'owner': 'apache_beam_tests'}))
       assert_that(result, equal_to(self.get_expected_data()))
 
