@@ -175,7 +175,7 @@ class StatefulLoadGenerator(beam.PTransform):
 
   class GenerateLoad(beam.DoFn):
     state_spec = userstate.CombiningValueStateSpec(
-        'bundles_remaining', beam.coders.VarIntCoder(), sum)
+        'bundles_remaining', combine_fn=sum)
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
 
     def __init__(self, num_records_per_key, value_size, bundle_size=1000):
