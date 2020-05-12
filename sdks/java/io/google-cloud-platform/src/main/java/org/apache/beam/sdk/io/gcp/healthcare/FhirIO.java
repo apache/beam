@@ -82,7 +82,7 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading</h3>
  *
- * <p>FHIR resources can be read with {@link FhirIO.Read} supports use cases where you have a
+ * <p>FHIR resources can be read with {@link FhirIO.Read}, which supports use cases where you have a
  * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
