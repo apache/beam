@@ -752,9 +752,8 @@ public class PubsubIO {
      *       (i.e., time units smaller than milliseconds) will be ignored.
      * </ul>
      *
-     * <p>If {@code timestampAttribute} is not provided, the timestamp will be taken from the
-     * Pubsub message's publish timestamp. All windowing will be done relative to these
-     * timestamps.
+     * <p>If {@code timestampAttribute} is not provided, the timestamp will be taken from the Pubsub
+     * message's publish timestamp. All windowing will be done relative to these timestamps.
      *
      * <p>By default, windows are emitted based on an estimate of when this source is likely done
      * producing data for a given timestamp (referred to as the Watermark; see {@link
