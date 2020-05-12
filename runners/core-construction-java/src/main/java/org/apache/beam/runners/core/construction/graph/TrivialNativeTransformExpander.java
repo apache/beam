@@ -46,32 +46,28 @@ public class TrivialNativeTransformExpander {
       RunnerApi.Pipeline pipeline, Set<String> knownUrns) {
     RunnerApi.Pipeline.Builder trimmedPipeline = pipeline.toBuilder();
     for (String ptransformId : pipeline.getComponents().getTransformsMap().keySet()) {
-      if (knownUrns.contains(
-          pipeline.getComponents().getTransformsOrThrow(ptransformId).getSpec().getUrn())) {
+      // Skip over previously removed transforms from the original pipeline.
+      RunnerApi.PTransform currentTransform =
+          trimmedPipeline.getComponents().getTransformsOrDefault(ptransformId, null);
+      if (currentTransform != null && knownUrns.contains(currentTransform.getSpec().getUrn())) {
         LOG.debug(
             "Removing descendants and environment of known native PTransform {}" + ptransformId);
         removeDescendants(trimmedPipeline, ptransformId);
-
-        RunnerApi.PTransform nativeTransform =
-            pipeline.getComponents().getTransformsOrThrow(ptransformId);
         trimmedPipeline
             .getComponentsBuilder()
             .putTransforms(
                 ptransformId,
-                nativeTransform.toBuilder().clearSubtransforms().clearEnvironmentId().build());
+                currentTransform.toBuilder().clearSubtransforms().clearEnvironmentId().build());
       }
     }
     return trimmedPipeline.build();
   }
 
   private static void removeDescendants(RunnerApi.Pipeline.Builder pipeline, String parentId) {
-    RunnerApi.PTransform parentProto =
-        pipeline.getComponents().getTransformsOrDefault(parentId, null);
-    if (parentProto != null) {
-      for (String childId : parentProto.getSubtransformsList()) {
-        removeDescendants(pipeline, childId);
-        pipeline.getComponentsBuilder().removeTransforms(childId);
-      }
+    RunnerApi.PTransform parentProto = pipeline.getComponents().getTransformsOrThrow(parentId);
+    for (String childId : parentProto.getSubtransformsList()) {
+      removeDescendants(pipeline, childId);
+      pipeline.getComponentsBuilder().removeTransforms(childId);
     }
   }
 }
