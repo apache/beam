@@ -365,6 +365,7 @@ if (project.hasProperty('compileAndRunTestsWithJava11')) {
   project.javaExamplesDataflowPrecommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
   project.javaPreCommitBeamZetaSQL.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
   project.sqlPreCommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
+  project.javaPreCommit.dependsOn ':sdks:java:testing:test-utils:verifyJavaVersion'
 } else {
   allprojects {
     tasks.withType(Test) {
