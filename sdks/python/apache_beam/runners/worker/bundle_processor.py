@@ -217,6 +217,18 @@ class DataInputOperation(RunnerIOOperation):
           input_stream, True)
       self.output(decoded_value)
 
+  def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+    # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+    all_monitoring_infos = super(DataInputOperation, self).monitoring_infos(
+        transform_id, tag_to_pcollection_id)
+    read_progress_info = monitoring_infos.int64_counter(
+        monitoring_infos.DATA_CHANNEL_READ_INDEX,
+        self.index,
+        ptransform=transform_id)
+    all_monitoring_infos[monitoring_infos.to_key(
+        read_progress_info)] = read_progress_info
+    return all_monitoring_infos
+
   def try_split(
       self, fraction_of_remainder, total_buffer_size, allowed_split_points):
     # type: (...) -> Optional[Tuple[int, Optional[operations.SdfSplitResultsPrimary], Optional[operations.SdfSplitResultsResidual], int]]
