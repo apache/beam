@@ -121,6 +121,7 @@ public class FhirIOWriteIT {
                     ContentStructure.BUNDLE));
 
     PAssert.that(result.getFailedBodies()).empty();
+    PAssert.that(result.getFailedFiles()).empty();
 
     pipeline.run().waitUntilFinish();
   }
