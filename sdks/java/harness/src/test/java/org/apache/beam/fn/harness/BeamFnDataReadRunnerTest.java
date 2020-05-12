@@ -176,7 +176,7 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* addProgressRequestCallback */,
+            (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -223,6 +223,7 @@ public class BeamFnDataReadRunnerTest {
             bundleId::get,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
+            (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
             consumers);
 
     // Process for bundle id 0
@@ -480,7 +481,7 @@ public class BeamFnDataReadRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
-            null /* addProgressRequestCallback */,
+            (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
             null /* splitListener */,
             null /* bundleFinalizer */);
   }

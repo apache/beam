@@ -44,6 +44,8 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.InboundDataClient;
@@ -53,6 +55,7 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.primitives.Ints;
 import org.slf4j.Logger;
@@ -116,6 +119,7 @@ public class BeamFnDataReadRunner<OutputT> {
               processBundleInstructionId,
               coders,
               beamFnDataClient,
+              addProgressRequestCallback,
               consumer);
       startFunctionRegistry.register(pTransformId, runner::registerInputLocation);
       finishFunctionRegistry.register(pTransformId, runner::blockTillReadFinishes);
@@ -143,6 +147,7 @@ public class BeamFnDataReadRunner<OutputT> {
       Supplier<String> processBundleInstructionIdSupplier,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClient,
+      Consumer<PTransformRunnerFactory.ProgressRequestCallback> addProgressRequestCallback,
       FnDataReceiver<WindowedValue<OutputT>> consumer)
       throws IOException {
     this.pTransformId = pTransformId;
@@ -157,6 +162,18 @@ public class BeamFnDataReadRunner<OutputT> {
     this.coder =
         (Coder<WindowedValue<OutputT>>)
             CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+
+    addProgressRequestCallback.accept(
+        () -> {
+          synchronized (splittingLock) {
+            return ImmutableList.of(
+                new SimpleMonitoringInfoBuilder()
+                    .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
+                    .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, pTransformId)
+                    .setInt64SumValue(index)
+                    .build());
+          }
+        });
   }
 
   public void registerInputLocation() {
