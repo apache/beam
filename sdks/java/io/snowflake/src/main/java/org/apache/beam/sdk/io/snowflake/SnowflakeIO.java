@@ -111,6 +111,11 @@ import org.slf4j.LoggerFactory;
  *    .withCsvMapper(...)
  *    .withCoder(...));
  * }</pre>
+ *
+ * <p><b>Important</b> When reading data from Snowflake, temporary CSV files are created on the
+ * specified stagingBucketName in directory named `sf_copy_csv_[RANDOM CHARS]_[TIMESTAMP]`. This
+ * directory and all the files are deleted automatically by default, but in case of failed pipeline
+ * they will remain and have to be removed manually.
  */
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
@@ -118,7 +123,7 @@ public class SnowflakeIO {
   private static final String CSV_QUOTE_CHAR = "'";
 
   /**
-   * Read data from Snowflake via COPY statement via user-defined {@link SnowflakeService}.
+   * Read data from Snowflake.
    *
    * @param snowflakeService user-defined {@link SnowflakeService}
    * @param <T> Type of the data to be read.
@@ -132,7 +137,7 @@ public class SnowflakeIO {
   }
 
   /**
-   * Read data from Snowflake via COPY statement via default {@link SnowflakeServiceImpl}.
+   * Read data from Snowflake.
    *
    * @param <T> Type of the data to be read.
    */
@@ -262,7 +267,9 @@ public class SnowflakeIO {
     }
 
     /**
-     * Name of the Storage Integration in Snowflake to be used.
+     * Name of the Storage Integration in Snowflake to be used. See
+     * https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html for
+     * reference.
      *
      * @param integrationName - String with the name of the Storage Integration.
      */
@@ -554,44 +561,23 @@ public class SnowflakeIO {
      * @param credentials - an instance of {@link SnowflakeCredentials}.
      */
     public static DataSourceConfiguration create(SnowflakeCredentials credentials) {
-      return credentials.createSnowflakeDataSourceConfiguration();
-    }
-
-    /**
-     * Creates {@link DataSourceConfiguration} from instance of {@link
-     * UsernamePasswordSnowflakeCredentials}.
-     *
-     * @param credentials - an instance of {@link UsernamePasswordSnowflakeCredentials}.
-     */
-    public static DataSourceConfiguration create(UsernamePasswordSnowflakeCredentials credentials) {
-      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setUsername(credentials.getUsername())
-          .setPassword(credentials.getPassword())
-          .build();
-    }
-
-    /**
-     * Creates {@link DataSourceConfiguration} from instance of {@link KeyPairSnowflakeCredentials}.
-     *
-     * @param credentials - an instance of {@link KeyPairSnowflakeCredentials}.
-     */
-    public static DataSourceConfiguration create(KeyPairSnowflakeCredentials credentials) {
-      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setUsername(credentials.getUsername())
-          .setPrivateKey(credentials.getPrivateKey())
-          .build();
-    }
-
-    /**
-     * Creates {@link DataSourceConfiguration} from instance of {@link
-     * OAuthTokenSnowflakeCredentials}.
-     *
-     * @param credentials - an instance of {@link OAuthTokenSnowflakeCredentials}.
-     */
-    public static DataSourceConfiguration create(OAuthTokenSnowflakeCredentials credentials) {
-      return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
-          .setOauthToken(credentials.getToken())
-          .build();
+      if (credentials instanceof UsernamePasswordSnowflakeCredentials) {
+        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setUsername(((UsernamePasswordSnowflakeCredentials) credentials).getUsername())
+            .setPassword(((UsernamePasswordSnowflakeCredentials) credentials).getPassword())
+            .build();
+      } else if (credentials instanceof OAuthTokenSnowflakeCredentials) {
+        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setOauthToken(((OAuthTokenSnowflakeCredentials) credentials).getToken())
+            .build();
+      } else if (credentials instanceof KeyPairSnowflakeCredentials) {
+        return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setUsername(((KeyPairSnowflakeCredentials) credentials).getUsername())
+            .setPrivateKey(((KeyPairSnowflakeCredentials) credentials).getPrivateKey())
+            .build();
+      }
+      throw new IllegalArgumentException(
+          "Can't create DataSourceConfiguration from given credentials");
     }
 
     /**

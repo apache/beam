@@ -40,7 +40,7 @@ public class UsernamePasswordSnowflakeCredentialsTest {
         new UsernamePasswordSnowflakeCredentials("username", "password");
 
     SnowflakeIO.DataSourceConfiguration configuration =
-        credentials.createSnowflakeDataSourceConfiguration();
+        SnowflakeIO.DataSourceConfiguration.create(credentials);
 
     assertEquals("username", configuration.getUsername());
     assertEquals("password", configuration.getPassword());

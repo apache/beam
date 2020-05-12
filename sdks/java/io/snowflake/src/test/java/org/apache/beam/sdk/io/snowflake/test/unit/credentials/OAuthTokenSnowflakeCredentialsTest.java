@@ -37,7 +37,7 @@ public class OAuthTokenSnowflakeCredentialsTest {
     OAuthTokenSnowflakeCredentials credentials = new OAuthTokenSnowflakeCredentials("token");
 
     SnowflakeIO.DataSourceConfiguration configuration =
-        credentials.createSnowflakeDataSourceConfiguration();
+        SnowflakeIO.DataSourceConfiguration.create(credentials);
 
     assertEquals(credentials.getToken(), configuration.getOauthToken());
   }
