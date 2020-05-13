@@ -48,6 +48,7 @@ import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.ExecuteBundles.ExecuteBundlesFn;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -121,9 +122,20 @@ import org.slf4j.LoggerFactory;
  * FhirIO.Write#fhirStoresImport(String, String, String, FhirIO.Import.ContentStructure)} This will
  * return a {@link FhirIO.Write.Result} on which you can call {@link
  * FhirIO.Write.Result#getFailedBodies()} to retrieve a {@link PCollection} of {@link
- * HealthcareIOError} containing the {@link String} that failed to be ingested and the     exception.     <p>Example     <pre>{@code
+ * HealthcareIOError} containing the {@link String} that failed to be ingested and the     exception.
+ *
+ * <h3>Conditional Creating / Updating Resources</h3>
+ * {@link FhirIO} supports interfaces for conditional update.
+ * These can be useful to handle scenarios where an executeBundle failed. For example if you tried
+ * to create a resource that already exists you can grab the faield bodies of your
+ * {@link FhirIO.ExecuteBundles} transform with {@link Result#getFailedBodies()} perform some logic
+ * on the reason for failures and if appropriate route this to {@link FhirIO.ConditionalUpdate} or
+ * {@link FhirIO.CreateResources} to take the appropriate action on your FHIR store.
+ *
+ * <p>Example     <pre>{@code
  * Pipeline pipeline = ...
  *
+ * // [Begin Reading]
  * // Tail the FHIR store by retrieving resources based on Pub/Sub notifications.
  * FhirIO.Read.Result readResult = p
  *   .apply("Read FHIR notifications",
@@ -133,8 +145,11 @@ import org.slf4j.LoggerFactory;
  * // happily retrived messages
  * PCollection<String> resources = readResult.getResources();
  * // message IDs that couldn't be retrieved + error context
- * PCollection<HealthcareIOError<String>> failedReads = readResult.getFailedReads();
  *
+ * PCollection<HealthcareIOError<String>> failedReads = readResult.getFailedReads();
+ * // [End Reading]
+ *
+ * // [Beign Writing]
  * failedReads.apply("Write Message IDs / Stacktrace for Failed Reads to BigQuery",
  *     BigQueryIO
  *         .write()
@@ -145,17 +160,53 @@ import org.slf4j.LoggerFactory;
  * FhirIO.Write.Result writeResult =
  *     output.apply("Execute FHIR Bundles", FhirIO.executeBundles(options.getExistingFhirStore()));
  *
+ * // Alternatively you could use import for high throughput to a new store.
+ * FhirIO.Write.Result writeResult =
+ *     output.apply("Import FHIR Resources", FhirIO.executeBundles(options.getNewFhirStore()));
+ * // [End Writing ]
+ *
  * PCollection<HealthcareIOError<String>> failedBundles = writeResult.getFailedInsertsWithErr();
  *
+ * // [Begin Writing to Dead Letter Queue]
  * failedBundles.apply("Write failed bundles to BigQuery",
  *     BigQueryIO
  *         .write()
  *         .to(option.getBQFhirExecuteBundlesDeadLetterTable())
  *         .withFormatFunction(new HealthcareIOErrorToTableRow()));
+ * // [End Writing to Dead Letter Queue]
  *
- * // Alternatively you could use import for high throughput to a new store.
- * FhirIO.Write.Result writeResult =
- *     output.apply("Import FHIR Resources", FhirIO.executeBundles(options.getNewFhirStore()));
+ * // Alternatively you may want to handle DeadLetter with conditional update
+ * // [Begin Reconciliation with Conditional Update]
+ * failedBundles
+ *     .apply("Reconcile with Conditional Update",
+ *         FhirIO.ConditionalUpdate(fhirStore)
+ *             .withFormatBodyFunction(HealthcareIOError<String>::getDataResource)
+ *             .withTypeFunction((HealthcareIOError<String> err) -> {
+ *               String body = err.getDataResource();
+ *               // TODO(user) insert logic to exctract type.
+ *               return params;
+ *             })
+ *             .withSearchParametersFunction((HealthcareIOError<String> err) -> {
+ *               String body = err.getDataResource();
+ *               Map<String, String> params = new HashMap();
+ *               // TODO(user) insert logic to exctract search query parameters.
+ *               return params;
+ *             });
+ * // [End Reconciliation with Conditional Update]
+ *
+ * // Alternatively you may want to handle DeadLetter with conditional create
+ * // [Begin Reconciliation with Conditional Update]
+ * failedBundles
+ *     .apply("Reconcile with Conditional Create",
+ *         FhirIO.CreateResources(fhirStore)
+ *             .withFormatBodyFunction(HealthcareIOError<String>::getDataResource)
+ *             .withIfNotExistsFunction((HealthcareIOError<String> err) -> {
+ *               String body = err.getDataResource();
+ *               // TODO(user) insert logic to exctract a query to be used in If-Not-Exists header.
+ *               return params;
+ *             });
+ * // [End Reconciliation with Conditional Update]
+ *
  * }*** </pre>
  */
 public class FhirIO {
@@ -231,7 +282,7 @@ public class FhirIO {
       PCollectionTuple pct;
 
       /**
-       * ConditionalUpdate FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
+       * FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
        *
        * @param pct the pct
        * @return the read result
@@ -617,7 +668,7 @@ public class FhirIO {
     }
 
     /**
-     * ConditionalUpdate Method creates a single FHIR resource. @see <a
+     * Import Method creates a single FHIR resource. @see <a
      * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create></a>
      *
      * @param fhirStore the hl 7 v 2 store
@@ -745,7 +796,7 @@ public class FhirIO {
    * Writes each bundle of elements to a new-line delimited JSON file on GCS and issues a
    * fhirStores.import Request for that file. This is intended for batch use only to facilitate
    * large backfills to empty FHIR stores and should not be used with unbounded PCollections. If
-   * your use case is streaming checkout using {@link ConditionalUpdate} to more safely execute
+   * your use case is streaming checkout using {@link Import} to more safely execute
    * bundles as transactions which is safer practice for a use on a "live" FHIR store.
    */
   public static class Import extends Write {
@@ -1239,12 +1290,15 @@ public class FhirIO {
 
   /**
    * {@link PTransform} for Creating FHIR resources.
+   *
    * https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create
    */
-  public static class CreateResources extends PTransform<PCollection<String>, Write.Result> {
+  public static class CreateResources<T> extends PTransform<PCollection<T>, Write.Result> {
     private final String fhirStore;
     private final String type;
-    private SerializableFunction<String, String> ifNoneExistFunction;
+    private SerializableFunction<T, String> ifNoneExistFunction;
+    private SerializableFunction<T, String> formatBodyFunction;
+    private static final Logger LOG = LoggerFactory.getLogger(CreateResources.class);
 
     /**
      * Instantiates a new Create resources transform.
@@ -1279,33 +1333,57 @@ public class FhirIO {
      * @return the create resources
      */
     public CreateResources withIfNotExistFunction(
-        SerializableFunction<String, String> ifNoneExistFunction){
+        SerializableFunction<T, String> ifNoneExistFunction){
       this.ifNoneExistFunction = ifNoneExistFunction;
       return this;
     }
 
+    /**
+     * With format body function create resources.
+     *
+     * @param formatBodyFunction the format body function
+     * @return the create resources
+     */
+    public CreateResources withFormatBodyFunction(
+        SerializableFunction<T, String> formatBodyFunction){
+      this.formatBodyFunction= formatBodyFunction;
+      return this;
+    }
+
     @Override
-    public FhirIO.Write.Result expand(PCollection<String> input) {
+    public FhirIO.Write.Result expand(PCollection<T> input) {
+      checkArgument(
+          formatBodyFunction != null,
+          "FhirIO.CreateResources should always be called with a "
+              + "withFromatBodyFunction");
+
+      if (ifNoneExistFunction == null){
+        LOG.info("ifNoneExistFunction was null will create resources unconditionally");
+      }
+
       return Write.Result.in(
           input.getPipeline(),
           input
-              .apply(ParDo.of(new CreateFn(fhirStore, type, ifNoneExistFunction)))
+              .apply(ParDo.of(new CreateFn<T>(fhirStore, type, formatBodyFunction, ifNoneExistFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
-    static class CreateFn extends DoFn<String, HealthcareIOError<String>> {
+    static class CreateFn<T> extends DoFn<T, HealthcareIOError<String>> {
 
       private Counter failedBundles = Metrics.counter(CreateFn.class, "failed-bundles");
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       private final String fhirStore;
       private final String type;
-      private SerializableFunction<String, String> ifNoneExistFunction;
+      private SerializableFunction<T, String> ifNoneExistFunction;
+      private SerializableFunction<T, String> formatBodyFunction;
 
       CreateFn(String fhirStore, String type,
-          SerializableFunction ifNoneExistFunction) {
+          SerializableFunction formatBodyFunction,
+          @Nullable SerializableFunction ifNoneExistFunction) {
         this.fhirStore = fhirStore;
         this.type = type;
+        this.formatBodyFunction= formatBodyFunction;
         this.ifNoneExistFunction = ifNoneExistFunction;
       }
 
@@ -1316,14 +1394,15 @@ public class FhirIO {
 
       @ProcessElement
       public void create(ProcessContext context) {
-        String body = context.element();
+        T input = context.element();
+        String body = formatBodyFunction.apply(input);
         try {
           // Validate that data was set to valid JSON.
-          mapper.readTree(body);
+          mapper.readTree(input.toString());
           if (ifNoneExistFunction != null){
-            String ifNoneExistQuery = ifNoneExistFunction.apply(body);
+            String ifNoneExistQuery = ifNoneExistFunction.apply(input);
             client.fhirCreate(fhirStore, type, body, ifNoneExistQuery);
-          } else{
+          } else {
             client.fhirCreate(fhirStore, type, body, null);
           }
         } catch (IOException | HealthcareHttpException e) {
@@ -1339,10 +1418,12 @@ public class FhirIO {
    *
    * https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/update
    */
-  public static class UpdateResources extends PTransform<PCollection<String>, Write.Result> {
+  public static class UpdateResources<T> extends PTransform<PCollection<T>, Write.Result> {
     private final String fhirStore;
-    private SerializableFunction<String, String> resourceNameFunction;
+    private SerializableFunction<T, String> formatBodyFunction;
+    private SerializableFunction<T, String> resourceNameFunction;
     public static final TupleTag<String> UPDATE_RESULTS = new TupleTag<String>() {};
+    private static final Logger LOG = LoggerFactory.getLogger(UpdateResources.class);
 
     /**
      * Instantiates a new Update resources.
@@ -1360,8 +1441,20 @@ public class FhirIO {
      * @return the update resources
      */
     public UpdateResources withResourceNameFunction(
-        SerializableFunction<String, String> resourceNameFunction){
+        SerializableFunction<T, String> resourceNameFunction){
       this.resourceNameFunction = resourceNameFunction;
+      return this;
+    }
+
+    /**
+     * With format body function update resources.
+     *
+     * @param formatBodyFunction the format body function
+     * @return the update resources
+     */
+    public UpdateResources withFormatBodyFunction(
+        SerializableFunction<T, String> formatBodyFunction){
+      this.formatBodyFunction = formatBodyFunction;
       return this;
     }
 
@@ -1375,59 +1468,48 @@ public class FhirIO {
     }
 
     @Override
-    public FhirIO.Write.Result expand(PCollection<String> input) {
+    public FhirIO.Write.Result expand(PCollection<T> input) {
+      checkArgument(
+          formatBodyFunction != null,
+          "FhirIO.UpdateResources should always be called with a "
+              + "withFormatBodyFunction.");
       checkArgument(resourceNameFunction == null,
           "resourceNameFunction must be set when using FhirIO.UpdateResources");
       return Write.Result.in(
           input.getPipeline(),
           input
-              .apply(ParDo.of(new UpdateFn(fhirStore, resourceNameFunction)))
+              .apply(ParDo.of(new UpdateFn<T>(fhirStore, formatBodyFunction, resourceNameFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
-    /**
-     * The type Update fn.
-     */
-    static class UpdateFn extends DoFn<String, HealthcareIOError<String>> {
+    static class UpdateFn<T> extends DoFn<T, HealthcareIOError<String>> {
 
       private Counter failedUpdates = Metrics.counter(UpdateFn.class, "failed-updates");
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       private final String fhirStore;
-      private SerializableFunction<String, String> resourceNameFunction;
+      private SerializableFunction<T, String> formatBodyFunction;
+      private SerializableFunction<T, String> resourceNameFunction;
 
-      /**
-       * Instantiates a new Update fn.
-       *
-       * @param fhirStore the fhir store
-       */
-      UpdateFn(String fhirStore, SerializableFunction<String, String> resourceNameFunction) {
+      UpdateFn(String fhirStore, SerializableFunction<T, String> formatBodyFunction, SerializableFunction<T, String> resourceNameFunction) {
         this.fhirStore = fhirStore;
+        this.formatBodyFunction = formatBodyFunction;
         this.resourceNameFunction = resourceNameFunction;
       }
 
-      /**
-       * Init client.
-       *
-       * @throws IOException the io exception
-       */
       @Setup
       public void initClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
       }
 
-      /**
-       * Update.
-       *
-       * @param context the context
-       */
       @ProcessElement
       public void update(ProcessContext context) {
-        String body = context.element();
+        T input = context.element();
+        String body = formatBodyFunction.apply(input);
         try {
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
-          String resourceName = resourceNameFunction.apply(body);
+          String resourceName = resourceNameFunction.apply(input);
           HttpBody result = client.fhirUpdate(fhirStore, resourceName, body);
           context.output(UPDATE_RESULTS, result.getData());
         } catch (IOException | HealthcareHttpException e) {
@@ -1439,23 +1521,23 @@ public class FhirIO {
   }
 
   /**
-   * The type Conditional update.
+   * {@link PTransform} to perform Conditional updates on the FHIR store.
+   *
+   * https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/conditionalUpdate
    */
-  public static class ConditionalUpdate extends PTransform<PCollection<String>, Write.Result> {
+  public static class ConditionalUpdate<T> extends PTransform<PCollection<T>, Write.Result> {
     private final String fhirStore;
-    private final String type;
-    private SerializableFunction searchParametersFunction;
+    private SerializableFunction<T, Map<String,String>> searchParametersFunction;
+    private SerializableFunction<T, String> typeFunction;
+    private SerializableFunction<T, String> formatBodyFunction;
 
     /**
      * Instantiates a new Conditional update.
      *
      * @param fhirStore the fhir store
-     * @param type the type
-     * @param conditional the conditional
      */
-    ConditionalUpdate(ValueProvider<String> fhirStore, String type, boolean conditional) {
+    ConditionalUpdate(ValueProvider<String> fhirStore) {
       this.fhirStore = fhirStore.get();
-      this.type = type;
     }
 
     /**
@@ -1465,8 +1547,32 @@ public class FhirIO {
      * @return the conditional update
      */
     public ConditionalUpdate withSearchParametersFunction(
-        SerializableFunction<String, Map<String, String>> searchParametersFunction){
+        SerializableFunction<T, Map<String, String>> searchParametersFunction){
       this.searchParametersFunction = searchParametersFunction;
+      return this;
+    }
+
+    /**
+     * With type function conditional update.
+     *
+     * @param typeFunction the type function
+     * @return the conditional update
+     */
+    public ConditionalUpdate withTypeFunction(
+        SerializableFunction<T, String> typeFunction){
+      this.typeFunction = typeFunction;
+      return this;
+    }
+
+    /**
+     * With format body function conditional update.
+     *
+     * @param formatBodyFunction the format body function
+     * @return the conditional update
+     */
+    public ConditionalUpdate withFormatBodyFunction(
+        SerializableFunction<T, String> formatBodyFunction){
+      this.formatBodyFunction = formatBodyFunction;
       return this;
     }
 
@@ -1474,79 +1580,74 @@ public class FhirIO {
      * Instantiates a new Conditional update.
      *
      * @param fhirStore the fhir store
-     * @param type the type
-     * @param conditional the conditional
      */
-    ConditionalUpdate(String fhirStore, String type, boolean conditional) {
+    ConditionalUpdate(String fhirStore) {
       this.fhirStore = fhirStore;
-      this.type = type;
     }
 
+
     @Override
-    public FhirIO.Write.Result expand(PCollection<String> input) {
-      if (searchParametersFunction == null){
-        throw new IllegalArgumentException(
-            "FhirIO.ConditionalUpdate should always be called with a searchParametersFunction."
-                + "If this does not meet your use case consider usiing FhirIO.UpdateResources.");
-      }
+    public FhirIO.Write.Result expand(PCollection<T> input) {
+      checkArgument(
+          typeFunction != null,
+          "FhirIO.ConditionalUpdate should always be called with a "
+              + "withTypeFunction.");
+      checkArgument(
+          formatBodyFunction != null,
+          "FhirIO.ConditionalUpdate should always be called with a "
+              + "withFormatBodyFunction.");
+      checkArgument(
+          searchParametersFunction != null,
+          "FhirIO.ConditionalUpdate should always be called with a "
+              + "withSearchParametersFunction. If this does not meet your use case consider usiing "
+              + "FhirIO.UpdateResources.");
+
+
       return Write.Result.in(
           input.getPipeline(),
           input
-              .apply(ParDo.of(new ConditionalUpdateFn(fhirStore, type, searchParametersFunction)))
+              .apply(ParDo.of(new ConditionalUpdateFn<T>(
+                  fhirStore, typeFunction, searchParametersFunction, formatBodyFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
-    /**
-     * The type Conditional update fn.
-     */
-    static class ConditionalUpdateFn extends DoFn<String, HealthcareIOError<String>> {
+    static class ConditionalUpdateFn<T> extends DoFn<T, HealthcareIOError<String>> {
 
-      private Counter failedBundles = Metrics.counter(ConditionalUpdateFn.class, "failed-bundles");
+      private Counter failedConditionalUpdates = Metrics.counter(ConditionalUpdateFn.class,
+          "failed-conditional-updates");
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       private final String fhirStore;
-      private final String type;
-      private SerializableFunction<String, Map<String, String>> searchParametersFunction;
+      private SerializableFunction<T, Map<String, String>> searchParametersFunction;
+      private SerializableFunction<T, String> typeFunction;
+      private SerializableFunction<T, String> formatBodyFunction;
 
-      /**
-       * Instantiates a new Conditional update fn.
-       *
-       * @param fhirStore the fhir store
-       * @param type the type
-       * @param searchParametersFunction the search parameters function
-       */
-      ConditionalUpdateFn(String fhirStore, String type,
-          SerializableFunction<String, Map<String, String>> searchParametersFunction) {
+      ConditionalUpdateFn(String fhirStore, SerializableFunction<T, String> typeFunction,
+          SerializableFunction<T, Map<String, String>> searchParametersFunction,
+          SerializableFunction<T, String> formatBodyFunction) {
         this.fhirStore = fhirStore;
-        this.type = type;
+        this.typeFunction = typeFunction;
         this.searchParametersFunction = searchParametersFunction;
+        this.formatBodyFunction = formatBodyFunction;
       }
 
-      /**
-       * Init client.
-       *
-       * @throws IOException the io exception
-       */
       @Setup
       public void initClient() throws IOException {
         this.client = new HttpHealthcareApiClient();
       }
 
-      /**
-       * Conditional update.
-       *
-       * @param context the context
-       */
       @ProcessElement
       public void conditionalUpdate(ProcessContext context) {
-        String body = context.element();
+        T input = context.element();
+        String type = typeFunction.apply(input);
+        String body = formatBodyFunction.apply(input);
         try {
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
-          Map<String, String> searchParameters = searchParametersFunction.apply(body);
+          Map<String, String> searchParameters = searchParametersFunction.apply(input);
           client.fhirConditionalUpdate(fhirStore, type, body, searchParameters);
         } catch (IOException | HealthcareHttpException e) {
-          failedBundles.inc();
+          failedConditionalUpdates.inc();
           context.output(HealthcareIOError.of(body, e));
         }
       }
