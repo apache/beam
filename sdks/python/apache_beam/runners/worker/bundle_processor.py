@@ -219,6 +219,10 @@ class DataInputOperation(RunnerIOOperation):
 
   def monitoring_infos(self, transform_id, tag_to_pcollection_id):
     # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
+    # TODO(BEAM-9979): Fix race condition where reused DataInputOperation
+    # reports read index from last bundle since start may have not yet been
+    # called.
     all_monitoring_infos = super(DataInputOperation, self).monitoring_infos(
         transform_id, tag_to_pcollection_id)
     read_progress_info = monitoring_infos.int64_counter(
@@ -317,6 +321,7 @@ class DataInputOperation(RunnerIOOperation):
   def finish(self):
     # type: () -> None
     with self.splitting_lock:
+      self.index += 1
       self.started = False
 
 
