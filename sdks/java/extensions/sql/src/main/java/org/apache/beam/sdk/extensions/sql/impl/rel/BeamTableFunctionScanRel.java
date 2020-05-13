@@ -155,7 +155,7 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
     NodeStats inputEstimates = BeamSqlRelUtils.getNodeStats(getInput(0), mq);
 
     final double rowSize = getRowType().getFieldCount();
-    final double cpu = inputEstimates.getRowCount() * inputEstimates.getRowCount() * rowSize;
+    final double cpu = inputEstimates.getRowCount() * rowSize;
     final double cpuRate = inputEstimates.getRate() * inputEstimates.getWindow() * rowSize;
     return BeamCostModel.FACTORY.makeCost(cpu, cpuRate);
   }
