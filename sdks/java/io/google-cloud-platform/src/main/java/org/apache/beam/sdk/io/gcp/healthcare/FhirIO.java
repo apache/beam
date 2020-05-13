@@ -671,8 +671,8 @@ public class FhirIO {
           String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
           FhirIO.Import.ContentStructure contentStructure =
               getContentStructure().orElseThrow(IllegalArgumentException::new);
-          String tempPath = getImportGcsTempPath()
-              .orElse(input.getPipeline().getOptions().getTempLocation());
+          String tempPath =
+              getImportGcsTempPath().orElse(input.getPipeline().getOptions().getTempLocation());
 
           return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
         case EXECUTE_BUNDLE:
@@ -796,7 +796,7 @@ public class FhirIO {
 
       // fall back on pipeline's temp location.
       String tempPath = tempGcsPath;
-      if (tempPath == null){
+      if (tempPath == null) {
         tempPath = input.getPipeline().getOptions().getTempLocation();
       }
 
@@ -820,8 +820,7 @@ public class FhirIO {
                   WithKeys.of(ThreadLocalRandom.current().nextInt(0, numShards)))
               .apply("File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
               .apply(
-                  ParDo.of(
-                      new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
+                  ParDo.of(new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
 
       // Wait til window closes for failedBodies and failedFiles to ensure we are done processing

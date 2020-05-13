@@ -42,8 +42,7 @@ import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareH
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 class FhirIOTestUtil {
-   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
-
+  public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
   private static Stream<String> readPrettyBundles(String version) {
     Path resourceDir = Paths.get("src", "test", "resources", version);

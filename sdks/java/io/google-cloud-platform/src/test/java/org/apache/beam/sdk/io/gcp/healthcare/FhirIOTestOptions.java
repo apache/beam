@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
 
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation.Required;

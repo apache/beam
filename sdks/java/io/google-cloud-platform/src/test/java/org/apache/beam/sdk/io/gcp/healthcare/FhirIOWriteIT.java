@@ -77,7 +77,8 @@ public class FhirIOWriteIT {
     options.setGcsTempPath(
         String.format("gs://%s/FhirIOWrite%sIT/%s/temp/", DEFAULT_TEMP_BUCKET, version, testTime));
     options.setGcsDeadLetterPath(
-        String.format("gs://%s/FhirIOWrite%sIT/%s/deadletter/", DEFAULT_TEMP_BUCKET, version, testTime));
+        String.format(
+            "gs://%s/FhirIOWrite%sIT/%s/deadletter/", DEFAULT_TEMP_BUCKET, version, testTime));
     options.setFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.createFhirStore(healthcareDataset, fhirStoreName, version);
