@@ -115,7 +115,7 @@ class SplitTest(unittest.TestCase):
     # remainder falls outside the first element.
     self.assertEqual(self.sdf_split(0, .5, 0.2, 4), simple_split(1))
 
-    # Verify the above logic when we are partially throug the stream.
+    # Verify the above logic when we are partially through the stream.
     self.assertEqual(self.sdf_split(2, 0, 0.6, 4), simple_split(3))
     self.assertEqual(self.sdf_split(2, 0.9, 0.6, 4), simple_split(4))
     self.assertEqual(
