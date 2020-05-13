@@ -1242,6 +1242,16 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLFullOuterJoinFalse() {
+    String sql = "SELECT * FROM KeyValue AS t1 FULL JOIN BigTable AS t2 ON false";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+  }
+
+  @Test
   public void testZetaSQLThreeWayInnerJoin() {
     String sql =
         "SELECT t3.Value, t2.Value, t1.Value, t1.Key, t3.ColId FROM KeyValue as t1 "
