@@ -115,12 +115,16 @@ PRIMITIVE_TO_ATOMIC_TYPE.update({
     float: schema_pb2.DOUBLE,
 })
 
+# Name of the attribute added to user types (existing and generated) to store
+# the corresponding schema ID
+_BEAM_SCHEMA_ID = "_beam_schema_id"
+
 
 def typing_to_runner_api(type_):
   if _match_is_named_tuple(type_):
     schema = None
-    if hasattr(type_, 'id'):
-      schema = SCHEMA_REGISTRY.get_schema_by_id(type_.id)
+    if hasattr(type_, _BEAM_SCHEMA_ID):
+      schema = SCHEMA_REGISTRY.get_schema_by_id(getattr(type_, _BEAM_SCHEMA_ID))
     if schema is None:
       fields = [
           schema_pb2.Field(
@@ -199,7 +203,7 @@ def typing_from_runner_api(fieldtype_proto):
           [(field.name, typing_from_runner_api(field.type))
            for field in schema.fields])
 
-      user_type.id = schema.id
+      setattr(user_type, _BEAM_SCHEMA_ID, schema.id)
 
       # Define a reduce function, otherwise these types can't be pickled
       # (See BEAM-9574)
