@@ -135,10 +135,11 @@ public class BeamFnDataReadRunner<OutputT> {
   private final Coder<WindowedValue<OutputT>> coder;
 
   private final Object splittingLock = new Object();
+  private boolean started = false;
   // 0-based index of the current element being processed
-  private long index = -1;
+  private long index;
   // 0-based index of the first element to not process, aka the first element of the residual
-  private long stopIndex = Long.MAX_VALUE;
+  private long stopIndex;
   private InboundDataClient readFuture;
 
   BeamFnDataReadRunner(
@@ -165,6 +166,8 @@ public class BeamFnDataReadRunner<OutputT> {
 
     addProgressRequestCallback.accept(
         () -> {
+          // TODO(BEAM-9979): Fix race condition where reused BeamFnDataReadRunner reports
+          // read index from last bundle since registerInputLocation may have not yet been called.
           synchronized (splittingLock) {
             return ImmutableList.of(
                 new SimpleMonitoringInfoBuilder()
@@ -177,6 +180,11 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void registerInputLocation() {
+    synchronized (splittingLock) {
+      started = true;
+      index = -1;
+      stopIndex = Long.MAX_VALUE;
+    }
     this.readFuture =
         beamFnDataClient.receive(
             apiServiceDescriptor,
@@ -210,6 +218,10 @@ public class BeamFnDataReadRunner<OutputT> {
     }
 
     synchronized (splittingLock) {
+      // Don't attempt to split if we haven't started.
+      if (!started) {
+        return;
+      }
       // Since we hold the splittingLock, we guarantee that we will not pass the next element
       // to the downstream consumer. We still have a race where the downstream consumer may
       // have yet to see the element or has completed processing the element by the time
@@ -293,5 +305,9 @@ public class BeamFnDataReadRunner<OutputT> {
         processBundleInstructionIdSupplier.get(),
         pTransformId);
     readFuture.awaitCompletion();
+    synchronized (splittingLock) {
+      started = false;
+      index += 1;
+    }
   }
 }
