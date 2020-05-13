@@ -88,25 +88,4 @@ public class FhirIOTest {
   private static final long NUM_ELEMENTS = 11;
   private static final long BATCH_SIZE = 5;
 
-  private static ArrayList<KV<String, String>> createTestData() {
-    String[] scientists = {
-      "Einstein",
-      "Darwin",
-      "Copernicus",
-      "Pasteur",
-      "Curie",
-      "Faraday",
-      "Newton",
-      "Bohr",
-      "Galilei",
-      "Maxwell"
-    };
-    ArrayList<KV<String, String>> data = new ArrayList<>();
-    for (int i = 0; i < NUM_ELEMENTS; i++) {
-      int index = i % scientists.length;
-      KV<String, String> element = KV.of("key", scientists[index]);
-      data.add(element);
-    }
-    return data;
-  }
 }
