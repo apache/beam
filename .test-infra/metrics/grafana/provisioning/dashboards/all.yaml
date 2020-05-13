@@ -39,3 +39,13 @@ providers:
     updateIntervalSeconds: 3600
     options:
       path: /etc/beamgrafana/dashboards/perftests_metrics
+  - name: "Custom home dashboard"
+    orgId: 1
+    folder: 'Home'
+    folderUid: ''
+    type: file
+    disableDeletion: true
+    editable: true
+    updateIntervalSeconds: 3600
+    options:
+      path: /etc/beamgrafana/dashboards/home

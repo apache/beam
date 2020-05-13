@@ -22,10 +22,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-
 As some of you are already aware, the 2020 edition of the Beam Summit will be completely **digital and free**. And as you would expect from the Apache Beam community, it is coming in fast; the Beam Digital Summit will be from **June 15th to 19th**, one moth away! The conference will be spread across the course of one week with a couple of hours of program each day.
 
 <!--more-->
+
+<img class="center-block"
+    src="{{ site.baseurl }}/images/blog/beamsummit/beamsummit-digital.png"
+    alt="Beam Summit Digital 2020">
 
 While we would have loved to see all of you in person, we have to accept that 2020 will not be the year for that. So, we are looking at this as an opportunity to have a bigger and more inclusive event, where people who would normally not be able to travel to the summit will now be able to join, learn and share with the rest of the community.
 

@@ -126,14 +126,23 @@ func walk(id string, ret map[string]*pipepb.PTransform, seen map[string]bool) {
 
 	in := make(map[string]bool)
 	out := make(map[string]bool)
+	local := map[string]bool{id: true}
 	for _, sid := range t.Subtransforms {
 		walk(sid, ret, seen)
 		inout(ret[sid], in, out)
+		local[sid] = true
 	}
+
+	// At this point, we know all the inputs and outputs of this composite.
+	// However, outputs in this PTransform can also be used by PTransforms
+	// external to this composite. So we must check the inputs in the rest of
+	// the graph, and ensure they're counted.
+	extIn := make(map[string]bool)
+	externalIns(local, ret, extIn, out)
 
 	upd := ShallowClonePTransform(t)
 	upd.Inputs = diff(in, out)
-	upd.Outputs = diff(out, in)
+	upd.Outputs = diffAndMerge(out, in, extIn)
 	upd.Subtransforms = TopologicalSort(ret, upd.Subtransforms)
 
 	ret[id] = upd
@@ -164,6 +173,35 @@ func inout(transform *pipepb.PTransform, in, out map[string]bool) {
 	}
 	for _, col := range transform.GetOutputs() {
 		out[col] = true
+	}
+}
+func diffAndMerge(out, in, extIn map[string]bool) map[string]string {
+	ret := diff(out, in)
+	for key := range extIn {
+		if ret == nil {
+			ret = make(map[string]string)
+		}
+		ret[key] = key
+	}
+	return ret
+}
+
+// externalIns checks the unseen non-composite graph
+func externalIns(counted map[string]bool, xforms map[string]*pipepb.PTransform, extIn, out map[string]bool) {
+	for id, pt := range xforms {
+		// Ignore other composites or already counted transforms.
+		if counted[id] || len(pt.GetSubtransforms()) != 0 {
+			continue
+		}
+		// Check this PTransform's inputs for anything output by something
+		// the current composite.
+		for col := range out {
+			for _, incol := range pt.GetInputs() {
+				if col == incol {
+					extIn[col] = true
+				}
+			}
+		}
 	}
 }
 

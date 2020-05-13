@@ -346,6 +346,7 @@ private void createHDFSFileBasedIOITTestJob(testJob) {
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
     ]
+    testJob.pipelineOptions.putAll(additionalPipelineArgs)
 
     String namespace = common.getKubernetesNamespace(testJob.name)
     String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)

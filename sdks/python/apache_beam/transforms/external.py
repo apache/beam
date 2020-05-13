@@ -470,16 +470,18 @@ class ExternalTransform(ptransform.PTransform):
         environment_id=self._expanded_transform.environment_id)
 
 
-class ExpansionAndArtifactRetrievalStub(
-    beam_expansion_api_pb2_grpc.ExpansionServiceStub):
-  def __init__(self, channel, **kwargs):
-    self._channel = channel
-    self._kwargs = kwargs
-    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+if grpc is not None:
 
-  def artifact_service(self):
-    return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
-        self._channel, **self._kwargs)
+  class ExpansionAndArtifactRetrievalStub(
+      beam_expansion_api_pb2_grpc.ExpansionServiceStub):
+    def __init__(self, channel, **kwargs):
+      self._channel = channel
+      self._kwargs = kwargs
+      super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+
+    def artifact_service(self):
+      return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
+          self._channel, **self._kwargs)
 
 
 class JavaJarExpansionService(object):
