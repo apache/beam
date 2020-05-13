@@ -133,6 +133,7 @@ def typing_to_runner_api(type_):
       ]
       type_id = str(uuid4())
       schema = schema_pb2.Schema(fields=fields, id=type_id)
+      setattr(type_, _BEAM_SCHEMA_ID, type_id)
       SCHEMA_REGISTRY.add(type_, schema)
 
     return schema_pb2.FieldType(row_type=schema_pb2.RowType(schema=schema))
