@@ -929,7 +929,7 @@ public class FhirIO {
               .get(Write.TEMP_FILES)
               .apply(
                   "Shard files", // to paralelize group into batches
-                  WithKeys.of(ThreadLocalRandom.current().nextInt(0, numShards)))
+                  WithKeys.of(elm -> ThreadLocalRandom.current().nextInt(0, numShards)))
               .apply("File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
               .apply(
                   ParDo.of(new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
