@@ -191,14 +191,14 @@ class DataInputOperation(RunnerIOOperation):
             self.windowed_coder)
     ]
     self.splitting_lock = threading.Lock()
+    self.index = -1
+    self.stop = float('inf')
     self.started = False
 
   def start(self):
     # type: () -> None
     super(DataInputOperation, self).start()
     with self.splitting_lock:
-      self.index = -1
-      self.stop = float('inf')
       self.started = True
 
   def process(self, windowed_value):
@@ -317,7 +317,14 @@ class DataInputOperation(RunnerIOOperation):
   def finish(self):
     # type: () -> None
     with self.splitting_lock:
+      self.index += 1
       self.started = False
+
+  def reset(self):
+    # type: () -> None
+    self.index = -1
+    self.stop = float('inf')
+    super(DataInputOperation, self).reset()
 
 
 class _StateBackedIterable(object):
