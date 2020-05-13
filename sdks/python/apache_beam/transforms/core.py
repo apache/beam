@@ -2208,6 +2208,23 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
+  class ReifyWindows(DoFn):
+    def process(
+        self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
+      try:
+        k, v = element
+      except TypeError:
+        raise TypeCheckError(
+            'Input to GroupByKey must be a PCollection with '
+            'elements compatible with KV[A, B]')
+
+      return [(k, WindowedValue(v, timestamp, [window]))]
+
+    def infer_output_type(self, input_type):
+      key_type, value_type = trivial_inference.key_value_types(input_type)
+      return typehints.Iterable[typehints.KV[
+          key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
+
   def expand(self, pcoll):
     return pvalue.PCollection.from_(pcoll)
 
