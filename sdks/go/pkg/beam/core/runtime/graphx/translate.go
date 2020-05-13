@@ -274,7 +274,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
 	var spec *pipepb.FunctionSpec
-	var transformEnvID = ""
 	switch edge.Edge.Op {
 	case graph.Impulse:
 		spec = &pipepb.FunctionSpec{Urn: URNImpulse}
@@ -351,7 +350,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Combine:
@@ -361,11 +359,9 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNFlatten}
 
 	case graph.CoGBK:
@@ -375,7 +371,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		payload := &pipepb.WindowIntoPayload{
 			WindowFn: makeWindowFn(edge.Edge.WindowFn),
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNWindow, Payload: protox.MustEncode(payload)}
 
 	case graph.External:
@@ -383,6 +378,11 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 
 	default:
 		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Edge.Op))
+	}
+
+	var transformEnvID = ""
+	if !(spec.Urn == URNGBK || spec.Urn == URNImpulse) {
+		transformEnvID = m.addDefaultEnv()
 	}
 
 	transform := &pipepb.PTransform{

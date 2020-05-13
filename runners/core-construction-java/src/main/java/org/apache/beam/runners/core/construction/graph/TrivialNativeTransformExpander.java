@@ -46,7 +46,8 @@ public class TrivialNativeTransformExpander {
       RunnerApi.Pipeline pipeline, Set<String> knownUrns) {
     RunnerApi.Pipeline.Builder trimmedPipeline = pipeline.toBuilder();
     for (String ptransformId : pipeline.getComponents().getTransformsMap().keySet()) {
-      // Skip over previously removed transforms from the original pipeline.
+      // Skip over previously removed transforms from the original pipeline since we iterate
+      // over all transforms from the original pipeline and not the trimmed down version.
       RunnerApi.PTransform currentTransform =
           trimmedPipeline.getComponents().getTransformsOrDefault(ptransformId, null);
       if (currentTransform != null && knownUrns.contains(currentTransform.getSpec().getUrn())) {
