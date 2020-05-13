@@ -357,25 +357,20 @@ public class FlattenTest implements Serializable {
   public void testFlattenWithDifferentInputAndOutputCoders() {
     // This test exists to prevent a regression in Dataflow. It tests a
     // GroupByKey preceded by a Flatten with an SDK-specific input coder.
-    PCollection<KV<String, String>> output = p.apply(Create.of(LINES)).apply(WithKeys.of("a"));
-    output.setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, String>>() {}));
-
-    PCollection<KV<String, String>> output2 =
-        PCollectionList.of(output).apply(Flatten.pCollections());
-    output2.setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
-    PCollection<String> output3 =
-        output2
+    PCollection<KV<String, String>> flattenInput =
+        p.apply(Create.of(LINES))
+            .apply(WithKeys.of("a"))
+            .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, String>>() {}));
+    PCollection<String> output =
+        PCollectionList.of(flattenInput)
+            .apply(Flatten.pCollections())
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .apply(GroupByKey.create())
             .apply(Values.create())
             .apply(
-                FlatMapElements.via(
-                    new SimpleFunction<Iterable<String>, Iterable<String>>() {
-                      @Override
-                      public Iterable<String> apply(Iterable<String> input) {
-                        return input;
-                      }
-                    }));
-    PAssert.that(output3).containsInAnyOrder(LINES);
+                FlatMapElements.into(TypeDescriptors.strings())
+                    .via((Iterable<String> values) -> values));
+    PAssert.that(output).containsInAnyOrder(LINES);
     p.run();
   }
 
@@ -384,13 +379,13 @@ public class FlattenTest implements Serializable {
   public void testFlattenWithDifferentInputAndOutputCoders2() {
     // This test exists to prevent a regression in Dataflow. It tests a
     // GroupByKey followed by a Flatten with an SDK-specific output coder.
-    PCollection<KV<String, Iterable<String>>> flatten_input =
+    PCollection<KV<String, Iterable<String>>> flattenInput =
         p.apply(Create.of(LINES))
             .apply(WithKeys.of("a"))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
             .apply(GroupByKey.create());
     PCollection<String> output =
-        PCollectionList.of(flatten_input)
+        PCollectionList.of(flattenInput)
             .apply(Flatten.pCollections())
             .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, Iterable<String>>>() {}))
             .apply(Values.create())
