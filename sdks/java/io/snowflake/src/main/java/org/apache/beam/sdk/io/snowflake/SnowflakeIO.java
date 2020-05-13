@@ -59,8 +59,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>SnowflakeIO uses <a href="https://docs.snowflake.net/manuals/user-guide/jdbc.html">Snowflake
  * JDBC</a> driver under the hood, but data isn't read/written using JDBC directly. Instead,
- * SnowflakeIO uses dedicated <b>COPY</b> operations to read/write data from/to a cloud bucket.
- * By now only Google Cloud Storage is supported.
+ * SnowflakeIO uses dedicated <b>COPY</b> operations to read/write data from/to a cloud bucket. By
+ * now only Google Cloud Storage is supported.
  *
  * <p>To configure SnowflakeIO to read/write from your Snowflake instance, you have to provide a
  * {@link DataSourceConfiguration} using {@link

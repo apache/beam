@@ -245,7 +245,7 @@ public class SnowflakeIOReadTest {
   }
 
   @Test
-  public void testConfigIsProper() {
+  public void testReadWithConfigIsProper() {
     PCollection<GenericRecord> items =
         pipeline.apply(
             SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
