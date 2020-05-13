@@ -51,9 +51,7 @@ from apache_beam.transforms.core import CombineValuesDoFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.window import WindowedValue
 from apache_beam.typehints import trivial_inference
-from apache_beam.typehints.decorators import TypeCheckError
 
 # Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
 # experimental and have no backwards compatibility guarantees.
@@ -227,23 +225,6 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
 @typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
 class _GroupByKey(PTransform):
   """The DirectRunner GroupByKey implementation."""
-  class ReifyWindows(DoFn):
-    def process(
-        self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
-      try:
-        k, v = element
-      except TypeError:
-        raise TypeCheckError(
-            'Input to GroupByKey must be a PCollection with '
-            'elements compatible with KV[A, B]')
-
-      return [(k, WindowedValue(v, timestamp, [window]))]
-
-    def infer_output_type(self, input_type):
-      key_type, value_type = trivial_inference.key_value_types(input_type)
-      return typehints.Iterable[typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
-
   def expand(self, pcoll):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
@@ -274,8 +255,9 @@ class _GroupByKey(PTransform):
       # pylint: disable=bad-continuation
       return (
           pcoll
-          | 'ReifyWindows' >>
-          (ParDo(self.ReifyWindows()).with_output_types(reify_output_type))
+          | 'ReifyWindows' >> (
+              ParDo(beam.GroupByKey.ReifyWindows()).with_output_types(
+                  reify_output_type))
           | 'GroupByKey' >> (
               _GroupByKeyOnly().with_input_types(
                   reify_output_type).with_output_types(gbk_input_type))
@@ -287,7 +269,7 @@ class _GroupByKey(PTransform):
       # The input_type is None, run the default
       return (
           pcoll
-          | 'ReifyWindows' >> ParDo(self.ReifyWindows())
+          | 'ReifyWindows' >> ParDo(beam.GroupByKey.ReifyWindows())
           | 'GroupByKey' >> _GroupByKeyOnly()
           | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
