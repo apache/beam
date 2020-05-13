@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io.snowflake;
 
-import java.io.IOException;
+public enum CloudProvider {
+  GCS("gs://");
 
-/** Interface which defines common methods for cloud providers. */
-public interface SnowflakeCloudProvider {
-  void removeFiles(String bucketName, String pathOnBucket) throws IOException;
+  private final String prefix;
 
-  String formatCloudPath(String... pathSteps);
+  private CloudProvider(String prefix) {
+    this.prefix = prefix;
+  }
 
-  String transformSnowflakePathToCloudPath(String path);
+  public String getPrefix() {
+    return prefix;
+  }
 }

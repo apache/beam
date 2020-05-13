@@ -30,13 +30,17 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.snowflake.credentials.KeyPairSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.OAuthTokenSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
@@ -121,18 +125,15 @@ public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
 
   private static final String CSV_QUOTE_CHAR = "'";
-
   /**
    * Read data from Snowflake.
    *
    * @param snowflakeService user-defined {@link SnowflakeService}
    * @param <T> Type of the data to be read.
    */
-  public static <T> Read<T> read(
-      SnowflakeService snowflakeService, SnowflakeCloudProvider snowflakeCloudProvider) {
+  public static <T> Read<T> read(SnowflakeService snowflakeService) {
     return new AutoValue_SnowflakeIO_Read.Builder<T>()
         .setSnowflakeService(snowflakeService)
-        .setSnowflakeCloudProvider(snowflakeCloudProvider)
         .build();
   }
 
@@ -142,7 +143,7 @@ public class SnowflakeIO {
    * @param <T> Type of the data to be read.
    */
   public static <T> Read<T> read() {
-    return read(new SnowflakeServiceImpl(), new GCSProvider());
+    return read(new SnowflakeServiceImpl());
   }
 
   /**
@@ -183,9 +184,6 @@ public class SnowflakeIO {
     @Nullable
     abstract SnowflakeService getSnowflakeService();
 
-    @Nullable
-    abstract SnowflakeCloudProvider getSnowflakeCloudProvider();
-
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -206,8 +204,6 @@ public class SnowflakeIO {
       abstract Builder<T> setCoder(Coder<T> coder);
 
       abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
-
-      abstract Builder<T> setSnowflakeCloudProvider(SnowflakeCloudProvider snowflakeCloudProvider);
 
       abstract Read<T> build();
     }
@@ -313,6 +309,8 @@ public class SnowflakeIO {
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
       String gcpTmpDirName = makeTmpDirName();
+      String stagingBucketDir = String.format("%s/%s/", getStagingBucketName(), gcpTmpDirName);
+
       PCollection<Void> emptyCollection = input.apply(Create.of((Void) null));
 
       PCollection<T> output =
@@ -324,10 +322,8 @@ public class SnowflakeIO {
                           getQuery(),
                           getTable(),
                           getIntegrationName(),
-                          getStagingBucketName(),
-                          gcpTmpDirName,
-                          getSnowflakeService(),
-                          getSnowflakeCloudProvider())))
+                          stagingBucketDir,
+                          getSnowflakeService())))
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches())
               .apply(readFiles())
@@ -338,10 +334,7 @@ public class SnowflakeIO {
 
       emptyCollection
           .apply(Wait.on(output))
-          .apply(
-              ParDo.of(
-                  new CleanTmpFilesFromGcsFn(
-                      getStagingBucketName(), gcpTmpDirName, getSnowflakeCloudProvider())));
+          .apply(ParDo.of(new CleanTmpFilesFromGcsFn(stagingBucketDir)));
 
       return output;
     }
@@ -359,42 +352,29 @@ public class SnowflakeIO {
       private final String query;
       private final String table;
       private final String integrationName;
-      private final String stagingBucketName;
-      private final String tmpDirName;
+      private final String stagingBucketDir;
       private final SnowflakeService snowflakeService;
-      private final SnowflakeCloudProvider cloudProvider;
 
       private CopyIntoStageFn(
           SerializableFunction<Void, DataSource> dataSourceProviderFn,
           String query,
           String table,
           String integrationName,
-          String stagingBucketName,
-          String tmpDirName,
-          SnowflakeService snowflakeService,
-          SnowflakeCloudProvider cloudProvider) {
+          String stagingBucketDir,
+          SnowflakeService snowflakeService) {
         this.dataSourceProviderFn = dataSourceProviderFn;
         this.query = query;
         this.table = table;
         this.integrationName = integrationName;
-        this.stagingBucketName = stagingBucketName;
-        this.tmpDirName = tmpDirName;
+        this.stagingBucketDir = stagingBucketDir;
         this.snowflakeService = snowflakeService;
-        this.cloudProvider = cloudProvider;
       }
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        String stagingBucketDir = this.cloudProvider.formatCloudPath(stagingBucketName, tmpDirName);
         String output =
             snowflakeService.copyIntoStage(
-                dataSourceProviderFn,
-                query,
-                table,
-                integrationName,
-                stagingBucketDir,
-                tmpDirName,
-                this.cloudProvider);
+                dataSourceProviderFn, query, table, integrationName, stagingBucketDir);
 
         context.output(output);
       }
@@ -424,20 +404,21 @@ public class SnowflakeIO {
     }
 
     public static class CleanTmpFilesFromGcsFn extends DoFn<Object, Object> {
-      private final String bucketName;
-      private final String bucketPath;
-      private final SnowflakeCloudProvider snowflakeCloudProvider;
+      private final String stagingBucketDir;
 
-      public CleanTmpFilesFromGcsFn(
-          String bucketName, String bucketPath, SnowflakeCloudProvider snowflakeCloudProvider) {
-        this.bucketName = bucketName;
-        this.bucketPath = bucketPath;
-        this.snowflakeCloudProvider = snowflakeCloudProvider;
+      public CleanTmpFilesFromGcsFn(String stagingBucketDir) {
+        this.stagingBucketDir = stagingBucketDir;
       }
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        snowflakeCloudProvider.removeFiles(bucketName, bucketPath);
+        String combinedPath = stagingBucketDir + "*";
+        List<ResourceId> paths =
+            FileSystems.match(combinedPath).metadata().stream()
+                .map(metadata -> metadata.resourceId())
+                .collect(Collectors.toList());
+
+        FileSystems.delete(paths);
       }
     }
 

@@ -31,8 +31,6 @@ public interface SnowflakeService extends Serializable {
       String query,
       String table,
       String integrationName,
-      String stagingBucketName,
-      String tmpDirName,
-      SnowflakeCloudProvider cloudProvider)
+      String stagingBucketDir)
       throws SQLException;
 }

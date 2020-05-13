@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
  * Implemenation of {@link org.apache.beam.sdk.io.snowflake.SnowflakeService} used in production.
  */
 public class SnowflakeServiceImpl implements SnowflakeService {
+  private static final String SNOWFLAKE_GCS_PREFIX = "gcs://";
 
   @Override
   public String copyIntoStage(
@@ -36,9 +37,7 @@ public class SnowflakeServiceImpl implements SnowflakeService {
       String query,
       String table,
       String integrationName,
-      String stagingBucketName,
-      String tmpDirName,
-      SnowflakeCloudProvider cloudProvider)
+      String stagingBucketDir)
       throws SQLException {
 
     String from;
@@ -52,11 +51,11 @@ public class SnowflakeServiceImpl implements SnowflakeService {
     String copyQuery =
         String.format(
             "COPY INTO '%s' FROM %s STORAGE_INTEGRATION=%s FILE_FORMAT=(TYPE=CSV COMPRESSION=GZIP FIELD_OPTIONALLY_ENCLOSED_BY='%s');",
-            stagingBucketName, from, integrationName, CSV_QUOTE_CHAR_FOR_COPY);
+            getProperBucketDir(stagingBucketDir), from, integrationName, CSV_QUOTE_CHAR_FOR_COPY);
 
     runStatement(copyQuery, getConnection(dataSourceProviderFn), null);
 
-    return cloudProvider.transformSnowflakePathToCloudPath(stagingBucketName).concat("*");
+    return stagingBucketDir.concat("*");
   }
 
   private static void runStatement(String query, Connection connection, Consumer resultSetMethod)
@@ -79,5 +78,13 @@ public class SnowflakeServiceImpl implements SnowflakeService {
       throws SQLException {
     DataSource dataSource = dataSourceProviderFn.apply(null);
     return dataSource.getConnection();
+  }
+
+  // Snowflake is expecting "gcs://" prefix for GCS and Beam "gs://"
+  private String getProperBucketDir(String bucketDir) {
+    if (bucketDir.contains(CloudProvider.GCS.getPrefix())) {
+      return bucketDir.replace(CloudProvider.GCS.getPrefix(), SNOWFLAKE_GCS_PREFIX);
+    }
+    return bucketDir;
   }
 }

@@ -24,7 +24,6 @@ import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.List;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.io.snowflake.SnowflakeCloudProvider;
 import org.apache.beam.sdk.io.snowflake.SnowflakeService;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
@@ -39,9 +38,7 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService {
       String query,
       String table,
       String integrationName,
-      String stagingBucketName,
-      String tmpDirName,
-      SnowflakeCloudProvider cloudProvider)
+      String stagingBucketName)
       throws SQLException {
 
     writeToFile(stagingBucketName, FakeSnowflakeDatabase.getElements(table));

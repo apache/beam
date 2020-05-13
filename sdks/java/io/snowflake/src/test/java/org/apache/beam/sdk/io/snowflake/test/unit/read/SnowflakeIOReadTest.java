@@ -24,11 +24,9 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.io.AvroGeneratedUser;
-import org.apache.beam.sdk.io.snowflake.SnowflakeCloudProvider;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.SnowflakeService;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeBasicDataSource;
-import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeCloudProvider;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeDatabase;
 import org.apache.beam.sdk.io.snowflake.test.FakeSnowflakeServiceImpl;
 import org.apache.beam.sdk.io.snowflake.test.unit.BatchTestPipelineOptions;
@@ -59,7 +57,6 @@ public class SnowflakeIOReadTest {
   private static BatchTestPipelineOptions options;
 
   private static SnowflakeService snowflakeService;
-  private static SnowflakeCloudProvider snowflakeCloudProvider;
 
   private static String stagingBucketName;
   private static String integrationName;
@@ -93,7 +90,6 @@ public class SnowflakeIOReadTest {
             .withServerName(options.getServerName());
 
     snowflakeService = new FakeSnowflakeServiceImpl();
-    snowflakeCloudProvider = new FakeSnowflakeCloudProvider();
   }
 
   @Rule
@@ -118,7 +114,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("withStagingBucketName() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withIntegrationName(integrationName)
@@ -134,7 +130,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("withIntegrationName() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(stagingBucketName)
@@ -150,7 +146,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("withCsvMapper() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(stagingBucketName)
@@ -166,7 +162,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("withCoder() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(stagingBucketName)
@@ -182,7 +178,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("fromTable() or fromQuery() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .withStagingBucketName(stagingBucketName)
             .withIntegrationName(integrationName)
@@ -199,7 +195,7 @@ public class SnowflakeIOReadTest {
         "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .fromTable(FAKE_TABLE)
             .withStagingBucketName(stagingBucketName)
             .withIntegrationName(integrationName)
@@ -215,7 +211,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("fromTable() and fromQuery() are not allowed together");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("")
             .fromTable(FAKE_TABLE)
@@ -233,7 +229,7 @@ public class SnowflakeIOReadTest {
     exceptionRule.expectMessage("SQL compilation error: Table does not exist");
 
     pipeline.apply(
-        SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+        SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable("NON_EXIST")
             .withStagingBucketName(stagingBucketName)
@@ -248,7 +244,7 @@ public class SnowflakeIOReadTest {
   public void testReadWithConfigIsProper() {
     PCollection<GenericRecord> items =
         pipeline.apply(
-            SnowflakeIO.<GenericRecord>read(snowflakeService, snowflakeCloudProvider)
+            SnowflakeIO.<GenericRecord>read(snowflakeService)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromTable(FAKE_TABLE)
                 .withStagingBucketName(stagingBucketName)

@@ -18,12 +18,6 @@
 package org.apache.beam.sdk.io.snowflake.test;
 
 import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Comparator;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,14 +36,5 @@ public class TestUtils {
 
   public static String getPrivateKeyPassphrase() {
     return PRIVATE_KEY_PASSPHRASE;
-  }
-
-  public static void removeTempDir(String dir) {
-    Path path = Paths.get(dir);
-    try (Stream<Path> stream = Files.walk(path)) {
-      stream.sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete);
-    } catch (IOException e) {
-      LOG.info("Not able to remove files");
-    }
   }
 }
