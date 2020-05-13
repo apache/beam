@@ -818,9 +818,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
               !cleanupTime.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE),
               "Cleanup time %s is beyond end-of-time",
               cleanupTime);
-          directContext
-              .timers()
-              .setTimer(cleanupTime, cleanupTime.minus(1L), TimeDomain.EVENT_TIME);
+          directContext.timers().setTimer(cleanupTime, TimeDomain.EVENT_TIME);
         }
       }
     }
