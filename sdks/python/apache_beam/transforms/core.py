@@ -2208,23 +2208,6 @@ class GroupByKey(PTransform):
 
   The implementation here is used only when run on the local direct runner.
   """
-  class ReifyWindows(DoFn):
-    def process(
-        self, element, window=DoFn.WindowParam, timestamp=DoFn.TimestampParam):
-      try:
-        k, v = element
-      except TypeError:
-        raise TypeCheckError(
-            'Input to GroupByKey must be a PCollection with '
-            'elements compatible with KV[A, B]')
-
-      return [(k, WindowedValue(v, timestamp, [window]))]
-
-    def infer_output_type(self, input_type):
-      key_type, value_type = trivial_inference.key_value_types(input_type)
-      return typehints.Iterable[typehints.KV[
-          key_type, typehints.WindowedValue[value_type]]]  # type: ignore[misc]
-
   def expand(self, pcoll):
     return pvalue.PCollection.from_(pcoll)
 
@@ -2245,57 +2228,6 @@ class GroupByKey(PTransform):
 
   def runner_api_requires_keyed_input(self):
     return True
-
-
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
-class _GroupByKeyOnly(PTransform):
-  """A group by key transform, ignoring windows."""
-  def infer_output_type(self, input_type):
-    key_type, value_type = trivial_inference.key_value_types(input_type)
-    return typehints.KV[key_type, typehints.Iterable[value_type]]
-
-  def expand(self, pcoll):
-    self._check_pcollection(pcoll)
-    return pvalue.PCollection.from_(pcoll)
-
-
-@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
-@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
-class _GroupAlsoByWindow(ParDo):
-  """The GroupAlsoByWindow transform."""
-  def __init__(self, windowing):
-    super(_GroupAlsoByWindow, self).__init__(_GroupAlsoByWindowDoFn(windowing))
-    self.windowing = windowing
-
-  def expand(self, pcoll):
-    self._check_pcollection(pcoll)
-    return pvalue.PCollection.from_(pcoll)
-
-
-class _GroupAlsoByWindowDoFn(DoFn):
-  # TODO(robertwb): Support combiner lifting.
-
-  def __init__(self, windowing):
-    super(_GroupAlsoByWindowDoFn, self).__init__()
-    self.windowing = windowing
-
-  def infer_output_type(self, input_type):
-    key_type, windowed_value_iter_type = trivial_inference.key_value_types(
-        input_type)
-    value_type = windowed_value_iter_type.inner_type.inner_type
-    return typehints.Iterable[typehints.KV[key_type,
-                                           typehints.Iterable[value_type]]]
-
-  def start_bundle(self):
-    # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.trigger import create_trigger_driver
-    # pylint: enable=wrong-import-order, wrong-import-position
-    self.driver = create_trigger_driver(self.windowing, True)
-
-  def process(self, element):
-    k, vs = element
-    return self.driver.process_entire_key(k, vs)
 
 
 class Partition(PTransformWithSideInputs):
