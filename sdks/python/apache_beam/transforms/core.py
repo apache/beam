@@ -1349,7 +1349,7 @@ class ParDo(PTransformWithSideInputs):
     return key_coder, window_coder
 
   def to_runner_api_parameter(self, context, **extra_kwargs):
-    # type: (PipelineContext) -> typing.Tuple[str, message.Message]
+    # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
     assert isinstance(self, ParDo), \
         "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
@@ -2242,11 +2242,10 @@ class GroupByKey(PTransform):
       reify_output_type = typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
       gbk_input_type = (
-          typehints.
-          KV[key_type,
-             typehints.Iterable[
-                 typehints.WindowedValue[  # type: ignore[misc]
-                     value_type]]])
+          typehints.KV[
+              key_type,
+              typehints.Iterable[typehints.WindowedValue[  # type: ignore[misc]
+                  value_type]]])
       gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
 
       # pylint: disable=bad-continuation
@@ -2565,7 +2564,7 @@ class WindowInto(ParDo):
     return super(WindowInto, self).expand(pcoll)
 
   def to_runner_api_parameter(self, context, **extra_kwargs):
-    # type: (PipelineContext) -> typing.Tuple[str, message.Message]
+    # type: (PipelineContext, Any) -> typing.Tuple[str, message.Message]
     return (
         common_urns.primitives.ASSIGN_WINDOWS.urn,
         self.windowing.to_runner_api(context))

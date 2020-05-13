@@ -44,6 +44,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TAB
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIMESTAMP_TABLE_TWO;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TestInput.TIME_TABLE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DATETIME;
+import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import com.google.zetasql.SqlException;
@@ -56,7 +57,11 @@ import com.google.zetasql.ZetaSQLValue.ValueProto;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.extensions.sql.SqlTransform;
+import org.apache.beam.sdk.extensions.sql.impl.BeamSqlPipelineOptions;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcConnection;
 import org.apache.beam.sdk.extensions.sql.impl.JdbcDriver;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
@@ -122,6 +127,68 @@ public class ZetaSQLDialectSpecTest {
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("field1")
+            .addDateTimeField("field2")
+            .addStringField("field3")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(
+                    1243L,
+                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
+                    "string")
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  // Verify that we can set the query planner via withQueryPlannerClass
+  @Test
+  public void testWithQueryPlannerClass() {
+    String sql =
+        "SELECT CAST (1243 as INT64), "
+            + "CAST ('2018-09-15 12:59:59.000000+00' as TIMESTAMP), "
+            + "CAST ('string' as STRING);";
+
+    PCollection<Row> stream =
+        pipeline.apply(SqlTransform.query(sql).withQueryPlannerClass(ZetaSQLQueryPlanner.class));
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("field1")
+            .addDateTimeField("field2")
+            .addStringField("field3")
+            .build();
+
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(
+                    1243L,
+                    new DateTime(2018, 9, 15, 12, 59, 59, ISOChronology.getInstanceUTC()),
+                    "string")
+                .build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  // Verify that we can set the query planner via pipeline options
+  @Test
+  public void testPlannerNamePipelineOption() {
+    pipeline
+        .getOptions()
+        .as(BeamSqlPipelineOptions.class)
+        .setPlannerName("org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner");
+
+    String sql =
+        "SELECT CAST (1243 as INT64), "
+            + "CAST ('2018-09-15 12:59:59.000000+00' as TIMESTAMP), "
+            + "CAST ('string' as STRING);";
+
+    PCollection<Row> stream = pipeline.apply(SqlTransform.query(sql));
     final Schema schema =
         Schema.builder()
             .addInt64Field("field1")
@@ -1323,6 +1390,19 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testZetaSQLSelectFromTableOrderLimit() {
+    String sql =
+        "SELECT x, y FROM (SELECT 1 as x, 0 as y UNION ALL SELECT 0, 0 "
+            + "UNION ALL SELECT 1, 0 UNION ALL SELECT 1, 1) ORDER BY x LIMIT 1";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    final Schema schema = Schema.builder().addInt64Field("field1").addInt64Field("field2").build();
+    PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(0L, 0L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testZetaSQLSelectFromTableLimitOffset() {
     String sql =
         "SELECT COUNT(a) FROM (\n"
@@ -1493,6 +1573,36 @@ public class ZetaSQLDialectSpecTest {
             Row.withSchema(schema).addValues(1L, 1L).build(),
             Row.withSchema(schema).addValues(2L, 1L).build(),
             Row.withSchema(schema).addValues(3L, 2L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLAnyValueInGroupBy() {
+    String sql =
+        "SELECT rowCol.row_id as key, ANY_VALUE(rowCol.data) as any_value FROM table_with_struct_two GROUP BY rowCol.row_id";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    Map<Long, List<String>> allowedTuples = new HashMap<>();
+    allowedTuples.put(1L, Arrays.asList("data1"));
+    allowedTuples.put(2L, Arrays.asList("data2"));
+    allowedTuples.put(3L, Arrays.asList("data2", "data3"));
+
+    PAssert.that(stream)
+        .satisfies(
+            input -> {
+              Iterator<Row> iter = input.iterator();
+              while (iter.hasNext()) {
+                Row row = iter.next();
+                List<String> values = allowedTuples.remove(row.getInt64("key"));
+                assertTrue(values != null);
+                assertTrue(values.contains(row.getString("any_value")));
+              }
+              assertTrue(allowedTuples.isEmpty());
+              return null;
+            });
+
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
@@ -2981,6 +3091,36 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testNamedUNNESTLiteralOffset() {
+    String sql = "SELECT x, p FROM UNNEST([3, 4]) AS x WITH OFFSET p";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    thrown.expect(UnsupportedOperationException.class);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+  }
+
+  @Test
+  public void testUnnestArrayColumn() {
+    String sql =
+        "SELECT p FROM table_with_array_for_unnest, UNNEST(table_with_array_for_unnest.int_array_col) as p";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addInt64Field("int_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValue(14L).build(),
+            Row.withSchema(schema).addValue(18L).build(),
+            Row.withSchema(schema).addValue(22L).build(),
+            Row.withSchema(schema).addValue(24L).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   @Ignore("Seeing exception in Beam, need further investigation on the cause of this failed query.")
   public void testNamedUNNESTJoin() {
     String sql =
@@ -2997,6 +3137,44 @@ public class ZetaSQLDialectSpecTest {
     PAssert.that(stream).containsInAnyOrder();
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUnnestJoinStruct() {
+    String sql =
+        "SELECT b, x FROM UNNEST("
+            + "[STRUCT(true AS b, [3, 5] AS arr), STRUCT(false AS b, [7, 9] AS arr)]) t "
+            + "LEFT JOIN UNNEST(t.arr) x ON b";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUnnestJoinLiteral() {
+    String sql =
+        "SELECT a, b "
+            + "FROM UNNEST([1, 1, 2, 3, 5, 8, 13, NULL]) a "
+            + "JOIN UNNEST([1, 2, 3, 5, 7, 11, 13, NULL]) b "
+            + "ON a = b";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUnnestJoinSubquery() {
+    String sql =
+        "SELECT a, b "
+            + "FROM UNNEST([1, 2, 3]) a "
+            + "JOIN UNNEST(ARRAY(SELECT b FROM UNNEST([3, 2, 1]) b)) b "
+            + "ON a = b";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(UnsupportedOperationException.class);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
   @Test

@@ -26,6 +26,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
@@ -51,6 +52,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
@@ -1154,7 +1156,10 @@ public class SpannerIO {
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      if (batchCells > 0) {
+      // Only output when there is something in the batch.
+      if (mutationsToSort.isEmpty()) {
+        mutationsToSort = null;
+      } else {
         c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
       }
     }
@@ -1319,6 +1324,13 @@ public class SpannerIO {
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
 
+    /* Number of times an aborted write to spanner could be retried */
+    private static final int ABORTED_RETRY_ATTEMPTS = 5;
+    /* Error string in Aborted exception during schema change */
+    private final String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
     @VisibleForTesting static Sleeper sleeper = Sleeper.DEFAULT;
 
     private final Counter mutationGroupBatchesReceived =
@@ -1339,8 +1351,8 @@ public class SpannerIO {
         Metrics.counter(WriteGrouped.class, "spanner_write_success");
     private final Counter spannerWriteFail =
         Metrics.counter(WriteGrouped.class, "spanner_write_fail");
-    private final Counter spannerWriteTotalLatency =
-        Metrics.counter(WriteGrouped.class, "spanner_write_total_latency_ms");
+    private final Distribution spannerWriteLatency =
+        Metrics.distribution(WriteGrouped.class, "spanner_write_latency_ms");
     private final Counter spannerWriteTimeouts =
         Metrics.counter(WriteGrouped.class, "spanner_write_timeouts");
     private final Counter spannerWriteRetries =
@@ -1411,6 +1423,28 @@ public class SpannerIO {
       }
     }
 
+    /*
+     Spanner aborts all inflight transactions during a schema change. Client is expected
+     to retry silently. These must not be counted against retry backoff.
+    */
+    private void spannerWriteWithRetryIfSchemaChange(Iterable<Mutation> batch)
+        throws SpannerException {
+      for (int retry = 1; ; retry++) {
+        try {
+          spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+          return;
+        } catch (AbortedException e) {
+          if (retry >= ABORTED_RETRY_ATTEMPTS) {
+            throw e;
+          }
+          if (e.isRetryable() || e.getMessage().contains(errString)) {
+            continue;
+          }
+          throw e;
+        }
+      }
+    }
+
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */
     private void writeMutations(Iterable<Mutation> mutations) throws SpannerException, IOException {
       BackOff backoff = bundleWriteBackoff.backoff();
@@ -1420,7 +1454,7 @@ public class SpannerIO {
         Stopwatch timer = Stopwatch.createStarted();
         // loop is broken on success, timeout backoff/retry attempts exceeded, or other failure.
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnce(mutations);
+          spannerWriteWithRetryIfSchemaChange(mutations);
           spannerWriteSuccess.inc();
           return;
         } catch (SpannerException exception) {
@@ -1456,7 +1490,7 @@ public class SpannerIO {
             throw exception;
           }
         } finally {
-          spannerWriteTotalLatency.inc(timer.elapsed(TimeUnit.MILLISECONDS));
+          spannerWriteLatency.update(timer.elapsed(TimeUnit.MILLISECONDS));
         }
       }
     }

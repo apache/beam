@@ -43,7 +43,7 @@ func Stage(ctx context.Context, id, endpoint, binary, st string) (retrievalToken
 		return "", nil
 	}
 
-  return StageViaLegacyApi(ctx, cc, binary, st)
+	return StageViaLegacyApi(ctx, cc, binary, st)
 }
 
 func StageViaPortableApi(ctx context.Context, cc *grpc.ClientConn, binary, st string) error {

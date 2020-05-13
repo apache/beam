@@ -413,6 +413,42 @@ public class FlinkExecutionEnvironmentsTest {
   }
 
   @Test
+  public void shouldAutoSetIdleSourcesFlagWithoutCheckpointing() {
+    // Checkpointing disabled, shut down sources immediately
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    assertThat(options.getShutdownSourcesAfterIdleMs(), is(0L));
+  }
+
+  @Test
+  public void shouldAutoSetIdleSourcesFlagWithCheckpointing() {
+    // Checkpointing is enabled, never shut down sources
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setCheckpointingInterval(1000L);
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    assertThat(options.getShutdownSourcesAfterIdleMs(), is(Long.MAX_VALUE));
+  }
+
+  @Test
+  public void shouldAcceptExplicitlySetIdleSourcesFlagWithoutCheckpointing() {
+    // Checkpointing disabled, accept flag
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setShutdownSourcesAfterIdleMs(42L);
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    assertThat(options.getShutdownSourcesAfterIdleMs(), is(42L));
+  }
+
+  @Test
+  public void shouldAcceptExplicitlySetIdleSourcesFlagWithCheckpointing() {
+    // Checkpointing enable, still accept flag
+    FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);
+    options.setCheckpointingInterval(1000L);
+    options.setShutdownSourcesAfterIdleMs(42L);
+    FlinkExecutionEnvironments.createStreamExecutionEnvironment(options, Collections.emptyList());
+    assertThat(options.getShutdownSourcesAfterIdleMs(), is(42L));
+  }
+
+  @Test
   public void shouldSetSavepointRestoreForRemoteStreaming() {
     String path = "fakePath";
     FlinkPipelineOptions options = PipelineOptionsFactory.as(FlinkPipelineOptions.class);

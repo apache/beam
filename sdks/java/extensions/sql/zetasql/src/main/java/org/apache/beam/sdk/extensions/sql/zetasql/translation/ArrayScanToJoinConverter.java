@@ -29,6 +29,7 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.JoinRe
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Uncollect;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexInputRef;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
@@ -43,7 +44,9 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
   /** This is the case of {@code table [LEFT|INNER] JOIN UNNEST(table.array_field) on join_expr}. */
   @Override
   public boolean canConvert(ResolvedArrayScan zetaNode) {
-    return zetaNode.getInputScan() != null && zetaNode.getJoinExpr() != null;
+    return zetaNode.getArrayExpr() instanceof ResolvedColumnRef
+        && zetaNode.getInputScan() != null
+        && zetaNode.getJoinExpr() != null;
   }
 
   /** Left input is converted from input scan. */
@@ -80,14 +83,27 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
         LogicalProject.create(createOneRow(getCluster()), projects, ImmutableList.of(columnName));
 
     // Create an UnCollect
-    // TODO: how to handle ordinality.
-    Uncollect uncollectNode = Uncollect.create(projectNode.getTraitSet(), projectNode, false);
-    // The InputRef should only be 0 because Uncollect has only one field.
-    RelNode rightInput =
-        LogicalProject.create(
-            uncollectNode,
-            ImmutableList.of(getCluster().getRexBuilder().makeInputRef(uncollectNode, 0)),
-            ImmutableList.of(columnName));
+    boolean ordinality = (zetaNode.getArrayOffsetColumn() != null);
+
+    // These asserts guaranteed by the parser code, but not the data structure.
+    // If they aren't true we need the Project to reorder columns.
+    assert zetaNode.getElementColumn().getId() == 1;
+    assert !ordinality || zetaNode.getArrayOffsetColumn().getColumn().getId() == 2;
+    Uncollect uncollectNode = Uncollect.create(projectNode.getTraitSet(), projectNode, ordinality);
+
+    List<RexInputRef> rightProjects = new ArrayList<>();
+    List<String> rightNames = new ArrayList<>();
+    rightProjects.add(getCluster().getRexBuilder().makeInputRef(uncollectNode, 0));
+    rightNames.add(columnName);
+    if (ordinality) {
+      rightProjects.add(getCluster().getRexBuilder().makeInputRef(uncollectNode, 1));
+      rightNames.add(
+          String.format(
+              zetaNode.getArrayOffsetColumn().getColumn().getTableName(),
+              zetaNode.getArrayOffsetColumn().getColumn().getName()));
+    }
+
+    RelNode rightInput = LogicalProject.create(uncollectNode, rightProjects, rightNames);
 
     // Join condition should be a RexNode converted from join_expr.
     RexNode condition =

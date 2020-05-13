@@ -161,11 +161,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     StateInternals stateInternals = stepContext.stateInternals();
     TimerInternals timerInternals = stepContext.timerInternals();
 
-    Instant outputWatermark =
+    Instant inputWatermark =
         MoreObjects.firstNonNull(
-            timerInternals.currentOutputWatermarkTime(), BoundedWindow.TIMESTAMP_MIN_VALUE);
+            timerInternals.currentInputWatermarkTime(), BoundedWindow.TIMESTAMP_MIN_VALUE);
 
-    if (!outputWatermark.isAfter(
+    if (!inputWatermark.isAfter(
         value.getTimestamp().plus(windowingStrategy.getAllowedLateness()))) {
 
       StateNamespace namespace = StateNamespaces.window(windowCoder, window);

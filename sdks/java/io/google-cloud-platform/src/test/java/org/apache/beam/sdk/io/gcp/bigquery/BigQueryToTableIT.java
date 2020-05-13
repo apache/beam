@@ -45,7 +45,6 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.Validation;
-import org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -59,7 +58,6 @@ import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
@@ -321,48 +319,6 @@ public class BigQueryToTableIT {
         project + ":" + BIG_QUERY_DATASET_ID + "." + "testStandardQueryWithoutCustom";
 
     this.runBigQueryToTablePipeline(setupStandardQueryTest(outputTable));
-
-    this.verifyStandardQueryRes(outputTable);
-  }
-
-  @Test
-  @Category(DataflowPortabilityApiUnsupported.class)
-  public void testNewTypesQueryWithoutReshuffleWithCustom() throws Exception {
-    final String outputTable =
-        project + ":" + BIG_QUERY_DATASET_ID + "." + "testNewTypesQueryWithoutReshuffleWithCustom";
-    BigQueryToTableOptions options = this.setupNewTypesQueryTest(outputTable);
-    options.setExperiments(
-        ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
-
-    this.runBigQueryToTablePipeline(options);
-
-    this.verifyNewTypesQueryRes(outputTable);
-  }
-
-  @Test
-  @Category(DataflowPortabilityApiUnsupported.class)
-  public void testLegacyQueryWithoutReshuffleWithCustom() throws Exception {
-    final String outputTable =
-        project + ":" + BIG_QUERY_DATASET_ID + "." + "testLegacyQueryWithoutReshuffleWithCustom";
-    BigQueryToTableOptions options = this.setupLegacyQueryTest(outputTable);
-    options.setExperiments(
-        ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
-
-    this.runBigQueryToTablePipeline(options);
-
-    this.verifyLegacyQueryRes(outputTable);
-  }
-
-  @Test
-  @Category(DataflowPortabilityApiUnsupported.class)
-  public void testStandardQueryWithoutReshuffleWithCustom() throws Exception {
-    final String outputTable =
-        project + ":" + BIG_QUERY_DATASET_ID + "." + "testStandardQueryWithoutReshuffleWithCustom";
-    BigQueryToTableOptions options = this.setupStandardQueryTest(outputTable);
-    options.setExperiments(
-        ImmutableList.of("enable_custom_bigquery_sink", "enable_custom_bigquery_source"));
-
-    this.runBigQueryToTablePipeline(options);
 
     this.verifyStandardQueryRes(outputTable);
   }

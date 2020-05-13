@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.ml;
 
-import static org.apache.beam.sdk.extensions.ml.VideoIntelligence.annotateFromURI;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.videointelligence.v1.Feature;
@@ -29,7 +28,6 @@ import java.util.function.Consumer;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
@@ -49,7 +47,7 @@ public class VideoIntelligenceIT {
     PCollection<List<VideoAnnotationResults>> annotationResults =
         testPipeline
             .apply(Create.of(VIDEO_URI))
-            .apply("Annotate video", ParDo.of(annotateFromURI(featureList, null)));
+            .apply("Annotate video", VideoIntelligence.annotateFromURI(featureList, null));
     PAssert.that(annotationResults).satisfies(new VerifyVideoAnnotationResult());
     testPipeline.run().waitUntilFinish();
   }

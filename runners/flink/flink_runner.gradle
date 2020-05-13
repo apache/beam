@@ -141,6 +141,7 @@ dependencies {
   compile project(":runners:core-java")
   compile project(":runners:core-construction-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.vendored_grpc_1_26_0
   compile library.java.jackson_annotations

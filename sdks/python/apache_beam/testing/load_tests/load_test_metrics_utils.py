@@ -31,10 +31,18 @@ Currently it is possible to have following metrics types:
 
 from __future__ import absolute_import
 
+import json
 import logging
 import time
 import uuid
+from typing import Any
 from typing import List
+from typing import Mapping
+from typing import Optional
+from typing import Union
+
+import requests
+from requests.auth import HTTPBasicAuth
 
 import apache_beam as beam
 from apache_beam.metrics import Metrics
@@ -138,7 +146,7 @@ def get_all_distributions_by_type(dist, metric_id):
     list of :class:`DistributionMetric` objects
   """
   submit_timestamp = time.time()
-  dist_types = ['mean', 'max', 'min', 'sum']
+  dist_types = ['count', 'max', 'min', 'sum']
   return [
       get_distribution_dict(dist_type, submit_timestamp, dist, metric_id)
       for dist_type in dist_types
@@ -167,7 +175,7 @@ class MetricsReader(object):
   A :class:`MetricsReader` retrieves metrics from pipeline result,
   prepares it for publishers and setup publishers.
   """
-  publishers = []  # type: List[ConsoleMetricsPublisher]
+  publishers = []  # type: List[Any]
 
   def __init__(
       self,
@@ -175,6 +183,7 @@ class MetricsReader(object):
       bq_table=None,
       bq_dataset=None,
       publish_to_bq=False,
+      influxdb_options=None,  # type: Optional[InfluxDBMetricsPublisherOptions]
       filters=None):
     """Initializes :class:`MetricsReader` .
 
@@ -192,6 +201,12 @@ class MetricsReader(object):
       bq_publisher = BigQueryMetricsPublisher(
           project_name, bq_table, bq_dataset)
       self.publishers.append(bq_publisher)
+    if influxdb_options and influxdb_options.validate():
+      self.publishers.append(InfluxDBMetricsPublisher(influxdb_options))
+    else:
+      _LOGGER.info(
+          'Missing InfluxDB options. Metrics will not be published to '
+          'InfluxDB')
     self.filters = filters
 
   def publish_metrics(self, result):
@@ -272,7 +287,7 @@ class CounterMetric(Metric):
     metric_id (uuid): unique id to identify test run
   """
   def __init__(self, counter_metric, submit_timestamp, metric_id):
-    value = counter_metric.committed
+    value = counter_metric.result
     super(CounterMetric,
           self).__init__(submit_timestamp, metric_id, value, counter_metric)
 
@@ -290,7 +305,7 @@ class DistributionMetric(Metric):
                    '_' + parse_step(dist_metric.key.step) + \
                    '_' + metric_type + \
                    '_' + dist_metric.key.metric.name
-    value = getattr(dist_metric.committed, metric_type)
+    value = getattr(dist_metric.result, metric_type)
     super(DistributionMetric, self) \
       .__init__(submit_timestamp, metric_id, value, dist_metric, custom_label)
 
@@ -402,6 +417,77 @@ class BigQueryClient(object):
 
   def save(self, results):
     return self._client.insert_rows(self._bq_table, results)
+
+
+class InfluxDBMetricsPublisherOptions(object):
+  def __init__(
+      self,
+      measurement,  # type: str
+      db_name,  # type: str
+      hostname,  # type: str
+      user=None,  # type: Optional[str]
+      password=None  # type: Optional[str]
+    ):
+    self.measurement = measurement
+    self.db_name = db_name
+    self.hostname = hostname
+    self.user = user
+    self.password = password
+
+  def validate(self):
+    # type: () -> bool
+    return bool(self.measurement) and bool(self.db_name)
+
+  def http_auth_enabled(self):
+    # type: () -> bool
+    return self.user is not None and self.password is not None
+
+
+class InfluxDBMetricsPublisher(object):
+  """Publishes collected metrics to InfluxDB database."""
+  def __init__(
+      self,
+      options  # type: InfluxDBMetricsPublisherOptions
+  ):
+    self.options = options
+
+  def publish(self, results):
+    # type: (List[Mapping[str, Union[float, str, int]]]) -> None
+    url = '{}/write'.format(self.options.hostname)
+    payload = self._build_payload(results)
+    query_str = {'db': self.options.db_name, 'precision': 's'}
+
+    auth = HTTPBasicAuth(self.options.user, self.options.password) if \
+      self.options.http_auth_enabled() else None
+
+    try:
+      response = requests.post(url, params=query_str, data=payload, auth=auth)
+    except requests.exceptions.RequestException as e:
+      _LOGGER.warning('Failed to publish metrics to InfluxDB: ' + str(e))
+    else:
+      if response.status_code != 204:
+        content = json.loads(response.content)
+        _LOGGER.warning(
+            'Failed to publish metrics to InfluxDB. Received status code %s '
+            'with an error message: %s' %
+            (response.status_code, content['error']))
+
+  def _build_payload(self, results):
+    # type: (List[Mapping[str, Union[float, str, int]]]) -> str
+    def build_kv(mapping, key):
+      return '{}={}'.format(key, mapping[key])
+
+    points = []
+    for result in results:
+      comma_separated = [
+          self.options.measurement,
+          build_kv(result, METRICS_TYPE_LABEL),
+          build_kv(result, ID_LABEL),
+      ]
+      point = ','.join(comma_separated) + ' ' + build_kv(result, VALUE_LABEL) \
+              + ' ' + str(int(result[SUBMIT_TIMESTAMP_LABEL]))
+      points.append(point)
+    return '\n'.join(points)
 
 
 class MeasureTime(beam.DoFn):

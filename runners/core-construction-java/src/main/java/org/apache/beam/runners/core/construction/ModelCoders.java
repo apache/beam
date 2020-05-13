@@ -115,7 +115,11 @@ public class ModelCoders {
   }
 
   public static KvCoderComponents getKvCoderComponents(Coder coder) {
-    checkArgument(KV_CODER_URN.equals(coder.getSpec().getUrn()));
+    checkArgument(
+        KV_CODER_URN.equals(coder.getSpec().getUrn()),
+        "Provided coder %s is not of type %s",
+        coder.getSpec().getUrn(),
+        KV_CODER_URN);
     return new AutoValue_ModelCoders_KvCoderComponents(
         coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
   }

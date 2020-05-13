@@ -29,6 +29,7 @@ import os
 import sys
 import unittest
 import uuid
+import warnings
 
 from hamcrest.library.text import stringmatches
 from nose.plugins.attrib import attr
@@ -49,6 +50,9 @@ from apache_beam.testing.util import matches_all
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
+
+warnings.filterwarnings(
+    'ignore', category=FutureWarning, module='apache_beam.io.fileio_test')
 
 
 def _get_file_reader(readable_file):
@@ -357,8 +361,8 @@ class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
   CSV_HEADERS = ['project', 'foundation']
 
-  SIMPLE_COLLECTION_VALIDATION_SET = set([(elm['project'], elm['foundation'])
-                                          for elm in SIMPLE_COLLECTION])
+  SIMPLE_COLLECTION_VALIDATION_SET = {(elm['project'], elm['foundation'])
+                                      for elm in SIMPLE_COLLECTION}
 
   class CsvSink(fileio.TextSink):
     def __init__(self, headers):

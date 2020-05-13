@@ -39,7 +39,10 @@ public class HL7v2IOTest {
 
   @Test
   public void test_HL7v2IO_failedReads() {
-    List<String> badMessageIDs = Arrays.asList("foo", "bar");
+    List<String> badMessageIDs =
+        Arrays.asList(
+            "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/foo",
+            "projects/a/locations/b/datasets/c/hl7V2Stores/d/messages/bar");
     HL7v2IO.Read.Result readResult =
         pipeline.apply(Create.of(badMessageIDs)).apply(HL7v2IO.getAll());
 

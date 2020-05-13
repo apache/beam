@@ -102,10 +102,10 @@ case $key in
 esac
 done
 
-if [[ "$RUNNER" != "universal" ]]; then
-  PUSH_CONTAINER_TO_GCR='yes'
-else
+if [[ "$RUNNER" == "universal" ]]; then
   PUSH_CONTAINER_TO_GCR=''
+else 
+  PUSH_CONTAINER_TO_GCR='yes'
 fi
 
 # Go to the root of the repository
@@ -118,7 +118,7 @@ test -d sdks/go/test
 command -v docker
 docker -v
 
-if [[ PUSH_CONTAINER_TO_GCR == 'yes' ]]; then
+if [[ "$PUSH_CONTAINER_TO_GCR" == "yes" ]]; then
   command -v gcloud
   gcloud --version
 
@@ -216,14 +216,14 @@ if [[ ! -z "$JOB_PORT" ]]; then
   kill %1 || echo "Failed to shut down job server"
 fi
 
-if [[ PUSH_CONTAINER_TO_GCR == 'yes' ]]; then
+if [[ "$PUSH_CONTAINER_TO_GCR" = 'yes' ]]; then
   # Delete the container locally and remotely
   docker rmi $CONTAINER:$TAG || echo "Failed to remove container"
   gcloud --quiet container images delete $CONTAINER:$TAG || echo "Failed to delete container"
-fi
 
-# Clean up tempdir
-rm -rf $TMPDIR
+  # Clean up tempdir
+  rm -rf $TMPDIR
+fi
 
 if [[ "$TEST_EXIT_CODE" -eq 0 ]]; then
   echo ">>> SUCCESS"
