@@ -396,6 +396,10 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     flat = (none_str_pc, none_int_pc) | beam.Flatten()
     _ = flat | beam.GroupByKey()
 
+    # This may change if type inference changes, but we assert it here
+    # to make sure the check below is not vacuous.
+    self.assertNotIsInstance(flat.element_type, typehints.TupleConstraint)
+
     p.visit(DataflowRunner.group_by_key_input_visitor())
     p.visit(DataflowRunner.flatten_input_visitor())
 
