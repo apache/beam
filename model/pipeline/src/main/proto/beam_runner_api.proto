@@ -151,8 +151,9 @@ message PTransform {
   // details.
   FunctionSpec spec = 1;
 
-  // (Optional) if this node is a composite, a list of the ids of
-  // transforms that it contains.
+  // (Optional) A list of the ids of transforms that it contains.
+  //
+  // Primitive transforms are not allowed to specify this.
   repeated string subtransforms = 2;
 
   // (Required) A map from local names of inputs (unique only with this map, and
@@ -184,9 +185,10 @@ message PTransform {
   // there is none, it may be omitted.
   repeated DisplayData display_data = 6;
 
-  // (Optional) Environment where the current PTransform should be executed in.
-  // Runner that executes the pipeline may choose to override this if needed. If
-  // not specified, environment will be decided by the runner.
+  // Environment where the current PTransform should be executed in.
+  //
+  // Transforms that are required to be implemented by a runner must omit this.
+  // All other transforms are required to specify this.
   string environment_id = 7;
 }
 
@@ -227,11 +229,17 @@ message StandardPTransforms {
     // See https://beam.apache.org/documentation/programming-guide/#groupbykey
     // for additional details.
     //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
+    //
     // Payload: None
     GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
 
     // A transform which produces a single empty byte array at the minimum
     // timestamp in the GlobalWindow.
+    //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
     //
     // Payload: None
     IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];

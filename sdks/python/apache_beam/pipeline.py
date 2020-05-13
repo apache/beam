@@ -119,20 +119,16 @@ class Pipeline(object):
   should be used to designate new names
   (e.g. ``input | "label" >> my_tranform``).
   """
-
-  # TODO: BEAM-9001 - set environment ID in all transforms and allow runners to
-  # override.
   @classmethod
-  def sdk_transforms_with_environment(cls):
+  def runner_implemented_transforms(cls):
     # type: () -> FrozenSet[str]
-    from apache_beam.runners.portability.fn_api_runner import translations
-    sets = [
-        translations.PAR_DO_URNS,
-        translations.COMBINE_URNS,
-        frozenset([common_urns.primitives.ASSIGN_WINDOWS.urn])
-    ]
-    result = frozenset()  # type: FrozenSet[str]
-    return result.union(*sets)
+
+    # This set should only contain transforms which are required to be
+    # implemented by a runner.
+    return frozenset([
+        common_urns.primitives.GROUP_BY_KEY.urn,
+        common_urns.primitives.IMPULSE.urn,
+    ])
 
   def __init__(self, runner=None, options=None, argv=None):
     # type: (Optional[Union[str, PipelineRunner]], Optional[PipelineOptions], Optional[List[str]]) -> None
@@ -1117,8 +1113,8 @@ class AppliedPTransform(object):
     transform_spec = transform_to_runner_api(self.transform, context)
     environment_id = self.environment_id
     transform_urn = transform_spec.urn if transform_spec else None
-    if (not environment_id and transform_urn and
-        (transform_urn in Pipeline.sdk_transforms_with_environment())):
+    if (not environment_id and
+        (transform_urn not in Pipeline.runner_implemented_transforms())):
       environment_id = context.default_environment_id()
 
     def _maybe_preserve_tag(new_tag, pc, input_tags_to_preserve):
