@@ -27,13 +27,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
+import java.util.Objects;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -56,10 +57,11 @@ abstract class AnnotateImages<T>
   private long batchSize;
 
   /**
-   * @param contextSideInput Sice input optionally containting a map of elements to {@link
+   * @param contextSideInput Side input optionally containting a map of elements to {@link
    *     ImageContext} objects with metadata for the analysis.
    * @param featureList list of features to be extracted from the image.
-   * @param batchSize
+   * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
+   *     5.
    */
   public AnnotateImages(
       @Nullable PCollectionView<Map<T, ImageContext>> contextSideInput,
@@ -71,6 +73,13 @@ abstract class AnnotateImages<T>
     this.batchSize = batchSize;
   }
 
+  /**
+   * Instantiates the transform without side input.
+   *
+   * @param featureList list of features to be extracted from the image.
+   * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
+   *     5.
+   */
   public AnnotateImages(List<Feature> featureList, long batchSize) {
     contextSideInput = null;
     this.featureList = featureList;
@@ -107,9 +116,8 @@ abstract class AnnotateImages<T>
     }
     return input
         .apply(inputToRequestMapper)
-        .apply(ParDo.of(new AssignRandomKeys()))
+        .apply(WithKeys.of(0))
         .apply(GroupIntoBatches.ofSize(batchSize))
-        .apply(ParDo.of(new ExtractValues()))
         .apply(ParDo.of(new PerformImageAnnotation()));
   }
 
@@ -127,7 +135,7 @@ abstract class AnnotateImages<T>
    * {@link AnnotateImageRequest}s ready for batching.
    */
   public static class PerformImageAnnotation
-      extends DoFn<List<AnnotateImageRequest>, List<AnnotateImageResponse>> {
+      extends DoFn<KV<Integer, Iterable<AnnotateImageRequest>>, List<AnnotateImageResponse>> {
 
     private transient ImageAnnotatorClient imageAnnotatorClient;
 
@@ -154,7 +162,7 @@ abstract class AnnotateImages<T>
 
     @ProcessElement
     public void processElement(ProcessContext context) {
-      context.output(getResponse(context.element()));
+      context.output(getResponse(Objects.requireNonNull(context.element().getValue())));
     }
 
     /**
@@ -163,38 +171,12 @@ abstract class AnnotateImages<T>
      * @param requests request list.
      * @return response list.
      */
-    List<AnnotateImageResponse> getResponse(List<AnnotateImageRequest> requests) {
+    List<AnnotateImageResponse> getResponse(Iterable<AnnotateImageRequest> requests) {
+      List<AnnotateImageRequest> requestList = new ArrayList<>();
+      requests.forEach(requestList::add);
       BatchAnnotateImagesResponse batchAnnotateImagesResponse =
-          imageAnnotatorClient.batchAnnotateImages(requests);
+          imageAnnotatorClient.batchAnnotateImages(requestList);
       return batchAnnotateImagesResponse.getResponsesList();
-    }
-  }
-
-  /** A transform that converts input elements to {@link KV}s for grouping. */
-  private static class AssignRandomKeys
-      extends DoFn<AnnotateImageRequest, KV<Long, AnnotateImageRequest>> {
-    private Random random;
-
-    @Setup
-    public void setup() {
-      random = new Random();
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      context.output(KV.of(random.nextLong(), context.element()));
-    }
-  }
-
-  /** A transform extracting lists of values from groups. */
-  private static class ExtractValues
-      extends DoFn<KV<Long, Iterable<AnnotateImageRequest>>, List<AnnotateImageRequest>> {
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      Iterable<AnnotateImageRequest> value = context.element().getValue();
-      ArrayList<AnnotateImageRequest> annotateImageRequests = new ArrayList<>();
-      value.forEach(annotateImageRequests::add);
-      context.output(annotateImageRequests);
     }
   }
 
