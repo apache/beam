@@ -525,7 +525,7 @@ public class BeamFnDataReadRunnerTest {
             null /* bundleFinalizer */);
   }
 
-  private static final MonitoringInfo createReadIndexMonitoringInfoAt(int index) {
+  private static MonitoringInfo createReadIndexMonitoringInfoAt(int index) {
     return new SimpleMonitoringInfoBuilder()
         .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
         .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, INPUT_TRANSFORM_ID)
