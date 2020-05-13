@@ -107,8 +107,8 @@ if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
   dockerPrepare.dependsOn pullLicenses
 } else {
   task createFile(type: Exec) {
-    commandLine 'mkdir', '-p', 'build/target/third_party_licenses'
-    commandLine 'touch', 'build/target/third_party_licenses/skip'
+      executable "sh"
+      args "-c", "mkdir -p build/target/third_party_licenses && touch build/target/third_party_licenses/skip"
   }
   dockerPrepare.dependsOn createFile
 }

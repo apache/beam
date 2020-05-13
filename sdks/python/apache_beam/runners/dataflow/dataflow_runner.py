@@ -117,13 +117,15 @@ class DataflowRunner(PipelineRunner):
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CombineValuesPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import NativeReadPTransformOverride
 
-  # Thesse overrides should be applied before the proto representation of the
+  # These overrides should be applied before the proto representation of the
   # graph is created.
   _PTRANSFORM_OVERRIDES = [
-      CombineValuesPTransformOverride()
+      CombineValuesPTransformOverride(),
+      NativeReadPTransformOverride(),
   ]  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [
@@ -325,7 +327,7 @@ class DataflowRunner(PipelineRunner):
     return SetPDoneVisitor(pipeline)
 
   @staticmethod
-  def side_input_visitor(use_unified_worker=False):
+  def side_input_visitor(use_unified_worker=False, use_fn_api=False):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
@@ -343,7 +345,7 @@ class DataflowRunner(PipelineRunner):
           for ix, side_input in enumerate(transform_node.side_inputs):
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
-              if use_unified_worker:
+              if use_unified_worker or not use_fn_api:
                 # TODO(BEAM-9173): Stop patching up the access pattern to
                 # appease Dataflow when using the UW and hardcode the output
                 # type to be Any since the Dataflow JSON and pipeline proto
@@ -382,8 +384,9 @@ class DataflowRunner(PipelineRunner):
                   'Unsupported access pattern for %r: %r' %
                   (transform_node.full_label, access_pattern))
             new_side_inputs.append(new_side_input)
-          transform_node.side_inputs = new_side_inputs
-          transform_node.transform.side_inputs = new_side_inputs
+          if use_fn_api:
+            transform_node.side_inputs = new_side_inputs
+            transform_node.transform.side_inputs = new_side_inputs
 
     return SideInputVisitor()
 
@@ -451,9 +454,10 @@ class DataflowRunner(PipelineRunner):
     self._maybe_add_unified_worker_missing_options(options)
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(options):
-      pipeline.visit(
-          self.side_input_visitor(apiclient._use_unified_worker(options)))
+    pipeline.visit(
+        self.side_input_visitor(
+            apiclient._use_unified_worker(options),
+            apiclient._use_fnapi(options)))
 
     # Performing configured PTransform overrides.  Note that this is currently
     # done before Runner API serialization, since the new proto needs to contain
@@ -971,32 +975,31 @@ class DataflowRunner(PipelineRunner):
     transform_id = self.proto_context.transforms.get_id(transform_node)
     use_fnapi = apiclient._use_fnapi(options)
     use_unified_worker = apiclient._use_unified_worker(options)
+    # Patch side input ids to be unique across a given pipeline.
+    if (label_renames and
+        transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+      # Patch PTransform proto.
+      for old, new in iteritems(label_renames):
+        transform_proto.inputs[new] = transform_proto.inputs[old]
+        del transform_proto.inputs[old]
+
+      # Patch ParDo proto.
+      proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
+      proto = proto_utils.parse_Bytes(transform_proto.spec.payload, proto_type)
+      for old, new in iteritems(label_renames):
+        proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
+        del proto.side_inputs[old]
+      transform_proto.spec.payload = proto.SerializeToString()
+      # We need to update the pipeline proto.
+      del self.proto_pipeline.components.transforms[transform_id]
+      (
+          self.proto_pipeline.components.transforms[transform_id].CopyFrom(
+              transform_proto))
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
     if (use_fnapi and
         (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
          use_unified_worker)):
-      # Patch side input ids to be unique across a given pipeline.
-      if (label_renames and
-          transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
-        # Patch PTransform proto.
-        for old, new in iteritems(label_renames):
-          transform_proto.inputs[new] = transform_proto.inputs[old]
-          del transform_proto.inputs[old]
-
-        # Patch ParDo proto.
-        proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
-        proto = proto_utils.parse_Bytes(
-            transform_proto.spec.payload, proto_type)
-        for old, new in iteritems(label_renames):
-          proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
-          del proto.side_inputs[old]
-        transform_proto.spec.payload = proto.SerializeToString()
-        # We need to update the pipeline proto.
-        del self.proto_pipeline.components.transforms[transform_id]
-        (
-            self.proto_pipeline.components.transforms[transform_id].CopyFrom(
-                transform_proto))
       serialized_data = transform_id
     else:
       serialized_data = pickler.dumps(
@@ -1137,13 +1140,6 @@ class DataflowRunner(PipelineRunner):
         PropertyNames.OUTPUT_NAME: PropertyNames.OUT
     })
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
-
-  def apply_Read(self, transform, pbegin, options):
-    if hasattr(transform.source, 'format'):
-      # Consider native Read to be a primitive for dataflow.
-      return beam.pvalue.PCollection.from_(pbegin)
-    else:
-      return self.apply_PTransform(transform, pbegin, options)
 
   def run_Read(self, transform_node, options):
     transform = transform_node.transform

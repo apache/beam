@@ -26,7 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
 import org.apache.beam.sdk.Pipeline;

@@ -91,7 +91,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
-import org.apache.beam.sdk.testing.UsesKey;
+import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
@@ -4980,7 +4980,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      UsesKey.class,
+      UsesKeyInParDo.class,
     })
     public void testKeyInOnTimer() throws Exception {
       final String timerId = "foo";
@@ -5012,7 +5012,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      UsesKey.class,
+      UsesKeyInParDo.class,
     })
     public void testKeyInOnTimerWithGenericKey() throws Exception {
       final String timerId = "foo";
@@ -5046,7 +5046,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      UsesKey.class,
+      UsesKeyInParDo.class,
     })
     public void testKeyInOnTimerWithWrongKeyType() throws Exception {
 
@@ -5078,7 +5078,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      UsesKey.class,
+      UsesKeyInParDo.class,
     })
     public void testKeyInOnTimerWithoutKV() throws Exception {
 

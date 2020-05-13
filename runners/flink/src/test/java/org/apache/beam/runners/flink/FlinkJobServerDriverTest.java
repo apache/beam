@@ -110,7 +110,7 @@ public class FlinkJobServerDriverTest {
         newErr.flush();
         String output = baos.toString(Charsets.UTF_8.name());
         if (output.contains("JobService started on localhost:")
-            && output.contains("LegacyArtifactStagingService started on localhost:")
+            && output.contains("ArtifactStagingService started on localhost:")
             && output.contains("ExpansionService started on localhost:")) {
           success = true;
         } else {

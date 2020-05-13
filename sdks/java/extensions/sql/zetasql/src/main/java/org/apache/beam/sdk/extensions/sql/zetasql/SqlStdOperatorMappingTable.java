@@ -32,6 +32,7 @@ public class SqlStdOperatorMappingTable {
   static final List<FunctionSignatureId> ZETASQL_BUILTIN_FUNCTION_WHITELIST =
       ImmutableList.of(
           FunctionSignatureId.FN_AND,
+          FunctionSignatureId.FN_ANY_VALUE,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
           FunctionSignatureId.FN_MULTIPLY_DOUBLE,
@@ -204,7 +205,7 @@ public class SqlStdOperatorMappingTable {
           .put("min", SqlStdOperatorTable.MIN)
           .put("avg", SqlStdOperatorTable.AVG)
           .put("sum", SqlStdOperatorTable.SUM)
-          // .put("any_value", SqlStdOperatorTable.ANY_VALUE)
+          .put("any_value", SqlStdOperatorTable.ANY_VALUE)
           .put("count", SqlStdOperatorTable.COUNT)
 
           // aggregate UDF

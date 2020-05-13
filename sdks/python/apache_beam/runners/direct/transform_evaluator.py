@@ -868,7 +868,9 @@ class _ParDoEvaluator(_TransformEvaluator):
         timer_spec,
         self.key_coder.decode(timer_firing.encoded_key),
         timer_firing.window,
-        timer_firing.timestamp)
+        timer_firing.timestamp,
+        # TODO Add paneinfo to timer_firing in DirectRunner
+        None)
 
   def process_element(self, element):
     self.runner.process(element)

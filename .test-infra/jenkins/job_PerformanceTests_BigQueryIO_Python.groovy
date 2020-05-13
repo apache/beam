@@ -19,6 +19,7 @@
 import CommonJobProperties as commonJobProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -36,6 +37,9 @@ def bqio_read_test = [
                 publish_to_big_query : true,
                 metrics_dataset      : 'beam_performance',
                 metrics_table        : 'bqio_read_10GB_results',
+                influx_measurement   : 'python_bqio_read_10GB_results',
+                influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+                influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
                 input_options        : '\'{' +
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +
@@ -59,6 +63,9 @@ def bqio_write_test = [
                 publish_to_big_query : true,
                 metrics_dataset      : 'beam_performance',
                 metrics_table        : 'bqio_write_10GB_results',
+                influx_measurement   : 'python_bqio_write_10GB_results',
+                influx_db_name       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+                influx_hostname      : InfluxDBCredentialsHelper.InfluxDBHostname,
                 input_options        : '\'{' +
                         '"num_records": 10485760,' +
                         '"key_size": 1,' +

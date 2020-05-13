@@ -32,6 +32,8 @@ will be stored,
 * metrics_table (optional) - name of BigQuery table where metrics
 will be stored,
 * input_options - options for Synthetic Sources.
+* stateful - When true, this will use a stateful DoFn
+* state_cache - When true, this will enable the Python state cache
 
 Example test run:
 
@@ -73,12 +75,18 @@ or:
 from __future__ import absolute_import
 
 import logging
+import os
+from typing import Tuple
 
 import apache_beam as beam
+from apache_beam import pvalue
+from apache_beam import typehints
 from apache_beam.metrics import Metrics
+from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.testing.load_tests.load_test import LoadTest
 from apache_beam.testing.load_tests.load_test_metrics_utils import MeasureTime
 from apache_beam.testing.synthetic_pipeline import SyntheticSource
+from apache_beam.transforms import userstate
 
 
 class ParDoTest(LoadTest):
@@ -87,7 +95,13 @@ class ParDoTest(LoadTest):
     self.iterations = self.get_option_or_default('iterations')
     self.number_of_counters = self.get_option_or_default('number_of_counters')
     self.number_of_operations = self.get_option_or_default(
-        'number_of_counter_operations')
+        'number_of_counter_operations', 1)
+    self.number_of_counters = self.get_option_or_default(
+        'number_of_counters', 1)
+    self.stateful = self.get_option_or_default('stateful', False)
+    if self.get_option_or_default('state_cache', False):
+      self.pipeline.options.view_as(DebugOptions).add_experiment(
+          'state_cache_size=1000')
 
   def test(self):
     class CounterOperation(beam.DoFn):
@@ -98,16 +112,32 @@ class ParDoTest(LoadTest):
           self.counters.append(
               Metrics.counter('do-not-publish', 'name-{}'.format(i)))
 
-      def process(self, element):
+      state_param = beam.DoFn.StateParam(
+          userstate.CombiningValueStateSpec(
+              'count',
+              beam.coders.IterableCoder(beam.coders.VarIntCoder()),
+              sum)) if self.stateful else None
+
+      def process(self, element, state=state_param):
         for _ in range(self.number_of_operations):
           for counter in self.counters:
             counter.inc()
+          if state:
+            state.add(1)
         yield element
 
+    if self.get_option_or_default('streaming', False):
+      source = (
+          self.pipeline
+          | 'LoadGenerator' >> StatefulLoadGenerator(self.input_options))
+    else:
+      source = (
+          self.pipeline
+          | 'Read synthetic' >> beam.io.Read(
+              SyntheticSource(self.parse_synthetic_source_options())))
+
     pc = (
-        self.pipeline
-        | 'Read synthetic' >> beam.io.Read(
-            SyntheticSource(self.parse_synthetic_source_options()))
+        source
         | 'Measure time: Start' >> beam.ParDo(
             MeasureTime(self.metrics_namespace)))
 
@@ -123,6 +153,71 @@ class ParDoTest(LoadTest):
         pc
         |
         'Measure time: End' >> beam.ParDo(MeasureTime(self.metrics_namespace)))
+
+
+class StatefulLoadGenerator(beam.PTransform):
+  def __init__(self, input_options, num_keys=100):
+    self.num_records = input_options['num_records']
+    self.key_size = input_options['key_size']
+    self.value_size = input_options['value_size']
+    self.num_keys = num_keys
+
+  @typehints.with_output_types(Tuple[bytes, bytes])
+  class GenerateKeys(beam.DoFn):
+    def __init__(self, num_keys, key_size):
+      self.num_keys = num_keys
+      self.key_size = key_size
+
+    def process(self, impulse):
+      for _ in range(self.num_keys):
+        key = os.urandom(self.key_size)
+        yield key, b''
+
+  class GenerateLoad(beam.DoFn):
+    state_spec = userstate.CombiningValueStateSpec(
+        'bundles_remaining', combine_fn=sum)
+    timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+
+    def __init__(self, num_records_per_key, value_size, bundle_size=1000):
+      self.num_records_per_key = num_records_per_key
+      self.payload = os.urandom(value_size)
+      self.bundle_size = bundle_size
+      self.key = None
+
+    def process(
+        self,
+        element,
+        records_remaining=beam.DoFn.StateParam(state_spec),
+        timer=beam.DoFn.TimerParam(timer_spec)):
+      self.key, _ = element
+      records_remaining.add(self.num_records_per_key)
+      timer.set(0)
+
+    @userstate.on_timer(timer_spec)
+    def process_timer(
+        self,
+        records_remaining=beam.DoFn.StateParam(state_spec),
+        timer=beam.DoFn.TimerParam(timer_spec)):
+      cur_bundle_size = min(self.bundle_size, records_remaining.read())
+      for _ in range(cur_bundle_size):
+        records_remaining.add(-1)
+        yield self.key, self.payload
+      if records_remaining.read() > 0:
+        timer.set(0)
+
+  def expand(self, pbegin):
+    assert isinstance(pbegin, pvalue.PBegin), (
+        'Input to transform must be a PBegin but found %s' % pbegin)
+    return (
+        pbegin
+        | 'Impulse' >> beam.Impulse()
+        | 'GenerateKeys' >> beam.ParDo(
+            StatefulLoadGenerator.GenerateKeys(self.num_keys, self.key_size))
+        | 'Reshuffle' >> beam.Reshuffle()
+        | 'GenerateLoad' >> beam.ParDo(
+            StatefulLoadGenerator.GenerateLoad(
+                self.num_records // self.num_keys, self.value_size))
+        | 'Reshuffle2' >> beam.Reshuffle())
 
 
 if __name__ == '__main__':

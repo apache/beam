@@ -21,6 +21,8 @@ package org.apache.beam.gradle
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import org.gradle.api.JavaVersion
+
 import java.util.concurrent.atomic.AtomicInteger
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
@@ -447,7 +449,7 @@ class BeamModulePlugin implements Plugin<Project> {
         commons_io                                  : "commons-io:commons-io:2.6",
         commons_lang3                               : "org.apache.commons:commons-lang3:3.9",
         commons_math3                               : "org.apache.commons:commons-math3:3.6.1",
-        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.0.15",
+        error_prone_annotations                     : "com.google.errorprone:error_prone_annotations:2.3.1",
         gax                                         : "com.google.api:gax:$gax_version",
         gax_grpc                                    : "com.google.api:gax-grpc:$gax_version",
         google_api_client                           : "com.google.api-client:google-api-client:$google_clients_version",
@@ -693,12 +695,23 @@ class BeamModulePlugin implements Plugin<Project> {
         options.compilerArgs += ([
           '-parameters',
           '-Xlint:all',
-          '-Werror',
-          '-XepDisableWarningsInGeneratedCode',
-          '-XepExcludedPaths:(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*',
-          '-Xep:MutableConstantField:OFF' // Guava's immutable collections cannot appear on API surface.
+          '-Werror'
         ]
         + (defaultLintSuppressions + configuration.disableLintWarnings).collect { "-Xlint:-${it}" })
+      }
+
+      if (project.hasProperty("compileAndRunTestsWithJava11")) {
+        def java11Home = project.findProperty("java11Home")
+        project.tasks.compileTestJava {
+          options.fork = true
+          options.forkOptions.javaHome = java11Home as File
+          options.compilerArgs += ['-Xlint:-path']
+          options.compilerArgs.addAll(['--release', '11'])
+        }
+        project.tasks.withType(Test) {
+          useJUnit()
+          executable = "${java11Home}/bin/java"
+        }
       }
 
       // Configure the default test tasks set of tests executed
@@ -873,7 +886,20 @@ class BeamModulePlugin implements Plugin<Project> {
       // Enable errorprone static analysis
       project.apply plugin: 'net.ltgt.errorprone'
 
+      project.dependencies {
+        errorprone("com.google.errorprone:error_prone_core:2.3.1")
+        // At least JDk 9 compiler is required, however JDK 8 still can be used but with additional errorproneJavac
+        // configuration. For more details please see https://github.com/tbroyer/gradle-errorprone-plugin#jdk-8-support
+        errorproneJavac("com.google.errorprone:javac:9+181-r4173-1")
+      }
+
       project.configurations.errorprone { resolutionStrategy.force 'com.google.errorprone:error_prone_core:2.3.1' }
+
+      project.tasks.withType(JavaCompile) {
+        options.errorprone.disableWarningsInGeneratedCode = true
+        options.errorprone.excludedPaths = '(.*/)?(build/generated-src|build/generated.*avro-java|build/generated)/.*'
+        options.errorprone.errorproneArgs.add("MutableConstantField:OFF")
+      }
 
       if (configuration.shadowClosure) {
         // Enables a plugin which can perform shading of classes. See the general comments
@@ -1987,11 +2013,10 @@ class BeamModulePlugin implements Plugin<Project> {
       }
 
       def addPortableWordCountTask = { boolean isStreaming, String runner ->
-        def taskName = 'portableWordCount' + (runner.equals("PortableRunner") ? "" : runner) + (isStreaming ? 'Streaming' : 'Batch')
+        def taskName = 'portableWordCount' + runner + (isStreaming ? 'Streaming' : 'Batch')
         project.task(taskName) {
           dependsOn = ['installGcpTest']
           mustRunAfter = [
-            ':runners:flink:1.10:job-server-container:docker',
             ':runners:flink:1.10:job-server:shadowJar',
             ':runners:spark:job-server:shadowJar',
             ':sdks:python:container:py2:docker',
@@ -2007,7 +2032,6 @@ class BeamModulePlugin implements Plugin<Project> {
               "--output=${outputDir}/out.txt",
               "--runner=${runner}",
               "--parallelism=2",
-              "--shutdown_sources_on_final_watermark",
               "--sdk_worker_parallelism=1",
               "--flink_job_server_jar=${project.project(':runners:flink:1.10:job-server').shadowJar.archivePath}",
               "--spark_job_server_jar=${project.project(':runners:spark:job-server').shadowJar.archivePath}",
@@ -2045,8 +2069,6 @@ class BeamModulePlugin implements Plugin<Project> {
       }
       project.ext.addPortableWordCountTasks = {
         ->
-        addPortableWordCountTask(false, "PortableRunner")
-        addPortableWordCountTask(true, "PortableRunner")
         addPortableWordCountTask(false, "FlinkRunner")
         addPortableWordCountTask(true, "FlinkRunner")
         addPortableWordCountTask(false, "SparkRunner")

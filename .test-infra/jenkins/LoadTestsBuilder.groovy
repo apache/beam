@@ -20,6 +20,7 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
+import InfluxDBCredentialsHelper
 
 class LoadTestsBuilder {
   final static String DOCKER_CONTAINER_REGISTRY = 'gcr.io/apache-beam-testing/beam_portability'
@@ -37,6 +38,7 @@ class LoadTestsBuilder {
 
   static void loadTest(context, String title, Runner runner, SDK sdk, Map<String, ?> options, String mainClass) {
     options.put('runner', runner.option)
+    InfluxDBCredentialsHelper.useCredentials(context)
 
     context.steps {
       shell('echo "*** ${title} ***"')
@@ -49,8 +51,13 @@ class LoadTestsBuilder {
   }
 
   static String parseOptions(Map<String, ?> options) {
-    options.collect {
-      "--${it.key}=$it.value".replace('\"', '\\\"').replace('\'', '\\\'')
+    options.collect { entry ->
+      // Flags are indicated by null values
+      if (entry.value == null) {
+        "--${entry.key}"
+      } else {
+        "--${entry.key}=$entry.value".replace('\"', '\\\"').replace('\'', '\\\'')
+      }
     }.join(' ')
   }
 

@@ -24,6 +24,7 @@ import static org.apache.beam.runners.fnexecution.translation.PipelineTranslator
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -211,18 +212,8 @@ public class SparkBatchPortablePipelineTranslator {
     Coder windowCoder =
         getWindowingStrategy(inputPCollectionId, components).getWindowFn().windowCoder();
 
-    ImmutableMap.Builder<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
-        broadcastVariablesBuilder = ImmutableMap.builder();
-    for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
-      RunnerApi.Components stagePayloadComponents = stagePayload.getComponents();
-      String collectionId =
-          stagePayloadComponents
-              .getTransformsOrThrow(sideInputId.getTransformId())
-              .getInputsOrThrow(sideInputId.getLocalName());
-      Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>> tuple2 =
-          broadcastSideInput(collectionId, stagePayloadComponents, context);
-      broadcastVariablesBuilder.put(collectionId, tuple2);
-    }
+    ImmutableMap<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
+        broadcastVariables = broadcastSideInputs(stagePayload, context);
 
     JavaRDD<RawUnionValue> staged;
     if (stagePayload.getUserStatesCount() > 0 || stagePayload.getTimersCount() > 0) {
@@ -254,7 +245,7 @@ public class SparkBatchPortablePipelineTranslator {
               context.jobInfo,
               outputExtractionMap,
               SparkExecutableStageContextFactory.getInstance(),
-              broadcastVariablesBuilder.build(),
+              broadcastVariables,
               MetricsAccumulator.getInstance(),
               windowCoder);
       staged = groupedByKey.flatMap(function.forPair());
@@ -266,7 +257,7 @@ public class SparkBatchPortablePipelineTranslator {
               context.jobInfo,
               outputExtractionMap,
               SparkExecutableStageContextFactory.getInstance(),
-              broadcastVariablesBuilder.build(),
+              broadcastVariables,
               MetricsAccumulator.getInstance(),
               windowCoder);
       staged = inputRdd2.mapPartitions(function2);
@@ -320,6 +311,34 @@ public class SparkBatchPortablePipelineTranslator {
       Dataset dataset, Coder<K> keyCoder, WindowedValueCoder<V> wvCoder) {
     JavaRDD<WindowedValue<KV<K, V>>> inputRdd = ((BoundedDataset<KV<K, V>>) dataset).getRDD();
     return GroupCombineFunctions.groupByKeyPair(inputRdd, keyCoder, wvCoder);
+  }
+
+  /**
+   * Broadcast the side inputs of an executable stage. *This can be expensive.*
+   *
+   * @return Map from PCollection ID to Spark broadcast variable and coder to decode its contents.
+   */
+  private static <SideInputT>
+      ImmutableMap<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
+          broadcastSideInputs(
+              RunnerApi.ExecutableStagePayload stagePayload, SparkTranslationContext context) {
+    Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>>
+        broadcastVariables = new HashMap<>();
+    for (SideInputId sideInputId : stagePayload.getSideInputsList()) {
+      RunnerApi.Components stagePayloadComponents = stagePayload.getComponents();
+      String collectionId =
+          stagePayloadComponents
+              .getTransformsOrThrow(sideInputId.getTransformId())
+              .getInputsOrThrow(sideInputId.getLocalName());
+      if (broadcastVariables.containsKey(collectionId)) {
+        // This PCollection has already been broadcast.
+        continue;
+      }
+      Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>> tuple2 =
+          broadcastSideInput(collectionId, stagePayloadComponents, context);
+      broadcastVariables.put(collectionId, tuple2);
+    }
+    return ImmutableMap.copyOf(broadcastVariables);
   }
 
   /**

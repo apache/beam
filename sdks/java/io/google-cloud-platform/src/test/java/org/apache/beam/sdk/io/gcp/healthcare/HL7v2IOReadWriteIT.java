@@ -81,7 +81,7 @@ public class HL7v2IOReadWriteIT {
       client = new HttpHealthcareApiClient();
     }
 
-    // Create HL7 messages and write them to HL7v2 Store.
+    // CreateResources HL7 messages and write them to HL7v2 Store.
     writeHL7v2Messages(this.client, healthcareDataset + "/hl7V2Stores/" + INPUT_HL7V2_STORE_NAME);
   }
 

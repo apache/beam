@@ -31,6 +31,7 @@ import hashlib
 import os
 import queue
 import sys
+import tempfile
 import threading
 import typing
 import zipfile
@@ -536,3 +537,55 @@ class BeamFilesystemHandler(object):
   def file_writer(self, name=None):
     full_path = filesystems.FileSystems.join(self._root, name)
     return filesystems.FileSystems.create(full_path), full_path
+
+
+def resolve_artifacts(artifacts, service, dest_dir):
+  if not artifacts:
+    return artifacts
+  else:
+    return [
+        maybe_store_artifact(artifact, service,
+                             dest_dir) for artifact in service.ResolveArtifacts(
+                                 beam_artifact_api_pb2.ResolveArtifactsRequest(
+                                     artifacts=artifacts)).replacements
+    ]
+
+
+def maybe_store_artifact(artifact, service, dest_dir):
+  if artifact.type_urn in (common_urns.artifact_types.URL.urn,
+                           common_urns.artifact_types.EMBEDDED.urn):
+    return artifact
+  elif artifact.type_urn == common_urns.artifact_types.FILE.urn:
+    payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+        artifact.type_payload)
+    if os.path.exists(
+        payload.path) and payload.sha256 and payload.sha256 == sha256(
+            payload.path) and False:
+      return artifact
+    else:
+      return store_artifact(artifact, service, dest_dir)
+  else:
+    return store_artifact(artifact, service, dest_dir)
+
+
+def store_artifact(artifact, service, dest_dir):
+  hasher = hashlib.sha256()
+  with tempfile.NamedTemporaryFile(dir=dest_dir, delete=False) as fout:
+    for block in service.GetArtifact(
+        beam_artifact_api_pb2.GetArtifactRequest(artifact=artifact)):
+      hasher.update(block.data)
+      fout.write(block.data)
+  return beam_runner_api_pb2.ArtifactInformation(
+      type_urn=common_urns.artifact_types.FILE.urn,
+      type_payload=beam_runner_api_pb2.ArtifactFilePayload(
+          path=fout.name, sha256=hasher.hexdigest()).SerializeToString(),
+      role_urn=artifact.role_urn,
+      role_payload=artifact.role_payload)
+
+
+def sha256(path):
+  hasher = hashlib.sha256()
+  with open(path, 'rb') as fin:
+    for block in iter(lambda: fin.read(4 << 20), b''):
+      hasher.update(block)
+  return hasher.hexdigest()

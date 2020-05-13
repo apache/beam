@@ -34,7 +34,6 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
 
 # avoid possible conflict with job-server embedded expansion service at 8097
 EXPANSION_SERVICE_PORT = '8096'
@@ -104,9 +103,6 @@ def main():
   known_args, pipeline_args = parser.parse_known_args()
 
   pipeline_options = PipelineOptions(pipeline_args)
-  assert (
-      pipeline_options.view_as(StandardOptions).runner.lower()
-      == "portablerunner"), "Only PortableRunner is supported."
 
   # We use the save_main_session option because one or more DoFn's in this
   # workflow rely on global context (e.g., a module imported at module level).

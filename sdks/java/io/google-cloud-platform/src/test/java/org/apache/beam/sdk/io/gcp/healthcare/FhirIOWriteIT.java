@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.TEMP_BUCKET;
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import java.io.IOException;
@@ -75,9 +75,10 @@ public class FhirIOWriteIT {
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     options = TestPipeline.testingPipelineOptions().as(FhirIOTestOptions.class);
     options.setGcsTempPath(
-        String.format("gs://%s/FhirIOWrite%sIT/%s/temp/", TEMP_BUCKET, version, testTime));
+        String.format("gs://%s/FhirIOWrite%sIT/%s/temp/", DEFAULT_TEMP_BUCKET, version, testTime));
     options.setGcsDeadLetterPath(
-        String.format("gs://%s/FhirIOWrite%sIT/%s/deadletter/", TEMP_BUCKET, version, testTime));
+        String.format(
+            "gs://%s/FhirIOWrite%sIT/%s/deadletter/", DEFAULT_TEMP_BUCKET, version, testTime));
     options.setFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.createFhirStore(healthcareDataset, fhirStoreName, version);
@@ -110,13 +111,13 @@ public class FhirIOWriteIT {
   @Test
   public void testFhirIO_Import() {
     Pipeline pipeline = Pipeline.create(options);
+    options.setTempLocation("gs://temp-storage-for-healthcare-io-tests");
     FhirIO.Write.Result result =
         pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(
                 FhirIO.Write.fhirStoresImport(
                     options.getFhirStore(),
-                    options.getGcsTempPath(),
                     options.getGcsDeadLetterPath(),
                     ContentStructure.BUNDLE));
 

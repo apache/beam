@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.construction.graph.ExecutableStage;
 import org.apache.beam.runners.core.construction.graph.FusedPipeline;
 import org.apache.beam.runners.core.construction.graph.GreedyPipelineFuser;
 import org.apache.beam.runners.core.construction.graph.PipelineNode;
+import org.apache.beam.runners.core.construction.graph.TimerReference;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -42,6 +43,10 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Impulse;
@@ -59,7 +64,7 @@ public class ProcessBundleDescriptorsTest implements Serializable {
    * LengthPrefixCoder.
    */
   @Test
-  public void testWrapKeyCoderOfStatefulExecutableStageInLengthPrefixCoder() throws Exception {
+  public void testLengthPrefixingOfKeyCoderInStatefulExecutableStage() throws Exception {
     // Add another stateful stage with a non-standard key coder
     Pipeline p = Pipeline.create();
     Coder<Void> keycoder = VoidCoder.of();
@@ -82,16 +87,18 @@ public class ProcessBundleDescriptorsTest implements Serializable {
                   private final StateSpec<BagState<String>> bufferState =
                       StateSpecs.bag(StringUtf8Coder.of());
 
+                  @TimerId("timerId")
+                  private final TimerSpec timerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
                   @ProcessElement
                   public void processElement(
                       @Element KV<Void, String> element,
                       @StateId("stateId") BagState<String> state,
-                      OutputReceiver<KV<Void, String>> r) {
-                    for (String value : state.read()) {
-                      r.output(KV.of(element.getKey(), value));
-                    }
-                    state.add(element.getValue());
-                  }
+                      @TimerId("timerId") Timer timer,
+                      OutputReceiver<KV<Void, String>> r) {}
+
+                  @OnTimer("timerId")
+                  public void onTimer() {}
                 }))
         // Force the output to be materialized
         .apply("gbk", GroupByKey.create());
@@ -111,34 +118,46 @@ public class ProcessBundleDescriptorsTest implements Serializable {
 
     // Ensure original key coder is not a LengthPrefixCoder
     Map<String, RunnerApi.Coder> stageCoderMap = stage.getComponents().getCodersMap();
-    RunnerApi.Coder originalCoder =
+    RunnerApi.Coder originalMainInputCoder =
         stageCoderMap.get(inputPCollection.getPCollection().getCoderId());
-    String originalKeyCoderId = ModelCoders.getKvCoderComponents(originalCoder).keyCoderId();
-    assertThat(
-        stageCoderMap.get(originalKeyCoderId).getSpec().getUrn(),
-        is(CoderTranslation.JAVA_SERIALIZED_CODER_URN));
+    String originalKeyCoderId =
+        ModelCoders.getKvCoderComponents(originalMainInputCoder).keyCoderId();
+    RunnerApi.Coder originalKeyCoder = stageCoderMap.get(originalKeyCoderId);
+    assertThat(originalKeyCoder.getSpec().getUrn(), is(CoderTranslation.JAVA_SERIALIZED_CODER_URN));
 
     // Now create ProcessBundleDescriptor and check for the LengthPrefixCoder around the key coder
-    BeamFnApi.ProcessBundleDescriptor pbDescriptor =
+    BeamFnApi.ProcessBundleDescriptor pbd =
         ProcessBundleDescriptors.fromExecutableStage(
                 "test_stage", stage, Endpoints.ApiServiceDescriptor.getDefaultInstance())
             .getProcessBundleDescriptor();
+    Map<String, RunnerApi.Coder> pbsCoderMap = pbd.getCodersMap();
 
-    String inputPCollectionId = inputPCollection.getId();
-    String inputCoderId = pbDescriptor.getPcollectionsMap().get(inputPCollectionId).getCoderId();
+    RunnerApi.Coder pbsMainInputCoder =
+        pbsCoderMap.get(pbd.getPcollectionsOrThrow(inputPCollection.getId()).getCoderId());
+    String keyCoderId = ModelCoders.getKvCoderComponents(pbsMainInputCoder).keyCoderId();
+    RunnerApi.Coder keyCoder = pbsCoderMap.get(keyCoderId);
+    ensureLengthPrefixed(keyCoder, originalKeyCoder, pbsCoderMap);
 
-    Map<String, RunnerApi.Coder> pbCoderMap = pbDescriptor.getCodersMap();
-    RunnerApi.Coder coder = pbCoderMap.get(inputCoderId);
-    String keyCoderId = ModelCoders.getKvCoderComponents(coder).keyCoderId();
+    TimerReference timerRef = Iterables.getOnlyElement(stage.getTimers());
+    String timerTransformId = timerRef.transform().getId();
+    RunnerApi.ParDoPayload parDoPayload =
+        RunnerApi.ParDoPayload.parseFrom(
+            pbd.getTransformsOrThrow(timerTransformId).getSpec().getPayload());
+    RunnerApi.TimerFamilySpec timerSpec =
+        parDoPayload.getTimerFamilySpecsOrThrow(timerRef.localName());
+    RunnerApi.Coder timerCoder = pbsCoderMap.get(timerSpec.getTimerFamilyCoderId());
+    String timerKeyCoderId = timerCoder.getComponentCoderIds(0);
+    RunnerApi.Coder timerKeyCoder = pbsCoderMap.get(timerKeyCoderId);
+    ensureLengthPrefixed(timerKeyCoder, originalKeyCoder, pbsCoderMap);
+  }
 
-    RunnerApi.Coder keyCoder = pbCoderMap.get(keyCoderId);
-    // Ensure length prefix
-    assertThat(keyCoder.getSpec().getUrn(), is(ModelCoders.LENGTH_PREFIX_CODER_URN));
-    String lengthPrefixWrappedCoderId = keyCoder.getComponentCoderIds(0);
-
+  private static void ensureLengthPrefixed(
+      RunnerApi.Coder coder,
+      RunnerApi.Coder originalCoder,
+      Map<String, RunnerApi.Coder> pbsCoderMap) {
+    assertThat(coder.getSpec().getUrn(), is(ModelCoders.LENGTH_PREFIX_CODER_URN));
     // Check that the wrapped coder is unchanged
-    assertThat(lengthPrefixWrappedCoderId, is(originalKeyCoderId));
-    assertThat(
-        pbCoderMap.get(lengthPrefixWrappedCoderId), is(stageCoderMap.get(originalKeyCoderId)));
+    String lengthPrefixedWrappedCoderId = coder.getComponentCoderIds(0);
+    assertThat(pbsCoderMap.get(lengthPrefixedWrappedCoderId), is(originalCoder));
   }
 }

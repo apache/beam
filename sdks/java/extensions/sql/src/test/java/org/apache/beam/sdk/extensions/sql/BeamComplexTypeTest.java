@@ -430,12 +430,12 @@ public class BeamComplexTypeTest {
 
     @Override
     public Instant toBaseType(Long input) {
-      return new Instant((long) input);
+      return (input == null ? null : new Instant((long) input));
     }
 
     @Override
     public Long toInputType(Instant base) {
-      return base.getMillis();
+      return (base == null ? null : base.getMillis());
     }
   }
 
@@ -462,12 +462,12 @@ public class BeamComplexTypeTest {
 
     @Override
     public Instant toBaseType(Long input) {
-      return new Instant((long) input);
+      return (input == null ? null : new Instant((long) input));
     }
 
     @Override
     public Long toInputType(Instant base) {
-      return base.getMillis();
+      return (base == null ? null : base.getMillis());
     }
   }
 
