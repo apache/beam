@@ -80,7 +80,7 @@ import org.slf4j.LoggerFactory;
  * href="https://cloud.google.com/healthcare/docs/concepts/fhir">Google Cloud Healthcare Fhir API.
  * </a>
  *
- * <p>Read
+ * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIO.Read} supports use cases where you have a
  * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
@@ -96,6 +96,8 @@ import org.slf4j.LoggerFactory;
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
  * PCollection}* contains IDs that are not valid or are not reachable due to permissions issues.
+ *
+ * <h3>Writing</h3>
  *
  * <p>Write Resources can be written to FHIR with two different methods: Import or Execute Bundle.
  *
@@ -144,7 +146,7 @@ import org.slf4j.LoggerFactory;
  *
  * output = resources.apply("Happy path transformations", ...);
  * FhirIO.Write.Result writeResult =
- *     output.apply("Execute FHIR Bundles", FhirIO.executeBundles(options.getFhirStore()));
+ *     output.apply("Execute FHIR Bundles", FhirIO.executeBundles(options.getExistingFhirStore()));
  *
  * PCollection<HealthcareIOError<String>> failedBundles = writeResult.getFailedInsertsWithErr();
  *
@@ -153,6 +155,10 @@ import org.slf4j.LoggerFactory;
  *         .write()
  *         .to(option.getBQFhirExecuteBundlesDeadLetterTable())
  *         .withFormatFunction(new HealthcareIOErrorToTableRow()));
+ *
+ * // Alternatively you could use import for high throughput to a new store.
+ * FhirIO.Write.Result writeResult =
+ *     output.apply("Import FHIR Resources", FhirIO.executeBundles(options.getNewFhirStore()));
  * }***
  * </pre>
  */
@@ -227,7 +233,7 @@ public class FhirIO {
        * @return the read result
        * @throws IllegalArgumentException the illegal argument exception
        */
-      public static FhirIO.Read.Result of(PCollectionTuple pct) throws IllegalArgumentException {
+      static FhirIO.Read.Result of(PCollectionTuple pct) throws IllegalArgumentException {
         if (pct.getAll()
             .keySet()
             .containsAll((Collection<?>) TupleTagList.of(OUT).and(DEAD_LETTER))) {
@@ -308,7 +314,7 @@ public class FhirIO {
      *       error message and stacktrace.
      * </ul>
      */
-    public static class FetchResourceJsonString
+    static class FetchResourceJsonString
         extends PTransform<PCollection<String>, FhirIO.Read.Result> {
 
       /** Instantiates a new Fetch Fhir message DoFn. */
@@ -318,25 +324,23 @@ public class FhirIO {
       public FhirIO.Read.Result expand(PCollection<String> resourceIds) {
         return new FhirIO.Read.Result(
             resourceIds.apply(
-                ParDo.of(new FetchResourceJsonString.StringGetFn())
+                ParDo.of(new ReadResourceFn())
                     .withOutputTags(FhirIO.Read.OUT, TupleTagList.of(FhirIO.Read.DEAD_LETTER))));
       }
 
       /** DoFn for fetching messages from the Fhir store with error handling. */
-      public static class StringGetFn extends DoFn<String, String> {
+      static class ReadResourceFn extends DoFn<String, String> {
 
         private Counter failedMessageGets =
-            Metrics.counter(FetchResourceJsonString.StringGetFn.class, "failed-message-reads");
-        private static final Logger LOG =
-            LoggerFactory.getLogger(FetchResourceJsonString.StringGetFn.class);
+            Metrics.counter(ReadResourceFn.class, "failed-message-reads");
+        private static final Logger LOG = LoggerFactory.getLogger(ReadResourceFn.class);
         private final Counter successfulStringGets =
-            Metrics.counter(
-                FetchResourceJsonString.StringGetFn.class, "successful-hl7v2-message-gets");
+            Metrics.counter(ReadResourceFn.class, "successful-hl7v2-message-gets");
         private HealthcareApiClient client;
         private ObjectMapper mapper;
 
         /** Instantiates a new Hl 7 v 2 message get fn. */
-        StringGetFn() {}
+        ReadResourceFn() {}
 
         /**
          * Instantiate healthcare client.
@@ -601,6 +605,18 @@ public class FhirIO {
     }
 
     public static Write fhirStoresImport(
+        String fhirStore,
+        String gcsDeadLetterPath,
+        @Nullable FhirIO.Import.ContentStructure contentStructure) {
+      return new AutoValue_FhirIO_Write.Builder()
+          .setFhirStore(fhirStore)
+          .setWriteMethod(Write.WriteMethod.IMPORT)
+          .setContentStructure(contentStructure)
+          .setImportGcsDeadLetterPath(gcsDeadLetterPath)
+          .build();
+    }
+
+    public static Write fhirStoresImport(
         ValueProvider<String> fhirStore,
         ValueProvider<String> gcsTempPath,
         ValueProvider<String> gcsDeadLetterPath,
@@ -649,13 +665,14 @@ public class FhirIO {
       PCollection<HealthcareIOError<String>> failedImports;
       switch (this.getWriteMethod()) {
         case IMPORT:
-          LOG.info(
+          LOG.warn(
               "Make sure the Cloud Healthcare Service Agent has permissions when using import:"
                   + " https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions");
-          String tempPath = getImportGcsTempPath().orElseThrow(IllegalArgumentException::new);
           String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
           FhirIO.Import.ContentStructure contentStructure =
               getContentStructure().orElseThrow(IllegalArgumentException::new);
+          String tempPath = getImportGcsTempPath()
+              .orElse(input.getPipeline().getOptions().getTempLocation());
 
           return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
         case EXECUTE_BUNDLE:
@@ -681,11 +698,11 @@ public class FhirIO {
   public static class Import extends Write {
 
     private final String fhirStore;
-    private final String tempGcsPath;
     private final String deadLetterGcsPath;
     private final ContentStructure contentStructure;
     private static final int DEFAULT_FILES_PER_BATCH = 10000;
     private static final Logger LOG = LoggerFactory.getLogger(Import.class);
+    private String tempGcsPath;
 
     /**
      * Instantiates a new Import.
@@ -710,6 +727,18 @@ public class FhirIO {
       }
     }
 
+    Import(
+        ValueProvider<String> fhirStore,
+        ValueProvider<String> deadLetterGcsPath,
+        @Nullable ContentStructure contentStructure) {
+      this.fhirStore = fhirStore.get();
+      this.deadLetterGcsPath = deadLetterGcsPath.get();
+      if (contentStructure == null) {
+        this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
+      } else {
+        this.contentStructure = contentStructure;
+      }
+    }
     /**
      * Instantiates a new Import.
      *
@@ -765,11 +794,17 @@ public class FhirIO {
           "FhirIO.Import should only be used on unbounded PCollections as it is"
               + "intended for batch use only.");
 
+      // fall back on pipeline's temp location.
+      String tempPath = tempGcsPath;
+      if (tempPath == null){
+        tempPath = input.getPipeline().getOptions().getTempLocation();
+      }
+
       // Write bundles of String to GCS
       PCollectionTuple writeTmpFileResults =
           input.apply(
               "Write nd json to GCS",
-              ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempGcsPath, deadLetterGcsPath))
+              ParDo.of(new WriteBundlesToFilesFn(fhirStore, tempPath, deadLetterGcsPath))
                   .withOutputTags(Write.TEMP_FILES, TupleTagList.of(Write.FAILED_BODY)));
 
       PCollection<HealthcareIOError<String>> failedBodies =
@@ -786,7 +821,7 @@ public class FhirIO {
               .apply("File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
               .apply(
                   ParDo.of(
-                      new ImportFn(fhirStore, tempGcsPath, deadLetterGcsPath, contentStructure)))
+                      new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
 
       // Wait til window closes for failedBodies and failedFiles to ensure we are done processing
@@ -794,9 +829,12 @@ public class FhirIO {
       // copies have been moved to the dead letter path.
       // Clean up all of tempGcsPath. This will handle removing phantom temporary objects from
       // failed / rescheduled ImportFn::importBatch.
+      ResourceId tempDir = FileSystems.matchNewResource(tempPath, true);
+      ResourceId tempSubDirUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_DIRECTORY);
+
       input
           .getPipeline()
-          .apply(Create.of(Collections.singletonList(tempGcsPath)))
+          .apply(Create.of(Collections.singletonList(tempSubDirUri.toString())))
           .apply("Wait On File Writing", Wait.on(failedBodies))
           .apply("Wait On FHIR Importing", Wait.on(failedFiles))
           .apply(

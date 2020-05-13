@@ -17,6 +17,10 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
+
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -31,6 +35,7 @@ public interface FhirIOTestOptions extends TestPipelineOptions {
   void setFhirStore(String value);
 
   @Description("GCS temp path for import should be of the form gs://bucket/path/")
+  @Default.String("gs://" + DEFAULT_TEMP_BUCKET + "/FhirIOWriteIT/temp/")
   String getGcsTempPath();
 
   void setGcsTempPath(String value);
