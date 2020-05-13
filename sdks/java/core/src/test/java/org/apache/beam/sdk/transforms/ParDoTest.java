@@ -5167,12 +5167,11 @@ public class ParDoTest implements Serializable {
               .apply(
                   Create.timestamped(
                       // first window
-                      TimestampedValue.of(KV.of("hello", 7), new Instant(1)),
+                      TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
 
                       // second window
-                      TimestampedValue.of(KV.of("hello", 35), new Instant(13))))
+                      TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
               .apply(Window.into(FixedWindows.of(Duration.millis(10))))
-              .setIsBoundedInternal(IsBounded.UNBOUNDED)
               .apply(ParDo.of(fn));
 
       PAssert.that(output)
