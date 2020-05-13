@@ -30,7 +30,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.InProcessServerFactory;
 import org.apache.beam.runners.fnexecution.ServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.LegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool;
 import org.apache.beam.runners.fnexecution.control.ControlClientPool.Source;
 import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
@@ -87,14 +87,15 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
 
   @Override
   @SuppressWarnings("FutureReturnValueIgnored") // no need to monitor shutdown thread
-  public RemoteEnvironment createEnvironment(Environment environment) throws Exception {
+  public RemoteEnvironment createEnvironment(Environment environment, String workerId)
+      throws Exception {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     Future<?> fnHarness =
         executor.submit(
             () -> {
               try {
                 FnHarness.main(
-                    "id",
+                    workerId,
                     options,
                     loggingServer.getApiServiceDescriptor(),
                     controlServer.getApiServiceDescriptor(),
@@ -157,7 +158,7 @@ public class EmbeddedEnvironmentFactory implements EnvironmentFactory {
     public EnvironmentFactory createEnvironmentFactory(
         GrpcFnServer<FnApiControlClientPoolService> controlServer,
         GrpcFnServer<GrpcLoggingService> loggingServer,
-        GrpcFnServer<LegacyArtifactRetrievalService> retrievalServer,
+        GrpcFnServer<ArtifactRetrievalService> retrievalServer,
         GrpcFnServer<StaticGrpcProvisionService> provisioningServer,
         ControlClientPool clientPool,
         IdGenerator idGenerator) {

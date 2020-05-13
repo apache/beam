@@ -525,10 +525,6 @@ class BigQuerySource(dataflow_io.NativeSource):
 FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 
-def _to_bool(value):
-  return value == 'true'
-
-
 def _to_decimal(value):
   return decimal.Decimal(value)
 
@@ -547,7 +543,6 @@ class _JsonToDictCoder(coders.Coder):
         'INTEGER': int,
         'INT64': int,
         'FLOAT': float,
-        'BOOLEAN': _to_bool,
         'NUMERIC': _to_decimal,
         'BYTES': _to_bytes,
     }
@@ -607,10 +602,12 @@ class _CustomBigQuerySource(BoundedSource):
       project=None,
       query=None,
       validate=False,
+      pipeline_options=None,
       coder=None,
       use_standard_sql=False,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      bigquery_job_labels=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -637,6 +634,17 @@ class _CustomBigQuerySource(BoundedSource):
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
     self.split_result = None
+    self.options = pipeline_options
+    self.bigquery_job_labels = bigquery_job_labels or {}
+
+  def display_data(self):
+    return {
+        'table': str(self.table_reference),
+        'query': str(self.query),
+        'project': str(self.project),
+        'use_legacy_sql': self.use_legacy_sql,
+        'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
+    }
 
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
@@ -654,20 +662,32 @@ class _CustomBigQuerySource(BoundedSource):
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
+      project = self._get_project()
       job = bq._start_query_job(
-          self.project,
+          project,
           self.query.get(),
           self.use_legacy_sql,
           self.flatten_results,
           job_id=uuid.uuid4().hex,
           dry_run=True,
-          kms_key=self.kms_key)
+          kms_key=self.kms_key,
+          job_labels=self.bigquery_job_labels)
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
       return None
+
+  def _get_project(self):
+    """Returns the project that queries and exports will be billed to."""
+
+    project = self.options.view_as(GoogleCloudOptions).project
+    if isinstance(project, vp.ValueProvider):
+      project = project.get()
+    if not project:
+      project = self.project
+    return project
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -687,7 +707,7 @@ class _CustomBigQuerySource(BoundedSource):
               self.coder(schema)) for metadata in metadata_list
       ]
       if self.query is not None:
-        bq.clean_up_temporary_dataset(self.project)
+        bq.clean_up_temporary_dataset(self._get_project())
 
     for source in self.split_result:
       yield SourceBundle(0, source, None, None)
@@ -709,21 +729,22 @@ class _CustomBigQuerySource(BoundedSource):
   @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
     location = bq.get_query_location(
-        self.project, self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self.project, location)
+        self._get_project(), self.query.get(), self.use_legacy_sql)
+    bq.create_temporary_dataset(self._get_project(), location)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
     job = bq._start_query_job(
-        self.project,
+        self._get_project(),
         self.query.get(),
         self.use_legacy_sql,
         self.flatten_results,
         job_id=uuid.uuid4().hex,
-        kms_key=self.kms_key)
+        kms_key=self.kms_key,
+        job_labels=self.bigquery_job_labels)
     job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref)
-    return bq._get_temp_table(self.project)
+    bq.wait_for_bq_job(job_ref, max_retries=0)
+    return bq._get_temp_table(self._get_project())
 
   def _export_files(self, bq):
     """Runs a BigQuery export job.
@@ -736,7 +757,9 @@ class _CustomBigQuerySource(BoundedSource):
                                      job_id,
                                      self.table_reference,
                                      bigquery_tools.FileFormat.JSON,
-                                     include_header=False)
+                                     project=self._get_project(),
+                                     include_header=False,
+                                     job_labels=self.bigquery_job_labels)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
@@ -1572,7 +1595,11 @@ class ReadFromBigQuery(PTransform):
       bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
-   """
+    bigquery_job_labels (dict): A dictionary with string labels to be passed
+      to BigQuery export and query jobs created by this transform. See:
+      https://cloud.google.com/bigquery/docs/reference/rest/v2/\
+              Job#JobConfiguration
+  """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
@@ -1638,6 +1665,7 @@ class ReadFromBigQuery(PTransform):
             _CustomBigQuerySource(
                 gcs_location=gcs_location,
                 validate=self.validate,
+                pipeline_options=pcoll.pipeline.options,
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))

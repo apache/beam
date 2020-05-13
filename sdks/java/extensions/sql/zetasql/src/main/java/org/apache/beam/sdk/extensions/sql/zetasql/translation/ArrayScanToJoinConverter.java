@@ -44,7 +44,9 @@ class ArrayScanToJoinConverter extends RelConverter<ResolvedArrayScan> {
   /** This is the case of {@code table [LEFT|INNER] JOIN UNNEST(table.array_field) on join_expr}. */
   @Override
   public boolean canConvert(ResolvedArrayScan zetaNode) {
-    return zetaNode.getInputScan() != null && zetaNode.getJoinExpr() != null;
+    return zetaNode.getArrayExpr() instanceof ResolvedColumnRef
+        && zetaNode.getInputScan() != null
+        && zetaNode.getJoinExpr() != null;
   }
 
   /** Left input is converted from input scan. */

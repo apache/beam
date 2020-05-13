@@ -15,8 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 import CommonJobProperties as common
 import Kubernetes
+import InfluxDBCredentialsHelper
 
 String jobName = "beam_PerformanceTests_HadoopFormat"
 
@@ -27,6 +29,7 @@ job(jobName) {
           delegate,
           'Java HadoopFormatIO Performance Test',
           'Run Java HadoopFormatIO Performance Test')
+  InfluxDBCredentialsHelper.useCredentials(delegate)
 
   String namespace = common.getKubernetesNamespace(jobName)
   String kubeconfig = common.getKubeconfigLocationForNamespace(namespace)
@@ -43,6 +46,9 @@ job(jobName) {
           numberOfRecords      : '600000',
           bigQueryDataset      : 'beam_performance',
           bigQueryTable        : 'hadoopformatioit_results',
+          influxMeasurement    : 'hadoopformatioit_results',
+          influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+          influxHost           : InfluxDBCredentialsHelper.InfluxDBHostname,
           postgresUsername     : 'postgres',
           postgresPassword     : 'uuinkks',
           postgresDatabaseName : 'postgres',

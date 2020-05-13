@@ -665,6 +665,7 @@ Copy the source release to the dev repository of `dist.apache.org`.
 
 Build python binaries in release branch in sdks/python dir.
 
+    pip install -r build-requirements.txt
     python setup.py sdist --format=zip
     cd dist
     cp apache-beam-${RELEASE}.zip staging/apache-beam-${RELEASE}-python.zip
@@ -780,7 +781,7 @@ pip install tox
 ```
 Create the Python SDK documentation using sphinx by running a helper script.
 ```
-cd sdks/python && tox -e docs
+cd sdks/python && pip install -r build-requirements.txt && tox -e py37-docs
 ```
 By default the Pydoc is generated in `sdks/python/target/docs/_build`. Let `${PYDOC_ROOT}` be the absolute path to `_build`.
 

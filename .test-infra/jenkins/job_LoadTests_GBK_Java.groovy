@@ -21,6 +21,7 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
+import InfluxDBCredentialsHelper
 
 def loadTestConfigurations = { mode, isStreaming, datasetName ->
     [
@@ -36,6 +37,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_1",
+                            influxMeasurement     : "java_${mode}_gbk_1",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 200000000,
@@ -62,6 +65,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_2",
+                            influxMeasurement     : "java_${mode}_gbk_2",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
@@ -89,6 +94,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_3",
+                            influxMeasurement     : "java_${mode}_gbk_3",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000,
@@ -116,6 +123,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_4",
+                            influxMeasurement     : "java_${mode}_gbk_4",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 5000000,
@@ -142,6 +151,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_5",
+                            influxMeasurement     : "java_${mode}_gbk_5",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 2500000,
@@ -168,6 +179,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_6",
+                            influxMeasurement     : "java_${mode}_gbk_6",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
@@ -196,6 +209,8 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_GBK_7",
+                            influxMeasurement     : "java_${mode}_gbk_7",
+                            publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
                                               "numRecords": 20000000,
@@ -212,7 +227,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             streaming             : isStreaming
                     ]
             ]
-    ]
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
 }
 
 def streamingLoadTestJob = { scope, triggeringContext ->
@@ -227,6 +242,10 @@ def streamingLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Streaming', 'H 12 * * *', this) {
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
@@ -236,7 +255,8 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java GBK Dataflow Streaming suite',
         this
 ) {
-  streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
+    additionalPipelineArgs = [:]
+    streamingLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }
 
 
@@ -246,6 +266,10 @@ def batchLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_GBK_Dataflow_Batch', 'H 14 * * *', this) {
+    additionalPipelineArgs = [
+        influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
@@ -255,5 +279,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Java GBK Dataflow Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }

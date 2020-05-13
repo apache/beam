@@ -38,6 +38,7 @@ import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -137,6 +138,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
       args[i++] = "--" + entry.getKey() + "=" + entry.getValue();
     }
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation().create();
+    FileSystems.setDefaultPipelineOptions(options);
     options.as(ApplicationNameOptions.class).setAppName("BeamSql");
     return options;
   }

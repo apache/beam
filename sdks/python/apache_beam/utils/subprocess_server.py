@@ -31,11 +31,18 @@ import tempfile
 import threading
 import time
 
-import grpc
 from future.moves.urllib.error import URLError
 from future.moves.urllib.request import urlopen
 
 from apache_beam.version import __version__ as beam_version
+
+# Protect against environments where grpc is not available.
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  import grpc
+except ImportError:
+  grpc = None
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,7 +84,9 @@ class SubprocessServer(object):
     try:
       endpoint = self.start_process()
       wait_secs = .1
-      channel = grpc.insecure_channel(endpoint)
+      channel_options = [("grpc.max_receive_message_length", -1),
+                         ("grpc.max_send_message_length", -1)]
+      channel = grpc.insecure_channel(endpoint, options=channel_options)
       channel_ready = grpc.channel_ready_future(channel)
       while True:
         if self._process is not None and self._process.poll() is not None:
@@ -154,8 +163,9 @@ class JavaJarServer(SubprocessServer):
   BEAM_GROUP_ID = 'org.apache.beam'
   JAR_CACHE = os.path.expanduser("~/.apache_beam/cache/jars")
 
-  _BEAM_SERVICES = threading.local()
-  _BEAM_SERVICES.replacements = {}
+  _BEAM_SERVICES = type(
+      'local', (threading.local, ),
+      dict(__init__=lambda self: setattr(self, 'replacements', {})))()
 
   def __init__(self, stub_class, path_to_jar, java_arguments):
     super(JavaJarServer, self).__init__(

@@ -44,7 +44,6 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -61,7 +60,6 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=true',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -78,7 +76,6 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
@@ -95,7 +92,6 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=SMOKE',
@@ -117,7 +113,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
   def final JOB_SPECIFIC_OPTIONS = [
           'suite' : 'SMOKE',
           'streamTimeout' : 60,
-          'shutdownSourcesOnFinalWatermark' : true,
   ]
 
   Nexmark.standardJob(delegate, Runner.FLINK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)

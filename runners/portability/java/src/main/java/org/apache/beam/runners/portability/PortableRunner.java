@@ -201,6 +201,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
               new ArtifactRetrievalService(),
               ArtifactStagingServiceGrpc.newStub(artifactChannel.get()),
               stagingSessionToken);
+          retrievalToken = "";
         } catch (ExecutionException exn) {
           if (exn.getCause() instanceof StatusRuntimeException
               && ((StatusRuntimeException) exn.getCause()).getStatus().getCode()

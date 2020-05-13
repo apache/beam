@@ -18,7 +18,7 @@
 package org.apache.beam.runners.samza;
 
 import org.apache.beam.model.jobmanagement.v1.JobApi;
-import org.apache.beam.runners.fnexecution.jobsubmission.PortablePipelineResult;
+import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.samza.application.StreamApplication;
 import org.apache.samza.config.Config;
 import org.apache.samza.runtime.ApplicationRunner;
