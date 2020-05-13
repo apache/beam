@@ -110,18 +110,18 @@ public class GroupByKeyOp<K, InputT, OutputT>
         (SamzaExecutionContext) context.getApplicationContainerContext();
     this.pipelineOptions = samzaExecutionContext.getPipelineOptions();
 
-    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
+    final SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+        SamzaStateInternals.createStateInternalFactory(
             transformId, null, context.getTaskContext(), pipelineOptions, null);
 
     final DoFnRunners.OutputManager outputManager = outputManagerFactory.create(emitter);
 
     this.stateInternalsFactory =
-        new SamzaStoreStateInternals.Factory<>(
+        new SamzaStateInternals.Factory<>(
             transformId,
             Collections.singletonMap(
-                SamzaStoreStateInternals.BEAM_STORE,
-                SamzaStoreStateInternals.getBeamStore(context.getTaskContext())),
+                SamzaStateInternals.BEAM_STORE,
+                SamzaStateInternals.getBeamStore(context.getTaskContext())),
             keyCoder,
             pipelineOptions.getStoreBatchGetSize());
 

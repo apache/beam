@@ -19,9 +19,11 @@ package org.apache.beam.runners.samza.runtime;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,9 +35,12 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.TestSamzaRunner;
+import org.apache.beam.runners.samza.runtime.SamzaStateInternals.StateValue;
+import org.apache.beam.runners.samza.runtime.SamzaStateInternals.StateValueSerdeFactory;
 import org.apache.beam.runners.samza.state.SamzaMapState;
 import org.apache.beam.runners.samza.state.SamzaSetState;
 import org.apache.beam.runners.samza.translation.ConfigBuilder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -59,6 +64,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.samza.context.ContainerContext;
 import org.apache.samza.context.JobContext;
 import org.apache.samza.metrics.MetricsRegistry;
+import org.apache.samza.serializers.Serde;
 import org.apache.samza.storage.StorageEngineFactory;
 import org.apache.samza.storage.kv.Entry;
 import org.apache.samza.storage.kv.KeyValueIterator;
@@ -70,7 +76,7 @@ import org.apache.samza.system.SystemStreamPartition;
 import org.junit.Test;
 
 /** Tests for SamzaStoreStateInternals. */
-public class SamzaStoreStateInternalsTest implements Serializable {
+public class SamzaStateInternalsTest implements Serializable {
   public final transient TestPipeline pipeline = TestPipeline.create();
 
   @Test
@@ -298,5 +304,25 @@ public class SamzaStoreStateInternalsTest implements Serializable {
     // Verify all of them are closed
     assertEquals(8, TestStore.iterators.size());
     TestStore.iterators.forEach(iter -> assertTrue(iter.closed));
+  }
+
+  @Test
+  public void testStateValueSerde() throws IOException {
+    StateValueSerdeFactory stateValueSerdeFactory = new StateValueSerdeFactory();
+    Serde<StateValue<Integer>> serde = (Serde) stateValueSerdeFactory.getSerde("Test", null);
+    int value = 123;
+    Coder<Integer> coder = VarIntCoder.of();
+
+    byte[] valueBytes = serde.toBytes(StateValue.of(value, coder));
+    StateValue<Integer> stateValue1 = serde.fromBytes(valueBytes);
+    StateValue<Integer> stateValue2 = StateValue.of(valueBytes);
+    assertEquals(stateValue1.getValue(coder).intValue(), value);
+    assertEquals(stateValue2.getValue(coder).intValue(), value);
+
+    Integer nullValue = null;
+    byte[] nullBytes = serde.toBytes(StateValue.of(nullValue, coder));
+    StateValue<Integer> nullStateValue = serde.fromBytes(nullBytes);
+    assertNull(nullBytes);
+    assertNull(nullStateValue.getValue(coder));
   }
 }

@@ -78,7 +78,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       Coder<K> keyCoder,
       Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
-      SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
+      SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       Coder<BoundedWindow> windowCoder,
       IsBounded isBounded,
       SamzaPipelineOptions pipelineOptions) {
@@ -96,7 +96,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
       Coder<K> keyCoder,
       Scheduler<KeyedTimerData<K>> timerRegistry,
       String timerStateId,
-      SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
+      SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory,
       WindowingStrategy<?, BoundedWindow> windowingStrategy,
       IsBounded isBounded,
       SamzaPipelineOptions pipelineOptions) {
@@ -351,7 +351,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     SamzaTimerState(
         String timerStateId,
-        SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory,
+        SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory,
         Coder<BoundedWindow> windowCoder) {
 
       this.eventTimeTimerState =
@@ -467,7 +467,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
         maxEventTimeInBuffer = keyedTimerData.getTimerData().getTimestamp().getMillis();
       }
 
-      ((SamzaStoreStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
+      ((SamzaStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
           .closeIterators();
       LOG.info("Loaded {} event time timers in memory", eventTimeBuffer.size());
     }
@@ -487,7 +487,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
             keyedTimerData, keyedTimerData.getTimerData().getTimestamp().getMillis());
         ++count;
       }
-      ((SamzaStoreStateInternals.KeyValueIteratorState) processingTimeTimerState).closeIterators();
+      ((SamzaStateInternals.KeyValueIteratorState) processingTimeTimerState).closeIterators();
 
       LOG.info("Loaded {} processing time timers in memory", count);
     }
@@ -516,10 +516,10 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
             timestampSortedEventTimeTimerState.add(keyedTimerData);
           }
         }
-        ((SamzaStoreStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
+        ((SamzaStateInternals.KeyValueIteratorState) timestampSortedEventTimeTimerState)
             .closeIterators();
       }
-      ((SamzaStoreStateInternals.KeyValueIteratorState) eventTimeTimerState).closeIterators();
+      ((SamzaStateInternals.KeyValueIteratorState) eventTimeTimerState).closeIterators();
 
       reloadEventTimeTimers();
       loadProcessingTimeTimers();

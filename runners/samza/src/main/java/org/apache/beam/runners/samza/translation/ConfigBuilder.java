@@ -36,7 +36,7 @@ import org.apache.beam.runners.samza.BeamJobCoordinatorRunner;
 import org.apache.beam.runners.samza.SamzaExecutionEnvironment;
 import org.apache.beam.runners.samza.SamzaPipelineOptions;
 import org.apache.beam.runners.samza.container.BeamContainerRunner;
-import org.apache.beam.runners.samza.runtime.SamzaStoreStateInternals;
+import org.apache.beam.runners.samza.runtime.SamzaStateInternals;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.samza.config.ApplicationConfig;
@@ -50,7 +50,6 @@ import org.apache.samza.container.grouper.task.SingleContainerGrouperFactory;
 import org.apache.samza.job.yarn.YarnJobFactory;
 import org.apache.samza.runtime.LocalApplicationRunner;
 import org.apache.samza.runtime.RemoteApplicationRunner;
-import org.apache.samza.serializers.ByteSerdeFactory;
 import org.apache.samza.standalone.PassthroughJobCoordinatorFactory;
 import org.apache.samza.zk.ZkJobCoordinatorFactory;
 import org.slf4j.Logger;
@@ -242,11 +241,13 @@ public class ConfigBuilder {
                 "stores.beamStore.factory",
                 "org.apache.samza.storage.kv.RocksDbKeyValueStorageEngineFactory")
             .put("stores.beamStore.key.serde", "byteArraySerde")
-            .put("stores.beamStore.msg.serde", "byteSerde")
-            .put("serializers.registry.byteSerde.class", ByteSerdeFactory.class.getName())
+            .put("stores.beamStore.msg.serde", "stateValueSerde")
+            .put(
+                "serializers.registry.stateValueSerde.class",
+                SamzaStateInternals.StateValueSerdeFactory.class.getName())
             .put(
                 "serializers.registry.byteArraySerde.class",
-                SamzaStoreStateInternals.ByteArraySerdeFactory.class.getName());
+                SamzaStateInternals.ByteArraySerdeFactory.class.getName());
 
     if (options.getStateDurable()) {
       LOG.info("stateDurable is enabled");

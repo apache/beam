@@ -179,8 +179,8 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
     this.bundleDisabled = samzaPipelineOptions.getMaxBundleSize() <= 1;
 
     final String stateId = "pardo-" + transformId;
-    final SamzaStoreStateInternals.Factory<?> nonKeyedStateInternalsFactory =
-        SamzaStoreStateInternals.createStateInternalFactory(
+    final SamzaStateInternals.Factory<?> nonKeyedStateInternalsFactory =
+        SamzaStateInternals.createStateInternalFactory(
             stateId, null, context.getTaskContext(), samzaPipelineOptions, signature);
     final FutureCollector<OutT> outputFutureCollector = createFutureCollector();
 

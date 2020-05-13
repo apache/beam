@@ -83,8 +83,8 @@ class KeyedInternals<K> {
     final List<State> states = threadLocalKeyedStates.get().states;
     states.forEach(
         state -> {
-          if (state instanceof SamzaStoreStateInternals.KeyValueIteratorState) {
-            ((SamzaStoreStateInternals.KeyValueIteratorState) state).closeIterators();
+          if (state instanceof SamzaStateInternals.KeyValueIteratorState) {
+            ((SamzaStateInternals.KeyValueIteratorState) state).closeIterators();
           }
         });
     states.clear();
