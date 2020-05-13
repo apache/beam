@@ -60,6 +60,7 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -68,6 +69,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -299,6 +301,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     private Method method;
     private String pathSuffix;
     private Map<String, String> headers;
+    private Map<String, String> parameters;
 
 
     enum Method {
@@ -332,7 +335,10 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       return this;
     }
 
-
+    public FhirHttpRequest setParameters(Map<String, String> parameters){
+      this.parameters= parameters;
+      return this;
+    }
 
   }
 
@@ -364,24 +370,31 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       case PUT:
         requestBuilder = RequestBuilder.put();
         break;
-      case POST:
+      case POST: // fallthrough
       default:
         requestBuilder = RequestBuilder.post();
     }
 
-    HttpUriRequest request = requestBuilder
-            .setUri(uri)
-            .setEntity(requestEntity)
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
-            .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
-            .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT)
-            .build();
+    // add common headers
+    requestBuilder
+        .setUri(uri)
+        .setEntity(requestEntity)
+        .addHeader("User-Agent", USER_AGENT)
+        .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
+        .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
+        .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT);
 
-    // Add headers
-    for (Map.Entry<String, String> header: fhirHttpRequest.headers.entrySet()){
-      request.addHeader(header.getKey(), header.getValue());
+    // add additional headers
+    for (Map.Entry<String, String> param: fhirHttpRequest.parameters.entrySet()){
+      requestBuilder.addParameter(param.getKey(), param.getValue());
     }
+
+    // add additional parameters
+    for (Map.Entry<String, String> param: fhirHttpRequest.headers.entrySet()){
+      requestBuilder.addHeader(param.getKey(), param.getValue());
+    }
+
+    HttpUriRequest request = requestBuilder.build();
 
     HttpResponse response = httpClient.execute(request);
     HttpEntity responseEntity = response.getEntity();
@@ -417,11 +430,12 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody fhirConditionalUpdate(String fhirStore, String type, String resource)
+  public HttpBody fhirConditionalUpdate(String fhirStore, String type, String resource, Map<String, String> searchParameters)
       throws IOException, HealthcareHttpException {
     return executeFhirHttpRequest(
         FhirHttpRequest.of(fhirStore, resource)
             .setPathSuffix("/" + type)
+            .setParameters(searchParameters)
             .setMethod(Method.PUT));
   }
 

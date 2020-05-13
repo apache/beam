@@ -27,6 +27,7 @@ import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 
@@ -109,7 +110,8 @@ public interface HealthcareApiClient {
   HttpBody fhirCreate(String fhirStore, String type, String resource, @Nullable String ifNoneExist)
       throws IOException, HealthcareHttpException;
 
-  HttpBody fhirConditionalUpdate(String fhirStore, String relativeResourceName, String resource)
+  HttpBody fhirConditionalUpdate(String fhirStore, String relativeResourceName, String resource,
+      Map<String, String> searchParameters)
       throws IOException, HealthcareHttpException;
 
   HttpBody fhirUpdate(String fhirStore, String type, String resource)
