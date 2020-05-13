@@ -82,14 +82,14 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading</h3>
  *
- * <p>FHIR resources can be read with {@link FhirIO.Read} supports use cases where you have a
+ * <p>FHIR resources can be read with {@link FhirIO.Read}, which supports use cases where you have a
  * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
  *
  * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID strings
- * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieved a
+ * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
  * {@link PCollection} containing the successfully fetched {@link String}s and/or {@link
  * FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
  * HealthcareIOError}* containing the resource ID that could not be fetched and the exception as a
