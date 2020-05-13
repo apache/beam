@@ -320,8 +320,7 @@ class BigQueryWrapper(object):
       from_table_reference,
       to_table_reference,
       create_disposition=None,
-      write_disposition=None,
-      job_labels=None):
+      write_disposition=None):
     reference = bigquery.JobReference()
     reference.jobId = job_id
     reference.projectId = project_id
@@ -334,9 +333,7 @@ class BigQueryWrapper(object):
                     sourceTable=from_table_reference,
                     createDisposition=create_disposition,
                     writeDisposition=write_disposition,
-                ),
-                labels=job_labels or {},
-            ),
+                )),
             jobReference=reference,
         ))
 
@@ -358,8 +355,7 @@ class BigQueryWrapper(object):
       write_disposition=None,
       create_disposition=None,
       additional_load_parameters=None,
-      source_format=None,
-      job_labels=None):
+      source_format=None):
     additional_load_parameters = additional_load_parameters or {}
     job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
@@ -376,9 +372,7 @@ class BigQueryWrapper(object):
                     sourceFormat=source_format,
                     useAvroLogicalTypes=True,
                     autodetect=schema == 'SCHEMA_AUTODETECT',
-                    **additional_load_parameters),
-                labels=job_labels or {},
-            ),
+                    **additional_load_parameters)),
             jobReference=reference,
         ))
     response = self.client.jobs.Insert(request)
@@ -395,8 +389,7 @@ class BigQueryWrapper(object):
       flatten_results,
       job_id,
       dry_run=False,
-      kms_key=None,
-      job_labels=None):
+      kms_key=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -411,9 +404,7 @@ class BigQueryWrapper(object):
                     if not dry_run else None,
                     flattenResults=flatten_results,
                     destinationEncryptionConfiguration=bigquery.
-                    EncryptionConfiguration(kmsKeyName=kms_key)),
-                labels=job_labels or {},
-            ),
+                    EncryptionConfiguration(kmsKeyName=kms_key))),
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
@@ -705,8 +696,7 @@ class BigQueryWrapper(object):
       destination_format,
       project=None,
       include_header=True,
-      compression=ExportCompression.NONE,
-      job_labels=None):
+      compression=ExportCompression.NONE):
     """Starts a job to export data from BigQuery.
 
     Returns:
@@ -724,9 +714,7 @@ class BigQueryWrapper(object):
                     printHeader=include_header,
                     destinationFormat=destination_format,
                     compression=compression,
-                ),
-                labels=job_labels or {},
-            ),
+                )),
             jobReference=job_reference,
         ))
     response = self.client.jobs.Insert(request)
