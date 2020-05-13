@@ -21,7 +21,7 @@ import CommonJobProperties as properties
 
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
         scope: this,
-        nameBase: 'JavaBeamZetaSQL',
+        nameBase: 'JavaBeamZetaSQLJava11',
         gradleTask: ':javaPreCommitBeamZetaSQL',
         gradleSwitches: [
                 '-PdisableSpotlessCheck=true',
