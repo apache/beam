@@ -50,9 +50,11 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PBegin;
@@ -342,7 +344,7 @@ public class QueryablePipelineTest {
   public void getEnvironmentWithEnvironment() {
     Pipeline p = Pipeline.create();
     PCollection<Long> longs = p.apply("BoundedRead", Read.from(CountingSource.upTo(100L)));
-    PCollectionList.of(longs).and(longs).and(longs).apply("flatten", Flatten.pCollections());
+    longs.apply(WithKeys.of("a")).apply("groupByKey", GroupByKey.create());
 
     Components components = PipelineTranslation.toProto(p).getComponents();
     QueryablePipeline qp = QueryablePipeline.forPrimitivesIn(components);
@@ -350,7 +352,7 @@ public class QueryablePipelineTest {
     PTransformNode environmentalRead =
         PipelineNode.pTransform("BoundedRead", components.getTransformsOrThrow("BoundedRead"));
     PTransformNode nonEnvironmentalTransform =
-        PipelineNode.pTransform("flatten", components.getTransformsOrThrow("flatten"));
+        PipelineNode.pTransform("groupByKey", components.getTransformsOrThrow("groupByKey"));
 
     assertThat(qp.getEnvironment(environmentalRead).isPresent(), is(true));
     assertThat(
