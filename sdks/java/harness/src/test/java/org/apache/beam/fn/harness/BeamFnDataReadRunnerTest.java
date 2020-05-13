@@ -54,11 +54,14 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitRequest.
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleSplitResponse.ChannelSplit;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.SimpleMonitoringInfoBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.CompletableFutureInboundDataClient;
@@ -216,6 +219,7 @@ public class BeamFnDataReadRunnerTest {
     List<WindowedValue<String>> values = new ArrayList<>();
     FnDataReceiver<WindowedValue<String>> consumers = values::add;
     AtomicReference<String> bundleId = new AtomicReference<>("0");
+    List<PTransformRunnerFactory.ProgressRequestCallback> progressCallbacks = new ArrayList<>();
     BeamFnDataReadRunner<String> readRunner =
         new BeamFnDataReadRunner<>(
             INPUT_TRANSFORM_ID,
@@ -223,11 +227,17 @@ public class BeamFnDataReadRunnerTest {
             bundleId::get,
             COMPONENTS.getCodersMap(),
             mockBeamFnDataClient,
-            (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
+            (PTransformRunnerFactory.ProgressRequestCallback callback) -> {
+              progressCallbacks.add(callback);
+            },
             consumers);
 
     // Process for bundle id 0
     readRunner.registerInputLocation();
+
+    assertEquals(
+        createReadIndexMonitoringInfoAt(-1),
+        Iterables.getOnlyElement(Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
 
     verify(mockBeamFnDataClient)
         .receive(
@@ -243,7 +253,15 @@ public class BeamFnDataReadRunnerTest {
               Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
               try {
                 consumerCaptor.getValue().accept(valueInGlobalWindow("ABC"));
+                assertEquals(
+                    createReadIndexMonitoringInfoAt(0),
+                    Iterables.getOnlyElement(
+                        Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
                 consumerCaptor.getValue().accept(valueInGlobalWindow("DEF"));
+                assertEquals(
+                    createReadIndexMonitoringInfoAt(1),
+                    Iterables.getOnlyElement(
+                        Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
               } catch (Exception e) {
                 bundle1Future.fail(e);
               } finally {
@@ -253,12 +271,19 @@ public class BeamFnDataReadRunnerTest {
 
     readRunner.blockTillReadFinishes();
     future.get();
+    assertEquals(
+        createReadIndexMonitoringInfoAt(2),
+        Iterables.getOnlyElement(Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
     assertThat(values, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
 
     // Process for bundle id 1
     bundleId.set("1");
     values.clear();
     readRunner.registerInputLocation();
+    // Ensure that when we reuse the BeamFnDataReadRunner the read index is reset to -1
+    assertEquals(
+        createReadIndexMonitoringInfoAt(-1),
+        Iterables.getOnlyElement(Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
 
     verify(mockBeamFnDataClient)
         .receive(
@@ -274,7 +299,15 @@ public class BeamFnDataReadRunnerTest {
               Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
               try {
                 consumerCaptor.getValue().accept(valueInGlobalWindow("GHI"));
+                assertEquals(
+                    createReadIndexMonitoringInfoAt(0),
+                    Iterables.getOnlyElement(
+                        Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
                 consumerCaptor.getValue().accept(valueInGlobalWindow("JKL"));
+                assertEquals(
+                    createReadIndexMonitoringInfoAt(1),
+                    Iterables.getOnlyElement(
+                        Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
               } catch (Exception e) {
                 bundle2Future.fail(e);
               } finally {
@@ -284,6 +317,9 @@ public class BeamFnDataReadRunnerTest {
 
     readRunner.blockTillReadFinishes();
     future.get();
+    assertEquals(
+        createReadIndexMonitoringInfoAt(2),
+        Iterables.getOnlyElement(Iterables.getOnlyElement(progressCallbacks).getMonitoringInfos()));
     assertThat(values, contains(valueInGlobalWindow("GHI"), valueInGlobalWindow("JKL")));
 
     verifyNoMoreInteractions(mockBeamFnDataClient);
@@ -306,6 +342,7 @@ public class BeamFnDataReadRunnerTest {
   public void testSplittingWhenNoElementsProcessed() throws Exception {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
     BeamFnDataReadRunner<String> readRunner = createReadRunner(outputValues::add);
+    readRunner.registerInputLocation();
 
     ProcessBundleSplitRequest request =
         ProcessBundleSplitRequest.newBuilder()
@@ -351,6 +388,7 @@ public class BeamFnDataReadRunnerTest {
   public void testSplittingWhenSomeElementsProcessed() throws Exception {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
     BeamFnDataReadRunner<String> readRunner = createReadRunner(outputValues::add);
+    readRunner.registerInputLocation();
 
     ProcessBundleSplitRequest request =
         ProcessBundleSplitRequest.newBuilder()
@@ -407,6 +445,7 @@ public class BeamFnDataReadRunnerTest {
     when(splittingReceiver.getProgress()).thenReturn(0.3);
     when(splittingReceiver.trySplit(anyDouble())).thenReturn(splitResult);
     BeamFnDataReadRunner<String> readRunner = createReadRunner(splittingReceiver);
+    readRunner.registerInputLocation();
 
     ProcessBundleSplitRequest request =
         ProcessBundleSplitRequest.newBuilder()
@@ -484,5 +523,13 @@ public class BeamFnDataReadRunnerTest {
             (PTransformRunnerFactory.ProgressRequestCallback callback) -> {},
             null /* splitListener */,
             null /* bundleFinalizer */);
+  }
+
+  private static MonitoringInfo createReadIndexMonitoringInfoAt(int index) {
+    return new SimpleMonitoringInfoBuilder()
+        .setUrn(MonitoringInfoConstants.Urns.DATA_CHANNEL_READ_INDEX)
+        .setLabel(MonitoringInfoConstants.Labels.PTRANSFORM, INPUT_TRANSFORM_ID)
+        .setInt64SumValue(index)
+        .build();
   }
 }
