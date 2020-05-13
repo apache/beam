@@ -34,7 +34,7 @@ def dict_to_struct(dict_obj):
   try:
     return json_format.ParseDict(dict_obj, struct_pb2.Struct())
   except json_format.ParseError:
-    logging.error('Failed to parse dict {0}'.format(dict_obj))
+    logging.error('Failed to parse dict %s', dict_obj)
     raise
 
 
