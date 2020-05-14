@@ -83,4 +83,18 @@ public abstract class BoundedWindow {
         Long.parseLong(
             constant.getValueDescriptor().getOptions().getExtension(RunnerApi.beamConstant)));
   }
+
+  /**
+   * Validates that a given watermark is within timestamp min and max bounds.
+   *
+   * @param watermark watermark to validate
+   */
+  public static void validateWatermarkWithinBounds(Instant watermark) {
+    if (watermark.isBefore(TIMESTAMP_MIN_VALUE) || watermark.isAfter(TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Provided watermark %s must be within bounds [%s, %s].",
+              watermark, TIMESTAMP_MIN_VALUE, TIMESTAMP_MAX_VALUE));
+    }
+  }
 }

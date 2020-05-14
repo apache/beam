@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
 /**
@@ -36,13 +37,13 @@ public class WatermarkEstimators {
     private Instant lastReportedWatermark;
 
     public Manual(Instant watermark) {
-      WatermarkEstimator.ensureWatermarkWithinBounds(watermark);
+      BoundedWindow.validateWatermarkWithinBounds(watermark);
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
     }
 
     @Override
     public void setWatermark(Instant watermark) {
-      WatermarkEstimator.ensureWatermarkWithinBounds(watermark);
+      BoundedWindow.validateWatermarkWithinBounds(watermark);
       this.lastReportedWatermark = watermark;
     }
 
@@ -74,7 +75,7 @@ public class WatermarkEstimators {
     private Instant watermark;
 
     public WallTime(Instant watermark) {
-      WatermarkEstimator.ensureWatermarkWithinBounds(watermark);
+      BoundedWindow.validateWatermarkWithinBounds(watermark);
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
     }
 
@@ -107,7 +108,7 @@ public class WatermarkEstimators {
     private Instant lastObservedTimestamp;
 
     public MonotonicallyIncreasing(Instant watermark) {
-      WatermarkEstimator.ensureWatermarkWithinBounds(watermark);
+      BoundedWindow.validateWatermarkWithinBounds(watermark);
       this.watermark = checkNotNull(watermark, "timestamp must not be null.");
     }
 
