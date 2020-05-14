@@ -18,8 +18,8 @@
 -->
 # ParDo - using a struct as a DoFn
 
-In previous katas, we provided `beam.ParDo` a `func` as a DoFn.  In this example, we will explore
-the use of a `struct` to perform our transform.
+In previous katas, we provided our ParDo a `func` as a DoFn.  In this example, we will explore
+the use of a `struct` to in our transform.
 
 **Kata:** Implement a simple map function that multiplies all input elements by 5.  Use a `struct` as your DoFn with
 a `ProcessElement` method.
@@ -27,7 +27,7 @@ a `ProcessElement` method.
 <div class="hint">
   Use <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#ParDo">
   beam.ParDo</a>
-  with a <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
+  with <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#hdr-DoFns">
   DoFn</a> as a struct with the ProcessElement method 
   <a href="https://github.com/apache/beam/blob/master/sdks/go/examples/contains/contains.go#L66">
   as in this example</a>.
