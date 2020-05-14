@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
 /**
@@ -44,4 +45,19 @@ public interface WatermarkEstimator<WatermarkEstimatorStateT> {
    * <p>The state returned must not be mutated.
    */
   WatermarkEstimatorStateT getState();
+
+  /**
+   * Validates that a given watermark is within timestamp min and max bounds.
+   *
+   * @param watermark watermark to validate
+   */
+  static void ensureWatermarkWithinBounds(Instant watermark) {
+    if (watermark.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+        || watermark.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Provided watermark %s must be within bounds [%s, %s].",
+              watermark, BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE));
+    }
+  }
 }
