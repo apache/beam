@@ -1,0 +1,266 @@
+
+
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+<head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Beam community update!</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/blog/beam-summit-europe-2019/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body">
+  
+
+<nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
+      <a href=/ class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+    </div>
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
+      <ul class="nav navbar-nav">
+        <li>
+          <a href=/get-started/beam-overview/>Get Started</a>
+        </li>
+        <li>
+          <a href=/documentation/>Documentation</a>
+        </li>
+        <li>
+          <a href=/documentation/sdks/java/>Languages</a>
+        </li>
+        <li>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
+        </li>
+        <li>
+          <a href=/roadmap/>Roadmap</a>
+        </li>
+        <li>
+          <a href=/contribute/>Contribute</a>
+        </li>
+        <li>
+          <a href=/community/contact-us/>Community</a>
+        </li>
+        <li><a href=/blog/>Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+          <div style="width: 300px;">
+            <script>
+              (function() {
+                var cx = '012923275103528129024:4emlchv9wzi';
+                var gcse = document.createElement('script');
+                gcse.type = 'text/javascript';
+                gcse.async = true;
+                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
+                var s = document.getElementsByTagName('script')[0];
+                s.parentNode.insertBefore(gcse, s);
+              })();
+            </script>
+            <gcse:search></gcse:search>
+          </div>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+        <li>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/beam-summit-europe-2019.md" data-proofer-ignore>
+            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+</nav>
+
+  <div class="body__contained">
+    
+    
+    <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">Beam community update!</h1>
+        <p class="post-meta"><time datetime="2019-05-11T00:00:01-08:00" itemprop="datePublished">May 11, 2019</time>
+         •
+            
+            
+                
+                
+                 Matthias Baetens [<a href="https://twitter.com/matthiasbaetens">@matthiasbaetens</a>]
+            
+        
+        </p>
+      </header>
+
+      <div class="post-content" itemprop="articleBody">
+        <!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<h1 id="the-apache-beam-community-in-2019">The Apache Beam community in 2019</h1>
+<p>2019 has already been a busy time for the Apache Beam community. The ASF blog featured <a href="https://blogs.apache.org/comdev/date/20190222">our way of community building</a> and we&rsquo;ve had <a href="https://www.meetup.com/San-Francisco-Apache-Beam/events/257482350">more Beam meetups</a>  around the world. Apache Beam also received the <a href="https://www.infoworld.com/article/3336072/infoworlds-2019-technology-of-the-year-award-winners.html">Technology of the Year Award</a> from InfoWorld.</p>
+<p>As these events happened, we were building up to the <a href="https://opensource.googleblog.com/2019/03/celebrating-20-years-of-apache.html">20th anniversary of the Apache Software Foundation</a>.  The contributions of the Beam community were a part of Maximilian Michels blog post on the success of the ASF&rsquo;s open source development model:</p>
+<blockquote class="twitter-tweet" data-lang="nl"><p lang="en" dir="ltr">Success at Apache: What You Need to Know by Maximilian Michels <a href="https://t.co/XjtVYgPAHX">https://t.co/XjtVYgPAHX</a> <a href="https://twitter.com/hashtag/Apache?src=hash&amp;ref_src=twsrc%5Etfw">#Apache</a> <a href="https://twitter.com/hashtag/Open?src=hash&amp;ref_src=twsrc%5Etfw">#Open</a> <a href="https://twitter.com/hashtag/Innovation?src=hash&amp;ref_src=twsrc%5Etfw">#Innovation</a> <a href="https://twitter.com/hashtag/Community?src=hash&amp;ref_src=twsrc%5Etfw">#Community</a> <a href="https://twitter.com/hashtag/people?src=hash&amp;ref_src=twsrc%5Etfw">#people</a> <a href="https://twitter.com/hashtag/processes?src=hash&amp;ref_src=twsrc%5Etfw">#processes</a> <a href="https://twitter.com/hashtag/JustWorks?src=hash&amp;ref_src=twsrc%5Etfw">#JustWorks</a> <a href="https://twitter.com/stadtlegende?ref_src=twsrc%5Etfw">@stadtlegende</a> <a href="https://t.co/xSibnyWAMe">pic.twitter.com/xSibnyWAMe</a></p>&mdash; Apache - The ASF (@TheASF) <a href="https://twitter.com/TheASF/status/1110364656143601664?ref_src=twsrc%5Etfw">26 maart 2019</a></blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>In that spirit, let&rsquo;s have an overview of the things that have happened, what the next few months look like, and how we can foster even more community growth.</p>
+<h2 id="meetups">Meetups</h2>
+<p>We&rsquo;ve had a flurry of activity, with several meetups in the planning process and more popping up globally over time. As diversity of contributors is a core ASF value, this geographic spread is exciting for the community. Here&rsquo;s a picture from the latest Apache Beam meetup organized at Lyft in San Francisco:</p>
+<p><img src="https://secure.meetupstatic.com/photos/event/8/0/1/2/600_481292786.jpeg" alt="Beam Meetup Bay Area" ></p>
+<p>We have more <a href="https://www.meetup.com/San-Francisco-Apache-Beam">Bay Area meetups</a> coming soon, and the community is looking into kicking off a meetup in Toronto!</p>
+<p><a href="https://www.meetup.com/London-Apache-Beam-Meetup">London</a> had its first meetup of 2019 at the start of April:</p>
+<p><img src="https://secure.meetupstatic.com/photos/event/4/7/0/e/600_480318190.jpeg" alt="Beam Meetup London" height="360" width="640" ></p>
+<p>and <a href="https://www.meetup.com/Apache-Beam-Stockholm/events/260634514">Stockholm</a> had its second meetup at the start of May:</p>
+<blockquote class="twitter-tweet" data-lang="en-gb"><p lang="en" dir="ltr">Big audience for the second <a href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">@ApacheBeam</a> meetup in Stockholm! Gleb, <a href="https://twitter.com/kanterov?ref_src=twsrc%5Etfw">@kanterov</a> from <a href="https://twitter.com/SpotifyEng?ref_src=twsrc%5Etfw">@SpotifyEng</a> kicking off the first talk with Beam SQL.<a href="https://twitter.com/hashtag/ApacheBeamStockholm?src=hash&amp;ref_src=twsrc%5Etfw">#ApacheBeamStockholm</a> <a href="https://t.co/fDqPPFh2gY">pic.twitter.com/fDqPPFh2gY</a></p>&mdash; Matthias Baetens 🌆 (@matthiasbaetens) <a href="https://twitter.com/matthiasbaetens/status/1125442916711915521?ref_src=twsrc%5Etfw">6 May 2019</a></blockquote>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+<p>Keep an eye out for a meetup in <a href="https://www.meetup.com/Paris-Apache-Beam-Meetup">Paris</a>.</p>
+<p>If you are interested in starting your own meetup, feel free <a href="https://beam.apache.org/community/contact-us">to reach out</a>! Good places to start include our Slack channel, the dev and user mailing lists, or the Apache Beam Twitter.</p>
+<p>Even if you can’t travel to these meetups, you can stay informed on the happenings of the community.  The talks and sessions from previous conferences and meetups are archived on the <a href="https://www.youtube.com/c/ApacheBeamYT">Apache Beam YouTube channel</a>. If you want your session added to the channel, don’t hesitate to get in touch! And in case you want to attend the next Beam event in style, you can also order your swag on the <a href="https://store-beam.myshopify.com">Beam swag store</a></p>
+<h2 id="summits">Summits</h2>
+<p>The first summit of the year will be held in Berlin:</p>
+<p><img src="https://img.evbuc.com/https%3A%2F%2Fcdn.evbuc.com%2Fimages%2F58635346%2F70962106775%2F1%2Foriginal.20190317-212619?w=800&auto=compress&rect=0%2C115%2C2666%2C1333&s=2680f5036dcad9177b027cce026c0224" alt="Beam Summit Europe Banner" ></p>
+<p>You can find more info on the <a href="https://beamsummit.org">website</a> and read about the inaugural edition of the Beam Summit Europe <a href="https://beam.apache.org/blog/2018/10/31/beam-summit-aftermath.html">here</a>. At these summits, you have the opportunity to meet with other Apache Beam creators and users, get expert advice, learn from the speaker sessions, and participate in workshops.</p>
+<p>We strongly encourage you to get involved again this year! You can participate in the following ways for the upcoming summit in Europe:</p>
+<p>🎫 If you want to secure your ticket to attend the Beam Summit Europe 2019, check our <a href="https://beam-summit-europe.eventbrite.com">event page</a>.</p>
+<p>💸 If you want to make the Summit even <strong>more</strong> awesome, check out our <a href="https://drive.google.com/file/d/1R3vvOHihQbpuzF2aaSV8WYg9YHRmJwxS/view">sponsor booklet</a>!</p>
+<p>We also launched the CfP for our Beam Summit in North America, which will be held in collaboration with <a href="https://www.apachecon.com">ApacheCon</a>.</p>
+<p>🎤 If you want to give a talk, take a look at our <a href="https://www.apachecon.com/acna19/cfp.html">CfP</a>.</p>
+<p>Stay tuned for more information on the summit in North America and Asia.</p>
+<h2 id="why-community-engagement-matters">Why community engagement matters</h2>
+<p>Why we need a strong Apache Beam community:</p>
+<ul>
+<li>We&rsquo;re receiving lots of code contributions and need committers to review those and help onboard new contributors to the project.</li>
+<li>We want people to feel a sense of ownership to the project. By fostering this level of engagement, the work becomes even more exciting.</li>
+<li>A healthy community has a further reach and leads to more growth. More hours can be contributed to the project as we can spread the work and ownership.</li>
+</ul>
+<p>Why are we organizing these summits:</p>
+<ul>
+<li>We&rsquo;d like to give folks a place to meet, congregate, and share ideas.</li>
+<li>We know that offline interactions often changes the nature of the online ones in a positive manner.</li>
+<li>Building an active and diverse community is part of the Apache Way. These summits provide an opportunity for us to engage people from different locations, companies, and backgrounds.</li>
+</ul>
+      </div>
+
+    </article>
+
+  </div>
+  
+
+<footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
+                                                                                                                                width="14" height="14"
+                                                                                                                                alt="External link."></a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+</body>
+</html>

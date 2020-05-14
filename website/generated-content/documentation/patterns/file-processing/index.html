@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>File processing patterns</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/file-processing/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>File processing patterns</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/patterns/file-processing/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/file-processing.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/patterns/file-processing.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,41 +432,27 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#processing-files-as-they-arrive">Processing files as they arrive</a>
-    <ul>
-      <li><a href="#continuous-read-mode">Continuous read mode</a></li>
-      <li><a href="#stream-processing-triggered-from-external-source">Stream processing triggered from external source</a></li>
-      <li><a href="#batch-processing-triggered-from-external-source">Batch processing triggered from external source</a></li>
-    </ul>
-  </li>
-  <li><a href="#accessing-filenames">Accessing filenames</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#processing-files-as-they-arrive">Processing files as they arrive</a>
+      <ul>
+        <li><a href="#continuous-read-mode">Continuous read mode</a></li>
+        <li><a href="#stream-processing-triggered-from-external-source">Stream processing triggered from external source</a></li>
+        <li><a href="#batch-processing-triggered-from-external-source">Batch processing triggered from external source</a></li>
+      </ul>
+    </li>
+    <li><a href="#accessing-filenames">Accessing filenames</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -512,135 +465,192 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="file-processing-patterns">File processing patterns</h1>
-
 <p>This page describes common file processing tasks. For more information on file-based I/O, see <a href="/documentation/programming-guide/#pipeline-io">Pipeline I/O</a> and <a href="/documentation/programming-guide/#file-based-data">File-based input and output data</a>.</p>
+
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
+    
+      
+        <li data-type="language-java" class="active">Java SDK</li>
+      
+      
+      
+    
+      
+      
+        <li data-type="language-py">Python SDK</li>
+      
+      
+    
   </ul>
 </nav>
-
 <h2 id="processing-files-as-they-arrive">Processing files as they arrive</h2>
-
 <p>This section shows you how to process files as they arrive in your file system or object store (like Google Cloud Storage). You can continuously read files or trigger stream and processing pipelines when a file arrives.</p>
-
 <h3 id="continuous-read-mode">Continuous read mode</h3>
 
-<p class="language-java">You can use <code class="highlighter-rouge">FileIO</code> or <code class="highlighter-rouge">TextIO</code> to continuously read the source for new files.</p>
 
-<p class="language-java">Use the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html"><code class="highlighter-rouge">FileIO</code></a> class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded <code class="highlighter-rouge">PCollection&lt;Metadata&gt;</code>, and stops if no new files appear for one hour:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// This produces PCollection&lt;MatchResult.Metadata&gt;</span>
-<span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+  <p class="language-java">You can use <code>FileIO</code> or <code>TextIO</code> to continuously read the source for new files.</p>
+
+
+
+
+  <p class="language-java">Use the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html"><code>FileIO</code></a> class to continuously watch a single file pattern. The following example matches a file pattern repeatedly every 30 seconds, continuously returns new matched files as an unbounded <code>PCollection&lt;Metadata&gt;</code>, and stops if no new files appear for one hour:</p>
+
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// This produces PCollection&lt;MatchResult.Metadata&gt;
+</span><span class="c1"></span><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">filepattern</span><span class="o">(</span><span class="s">"..."</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">filepattern</span><span class="o">(</span><span class="s">&#34;...&#34;</span><span class="o">)</span>
         <span class="o">.</span><span class="na">continuously</span><span class="o">(</span>
-            <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">),</span>
-            <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">))));</span>
+            <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">30</span><span class="o">),</span>
+            <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="n">1</span><span class="o">))));</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
 
-<p class="language-java">The <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html"><code class="highlighter-rouge">TextIO</code></a> class <code class="highlighter-rouge">watchForNewFiles</code> property streams new file matches.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// This produces PCollection&lt;String&gt;</span>
-<span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+
+
+  <p class="language-java">The <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html"><code>TextIO</code></a> class <code>watchForNewFiles</code> property streams new file matches.</p>
+
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// This produces PCollection&lt;String&gt;
+</span><span class="c1"></span><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">()</span>
-        <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">"&lt;path-to-files&gt;/*"</span><span class="o">)</span>
+        <span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="s">&#34;&lt;path-to-files&gt;/*&#34;</span><span class="o">)</span>
         <span class="o">.</span><span class="na">watchForNewFiles</span><span class="o">(</span>
-            <span class="c1">// Check for new files every minute.</span>
-            <span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="mi">1</span><span class="o">),</span>
-            <span class="c1">// Stop watching the file pattern if no new files appear for an hour.</span>
-            <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="mi">1</span><span class="o">))));</span>
+            <span class="c1">// Check for new files every minute.
+</span><span class="c1"></span>            <span class="n">Duration</span><span class="o">.</span><span class="na">standardMinutes</span><span class="o">(</span><span class="n">1</span><span class="o">),</span>
+            <span class="c1">// Stop watching the file pattern if no new files appear for an hour.
+</span><span class="c1"></span>            <span class="n">Watch</span><span class="o">.</span><span class="na">Growth</span><span class="o">.</span><span class="na">afterTimeSinceNewOutput</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardHours</span><span class="o">(</span><span class="n">1</span><span class="o">))));</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
 
-<p class="language-java">Some runners may retain file lists during updates, but file lists don’t persist when you restart a pipeline. You can save file lists by:</p>
 
-<ul class="language-java">
-  <li>Storing processed filenames in an external file and deduplicating the lists at the next transform</li>
-  <li>Adding timestamps to filenames, writing a glob pattern to pull in only new files, and matching the pattern when the pipeline restarts</li>
-</ul>
 
-<p class="language-py">The continuous-read option is not available for Python.</p>
+
+  <p class="language-java">Some runners may retain file lists during updates, but file lists don’t persist when you restart a pipeline. You can save file lists by:</p>
+
+
+
+
+  <p class="language-java"><ul>
+<li>Storing processed filenames in an external file and deduplicating the lists at the next transform</li>
+<li>Adding timestamps to filenames, writing a glob pattern to pull in only new files, and matching the pattern when the pipeline restarts</li>
+</ul></p>
+
+
+
+
+  <p class="language-py">The continuous-read option is not available for Python.</p>
 
 <h3 id="stream-processing-triggered-from-external-source">Stream processing triggered from external source</h3>
-
 <p>A streaming pipeline can process data from an unbounded source. For example, to trigger stream processing with Google Cloud Pub/Sub:</p>
-
 <ol>
-  <li>Use an external process to detect when new files arrive.</li>
-  <li>Send a Google Cloud Pub/Sub message with a URI to the file.</li>
-  <li>Access the URI from a <code class="highlighter-rouge">DoFn</code> that follows the Google Cloud Pub/Sub source.</li>
-  <li>Process the file.</li>
+<li>Use an external process to detect when new files arrive.</li>
+<li>Send a Google Cloud Pub/Sub message with a URI to the file.</li>
+<li>Access the URI from a <code>DoFn</code> that follows the Google Cloud Pub/Sub source.</li>
+<li>Process the file.</li>
 </ol>
-
 <h3 id="batch-processing-triggered-from-external-source">Batch processing triggered from external source</h3>
-
 <p>To start or schedule a batch pipeline job when a file arrives, write the triggering event in the source file itself. This has the most latency because the pipeline must initialize before processing. It’s best suited for low-frequency, large, file-size updates.</p>
-
 <h2 id="accessing-filenames">Accessing filenames</h2>
 
-<p class="language-java">Use the <code class="highlighter-rouge">FileIO</code> class to read filenames in a pipeline job. <code class="highlighter-rouge">FileIO</code> returns a <code class="highlighter-rouge">PCollection&lt;ReadableFile&gt;</code> object, and the <code class="highlighter-rouge">ReadableFile</code> instance contains the filename.</p>
 
-<p class="language-java">To access filenames:</p>
 
-<ol class="language-java">
-  <li>Create a <code class="highlighter-rouge">ReadableFile</code> instance with <code class="highlighter-rouge">FileIO</code>. <code class="highlighter-rouge">FileIO</code> returns a <code class="highlighter-rouge">PCollection&lt;ReadableFile&gt;</code> object. The <code class="highlighter-rouge">ReadableFile</code> class contains the filename.</li>
-  <li>Call the <code class="highlighter-rouge">readFullyAsUTF8String()</code> method to read the file into memory and return the filename as a <code class="highlighter-rouge">String</code> object. If memory is limited, you can use utility classes like <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html"><code class="highlighter-rouge">FileSystems</code></a> to work directly with the file.</li>
-</ol>
+  <p class="language-java">Use the <code>FileIO</code> class to read filenames in a pipeline job. <code>FileIO</code> returns a <code>PCollection&lt;ReadableFile&gt;</code> object, and the <code>ReadableFile</code> instance contains the filename.</p>
 
-<p class="language-py">To read filenames in a pipeline job:</p>
 
-<ol class="language-py">
-  <li>Collect the list of file URIs. You can use the <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems"><code class="highlighter-rouge">FileSystems</code></a> module to get a list of files that match a glob pattern.</li>
-  <li>Pass the file URIs to a <code class="highlighter-rouge">PCollection</code>.</li>
-</ol>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">().</span><span class="na">filepattern</span><span class="o">(</span><span class="s">"hdfs://path/to/*.gz"</span><span class="o">))</span>
-    <span class="c1">// The withCompression method is optional. By default, the Beam SDK detects compression from</span>
-    <span class="c1">// the filename.</span>
-    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">readMatches</span><span class="o">().</span><span class="na">withCompression</span><span class="o">(</span><span class="n">Compression</span><span class="o">.</span><span class="na">GZIP</span><span class="o">))</span>
+
+  <p class="language-java">To access filenames:</p>
+
+
+
+
+  <p class="language-java"><ol>
+<li>Create a <code>ReadableFile</code> instance with <code>FileIO</code>. <code>FileIO</code> returns a <code>PCollection&lt;ReadableFile&gt;</code> object. The <code>ReadableFile</code> class contains the filename.</li>
+<li>Call the <code>readFullyAsUTF8String()</code> method to read the file into memory and return the filename as a <code>String</code> object. If memory is limited, you can use utility classes like <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileSystems.html"><code>FileSystems</code></a> to work directly with the file.</li>
+</ol></p>
+
+
+
+
+  <p class="language-py">To read filenames in a pipeline job:</p>
+
+
+
+
+  <p class="language-py"><ol>
+<li>Collect the list of file URIs. You can use the <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.filesystems.html?highlight=filesystems#module-apache_beam.io.filesystems"><code>FileSystems</code></a> module to get a list of files that match a glob pattern.</li>
+<li>Pass the file URIs to a <code>PCollection</code>.</li>
+</ol></p>
+
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">match</span><span class="o">().</span><span class="na">filepattern</span><span class="o">(</span><span class="s">&#34;hdfs://path/to/*.gz&#34;</span><span class="o">))</span>
+    <span class="c1">// The withCompression method is optional. By default, the Beam SDK detects compression from
+</span><span class="c1"></span>    <span class="c1">// the filename.
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">FileIO</span><span class="o">.</span><span class="na">readMatches</span><span class="o">().</span><span class="na">withCompression</span><span class="o">(</span><span class="n">Compression</span><span class="o">.</span><span class="na">GZIP</span><span class="o">))</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
         <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
             <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">FileIO</span><span class="o">.</span><span class="na">ReadableFile</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
               <span class="nd">@ProcessElement</span>
               <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">FileIO</span><span class="o">.</span><span class="na">ReadableFile</span> <span class="n">file</span><span class="o">)</span> <span class="o">{</span>
-                <span class="c1">// We can now access the file and its metadata.</span>
-                <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">"File Metadata resourceId is {} "</span><span class="o">,</span> <span class="n">file</span><span class="o">.</span><span class="na">getMetadata</span><span class="o">().</span><span class="na">resourceId</span><span class="o">());</span>
+                <span class="c1">// We can now access the file and its metadata.
+</span><span class="c1"></span>                <span class="n">LOG</span><span class="o">.</span><span class="na">info</span><span class="o">(</span><span class="s">&#34;File Metadata resourceId is {} &#34;</span><span class="o">,</span> <span class="n">file</span><span class="o">.</span><span class="na">getMetadata</span><span class="o">().</span><span class="na">resourceId</span><span class="o">());</span>
               <span class="o">}</span>
-            <span class="o">}));</span>
+            <span class="o">}));</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+
+
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
   <span class="n">readable_files</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">p</span>
-      <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">MatchFiles</span><span class="p">(</span><span class="s">'hdfs://path/to/*.txt'</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">MatchFiles</span><span class="p">(</span><span class="s1">&#39;hdfs://path/to/*.txt&#39;</span><span class="p">)</span>
       <span class="o">|</span> <span class="n">fileio</span><span class="o">.</span><span class="n">ReadMatches</span><span class="p">()</span>
       <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Reshuffle</span><span class="p">())</span>
   <span class="n">files_and_contents</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">readable_files</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">read_utf8</span><span class="p">())))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">read_utf8</span><span class="p">())))</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
 
-      </div>
+
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -655,47 +665,44 @@ limitations under the License.
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

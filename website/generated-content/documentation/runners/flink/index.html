@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apache Flink Runner</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/runners/flink/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Apache Flink Runner</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/runners/flink/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runners/flink.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/runners/flink.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Runners</span></li>
 <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
@@ -181,48 +148,34 @@
 <li><a href="/documentation/runners/dataflow/">Google Cloud Dataflow</a></li>
 <li><a href="/documentation/runners/jet/">Hazelcast Jet</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#prerequisites-and-setup">Prerequisites and Setup</a></li>
-  <li><a href="#version-compatibility">Version Compatibility</a>
-    <ul>
-      <li><a href="#dependencies">Dependencies</a></li>
-      <li><a href="#executing-a-beam-pipeline-on-a-flink-cluster">Executing a Beam pipeline on a Flink Cluster</a></li>
-    </ul>
-  </li>
-  <li><a href="#additional-information-and-caveats">Additional information and caveats</a>
-    <ul>
-      <li><a href="#monitoring-your-job">Monitoring your job</a></li>
-      <li><a href="#streaming-execution">Streaming Execution</a></li>
-    </ul>
-  </li>
-  <li><a href="#pipeline-options-for-the-flink-runner">Pipeline options for the Flink Runner</a></li>
-  <li><a href="#capability">Capability</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#prerequisites-and-setup">Prerequisites and Setup</a></li>
+    <li><a href="#version-compatibility">Version Compatibility</a>
+      <ul>
+        <li><a href="#dependencies">Dependencies</a></li>
+        <li><a href="#executing-a-beam-pipeline-on-a-flink-cluster">Executing a Beam pipeline on a Flink Cluster</a></li>
+      </ul>
+    </li>
+    <li><a href="#additional-information-and-caveats">Additional information and caveats</a>
+      <ul>
+        <li><a href="#monitoring-your-job">Monitoring your job</a></li>
+        <li><a href="#streaming-execution">Streaming Execution</a></li>
+      </ul>
+    </li>
+    <li><a href="#pipeline-options-for-the-flink-runner">Pipeline options for the Flink Runner</a></li>
+    <li><a href="#capability">Capability</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -235,54 +188,41 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="overview">Overview</h1>
-
 <p>The Apache Flink Runner can be used to execute Beam pipelines using <a href="https://flink.apache.org">Apache
 Flink</a>. For execution you can choose between a cluster
 execution mode (e.g. Yarn/Kubernetes/Mesos) or a local embedded execution mode
 which is useful for testing pipelines.</p>
-
 <p>The Flink Runner and Flink are suitable for large scale, continuous jobs, and provide:</p>
-
 <ul>
-  <li>A streaming-first runtime that supports both batch processing and data streaming programs</li>
-  <li>A runtime that supports very high throughput and low event latency at the same time</li>
-  <li>Fault-tolerance with <em>exactly-once</em> processing guarantees</li>
-  <li>Natural back-pressure in streaming programs</li>
-  <li>Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms</li>
-  <li>Integration with YARN and other components of the Apache Hadoop ecosystem</li>
+<li>A streaming-first runtime that supports both batch processing and data streaming programs</li>
+<li>A runtime that supports very high throughput and low event latency at the same time</li>
+<li>Fault-tolerance with <em>exactly-once</em> processing guarantees</li>
+<li>Natural back-pressure in streaming programs</li>
+<li>Custom memory management for efficient and robust switching between in-memory and out-of-core data processing algorithms</li>
+<li>Integration with YARN and other components of the Apache Hadoop ecosystem</li>
 </ul>
-
 <h1 id="using-the-apache-flink-runner">Using the Apache Flink Runner</h1>
-
 <p>It is important to understand that the Flink Runner comes in two flavors:</p>
-
 <ol>
-  <li>The original <em>classic Runner</em> which supports only Java (and other JVM-based languages)</li>
-  <li>The newer <em>portable Runner</em> which supports Java/Python/Go</li>
+<li>The original <em>classic Runner</em> which supports only Java (and other JVM-based languages)</li>
+<li>The newer <em>portable Runner</em> which supports Java/Python/Go</li>
 </ol>
-
 <p>You may ask why there are two Runners?</p>
-
 <p>Beam and its Runners originally only supported JVM-based languages
 (e.g. Java/Scala/Kotlin). Python and Go SDKs were added later on. The
 architecture of the Runners had to be changed significantly to support executing
 pipelines written in other languages.</p>
-
 <p>If your applications only use Java, then you should currently go with the classic
 Runner. Eventually, the portable Runner will replace the classic Runner because
 it contains the generalized framework for executing Java, Python, Go, and more
 languages in the future.</p>
-
 <p>If you want to run Python pipelines with Beam on Flink you want to use the
 portable Runner. For more information on
 portability, please visit the <a href="/roadmap/portability/">Portability page</a>.</p>
-
 <p>Consequently, this guide is split into two parts to document the classic and
 the portable functionality of the Flink Runner. Please use the switcher below to
 select the appropriate Runner:</p>
-
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
@@ -290,29 +230,20 @@ select the appropriate Runner:</p>
     <li data-type="language-py">Portable (Java/Python/Go)</li>
   </ul>
 </nav>
-
 <h2 id="prerequisites-and-setup">Prerequisites and Setup</h2>
-
-<p>If you want to use the local execution mode with the Flink Runner you don’t have
+<p>If you want to use the local execution mode with the Flink Runner you don&rsquo;t have
 to complete any cluster setup. You can simply run your Beam pipeline. Be sure to
-set the Runner to <span class="language-java"><code class="highlighter-rouge">FlinkRunner</code></span><span class="language-py"><code class="highlighter-rouge">PortableRunner</code></span>.</p>
-
+set the Runner to <span class="language-java"><code>FlinkRunner</code></span><span class="language-py"><code>PortableRunner</code></span>.</p>
 <p>To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the
 Flink <a href="https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html#setup-download-and-start-flink">Setup Quickstart</a>.</p>
-
 <h2 id="version-compatibility">Version Compatibility</h2>
-
 <p>The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in <code class="highlighter-rouge">1.8.0</code> the
-minor version is <code class="highlighter-rouge">1.8</code>.</p>
-
+The minor version is the first two numbers in the version string, e.g. in <code>1.8.0</code> the
+minor version is <code>1.8</code>.</p>
 <p>We try to track the latest version of Apache Flink at the time of the Beam release.
 A Flink version is supported by Beam for the time it is supported by the Flink community.
-The Flink community supports the last two minor versions. When support for a Flink
-version is dropped, it may be deprecated and removed also from Beam.</p>
-
-<p>To find out which version of Flink is compatible with Beam please see the table below:</p>
-
+The Flink community supports the last two minor versions. When support for a Flink version is dropped, it may be deprecated and removed also from Beam.
+To find out which version of Flink is compatible with Beam please see the table below:</p>
 <table class="table table-bordered">
 <tr>
   <th>Beam Version</th>
@@ -414,198 +345,253 @@ version is dropped, it may be deprecated and removed also from Beam.</p>
   <td>beam-runners-flink_2.10</td>
 </tr>
 </table>
-
 <p>For retrieving the right Flink version, see the <a href="https://flink.apache.org/downloads.html">Flink downloads page</a>.</p>
-
 <p>For more information, the <a href="https://ci.apache.org/projects/flink/flink-docs-stable/">Flink Documentation</a> can be helpful.</p>
-
 <h3 id="dependencies">Dependencies</h3>
 
-<p><span class="language-java">You must specify your dependency on the Flink Runner
-in your <code class="highlighter-rouge">pom.xml</code> or <code class="highlighter-rouge">build.gradle</code>. Use the Beam version and the artifact id
-from the above table. For example:
-</span></p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+
+  <p class="language-java">You must specify your dependency on the Flink Runner
+in your <code>pom.xml</code> or <code>build.gradle</code>. Use the Beam version and the artifact id
+from the above table. For example:</p>
+
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
-  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">flink</span><span class="o">-</span><span class="mf">1.6</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
-  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">2.20</span><span class="o">.</span><span class="mi">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
-<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
-</code></pre></div></div>
+  <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">runners</span><span class="o">-</span><span class="n">flink</span><span class="o">-</span><span class="n">1</span><span class="o">.</span><span class="na">6</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+  <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="n">2</span><span class="o">.</span><span class="na">20</span><span class="o">.</span><span class="na">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span></code></pre></div>
+        </div>
+    
 
-<p><span class="language-py">
-You will need Docker to be installed in your execution environment. To develop
-Apache Beam with Python you have to install the Apache Beam Python SDK: <code class="highlighter-rouge">pip
-install apache_beam</code>. Please refer to the <a href="/documentation/sdks/python/">Python documentation</a>
-on how to create a Python pipeline.
-</span></p>
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">pip</span> <span class="n">install</span> <span class="n">apache_beam</span>
-</code></pre></div></div>
+
+
+
+  <p class="language-py">You will need Docker to be installed in your execution environment. To develop
+Apache Beam with Python you have to install the Apache Beam Python SDK: <code>pip install apache_beam</code>. Please refer to the <a href="/documentation/sdks/python/">Python documentation</a>
+on how to create a Python pipeline.</p>
+
+
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="n">pip</span> <span class="n">install</span> <span class="n">apache_beam</span></code></pre></div>
+        </div>
+    
+
 
 <h3 id="executing-a-beam-pipeline-on-a-flink-cluster">Executing a Beam pipeline on a Flink Cluster</h3>
 
-<p><span class="language-java">
-For executing a pipeline on a Flink cluster you need to package your program
+
+
+  <p class="language-java">For executing a pipeline on a Flink cluster you need to package your program
 along with all dependencies in a so-called fat jar. How you do this depends on
-your build system but if you follow along the <a href="/get-started/quickstart/">Beam Quickstart</a> this is the command that you have to run:
-</span></p>
+your build system but if you follow along the <a href="/get-started/quickstart/">Beam Quickstart</a> this is the command that you have to run:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="err">$</span> <span class="n">mvn</span> <span class="kn">package</span> <span class="o">-</span><span class="n">Pflink</span><span class="o">-</span><span class="n">runner</span>
-</code></pre></div></div>
-<p><span class="language-java">Look for the output JAR of this command in the
-install apache_beam``target` folder.
-<span></span></span></p>
 
-<p><span class="language-java">
-The Beam Quickstart Maven project is setup to use the Maven Shade plugin to
-create a fat jar and the <code class="highlighter-rouge">-Pflink-runner</code> argument makes sure to include the
-dependency on the Flink Runner.
-</span></p>
 
-<p><span class="language-java">
-For running the pipeline the easiest option is to use the <code class="highlighter-rouge">flink</code> command which
-is part of Flink:
-</span></p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="err">$</span> <span class="n">bin</span><span class="o">/</span><span class="n">flink</span> <span class="n">run</span> <span class="o">-</span><span class="n">c</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="o">/</span><span class="n">path</span><span class="o">/</span><span class="n">to</span><span class="o">/</span><span class="n">your</span><span class="o">.</span><span class="na">jar</span>
-<span class="o">--</span><span class="n">runner</span><span class="o">=</span><span class="n">FlinkRunner</span> <span class="o">--</span><span class="n">other</span><span class="o">-</span><span class="n">parameters</span>
-</code></pre></div></div>
 
-<p><span class="language-java">
-Alternatively you can also use Maven’s exec command. For example, to execute the
-WordCount example:
-</span></p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">mvn</span> <span class="nl">exec:</span><span class="n">java</span> <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">mainClass</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="err">\</span>
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">$</span> <span class="n">mvn</span> <span class="kn">package</span> <span class="err">-</span><span class="nn">Pflink</span><span class="o">-</span><span class="n">runner</span></code></pre></div>
+        </div>
+    
+
+
+
+
+
+  <p class="language-java">Look for the output JAR of this command in the
+install apache_beam``target` folder.</p>
+
+
+
+
+  <p class="language-java">The Beam Quickstart Maven project is setup to use the Maven Shade plugin to
+create a fat jar and the <code>-Pflink-runner</code> argument makes sure to include the
+dependency on the Flink Runner.</p>
+
+
+
+
+  <p class="language-java">For running the pipeline the easiest option is to use the <code>flink</code> command which
+is part of Flink:</p>
+
+
+
+
+  <p class="language-java">$ bin/flink run -c org.apache.beam.examples.WordCount /path/to/your.jar
+&ndash;runner=FlinkRunner &ndash;other-parameters</p>
+
+
+
+
+  <p class="language-java">Alternatively you can also use Maven&rsquo;s exec command. For example, to execute the
+WordCount example:</p>
+
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">mvn</span> <span class="n">exec</span><span class="o">:</span><span class="n">java</span> <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">mainClass</span><span class="o">=</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">.</span><span class="na">examples</span><span class="o">.</span><span class="na">WordCount</span> <span class="err">\</span>
     <span class="o">-</span><span class="n">Pflink</span><span class="o">-</span><span class="n">runner</span> <span class="err">\</span>
-    <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">args</span><span class="o">=</span><span class="s">"--runner=FlinkRunner \
-      --inputFile=/path/to/pom.xml \
-      --output=/path/to/counts \
-      --flinkMaster=&lt;flink master url&gt; \
-      --filesToStage=target/word-count-beam-bundled-0.1.jar"</span>
-</code></pre></div></div>
+    <span class="o">-</span><span class="n">Dexec</span><span class="o">.</span><span class="na">args</span><span class="o">=</span><span class="s">&#34;--runner=FlinkRunner \
+</span><span class="s">      --inputFile=/path/to/pom.xml \
+</span><span class="s">      --output=/path/to/counts \
+</span><span class="s">      --flinkMaster=&lt;flink master url&gt; \
+</span><span class="s">      --filesToStage=target/word-count-beam-bundled-0.1.jar&#34;</span></code></pre></div>
+        </div>
+    
+
+
 <!-- Span implictly ended -->
 
-<p><span class="language-java">
-If you have a Flink <code class="highlighter-rouge">JobManager</code> running on your local machine you can provide <code class="highlighter-rouge">localhost:8081</code> for
-<code class="highlighter-rouge">flinkMaster</code>. Otherwise an embedded Flink cluster will be started for the job.
-</span></p>
 
-<p><span class="language-py"></span></p>
+
+  <p class="language-java">If you have a Flink <code>JobManager</code> running on your local machine you can provide <code>localhost:8081</code> for
+<code>flinkMaster</code>. Otherwise an embedded Flink cluster will be started for the job.</p>
 
 <p>Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.</p>
-
 <p>JobService:
 <a href="https://hub.docker.com/r/apache/beam_flink1.7_job_server">Flink 1.7</a>,
 <a href="https://hub.docker.com/r/apache/beam_flink1.8_job_server">Flink 1.8</a>,
 <a href="https://hub.docker.com/r/apache/beam_flink1.9_job_server">Flink 1.9</a>.</p>
-
 <p>Beam SDK:
 <a href="https://hub.docker.com/r/apache/beam_python2.7_sdk">Python 2.7</a>,
 <a href="https://hub.docker.com/r/apache/beam_python3.5_sdk">Python 3.5</a>,
 <a href="https://hub.docker.com/r/apache/beam_python3.6_sdk">Python 3.6</a>,
 <a href="https://hub.docker.com/r/apache/beam_python3.7_sdk">Python 3.7</a>.</p>
+<p>To run a pipeline on an embedded Flink cluster:</p>
+<!-- Span implictly ended -->
 
-<p>To run a pipeline on an embedded Flink cluster:
-<!-- Span implictly ended --></p>
 
-<p><span class="language-py">1. Start the JobService endpoint: <code class="highlighter-rouge">docker run --net=host apachebeam/flink1.9_job_server:latest</code>
-</span></p>
 
-<p><span class="language-py">
-The JobService is the central instance where you submit your Beam pipeline to.
-The JobService will create a Flink job for the pipeline and execute the job.
-</span></p>
+  <p class="language-py"><ol>
+<li>Start the JobService endpoint: <code>docker run --net=host apachebeam/flink1.9_job_server:latest</code></li>
+</ol></p>
 
-<p><span class="language-py">2. Submit the Python pipeline to the above endpoint by using the <code class="highlighter-rouge">PortableRunner</code>, <code class="highlighter-rouge">job_endpoint</code> set to <code class="highlighter-rouge">localhost:8099</code> (this is the default address of the JobService), and <code class="highlighter-rouge">environment_type</code> set to <code class="highlighter-rouge">LOOPBACK</code>. For example:
-</span></p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+  <p class="language-py">The JobService is the central instance where you submit your Beam pipeline to.
+The JobService will create a Flink job for the pipeline and execute the job.</p>
+
+
+
+
+  <p class="language-py"><ol start="2">
+<li>Submit the Python pipeline to the above endpoint by using the <code>PortableRunner</code>, <code>job_endpoint</code> set to <code>localhost:8099</code> (this is the default address of the JobService), and <code>environment_type</code> set to <code>LOOPBACK</code>. For example:</li>
+</ol></p>
+
+
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
-    <span class="s">"--runner=PortableRunner"</span><span class="p">,</span>
-    <span class="s">"--job_endpoint=localhost:8099"</span><span class="p">,</span>
-    <span class="s">"--environment_type=LOOPBACK"</span>
+    <span class="s2">&#34;--runner=PortableRunner&#34;</span><span class="p">,</span>
+    <span class="s2">&#34;--job_endpoint=localhost:8099&#34;</span><span class="p">,</span>
+    <span class="s2">&#34;--environment_type=LOOPBACK&#34;</span>
 <span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
-    <span class="o">...</span>
-</code></pre></div></div>
+    <span class="o">...</span></code></pre></div>
+        </div>
+    
 
-<p><span class="language-py">
-To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.9/getting-started/tutorials/local_setup.html">Flink cluster</a>:
-</span></p>
 
-<p><span class="language-py">1. Start a Flink cluster which exposes the Rest interface on <code class="highlighter-rouge">localhost:8081</code> by default.
-</span></p>
 
-<p><span class="language-py">2. Start JobService with Flink Rest endpoint: <code class="highlighter-rouge">docker run --net=host apachebeam/flink1.9_job_server:latest --flink-master=localhost:8081</code>.
-</span></p>
 
-<p><span class="language-py">3. Submit the pipeline as above.
-Note however that <code class="highlighter-rouge">environment_type=LOOPBACK</code> is only intended for local testing.
-See <a href="/documentation/runtime/sdk-harness-config/">here</a> for details.
-</span></p>
 
-<p><span class="language-py">Steps 2 and 3 can be automated in Python by using the <code class="highlighter-rouge">FlinkRunner</code>,
-plus the optional <code class="highlighter-rouge">flink_version</code> and <code class="highlighter-rouge">flink_master</code> options, e.g.:
-</span></p>
+  <p class="language-py">To run on a separate <a href="https://ci.apache.org/projects/flink/flink-docs-release-1.9/getting-started/tutorials/local_setup.html">Flink cluster</a>:</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+  <p class="language-py"><ol>
+<li>Start a Flink cluster which exposes the Rest interface on <code>localhost:8081</code> by default.</li>
+</ol></p>
+
+
+
+
+  <p class="language-py"><ol start="2">
+<li>Start JobService with Flink Rest endpoint: <code>docker run --net=host apachebeam/flink1.9_job_server:latest --flink-master=localhost:8081</code>.</li>
+</ol></p>
+
+
+
+
+  <p class="language-py"><ol start="3">
+<li>Submit the pipeline as above.
+Note however that <code>environment_type=LOOPBACK</code> is only intended for local testing.
+See <a href="/documentation/runtime/sdk-harness-config/">here</a> for details.</li>
+</ol></p>
+
+
+
+
+  <p class="language-py">Steps 2 and 3 can be automated in Python by using the <code>FlinkRunner</code>,
+plus the optional <code>flink_version</code> and <code>flink_master</code> options, e.g.:</p>
+
+
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 <span class="kn">from</span> <span class="nn">apache_beam.options.pipeline_options</span> <span class="kn">import</span> <span class="n">PipelineOptions</span>
 
 <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">([</span>
-    <span class="s">"--runner=FlinkRunner"</span><span class="p">,</span>
-    <span class="s">"--flink_version=1.9"</span><span class="p">,</span>
-    <span class="s">"--flink_master=localhost:8081"</span><span class="p">,</span>
-    <span class="s">"--environment_type=LOOPBACK"</span>
+    <span class="s2">&#34;--runner=FlinkRunner&#34;</span><span class="p">,</span>
+    <span class="s2">&#34;--flink_version=1.9&#34;</span><span class="p">,</span>
+    <span class="s2">&#34;--flink_master=localhost:8081&#34;</span><span class="p">,</span>
+    <span class="s2">&#34;--environment_type=LOOPBACK&#34;</span>
 <span class="p">])</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">options</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
-    <span class="o">...</span>
-</code></pre></div></div>
+    <span class="o">...</span></code></pre></div>
+        </div>
+    
+
 
 <h2 id="additional-information-and-caveats">Additional information and caveats</h2>
-
 <h3 id="monitoring-your-job">Monitoring your job</h3>
-
-<p>You can monitor a running Flink job using the Flink JobManager Dashboard or its Rest interfaces. By default, this is available at port <code class="highlighter-rouge">8081</code> of the JobManager node. If you have a Flink installation on your local machine that would be <code class="highlighter-rouge">http://localhost:8081</code>. Note: When you use the <code class="highlighter-rouge">[local]</code> mode an embedded Flink cluster will be started which does not make a dashboard available.</p>
-
+<p>You can monitor a running Flink job using the Flink JobManager Dashboard or its Rest interfaces. By default, this is available at port <code>8081</code> of the JobManager node. If you have a Flink installation on your local machine that would be <code>http://localhost:8081</code>. Note: When you use the <code>[local]</code> mode an embedded Flink cluster will be started which does not make a dashboard available.</p>
 <h3 id="streaming-execution">Streaming Execution</h3>
-
-<p>If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the <code class="highlighter-rouge">--streaming</code> flag.</p>
-
+<p>If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the <code>--streaming</code> flag.</p>
 <p>Note: The Runner will print a warning message when unbounded sources are used and checkpointing is not enabled.
-Many sources like <code class="highlighter-rouge">PubSubIO</code> rely on their checkpoints to be acknowledged which can only be done when checkpointing is enabled for the <code class="highlighter-rouge">FlinkRunner</code>. To enable checkpointing, please set <span class="language-java"><code class="highlighter-rouge">checkpointingInterval</code></span><span class="language-py"><code class="highlighter-rouge">checkpointing_interval</code></span> to the desired checkpointing interval in milliseconds.</p>
-
+Many sources like <code>PubSubIO</code> rely on their checkpoints to be acknowledged which can only be done when checkpointing is enabled for the <code>FlinkRunner</code>. To enable checkpointing, please set <span class="language-java"><code>checkpointingInterval</code></span><span class="language-py"><code>checkpointing_interval</code></span> to the desired checkpointing interval in milliseconds.</p>
 <h2 id="pipeline-options-for-the-flink-runner">Pipeline options for the Flink Runner</h2>
-
 <p>When executing your pipeline with the Flink Runner, you can set these pipeline options.</p>
-
 <p>The following list of Flink-specific pipeline options is generated automatically from the
 <a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/runners/flink/FlinkPipelineOptions.html">FlinkPipelineOptions</a>
 reference class:</p>
-
 <!-- Java Options -->
 <div class="language-java">
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<!--
-This is an auto-generated file.
-Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively
-which should be called before running the tests.
--->
+
 <table class="table table-bordered">
 <tr>
   <td><code>allowNonRestoredState</code></td>
@@ -747,24 +733,9 @@ which should be called before running the tests.
 </div>
 <!-- Python Options -->
 <div class="language-py">
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<!--
-This is an auto-generated file.
-Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively
-which should be called before running the tests.
--->
+
 <table class="table table-bordered">
 <tr>
   <td><code>allow_non_restored_state</code></td>
@@ -904,34 +875,19 @@ which should be called before running the tests.
 </table>
 
 </div>
-
 <p>For general Beam pipeline options see the
 <a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/options/PipelineOptions.html">PipelineOptions</a>
 reference.</p>
-
 <h2 id="capability">Capability</h2>
-
 <p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the
 capabilities of the classic Flink Runner.</p>
-
 <p>The <a href="https://s.apache.org/apache-beam-portability-support-table">Portable Capability
 Matrix</a> documents
 the capabilities of the portable Flink Runner.</p>
 
-
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -946,47 +902,44 @@ the capabilities of the portable Flink Runner.</p>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Design Your Pipeline</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/pipelines/design-your-pipeline/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Design Your Pipeline</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/pipelines/design-your-pipeline/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/pipelines/design-your-pipeline.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/pipelines/design-your-pipeline.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,44 +432,30 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</a></li>
-  <li><a href="#a-basic-pipeline">A basic pipeline</a></li>
-  <li><a href="#branching-pcollections">Branching PCollections</a>
-    <ul>
-      <li><a href="#multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</a></li>
-      <li><a href="#a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</a></li>
-    </ul>
-  </li>
-  <li><a href="#merging-pcollections">Merging PCollections</a></li>
-  <li><a href="#multiple-sources">Multiple sources</a></li>
-  <li><a href="#whats-next">What’s next</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</a></li>
+    <li><a href="#a-basic-pipeline">A basic pipeline</a></li>
+    <li><a href="#branching-pcollections">Branching PCollections</a>
+      <ul>
+        <li><a href="#multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</a></li>
+        <li><a href="#a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</a></li>
+      </ul>
+    </li>
+    <li><a href="#merging-pcollections">Merging PCollections</a></li>
+    <li><a href="#multiple-sources">Multiple sources</a></li>
+    <li><a href="#whats-next">What&rsquo;s next</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -517,118 +470,104 @@ limitations under the License.
 -->
 <h1 id="design-your-pipeline">Design Your Pipeline</h1>
 
-<ul id="markdown-toc">
-  <li><a href="#what-to-consider-when-designing-your-pipeline" id="markdown-toc-what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</a></li>
-  <li><a href="#a-basic-pipeline" id="markdown-toc-a-basic-pipeline">A basic pipeline</a></li>
-  <li><a href="#branching-pcollections" id="markdown-toc-branching-pcollections">Branching PCollections</a>    <ul>
-      <li><a href="#multiple-transforms-process-the-same-pcollection" id="markdown-toc-multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</a></li>
-      <li><a href="#a-single-transform-that-produces-multiple-outputs" id="markdown-toc-a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</a></li>
-    </ul>
-  </li>
-  <li><a href="#merging-pcollections" id="markdown-toc-merging-pcollections">Merging PCollections</a></li>
-  <li><a href="#multiple-sources" id="markdown-toc-multiple-sources">Multiple sources</a></li>
-  <li><a href="#whats-next" id="markdown-toc-whats-next">What’s next</a></li>
-</ul>
 
-<p>This page helps you design your Apache Beam pipeline. It includes information about how to determine your pipeline’s structure, how to choose which transforms to apply to your data, and how to determine your input and output methods.</p>
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</a></li>
+    <li><a href="#a-basic-pipeline">A basic pipeline</a></li>
+    <li><a href="#branching-pcollections">Branching PCollections</a>
+      <ul>
+        <li><a href="#multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</a></li>
+        <li><a href="#a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</a></li>
+      </ul>
+    </li>
+    <li><a href="#merging-pcollections">Merging PCollections</a></li>
+    <li><a href="#multiple-sources">Multiple sources</a></li>
+    <li><a href="#whats-next">What&rsquo;s next</a></li>
+  </ul>
+</nav>
 
+<p>This page helps you design your Apache Beam pipeline. It includes information about how to determine your pipeline&rsquo;s structure, how to choose which transforms to apply to your data, and how to determine your input and output methods.</p>
 <p>Before reading this section, it is recommended that you become familiar with the information in the <a href="/documentation/programming-guide">Beam programming guide</a>.</p>
-
 <h2 id="what-to-consider-when-designing-your-pipeline">What to consider when designing your pipeline</h2>
-
 <p>When designing your Beam pipeline, consider a few basic questions:</p>
-
 <ul>
-  <li><strong>Where is your input data stored?</strong> How many sets of input data do you have? This will determine what kinds of <code class="highlighter-rouge">Read</code> transforms you’ll need to apply at the start of your pipeline.</li>
-  <li><strong>What does your data look like?</strong> It might be plaintext, formatted log files, or rows in a database table. Some Beam transforms work exclusively on <code class="highlighter-rouge">PCollection</code>s of key/value pairs; you’ll need to determine if and how your data is keyed and how to best represent that in your pipeline’s <code class="highlighter-rouge">PCollection</code>(s).</li>
-  <li><strong>What do you want to do with your data?</strong> The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like <a href="/documentation/programming-guide/#pardo">ParDo</a>, or when you use pre-written transforms included with the Beam SDKs.</li>
-  <li><strong>What does your output data look like, and where should it go?</strong> This will determine what kinds of <code class="highlighter-rouge">Write</code> transforms you’ll need to apply at the end of your pipeline.</li>
+<li><strong>Where is your input data stored?</strong> How many sets of input data do you have? This will determine what kinds of <code>Read</code> transforms you&rsquo;ll need to apply at the start of your pipeline.</li>
+<li><strong>What does your data look like?</strong> It might be plaintext, formatted log files, or rows in a database table. Some Beam transforms work exclusively on <code>PCollection</code>s of key/value pairs; you&rsquo;ll need to determine if and how your data is keyed and how to best represent that in your pipeline&rsquo;s <code>PCollection</code>(s).</li>
+<li><strong>What do you want to do with your data?</strong> The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like <a href="/documentation/programming-guide/#pardo">ParDo</a>, or when you use pre-written transforms included with the Beam SDKs.</li>
+<li><strong>What does your output data look like, and where should it go?</strong> This will determine what kinds of <code>Write</code> transforms you&rsquo;ll need to apply at the end of your pipeline.</li>
 </ul>
-
 <h2 id="a-basic-pipeline">A basic pipeline</h2>
-
 <p>The simplest pipelines represent a linear flow of operations, as shown in figure 1.</p>
-
-<p><img src="/images/design-your-pipeline-linear.svg" alt="A linear pipeline starts with one input collection, sequentially applies
-  three transforms, and ends with one output collection." /></p>
-
+<p><img src="/images/design-your-pipeline-linear.svg" alt="A linear pipeline starts with one input collection, sequentially appliesthree transforms, and ends with one output collection."></p>
 <p><em>Figure 1: A linear pipeline.</em></p>
-
-<p>However, your pipeline can be significantly more complex. A pipeline represents a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Directed Acyclic Graph</a> of steps. It can have multiple input sources, multiple output sinks, and its operations (<code class="highlighter-rouge">PTransform</code>s) can both read and output multiple <code class="highlighter-rouge">PCollection</code>s. The following examples show some of the different shapes your pipeline can take.</p>
-
+<p>However, your pipeline can be significantly more complex. A pipeline represents a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Directed Acyclic Graph</a> of steps. It can have multiple input sources, multiple output sinks, and its operations (<code>PTransform</code>s) can both read and output multiple <code>PCollection</code>s. The following examples show some of the different shapes your pipeline can take.</p>
 <h2 id="branching-pcollections">Branching PCollections</h2>
-
-<p>It’s important to understand that transforms do not consume <code class="highlighter-rouge">PCollection</code>s; instead, they consider each individual element of a <code class="highlighter-rouge">PCollection</code> and create a new <code class="highlighter-rouge">PCollection</code> as output. This way, you can do different things to different elements in the same <code class="highlighter-rouge">PCollection</code>.</p>
-
+<p>It&rsquo;s important to understand that transforms do not consume <code>PCollection</code>s; instead, they consider each individual element of a <code>PCollection</code> and create a new <code>PCollection</code> as output. This way, you can do different things to different elements in the same <code>PCollection</code>.</p>
 <h3 id="multiple-transforms-process-the-same-pcollection">Multiple transforms process the same PCollection</h3>
-
-<p>You can use the same <code class="highlighter-rouge">PCollection</code> as input for multiple transforms without consuming the input or altering it.</p>
-
-<p>The pipeline in figure 2 is a branching pipeline. The pipeline reads its input (first names represented as strings) from a database table and creates a <code class="highlighter-rouge">PCollection</code> of table rows. Then, the pipeline applies multiple transforms to the <strong>same</strong> <code class="highlighter-rouge">PCollection</code>. Transform A extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘A’, and Transform B extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘B’. Both transforms A and B have the same input <code class="highlighter-rouge">PCollection</code>.</p>
-
-<p><img src="/images/design-your-pipeline-multiple-pcollections.svg" alt="The pipeline applies two transforms to a single input collection. Each
-  transform produces an output collection." /></p>
-
+<p>You can use the same <code>PCollection</code> as input for multiple transforms without consuming the input or altering it.</p>
+<p>The pipeline in figure 2 is a branching pipeline. The pipeline reads its input (first names represented as strings) from a database table and creates a <code>PCollection</code> of table rows. Then, the pipeline applies multiple transforms to the <strong>same</strong> <code>PCollection</code>. Transform A extracts all the names in that <code>PCollection</code> that start with the letter &lsquo;A&rsquo;, and Transform B extracts all the names in that <code>PCollection</code> that start with the letter &lsquo;B&rsquo;. Both transforms A and B have the same input <code>PCollection</code>.</p>
+<p><img src="/images/design-your-pipeline-multiple-pcollections.svg" alt="The pipeline applies two transforms to a single input collection. Eachtransform produces an output collection."></p>
 <p><em>Figure 2: A branching pipeline. Two transforms are applied to a single
 PCollection of database table rows.</em></p>
-
 <p>The following example code applies two transforms to a single input collection.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dbRowCollection</span> <span class="o">=</span> <span class="o">...;</span>
 
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">aCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"aTrans"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dbRowCollection</span> <span class="o">=</span> <span class="o">...;</span>
+
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">aCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">&#34;aTrans&#34;</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
   <span class="nd">@ProcessElement</span>
   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-    <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"A"</span><span class="o">)){</span>
+    <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">&#34;A&#34;</span><span class="o">)){</span>
       <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
     <span class="o">}</span>
   <span class="o">}</span>
 <span class="o">}));</span>
 
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">bCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"bTrans"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
+<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">bCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">&#34;bTrans&#34;</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
   <span class="nd">@ProcessElement</span>
   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-    <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"B"</span><span class="o">)){</span>
+    <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">&#34;B&#34;</span><span class="o">)){</span>
       <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
     <span class="o">}</span>
   <span class="o">}</span>
-<span class="o">}));</span>
-</code></pre></div></div>
+<span class="o">}));</span></code></pre></div>
+        </div>
+    
+
 
 <h3 id="a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</h3>
-
-<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#additional-outputs">tagged outputs</a>. Transforms that produce more than one output process each element of the input once, and output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
-
-<p>Figure 3 illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with ‘A’ are added to the main output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to an additional output <code class="highlighter-rouge">PCollection</code>.</p>
-
-<p><img src="/images/design-your-pipeline-additional-outputs.svg" alt="The pipeline applies one transform that produces multiple output collections." /></p>
-
+<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code>PCollection</code>s by using <a href="/documentation/programming-guide/#additional-outputs">tagged outputs</a>. Transforms that produce more than one output process each element of the input once, and output to zero or more <code>PCollection</code>s.</p>
+<p>Figure 3 illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with &lsquo;A&rsquo; are added to the main output <code>PCollection</code>, and names that start with &lsquo;B&rsquo; are added to an additional output <code>PCollection</code>.</p>
+<p><img src="/images/design-your-pipeline-additional-outputs.svg" alt="The pipeline applies one transform that produces multiple output collections."></p>
 <p><em>Figure 3: A pipeline with a transform that outputs multiple PCollections.</em></p>
-
 <p>If we compare the pipelines in figure 2 and figure 3, you can see they perform
 the same operation in different ways. The pipeline in figure 2 contains two
-transforms that process the elements in the same input <code class="highlighter-rouge">PCollection</code>. One
+transforms that process the elements in the same input <code>PCollection</code>. One
 transform uses the following logic:</p>
-
 <pre>if (starts with 'A') { outputToPCollectionA }</pre>
-
 <p>while the other transform uses:</p>
-
 <pre>if (starts with 'B') { outputToPCollectionB }</pre>
-
-<p>Because each transform reads the entire input <code class="highlighter-rouge">PCollection</code>, each element in the input <code class="highlighter-rouge">PCollection</code> is processed twice.</p>
-
+<p>Because each transform reads the entire input <code>PCollection</code>, each element in the input <code>PCollection</code> is processed twice.</p>
 <p>The pipeline in figure 3 performs the same operation in a different way - with only one transform that uses the following logic:</p>
-
 <pre>if (starts with 'A') { outputToPCollectionA } else if (starts with 'B') { outputToPCollectionB }</pre>
-
-<p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once.</p>
-
+<p>where each element in the input <code>PCollection</code> is processed once.</p>
 <p>The following example code applies one transform that processes each element
 once and outputs two collections.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Define two TupleTags, one for each output.</span>
-<span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithATag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// Define two TupleTags, one for each output.
+</span><span class="c1"></span><span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithATag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithBTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
 
 <span class="n">PCollectionTuple</span> <span class="n">mixedCollection</span> <span class="o">=</span>
@@ -636,108 +575,104 @@ once and outputs two collections.</p>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
           <span class="nd">@ProcessElement</span>
           <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-            <span class="k">if</span> <span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"A"</span><span class="o">))</span> <span class="o">{</span>
-              <span class="c1">// Emit to main output, which is the output with tag startsWithATag.</span>
-              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
-            <span class="o">}</span> <span class="k">else</span> <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"B"</span><span class="o">))</span> <span class="o">{</span>
-              <span class="c1">// Emit to output with tag startsWithBTag.</span>
-              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+            <span class="k">if</span> <span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">&#34;A&#34;</span><span class="o">))</span> <span class="o">{</span>
+              <span class="c1">// Emit to main output, which is the output with tag startsWithATag.
+</span><span class="c1"></span>              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
+            <span class="o">}</span> <span class="k">else</span> <span class="k">if</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">&#34;B&#34;</span><span class="o">))</span> <span class="o">{</span>
+              <span class="c1">// Emit to output with tag startsWithBTag.
+</span><span class="c1"></span>              <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">());</span>
             <span class="o">}</span>
           <span class="o">}</span>
         <span class="o">})</span>
-        <span class="c1">// Specify main output. In this example, it is the output</span>
-        <span class="c1">// with tag startsWithATag.</span>
-        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">,</span>
-        <span class="c1">// Specify the output with tag startsWithBTag, as a TupleTagList.</span>
-                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">)));</span>
+        <span class="c1">// Specify main output. In this example, it is the output
+</span><span class="c1"></span>        <span class="c1">// with tag startsWithATag.
+</span><span class="c1"></span>        <span class="o">.</span><span class="na">withOutputTags</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">,</span>
+        <span class="c1">// Specify the output with tag startsWithBTag, as a TupleTagList.
+</span><span class="c1"></span>                        <span class="n">TupleTagList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">)));</span>
 
-<span class="c1">// Get subset of the output with tag startsWithATag.</span>
-<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
+<span class="c1">// Get subset of the output with tag startsWithATag.
+</span><span class="c1"></span><span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithATag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
 
-<span class="c1">// Get subset of the output with tag startsWithBTag.</span>
-<span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span>
-</code></pre></div></div>
+<span class="c1">// Get subset of the output with tag startsWithBTag.
+</span><span class="c1"></span><span class="n">mixedCollection</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">startsWithBTag</span><span class="o">).</span><span class="na">apply</span><span class="o">(...);</span></code></pre></div>
+        </div>
+    
 
-<p>You can use either mechanism to produce multiple output <code class="highlighter-rouge">PCollection</code>s. However, using additional outputs makes more sense if the transform’s computation per element is time-consuming.</p>
 
+<p>You can use either mechanism to produce multiple output <code>PCollection</code>s. However, using additional outputs makes more sense if the transform&rsquo;s computation per element is time-consuming.</p>
 <h2 id="merging-pcollections">Merging PCollections</h2>
-
-<p>Often, after you’ve branched your <code class="highlighter-rouge">PCollection</code> into multiple <code class="highlighter-rouge">PCollection</code>s via multiple transforms, you’ll want to merge some or all of those resulting <code class="highlighter-rouge">PCollection</code>s back together. You can do so by using one of the following:</p>
-
+<p>Often, after you&rsquo;ve branched your <code>PCollection</code> into multiple <code>PCollection</code>s via multiple transforms, you&rsquo;ll want to merge some or all of those resulting <code>PCollection</code>s back together. You can do so by using one of the following:</p>
 <ul>
-  <li><strong>Flatten</strong> - You can use the <code class="highlighter-rouge">Flatten</code> transform in the Beam SDKs to merge multiple <code class="highlighter-rouge">PCollection</code>s of the <strong>same type</strong>.</li>
-  <li><strong>Join</strong> - You can use the <code class="highlighter-rouge">CoGroupByKey</code> transform in the Beam SDK to perform a relational join between two <code class="highlighter-rouge">PCollection</code>s. The <code class="highlighter-rouge">PCollection</code>s must be keyed (i.e. they must be collections of key/value pairs) and they must use the same key type.</li>
+<li><strong>Flatten</strong> - You can use the <code>Flatten</code> transform in the Beam SDKs to merge multiple <code>PCollection</code>s of the <strong>same type</strong>.</li>
+<li><strong>Join</strong> - You can use the <code>CoGroupByKey</code> transform in the Beam SDK to perform a relational join between two <code>PCollection</code>s. The <code>PCollection</code>s must be keyed (i.e. they must be collections of key/value pairs) and they must use the same key type.</li>
 </ul>
-
 <p>The example in figure 4 is a continuation of the example in figure 2 in <a href="#multiple-transforms-process-the-same-pcollection">the
 section above</a>. After
-branching into two <code class="highlighter-rouge">PCollection</code>s, one with names that begin with ‘A’ and one
-with names that begin with ‘B’, the pipeline merges the two together into a
-single <code class="highlighter-rouge">PCollection</code> that now contains all names that begin with either ‘A’ or
-‘B’. Here, it makes sense to use <code class="highlighter-rouge">Flatten</code> because the <code class="highlighter-rouge">PCollection</code>s being
+branching into two <code>PCollection</code>s, one with names that begin with &lsquo;A&rsquo; and one
+with names that begin with &lsquo;B&rsquo;, the pipeline merges the two together into a
+single <code>PCollection</code> that now contains all names that begin with either &lsquo;A&rsquo; or
+&lsquo;B&rsquo;. Here, it makes sense to use <code>Flatten</code> because the <code>PCollection</code>s being
 merged both contain the same type.</p>
-
-<p><img src="/images/design-your-pipeline-flatten.svg" alt="The pipeline merges two collections into one collection with the Flatten transform." /></p>
-
+<p><img src="/images/design-your-pipeline-flatten.svg" alt="The pipeline merges two collections into one collection with the Flatten transform."></p>
 <p><em>Figure 4: A pipeline that merges two collections into one collection with the Flatten transform.</em></p>
+<p>The following example code applies <code>Flatten</code> to merge two collections.</p>
 
-<p>The following example code applies <code class="highlighter-rouge">Flatten</code> to merge two collections.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//merge the two PCollections with Flatten</span>
-<span class="n">PCollectionList</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">collectionList</span> <span class="o">=</span> <span class="n">PCollectionList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">aCollection</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">bCollection</span><span class="o">);</span>
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//merge the two PCollections with Flatten
+</span><span class="c1"></span><span class="n">PCollectionList</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">collectionList</span> <span class="o">=</span> <span class="n">PCollectionList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">aCollection</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">bCollection</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mergedCollectionWithFlatten</span> <span class="o">=</span> <span class="n">collectionList</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Flatten</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">pCollections</span><span class="o">());</span>
 
-<span class="c1">// continue with the new merged PCollection</span>
-<span class="n">mergedCollectionWithFlatten</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span>
-</code></pre></div></div>
+<span class="c1">// continue with the new merged PCollection
+</span><span class="c1"></span><span class="n">mergedCollectionWithFlatten</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span></code></pre></div>
+        </div>
+    
+
 
 <h2 id="multiple-sources">Multiple sources</h2>
-
-<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses <code class="highlighter-rouge">CoGroupByKey</code> to join this information, where the key is the name; the resulting <code class="highlighter-rouge">PCollection</code> contains all the combinations of names, addresses, and orders.</p>
-
-<p><img src="/images/design-your-pipeline-join.svg" alt="The pipeline joins two input collections into one collection with the Join transform." /></p>
-
+<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses <code>CoGroupByKey</code> to join this information, where the key is the name; the resulting <code>PCollection</code> contains all the combinations of names, addresses, and orders.</p>
+<p><img src="/images/design-your-pipeline-join.svg" alt="The pipeline joins two input collections into one collection with the Join transform."></p>
 <p><em>Figure 5: A pipeline that does a relational join of two input collections.</em></p>
+<p>The following example code applies <code>Join</code> to join two input collections.</p>
 
-<p>The following example code applies <code class="highlighter-rouge">Join</code> to join two input collections.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userAddress</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">JdbcIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userAddress</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">JdbcIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userOrder</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">KafkaIO</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()...);</span>
 
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">addressTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;();</span>
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">orderTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;();</span>
 
-<span class="c1">// Merge collection values into a CoGbkResult collection.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">joinedCollection</span> <span class="o">=</span>
+<span class="c1">// Merge collection values into a CoGbkResult collection.
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">CoGbkResult</span><span class="o">&gt;&gt;</span> <span class="n">joinedCollection</span> <span class="o">=</span>
   <span class="n">KeyedPCollectionTuple</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">addressTag</span><span class="o">,</span> <span class="n">userAddress</span><span class="o">)</span>
                        <span class="o">.</span><span class="na">and</span><span class="o">(</span><span class="n">orderTag</span><span class="o">,</span> <span class="n">userOrder</span><span class="o">)</span>
                        <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">CoGroupByKey</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">create</span><span class="o">());</span>
 
-<span class="n">joinedCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span>
-</code></pre></div></div>
+<span class="n">joinedCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span></code></pre></div>
+        </div>
+    
 
-<h2 id="whats-next">What’s next</h2>
 
+<h2 id="whats-next">What&rsquo;s next</h2>
 <ul>
-  <li><a href="/documentation/pipelines/create-your-pipeline">Create your own pipeline</a>.</li>
-  <li><a href="/documentation/pipelines/test-your-pipeline">Test your pipeline</a>.</li>
+<li><a href="/documentation/pipelines/create-your-pipeline">Create your own pipeline</a>.</li>
+<li><a href="/documentation/pipelines/test-your-pipeline">Test your pipeline</a>.</li>
 </ul>
 
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -752,47 +687,44 @@ merged both contain the same type.</p>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

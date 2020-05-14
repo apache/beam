@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Side input patterns</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/side-inputs/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Side input patterns</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/patterns/side-inputs/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/side-inputs.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/patterns/side-inputs.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,35 +432,21 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</a></li>
-  <li><a href="#slowly-updating-side-input-using-windowing">Slowly updating side input using windowing</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</a></li>
+    <li><a href="#slowly-updating-side-input-using-windowing">Slowly updating side input using windowing</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -506,52 +459,59 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="side-input-patterns">Side input patterns</h1>
+<p>The samples on this page show you common Beam side input patterns. A side input is an additional input that your <code>DoFn</code> can access each time it processes an element in the input <code>PCollection</code>. For more information, see the <a href="/documentation/programming-guide/#side-inputs">programming guide section on side inputs</a>.</p>
 
-<p>The samples on this page show you common Beam side input patterns. A side input is an additional input that your <code class="highlighter-rouge">DoFn</code> can access each time it processes an element in the input <code class="highlighter-rouge">PCollection</code>. For more information, see the <a href="/documentation/programming-guide/#side-inputs">programming guide section on side inputs</a>.</p>
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
+    
+      
+        <li data-type="language-java" class="active">Java SDK</li>
+      
+      
+      
+    
+      
+      
+        <li data-type="language-py">Python SDK</li>
+      
+      
+    
   </ul>
 </nav>
-
 <h2 id="slowly-updating-global-window-side-inputs">Slowly updating global window side inputs</h2>
-
-<p>You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a <code class="highlighter-rouge">FixedWindow</code>.</p>
-
+<p>You can retrieve side inputs from global windows to use them in a pipeline job with non-global windows, like a <code>FixedWindow</code>.</p>
 <p>To slowly update global window side inputs in pipelines with non-global windows:</p>
-
 <ol>
-  <li>
-    <p>Write a <code class="highlighter-rouge">DoFn</code> that periodically pulls data from a bounded source into a global window.</p>
-
-    <p>a. Use the <code class="highlighter-rouge">GenerateSequence</code> source transform to periodically emit a value.</p>
-
-    <p>b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.</p>
-
-    <p>c. Fire the trigger to pass the data into the global window.</p>
-  </li>
-  <li>
-    <p>Create the side input for downstream transforms. The side input should fit into memory.</p>
-  </li>
+<li>
+<p>Write a <code>DoFn</code> that periodically pulls data from a bounded source into a global window.</p>
+<p>a. Use the <code>GenerateSequence</code> source transform to periodically emit a value.</p>
+<p>b. Instantiate a data-driven trigger that activates on each element and pulls data from a bounded source.</p>
+<p>c. Fire the trigger to pass the data into the global window.</p>
+</li>
+<li>
+<p>Create the side input for downstream transforms. The side input should fit into memory.</p>
+</li>
 </ol>
-
 <p>The global window side input triggers on processing time, so the main pipeline nondeterministically matches the side input to elements in event time.</p>
+<p>For instance, the following code sample uses a <code>Map</code> to create a <code>DoFn</code>. The <code>Map</code> becomes a <code>View.asSingleton</code> side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.</p>
 
-<p>For instance, the following code sample uses a <code class="highlighter-rouge">Map</code> to create a <code class="highlighter-rouge">DoFn</code>. The <code class="highlighter-rouge">Map</code> becomes a <code class="highlighter-rouge">View.asSingleton</code> side input that’s rebuilt on each counter tick. The side input updates every 5 seconds in order to demonstrate the workflow. In a real-world scenario, the side input would typically update every few hours or once per day.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">sideInputPatterns</span><span class="o">()</span> <span class="o">{</span>
-  <span class="c1">// This pipeline uses View.asSingleton for a placeholder external service.</span>
-  <span class="c1">// Run in debug mode to see the output.</span>
-  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
-  <span class="c1">// Create a side input that updates each second.</span>
-  <span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">map</span> <span class="o">=</span>
-      <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5L</span><span class="o">)))</span>
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">sideInputPatterns</span><span class="o">()</span> <span class="o">{</span>
+  <span class="c1">// This pipeline uses View.asSingleton for a placeholder external service.
+</span><span class="c1"></span>  <span class="c1">// Run in debug mode to see the output.
+</span><span class="c1"></span>  <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+
+  <span class="c1">// Create a side input that updates each second.
+</span><span class="c1"></span>  <span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">map</span> <span class="o">=</span>
+      <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">5L</span><span class="o">)))</span>
           <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
               <span class="n">Window</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span><span class="k">new</span> <span class="n">GlobalWindows</span><span class="o">())</span>
                   <span class="o">.</span><span class="na">triggering</span><span class="o">(</span><span class="n">Repeatedly</span><span class="o">.</span><span class="na">forever</span><span class="o">(</span><span class="n">AfterProcessingTime</span><span class="o">.</span><span class="na">pastFirstElementInPane</span><span class="o">()))</span>
@@ -563,17 +523,17 @@ limitations under the License.
                     <span class="nd">@ProcessElement</span>
                     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
                         <span class="nd">@Element</span> <span class="n">Long</span> <span class="n">input</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
-                      <span class="c1">// Replace map with test data from the placeholder external service.</span>
-                      <span class="c1">// Add external reads here.</span>
-                      <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">PlaceholderExternalService</span><span class="o">.</span><span class="na">readTestData</span><span class="o">());</span>
+                      <span class="c1">// Replace map with test data from the placeholder external service.
+</span><span class="c1"></span>                      <span class="c1">// Add external reads here.
+</span><span class="c1"></span>                      <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">PlaceholderExternalService</span><span class="o">.</span><span class="na">readTestData</span><span class="o">());</span>
                     <span class="o">}</span>
                   <span class="o">}))</span>
           <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">View</span><span class="o">.</span><span class="na">asSingleton</span><span class="o">());</span>
 
-  <span class="c1">// Consume side input. GenerateSequence generates test data.</span>
-  <span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.</span>
-  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="mi">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1L</span><span class="o">)))</span>
-      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">))))</span>
+  <span class="c1">// Consume side input. GenerateSequence generates test data.
+</span><span class="c1"></span>  <span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.
+</span><span class="c1"></span>  <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">GenerateSequence</span><span class="o">.</span><span class="na">from</span><span class="o">(</span><span class="n">0</span><span class="o">).</span><span class="na">withRate</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">1L</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">1</span><span class="o">))))</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Sum</span><span class="o">.</span><span class="na">longsGlobally</span><span class="o">().</span><span class="na">withoutDefaults</span><span class="o">())</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
           <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
@@ -582,13 +542,13 @@ limitations under the License.
                     <span class="nd">@ProcessElement</span>
                     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
                       <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMap</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">map</span><span class="o">);</span>
-                      <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="mi">1L</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">()),</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">());</span>
+                      <span class="n">c</span><span class="o">.</span><span class="na">outputWithTimestamp</span><span class="o">(</span><span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1L</span><span class="o">,</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">()),</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">());</span>
 
                       <span class="n">LOG</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span>
-                          <span class="s">"Value is {}, key A is {}, and key B is {}."</span><span class="o">,</span>
+                          <span class="s">&#34;Value is {}, key A is {}, and key B is {}.&#34;</span><span class="o">,</span>
                           <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">(),</span>
-                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">),</span>
-                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">));</span>
+                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">&#34;Key_A&#34;</span><span class="o">),</span>
+                          <span class="n">keyMap</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">&#34;Key_B&#34;</span><span class="o">));</span>
                     <span class="o">}</span>
                   <span class="o">})</span>
               <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">map</span><span class="o">));</span>
@@ -602,57 +562,70 @@ limitations under the License.
     <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">map</span> <span class="o">=</span> <span class="k">new</span> <span class="n">HashMap</span><span class="o">&lt;&gt;();</span>
     <span class="n">Instant</span> <span class="n">now</span> <span class="o">=</span> <span class="n">Instant</span><span class="o">.</span><span class="na">now</span><span class="o">();</span>
 
-    <span class="n">DateTimeFormatter</span> <span class="n">dtf</span> <span class="o">=</span> <span class="n">DateTimeFormat</span><span class="o">.</span><span class="na">forPattern</span><span class="o">(</span><span class="s">"HH:MM:SS"</span><span class="o">);</span>
+    <span class="n">DateTimeFormatter</span> <span class="n">dtf</span> <span class="o">=</span> <span class="n">DateTimeFormat</span><span class="o">.</span><span class="na">forPattern</span><span class="o">(</span><span class="s">&#34;HH:MM:SS&#34;</span><span class="o">);</span>
 
-    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_A"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">(</span><span class="n">dtf</span><span class="o">));</span>
-    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">"Key_B"</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">());</span>
+    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">&#34;Key_A&#34;</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">(</span><span class="n">dtf</span><span class="o">));</span>
+    <span class="n">map</span><span class="o">.</span><span class="na">put</span><span class="o">(</span><span class="s">&#34;Key_B&#34;</span><span class="o">,</span> <span class="n">now</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">30</span><span class="o">)).</span><span class="na">toString</span><span class="o">());</span>
 
     <span class="k">return</span> <span class="n">map</span><span class="o">;</span>
   <span class="o">}</span>
-<span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+        </div>
+    
 
 
-</code></pre></div></div>
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">No</span> <span class="n">sample</span> <span class="n">present</span><span class="o">.</span>
-</code></pre></div></div>
+
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="n">No</span> <span class="n">sample</span> <span class="n">present</span><span class="o">.</span></code></pre></div>
+        </div>
+    
+
 
 <h2 id="slowly-updating-side-input-using-windowing">Slowly updating side input using windowing</h2>
-
 <p>You can read side input data periodically into distinct PCollection windows.
 When you apply the side input to your main input, each main input
 window is automatically matched to a single side input window.
 This guarantees consistency on the duration of the single window,
 meaning that each window on the main input will be matched to a single
 version of side input data.</p>
-
 <p>To read side input data periodically into distinct PColleciton windows:</p>
-
 <ol>
-  <li>Use the PeriodicImpulse or PeriodicSequence PTransform to:
-    <ul>
-      <li>Generate an infinite sequence of elements at required processing time
- intervals</li>
-      <li>Assign them to separate windows.</li>
-    </ul>
-  </li>
-  <li>Fetch data using SDF Read or ReadAll PTransform triggered by arrival of
+<li>Use the PeriodicImpulse or PeriodicSequence PTransform to:
+<ul>
+<li>Generate an infinite sequence of elements at required processing time
+intervals</li>
+<li>Assign them to separate windows.</li>
+</ul>
+</li>
+<li>Fetch data using SDF Read or ReadAll PTransform triggered by arrival of
 PCollection element.</li>
-  <li>Apply the side input.</li>
+<li>Apply the side input.</li>
 </ol>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">List</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">sideInput</span> <span class="o">=</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollectionView</span><span class="o">&lt;</span><span class="n">List</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">sideInput</span> <span class="o">=</span>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-            <span class="s">"SIImpulse"</span><span class="o">,</span>
+            <span class="s">&#34;SIImpulse&#34;</span><span class="o">,</span>
             <span class="n">PeriodicImpulse</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
                 <span class="o">.</span><span class="na">startAt</span><span class="o">(</span><span class="n">startAt</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">stopAt</span><span class="o">(</span><span class="n">stopAt</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">withInterval</span><span class="o">(</span><span class="n">interval1</span><span class="o">)</span>
                 <span class="o">.</span><span class="na">applyWindowing</span><span class="o">())</span>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-            <span class="s">"FileToRead"</span><span class="o">,</span>
+            <span class="s">&#34;FileToRead&#34;</span><span class="o">,</span>
             <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
                 <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
-                  <span class="nd">@DoFn</span><span class="o">.</span><span class="na">ProcessElement</span>
+                  <span class="nd">@DoFn.ProcessElement</span>
                   <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span><span class="nd">@Element</span> <span class="n">Instant</span> <span class="n">notUsed</span><span class="o">,</span> <span class="n">OutputReceiver</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">o</span><span class="o">)</span> <span class="o">{</span>
                     <span class="n">o</span><span class="o">.</span><span class="na">output</span><span class="o">(</span><span class="n">fileToRead</span><span class="o">);</span>
                   <span class="o">}</span>
@@ -673,18 +646,18 @@ PCollection element.</li>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">&gt;</span> <span class="n">mainInput</span> <span class="o">=</span>
     <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-        <span class="s">"MIImpulse"</span><span class="o">,</span>
+        <span class="s">&#34;MIImpulse&#34;</span><span class="o">,</span>
         <span class="n">PeriodicImpulse</span><span class="o">.</span><span class="na">create</span><span class="o">()</span>
-            <span class="o">.</span><span class="na">startAt</span><span class="o">(</span><span class="n">startAt</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
-            <span class="o">.</span><span class="na">stopAt</span><span class="o">(</span><span class="n">stopAt</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+            <span class="o">.</span><span class="na">startAt</span><span class="o">(</span><span class="n">startAt</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">1</span><span class="o">)))</span>
+            <span class="o">.</span><span class="na">stopAt</span><span class="o">(</span><span class="n">stopAt</span><span class="o">.</span><span class="na">minus</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">1</span><span class="o">)))</span>
             <span class="o">.</span><span class="na">withInterval</span><span class="o">(</span><span class="n">interval2</span><span class="o">)</span>
             <span class="o">.</span><span class="na">applyWindowing</span><span class="o">());</span>
 
-<span class="c1">// Consume side input. GenerateSequence generates test data.</span>
-<span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
+<span class="c1">// Consume side input. GenerateSequence generates test data.
+</span><span class="c1">// Use a real source (like PubSubIO or KafkaIO) in production.
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">result</span> <span class="o">=</span>
     <span class="n">mainInput</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-        <span class="s">"generateOutput"</span><span class="o">,</span>
+        <span class="s">&#34;generateOutput&#34;</span><span class="o">,</span>
         <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
                 <span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">Instant</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;()</span> <span class="o">{</span>
                   <span class="nd">@ProcessElement</span>
@@ -692,61 +665,61 @@ PCollection element.</li>
                     <span class="n">c</span><span class="o">.</span><span class="na">output</span><span class="o">((</span><span class="kt">long</span><span class="o">)</span> <span class="n">c</span><span class="o">.</span><span class="na">sideInput</span><span class="o">(</span><span class="n">sideInput</span><span class="o">).</span><span class="na">size</span><span class="o">());</span>
                   <span class="o">}</span>
                 <span class="o">})</span>
-            <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">sideInput</span><span class="o">));</span>
+            <span class="o">.</span><span class="na">withSideInputs</span><span class="o">(</span><span class="n">sideInput</span><span class="o">));</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">apache_beam.transforms.periodicsequence</span> <span class="kn">import</span> <span class="n">PeriodicImpulse</span>
+
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">from</span> <span class="nn">apache_beam.transforms.periodicsequence</span> <span class="kn">import</span> <span class="n">PeriodicImpulse</span>
 <span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="kn">import</span> <span class="n">TimestampedValue</span>
 <span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="kn">import</span> <span class="n">window</span>
 
-<span class="c"># from apache_beam.utils.timestamp import MAX_TIMESTAMP</span>
-<span class="c"># last_timestamp = MAX_TIMESTAMP to go on indefninitely</span>
+<span class="c1"># from apache_beam.utils.timestamp import MAX_TIMESTAMP</span>
+<span class="c1"># last_timestamp = MAX_TIMESTAMP to go on indefninitely</span>
 
-<span class="c"># Any user-defined function.</span>
-<span class="c"># cross join is used as an example.</span>
+<span class="c1"># Any user-defined function.</span>
+<span class="c1"># cross join is used as an example.</span>
 <span class="k">def</span> <span class="nf">cross_join</span><span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">rights</span><span class="p">):</span>
   <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rights</span><span class="p">:</span>
     <span class="k">yield</span> <span class="p">(</span><span class="n">left</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
 
-<span class="c"># Create pipeline.</span>
+<span class="c1"># Create pipeline.</span>
 <span class="n">pipeline_options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">()</span>
 <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">options</span><span class="o">=</span><span class="n">pipeline_options</span><span class="p">)</span>
 <span class="n">side_input</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">p</span>
-    <span class="o">|</span> <span class="s">'PeriodicImpulse'</span> <span class="o">&gt;&gt;</span> <span class="n">PeriodicImpulse</span><span class="p">(</span>
+    <span class="o">|</span> <span class="s1">&#39;PeriodicImpulse&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">PeriodicImpulse</span><span class="p">(</span>
         <span class="n">first_timestamp</span><span class="p">,</span> <span class="n">last_timestamp</span><span class="p">,</span> <span class="n">interval</span><span class="p">,</span> <span class="bp">True</span><span class="p">)</span>
-    <span class="o">|</span> <span class="s">'MapToFileName'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">src_file_pattern</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
-    <span class="o">|</span> <span class="s">'ReadFromFile'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadAllFromText</span><span class="p">())</span>
+    <span class="o">|</span> <span class="s1">&#39;MapToFileName&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">src_file_pattern</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+    <span class="o">|</span> <span class="s1">&#39;ReadFromFile&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadAllFromText</span><span class="p">())</span>
 
 <span class="n">main_input</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">p</span>
-    <span class="o">|</span> <span class="s">'MpImpulse'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">sample_main_input_elements</span><span class="p">)</span>
+    <span class="o">|</span> <span class="s1">&#39;MpImpulse&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">(</span><span class="n">sample_main_input_elements</span><span class="p">)</span>
     <span class="o">|</span>
-    <span class="s">'MapMpToTimestamped'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">src</span><span class="p">:</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">src</span><span class="p">))</span>
-    <span class="o">|</span> <span class="s">'WindowMpInto'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
+    <span class="s1">&#39;MapMpToTimestamped&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">src</span><span class="p">:</span> <span class="n">TimestampedValue</span><span class="p">(</span><span class="n">src</span><span class="p">,</span> <span class="n">src</span><span class="p">))</span>
+    <span class="o">|</span> <span class="s1">&#39;WindowMpInto&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span>
         <span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="n">main_input_windowing_interval</span><span class="p">)))</span>
 
 <span class="n">result</span> <span class="o">=</span> <span class="p">(</span>
     <span class="n">main_input</span>
-    <span class="o">|</span> <span class="s">'ApplyCrossJoin'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
-        <span class="n">cross_join</span><span class="p">,</span> <span class="n">rights</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">side_input</span><span class="p">)))</span>
+    <span class="o">|</span> <span class="s1">&#39;ApplyCrossJoin&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span>
+        <span class="n">cross_join</span><span class="p">,</span> <span class="n">rights</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">side_input</span><span class="p">)))</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
 
-      </div>
+
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -761,47 +734,44 @@ PCollection element.</li>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

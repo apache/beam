@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Testing I/O Transforms</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/io/testing/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Testing I/O Transforms</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/io/testing/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/io/testing.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/io/testing.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,59 +432,56 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#testing-io-transforms-in-apache-beam">Testing I/O Transforms in Apache Beam</a></li>
-  <li><a href="#introduction">Introduction</a></li>
-  <li><a href="#a-note-on-performance-benchmarking">A note on performance benchmarking</a></li>
-  <li><a href="#test-balance-unit-vs-integration">Test Balance - Unit vs Integration</a></li>
-  <li><a href="#examples">Examples</a></li>
-  <li><a href="#unit-tests">Unit Tests</a>
-    <ul>
-      <li><a href="#goals">Goals</a></li>
-      <li><a href="#non-goals">Non-goals</a></li>
-      <li><a href="#implementing-unit-tests">Implementing unit tests</a></li>
-      <li><a href="#use-fakes">Use fakes</a></li>
-      <li><a href="#network-failure">Network failure</a></li>
-    </ul>
-  </li>
-  <li><a href="#batching">Batching</a></li>
-  <li><a href="#i-o-transform-integration-tests">I/O Transform Integration Tests</a>
-    <ul>
-      <li><a href="#it-goals">Goals</a></li>
-      <li><a href="#integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</a></li>
-      <li><a href="#running-integration-tests-on-your-machine">Running integration tests on your machine</a></li>
-      <li><a href="#running-integration-tests-on-pull-requests">Running Integration Tests on Pull Requests</a></li>
-      <li><a href="#performance-testing-dashboard">Performance testing dashboard</a></li>
-      <li><a href="#implementing-integration-tests">Implementing Integration Tests</a></li>
-      <li><a href="#small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</a></li>
-    </ul>
-  </li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#testing-io-transforms-in-apache-beam">Testing I/O Transforms in Apache Beam</a></li>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#a-note-on-performance-benchmarking">A note on performance benchmarking</a></li>
+    <li><a href="#test-balance-unit-vs-integration">Test Balance - Unit vs Integration</a></li>
+    <li><a href="#examples">Examples</a></li>
+    <li><a href="#unit-tests">Unit Tests</a>
+      <ul>
+        <li><a href="#goals">Goals</a></li>
+        <li><a href="#non-goals">Non-goals</a></li>
+        <li><a href="#implementing-unit-tests">Implementing unit tests</a></li>
+        <li><a href="#use-fakes">Use fakes</a></li>
+        <li><a href="#network-failure">Network failure</a></li>
+      </ul>
+    </li>
+    <li><a href="#batching">Batching</a></li>
+    <li><a href="#i-o-transform-integration-tests">I/O Transform Integration Tests</a>
+      <ul>
+        <li><a href="#it-goals">Goals </a></li>
+        <li><a href="#integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</a></li>
+        <li><a href="#running-integration-tests-on-your-machine">Running integration tests on your machine</a>
+          <ul>
+            <li><a href="#datastore-setup-cleanup">Data store setup/cleanup</a></li>
+            <li><a href="#running-a-test">Running a particular test</a></li>
+          </ul>
+        </li>
+        <li><a href="#running-integration-tests-on-pull-requests">Running Integration Tests on Pull Requests</a></li>
+        <li><a href="#performance-testing-dashboard">Performance testing dashboard</a></li>
+        <li><a href="#implementing-integration-tests">Implementing Integration Tests</a>
+          <ul>
+            <li><a href="#test-code">Test Code</a></li>
+            <li><a href="#kubernetes-scripts">Kubernetes scripts</a></li>
+            <li><a href="#jenkins-jobs">Jenkins jobs</a></li>
+          </ul>
+        </li>
+        <li><a href="#small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -530,205 +494,159 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h2 id="testing-io-transforms-in-apache-beam">Testing I/O Transforms in Apache Beam</h2>
-
 <p><em>Examples and design patterns for testing Apache Beam I/O transforms</em></p>
+
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
   <ul>
-    <li data-type="language-java" class="active">Java SDK</li>
-    <li data-type="language-py">Python SDK</li>
+    
+      
+        <li data-type="language-java" class="active">Java SDK</li>
+      
+      
+      
+    
+      
+      
+        <li data-type="language-py">Python SDK</li>
+      
+      
+    
   </ul>
 </nav>
-
 <blockquote>
-  <p>Note: This guide is still in progress. There is an open issue to finish the guide: <a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>.</p>
+<p>Note: This guide is still in progress. There is an open issue to finish the guide: <a href="https://issues.apache.org/jira/browse/BEAM-1025">BEAM-1025</a>.</p>
 </blockquote>
-
 <h2 id="introduction">Introduction</h2>
-
-<p>This document explains the set of tests that the Beam community recommends based on our past experience writing I/O transforms. If you wish to contribute your I/O transform to the Beam community, we’ll ask you to implement these tests.</p>
-
+<p>This document explains the set of tests that the Beam community recommends based on our past experience writing I/O transforms. If you wish to contribute your I/O transform to the Beam community, we&rsquo;ll ask you to implement these tests.</p>
 <p>While it is standard to write unit tests and integration tests, there are many possible definitions. Our definitions are:</p>
-
 <ul>
-  <li><strong>Unit Tests:</strong>
-    <ul>
-      <li>Goal: verifying correctness of the transform only - core behavior, corner cases, etc.</li>
-      <li>Data store used: an in-memory version of the data store (if available), otherwise you’ll need to write a <a href="#use-fakes">fake</a></li>
-      <li>Data set size: tiny (10s to 100s of rows)</li>
-    </ul>
-  </li>
-  <li><strong>Integration Tests:</strong>
-    <ul>
-      <li>Goal: catch problems that occur when interacting with real versions of the runners/data store</li>
-      <li>Data store used: an actual instance, pre-configured before the test</li>
-      <li>Data set size: small to medium (1000 rows to 10s of GBs)</li>
-    </ul>
-  </li>
+<li><strong>Unit Tests:</strong>
+<ul>
+<li>Goal: verifying correctness of the transform only - core behavior, corner cases, etc.</li>
+<li>Data store used: an in-memory version of the data store (if available), otherwise you&rsquo;ll need to write a <a href="#use-fakes">fake</a></li>
+<li>Data set size: tiny (10s to 100s of rows)</li>
 </ul>
-
+</li>
+<li><strong>Integration Tests:</strong>
+<ul>
+<li>Goal: catch problems that occur when interacting with real versions of the runners/data store</li>
+<li>Data store used: an actual instance, pre-configured before the test</li>
+<li>Data set size: small to medium (1000 rows to 10s of GBs)</li>
+</ul>
+</li>
+</ul>
 <h2 id="a-note-on-performance-benchmarking">A note on performance benchmarking</h2>
-
 <p>We do not advocate writing a separate test specifically for performance benchmarking. Instead, we recommend setting up integration tests that can accept the necessary parameters to cover many different testing scenarios.</p>
-
 <p>For example, if integration tests are written according to the guidelines below, the integration tests can be run on different runners (either local or in a cluster configuration) and against a data store that is a small instance with a small data set, or a large production-ready cluster with larger data set. This can provide coverage for a variety of scenarios - one of them is performance benchmarking.</p>
-
 <h2 id="test-balance-unit-vs-integration">Test Balance - Unit vs Integration</h2>
-
-<p>It’s easy to cover a large amount of code with an integration test, but it is then hard to find a cause for test failures and the test is flakier.</p>
-
+<p>It&rsquo;s easy to cover a large amount of code with an integration test, but it is then hard to find a cause for test failures and the test is flakier.</p>
 <p>However, there is a valuable set of bugs found by tests that exercise multiple workers reading/writing to data store instances that have multiple nodes (eg, read replicas, etc.).  Those scenarios are hard to find with unit tests and we find they commonly cause bugs in I/O transforms.</p>
-
 <p>Our test strategy is a balance of those 2 contradictory needs. We recommend doing as much testing as possible in unit tests, and writing a single, small integration test that can be run in various configurations.</p>
-
 <h2 id="examples">Examples</h2>
-
 <p>Java:</p>
 <ul>
-  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java">BigtableIO</a>’s testing implementation is considered the best example of current best practices for unit testing <code class="highlighter-rouge">Source</code>s</li>
-  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/jdbc">JdbcIO</a> has the current best practice examples for writing integration tests.</li>
-  <li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/elasticsearch">ElasticsearchIO</a> demonstrates testing for bounded read/write</li>
-  <li><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mqtt">MqttIO</a> and <a href="https://github.com/apache/beam/tree/master/sdks/java/io/amqp">AmpqpIO</a> demonstrate unbounded read/write</li>
+<li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java">BigtableIO</a>&lsquo;s testing implementation is considered the best example of current best practices for unit testing <code>Source</code>s</li>
+<li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/jdbc">JdbcIO</a> has the current best practice examples for writing integration tests.</li>
+<li><a href="https://github.com/apache/beam/blob/master/sdks/java/io/elasticsearch">ElasticsearchIO</a> demonstrates testing for bounded read/write</li>
+<li><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mqtt">MqttIO</a> and <a href="https://github.com/apache/beam/tree/master/sdks/java/io/amqp">AmpqpIO</a> demonstrate unbounded read/write</li>
 </ul>
-
 <p>Python:</p>
 <ul>
-  <li><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio_test.py">avroio_test</a> for examples of testing liquid sharding, <code class="highlighter-rouge">source_test_utils</code>, <code class="highlighter-rouge">assert_that</code> and <code class="highlighter-rouge">equal_to</code></li>
+<li><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio_test.py">avroio_test</a> for examples of testing liquid sharding, <code>source_test_utils</code>, <code>assert_that</code> and <code>equal_to</code></li>
 </ul>
-
 <h2 id="unit-tests">Unit Tests</h2>
-
 <h3 id="goals">Goals</h3>
-
 <ul>
-  <li>Validate the correctness of the code in your I/O transform.</li>
-  <li>Validate that the I/O transform works correctly when used in concert with reference implementations of the data store it connects with (where “reference implementation” means a fake or in-memory version).</li>
-  <li>Be able to run quickly and need only one machine, with a reasonably small memory/disk footprint and no non-local network access (preferably none at all). Aim for tests than run within several seconds - anything above 20 seconds should be discussed with the beam dev mailing list.</li>
-  <li>Validate that the I/O transform can handle network failures.</li>
+<li>Validate the correctness of the code in your I/O transform.</li>
+<li>Validate that the I/O transform works correctly when used in concert with reference implementations of the data store it connects with (where &ldquo;reference implementation&rdquo; means a fake or in-memory version).</li>
+<li>Be able to run quickly and need only one machine, with a reasonably small memory/disk footprint and no non-local network access (preferably none at all). Aim for tests than run within several seconds - anything above 20 seconds should be discussed with the beam dev mailing list.</li>
+<li>Validate that the I/O transform can handle network failures.</li>
 </ul>
-
 <h3 id="non-goals">Non-goals</h3>
-
 <ul>
-  <li>Test problems in the external data store - this can lead to extremely complicated tests.</li>
+<li>Test problems in the external data store - this can lead to extremely complicated tests.</li>
 </ul>
-
 <h3 id="implementing-unit-tests">Implementing unit tests</h3>
-
 <p>A general guide to writing Unit Tests for all transforms can be found in the <a href="/contribute/ptransform-style-guide/#testing">PTransform Style Guide</a>. We have expanded on a few important points below.</p>
-
-<p>If you are using the <code class="highlighter-rouge">Source</code> API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java"><code class="highlighter-rouge">SourceTestUtils</code></span><span class="language-py"><code class="highlighter-rouge">source_test_utils</code></span> - it is a key piece of testing <code class="highlighter-rouge">Source</code> implementations.</p>
-
-<p>If you are not using the <code class="highlighter-rouge">Source</code> API, you can use <code class="highlighter-rouge">TestPipeline</code> with <span class="language-java"><code class="highlighter-rouge">PAssert</code></span><span class="language-py"><code class="highlighter-rouge">assert_that</code></span> to help with your testing.</p>
-
-<p>If you are implementing write, you can use <code class="highlighter-rouge">TestPipeline</code> to write test data and then read and verify it using a non-Beam client.</p>
-
+<p>If you are using the <code>Source</code> API, make sure to exhaustively unit-test your code. A minor implementation error can lead to data corruption or data loss (such as skipping or duplicating records) that can be hard for your users to detect. Also look into using <span class="language-java"><code>SourceTestUtils</code></span><span class="language-py"><code>source_test_utils</code></span> - it is a key piece of testing <code>Source</code> implementations.</p>
+<p>If you are not using the <code>Source</code> API, you can use <code>TestPipeline</code> with <span class="language-java"><code>PAssert</code></span><span class="language-py"><code>assert_that</code></span> to help with your testing.</p>
+<p>If you are implementing write, you can use <code>TestPipeline</code> to write test data and then read and verify it using a non-Beam client.</p>
 <h3 id="use-fakes">Use fakes</h3>
-
-<p>Instead of using mocks in your unit tests (pre-programming exact responses to each call for each test), use fakes. The preferred way to use fakes for I/O transform testing is to use a pre-existing in-memory/embeddable version of the service you’re testing, but if one does not exist consider implementing your own. Fakes have proven to be the right mix of “you can get the conditions for testing you need” and “you don’t have to write a million exacting mock function calls”.</p>
-
+<p>Instead of using mocks in your unit tests (pre-programming exact responses to each call for each test), use fakes. The preferred way to use fakes for I/O transform testing is to use a pre-existing in-memory/embeddable version of the service you&rsquo;re testing, but if one does not exist consider implementing your own. Fakes have proven to be the right mix of &ldquo;you can get the conditions for testing you need&rdquo; and &ldquo;you don&rsquo;t have to write a million exacting mock function calls&rdquo;.</p>
 <h3 id="network-failure">Network failure</h3>
-
 <p>To help with testing and separation of concerns, <strong>code that interacts across a network should be handled in a separate class from your I/O transform</strong>. The suggested design pattern is that your I/O transform throws exceptions once it determines that a read or write is no longer possible.</p>
-
-<p>This allows the I/O transform’s unit tests to act as if they have a perfect network connection, and they do not need to retry/otherwise handle network connection problems.</p>
-
+<p>This allows the I/O transform&rsquo;s unit tests to act as if they have a perfect network connection, and they do not need to retry/otherwise handle network connection problems.</p>
 <h2 id="batching">Batching</h2>
-
 <p>If your I/O transform allows batching of reads/writes, you must force the batching to occur in your test. Having configurable batch size options on your I/O transform allows that to happen easily. These must be marked as test only.</p>
-
 <h2 id="i-o-transform-integration-tests">I/O Transform Integration Tests</h2>
-
 <blockquote>
-  <p>We do not currently have examples of Python I/O integration tests or integration tests for unbounded or eventually consistent data stores. We would welcome contributions in these areas - please contact the Beam dev@ mailing list for more information.</p>
+<p>We do not currently have examples of Python I/O integration tests or integration tests for unbounded or eventually consistent data stores. We would welcome contributions in these areas - please contact the Beam dev@ mailing list for more information.</p>
 </blockquote>
-
-<h3 id="it-goals">Goals</h3>
-
+<h3 id="it-goals">Goals </h3>
 <ul>
-  <li>Allow end to end testing of interactions between data stores, I/O transforms, and runners, simulating real world conditions.</li>
-  <li>Allow both small scale and large scale testing.</li>
-  <li>Self contained: require the least possible initial setup or existing outside state, besides the existence of a data store that the test can modify.</li>
-  <li>Anyone can run the same set of I/O transform integration tests that Beam runs on its continuous integration servers.</li>
+<li>Allow end to end testing of interactions between data stores, I/O transforms, and runners, simulating real world conditions.</li>
+<li>Allow both small scale and large scale testing.</li>
+<li>Self contained: require the least possible initial setup or existing outside state, besides the existence of a data store that the test can modify.</li>
+<li>Anyone can run the same set of I/O transform integration tests that Beam runs on its continuous integration servers.</li>
 </ul>
-
 <h3 id="integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</h3>
-
 <p>In order to test I/O transforms in real world conditions, you must connect to a data store instance.</p>
-
-<p>The Beam community hosts the data stores used for integration tests in Kubernetes. In order for an integration test to be run in Beam’s continuous integration environment, it must have Kubernetes scripts that set up an instance of the data store.</p>
-
+<p>The Beam community hosts the data stores used for integration tests in Kubernetes. In order for an integration test to be run in Beam&rsquo;s continuous integration environment, it must have Kubernetes scripts that set up an instance of the data store.</p>
 <p>However, when working locally, there is no requirement to use Kubernetes. All of the test infrastructure allows you to pass in connection info, so developers can use their preferred hosting infrastructure for local development.</p>
-
 <h3 id="running-integration-tests-on-your-machine">Running integration tests on your machine</h3>
-
 <p>You can always run the IO integration tests on your own machine. The high level steps for running an integration test are:</p>
 <ol>
-  <li>Set up the data store corresponding to the test being run.</li>
-  <li>Run the test, passing it connection info from the just created data store.</li>
-  <li>Clean up the data store.</li>
+<li>Set up the data store corresponding to the test being run.</li>
+<li>Run the test, passing it connection info from the just created data store.</li>
+<li>Clean up the data store.</li>
 </ol>
-
 <h4 id="datastore-setup-cleanup">Data store setup/cleanup</h4>
-
-<p>If you’re using Kubernetes scripts to host data stores, make sure you can connect to your cluster locally using kubectl. If you have your own data stores already setup, you just need to execute step 3 from below list.</p>
-
+<p>If you&rsquo;re using Kubernetes scripts to host data stores, make sure you can connect to your cluster locally using kubectl. If you have your own data stores already setup, you just need to execute step 3 from below list.</p>
 <ol>
-  <li>Set up the data store corresponding to the test you wish to run. You can find Kubernetes scripts for all currently supported data stores in <a href="https://github.com/apache/beam/tree/master/.test-infra/kubernetes">.test-infra/kubernetes</a>.
-    <ol>
-      <li>In some cases, there is a dedicated setup script (*.sh). In other cases, you can just run <code class="highlighter-rouge">kubectl create -f [scriptname]</code> to create the data store. You can also let <a href="https://github.com/apache/beam/blob/master/.test-infra/kubernetes/kubernetes.sh">kubernetes.sh</a> script perform some standard steps for you.</li>
-      <li>Convention dictates there will be:
-        <ol>
-          <li>A yml script for the data store itself, plus a <code class="highlighter-rouge">NodePort</code> service. The <code class="highlighter-rouge">NodePort</code> service opens a port to the data store for anyone who connects to the Kubernetes cluster’s machines from within same subnetwork. Such scripts are typically useful when running the scripts on Minikube Kubernetes Engine.</li>
-          <li>A separate script, with LoadBalancer service. Such service will expose an <em>external ip</em> for the datastore. Such scripts are needed when external access is required (eg. on Jenkins).</li>
-        </ol>
-      </li>
-      <li>Examples:
-        <ol>
-          <li>For JDBC, you can set up Postgres: <code class="highlighter-rouge">kubectl create -f .test-infra/kubernetes/postgres/postgres.yml</code></li>
-          <li>For Elasticsearch, you can run the setup script: <code class="highlighter-rouge">bash .test-infra/kubernetes/elasticsearch/setup.sh</code></li>
-        </ol>
-      </li>
-    </ol>
-  </li>
-  <li>Determine the IP address of the service:
-    <ol>
-      <li>NodePort service: <code class="highlighter-rouge">kubectl get pods -l 'component=elasticsearch' -o jsonpath={.items[0].status.podIP}</code></li>
-      <li>LoadBalancer service:<code class="highlighter-rouge"> kubectl get svc elasticsearch-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}'</code></li>
-    </ol>
-  </li>
-  <li>Run the test using <code class="highlighter-rouge">integrationTest</code> gradle task and the instructions in the test class (e.g. see the instructions in JdbcIOIT.java).</li>
-  <li>Tell Kubernetes to delete the resources specified in the Kubernetes scripts:
-    <ol>
-      <li>JDBC: <code class="highlighter-rouge">kubectl delete -f .test-infra/kubernetes/postgres/postgres.yml</code></li>
-      <li>Elasticsearch: <code class="highlighter-rouge">bash .test-infra/kubernetes/elasticsearch/teardown.sh</code></li>
-    </ol>
-  </li>
+<li>Set up the data store corresponding to the test you wish to run. You can find Kubernetes scripts for all currently supported data stores in <a href="https://github.com/apache/beam/tree/master/.test-infra/kubernetes">.test-infra/kubernetes</a>.
+<ol>
+<li>In some cases, there is a dedicated setup script (*.sh). In other cases, you can just run <code>kubectl create -f [scriptname]</code> to create the data store. You can also let <a href="https://github.com/apache/beam/blob/master/.test-infra/kubernetes/kubernetes.sh">kubernetes.sh</a> script perform some standard steps for you.</li>
+<li>Convention dictates there will be:
+<ol>
+<li>A yml script for the data store itself, plus a <code>NodePort</code> service. The <code>NodePort</code> service opens a port to the data store for anyone who connects to the Kubernetes cluster&rsquo;s machines from within same subnetwork. Such scripts are typically useful when running the scripts on Minikube Kubernetes Engine.</li>
+<li>A separate script, with LoadBalancer service. Such service will expose an <em>external ip</em> for the datastore. Such scripts are needed when external access is required (eg. on Jenkins).</li>
 </ol>
-
+</li>
+<li>Examples:
+<ol>
+<li>For JDBC, you can set up Postgres: <code>kubectl create -f .test-infra/kubernetes/postgres/postgres.yml</code></li>
+<li>For Elasticsearch, you can run the setup script: <code>bash .test-infra/kubernetes/elasticsearch/setup.sh</code></li>
+</ol>
+</li>
+</ol>
+</li>
+<li>Determine the IP address of the service:
+<ol>
+<li>NodePort service: <code>kubectl get pods -l 'component=elasticsearch' -o jsonpath={.items[0].status.podIP}</code></li>
+<li>LoadBalancer service:<code> kubectl get svc elasticsearch-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}'</code></li>
+</ol>
+</li>
+<li>Run the test using <code>integrationTest</code> gradle task and the instructions in the test class (e.g. see the instructions in JdbcIOIT.java).</li>
+<li>Tell Kubernetes to delete the resources specified in the Kubernetes scripts:
+<ol>
+<li>JDBC: <code>kubectl delete -f .test-infra/kubernetes/postgres/postgres.yml</code></li>
+<li>Elasticsearch: <code>bash .test-infra/kubernetes/elasticsearch/teardown.sh</code></li>
+</ol>
+</li>
+</ol>
 <h4 id="running-a-test">Running a particular test</h4>
-
-<p><code class="highlighter-rouge">integrationTest</code> is a dedicated gradle task for running IO integration tests.</p>
-
+<p><code>integrationTest</code> is a dedicated gradle task for running IO integration tests.</p>
 <p>Example usage on Cloud Dataflow runner:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew integrationTest -p sdks/java/io/hadoop-format -DintegrationTestPipelineOptions='["--project=GOOGLE_CLOUD_PROJECT", "--tempRoot=GOOGLE_STORAGE_BUCKET", "--numberOfRecords=1000", "--postgresPort=5432", "--postgresServerName=SERVER_NAME", "--postgresUsername=postgres", "--postgresPassword=PASSWORD", "--postgresDatabaseName=postgres", "--postgresSsl=false", "--runner=TestDataflowRunner"]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT
-</code></pre></div></div>
-
-<p>Example usage on HDFS filesystem and Direct runner:</p>
-
+<pre><code>./gradlew integrationTest -p sdks/java/io/hadoop-format -DintegrationTestPipelineOptions='[&quot;--project=GOOGLE_CLOUD_PROJECT&quot;, &quot;--tempRoot=GOOGLE_STORAGE_BUCKET&quot;, &quot;--numberOfRecords=1000&quot;, &quot;--postgresPort=5432&quot;, &quot;--postgresServerName=SERVER_NAME&quot;, &quot;--postgresUsername=postgres&quot;, &quot;--postgresPassword=PASSWORD&quot;, &quot;--postgresDatabaseName=postgres&quot;, &quot;--postgresSsl=false&quot;, &quot;--runner=TestDataflowRunner&quot;]' -DintegrationTestRunner=dataflow --tests=org.apache.beam.sdk.io.hadoop.format.HadoopFormatIOIT
+</code></pre><p>Example usage on HDFS filesystem and Direct runner:</p>
 <p>NOTE: Below setup will only work when /etc/hosts file contains entries with hadoop namenode and hadoop datanodes external IPs. Please see explanation in: <a href="https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/SmallITCluster/pkb-config.yml">Small Cluster config file</a> and <a href="https://github.com/apache/beam/blob/master/.test-infra/kubernetes/hadoop/LargeITCluster/pkb-config.yml">Large Cluster config file</a>.</p>
+<pre><code>export HADOOP_USER_NAME=root 
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>export HADOOP_USER_NAME=root 
-
-./gradlew integrationTest -p sdks/java/io/file-based-io-tests -DintegrationTestPipelineOptions='["--numberOfRecords=1000", "--filenamePrefix=hdfs://HDFS_NAMENODE:9000/XMLIOIT", "--hdfsConfiguration=[{\"fs.defaultFS\":\"hdfs://HDFS_NAMENODE:9000\",\"dfs.replication\":1,\"dfs.client.use.datanode.hostname\":\"true\" }]" ]' -DintegrationTestRunner=direct -Dfilesystem=hdfs --tests org.apache.beam.sdk.io.xml.XmlIOIT
-</code></pre></div></div>
-
-<p>Parameter descriptions:</p>
-
+./gradlew integrationTest -p sdks/java/io/file-based-io-tests -DintegrationTestPipelineOptions='[&quot;--numberOfRecords=1000&quot;, &quot;--filenamePrefix=hdfs://HDFS_NAMENODE:9000/XMLIOIT&quot;, &quot;--hdfsConfiguration=[{\&quot;fs.defaultFS\&quot;:\&quot;hdfs://HDFS_NAMENODE:9000\&quot;,\&quot;dfs.replication\&quot;:1,\&quot;dfs.client.use.datanode.hostname\&quot;:\&quot;true\&quot; }]&quot; ]' -DintegrationTestRunner=direct -Dfilesystem=hdfs --tests org.apache.beam.sdk.io.xml.XmlIOIT
+</code></pre><p>Parameter descriptions:</p>
 <table class="table">
   <thead>
     <tr>
@@ -773,13 +691,9 @@ limitations under the License.
     </tr>
   </tbody>
 </table>
-
 <h3 id="running-integration-tests-on-pull-requests">Running Integration Tests on Pull Requests</h3>
-
-<p>Most of the IO integration tests have dedicated Jenkins jobs that run periodically to collect metrics and avoid regressions. Thanks to <a href="https://github.com/janinko/ghprb">ghprb</a> plugin it is also possible to trigger these jobs on demand once a specific phrase is typed in a Github Pull Request’s comment. This way tou can check if your contribution to a certain IO is an improvement or if it makes things worse (hopefully not!).</p>
-
+<p>Most of the IO integration tests have dedicated Jenkins jobs that run periodically to collect metrics and avoid regressions. Thanks to <a href="https://github.com/janinko/ghprb">ghprb</a> plugin it is also possible to trigger these jobs on demand once a specific phrase is typed in a Github Pull Request&rsquo;s comment. This way tou can check if your contribution to a certain IO is an improvement or if it makes things worse (hopefully not!).</p>
 <p>To run IO Integration Tests type the following comments in your Pull Request:</p>
-
 <table class="table">
   <thead>
     <tr>
@@ -872,138 +786,115 @@ limitations under the License.
     </tr>
   </tbody>
 </table>
-
-<p>Every job definition can be found in <a href="https://github.com/apache/beam/tree/master/.test-infra/jenkins">.test-infra/jenkins</a>. 
-If you modified/added new Jenkins job definitions in your Pull Request, run the seed job before running the integration test (comment: “Run seed job”).</p>
-
+<p>Every job definition can be found in <a href="https://github.com/apache/beam/tree/master/.test-infra/jenkins">.test-infra/jenkins</a>.
+If you modified/added new Jenkins job definitions in your Pull Request, run the seed job before running the integration test (comment: &ldquo;Run seed job&rdquo;).</p>
 <h3 id="performance-testing-dashboard">Performance testing dashboard</h3>
-
 <p>As mentioned before, we measure the performance of IOITs by gathering test execution times from Jenkins jobs that run periodically. The consequent results are stored in a database (BigQuery), therefore we can display them in a form of plots.</p>
-
 <p>The dashboard gathering all the results is available here: <a href="https://s.apache.org/io-test-dashboards">Performance Testing Dashboard</a></p>
-
 <h3 id="implementing-integration-tests">Implementing Integration Tests</h3>
-
 <p>There are three components necessary to implement an integration test:</p>
 <ul>
-  <li><strong>Test code</strong>: the code that does the actual testing: interacting with the I/O transform, reading and writing data, and verifying the data.</li>
-  <li><strong>Kubernetes scripts</strong>: a Kubernetes script that sets up the data store that will be used by the test code.</li>
-  <li><strong>Jenkins jobs</strong>: a Jenkins Job DSL script that performs all necessary steps for setting up the data sources, running and cleaning up after the test.</li>
+<li><strong>Test code</strong>: the code that does the actual testing: interacting with the I/O transform, reading and writing data, and verifying the data.</li>
+<li><strong>Kubernetes scripts</strong>: a Kubernetes script that sets up the data store that will be used by the test code.</li>
+<li><strong>Jenkins jobs</strong>: a Jenkins Job DSL script that performs all necessary steps for setting up the data sources, running and cleaning up after the test.</li>
 </ul>
-
 <p>These two pieces are discussed in detail below.</p>
-
 <h4 id="test-code">Test Code</h4>
-
 <p>These are the conventions used by integration testing code:</p>
 <ul>
-  <li><strong>Your test should use pipeline options to receive connection information.</strong>
-    <ul>
-      <li>For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for <code class="highlighter-rouge">Elasticsearch</code> and the <code class="highlighter-rouge">HadoopFormatIO</code> tests), those tests share the same pipeline options.</li>
-    </ul>
-  </li>
-  <li><strong>Generate test data programmatically and parameterize the amount of data used for testing.</strong>
-    <ul>
-      <li>For Java, <code class="highlighter-rouge">CountingInput</code> + <code class="highlighter-rouge">TestRow</code> can be combined to generate deterministic test data at any scale.</li>
-    </ul>
-  </li>
-  <li><strong>Use a write then read style for your tests.</strong>
-    <ul>
-      <li>In a single <code class="highlighter-rouge">Test</code>, run a pipeline to do a write using your I/O transform, then run another pipeline to do a read using your I/O transform.</li>
-      <li>The only verification of the data should be the result from the read. Don’t validate the data written to the database in any other way.</li>
-      <li>Validate the actual contents of all rows in an efficient manner. An easy way to do this is by taking a hash of the rows and combining them. <code class="highlighter-rouge">HashingFn</code> can help make this simple, and <code class="highlighter-rouge">TestRow</code> has pre-computed hashes.</li>
-      <li>For easy debugging, use <code class="highlighter-rouge">PAssert</code>’s <code class="highlighter-rouge">containsInAnyOrder</code> to validate the contents of a subset of all rows.</li>
-    </ul>
-  </li>
-  <li><strong>Tests should assume they may be run multiple times and/or simultaneously on the same database instance.</strong>
-    <ul>
-      <li>Clean up test data: do this in an <code class="highlighter-rouge">@AfterClass</code> to ensure it runs.</li>
-      <li>Use unique table names per run (timestamps are an easy way to do this) and per-method where appropriate.</li>
-    </ul>
-  </li>
+<li><strong>Your test should use pipeline options to receive connection information.</strong>
+<ul>
+<li>For Java, there is a shared pipeline options object in the io/common directory. This means that if there are two tests for the same data store (e.g. for <code>Elasticsearch</code> and the <code>HadoopFormatIO</code> tests), those tests share the same pipeline options.</li>
 </ul>
-
+</li>
+<li><strong>Generate test data programmatically and parameterize the amount of data used for testing.</strong>
+<ul>
+<li>For Java, <code>CountingInput</code> + <code>TestRow</code> can be combined to generate deterministic test data at any scale.</li>
+</ul>
+</li>
+<li><strong>Use a write then read style for your tests.</strong>
+<ul>
+<li>In a single <code>Test</code>, run a pipeline to do a write using your I/O transform, then run another pipeline to do a read using your I/O transform.</li>
+<li>The only verification of the data should be the result from the read. Don&rsquo;t validate the data written to the database in any other way.</li>
+<li>Validate the actual contents of all rows in an efficient manner. An easy way to do this is by taking a hash of the rows and combining them. <code>HashingFn</code> can help make this simple, and <code>TestRow</code> has pre-computed hashes.</li>
+<li>For easy debugging, use <code>PAssert</code>'s <code>containsInAnyOrder</code> to validate the contents of a subset of all rows.</li>
+</ul>
+</li>
+<li><strong>Tests should assume they may be run multiple times and/or simultaneously on the same database instance.</strong>
+<ul>
+<li>Clean up test data: do this in an <code>@AfterClass</code> to ensure it runs.</li>
+<li>Use unique table names per run (timestamps are an easy way to do this) and per-method where appropriate.</li>
+</ul>
+</li>
+</ul>
 <p>An end to end example of these principles can be found in <a href="https://github.com/ssisk/beam/blob/jdbc-it-perf/sdks/java/io/jdbc/src/test/java/org/apache/beam/sdk/io/jdbc/JdbcIOIT.java">JdbcIOIT</a>.</p>
-
 <h4 id="kubernetes-scripts">Kubernetes scripts</h4>
-
-<p>As discussed in <a href="#integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</a>, to have your tests run on Beam’s continuous integration server, you’ll need to implement a Kubernetes script that creates an instance of your data store.</p>
-
+<p>As discussed in <a href="#integration-tests-data-stores-and-kubernetes">Integration tests, data stores, and Kubernetes</a>, to have your tests run on Beam&rsquo;s continuous integration server, you&rsquo;ll need to implement a Kubernetes script that creates an instance of your data store.</p>
 <p>If you would like help with this or have other questions, contact the Beam dev@ mailing list and the community may be able to assist you.</p>
-
 <p>Guidelines for creating a Beam data store Kubernetes script:</p>
-
 <ol>
-  <li><strong>You should define two Kubernetes scripts.</strong>
-    <ul>
-      <li>This is the best known way to implement item #1.</li>
-      <li>The first script will contain the main datastore instance script (<code class="highlighter-rouge">StatefulSet</code>) plus a <code class="highlighter-rouge">NodePort</code> service exposing the data store. This will be the script run by the Beam Jenkins continuous integration server.</li>
-      <li>The second script will define an additional <code class="highlighter-rouge">LoadBalancer</code> service, used to expose an external IP address to the data store if the Kubernetes cluster is on another network. This file’s name is usually suffixed with ‘-for-local-dev’.</li>
-    </ul>
-  </li>
-  <li><strong>You must ensure that pods are recreated after crashes.</strong>
-    <ul>
-      <li>If you use a <code class="highlighter-rouge">pod</code> directly, it will not be recreated if the pod crashes or something causes the cluster to move the container for your pod.</li>
-      <li>In most cases, you’ll want to use <code class="highlighter-rouge">StatefulSet</code> as it supports persistent disks that last between restarts, and having a stable network identifier associated with the pod using a particular persistent disk. <code class="highlighter-rouge">Deployment</code> and <code class="highlighter-rouge">ReplicaSet</code> are also possibly useful, but likely in fewer scenarios since they do not have those features.</li>
-    </ul>
-  </li>
-  <li><strong>You should create separate scripts for small and large instances of your data store.</strong>
-    <ul>
-      <li>This seems to be the best way to support having both a small and large data store available for integration testing, as discussed in <a href="#small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</a>.</li>
-    </ul>
-  </li>
-  <li><strong>You must use a Docker image from a trusted source and pin the version of the Docker image.</strong>
-    <ul>
-      <li>You should prefer images in this order:
-        <ol>
-          <li>An image provided by the creator of the data source/sink (if they officially maintain it). For Apache projects, this would be the official Apache repository.</li>
-          <li>Official Docker images, because they have security fixes and guaranteed maintenance.</li>
-          <li>Non-official Docker images, or images from other providers that have good maintainers (e.g. <a href="https://quay.io/">quay.io</a>).</li>
-        </ol>
-      </li>
-    </ul>
-  </li>
+<li><strong>You should define two Kubernetes scripts.</strong>
+<ul>
+<li>This is the best known way to implement item #1.</li>
+<li>The first script will contain the main datastore instance script (<code>StatefulSet</code>) plus a <code>NodePort</code> service exposing the data store. This will be the script run by the Beam Jenkins continuous integration server.</li>
+<li>The second script will define an additional <code>LoadBalancer</code> service, used to expose an external IP address to the data store if the Kubernetes cluster is on another network. This file&rsquo;s name is usually suffixed with &lsquo;-for-local-dev&rsquo;.</li>
+</ul>
+</li>
+<li><strong>You must ensure that pods are recreated after crashes.</strong>
+<ul>
+<li>If you use a <code>pod</code> directly, it will not be recreated if the pod crashes or something causes the cluster to move the container for your pod.</li>
+<li>In most cases, you&rsquo;ll want to use <code>StatefulSet</code> as it supports persistent disks that last between restarts, and having a stable network identifier associated with the pod using a particular persistent disk. <code>Deployment</code> and <code>ReplicaSet</code> are also possibly useful, but likely in fewer scenarios since they do not have those features.</li>
+</ul>
+</li>
+<li><strong>You should create separate scripts for small and large instances of your data store.</strong>
+<ul>
+<li>This seems to be the best way to support having both a small and large data store available for integration testing, as discussed in <a href="#small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</a>.</li>
+</ul>
+</li>
+<li><strong>You must use a Docker image from a trusted source and pin the version of the Docker image.</strong>
+<ul>
+<li>You should prefer images in this order:
+<ol>
+<li>An image provided by the creator of the data source/sink (if they officially maintain it). For Apache projects, this would be the official Apache repository.</li>
+<li>Official Docker images, because they have security fixes and guaranteed maintenance.</li>
+<li>Non-official Docker images, or images from other providers that have good maintainers (e.g. <a href="https://quay.io/">quay.io</a>).</li>
 </ol>
-
+</li>
+</ul>
+</li>
+</ol>
 <h4 id="jenkins-jobs">Jenkins jobs</h4>
-
 <p>You can find examples of existing IOIT jenkins job definitions in <a href="https://github.com/apache/beam/tree/master/.test-infra/jenkins">.test-infra/jenkins</a> directory. Look for files caled job_PerformanceTest_*.groovy. The most prominent examples are:</p>
 <ul>
-  <li><a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy">JDBC</a> IOIT job</li>
-  <li><a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy">MongoDB</a> IOIT job</li>
-  <li><a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy">File-based</a> IOIT jobs</li>
+<li><a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_JDBC.groovy">JDBC</a> IOIT job</li>
+<li><a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_MongoDBIO_IT.groovy">MongoDB</a> IOIT job</li>
+<li><a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/job_PerformanceTests_FileBasedIO_IT.groovy">File-based</a> IOIT jobs</li>
 </ul>
-
 <p>Notice that there is a utility class helpful in creating the jobs easily without forgetting important steps or repeating code. See <a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/Kubernetes.groovy">Kubernetes.groovy</a> for more details.</p>
-
 <h3 id="small-scale-and-large-scale-integration-tests">Small Scale and Large Scale Integration Tests</h3>
-
 <p>Apache Beam expects that it can run integration tests in multiple configurations:</p>
 <ul>
-  <li>Small scale
-    <ul>
-      <li>Execute on a single worker on the runner (it should be <em>possible</em> but is not required).</li>
-      <li>The data store should be configured to use a single node.</li>
-      <li>The dataset can be very small (1000 rows).</li>
-    </ul>
-  </li>
-  <li>Large scale
-    <ul>
-      <li>Execute on multiple workers on the runner.</li>
-      <li>The datastore should be configured to use multiple nodes.</li>
-      <li>The data set used in this case is larger (10s of GBs).</li>
-    </ul>
-  </li>
+<li>Small scale
+<ul>
+<li>Execute on a single worker on the runner (it should be <em>possible</em> but is not required).</li>
+<li>The data store should be configured to use a single node.</li>
+<li>The dataset can be very small (1000 rows).</li>
 </ul>
-
+</li>
+<li>Large scale
+<ul>
+<li>Execute on multiple workers on the runner.</li>
+<li>The datastore should be configured to use multiple nodes.</li>
+<li>The data set used in this case is larger (10s of GBs).</li>
+</ul>
+</li>
+</ul>
 <p>You can do this by:</p>
 <ol>
-  <li>Creating two Kubernetes scripts: one for a small instance of the data store, and one for a large instance.</li>
-  <li>Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)</li>
+<li>Creating two Kubernetes scripts: one for a small instance of the data store, and one for a large instance.</li>
+<li>Having your test take a pipeline option that decides whether to generate a small or large amount of test data (where small and large are sizes appropriate to your data store)</li>
 </ol>
-
-<p>An example of this is <a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format">HadoopFormatIO</a>’s tests.</p>
-
+<p>An example of this is <a href="https://github.com/apache/beam/tree/master/sdks/java/io/hadoop-format">HadoopFormatIO</a>&lsquo;s tests.</p>
 <!--
 # Next steps
 
@@ -1012,19 +903,9 @@ If you have a well tested I/O transform, why not contribute it to Apache Beam? R
 [Contributing I/O Transforms](/documentation/io/contributing/)
 -->
 
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -1039,47 +920,44 @@ If you have a well tested I/O transform, why not contribute it to Apache Beam? R
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

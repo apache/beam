@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Contribution Guide</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Beam Contribution Guide</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/contribute/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/contribute/index.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/contribute/_index.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Contribute</span></li>
 <li><a href="/contribute/">Get started contributing</a></li>
@@ -180,7 +147,7 @@
     <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage</a></li>
     <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
     <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
-    <li><a href="/contribute/design-documents/">Design documents</a></li>
+    <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Design+Documents">Design documents</a></li>
     <li><a href="/contribute/dependencies/">Dependencies guide</a></li>
     <li><a href="/contribute/feature-branches/">Feature branches</a></li>
   </ul>
@@ -203,49 +170,35 @@
   </ul>
 </li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#contributing-code">Contributing code</a>
-    <ul>
-      <li><a href="#prerequisites">Prerequisites</a></li>
-      <li><a href="#connect-with-the-beam-community">Connect With the Beam community</a></li>
-      <li><a href="#share-your-intent">Share your intent</a></li>
-      <li><a href="#development-setup">Development Setup</a></li>
-      <li><a href="#make-your-change">Make your change</a></li>
-      <li><a href="#make-the-reviewers-job-easier">Make the reviewer’s job easier</a></li>
-    </ul>
-  </li>
-  <li><a href="#when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</a></li>
-  <li><a href="#stale-pull-requests">Stale pull requests</a></li>
-  <li><a href="#accounts-and-permissions">Accounts and Permissions</a></li>
-  <li><a href="#communication">Communication</a></li>
-  <li><a href="#additional-resources">Additional resources</a></li>
-  <li><a href="#troubleshooting">Troubleshooting</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#contributing-code">Contributing code</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#connect-with-the-beam-community">Connect With the Beam community</a></li>
+        <li><a href="#share-your-intent">Share your intent</a></li>
+        <li><a href="#development-setup">Development Setup</a></li>
+        <li><a href="#make-your-change">Make your change</a></li>
+        <li><a href="#make-the-reviewers-job-easier">Make the reviewer&rsquo;s job easier</a></li>
+      </ul>
+    </li>
+    <li><a href="#when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</a></li>
+    <li><a href="#stale-pull-requests">Stale pull requests</a></li>
+    <li><a href="#accounts-and-permissions">Accounts and Permissions</a></li>
+    <li><a href="#communication">Communication</a></li>
+    <li><a href="#additional-resources">Additional resources</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -258,330 +211,261 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="apache-beam-contribution-guide">Apache Beam Contribution Guide</h1>
-
 <p>The Apache Beam community welcomes contributions from anyone!</p>
-
 <p>If you have questions, please <a href="/contribute/get-help">reach out to the Beam community</a>.</p>
-
 <p>There are lots of opportunities to contribute:</p>
-
 <ul>
-  <li>ask or answer questions on <a href="/community/contact-us/">user@beam.apache.org</a> or
+<li>ask or answer questions on <a href="/community/contact-us/">user@beam.apache.org</a> or
 <a href="https://stackoverflow.com/questions/tagged/apache-beam">stackoverflow</a></li>
-  <li>review proposed design ideas on <a href="/community/contact-us/">dev@beam.apache.org</a></li>
-  <li>improve the documentation</li>
-  <li>file <a href="https://issues.apache.org/jira/projects/BEAM/issues">bug reports</a></li>
-  <li>test releases</li>
-  <li>review <a href="https://github.com/apache/beam/pulls">changes</a></li>
-  <li>write new examples</li>
-  <li>improve your favorite language SDK (Java, Python, Go, etc)</li>
-  <li>improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
+<li>review proposed design ideas on <a href="/community/contact-us/">dev@beam.apache.org</a></li>
+<li>improve the documentation</li>
+<li>file <a href="https://issues.apache.org/jira/projects/BEAM/issues">bug reports</a></li>
+<li>test releases</li>
+<li>review <a href="https://github.com/apache/beam/pulls">changes</a></li>
+<li>write new examples</li>
+<li>improve your favorite language SDK (Java, Python, Go, etc)</li>
+<li>improve specific runners (Apache Apex, Apache Flink, Apache Spark, Google
 Cloud Dataflow, etc)</li>
-  <li>improve or add IO connectors</li>
-  <li>add new transform libraries (statistics, ML, image processing, etc)</li>
-  <li>work on the core programming model (what is a Beam pipeline and how does it
+<li>improve or add IO connectors</li>
+<li>add new transform libraries (statistics, ML, image processing, etc)</li>
+<li>work on the core programming model (what is a Beam pipeline and how does it
 run?)</li>
-  <li>improve the developer experience (for example, Windows guides)</li>
-  <li>add answers to the <a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ</a></li>
-  <li>organize local meetups of users or contributors to Apache Beam</li>
+<li>improve the developer experience (for example, Windows guides)</li>
+<li>add answers to the <a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ</a></li>
+<li>organize local meetups of users or contributors to Apache Beam</li>
 </ul>
-
 <p>Most importantly, if you have an idea of how to contribute, then do it!</p>
-
 <h2 id="contributing-code">Contributing code</h2>
-
 <p>Below is a tutorial for contributing code to Beam, covering our tools and typical process in
 detail.</p>
-
 <h3 id="prerequisites">Prerequisites</h3>
-
 <p>To contribute code, you need</p>
-
 <ul>
-  <li>a GitHub account</li>
-  <li>a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed</li>
-  <li><a href="https://www.docker.com/">Docker</a> installed for some tasks including building worker containers and testing this website
+<li>a GitHub account</li>
+<li>a Linux, macOS, or Microsoft Windows development environment with Java JDK 8 installed</li>
+<li><a href="https://www.docker.com/">Docker</a> installed for some tasks including building worker containers and testing this website
 changes locally</li>
-  <li><a href="https://golang.org">Go</a> 1.12 or later installed for Go SDK development</li>
-  <li>Python 2.7, 3.5, 3.6, and 3.7. Yes, you need all four versions installed.
-    <ul>
-      <li>pip, setuptools, virtualenv, and tox installed for Python development</li>
-    </ul>
-  </li>
-  <li>for large contributions, a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
+<li><a href="https://golang.org">Go</a> 1.12 or later installed for Go SDK development</li>
+<li>Python 2.7, 3.5, 3.6, and 3.7. Yes, you need all four versions installed.
+<ul>
+<li>pip, setuptools, virtualenv, and tox installed for Python development</li>
+</ul>
+</li>
+<li>for large contributions, a signed <a href="https://www.apache.org/licenses/icla.pdf">Individual Contributor License
 Agreement</a> (ICLA) to the Apache
 Software Foundation (ASF).</li>
 </ul>
-
 <p>To install these in a Debian-based distribution:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo apt-get install \
+<pre><code>sudo apt-get install \
    openjdk-8-jdk \
    python-setuptools \
    python-pip \
    virtualenv \
    tox \
    docker-ce
-</code></pre></div></div>
-
-<p>You also need to <a href="https://golang.org/doc/install">install Go</a>.</p>
-
+</code></pre><p>You also need to <a href="https://golang.org/doc/install">install Go</a>.</p>
 <p>Once Go is installed, install goavro:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
+<pre><code>$ export GOPATH=`pwd`/sdks/go/examples/.gogradle/project_gopath
 $ go get github.com/linkedin/goavro
-</code></pre></div></div>
-
-<p>gLinux users should configure their machines for sudoless Docker.</p>
-
+</code></pre><p>gLinux users should configure their machines for sudoless Docker.</p>
 <h3 id="connect-with-the-beam-community">Connect With the Beam community</h3>
-
 <ol>
-  <li>Consider subscribing to the <a href="/community/contact-us/">dev@ mailing list</a>, especially
+<li>Consider subscribing to the <a href="/community/contact-us/">dev@ mailing list</a>, especially
 if you plan to make more than one change or the change will be large. All decisions happen on the
 public dev list.</li>
-  <li>(Optionally) Join the <a href="/community/contact-us/">#beam channel of the ASF slack</a>.</li>
-  <li>Create an account on <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>
+<li>(Optionally) Join the <a href="/community/contact-us/">#beam channel of the ASF slack</a>.</li>
+<li>Create an account on <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>
 (anyone can do this).</li>
 </ol>
-
 <h3 id="share-your-intent">Share your intent</h3>
-
 <ol>
-  <li>Find or create an issue in the <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>.
+<li>Find or create an issue in the <a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>.
 Tracking your work in an issue will avoid duplicated or conflicting work, and provide
 a place for notes. Later, your pull request will be linked to the issue as well.</li>
-  <li>If you want to get involved but don’t have a project in mind, check our list of open starter tasks,
+<li>If you want to get involved but don&rsquo;t have a project in mind, check our list of open starter tasks,
 <a href="https://s.apache.org/beam-starter-tasks">https://s.apache.org/beam-starter-tasks</a>.</li>
-  <li>Assign the issue to yourself. To get the permission to do so, email
+<li>Assign the issue to yourself. To get the permission to do so, email
 the <a href="/community/contact-us">dev@ mailing list</a>
 to introduce yourself and to be added as a contributor in the Beam issue tracker including your
 ASF Jira Username. For example <a href="https://lists.apache.org/thread.html/e6018c2aaf7dc7895091434295e5b0fafe192b975e3e3761fcf0cda7@%3Cdev.beam.apache.org%3E">this welcome email</a>.</li>
-  <li>If your change is large or it is your first change, it is a good idea to
+<li>If your change is large or it is your first change, it is a good idea to
 <a href="/community/contact-us/">discuss it on the dev@ mailing list</a>.</li>
-  <li>For large changes create a design doc
+<li>For large changes create a design doc
 (<a href="https://s.apache.org/beam-design-doc-template">template</a>,
 <a href="https://s.apache.org/beam-design-docs">examples</a>) and email it to the <a href="/community/contact-us">dev@ mailing list</a>.</li>
 </ol>
-
 <h3 id="development-setup">Development Setup</h3>
-
 <ol>
-  <li>If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
-<a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a></li>
-  <li>
-    <p>Familiarize yourself with gradle and the project structure. At the root of the git repository, run:</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew projects
-</code></pre></div>    </div>
-
-    <p>Examine the available tasks in a project. For the default set of tasks, use:</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew tasks
-</code></pre></div>    </div>
-
-    <p>For a given module, use:</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew -p sdks/java/io/cassandra tasks
-</code></pre></div>    </div>
-
-    <p>For an exhaustive list of tasks, use:</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew tasks --all
-</code></pre></div>    </div>
-  </li>
-  <li>
-    <p>Make sure you can build and run tests</p>
-
-    <p>Run the entire set of tests with:</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew check
-</code></pre></div>    </div>
-
-    <p>You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ ./gradlew -p sdks/go check
+<li>
+<p>If you need help with git forking, cloning, branching, committing, pull requests, and squashing commits, see
+<a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a></p>
+</li>
+<li>
+<p>Familiarize yourself with gradle and the project structure. At the root of the git repository, run:</p>
+<pre><code>$ ./gradlew projects
+</code></pre>
+<p>Examine the available tasks in a project. For the default set of tasks, use:</p>
+<pre><code>$ ./gradlew tasks
+</code></pre>
+<p>For a given module, use:</p>
+<pre><code>$ ./gradlew -p sdks/java/io/cassandra tasks
+</code></pre>
+<p>For an exhaustive list of tasks, use:</p>
+<pre><code>$ ./gradlew tasks --all
+</code></pre>
+</li>
+<li>
+<p>Make sure you can build and run tests</p>
+<p>Run the entire set of tests with:</p>
+<pre><code>$ ./gradlew check
+</code></pre>
+<p>You can limit testing to a particular module. Gradle will build just the necessary things to run those tests. For example:</p>
+<pre><code>$ ./gradlew -p sdks/go check
 $ ./gradlew -p sdks/java/io/cassandra check
 $ ./gradlew -p runners/flink check
-</code></pre></div>    </div>
-  </li>
-  <li>Now you may want to set up your preferred IDE and other aspects of your development
-environment. See the Developers’ wiki for tips, guides, and FAQs on:
-    <ul>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE">IntelliJ</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Java+Tips">Java</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips">Python</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Go+Tips">Go</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Website+Tips">Website</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips">Gradle</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips">Jenkins</a></li>
-      <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">FAQ</a></li>
-    </ul>
-  </li>
+</code></pre>
+</li>
+<li>
+<p>Now you may want to set up your preferred IDE and other aspects of your development
+environment. See the Developers&rsquo; wiki for tips, guides, and FAQs on:</p>
+<ul>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Using+IntelliJ+IDE">IntelliJ</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Java+Tips">Java</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Python+Tips">Python</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Go+Tips">Go</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Website+Tips">Website</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Gradle+Tips">Gradle</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Jenkins+Tips">Jenkins</a></li>
+<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">FAQ</a></li>
+</ul>
+</li>
 </ol>
-
 <h3 id="make-your-change">Make your change</h3>
-
 <ol>
-  <li>
-    <p>Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
+<li>
+<p>Make your code change. Every source file needs to include the Apache license header. Every new dependency needs to
 have an open source license <a href="https://www.apache.org/legal/resolved.html#criteria">compatible</a> with Apache.</p>
-  </li>
-  <li>
-    <p>Add unit tests for your change.</p>
-  </li>
-  <li>
-    <p>Use descriptive commit messages that make it easy to identify changes and provide a clear history.</p>
-  </li>
-  <li>
-    <p>When your change is ready to be reviewed and merged, create a pull request.</p>
-  </li>
-  <li>
-    <p>Format commit messages and the pull request title like <code class="highlighter-rouge">[BEAM-XXX] Fixes bug in ApproximateQuantiles</code>,
+</li>
+<li>
+<p>Add unit tests for your change.</p>
+</li>
+<li>
+<p>Use descriptive commit messages that make it easy to identify changes and provide a clear history.</p>
+</li>
+<li>
+<p>When your change is ready to be reviewed and merged, create a pull request.</p>
+</li>
+<li>
+<p>Format commit messages and the pull request title like <code>[BEAM-XXX] Fixes bug in ApproximateQuantiles</code>,
 where you replace BEAM-XXX with the appropriate JIRA issue.
 This will automatically link the pull request to the issue.</p>
-  </li>
-  <li>
-    <p>The pull request and any changes pushed to it will trigger <a href="https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit">pre-commit
+</li>
+<li>
+<p>The pull request and any changes pushed to it will trigger <a href="https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide#ContributionTestingGuide-Pre-commit">pre-commit
 jobs</a>. If a test fails and appears unrelated to your
 change, you can cause tests to be re-run by adding a single line comment on your
 PR</p>
-
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> retest this please
-</code></pre></div>    </div>
-
-    <p>Pull request template has a link to a <a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md">catalog of trigger phrases</a>
+<pre><code> retest this please
+</code></pre>
+<p>Pull request template has a link to a <a href="https://github.com/apache/beam/blob/master/.test-infra/jenkins/README.md">catalog of trigger phrases</a>
 that start various post-commit tests suites. Use these sparingly because post-commit tests consume shared development resources.</p>
-  </li>
-  <li>Pull requests can only be merged by a
-<a href="/contribute/team/">Beam committer</a>.
-To find a committer for your area, either:
-    <ul>
-      <li>look in the OWNERS file of the directory where you changed files, or</li>
-      <li>look for similar code merges, or</li>
-      <li>ask on <a href="/community/contact-us/">dev@beam.apache.org</a></li>
-    </ul>
-
-    <p>Use <code class="highlighter-rouge">R: @username</code> in the pull request to notify a reviewer.</p>
-  </li>
-  <li>If you don’t get any response in 3 business days, email the <a href="/community/contact-us">dev@ mailing list</a> to ask for someone to look at your pull
-request.</li>
+</li>
+<li>
+<p>Pull requests can only be merged by a
+<a href="https://home.apache.org/phonebook.html?pmc=beam">Beam committer</a>.
+To find a committer for your area, either:</p>
+<ul>
+<li>look in the OWNERS file of the directory where you changed files, or</li>
+<li>look for similar code merges, or</li>
+<li>ask on <a href="/community/contact-us/">dev@beam.apache.org</a></li>
+</ul>
+<p>Use <code>R: @username</code> in the pull request to notify a reviewer.</p>
+</li>
+<li>
+<p>If you don&rsquo;t get any response in 3 business days, email the <a href="/community/contact-us">dev@ mailing list</a> to ask for someone to look at your pull
+request.</p>
+</li>
 </ol>
-
-<h3 id="make-the-reviewers-job-easier">Make the reviewer’s job easier</h3>
-
+<h3 id="make-the-reviewers-job-easier">Make the reviewer&rsquo;s job easier</h3>
 <ol>
-  <li>
-    <p>Provide context for your changes in the associated JIRA issue and/or PR description.</p>
-  </li>
-  <li>
-    <p>Avoid huge mega-changes.</p>
-  </li>
-  <li>
-    <p>Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional “fixup” commits to the
+<li>
+<p>Provide context for your changes in the associated JIRA issue and/or PR description.</p>
+</li>
+<li>
+<p>Avoid huge mega-changes.</p>
+</li>
+<li>
+<p>Review feedback typically leads to follow-up changes. It is easier to review follow-up changes when they are added as additional &ldquo;fixup&rdquo; commits to the
 existing PR/branch. This allows reviewer(s) to track the incremental progress and focus on new changes,
 and keeps comment threads attached to the code.
 Please refrain from squashing new commits into reviewed commits before review is completed.
 Because squashing reviewed and unreviewed commits often makes it harder to
 see the the difference between the review iterations, reviewers may ask you to unsquash new changes.</p>
-  </li>
-  <li>
-    <p>After review is complete and the PR is accepted, fixup commits should be squashed (see <a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a>).
+</li>
+<li>
+<p>After review is complete and the PR is accepted, fixup commits should be squashed (see <a href="https://cwiki.apache.org/confluence/display/BEAM/Git+Tips">Git workflow tips</a>).
 Beam committers <a href="https://beam.apache.org/contribute/committer-guide/#merging-it">can squash</a>
 all commits in the PR during merge, however if a PR has a mixture of independent changes that should not be squashed, and fixup commits,
 then the PR author should help squashing fixup commits to maintain a clean commmit history.</p>
-  </li>
+</li>
 </ol>
-
 <h2 id="when-will-my-change-show-up-in-an-apache-beam-release">When will my change show up in an Apache Beam release?</h2>
-
 <p>Apache Beam makes minor releases every 6 weeks. Apache Beam has a
 <a href="https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com">calendar</a> for
 cutting the next release branch. Your change needs to be checked into master before the release branch is cut
 to make the next release.</p>
-
 <h2 id="stale-pull-requests">Stale pull requests</h2>
-
 <p>The community will close stale pull requests in order to keep the project
 healthy. A pull request becomes stale after its author fails to respond to
 actionable comments for 60 days.  Author of a closed pull request is welcome to
 reopen the same pull request again in the future. The associated JIRAs will be
 unassigned from the author but will stay open.</p>
-
 <h2 id="accounts-and-permissions">Accounts and Permissions</h2>
-
 <ul>
-  <li>
-    <p><a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>:
+<li>
+<p><a href="https://issues.apache.org/jira/projects/BEAM/issues">Beam issue tracker (JIRA)</a>:
 Anyone can access it and browse issues. Anyone can register an account and login
 to create issues or add comments. Only contributors can be assigned issues. If
 you want to be assigned issues, a PMC member can add you to the project contributor
 group.  Email the <a href="/community/contact-us">dev@ mailing list</a>
 to ask to be added as a contributor in the Beam issue tracker, and include your ASF Jira username.</p>
-  </li>
-  <li>
-    <p><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space</a>:
+</li>
+<li>
+<p><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki Space</a>:
 Anyone has read access. If you wish to contribute changes, please create an account and request edit access on the
 <a href="/community/contact-us">dev@ mailing list</a> (include your Wiki account user ID).</p>
-  </li>
-  <li>
-    <p>Pull requests can only be merged by a
-<a href="/contribute/team/">Beam committer</a>.</p>
-  </li>
-  <li>
-    <p><a href="https://www.apache.org/foundation/voting.html">Voting on a release</a>: Everyone can vote. Only
-<a href="/contribute/team/">Beam PMC</a> members should mark their votes as binding.</p>
-  </li>
+</li>
+<li>
+<p>Pull requests can only be merged by a
+<a href="https://home.apache.org/phonebook.html?pmc=beam">Beam committer</a>.</p>
+</li>
+<li>
+<p><a href="https://www.apache.org/foundation/voting.html">Voting on a release</a>: Everyone can vote. Only
+<a href="https://home.apache.org/phonebook.html?pmc=beam">Beam PMC</a> members should mark their votes as binding.</p>
+</li>
 </ul>
-
 <h2 id="communication">Communication</h2>
-
 <p>All communication is expected to align with the <a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a>.</p>
-
 <p>Discussion about contributing code to Beam happens on the <a href="/community/contact-us/">dev@ mailing list</a>. Introduce yourself!</p>
-
 <p>Questions can be asked on the <a href="/community/contact-us/">#beam channel of the ASF slack</a>. Introduce yourself!</p>
-
 <h2 id="additional-resources">Additional resources</h2>
-
-<p>If you are contributing a <code class="highlighter-rouge">PTransform</code> to Beam, we have an extensive
+<p>If you are contributing a <code>PTransform</code> to Beam, we have an extensive
 <a href="/contribute/ptransform-style-guide">PTransform Style Guide</a>.</p>
-
 <p>If you are contributing a Runner to Beam, refer to the
 <a href="/contribute/runner-guide/">Runner authoring guide</a></p>
-
 <p>Review <a href="https://s.apache.org/beam-design-docs">design documents</a>.</p>
-
 <p>A great way to contribute is to join an existing effort. For the most
 intensive efforts, check out the <a href="/roadmap/">roadmap</a>.</p>
-
-<p>You can also find a more exhaustive list on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers’ wiki</a></p>
-
+<p>You can also find a more exhaustive list on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers&rsquo; wiki</a></p>
 <h2 id="troubleshooting">Troubleshooting</h2>
-
-<p>If you run into any issues, check out the <a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ</a> or ask on
-on the <a href="/community/contact-us/">dev@ mailing list</a> or
-<a href="/community/contact-us/">#beam channel of the ASF slack</a>.
-—-</p>
-
-<p>If you didn’t find the information you were looking for in this guide, please
+<p>If you run into any issues, check out the <a href="https://cwiki.apache.org/confluence/display/BEAM/Contributor+FAQ">contribution FAQ</a> or ask on the <a href="/community/contact-us/">dev@ mailing list</a> or <a href="/community/contact-us/">#beam channel of the ASF slack</a>.</p>
+<p>If you didn&rsquo;t find the information you were looking for in this guide, please
 <a href="/community/contact-us">reach out to the Beam community</a>.</p>
 
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -596,47 +480,44 @@ on the <a href="/community/contact-us/">dev@ mailing list</a> or
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

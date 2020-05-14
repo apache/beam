@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Regex</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/elementwise/regex/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Regex</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/transforms/python/elementwise/regex/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/elementwise/regex.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/transforms/python/elementwise/regex.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,47 +432,33 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#examples">Examples</a>
-    <ul>
-      <li><a href="#example-1-regex-match">Example 1: Regex match</a></li>
-      <li><a href="#example-2-regex-match-with-all-groups">Example 2: Regex match with all groups</a></li>
-      <li><a href="#example-3-regex-match-into-key-value-pairs">Example 3: Regex match into key-value pairs</a></li>
-      <li><a href="#example-4-regex-find">Example 4: Regex find</a></li>
-      <li><a href="#example-5-regex-find-all">Example 5: Regex find all</a></li>
-      <li><a href="#example-6-regex-find-as-key-value-pairs">Example 6: Regex find as key-value pairs</a></li>
-      <li><a href="#example-7-regex-replace-all">Example 7: Regex replace all</a></li>
-      <li><a href="#example-8-regex-replace-first">Example 8: Regex replace first</a></li>
-      <li><a href="#example-9-regex-split">Example 9: Regex split</a></li>
-    </ul>
-  </li>
-  <li><a href="#related-transforms">Related transforms</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#examples">Examples</a>
+      <ul>
+        <li><a href="#example-1-regex-match">Example 1: Regex match</a></li>
+        <li><a href="#example-2-regex-match-with-all-groups">Example 2: Regex match with all groups</a></li>
+        <li><a href="#example-3-regex-match-into-key-value-pairs">Example 3: Regex match into key-value pairs</a></li>
+        <li><a href="#example-4-regex-find">Example 4: Regex find</a></li>
+        <li><a href="#example-5-regex-find-all">Example 5: Regex find all</a></li>
+        <li><a href="#example-6-regex-find-as-key-value-pairs">Example 6: Regex find as key-value pairs</a></li>
+        <li><a href="#example-7-regex-replace-all">Example 7: Regex replace all</a></li>
+        <li><a href="#example-8-regex-replace-first">Example 8: Regex replace first</a></li>
+        <li><a href="#example-9-regex-split">Example 9: Regex split</a></li>
+      </ul>
+    </li>
+    <li><a href="#related-transforms">Related transforms</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -518,987 +471,800 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="regex">Regex</h1>
 
+
 <script type="text/javascript">
-localStorage.setItem('language', 'language-py')
+  localStorage.setItem("language", "language-py")
 </script>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
 <table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
+    <a
+      class="button"
+      target="_blank"
+      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex"
+      ><img
+        src="https://beam.apache.org/images/logos/sdks/python.png"
+        width="32px"
+        height="32px"
+        alt="Pydoc"
+      />
+      Pydoc</a
+    >
   </td>
 </table>
 
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <p>Filters input string elements based on a regex. May also transform them based on the matching groups.</p>
-
 <h2 id="examples">Examples</h2>
-
-<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of text strings.
-Then, we use the <code class="highlighter-rouge">Regex</code> transform to search, replace, and split through the text elements using
+<p>In the following examples, we create a pipeline with a <code>PCollection</code> of text strings.
+Then, we use the <code>Regex</code> transform to search, replace, and split through the text elements using
 <a href="https://docs.python.org/3/library/re.html">regular expressions</a>.</p>
-
 <p>You can use tools to help you create and test your regular expressions, such as
 <a href="https://regex101.com/">regex101</a>.
 Make sure to specify the Python flavor at the left side bar.</p>
-
 <p>Lets look at the
-<a href="https://regex101.com/r/Z7hTTj/3">regular expression <code class="highlighter-rouge">(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)</code></a>
+<a href="https://regex101.com/r/Z7hTTj/3">regular expression <code>(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)</code></a>
 for example.
-It matches anything that is not a whitespace <code class="highlighter-rouge">\s</code> (<code class="highlighter-rouge">[ \t\n\r\f\v]</code>) or comma <code class="highlighter-rouge">,</code>
-until a comma is found and stores that in the named group <code class="highlighter-rouge">icon</code>,
-this can match even <code class="highlighter-rouge">utf-8</code> strings.
+It matches anything that is not a whitespace <code>\s</code> (<code>[ \t\n\r\f\v]</code>) or comma <code>,</code>
+until a comma is found and stores that in the named group <code>icon</code>,
+this can match even <code>utf-8</code> strings.
 Then it matches any number of whitespaces, followed by at least one word character
-<code class="highlighter-rouge">\w</code> (<code class="highlighter-rouge">[a-zA-Z0-9_]</code>), which is stored in the second group for the <em>name</em>.
+<code>\w</code> (<code>[a-zA-Z0-9_]</code>), which is stored in the second group for the <em>name</em>.
 It does the same with the third group for the <em>duration</em>.</p>
-
 <blockquote>
-  <p><em>Note:</em> To avoid unexpected string escaping in your regular expressions,
+<p><em>Note:</em> To avoid unexpected string escaping in your regular expressions,
 it is recommended to use
 <a href="https://docs.python.org/3/reference/lexical_analysis.html?highlight=raw#string-and-bytes-literals">raw strings</a>
-such as <code class="highlighter-rouge">r'raw-string'</code> instead of <code class="highlighter-rouge">'escaped-string'</code>.</p>
+such as <code>r'raw-string'</code> instead of <code>'escaped-string'</code>.</p>
 </blockquote>
-
 <h3 id="example-1-regex-match">Example 1: Regex match</h3>
-
-<p><code class="highlighter-rouge">Regex.matches</code> keeps only the elements that match the regular expression,
+<p><code>Regex.matches</code> keeps only the elements that match the regular expression,
 returning the matched group.
-The argument <code class="highlighter-rouge">group</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
-but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
-
-<p><code class="highlighter-rouge">Regex.matches</code> starts to match the regular expression at the beginning of the string.
-To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
-
+The argument <code>group</code> is set to <code>0</code> (the entire match) by default,
+but can be set to a group number like <code>3</code>, or to a named group like <code>'icon'</code>.</p>
+<p><code>Regex.matches</code> starts to match the regular expression at the beginning of the string.
+To match until the end of the string, add <code>'$'</code> at the end of the regular expression.</p>
 <p>To start matching at any point instead of the beginning of the string, use
-<a href="#example-4-regex-find"><code class="highlighter-rouge">Regex.find(regex)</code></a>.</p>
+<a href="#example-4-regex-find"><code>Regex.find(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
-<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c1"># Matches a named group &#39;icon&#39;, and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)&#39;</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
-          <span class="s">'🍆, Eggplant, perennial'</span><span class="p">,</span>
-          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
-          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🍌, invalid, format'</span><span class="p">,</span>
-          <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥕, Carrot, biennial ignoring trailing words&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍆, Eggplant, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍅, Tomato, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥔, Potato, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍌, invalid, format&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;invalid, 🍉, format&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓, Strawberry, perennial
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.matches</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓, Strawberry, perennial
 🥕, Carrot, biennial
 🍆, Eggplant, perennial
 🍅, Tomato, annual
-🥔, Potato, perennial
-</code></pre></div></div>
+🥔, Potato, perennial</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-2-regex-match-with-all-groups">Example 2: Regex match with all groups</h3>
-
-<p><code class="highlighter-rouge">Regex.all_matches</code> keeps only the elements that match the regular expression,
+<p><code>Regex.all_matches</code> keeps only the elements that match the regular expression,
 returning <em>all groups</em> as a list.
 The groups are returned in the order encountered in the regular expression,
-including <code class="highlighter-rouge">group 0</code> (the entire match) as the first group.</p>
-
-<p><code class="highlighter-rouge">Regex.all_matches</code> starts to match the regular expression at the beginning of the string.
-To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
-
+including <code>group 0</code> (the entire match) as the first group.</p>
+<p><code>Regex.all_matches</code> starts to match the regular expression at the beginning of the string.
+To match until the end of the string, add <code>'$'</code> at the end of the regular expression.</p>
 <p>To start matching at any point instead of the beginning of the string, use
-<a href="#example-5-regex-find-all"><code class="highlighter-rouge">Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)</code></a>.</p>
+<a href="#example-5-regex-find-all"><code>Regex.find_all(regex, group=Regex.ALL, outputEmpty=False)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
-<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c1"># Matches a named group &#39;icon&#39;, and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)&#39;</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_all_matches</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
-          <span class="s">'🍆, Eggplant, perennial'</span><span class="p">,</span>
-          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
-          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🍌, invalid, format'</span><span class="p">,</span>
-          <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥕, Carrot, biennial ignoring trailing words&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍆, Eggplant, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍅, Tomato, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥔, Potato, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍌, invalid, format&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;invalid, 🍉, format&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">all_matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">all_matches</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.all_matches</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓, Strawberry, perennial', '🍓', 'Strawberry', 'perennial']
-['🥕, Carrot, biennial', '🥕', 'Carrot', 'biennial']
-['🍆, Eggplant, perennial', '🍆', 'Eggplant', 'perennial']
-['🍅, Tomato, annual', '🍅', 'Tomato', 'annual']
-['🥔, Potato, perennial', '🥔', 'Potato', 'perennial']
-</code></pre></div></div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.all_matches</code>:</p>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    <div class=notebook-skip>
+        
+            <pre><code>[&#39;🍓, Strawberry, perennial&#39;, &#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
+[&#39;🥕, Carrot, biennial&#39;, &#39;🥕&#39;, &#39;Carrot&#39;, &#39;biennial&#39;]
+[&#39;🍆, Eggplant, perennial&#39;, &#39;🍆&#39;, &#39;Eggplant&#39;, &#39;perennial&#39;]
+[&#39;🍅, Tomato, annual&#39;, &#39;🍅&#39;, &#39;Tomato&#39;, &#39;annual&#39;]
+[&#39;🥔, Potato, perennial&#39;, &#39;🥔&#39;, &#39;Potato&#39;, &#39;perennial&#39;]</code></pre>
+        
+    </div>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
 
-<p><br /><br /><br /></p>
+
+
+
+
+
+
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+
+
+<p><br><br><br></p>
 
 <h3 id="example-3-regex-match-into-key-value-pairs">Example 3: Regex match into key-value pairs</h3>
-
-<p><code class="highlighter-rouge">Regex.matches_kv</code> keeps only the elements that match the regular expression,
+<p><code>Regex.matches_kv</code> keeps only the elements that match the regular expression,
 returning a key-value pair using the specified groups.
-The argument <code class="highlighter-rouge">keyGroup</code> is set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.
-The argument <code class="highlighter-rouge">valueGroup</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
-but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
-
-<p><code class="highlighter-rouge">Regex.matches_kv</code> starts to match the regular expression at the beginning of the string.
-To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
-
+The argument <code>keyGroup</code> is set to a group number like <code>3</code>, or to a named group like <code>'icon'</code>.
+The argument <code>valueGroup</code> is set to <code>0</code> (the entire match) by default,
+but can be set to a group number like <code>3</code>, or to a named group like <code>'icon'</code>.</p>
+<p><code>Regex.matches_kv</code> starts to match the regular expression at the beginning of the string.
+To match until the end of the string, add <code>'$'</code> at the end of the regular expression.</p>
 <p>To start matching at any point instead of the beginning of the string, use
-<a href="#example-6-regex-find-as-key-value-pairs"><code class="highlighter-rouge">Regex.find_kv(regex, keyGroup)</code></a>.</p>
+<a href="#example-6-regex-find-as-key-value-pairs"><code>Regex.find_kv(regex, keyGroup)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
-<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c1"># Matches a named group &#39;icon&#39;, and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)&#39;</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches_kv</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
-          <span class="s">'🍆, Eggplant, perennial'</span><span class="p">,</span>
-          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
-          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🍌, invalid, format'</span><span class="p">,</span>
-          <span class="s">'invalid, 🍉, format'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥕, Carrot, biennial ignoring trailing words&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍆, Eggplant, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍅, Tomato, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥔, Potato, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍌, invalid, format&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;invalid, 🍉, format&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">matches_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s1">&#39;icon&#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.matches_kv</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
-('🥕', '🥕, Carrot, biennial')
-('🍆', '🍆, Eggplant, perennial')
-('🍅', '🍅, Tomato, annual')
-('🥔', '🥔, Potato, perennial')
-</code></pre></div></div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.matches_kv</code>:</p>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    <div class=notebook-skip>
+        
+            <pre><code>(&#39;🍓&#39;, &#39;🍓, Strawberry, perennial&#39;)
+(&#39;🥕&#39;, &#39;🥕, Carrot, biennial&#39;)
+(&#39;🍆&#39;, &#39;🍆, Eggplant, perennial&#39;)
+(&#39;🍅&#39;, &#39;🍅, Tomato, annual&#39;)
+(&#39;🥔&#39;, &#39;🥔, Potato, perennial&#39;)</code></pre>
+        
+    </div>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
 
-<p><br /><br /><br /></p>
+
+
+
+
+
+
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+
+
+<p><br><br><br></p>
 
 <h3 id="example-4-regex-find">Example 4: Regex find</h3>
-
-<p><code class="highlighter-rouge">Regex.find</code> keeps only the elements that match the regular expression,
+<p><code>Regex.find</code> keeps only the elements that match the regular expression,
 returning the matched group.
-The argument <code class="highlighter-rouge">group</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
-but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
-
-<p><code class="highlighter-rouge">Regex.find</code> matches the first occurrence of the regular expression in the string.
-To start matching at the beginning, add <code class="highlighter-rouge">'^'</code> at the beginning of the regular expression.
-To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
-
+The argument <code>group</code> is set to <code>0</code> (the entire match) by default,
+but can be set to a group number like <code>3</code>, or to a named group like <code>'icon'</code>.</p>
+<p><code>Regex.find</code> matches the first occurrence of the regular expression in the string.
+To start matching at the beginning, add <code>'^'</code> at the beginning of the regular expression.
+To match until the end of the string, add <code>'$'</code> at the end of the regular expression.</p>
 <p>If you need to match from the start only, consider using
-<a href="#example-1-regex-match"><code class="highlighter-rouge">Regex.matches(regex)</code></a>.</p>
+<a href="#example-1-regex-match"><code>Regex.matches(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
-<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c1"># Matches a named group &#39;icon&#39;, and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)&#39;</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
-          <span class="s">'# 🍆, Eggplant, perennial - 🍌, Banana, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🍅, Tomato, annual - 🍉, Watermelon, annual'</span><span class="p">,</span>
-          <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕, Carrot, biennial ignoring trailing words&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆, Eggplant, perennial - 🍌, Banana, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅, Tomato, annual - 🍉, Watermelon, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔, Potato, perennial&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓, Strawberry, perennial
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.find</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓, Strawberry, perennial
 🥕, Carrot, biennial
 🍆, Eggplant, perennial
 🍅, Tomato, annual
-🥔, Potato, perennial
-</code></pre></div></div>
+🥔, Potato, perennial</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-5-regex-find-all">Example 5: Regex find all</h3>
-
-<p><code class="highlighter-rouge">Regex.find_all</code> returns a list of all the matches of the regular expression,
+<p><code>Regex.find_all</code> returns a list of all the matches of the regular expression,
 returning the matched group.
-The argument <code class="highlighter-rouge">group</code> is set to <code class="highlighter-rouge">0</code> by default, but can be set to a group number like <code class="highlighter-rouge">3</code>, to a named group like <code class="highlighter-rouge">'icon'</code>, or to <code class="highlighter-rouge">Regex.ALL</code> to return all groups.
-The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code class="highlighter-rouge">True</code> by default, but can be set to <code class="highlighter-rouge">False</code> to skip elements where no matches were found.</p>
-
-<p><code class="highlighter-rouge">Regex.find_all</code> matches the regular expression anywhere it is found in the string.
-To start matching at the beginning, add <code class="highlighter-rouge">'^'</code> at the start of the regular expression.
-To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
-
+The argument <code>group</code> is set to <code>0</code> by default, but can be set to a group number like <code>3</code>, to a named group like <code>'icon'</code>, or to <code>Regex.ALL</code> to return all groups.
+The argument <code>outputEmpty</code> is set to <code>True</code> by default, but can be set to <code>False</code> to skip elements where no matches were found.</p>
+<p><code>Regex.find_all</code> matches the regular expression anywhere it is found in the string.
+To start matching at the beginning, add <code>'^'</code> at the start of the regular expression.
+To match until the end of the string, add <code>'$'</code> at the end of the regular expression.</p>
 <p>If you need to match all groups from the start only, consider using
-<a href="#example-2-regex-match-with-all-groups"><code class="highlighter-rouge">Regex.all_matches(regex)</code></a>.</p>
+<a href="#example-2-regex-match-with-all-groups"><code>Regex.all_matches(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
-<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c1"># Matches a named group &#39;icon&#39;, and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)&#39;</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_find_all</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
-          <span class="s">'# 🍆, Eggplant, perennial - 🍌, Banana, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🍅, Tomato, annual - 🍉, Watermelon, annual'</span><span class="p">,</span>
-          <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕, Carrot, biennial ignoring trailing words&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆, Eggplant, perennial - 🍌, Banana, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅, Tomato, annual - 🍉, Watermelon, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔, Potato, perennial&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_all</span><span class="p">(</span><span class="n">regex</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_all</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓, Strawberry, perennial']
-['🥕, Carrot, biennial']
-['🍆, Eggplant, perennial', '🍌, Banana, perennial']
-['🍅, Tomato, annual', '🍉, Watermelon, annual']
-['🥔, Potato, perennial']
-</code></pre></div></div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.find_all</code>:</p>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    <div class=notebook-skip>
+        
+            <pre><code>[&#39;🍓, Strawberry, perennial&#39;]
+[&#39;🥕, Carrot, biennial&#39;]
+[&#39;🍆, Eggplant, perennial&#39;, &#39;🍌, Banana, perennial&#39;]
+[&#39;🍅, Tomato, annual&#39;, &#39;🍉, Watermelon, annual&#39;]
+[&#39;🥔, Potato, perennial&#39;]</code></pre>
+        
+    </div>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
 
-<p><br /><br /><br /></p>
+
+
+
+
+
+
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+
+
+<p><br><br><br></p>
 
 <h3 id="example-6-regex-find-as-key-value-pairs">Example 6: Regex find as key-value pairs</h3>
-
-<p><code class="highlighter-rouge">Regex.find_kv</code> returns a list of all the matches of the regular expression,
+<p><code>Regex.find_kv</code> returns a list of all the matches of the regular expression,
 returning a key-value pair using the specified groups.
-The argument <code class="highlighter-rouge">keyGroup</code> is set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.
-The argument <code class="highlighter-rouge">valueGroup</code> is set to <code class="highlighter-rouge">0</code> (the entire match) by default,
-but can be set to a group number like <code class="highlighter-rouge">3</code>, or to a named group like <code class="highlighter-rouge">'icon'</code>.</p>
-
-<p><code class="highlighter-rouge">Regex.find_kv</code> matches the first occurrence of the regular expression in the string.
-To start matching at the beginning, add <code class="highlighter-rouge">'^'</code> at the beginning of the regular expression.
-To match until the end of the string, add <code class="highlighter-rouge">'$'</code> at the end of the regular expression.</p>
-
+The argument <code>keyGroup</code> is set to a group number like <code>3</code>, or to a named group like <code>'icon'</code>.
+The argument <code>valueGroup</code> is set to <code>0</code> (the entire match) by default,
+but can be set to a group number like <code>3</code>, or to a named group like <code>'icon'</code>.</p>
+<p><code>Regex.find_kv</code> matches the first occurrence of the regular expression in the string.
+To start matching at the beginning, add <code>'^'</code> at the beginning of the regular expression.
+To match until the end of the string, add <code>'$'</code> at the end of the regular expression.</p>
 <p>If you need to match as key-value pairs from the start only, consider using
-<a href="#example-3-regex-match-into-key-value-pairs"><code class="highlighter-rouge">Regex.matches_kv(regex)</code></a>.</p>
+<a href="#example-3-regex-match-into-key-value-pairs"><code>Regex.matches_kv(regex)</code></a>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
 
-<span class="c"># Matches a named group 'icon', and then two comma-separated groups.</span>
-<span class="n">regex</span> <span class="o">=</span> <span class="s">r'(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)'</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+
+<span class="c1"># Matches a named group &#39;icon&#39;, and then two comma-separated groups.</span>
+<span class="n">regex</span> <span class="o">=</span> <span class="sa">r</span><span class="s1">&#39;(?P&lt;icon&gt;[^\s,]+), *(\w+), *(\w+)&#39;</span>
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_matches_kv</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🥕, Carrot, biennial ignoring trailing words'</span><span class="p">,</span>
-          <span class="s">'# 🍆, Eggplant, perennial - 🍌, Banana, perennial'</span><span class="p">,</span>
-          <span class="s">'# 🍅, Tomato, annual - 🍉, Watermelon, annual'</span><span class="p">,</span>
-          <span class="s">'# 🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕, Carrot, biennial ignoring trailing words&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆, Eggplant, perennial - 🍌, Banana, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅, Tomato, annual - 🍉, Watermelon, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔, Potato, perennial&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s">'icon'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">find_kv</span><span class="p">(</span><span class="n">regex</span><span class="p">,</span> <span class="n">keyGroup</span><span class="o">=</span><span class="s1">&#39;icon&#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.find_kv</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>('🍓', '🍓, Strawberry, perennial')
-('🥕', '🥕, Carrot, biennial')
-('🍆', '🍆, Eggplant, perennial')
-('🍌', '🍌, Banana, perennial')
-('🍅', '🍅, Tomato, annual')
-('🍉', '🍉, Watermelon, annual')
-('🥔', '🥔, Potato, perennial')
-</code></pre></div></div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.find_kv</code>:</p>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    <div class=notebook-skip>
+        
+            <pre><code>(&#39;🍓&#39;, &#39;🍓, Strawberry, perennial&#39;)
+(&#39;🥕&#39;, &#39;🥕, Carrot, biennial&#39;)
+(&#39;🍆&#39;, &#39;🍆, Eggplant, perennial&#39;)
+(&#39;🍌&#39;, &#39;🍌, Banana, perennial&#39;)
+(&#39;🍅&#39;, &#39;🍅, Tomato, annual&#39;)
+(&#39;🍉&#39;, &#39;🍉, Watermelon, annual&#39;)
+(&#39;🥔&#39;, &#39;🥔, Potato, perennial&#39;)</code></pre>
+        
+    </div>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
 
-<p><br /><br /><br /></p>
+
+
+
+
+
+
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+
+
+<p><br><br><br></p>
 
 <h3 id="example-7-regex-replace-all">Example 7: Regex replace all</h3>
-
-<p><code class="highlighter-rouge">Regex.replace_all</code> returns the string with all the occurrences of the regular expression replaced by another string.
+<p><code>Regex.replace_all</code> returns the string with all the occurrences of the regular expression replaced by another string.
 You can also use
 <a href="https://docs.python.org/3/library/re.html?highlight=backreference#re.sub">backreferences</a>
-on the <code class="highlighter-rouge">replacement</code>.</p>
+on the <code>replacement</code>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_replace_all</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓 : Strawberry : perennial'</span><span class="p">,</span>
-          <span class="s">'🥕 : Carrot : biennial'</span><span class="p">,</span>
-          <span class="s">'🍆</span><span class="se">\t</span><span class="s">:</span><span class="se">\t</span><span class="s">Eggplant</span><span class="se">\t</span><span class="s">:</span><span class="se">\t</span><span class="s">perennial'</span><span class="p">,</span>
-          <span class="s">'🍅 : Tomato : annual'</span><span class="p">,</span>
-          <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;🍓 : Strawberry : perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥕 : Carrot : biennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍆</span><span class="se">\t</span><span class="s1">:</span><span class="se">\t</span><span class="s1">Eggplant</span><span class="se">\t</span><span class="s1">:</span><span class="se">\t</span><span class="s1">perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍅 : Tomato : annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥔 : Potato : perennial&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'To CSV'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_all</span><span class="p">(</span><span class="s">r'\s*:\s*'</span><span class="p">,</span> <span class="s">','</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;To CSV&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_all</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\s*:\s*&#39;</span><span class="p">,</span> <span class="s1">&#39;,&#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_all</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓,Strawberry,perennial
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.replace_all</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓,Strawberry,perennial
 🥕,Carrot,biennial
 🍆,Eggplant,perennial
 🍅,Tomato,annual
-🥔,Potato,perennial
-</code></pre></div></div>
+🥔,Potato,perennial</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-8-regex-replace-first">Example 8: Regex replace first</h3>
-
-<p><code class="highlighter-rouge">Regex.replace_first</code> returns the string with the first occurrence of the regular expression replaced by another string.
+<p><code>Regex.replace_first</code> returns the string with the first occurrence of the regular expression replaced by another string.
 You can also use
 <a href="https://docs.python.org/3/library/re.html?highlight=backreference#re.sub">backreferences</a>
-on the <code class="highlighter-rouge">replacement</code>.</p>
+on the <code>replacement</code>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_replace_first</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓, Strawberry, perennial'</span><span class="p">,</span>
-          <span class="s">'🥕, Carrot, biennial'</span><span class="p">,</span>
-          <span class="s">'🍆,</span><span class="se">\t</span><span class="s">Eggplant, perennial'</span><span class="p">,</span>
-          <span class="s">'🍅, Tomato, annual'</span><span class="p">,</span>
-          <span class="s">'🥔, Potato, perennial'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;🍓, Strawberry, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥕, Carrot, biennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍆,</span><span class="se">\t</span><span class="s1">Eggplant, perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍅, Tomato, annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥔, Potato, perennial&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'As dictionary'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_first</span><span class="p">(</span><span class="s">r'\s*,\s*'</span><span class="p">,</span> <span class="s">': '</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;As dictionary&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">replace_first</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\s*,\s*&#39;</span><span class="p">,</span> <span class="s1">&#39;: &#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.replace_first</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓: Strawberry, perennial
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.replace_first</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓: Strawberry, perennial
 🥕: Carrot, biennial
 🍆: Eggplant, perennial
 🍅: Tomato, annual
-🥔: Potato, perennial
-</code></pre></div></div>
+🥔: Potato, perennial</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-9-regex-split">Example 9: Regex split</h3>
+<p><code>Regex.split</code> returns the list of strings that were delimited by the specified regular expression.
+The argument <code>outputEmpty</code> is set to <code>False</code> by default, but can be set to <code>True</code> to keep empty items in the output list.</p>
 
-<p><code class="highlighter-rouge">Regex.split</code> returns the list of strings that were delimited by the specified regular expression.
-The argument <code class="highlighter-rouge">outputEmpty</code> is set to <code class="highlighter-rouge">False</code> by default, but can be set to <code class="highlighter-rouge">True</code> to keep empty items in the output list.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants_split</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Garden plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'🍓 : Strawberry : perennial'</span><span class="p">,</span>
-          <span class="s">'🥕 : Carrot : biennial'</span><span class="p">,</span>
-          <span class="s">'🍆</span><span class="se">\t</span><span class="s">:</span><span class="se">\t</span><span class="s">Eggplant : perennial'</span><span class="p">,</span>
-          <span class="s">'🍅 : Tomato : annual'</span><span class="p">,</span>
-          <span class="s">'🥔 : Potato : perennial'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Garden plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;🍓 : Strawberry : perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥕 : Carrot : biennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍆</span><span class="se">\t</span><span class="s1">:</span><span class="se">\t</span><span class="s1">Eggplant : perennial&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🍅 : Tomato : annual&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;🥔 : Potato : perennial&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Parse plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">r'\s*:\s*'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Parse plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Regex</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\s*:\s*&#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Regex.split</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>['🍓', 'Strawberry', 'perennial']
-['🥕', 'Carrot', 'biennial']
-['🍆', 'Eggplant', 'perennial']
-['🍅', 'Tomato', 'annual']
-['🥔', 'Potato', 'perennial']
-</code></pre></div></div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Regex.split</code>:</p>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    <div class=notebook-skip>
+        
+            <pre><code>[&#39;🍓&#39;, &#39;Strawberry&#39;, &#39;perennial&#39;]
+[&#39;🥕&#39;, &#39;Carrot&#39;, &#39;biennial&#39;]
+[&#39;🍆&#39;, &#39;Eggplant&#39;, &#39;perennial&#39;]
+[&#39;🍅&#39;, &#39;Tomato&#39;, &#39;annual&#39;]
+[&#39;🥔&#39;, &#39;Potato&#39;, &#39;perennial&#39;]</code></pre>
+        
+    </div>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
 
-<p><br /><br /><br /></p>
+
+
+
+
+
+
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/regex-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/regex.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+
+
+<p><br><br><br></p>
 
 <h2 id="related-transforms">Related transforms</h2>
-
 <ul>
-  <li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code class="highlighter-rouge">Map</code>, but for
+<li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code>Map</code>, but for
 each input it may produce zero or more outputs.</li>
-  <li><a href="/documentation/transforms/python/elementwise/map">Map</a> applies a simple 1-to-1 mapping function over each element in the collection</li>
+<li><a href="/documentation/transforms/python/elementwise/map">Map</a> applies a simple 1-to-1 mapping function over each element in the collection</li>
 </ul>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
 <table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
+    <a
+      class="button"
+      target="_blank"
+      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.Regex"
+      ><img
+        src="https://beam.apache.org/images/logos/sdks/python.png"
+        width="32px"
+        height="32px"
+        alt="Pydoc"
+      />
+      Pydoc</a
+    >
   </td>
 </table>
 
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -1513,47 +1279,44 @@ limitations under the License.
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

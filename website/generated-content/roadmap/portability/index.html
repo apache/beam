@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Portability Framework Roadmap</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/roadmap/portability/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Portability Framework Roadmap</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/roadmap/portability/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/roadmap/portability.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/roadmap/portability.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Roadmap</span></li>
 <li><a href="/roadmap/">Roadmap Highlights</a></li>
@@ -207,43 +174,29 @@
   </ul>
 </li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#overview">Overview</a></li>
-  <li><a href="#milestones">Milestones</a></li>
-  <li><a href="#issues">Issues</a></li>
-  <li><a href="#status">Status</a>
-    <ul>
-      <li><a href="#python-on-flink">Running Python wordcount on Flink</a></li>
-      <li><a href="#python-on-spark">Running Python wordcount on Spark</a></li>
-    </ul>
-  </li>
-  <li><a href="#sdk-harness-config">SDK Harness Configuration</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#milestones">Milestones</a></li>
+    <li><a href="#issues">Issues</a></li>
+    <li><a href="#status">Status</a>
+      <ul>
+        <li><a href="#python-on-flink">Running Python wordcount on Flink</a></li>
+        <li><a href="#python-on-spark">Running Python wordcount on Spark</a></li>
+      </ul>
+    </li>
+    <li><a href="#sdk-harness-config">SDK Harness Configuration</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -256,11 +209,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="portability-framework-roadmap">Portability Framework Roadmap</h1>
-
 <h2 id="overview">Overview</h2>
-
 <p>Interoperability between SDKs and runners is a key aspect of Apache
 Beam. So far, however, the reality is that most runners support the
 Java SDK only, because each SDK-runner combination requires non-trivial
@@ -268,10 +218,9 @@ work on both sides. All runners are also currently written in Java,
 which makes support of non-Java SDKs far more expensive. The
 <em>portability framework</em> aims to rectify this situation and provide
 full interoperability across the Beam ecosystem.</p>
-
 <p>The portability framework introduces well-defined, language-neutral
 data structures and protocols between the SDK and runner. This interop
-layer – called the <em>portability API</em> – ensures that SDKs and runners
+layer &ndash; called the <em>portability API</em> &ndash; ensures that SDKs and runners
 can work with each other uniformly, reducing the interoperability
 burden for both SDKs and runners to a constant effort.  It notably
 ensures that <em>new</em> SDKs automatically work with existing runners and
@@ -280,25 +229,23 @@ Local Runner (ULR)</em>, as a practical reference implementation that
 complements the direct runners. Finally, it enables cross-language
 pipelines (sharing I/O or transformations across SDKs) and
 user-customized <a href="/documentation/runtime/environments/">execution environments</a>
-(“custom containers”).</p>
-
+(&ldquo;custom containers&rdquo;).</p>
 <p>The portability API consists of a set of smaller contracts that
 isolate SDKs and runners for job submission, management and
 execution. These contracts use protobufs and <a href="https://grpc.io">gRPC</a> for broad language
 support.</p>
-
 <ul>
-  <li>
-    <p><strong>Job submission and management</strong>: The <em>Runner API</em> defines a
+<li>
+<p><strong>Job submission and management</strong>: The <em>Runner API</em> defines a
 language-neutral pipeline representation with transformations
 specifying the execution environment as a docker container
 image. The latter both allows the execution side to set up the
 right environment as well as opens the door for custom containers
 and cross-environment pipelines. The <em>Job API</em> allows pipeline
 execution and configuration to be managed uniformly.</p>
-  </li>
-  <li>
-    <p><strong>Job execution</strong>: The <em>SDK harness</em> is a SDK-provided
+</li>
+<li>
+<p><strong>Job execution</strong>: The <em>SDK harness</em> is a SDK-provided
 program responsible for executing user code and is run separately
 from the runner.  The <em>Fn API</em> defines an execution-time binary
 contract between the SDK harness and the runner that describes how
@@ -313,32 +260,26 @@ containerization of the SDK gives it (and the user, unless the SDK
 is closed) full control over its own environment without risk of
 dependency conflicts. The runner has significant freedom regarding
 how it manages the SDK harness containers.</p>
-  </li>
+</li>
 </ul>
-
 <p>The goal is that all (non-direct) runners and SDKs eventually support
 the portability API, perhaps exclusively.</p>
-
 <p>If you are interested in digging in to the designs, you can find
-them on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers’ wiki</a>.</p>
-
+them on the <a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam developers&rsquo; wiki</a>.</p>
 <h2 id="milestones">Milestones</h2>
-
 <p>The portability framework is a substantial effort that touches every
 Beam component. In addition to the sheer magnitude, a major challenge
 is engineering an interop layer that does not significantly compromise
 performance due to the additional serialization overhead of a
 language-neutral protocol.</p>
-
 <p>The proposed project phases are roughly as follows and are not
 strictly sequential, as various components will likely move at
 different speeds. Additionally, there have been (and continues to be)
 supporting refactorings that are not always tracked as part of the
 portability effort. Work already done is not tracked here either.</p>
-
 <ul>
-  <li>
-    <p><strong>P1 [MVP]</strong>: Implement the fundamental plumbing for portable SDKs
+<li>
+<p><strong>P1 [MVP]</strong>: Implement the fundamental plumbing for portable SDKs
 and runners for batch and streaming, including containers and the
 ULR
 [<a href="https://issues.apache.org/jira/browse/BEAM-2899">BEAM-2899</a>]. Each
@@ -348,9 +289,9 @@ extent that wordcount
 windowed wordcount
 [<a href="https://issues.apache.org/jira/browse/BEAM-2941">BEAM-2941</a>] run
 portably.</p>
-  </li>
-  <li>
-    <p><strong>P2 [Feature complete]</strong>: Design and implement portability support
+</li>
+<li>
+<p><strong>P2 [Feature complete]</strong>: Design and implement portability support
 for remaining execution-side features, so that any pipeline from
 any SDK can run portably on any runner. These features include side
 inputs
@@ -363,76 +304,53 @@ more.  Each SDK and runner should use the portability framework at
 least to the extent that the mobile gaming examples
 [<a href="https://issues.apache.org/jira/browse/BEAM-2940">BEAM-2940</a>] run
 portably.</p>
-  </li>
-  <li>
-    <p><strong>P3 [Performance]</strong>: Measure and tune performance of portable
+</li>
+<li>
+<p><strong>P3 [Performance]</strong>: Measure and tune performance of portable
 pipelines using benchmarks such as Nexmark. Features such as
 progress reporting
 [<a href="https://issues.apache.org/jira/browse/BEAM-2940">BEAM-2940</a>],
 combiner lifting
 [<a href="https://issues.apache.org/jira/browse/BEAM-2937">BEAM-2937</a>] and
 fusion are expected to be needed.</p>
-  </li>
-  <li>
-    <p><strong>P4 [Cross language]</strong>: Design and implement cross-language
+</li>
+<li>
+<p><strong>P4 [Cross language]</strong>: Design and implement cross-language
 pipeline support, including how the ecosystem of shared transforms
 should work.</p>
-  </li>
+</li>
 </ul>
-
 <h2 id="issues">Issues</h2>
-
-<p>The portability effort touches every component, so the “portability”
+<p>The portability effort touches every component, so the &ldquo;portability&rdquo;
 label is used to identify all portability-related issues. Pure
-design or proto definitions should use the “beam-model” component. A
+design or proto definitions should use the &ldquo;beam-model&rdquo; component. A
 common pattern for new portability features is that the overall
-feature is in “beam-model” with subtasks for each SDK and runner in
+feature is in &ldquo;beam-model&rdquo; with subtasks for each SDK and runner in
 their respective components.</p>
-
-<p><strong>JIRA:</strong> <a href="https://issues.apache.org/jira/issues/?jql=project %3D BEAM AND resolution %3D Unresolved AND labels %3D portability order by priority DESC%2Cupdated DESC">query</a></p>
-
+<p><strong>JIRA:</strong> <a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20resolution%20%3D%20Unresolved%20AND%20labels%20%3D%20portability%20order%20by%20priority%20DESC%2Cupdated%20DESC">query</a></p>
 <h2 id="status">Status</h2>
-
 <p>MVP, and FeatureCompletness nearly done (missing SDF, timers) for
 SDKs, Python ULR, and shared java runners library.
 Currently, the Flink and Spark runners support portable pipeline execution.
 See the
 <a href="https://s.apache.org/apache-beam-portability-support-table">Portability support table</a>
 for details.</p>
-
 <p>Prerequisites: <a href="https://docs.docker.com/compose/install/">Docker</a>, <a href="https://docs.python-guide.org/starting/install3/linux/">Python</a>, <a href="https://openjdk.java.net/install/">Java 8</a></p>
-
 <h3 id="python-on-flink">Running Python wordcount on Flink</h3>
-
 <p>The Beam Flink runner can run Python pipelines in batch and streaming modes.
 Please see the <a href="/documentation/runners/flink/">Flink Runner page</a> for more information on
 how to run portable pipelines on top of Flink.</p>
-
 <h3 id="python-on-spark">Running Python wordcount on Spark</h3>
-
 <p>The Beam Spark runner can run Python pipelines in batch mode.
 Please see the <a href="/documentation/runners/spark/">Spark Runner page</a> for more information on
 how to run portable pipelines on top of Spark.</p>
-
 <p>Python streaming mode is not yet supported on Spark.</p>
-
 <h2 id="sdk-harness-config">SDK Harness Configuration</h2>
-
 <p>See <a href="/documentation/runtime/sdk-harness-config/">here</a> for more information on SDK harness deployment options.</p>
 
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -447,47 +365,44 @@ how to run portable pipelines on top of Spark.</p>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

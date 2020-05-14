@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Custom window patterns</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/patterns/custom-windows/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Custom window patterns</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/patterns/custom-windows/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/patterns/custom-windows.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/patterns/custom-windows.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,40 +432,31 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#using-data-to-dynamically-set-session-window-gaps">Using data to dynamically set session window gaps</a>
-    <ul>
-      <li><a href="#creating-data-driven-gaps">Creating data-driven gaps</a></li>
-      <li><a href="#windowing-messages-into-sessions">Windowing messages into sessions</a></li>
-      <li><a href="#example-data-and-windows">Example data and windows</a></li>
-    </ul>
-  </li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#using-data-to-dynamically-set-session-window-gaps">Using data to dynamically set session window gaps</a>
+      <ul>
+        <li><a href="#creating-data-driven-gaps">Creating data-driven gaps</a></li>
+        <li><a href="#windowing-messages-into-sessions">Windowing messages into sessions</a></li>
+        <li><a href="#example-data-and-windows">Example data and windows</a>
+          <ul>
+            <li><a href="#standard-sessions">Standard sessions</a></li>
+            <li><a href="#dynamic-sessions">Dynamic sessions</a></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -511,145 +469,147 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="custom-window-patterns">Custom window patterns</h1>
-<p>The samples on this page demonstrate common custom window patterns. You can create custom windows with <a href="/documentation/programming-guide/#provided-windowing-functions"><code class="highlighter-rouge">WindowFn</code> functions</a>. For more information, see the <a href="/documentation/programming-guide/#windowing">programming guide section on windowing</a>.</p>
-
-<p><strong>Note</strong>: Custom merging windows isn’t supported in Python (with fnapi).</p>
-
+<p>The samples on this page demonstrate common custom window patterns. You can create custom windows with <a href="/documentation/programming-guide/#provided-windowing-functions"><code>WindowFn</code> functions</a>. For more information, see the <a href="/documentation/programming-guide/#windowing">programming guide section on windowing</a>.</p>
+<p><strong>Note</strong>: Custom merging windows isn&rsquo;t supported in Python (with fnapi).</p>
 <h2 id="using-data-to-dynamically-set-session-window-gaps">Using data to dynamically set session window gaps</h2>
+<p>You can modify the <a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/SlidingWindows.html"><code>assignWindows</code></a> function to use data-driven gaps, then window incoming data into sessions.</p>
+<p>Access the <code>assignWindows</code> function through <code>WindowFn.AssignContext.element()</code>. The original, fixed-duration <code>assignWindows</code> function is:</p>
 
-<p>You can modify the <a href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/windowing/SlidingWindows.html"><code class="highlighter-rouge">assignWindows</code></a> function to use data-driven gaps, then window incoming data into sessions.</p>
 
-<p>Access the <code class="highlighter-rouge">assignWindows</code> function through <code class="highlighter-rouge">WindowFn.AssignContext.element()</code>. The original, fixed-duration <code class="highlighter-rouge">assignWindows</code> function is:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
-<span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="na">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
 
-  <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the</span>
-  <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of</span>
-  <span class="c1">// each other) will be merged.</span>
-  <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">gapDuration</span><span class="o">));</span>
-<span class="o">}</span>
 
-</code></pre></div></div>
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java">  <span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="na">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
+
+    <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the
+</span><span class="c1"></span>    <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of
+</span><span class="c1"></span>    <span class="c1">// each other) will be merged.
+</span><span class="c1"></span>    <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">gapDuration</span><span class="o">));</span>
+  <span class="o">}</span></code></pre></div>
+        </div>
+    
+
 
 <h3 id="creating-data-driven-gaps">Creating data-driven gaps</h3>
-<p>To create data-driven gaps, add the following snippets to the <code class="highlighter-rouge">assignWindows</code> function:</p>
+<p>To create data-driven gaps, add the following snippets to the <code>assignWindows</code> function:</p>
 <ul>
-  <li>A default value for when the custom gap is not present in the data</li>
-  <li>A way to set the attribute from the main pipeline as a method of the custom windows</li>
+<li>A default value for when the custom gap is not present in the data</li>
+<li>A way to set the attribute from the main pipeline as a method of the custom windows</li>
 </ul>
+<p>For example, the following function assigns each element to a window between the timestamp and <code>gapDuration</code>:</p>
 
-<p>For example, the following function assigns each element to a window between the timestamp and <code class="highlighter-rouge">gapDuration</code>:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nd">@Override</span>
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="nd">@Override</span>
 <span class="kd">public</span> <span class="n">Collection</span><span class="o">&lt;</span><span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="nf">assignWindows</span><span class="o">(</span><span class="n">AssignContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
-  <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the</span>
-  <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of</span>
-  <span class="c1">// each other) will be merged.</span>
-  <span class="n">Duration</span> <span class="n">dataDrivenGap</span><span class="o">;</span>
+  <span class="c1">// Assign each element into a window from its timestamp until gapDuration in the
+</span><span class="c1"></span>  <span class="c1">// future.  Overlapping windows (representing elements within gapDuration of
+</span><span class="c1"></span>  <span class="c1">// each other) will be merged.
+</span><span class="c1"></span>  <span class="n">Duration</span> <span class="n">dataDrivenGap</span><span class="o">;</span>
   <span class="n">TableRow</span> <span class="n">message</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">();</span>
 
   <span class="k">try</span> <span class="o">{</span>
-    <span class="n">dataDrivenGap</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">Long</span><span class="o">.</span><span class="na">parseLong</span><span class="o">(</span><span class="n">message</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">"gap"</span><span class="o">).</span><span class="na">toString</span><span class="o">()));</span>
+    <span class="n">dataDrivenGap</span> <span class="o">=</span> <span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">Long</span><span class="o">.</span><span class="na">parseLong</span><span class="o">(</span><span class="n">message</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="s">&#34;gap&#34;</span><span class="o">).</span><span class="na">toString</span><span class="o">()));</span>
   <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">Exception</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
     <span class="n">dataDrivenGap</span> <span class="o">=</span> <span class="n">gapDuration</span><span class="o">;</span>
   <span class="o">}</span>
   <span class="k">return</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span><span class="k">new</span> <span class="n">IntervalWindow</span><span class="o">(</span><span class="n">c</span><span class="o">.</span><span class="na">timestamp</span><span class="o">(),</span> <span class="n">dataDrivenGap</span><span class="o">));</span>
-<span class="o">}</span>
+<span class="o">}</span></code></pre></div>
+        </div>
+    
 
-</code></pre></div></div>
 
-<p>Then, set the <code class="highlighter-rouge">gapDuration</code> field in a windowing function:</p>
+<p>Then, set the <code>gapDuration</code> field in a windowing function:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">DynamicSessions</span> <span class="kd">extends</span> <span class="n">WindowFn</span><span class="o">&lt;</span><span class="n">TableRow</span><span class="o">,</span> <span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="o">{</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">DynamicSessions</span> <span class="kd">extends</span> <span class="n">WindowFn</span><span class="o">&lt;</span><span class="n">TableRow</span><span class="o">,</span> <span class="n">IntervalWindow</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="cm">/** Duration of the gaps between sessions. */</span>
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">;</span>
 
   <span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
   <span class="kd">private</span> <span class="nf">DynamicSessions</span><span class="o">(</span><span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">)</span> <span class="o">{</span>
     <span class="k">this</span><span class="o">.</span><span class="na">gapDuration</span> <span class="o">=</span> <span class="n">gapDuration</span><span class="o">;</span>
-  <span class="o">}</span>
+  <span class="o">}</span></code></pre></div>
+        </div>
+    
 
-
-</code></pre></div></div>
 
 <h3 id="windowing-messages-into-sessions">Windowing messages into sessions</h3>
 <p>After creating data-driven gaps, you can window incoming data into the new, custom sessions.</p>
-
 <p>First, set the session length to the gap duration:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="cm">/** Creates a {@code DynamicSessions} {@link WindowFn} with the specified gap duration. */</span>
 <span class="kd">public</span> <span class="kd">static</span> <span class="n">DynamicSessions</span> <span class="nf">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span> <span class="n">gapDuration</span><span class="o">)</span> <span class="o">{</span>
-  <span class="k">return</span> <span class="k">new</span> <span class="nf">DynamicSessions</span><span class="o">(</span><span class="n">gapDuration</span><span class="o">);</span>
-<span class="o">}</span>
+  <span class="k">return</span> <span class="k">new</span> <span class="n">DynamicSessions</span><span class="o">(</span><span class="n">gapDuration</span><span class="o">);</span>
+<span class="o">}</span></code></pre></div>
+        </div>
+    
 
-
-</code></pre></div></div>
 
 <p>Lastly, window data into sessions in your pipeline:</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-    <span class="s">"Window into sessions"</span><span class="o">,</span>
-    <span class="n">Window</span><span class="o">.&lt;</span><span class="n">TableRow</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
-        <span class="n">DynamicSessions</span><span class="o">.</span><span class="na">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">10</span><span class="o">))));</span>
 
-</code></pre></div></div>
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+    <span class="s">&#34;Window into sessions&#34;</span><span class="o">,</span>
+    <span class="n">Window</span><span class="o">.&lt;</span><span class="n">TableRow</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
+        <span class="n">DynamicSessions</span><span class="o">.</span><span class="na">withDefaultGapDuration</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">10</span><span class="o">))));</span></code></pre></div>
+        </div>
+    
+
 
 <h3 id="example-data-and-windows">Example data and windows</h3>
-<p>The following test data tallies two users’ scores with and without the <code class="highlighter-rouge">gap</code> attribute:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>.apply("Create data", Create.timestamped(
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"12\",\"gap\":\"5\"}", new Instant()),
-            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"4\"}", new Instant()),
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"-3\",\"gap\":\"5\"}", new Instant().plus(2000)),
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"2\",\"gap\":\"5\"}", new Instant().plus(9000)),
-            TimestampedValue.of("{\"user\":\"user-1\",\"score\":\"7\",\"gap\":\"5\"}", new Instant().plus(12000)),
-            TimestampedValue.of("{\"user\":\"user-2\",\"score\":\"10\"}", new Instant().plus(12000)))
+<p>The following test data tallies two users&rsquo; scores with and without the <code>gap</code> attribute:</p>
+<pre><code>.apply(&quot;Create data&quot;, Create.timestamped(
+            TimestampedValue.of(&quot;{\&quot;user\&quot;:\&quot;user-1\&quot;,\&quot;score\&quot;:\&quot;12\&quot;,\&quot;gap\&quot;:\&quot;5\&quot;}&quot;, new Instant()),
+            TimestampedValue.of(&quot;{\&quot;user\&quot;:\&quot;user-2\&quot;,\&quot;score\&quot;:\&quot;4\&quot;}&quot;, new Instant()),
+            TimestampedValue.of(&quot;{\&quot;user\&quot;:\&quot;user-1\&quot;,\&quot;score\&quot;:\&quot;-3\&quot;,\&quot;gap\&quot;:\&quot;5\&quot;}&quot;, new Instant().plus(2000)),
+            TimestampedValue.of(&quot;{\&quot;user\&quot;:\&quot;user-1\&quot;,\&quot;score\&quot;:\&quot;2\&quot;,\&quot;gap\&quot;:\&quot;5\&quot;}&quot;, new Instant().plus(9000)),
+            TimestampedValue.of(&quot;{\&quot;user\&quot;:\&quot;user-1\&quot;,\&quot;score\&quot;:\&quot;7\&quot;,\&quot;gap\&quot;:\&quot;5\&quot;}&quot;, new Instant().plus(12000)),
+            TimestampedValue.of(&quot;{\&quot;user\&quot;:\&quot;user-2\&quot;,\&quot;score\&quot;:\&quot;10\&quot;}&quot;, new Instant().plus(12000)))
         .withCoder(StringUtf8Coder.of()))
-</code></pre></div></div>
-
-<p>The diagram below visualizes the test data:</p>
-
-<p><img src="/images/standard-vs-dynamic-sessions.png" alt="Two sets of data and the standard and dynamic sessions with which the data is windowed." /></p>
-
+</code></pre><p>The diagram below visualizes the test data:</p>
+<p><img src="/images/standard-vs-dynamic-sessions.png" alt="Two sets of data and the standard and dynamic sessions with which the data is windowed."></p>
 <h4 id="standard-sessions">Standard sessions</h4>
-
 <p>Standard sessions use the following windows and scores:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T13:28:49.122Z..2019-05-26T13:28:59.122Z)
+<pre><code>user=user-2, score=4, window=[2019-05-26T13:28:49.122Z..2019-05-26T13:28:59.122Z)
 user=user-1, score=18, window=[2019-05-26T13:28:48.582Z..2019-05-26T13:29:12.774Z)
 user=user-2, score=10, window=[2019-05-26T13:29:03.367Z..2019-05-26T13:29:13.367Z)
-</code></pre></div></div>
-
-<p>User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren’t added.</p>
-
+</code></pre><p>User #1 sees two events separated by 12 seconds. With standard sessions, the gap defaults to 10 seconds; both scores are in different sessions, so the scores aren&rsquo;t added.</p>
 <p>User #2 sees four events, seperated by two, seven, and three seconds, respectively. Since none of the gaps are greater than the default, the four events are in the same standard session and added together (18 points).</p>
-
 <h4 id="dynamic-sessions">Dynamic sessions</h4>
 <p>The dynamic sessions specify a five-second gap, so they use the following windows and scores:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
+<pre><code>user=user-2, score=4, window=[2019-05-26T14:30:22.969Z..2019-05-26T14:30:32.969Z)
 user=user-1, score=9, window=[2019-05-26T14:30:22.429Z..2019-05-26T14:30:30.553Z)
 user=user-1, score=9, window=[2019-05-26T14:30:33.276Z..2019-05-26T14:30:41.849Z)
 user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357Z)
-</code></pre></div></div>
+</code></pre><p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it&rsquo;s grouped into a different session. The large, 18-point session is split into two 9-point sessions.</p>
 
-<p>With dynamic sessions, User #2 gets different scores. The third messages arrives seven seconds after the second message, so it’s grouped into a different session. The large, 18-point session is split into two 9-point sessions.</p>
-
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -664,47 +624,44 @@ user=user-2, score=10, window=[2019-05-26T14:30:37.357Z..2019-05-26T14:30:47.357
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

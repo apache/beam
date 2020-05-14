@@ -1,0 +1,18 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Apache Beam – Categories</title>
+    <link>/categories/</link>
+    <description>Recent content in Categories on Apache Beam</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Fri, 08 May 2020 00:00:01 -0800</lastBuildDate>
+    
+	  <atom:link href="/categories/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+  </channel>
+</rss>

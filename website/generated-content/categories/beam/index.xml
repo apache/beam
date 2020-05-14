@@ -1,0 +1,2341 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Apache Beam – beam</title>
+    <link>/categories/beam/</link>
+    <description>Recent content in beam on Apache Beam</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <lastBuildDate>Tue, 11 Oct 2016 09:00:00 -0800</lastBuildDate>
+    
+	  <atom:link href="/categories/beam/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+      
+        
+      
+    
+    
+    <item>
+      <title>Blog: Strata&#43;Hadoop World and Beam</title>
+      <link>/blog/strata-hadoop-world-and-beam/</link>
+      <pubDate>Tue, 11 Oct 2016 09:00:00 -0800</pubDate>
+      
+      <guid>/blog/strata-hadoop-world-and-beam/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;Tyler Akidau and I gave a &lt;a href=&#34;https://conferences.oreilly.com/strata/hadoop-big-data-ny/public/schedule/detail/52129&#34;&gt;three-hour tutorial&lt;/a&gt; on Apache Beam at Strata+Hadoop World 2016. We had a plethora of help from our TAs: Kenn Knowles, Reuven Lax, Felipe Hoffa, Slava Chernyak, and Jamie Grier. There were a total of 66 people that attended the session.&lt;/p&gt;
+&lt;img src=&#34;/images/blog/IMG_20160927_170956.jpg&#34; alt=&#34;Exercise time&#34;&gt;
+&lt;p&gt;If you want to take a look at the tutorial materials, we’ve put them up &lt;a href=&#34;https://github.com/eljefe6a/beamexample&#34;&gt;on GitHub&lt;/a&gt;. This includes the &lt;a href=&#34;https://github.com/eljefe6a/beamexample/blob/master/BeamTutorial/slides.pdf&#34;&gt;actual slides&lt;/a&gt; as well as the &lt;a href=&#34;https://github.com/eljefe6a/beamexample/tree/master/BeamTutorial/src/main/java/org/apache/beam/examples/tutorial/game&#34;&gt;exercises&lt;/a&gt; that we covered. If you’re looking to learn a little about Beam, this is a good way to start. The exercises are based on an imaginary mobile game where data needs processing and are based on code in the &lt;a href=&#34;https://github.com/apache/beam/tree/master/examples/java/src/main/java/org/apache/beam/examples/complete/game&#34;&gt;Beam examples directory&lt;/a&gt;. The code has TODOs for where you need to fill in code or there are full sample solutions to look over our code. You can run these examples on your own machine or on a cluster using a runner that Beam supports.&lt;/p&gt;
+&lt;p&gt;I want to share some of takeaways I had about Beam during the conference.&lt;/p&gt;
+&lt;p&gt;The Data Engineers are looking to Beam as a way to &lt;a href=&#34;https://www.oreilly.com/ideas/future-proof-and-scale-proof-your-code&#34;&gt;future-proof&lt;/a&gt;, meaning that code is portable between the various Big Data frameworks. In fact, many of the attendees were still on Hadoop MapReduce and looking to transition to a new framework. They’re realizing that continually rewriting code isn’t the most productive approach.&lt;/p&gt;
+&lt;p&gt;Data Scientists are really interested in using Beam. They interested in having a single API for doing analysis instead of several different APIs. We talked about Beam’s progress on the Python API. If you want to take a peek, it’s being actively developed on a &lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/python&#34;&gt;feature branch&lt;/a&gt;. As Beam matures, we’re looking to add other supported languages.&lt;/p&gt;
+&lt;p&gt;We heard &lt;a href=&#34;https://twitter.com/jessetanderson/status/781124173108305920&#34;&gt;loud and clear&lt;/a&gt; from Beam users that great runner support is crucial to adoption. We have great Apache Flink support. During the conference we had some more volunteers offer their help on the Spark runner.&lt;/p&gt;
+&lt;p&gt;On management and thought leader side, Beam went from “what’s Beam?” at previous conferences to “I’m interested in Beam.” or “I’ve formed an informed opinion on Beam.” at this conference. This is one of the metrics I look for in early technology adoption.&lt;/p&gt;
+&lt;img src=&#34;/images/blog/IMG_20160927_170455.jpg&#34; alt=&#34;So much brainpower answering questions&#34;&gt;
+&lt;p&gt;We rounded out the tutorial with live demonstrations of Beam running on Apache Spark, Apache Flink, the local runner, and DataFlow runner. Then, we brought in the big brainpower and had a Q and A session.&lt;/p&gt;
+&lt;p&gt;If you’re attending a conference, we encourage you to look for a Beam session. If you want to use these materials to give your own Beam talk or tutorial, we’re happy to help you. In addition to this tutorial, we have &lt;a href=&#34;/contribute/presentation-materials/&#34;&gt;other presentation materials&lt;/a&gt;. You can reach out to us on the &lt;a href=&#34;/get-started/support/&#34;&gt;user mailing list&lt;/a&gt;.&lt;/p&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Blog: The first release of Apache Beam!</title>
+      <link>/blog/first-release/</link>
+      <pubDate>Wed, 15 Jun 2016 00:00:01 -0700</pubDate>
+      
+      <guid>/blog/first-release/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;I’m happy to announce that Apache Beam has officially released its first
+version &amp;ndash; 0.1.0-incubating. This is an exciting milestone for the project,
+which joined the Apache Software Foundation and the Apache Incubator earlier
+this year.&lt;/p&gt;
+&lt;p&gt;This release publishes the first set of Apache Beam binaries and source code,
+making them readily available for our users. The initial release includes the
+SDK for Java, along with three runners: Apache Flink, Apache Spark and Google
+Cloud Dataflow, a fully-managed cloud service. The release is available both
+in the &lt;a href=&#34;https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22&#34;&gt;Maven Central Repository&lt;/a&gt;,
+as well as a download from the &lt;a href=&#34;/get-started/downloads/&#34;&gt;project’s website&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The goal of this release was process-oriented. In particular, the Beam
+community wanted to release existing functionality to our users, build and
+validate the release processes, and obtain validation from the Apache Software
+Foundation and the Apache Incubator.&lt;/p&gt;
+&lt;p&gt;I’d like to encourage everyone to try out this release. Please keep in mind
+that this is the first incubating release &amp;ndash; significant changes are to be
+expected. As we march toward stability, a rapid cadence of future releases is
+anticipated, perhaps one every 1-2 months.&lt;/p&gt;
+&lt;p&gt;As always, the Beam community welcomes feedback. Stabilization, usability and
+the developer experience will be our focus for the next several months. If you
+have any comments or discover any issues, I’d like to invite you to reach out
+to us via &lt;a href=&#34;/get-started/support/&#34;&gt;user’s mailing list&lt;/a&gt; or the
+&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM/&#34;&gt;Apache JIRA issue tracker&lt;/a&gt;.&lt;/p&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Blog: Apache Beam Presentation Materials</title>
+      <link>/blog/presentation-materials/</link>
+      <pubDate>Sun, 03 Apr 2016 11:00:00 -0700</pubDate>
+      
+      <guid>/blog/presentation-materials/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;Are you interested in giving a presentation about Apache Beam? Perhaps you want to talk about Apache Beam at a local Meetup or a convention. Excellent!  The Apache Beam community is excited to expand and grow the community. To help kickstart this process, we are excited to announce an initial set of &lt;a href=&#34;/contribute/presentation-materials/&#34;&gt;Apache Beam presentation materials&lt;/a&gt; which anyone can use to give a presentation about Apache Beam.&lt;/p&gt;
+&lt;p&gt;As a community, we want to build a shared collection of high quality presentation materials. This initial set includes the following slide decks:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The Apache Beam model
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://goo.gl/r0nvWh&#34;&gt;Long version&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://goo.gl/h5D1yR&#34;&gt;Short version&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Using Apache Beam with runners
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://goo.gl/2ay8mi&#34;&gt;Google Cloud Dataflow&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;As Apache Beam grows, so will this repository of presentation materials. We are excited to add new materials as the Apache Beam ecosystem grows with new runners, SDKs, and so on. If you are interested in contributing content or have a request, please see the &lt;a href=&#34;/contribute/presentation-materials/&#34;&gt;Apache Beam presentation materials&lt;/a&gt; page or email the &lt;a href=&#34;mailto:user@beam.apache.org&#34;&gt;&lt;code&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list with your ideas or questions.&lt;/p&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Blog: Clarifying &amp; Formalizing Runner Capabilities</title>
+      <link>/blog/capability-matrix/</link>
+      <pubDate>Thu, 17 Mar 2016 11:00:00 -0700</pubDate>
+      
+      <guid>/blog/capability-matrix/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;With initial code drops complete (&lt;a href=&#34;https://github.com/apache/beam/pull/1&#34;&gt;Dataflow SDK and Runner&lt;/a&gt;, &lt;a href=&#34;https://github.com/apache/beam/pull/12&#34;&gt;Flink Runner&lt;/a&gt;, &lt;a href=&#34;https://github.com/apache/beam/pull/42&#34;&gt;Spark Runner&lt;/a&gt;) and expressed interest in runner implementations for &lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9&#34;&gt;Storm&lt;/a&gt;, &lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-19&#34;&gt;Hadoop&lt;/a&gt;, and &lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-79&#34;&gt;Gearpump&lt;/a&gt; (amongst others), we wanted to start addressing a big question in the Apache Beam (incubating) community: what capabilities will each runner be able to support?&lt;/p&gt;
+&lt;p&gt;While we’d love to have a world where all runners support the full suite of semantics included in the Beam Model (formerly referred to as the &lt;a href=&#34;https://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf&#34;&gt;Dataflow Model&lt;/a&gt;), practically speaking, there will always be certain features that some runners can’t provide. For example, a Hadoop-based runner would be inherently batch-based and may be unable to (easily) implement support for unbounded collections. However, that doesn’t prevent it from being extremely useful for a large set of uses. In other cases, the implementations provided by one runner may have slightly different semantics that those provided by another (e.g. even though the current suite of runners all support exactly-once delivery guarantees, an &lt;a href=&#34;https://samza.apache.org/&#34;&gt;Apache Samza&lt;/a&gt; runner, which would be a welcome addition, would currently only support at-least-once).&lt;/p&gt;
+&lt;p&gt;To help clarify things, we’ve been working on enumerating the key features of the Beam model in a &lt;a href=&#34;/documentation/runners/capability-matrix/&#34;&gt;capability matrix&lt;/a&gt; for all existing runners, categorized around the four key questions addressed by the model: &lt;span class=&#34;wwwh-what-dark&#34;&gt;What&lt;/span&gt; / &lt;span class=&#34;wwwh-where-dark&#34;&gt;Where&lt;/span&gt; / &lt;span class=&#34;wwwh-when-dark&#34;&gt;When&lt;/span&gt; / &lt;span class=&#34;wwwh-how-dark&#34;&gt;How&lt;/span&gt; (if you’re not familiar with those questions, you might want to read through &lt;a href=&#34;https://oreilly.com/ideas/the-world-beyond-batch-streaming-102&#34;&gt;Streaming 102&lt;/a&gt; for an overview). This table will be maintained over time as the model evolves, our understanding grows, and runners are created or features added.&lt;/p&gt;
+&lt;p&gt;Included below is a summary snapshot of our current understanding of the capabilities of the existing runners (see the &lt;a href=&#34;/documentation/runners/capability-matrix/&#34;&gt;live version&lt;/a&gt; for full details, descriptions, and Jira links); since integration is still under way, the system as whole isn’t yet in a completely stable, usable state. But that should be changing in the near future, and we’ll be updating loud and clear on this blog when the first supported Beam 1.0 release happens.&lt;/p&gt;
+&lt;p&gt;In the meantime, these tables should help clarify where we expect to be in the very near term, and help guide expectations about what existing runners are capable of, and what features runner implementers will be tackling next.&lt;/p&gt;
+&lt;p&gt;
+
+&lt;script type=&#34;text/javascript&#34;&gt;
+  function ToggleTables(showDetails, anchor) {
+    document.getElementById(&#34;cap-summary&#34;).style.display = showDetails ? &#34;none&#34; : &#34;block&#34;;
+    document.getElementById(&#34;cap-full&#34;).style.display = showDetails ? &#34;block&#34; : &#34;none&#34;;
+    location.hash = anchor;
+  }
+&lt;/script&gt;
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+&lt;div id=&#39;cap-blog&#39; style=&#39;display:block&#39;&gt;
+&lt;table class=&#39;cap-summary&#39;&gt;
+    
+        &lt;tr class=&#39;cap-summary&#39; id=&#39;cap-blog-what&#39;&gt;
+            &lt;th class=&#39;cap-summary color-metadata format-category&#39; colspan=&#39;8&#39; style=&#39;color:#ca1&#39;&gt;
+                
+                What is being computed?
+            &lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;th class=&#39;cap-summary color-capability&#39;&gt;&lt;/th&gt;
+
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#ec3&#39;&gt;Beam Model&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#ec3&#39;&gt;Google Cloud Dataflow&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#ec3&#39;&gt;Apache Flink&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#ec3&#39;&gt;Apache Spark&lt;/th&gt;
+            
+        &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;ParDo&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;GroupByKey&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Flatten&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Combine&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Composite Transforms&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Side Inputs&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Source API&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ec3;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Aggregators&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#fe5;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#ec3&#39;&gt;Keyed State&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#ca1&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;td class=&#39;cap-summary color-blank cap-blank&#39; colspan=&#39;5&#39;&gt;&lt;/td&gt;
+        &lt;/tr&gt;
+    
+        &lt;tr class=&#39;cap-summary&#39; id=&#39;cap-blog-where&#39;&gt;
+            &lt;th class=&#39;cap-summary color-metadata format-category&#39; colspan=&#39;8&#39; style=&#39;color:#37d&#39;&gt;
+                
+                Where in event time?
+            &lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;th class=&#39;cap-summary color-capability&#39;&gt;&lt;/th&gt;
+
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#59f&#39;&gt;Beam Model&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#59f&#39;&gt;Google Cloud Dataflow&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#59f&#39;&gt;Apache Flink&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#59f&#39;&gt;Apache Spark&lt;/th&gt;
+            
+        &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Global windows&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Fixed windows&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8cf;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    ~
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Sliding windows&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Session windows&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Custom windows&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Custom merging windows&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#59f&#39;&gt;Timestamp control&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#59f;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#37d&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;td class=&#39;cap-summary color-blank cap-blank&#39; colspan=&#39;5&#39;&gt;&lt;/td&gt;
+        &lt;/tr&gt;
+    
+        &lt;tr class=&#39;cap-summary&#39; id=&#39;cap-blog-when&#39;&gt;
+            &lt;th class=&#39;cap-summary color-metadata format-category&#39; colspan=&#39;8&#39; style=&#39;color:#6a4&#39;&gt;
+                
+                When in processing time?
+            &lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;th class=&#39;cap-summary color-capability&#39;&gt;&lt;/th&gt;
+
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#8c6&#39;&gt;Beam Model&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#8c6&#39;&gt;Google Cloud Dataflow&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#8c6&#39;&gt;Apache Flink&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#8c6&#39;&gt;Apache Spark&lt;/th&gt;
+            
+        &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Configurable triggering&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Event-time triggers&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Processing-time triggers&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Count triggers&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;[Meta]data driven triggers&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Composite triggers&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Allowed lateness&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#8c6;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#8c6&#39;&gt;Timers&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#6a4&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;td class=&#39;cap-summary color-blank cap-blank&#39; colspan=&#39;5&#39;&gt;&lt;/td&gt;
+        &lt;/tr&gt;
+    
+        &lt;tr class=&#39;cap-summary&#39; id=&#39;cap-blog-how&#39;&gt;
+            &lt;th class=&#39;cap-summary color-metadata format-category&#39; colspan=&#39;8&#39; style=&#39;color:#b55&#39;&gt;
+                
+                How do refinements relate?
+            &lt;/th&gt;
+        &lt;/tr&gt;
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;th class=&#39;cap-summary color-capability&#39;&gt;&lt;/th&gt;
+
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#d77&#39;&gt;Beam Model&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#d77&#39;&gt;Google Cloud Dataflow&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#d77&#39;&gt;Apache Flink&lt;/th&gt;
+            
+                &lt;th class=&#39;cap-summary color-platform format-platform&#39; style=&#39;color:#d77&#39;&gt;Apache Spark&lt;/th&gt;
+            
+        &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#d77&#39;&gt;Discarding&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#d77&#39;&gt;Accumulating&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#d77;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2713;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+            &lt;tr class=&#39;cap-summary&#39;&gt;
+                &lt;th class=&#39;cap-summary color-capability format-capability&#39; style=&#39;color:#d77&#39;&gt;Accumulating &amp;amp; Retracting&lt;/th&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+                    &lt;td width=&#39;25%&#39; class=&#39;cap-summary&#39; style=&#39;background-color:#ddd;border-color:#b55&#39;&gt;
+                        
+    
+        &lt;center&gt;
+            &lt;b&gt;
+                
+                    &amp;#x2715;
+                
+            &lt;/b&gt;
+            &lt;b&gt;
+                
+            &lt;/b&gt;
+        &lt;/center&gt;
+    
+
+                    &lt;/td&gt;
+                
+            &lt;/tr&gt;
+        
+        &lt;tr class=&#39;cap-summary&#39;&gt;
+            &lt;td class=&#39;cap-summary color-blank cap-blank&#39; colspan=&#39;5&#39;&gt;&lt;/td&gt;
+        &lt;/tr&gt;
+    
+&lt;/table&gt;
+&lt;/div&gt;
+&lt;/p&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Blog: Dataflow Python SDK is now public!</title>
+      <link>/blog/python-sdk-now-public/</link>
+      <pubDate>Thu, 25 Feb 2016 13:00:00 -0800</pubDate>
+      
+      <guid>/blog/python-sdk-now-public/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;When the Apache Beam project proposed entry into the &lt;a href=&#34;http://wiki.apache.org/incubator/BeamProposal&#34;&gt;Apache Incubator&lt;/a&gt; the proposal
+included the &lt;a href=&#34;https://github.com/GoogleCloudPlatform/DataflowJavaSDK&#34;&gt;Dataflow Java SDK&lt;/a&gt;. In the long term, however, Apache Beam aims to support SDKs implemented in multiple languages, such as Python.&lt;/p&gt;
+&lt;p&gt;Today, Google submitted the &lt;a href=&#34;http://github.com/GoogleCloudPlatform/DataflowPythonSDK&#34;&gt;Dataflow Python (2.x) SDK&lt;/a&gt; on GitHub. Google is committed to including the in progress python SDK in Apache Beam and, in that spirit, we&amp;rsquo;ve moved development of the Python SDK to a public repository. While this SDK will not be included with the initial (incubating) releases of Apache Beam, our we plan on incorporating the Python SDK into beam during incubation. We want to take the time to implement changes from the &lt;a href=&#34;https://goo.gl/nk5OM0&#34;&gt;technical vision&lt;/a&gt; into the Java SDK before we introduce a Python SDK for Apache Beam. We believe this will allow us to work on the model and SDKs in an ordered fashion.&lt;/p&gt;
+&lt;p&gt;You can look for the Apache Beam Python SDK in the coming months once we finish forking and refactoring the Java SDK.&lt;/p&gt;
+&lt;p&gt;Best,&lt;/p&gt;
+&lt;p&gt;Apache Beam Team&lt;/p&gt;
+      </description>
+    </item>
+    
+    <item>
+      <title>Blog: Apache Beam has a logo!</title>
+      <link>/blog/beam-has-a-logo/</link>
+      <pubDate>Mon, 22 Feb 2016 10:21:48 -0800</pubDate>
+      
+      <guid>/blog/beam-has-a-logo/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;One of the major benefits of Apache Beam is the fact that it unifies both
+both batch and stream processing into one powerful model. In fact, this unification
+is so important, the name Beam itself comes from the union of &lt;strong&gt;B&lt;/strong&gt;atch + str&lt;strong&gt;EAM&lt;/strong&gt; = Beam&lt;/p&gt;
+&lt;p&gt;When the project started, we wanted a logo which was both appealing and visually
+represented this unification.&lt;/p&gt;
+&lt;p&gt;Thanks to the &lt;strong&gt;amazing&lt;/strong&gt; work of Stephanie Smythies, the Apache Beam project
+now has a logo.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;drum roll&lt;/em&gt; - &lt;strong&gt;Presenting, the Apache Beam Logo!&lt;/strong&gt;&lt;/p&gt;
+&lt;img src=&#34;/images/beam_logo_s.png&#34; alt=&#34;Apache Beam Logo&#34;&gt;
+&lt;p&gt;We are excited about this logo because it is &lt;strong&gt;simple&lt;/strong&gt;, &lt;strong&gt;bright&lt;/strong&gt;, and shows the
+unification of bath and streaming, as beams of light, within the &amp;lsquo;B&amp;rsquo;. We will base
+our future website and documentation design around this logo and its coloring. We
+will also make various permutations and resolutions of this logo available in the
+coming weeks. For any questions or comments, send an email to the &lt;code&gt;dev@&lt;/code&gt; email list
+for Apache Beam.&lt;/p&gt;
+      </description>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,73 +1,54 @@
-<!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
 
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+ 
+ <!DOCTYPE html>
+ <html lang="en" class="no-js">
+ <head>
+   
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Nexmark benchmark suite</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/testing/nexmark/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+<title>Nexmark benchmark suite</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/sdks/java/testing/nexmark/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+ </head>
+ <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+   
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/sdks/nexmark.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/sdks/java/testing/nexmark.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+   <div class="clearfix container-main-content">
+     <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+       <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+       <nav>
+         <ul class="section-nav-list" data-section-nav>
+           
 
 <li><span class="section-nav-list-main-title">Languages</span></li>
 
@@ -267,81 +234,67 @@
   </ul>
 </li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#what-it-is">What it is</a></li>
-  <li><a href="#the-queries">The queries</a></li>
-  <li><a href="#benchmark-workload-configuration">Benchmark workload configuration</a>
-    <ul>
-      <li><a href="#events-generation-defaults">Events generation (defaults)</a></li>
-      <li><a href="#windows-defaults">Windows (defaults)</a></li>
-      <li><a href="#events-proportions-defaults">Events Proportions (defaults)</a></li>
-      <li><a href="#technical">Technical</a></li>
-    </ul>
-  </li>
-  <li><a href="#nexmark-output">Nexmark output</a></li>
-  <li><a href="#benchmark-launch-configuration">Benchmark launch configuration</a>
-    <ul>
-      <li><a href="#common-configuration-parameters">Common configuration parameters</a></li>
-      <li><a href="#available-suites">Available Suites</a></li>
-      <li><a href="#apex-runner-specific-configuration">Apex runner specific configuration</a></li>
-      <li><a href="#google-cloud-dataflow-runner-specific-configuration">Google Cloud Dataflow runner specific configuration</a></li>
-      <li><a href="#direct-runner-specific-configuration">Direct runner specific configuration</a></li>
-      <li><a href="#flink-runner-specific-configuration">Flink runner specific configuration</a></li>
-      <li><a href="#spark-runner-specific-configuration">Spark runner specific configuration</a></li>
-      <li><a href="#kafka-sourcesink-configuration-parameters">Kafka source/sink configuration parameters</a></li>
-    </ul>
-  </li>
-  <li><a href="#current-status">Current status</a>
-    <ul>
-      <li><a href="#batch--synthetic--local">Batch / Synthetic / Local</a></li>
-      <li><a href="#streaming--synthetic--local">Streaming / Synthetic / Local</a></li>
-      <li><a href="#batch--synthetic--cluster">Batch / Synthetic / Cluster</a></li>
-      <li><a href="#streaming--synthetic--cluster">Streaming / Synthetic / Cluster</a></li>
-    </ul>
-  </li>
-  <li><a href="#running-nexmark">Running Nexmark</a>
-    <ul>
-      <li><a href="#running-smoke-suite-on-the-directrunner-local">Running SMOKE suite on the DirectRunner (local)</a></li>
-      <li><a href="#running-smoke-suite-on-the-sparkrunner-local">Running SMOKE suite on the SparkRunner (local)</a></li>
-      <li><a href="#running-smoke-suite-on-the-flinkrunner-local">Running SMOKE suite on the FlinkRunner (local)</a></li>
-      <li><a href="#running-smoke-suite-on-the-apexrunner-local">Running SMOKE suite on the ApexRunner (local)</a></li>
-      <li><a href="#running-smoke-suite-on-google-cloud-dataflow">Running SMOKE suite on Google Cloud Dataflow</a></li>
-      <li><a href="#running-query-0-on-a-spark-cluster-with-apache-hadoop-yarn">Running query 0 on a Spark cluster with Apache Hadoop YARN</a></li>
-    </ul>
-  </li>
-  <li><a href="#nexmark-dashboards">Nexmark dashboards</a>
-    <ul>
-      <li><a href="#dashboards-content">Dashboards content</a></li>
-      <li><a href="#performance-dashboards-links">Performance dashboards links</a></li>
-      <li><a href="#output-size-dashboards-links">Output size dashboards links</a></li>
-    </ul>
-  </li>
-</ul>
-
-
-      </nav>
-
-      <div class="body__contained body__section-nav">
-        <!--
+         </ul>
+       </nav>
+     </div>
+ 
+     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+       <nav id="TableOfContents">
+  <ul>
+    <li><a href="#what-it-is">What it is</a></li>
+    <li><a href="#the-queries">The queries</a></li>
+    <li><a href="#benchmark-workload-configuration">Benchmark workload configuration</a>
+      <ul>
+        <li><a href="#events-generation-defaults">Events generation (defaults)</a></li>
+        <li><a href="#windows-defaults">Windows (defaults)</a></li>
+        <li><a href="#events-proportions-defaults">Events Proportions (defaults)</a></li>
+        <li><a href="#technical">Technical</a></li>
+      </ul>
+    </li>
+    <li><a href="#nexmark-output">Nexmark output</a></li>
+    <li><a href="#benchmark-launch-configuration">Benchmark launch configuration</a>
+      <ul>
+        <li><a href="#common-configuration-parameters">Common configuration parameters</a></li>
+        <li><a href="#available-suites">Available Suites</a></li>
+        <li><a href="#apex-runner-specific-configuration">Apex runner specific configuration</a></li>
+        <li><a href="#google-cloud-dataflow-runner-specific-configuration">Google Cloud Dataflow runner specific configuration</a></li>
+        <li><a href="#direct-runner-specific-configuration">Direct runner specific configuration</a></li>
+        <li><a href="#flink-runner-specific-configuration">Flink runner specific configuration</a></li>
+        <li><a href="#spark-runner-specific-configuration">Spark runner specific configuration</a></li>
+        <li><a href="#kafka-sourcesink-configuration-parameters">Kafka source/sink configuration parameters</a></li>
+      </ul>
+    </li>
+    <li><a href="#current-status">Current status</a>
+      <ul>
+        <li><a href="#batch--synthetic--local">Batch / Synthetic / Local</a></li>
+        <li><a href="#streaming--synthetic--local">Streaming / Synthetic / Local</a></li>
+        <li><a href="#batch--synthetic--cluster">Batch / Synthetic / Cluster</a></li>
+        <li><a href="#streaming--synthetic--cluster">Streaming / Synthetic / Cluster</a></li>
+      </ul>
+    </li>
+    <li><a href="#running-nexmark">Running Nexmark</a>
+      <ul>
+        <li><a href="#running-smoke-suite-on-the-directrunner-local">Running SMOKE suite on the DirectRunner (local)</a></li>
+        <li><a href="#running-smoke-suite-on-the-sparkrunner-local">Running SMOKE suite on the SparkRunner (local)</a></li>
+        <li><a href="#running-smoke-suite-on-the-flinkrunner-local">Running SMOKE suite on the FlinkRunner (local)</a></li>
+        <li><a href="#running-smoke-suite-on-the-apexrunner-local">Running SMOKE suite on the ApexRunner (local)</a></li>
+        <li><a href="#running-smoke-suite-on-google-cloud-dataflow">Running SMOKE suite on Google Cloud Dataflow</a></li>
+        <li><a href="#running-query-0-on-a-spark-cluster-with-apache-hadoop-yarn">Running query 0 on a Spark cluster with Apache Hadoop YARN</a></li>
+      </ul>
+    </li>
+    <li><a href="#nexmark-dashboards">Nexmark dashboards</a>
+      <ul>
+        <li><a href="#dashboards-content">Dashboards content</a></li>
+        <li><a href="#performance-dashboards-links">Performance dashboards links</a></li>
+        <li><a href="#output-size-dashboards-links">Output size dashboards links</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+     </nav>
+ 
+     <div class="body__contained body__section-nav">
+       <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -355,118 +308,95 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <h1 id="nexmark-benchmark-suite">Nexmark benchmark suite</h1>
-
 <h2 id="what-it-is">What it is</h2>
-
-<p>Nexmark is a suite of pipelines inspired by the ‘continuous data stream’
+<p>Nexmark is a suite of pipelines inspired by the &lsquo;continuous data stream&rsquo;
 queries in <a href="https://web.archive.org/web/20100620010601/http://datalab.cs.pdx.edu/niagaraST/NEXMark/">Nexmark research
 paper</a></p>
-
 <p>These are multiple queries over a three entities model representing on online
 auction system:</p>
-
 <ul>
-  <li><strong>Person</strong> represents a person submitting an item for auction and/or making
+<li><strong>Person</strong> represents a person submitting an item for auction and/or making
 a bid on an auction.</li>
-  <li><strong>Auction</strong> represents an item under auction.</li>
-  <li><strong>Bid</strong> represents a bid for an item under auction.</li>
+<li><strong>Auction</strong> represents an item under auction.</li>
+<li><strong>Bid</strong> represents a bid for an item under auction.</li>
 </ul>
-
 <h2 id="the-queries">The queries</h2>
-
 <p>The queries exercise many aspects of Beam model:</p>
-
 <ul>
-  <li><strong>Query1</strong> or <strong>CURRENCY_CONVERSION</strong>: What are the bid values in Euro’s?
+<li><strong>Query1</strong> or <strong>CURRENCY_CONVERSION</strong>: What are the bid values in Euro&rsquo;s?
 Illustrates a simple map.</li>
-  <li><strong>Query2</strong> or <strong>SELECTION</strong>: What are the auctions with particular auction numbers?
+<li><strong>Query2</strong> or <strong>SELECTION</strong>: What are the auctions with particular auction numbers?
 Illustrates a simple filter.</li>
-  <li><strong>Query3</strong> or <strong>LOCAL_ITEM_SUGGESTION</strong>: Who is selling in particular US states?
+<li><strong>Query3</strong> or <strong>LOCAL_ITEM_SUGGESTION</strong>: Who is selling in particular US states?
 Illustrates an incremental join (using per-key state and timer) and filter.</li>
-  <li><strong>Query4</strong> or <strong>AVERAGE_PRICE_FOR_CATEGORY</strong>: What is the average selling price for each auction
+<li><strong>Query4</strong> or <strong>AVERAGE_PRICE_FOR_CATEGORY</strong>: What is the average selling price for each auction
 category?
 Illustrates complex join (using custom window functions) and
 aggregation.</li>
-  <li><strong>Query5</strong> or <strong>HOT_ITEMS</strong>: Which auctions have seen the most bids in the last period?
+<li><strong>Query5</strong> or <strong>HOT_ITEMS</strong>: Which auctions have seen the most bids in the last period?
 Illustrates sliding windows and combiners.</li>
-  <li><strong>Query6</strong> or <strong>AVERAGE_SELLING_PRICE_BY_SELLER</strong>: What is the average selling price per seller for their
+<li><strong>Query6</strong> or <strong>AVERAGE_SELLING_PRICE_BY_SELLER</strong>: What is the average selling price per seller for their
 last 10 closed auctions.
-Shares the same ‘winning bids’ core as for <strong>Query4</strong>, and
+Shares the same &lsquo;winning bids&rsquo; core as for <strong>Query4</strong>, and
 illustrates a specialized combiner.</li>
-  <li><strong>Query7</strong> or <strong>HIGHEST_BID</strong>: What are the highest bids per period?
+<li><strong>Query7</strong> or <strong>HIGHEST_BID</strong>: What are the highest bids per period?
 Deliberately implemented using a side input to illustrate fanout.</li>
-  <li><strong>Query8</strong> or <strong>MONITOR_NEW_USERS</strong>: Who has entered the system and created an auction in
+<li><strong>Query8</strong> or <strong>MONITOR_NEW_USERS</strong>: Who has entered the system and created an auction in
 the last period?
 Illustrates a simple join.</li>
 </ul>
-
 <p>We have augmented the original queries with five more:</p>
-
 <ul>
-  <li><strong>Query0</strong> or <strong>PASSTHROUGH</strong>: Pass-through.
+<li><strong>Query0</strong> or <strong>PASSTHROUGH</strong>: Pass-through.
 Allows us to measure the monitoring overhead.</li>
-  <li><strong>Query9</strong> or <strong>WINNING_BIDS</strong>: Winning-bids.
+<li><strong>Query9</strong> or <strong>WINNING_BIDS</strong>: Winning-bids.
 A common sub-query shared by <strong>Query4</strong> and <strong>Query6</strong>.</li>
-  <li><strong>Query10</strong> or <strong>LOG_TO_SHARDED_FILES</strong>: Log all events to GCS files.
+<li><strong>Query10</strong> or <strong>LOG_TO_SHARDED_FILES</strong>: Log all events to GCS files.
 Illustrates windows with large side effects on firing.</li>
-  <li><strong>Query11</strong> or <strong>USER_SESSIONS</strong>: How many bids did a user make in each session they
+<li><strong>Query11</strong> or <strong>USER_SESSIONS</strong>: How many bids did a user make in each session they
 were active?
 Illustrates session windows.</li>
-  <li><strong>Query12</strong> or <strong>PROCESSING_TIME_WINDOWS</strong>: How many bids does a user make within a fixed
+<li><strong>Query12</strong> or <strong>PROCESSING_TIME_WINDOWS</strong>: How many bids does a user make within a fixed
 processing time limit?
 Illustrates working in processing time in the Global window, as
 compared with event time in non-Global windows for all the other
 queries.</li>
-  <li><strong>BOUNDED_SIDE_INPUT_JOIN</strong>: Joins a stream to a bounded side input, modeling basic stream enrichment.</li>
+<li><strong>BOUNDED_SIDE_INPUT_JOIN</strong>: Joins a stream to a bounded side input, modeling basic stream enrichment.</li>
 </ul>
-
 <h2 id="benchmark-workload-configuration">Benchmark workload configuration</h2>
-
 <p>Here are some of the knobs of the benchmark workload (see
 <a href="https://github.com/apache/beam/blob/master/sdks/java/testing/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java">NexmarkConfiguration.java</a>).</p>
-
 <p>These configuration items can be passed to the launch command line.</p>
-
 <h3 id="events-generation-defaults">Events generation (defaults)</h3>
-
 <ul>
-  <li>100 000 events generated</li>
-  <li>100 generator threads</li>
-  <li>Event rate in SIN curve</li>
-  <li>Initial event rate of 10 000</li>
-  <li>Event rate step of 10 000</li>
-  <li>100 concurrent auctions</li>
-  <li>1000 concurrent persons bidding / creating auctions</li>
+<li>100 000 events generated</li>
+<li>100 generator threads</li>
+<li>Event rate in SIN curve</li>
+<li>Initial event rate of 10 000</li>
+<li>Event rate step of 10 000</li>
+<li>100 concurrent auctions</li>
+<li>1000 concurrent persons bidding / creating auctions</li>
 </ul>
-
 <h3 id="windows-defaults">Windows (defaults)</h3>
-
 <ul>
-  <li>size 10s</li>
-  <li>sliding period 5s</li>
-  <li>watermark hold for 0s</li>
+<li>size 10s</li>
+<li>sliding period 5s</li>
+<li>watermark hold for 0s</li>
 </ul>
-
 <h3 id="events-proportions-defaults">Events Proportions (defaults)</h3>
-
 <ul>
-  <li>Hot Auctions = ½</li>
-  <li>Hot Bidders =¼</li>
-  <li>Hot Sellers=¼</li>
+<li>Hot Auctions = ½</li>
+<li>Hot Bidders =¼</li>
+<li>Hot Sellers=¼</li>
 </ul>
-
 <h3 id="technical">Technical</h3>
-
 <ul>
-  <li>Artificial CPU load</li>
-  <li>Artificial IO load</li>
+<li>Artificial CPU load</li>
+<li>Artificial IO load</li>
 </ul>
-
 <h2 id="nexmark-output">Nexmark output</h2>
-
 <p>Here is an example output of the Nexmark benchmark run in streaming mode with
 the SMOKE suite on the (local) direct runner:</p>
-
 <pre>
 Performance:
   Conf       Runtime(sec)         Events(/sec)         Results
@@ -484,150 +414,104 @@ Performance:
   0011                4,4              22655,2            1919
   0012                3,5              28208,7            1919
 </pre>
-
 <h2 id="benchmark-launch-configuration">Benchmark launch configuration</h2>
-
-<p>The Nexmark launcher accepts the <code class="highlighter-rouge">--runner</code> argument as usual for programs that
+<p>The Nexmark launcher accepts the <code>--runner</code> argument as usual for programs that
 use Beam PipelineOptions to manage their command line arguments. In addition
 to this, the necessary dependencies must be configured.</p>
-
 <p>When running via Gradle, the following two parameters control the execution:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-P nexmark.args
+<pre><code>-P nexmark.args
     The command line to pass to the Nexmark main program.
 
 -P nexmark.runner
-The Gradle project name of the runner, such as ":runners:direct-java" or
-":runners:flink:1.10. The project names can be found in the root
+The Gradle project name of the runner, such as &quot;:runners:direct-java&quot; or
+&quot;:runners:flink:1.10. The project names can be found in the root
     `settings.gradle`.
-</code></pre></div></div>
-
+</code></pre>
 <p>Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,
 or may be published to Pub/Sub or Kafka.</p>
-
 <p>The query results may be:</p>
-
 <ul>
-  <li>Published to Pub/Sub or Kafka.</li>
-  <li>Written to text files as plain text.</li>
-  <li>Written to text files using an Avro encoding.</li>
-  <li>Sent to BigQuery.</li>
-  <li>Discarded.</li>
+<li>Published to Pub/Sub or Kafka.</li>
+<li>Written to text files as plain text.</li>
+<li>Written to text files using an Avro encoding.</li>
+<li>Sent to BigQuery.</li>
+<li>Discarded.</li>
 </ul>
-
 <h3 id="common-configuration-parameters">Common configuration parameters</h3>
-
 <p>Decide if batch or streaming:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--streaming=true
-</code></pre></div></div>
-
+<pre><code>--streaming=true
+</code></pre>
 <p>Number of events generators:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--numEventGenerators=4
-</code></pre></div></div>
-
+<pre><code>--numEventGenerators=4
+</code></pre>
 <p>Queries can be run by their name or by their number (number is still there for backward compatibility, only the queries 0 to 12 have a number)</p>
-
 <p>Run query <strong>N</strong>:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--query=N
-</code></pre></div></div>
-
+<pre><code>--query=N
+</code></pre>
 <p>Run query called <strong>PASSTHROUGH</strong>:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--query=PASSTHROUGH
-</code></pre></div></div>
-
+<pre><code>--query=PASSTHROUGH
+</code></pre>
 <h3 id="available-suites">Available Suites</h3>
 <p>The suite to run can be chosen using this configuration parameter:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--suite=SUITE
-</code></pre></div></div>
-
+<pre><code>--suite=SUITE
+</code></pre>
 <p>Available suites are:</p>
 <ul>
-  <li>DEFAULT: Test default configuration with query 0.
-    <ul>
-      <li>SMOKE: Run all the queries with the default configuration.</li>
-    </ul>
-  </li>
-  <li>STRESS: Like smoke but for 1m events.</li>
-  <li>FULL_THROTTLE: Like SMOKE but 100m events.</li>
+<li>DEFAULT: Test default configuration with query 0.
+<ul>
+<li>SMOKE: Run all the queries with the default configuration.</li>
 </ul>
-
+</li>
+<li>STRESS: Like smoke but for 1m events.</li>
+<li>FULL_THROTTLE: Like SMOKE but 100m events.</li>
+</ul>
 <h3 id="apex-runner-specific-configuration">Apex runner specific configuration</h3>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=false
-</code></pre></div></div>
-
+<pre><code>--manageResources=false --monitorJobs=false
+</code></pre>
 <h3 id="google-cloud-dataflow-runner-specific-configuration">Google Cloud Dataflow runner specific configuration</h3>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<pre><code>--manageResources=false --monitorJobs=true \
 --enforceEncodability=false --enforceImmutability=false
 --project=&lt;your project&gt; \
---region=&lt;your region&gt; \
 --zone=&lt;your zone&gt; \
 --workerMachineType=n1-highmem-8 \
 --stagingLocation=gs://&lt;a gs path for staging&gt; \
 --runner=DataflowRunner \
 --tempLocation=gs://&lt;a gs path for temporary files&gt; \
 --filesToStage=target/beam-sdks-java-nexmark-2.20.0.jar
-</code></pre></div></div>
-
+</code></pre>
 <h3 id="direct-runner-specific-configuration">Direct runner specific configuration</h3>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<pre><code>--manageResources=false --monitorJobs=true \
 --enforceEncodability=false --enforceImmutability=false
-</code></pre></div></div>
-
+</code></pre>
 <h3 id="flink-runner-specific-configuration">Flink runner specific configuration</h3>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<pre><code>--manageResources=false --monitorJobs=true \
 --flinkMaster=[local] --parallelism=#numcores
-</code></pre></div></div>
-
+</code></pre>
 <h3 id="spark-runner-specific-configuration">Spark runner specific configuration</h3>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+<pre><code>--manageResources=false --monitorJobs=true \
 --sparkMaster=local \
 -Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
-</code></pre></div></div>
-
+</code></pre>
 <h3 id="kafka-sourcesink-configuration-parameters">Kafka source/sink configuration parameters</h3>
-
-<p>Set Kafka host/ip (for example, “localhost:9092”):</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--bootstrapServers=&lt;kafka host/ip&gt; 
-</code></pre></div></div>
-
+<p>Set Kafka host/ip (for example, &ldquo;localhost:9092&rdquo;):</p>
+<pre><code>--bootstrapServers=&lt;kafka host/ip&gt; 
+</code></pre>
 <p>Write results into Kafka topic:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--sinkType=KAFKA
-</code></pre></div></div>
-
+<pre><code>--sinkType=KAFKA
+</code></pre>
 <p>Set topic name which will be used for benchmark results:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--kafkaResultsTopic=&lt;topic name&gt;
-</code></pre></div></div>
-
+<pre><code>--kafkaResultsTopic=&lt;topic name&gt;
+</code></pre>
 <p>Write or/and read events into/from Kafka topic:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--sourceType=KAFKA
-</code></pre></div></div>
-
+<pre><code>--sourceType=KAFKA
+</code></pre>
 <p>Set topic name which will be used for benchmark events:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>--kafkaTopic=&lt;topic name&gt;
-</code></pre></div></div>
-
+<pre><code>--kafkaTopic=&lt;topic name&gt;
+</code></pre>
 <h2 id="current-status">Current status</h2>
-
 <p>These tables contain statuses of the queries runs in the different runners. Google Cloud Dataflow and Apache Gearpump statuses are yet to come.</p>
-
 <h3 id="batch--synthetic--local">Batch / Synthetic / Local</h3>
-
 <table class="table table-bordered">
     <tr>
       <th>Query</th>
@@ -735,9 +619,7 @@ or may be published to Pub/Sub or Kafka.</p>
       <td>ok</td>
     </tr>
 </table>
-
 <h3 id="streaming--synthetic--local">Streaming / Synthetic / Local</h3>
-
 <table class="table table-bordered">
     <tr>
       <th>Query</th>
@@ -845,161 +727,127 @@ or may be published to Pub/Sub or Kafka.</p>
           <td>ok</td>
         </tr>
 </table>
-
 <h3 id="batch--synthetic--cluster">Batch / Synthetic / Cluster</h3>
-
 <p>Yet to come</p>
-
 <h3 id="streaming--synthetic--cluster">Streaming / Synthetic / Cluster</h3>
-
 <p>Yet to come</p>
-
 <h2 id="running-nexmark">Running Nexmark</h2>
-
 <h3 id="running-smoke-suite-on-the-directrunner-local">Running SMOKE suite on the DirectRunner (local)</h3>
-
-<p>The DirectRunner is default, so it is not required to pass <code class="highlighter-rouge">-Pnexmark.runner</code>.
+<p>The DirectRunner is default, so it is not required to pass <code>-Pnexmark.runner</code>.
 Here we do it for maximum clarity.</p>
-
 <p>The direct runner does not have separate batch and streaming modes, but the
 Nexmark launch does.</p>
-
-<p>These parameters leave on many of the DirectRunner’s extra safety checks so the
+<p>These parameters leave on many of the DirectRunner&rsquo;s extra safety checks so the
 SMOKE suite can make sure there is nothing broken in the Nexmark suite.</p>
-
 <p>Batch Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:direct-java" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:direct-java&quot; \
+    -Pnexmark.args=&quot;
         --runner=DirectRunner
         --streaming=false
         --suite=SMOKE
         --manageResources=false
         --monitorJobs=true
         --enforceEncodability=true
-        --enforceImmutability=true"
-</code></pre></div></div>
-
+        --enforceImmutability=true&quot;
+</code></pre>
 <p>Streaming Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:direct-java" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:direct-java&quot; \
+    -Pnexmark.args=&quot;
         --runner=DirectRunner
         --streaming=true
         --suite=SMOKE
         --manageResources=false
         --monitorJobs=true
         --enforceEncodability=true
-        --enforceImmutability=true"
-</code></pre></div></div>
-
+        --enforceImmutability=true&quot;
+</code></pre>
 <h3 id="running-smoke-suite-on-the-sparkrunner-local">Running SMOKE suite on the SparkRunner (local)</h3>
-
 <p>The SparkRunner is special-cased in the Nexmark gradle launch. The task will
 provide the version of Spark that the SparkRunner is built against, and
 configure logging.</p>
-
 <p>Batch Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:spark" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:spark&quot; \
+    -Pnexmark.args=&quot;
         --runner=SparkRunner
         --suite=SMOKE
         --streamTimeout=60
         --streaming=false
         --manageResources=false
-        --monitorJobs=true"
-</code></pre></div></div>
-
+        --monitorJobs=true&quot;
+</code></pre>
 <p>Streaming Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:spark" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:spark&quot; \
+    -Pnexmark.args=&quot;
         --runner=SparkRunner
         --suite=SMOKE
         --streamTimeout=60
         --streaming=true
         --manageResources=false
-        --monitorJobs=true"
-</code></pre></div></div>
-
+        --monitorJobs=true&quot;
+</code></pre>
 <h3 id="running-smoke-suite-on-the-flinkrunner-local">Running SMOKE suite on the FlinkRunner (local)</h3>
-
 <p>Batch Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:flink:1.10" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:flink:1.9&quot; \
+    -Pnexmark.args=&quot;
         --runner=FlinkRunner
         --suite=SMOKE
         --streamTimeout=60
         --streaming=false
         --manageResources=false
         --monitorJobs=true
-        --flinkMaster=[local]"
-</code></pre></div></div>
-
+        --flinkMaster=[local]&quot;
+</code></pre>
 <p>Streaming Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:flink:1.10" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:flink:1.9&quot; \
+    -Pnexmark.args=&quot;
         --runner=FlinkRunner
         --suite=SMOKE
         --streamTimeout=60
         --streaming=true
         --manageResources=false
         --monitorJobs=true
-        --flinkMaster=[local]"
-</code></pre></div></div>
-
+        --flinkMaster=[local]&quot;
+</code></pre>
 <h3 id="running-smoke-suite-on-the-apexrunner-local">Running SMOKE suite on the ApexRunner (local)</h3>
-
 <p>Batch Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:apex" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:apex&quot; \
+    -Pnexmark.args=&quot;
         --runner=ApexRunner
         --suite=SMOKE
         --streamTimeout=60
         --streaming=false
         --manageResources=false
-        --monitorJobs=true"
-</code></pre></div></div>
-
+        --monitorJobs=true&quot;
+</code></pre>
 <p>Streaming Mode:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:apex" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:apex&quot; \
+    -Pnexmark.args=&quot;
         --runner=ApexRunner
         --suite=SMOKE
         --streamTimeout=60
         --streaming=true
         --manageResources=false
-        --monitorJobs=true"
-</code></pre></div></div>
-
+        --monitorJobs=true&quot;
+</code></pre>
 <h3 id="running-smoke-suite-on-google-cloud-dataflow">Running SMOKE suite on Google Cloud Dataflow</h3>
-
 <p>Set these up first so the below command is valid</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PROJECT=&lt;your project&gt;
+<pre><code>PROJECT=&lt;your project&gt;
 ZONE=&lt;your zone&gt;
 STAGING_LOCATION=gs://&lt;a GCS path for staging&gt;
 PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
-</code></pre></div></div>
-
+</code></pre>
 <p>Launch:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=":runners:google-cloud-dataflow-java" \
-    -Pnexmark.args="
+<pre><code>./gradlew :sdks:java:testing:nexmark:run \
+    -Pnexmark.runner=&quot;:runners:google-cloud-dataflow-java&quot; \
+    -Pnexmark.args=&quot;
         --runner=DataflowRunner
         --suite=SMOKE
         --streamTimeout=60
@@ -1007,7 +855,6 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
         --manageResources=false
         --monitorJobs=true
         --project=${PROJECT}
-        --region=${REGION}
         --zone=${ZONE}
         --workerMachineType=n1-highmem-8
         --stagingLocation=${STAGING_LOCATION}
@@ -1031,19 +878,14 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
         --numEvents=0
         --useWallclockEventTime=true
         --usePubsubPublishTime=true
-        --experiments=enable_custom_pubsub_sink"
-</code></pre></div></div>
-
+        --experiments=enable_custom_pubsub_sink&quot;
+</code></pre>
 <h3 id="running-query-0-on-a-spark-cluster-with-apache-hadoop-yarn">Running query 0 on a Spark cluster with Apache Hadoop YARN</h3>
-
 <p>Building package:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:java:testing:nexmark:assemble
-</code></pre></div></div>
-
+<pre><code>./gradlew :sdks:java:testing:nexmark:assemble
+</code></pre>
 <p>Submit to the cluster:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>spark-submit \
+<pre><code>spark-submit \
     --class org.apache.beam.sdk.nexmark.Main \
     --master yarn-client \
     --driver-memory 512m \
@@ -1055,81 +897,55 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
         --streamTimeout=60 \
         --streaming=false \
         --manageResources=false \
-        --monitorJobs=true"
-</code></pre></div></div>
-
+        --monitorJobs=true&quot;
+</code></pre>
 <h2 id="nexmark-dashboards">Nexmark dashboards</h2>
 <p>Below dashboards are used as a CI mechanism to detect no-regression on the Beam components. They are not supposed to be benchmark comparision of the runners or engines. Especially because:</p>
 <ul>
-  <li>Parameters of the runners are not the same</li>
-  <li>Nexmark is run with the runners in local (most of the time embedded) mode</li>
-  <li>Nexmark runs on a shared machine that also run all the CI and build.</li>
-  <li>Runners have different support of the Beam model</li>
-  <li>Runners have different strengths that make comparison difficult:
-    <ul>
-      <li>Some runners were designed to be batch oriented, others streaming oriented</li>
-      <li>Some are designed towards sub-second latency, others support auto-scaling</li>
-    </ul>
-  </li>
+<li>Parameters of the runners are not the same</li>
+<li>Nexmark is run with the runners in local (most of the time embedded) mode</li>
+<li>Nexmark runs on a shared machine that also run all the CI and build.</li>
+<li>Runners have different support of the Beam model</li>
+<li>Runners have different strengths that make comparison difficult:
+<ul>
+<li>Some runners were designed to be batch oriented, others streaming oriented</li>
+<li>Some are designed towards sub-second latency, others support auto-scaling</li>
 </ul>
-
+</li>
+</ul>
 <h3 id="dashboards-content">Dashboards content</h3>
 <p>At each commit on master, Nexmark suites are run and plots are created on the graphs.</p>
-
 <p>There are 2 kinds of dashboards:</p>
 <ul>
-  <li>one for performances (run times of the queries)</li>
-  <li>one for the size of the output PCollection (which should be constant)</li>
+<li>one for performances (run times of the queries)</li>
+<li>one for the size of the output PCollection (which should be constant)</li>
 </ul>
-
 <p>There are dashboards for these runners (others to come):</p>
 <ul>
-  <li>spark</li>
-  <li>flink</li>
-  <li>direct runner</li>
+<li>spark</li>
+<li>flink</li>
+<li>direct runner</li>
 </ul>
-
 <p>Each dashboard contains:</p>
 <ul>
-  <li>graphs in batch mode</li>
-  <li>graphs in streaming mode</li>
-  <li>graphs for all the queries.</li>
+<li>graphs in batch mode</li>
+<li>graphs in streaming mode</li>
+<li>graphs for all the queries.</li>
 </ul>
-
 <h3 id="performance-dashboards-links">Performance dashboards links</h3>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5084698770407424">Nexmark performance direct runner</a></p>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5699257587728384">Nexmark performance flink runner</a></p>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5138380291571712">Nexmark performance spark runner</a></p>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5670405876482048">Nexmark performance dataflow runner</a></p>
-
 <h3 id="output-size-dashboards-links">Output size dashboards links</h3>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5099379773931520">Nexmark output size direct runner</a></p>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5731568492478464">Nexmark output size flink runner</a></p>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5163657986048000">Nexmark output size spark runner</a></p>
-
 <p><a href="https://apache-beam-testing.appspot.com/explore?dashboard=5647201107705856">Nexmark output size dataflow runner</a></p>
 
-
-      </div>
-    </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+     </div>
+   </div>
+ 
 
 <footer class="footer">
   <div class="footer__contained">
@@ -1144,47 +960,45 @@ PUBSUB_TOPCI=&lt;existing pubsub topic&gt;
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
-</html>
+ </body>
+ </html>
+ 

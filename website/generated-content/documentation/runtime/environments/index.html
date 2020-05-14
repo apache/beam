@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Container environments</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/runtime/environments/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Container environments</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/runtime/environments/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/runtime/environments.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/runtime/environments.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,46 +432,32 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#customizing-container-images">Customizing container images</a>
-    <ul>
-      <li><a href="#writing-new-dockerfiles">Writing new Dockerfiles on top of the original</a></li>
-      <li><a href="#modifying-dockerfiles">Modifying the original Dockerfile</a></li>
-      <li><a href="#testing-customized-images">Testing customized images</a></li>
-    </ul>
-  </li>
-  <li><a href="#building-container-images">Building container images</a>
-    <ul>
-      <li><a href="#overriding-default-docker-targets">Overriding default Docker targets</a></li>
-    </ul>
-  </li>
-  <li><a href="#pushing-container-images">Pushing container images</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#customizing-container-images">Customizing container images</a>
+      <ul>
+        <li><a href="#writing-new-dockerfiles">Writing new Dockerfiles on top of the original</a></li>
+        <li><a href="#modifying-dockerfiles">Modifying the original Dockerfile</a></li>
+        <li><a href="#testing-customized-images">Testing customized images</a></li>
+      </ul>
+    </li>
+    <li><a href="#building-container-images">Building container images</a>
+      <ul>
+        <li><a href="#overriding-default-docker-targets">Overriding default Docker targets</a></li>
+      </ul>
+    </li>
+    <li><a href="#pushing-container-images">Pushing container images</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -517,62 +470,63 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="container-environments">Container environments</h1>
-
 <p>The Beam SDK runtime environment is isolated from other runtime systems because the SDK runtime environment is <a href="https://s.apache.org/beam-fn-api-container-contract">containerized</a> with <a href="https://www.docker.com/">Docker</a>. This means that any execution engine can run the Beam SDK.</p>
-
 <p>This page describes how to customize, build, and push Beam SDK container images.</p>
-
 <p>Before you begin, install <a href="https://www.docker.com/">Docker</a> on your workstation.</p>
-
 <h2 id="customizing-container-images">Customizing container images</h2>
-
-<p>You can add extra dependencies to container images so that you don’t have to supply the dependencies to execution engines.</p>
-
+<p>You can add extra dependencies to container images so that you don&rsquo;t have to supply the dependencies to execution engines.</p>
 <p>To customize a container image, either:</p>
 <ul>
-  <li><a href="#writing-new-dockerfiles">Write a new</a> <a href="https://docs.docker.com/engine/reference/builder/">Dockerfile</a> on top of the original.</li>
-  <li><a href="#modifying-dockerfiles">Modify</a> the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">original Dockerfile</a> and reimage the container.</li>
+<li><a href="#writing-new-dockerfiles">Write a new</a> <a href="https://docs.docker.com/engine/reference/builder/">Dockerfile</a> on top of the original.</li>
+<li><a href="#modifying-dockerfiles">Modify</a> the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">original Dockerfile</a> and reimage the container.</li>
 </ul>
-
-<p>It’s often easier to write a new Dockerfile. However, by modifying the original Dockerfile, you can customize anything (including the base OS).</p>
-
+<p>It&rsquo;s often easier to write a new Dockerfile. However, by modifying the original Dockerfile, you can customize anything (including the base OS).</p>
 <h3 id="writing-new-dockerfiles">Writing new Dockerfiles on top of the original</h3>
-
 <ol>
-  <li>Pull a <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">prebuilt SDK container image</a> for your <a href="https://docs.docker.com/docker-hub/repos/#searching-for-repositories">target</a> language and version. The following example pulls the latest Python SDK:
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker pull apache/beam_python3.7_sdk
-</code></pre></div>    </div>
-  </li>
-  <li><a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile</a> that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>.</li>
-  <li><a href="#building-container-images">Build</a> a child image.</li>
+<li>Pull a <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">prebuilt SDK container image</a> for your <a href="https://docs.docker.com/docker-hub/repos/#searching-for-repositories">target</a> language and version. The following example pulls the latest Python SDK:</li>
 </ol>
-
+<pre><code>docker pull apache/beam_python3.7_sdk
+</code></pre><ol start="2">
+<li><a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile</a> that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>.</li>
+<li><a href="#building-container-images">Build</a> a child image.</li>
+</ol>
 <h3 id="modifying-dockerfiles">Modifying the original Dockerfile</h3>
-
 <ol>
-  <li>Clone the <code class="highlighter-rouge">beam</code> repository:
-    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>git clone https://github.com/apache/beam.git
-</code></pre></div>    </div>
-  </li>
-  <li>Customize the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile</a>. If you’re adding dependencies from <a href="https://pypi.org/">PyPI</a>, use <a href="https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt"><code class="highlighter-rouge">base_image_requirements.txt</code></a> instead.</li>
-  <li><a href="#building-container-images">Reimage</a> the container.</li>
+<li>Clone the <code>beam</code> repository:</li>
 </ol>
-
+<pre><code>git clone https://github.com/apache/beam.git
+</code></pre><ol start="2">
+<li>Customize the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile</a>. If you&rsquo;re adding dependencies from <a href="https://pypi.org/">PyPI</a>, use <a href="https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt"><code>base_image_requirements.txt</code></a> instead.</li>
+<li><a href="#building-container-images">Reimage</a> the container.</li>
+</ol>
 <h3 id="testing-customized-images">Testing customized images</h3>
+<p>To test a customized image locally, run a pipeline with PortableRunner and set the <code>--environment_config</code> flag to the image path:</p>
 
-<p>To test a customized image locally, run a pipeline with PortableRunner and set the <code class="highlighter-rouge">--environment_config</code> flag to the image path:</p>
 
-<div class="runner-direct highlighter-rouge"><div class="highlight"><pre class="highlight"><code>python -m apache_beam.examples.wordcount \
+
+
+
+    <div class=runner-direct>
+        
+            <pre><code>python -m apache_beam.examples.wordcount \
 --input=/path/to/inputfile \
 --output /path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=embed \
---environment_config=path/to/container/image
-</code></pre></div></div>
+--environment_config=path/to/container/image</code></pre>
+        
+    </div>
 
-<div class="runner-flink-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Start a Flink job server on localhost:8099
+
+
+
+
+
+
+    <div class=runner-flink-local>
+        
+            <pre><code># Start a Flink job server on localhost:8099
 ./gradlew :runners:flink:1.8:job-server:runShadow
 
 # Run a pipeline on the Flink job server
@@ -581,10 +535,19 @@ python -m apache_beam.examples.wordcount \
 --output=/path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
---environment_config=path/to/container/image
-</code></pre></div></div>
+--environment_config=path/to/container/image</code></pre>
+        
+    </div>
 
-<div class="runner-spark-local highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Start a Spark job server on localhost:8099
+
+
+
+
+
+
+    <div class=runner-spark-local>
+        
+            <pre><code># Start a Spark job server on localhost:8099
 ./gradlew :runners:spark:job-server:runShadow
 
 # Run a pipeline on the Spark job server
@@ -593,19 +556,18 @@ python -m apache_beam.examples.wordcount \
 --output=path/to/write/counts \
 --runner=PortableRunner \
 --job_endpoint=localhost:8099 \
---environment_config=path/to/container/image
-</code></pre></div></div>
+--environment_config=path/to/container/image</code></pre>
+        
+    </div>
+
 
 <h2 id="building-container-images">Building container images</h2>
-
 <p>To build Beam SDK container images:</p>
-
 <ol>
-  <li>Navigate to the local copy of your <a href="#customizing-container-images">customized container image</a>.</li>
-  <li>Run Gradle with the <code class="highlighter-rouge">docker</code> target. If you’re <a href="#writing-new-dockerfiles">building a child image</a>, set the optional <code class="highlighter-rouge">--file</code> flag to the new Dockerfile. If you’re <a href="#modifying-dockerfiles">building an image from an original Dockerfile</a>, ignore the <code class="highlighter-rouge">--file</code> flag and use a default repository:</li>
+<li>Navigate to the local copy of your <a href="#customizing-container-images">customized container image</a>.</li>
+<li>Run Gradle with the <code>docker</code> target. If you&rsquo;re <a href="#writing-new-dockerfiles">building a child image</a>, set the optional <code>--file</code> flag to the new Dockerfile. If you&rsquo;re <a href="#modifying-dockerfiles">building an image from an original Dockerfile</a>, ignore the <code>--file</code> flag and use a default repository:</li>
 </ol>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># The default repository of each SDK
+<pre><code># The default repository of each SDK
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py2:docker
@@ -615,65 +577,37 @@ python -m apache_beam.examples.wordcount \
 
 # Shortcut for building all four Python SDKs
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
-</code></pre></div></div>
-
-<p>To examine the containers that you built, run <code class="highlighter-rouge">docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
+</code></pre><p>To examine the containers that you built, run <code>docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p>
+<pre><code>REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
 apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
 apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
 apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
 apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
 apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
 apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
-</code></pre></div></div>
-
-<h3 id="overriding-default-docker-targets">Overriding default Docker targets</h3>
-
-<p>The default <a href="https://docs.docker.com/engine/reference/commandline/tag/">tag</a> is sdk_version defined at <a href="https://github.com/apache/beam/blob/master/gradle.properties">gradle.properties</a> and the default repositories are in the Docker Hub <code class="highlighter-rouge">apache</code> namespace. 
-The <code class="highlighter-rouge">docker</code> command-line tool implicitly <a href="#pushing-container-images">pushes container images</a> to this location.</p>
-
-<p>To tag a local image, set the <code class="highlighter-rouge">docker-tag</code> option when building the container. The following command tags a Python SDK image with a date.</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
-</code></pre></div></div>
-
-<p>To change the repository, set the <code class="highlighter-rouge">docker-repository-root</code> option to a new location. The following command sets the <code class="highlighter-rouge">docker-repository-root</code> 
-to a repository named <code class="highlighter-rouge">example-repo</code> on Docker Hub.</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
-</code></pre></div></div>
-
-<h2 id="pushing-container-images">Pushing container images</h2>
-
+</code></pre><h3 id="overriding-default-docker-targets">Overriding default Docker targets</h3>
+<p>The default <a href="https://docs.docker.com/engine/reference/commandline/tag/">tag</a> is sdk_version defined at <a href="https://github.com/apache/beam/blob/master/gradle.properties">gradle.properties</a> and the default repositories are in the Docker Hub <code>apache</code> namespace.
+The <code>docker</code> command-line tool implicitly <a href="#pushing-container-images">pushes container images</a> to this location.</p>
+<p>To tag a local image, set the <code>docker-tag</code> option when building the container. The following command tags a Python SDK image with a date.</p>
+<pre><code>./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
+</code></pre><p>To change the repository, set the <code>docker-repository-root</code> option to a new location. The following command sets the <code>docker-repository-root</code>
+to a repository named <code>example-repo</code> on Docker Hub.</p>
+<pre><code>./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
+</code></pre><h2 id="pushing-container-images">Pushing container images</h2>
 <p>After <a href="#building-container-images">building a container image</a>, you can store it in a remote Docker repository.</p>
-
-<p>The following steps push a Python3.6 SDK image to the <a href="#overriding-default-docker-targets"><code class="highlighter-rouge">docker-root-repository</code> value</a>. 
+<p>The following steps push a Python3.6 SDK image to the <a href="#overriding-default-docker-targets"><code>docker-root-repository</code> value</a>.
 Please log in to the destination repository as needed.</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Upload it to the remote repository:
-</code></pre></div></div>
-<p>docker push example-repo/beam_python3.6_sdk</p>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+<pre><code>Upload it to the remote repository:
+</code></pre><p>docker push example-repo/beam_python3.6_sdk</p>
+<pre><code>
 To download the image again, run `docker pull`:
-</code></pre></div></div>
-<p>docker pull example-repo/beam_python3.6_sdk
-```</p>
-
-<blockquote>
-  <p><strong>Note</strong>: After pushing a container image, the remote image ID and digest match the local image ID and digest.</p>
-</blockquote>
-
-      </div>
+</code></pre><p>docker pull example-repo/beam_python3.6_sdk</p>
+<pre><code>
+&gt; **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.
+</code></pre>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -688,47 +622,44 @@ To download the image again, run `docker pull`:
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

@@ -1,73 +1,54 @@
+
+
 <!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
+<html lang="en" class="no-js">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Map</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/transforms/python/elementwise/map/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+  
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+<title>Map</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
+
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/transforms/python/elementwise/map/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+</head>
+<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+  
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/transforms/python/elementwise/map.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/transforms/python/elementwise/map.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  <div class="clearfix container-main-content">
+    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+      <nav>
+        <ul class="section-nav-list" data-section-nav>
+          
 
 <li><span class="section-nav-list-main-title">Documentation</span></li>
 <li><a href="/documentation">Using the Documentation</a></li>
@@ -465,46 +432,32 @@
 </li>
 <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
 
-          </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#examples">Examples</a>
-    <ul>
-      <li><a href="#example-1-map-with-a-predefined-function">Example 1: Map with a predefined function</a></li>
-      <li><a href="#example-2-map-with-a-function">Example 2: Map with a function</a></li>
-      <li><a href="#example-3-map-with-a-lambda-function">Example 3: Map with a lambda function</a></li>
-      <li><a href="#example-4-map-with-multiple-arguments">Example 4: Map with multiple arguments</a></li>
-      <li><a href="#example-5-maptuple-for-key-value-pairs">Example 5: MapTuple for key-value pairs</a></li>
-      <li><a href="#example-6-map-with-side-inputs-as-singletons">Example 6: Map with side inputs as singletons</a></li>
-      <li><a href="#example-7-map-with-side-inputs-as-iterators">Example 7: Map with side inputs as iterators</a></li>
-      <li><a href="#example-8-map-with-side-inputs-as-dictionaries">Example 8: Map with side inputs as dictionaries</a></li>
-    </ul>
-  </li>
-  <li><a href="#related-transforms">Related transforms</a></li>
-</ul>
-
-
+        </ul>
       </nav>
+    </div>
 
-      <div class="body__contained body__section-nav">
-        <!--
+    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+      <nav id="TableOfContents">
+  <ul>
+    <li><a href="#examples">Examples</a>
+      <ul>
+        <li><a href="#example-1-map-with-a-predefined-function">Example 1: Map with a predefined function</a></li>
+        <li><a href="#example-2-map-with-a-function">Example 2: Map with a function</a></li>
+        <li><a href="#example-3-map-with-a-lambda-function">Example 3: Map with a lambda function</a></li>
+        <li><a href="#example-4-map-with-multiple-arguments">Example 4: Map with multiple arguments</a></li>
+        <li><a href="#example-5-maptuple-for-key-value-pairs">Example 5: MapTuple for key-value pairs</a></li>
+        <li><a href="#example-6-map-with-side-inputs-as-singletons">Example 6: Map with side inputs as singletons</a></li>
+        <li><a href="#example-7-map-with-side-inputs-as-iterators">Example 7: Map with side inputs as iterators</a></li>
+        <li><a href="#example-8-map-with-side-inputs-as-dictionaries">Example 8: Map with side inputs as dictionaries</a></li>
+      </ul>
+    </li>
+    <li><a href="#related-transforms">Related transforms</a></li>
+  </ul>
+</nav>
+    </nav>
+
+    <div class="body__contained body__section-nav">
+      <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -517,325 +470,267 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-
 <h1 id="map">Map</h1>
 
+
 <script type="text/javascript">
-localStorage.setItem('language', 'language-py')
+  localStorage.setItem("language", "language-py")
 </script>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
 <table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
+    <a
+      class="button"
+      target="_blank"
+      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map"
+      ><img
+        src="https://beam.apache.org/images/logos/sdks/python.png"
+        width="32px"
+        height="32px"
+        alt="Pydoc"
+      />
+      Pydoc</a
+    >
   </td>
 </table>
 
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <p>Applies a simple 1-to-1 mapping function over each element in the collection.</p>
-
 <h2 id="examples">Examples</h2>
-
-<p>In the following examples, we create a pipeline with a <code class="highlighter-rouge">PCollection</code> of produce with their icon, name, and duration.
-Then, we apply <code class="highlighter-rouge">Map</code> in multiple ways to transform every element in the <code class="highlighter-rouge">PCollection</code>.</p>
-
-<p><code class="highlighter-rouge">Map</code> accepts a function that returns a single element for every input element in the <code class="highlighter-rouge">PCollection</code>.</p>
-
+<p>In the following examples, we create a pipeline with a <code>PCollection</code> of produce with their icon, name, and duration.
+Then, we apply <code>Map</code> in multiple ways to transform every element in the <code>PCollection</code>.</p>
+<p><code>Map</code> accepts a function that returns a single element for every input element in the <code>PCollection</code>.</p>
 <h3 id="example-1-map-with-a-predefined-function">Example 1: Map with a predefined function</h3>
+<p>We use the function <code>str.strip</code> which takes a single <code>str</code> element and outputs a <code>str</code>.
+It strips the input element&rsquo;s whitespaces, including newlines and tabs.</p>
 
-<p>We use the function <code class="highlighter-rouge">str.strip</code> which takes a single <code class="highlighter-rouge">str</code> element and outputs a <code class="highlighter-rouge">str</code>.
-It strips the input element’s whitespaces, including newlines and tabs.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'   🍓Strawberry   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'   🥕Carrot   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'   🍆Eggplant   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'   🍅Tomato   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'   🥔Potato   </span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;   🍓Strawberry   </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;   🥕Carrot   </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;   🍆Eggplant   </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;   🍅Tomato   </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;   🥔Potato   </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Strip'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">strip</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Strip&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="nb">str</span><span class="o">.</span><span class="n">strip</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-2-map-with-a-function">Example 2: Map with a function</h3>
+<p>We define a function <code>strip_header_and_newline</code> which strips any <code>'#'</code>, <code>' '</code>, and <code>'\n'</code> characters from each element.</p>
 
-<p>We define a function <code class="highlighter-rouge">strip_header_and_newline</code> which strips any <code class="highlighter-rouge">'#'</code>, <code class="highlighter-rouge">' '</code>, and <code class="highlighter-rouge">'\n'</code> characters from each element.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">def</span> <span class="nf">strip_header_and_newline</span><span class="p">(</span><span class="n">text</span><span class="p">):</span>
-  <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;# </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓Strawberry</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕Carrot</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆Eggplant</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅Tomato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔Potato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip_header_and_newline</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Strip header&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip_header_and_newline</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-3-map-with-a-lambda-function">Example 3: Map with a lambda function</h3>
-
 <p>We can also use lambda functions to simplify <strong>Example 2</strong>.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓Strawberry</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕Carrot</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆Eggplant</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅Tomato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔Potato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Strip header&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">text</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;# </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-4-map-with-multiple-arguments">Example 4: Map with multiple arguments</h3>
-
-<p>You can pass functions with multiple arguments to <code class="highlighter-rouge">Map</code>.
+<p>You can pass functions with multiple arguments to <code>Map</code>.
 They are passed as additional positional arguments or keyword arguments to the function.</p>
+<p>In this example, <code>strip</code> takes <code>text</code> and <code>chars</code> as arguments.</p>
 
-<p>In this example, <code class="highlighter-rouge">strip</code> takes <code class="highlighter-rouge">text</code> and <code class="highlighter-rouge">chars</code> as arguments.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">def</span> <span class="nf">strip</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">chars</span><span class="o">=</span><span class="bp">None</span><span class="p">):</span>
   <span class="k">return</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">chars</span><span class="p">)</span>
@@ -843,534 +738,430 @@ They are passed as additional positional arguments or keyword arguments to the f
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓Strawberry</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕Carrot</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆Eggplant</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅Tomato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔Potato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip</span><span class="p">,</span> <span class="n">chars</span><span class="o">=</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Strip header&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">strip</span><span class="p">,</span> <span class="n">chars</span><span class="o">=</span><span class="s1">&#39;# </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-5-maptuple-for-key-value-pairs">Example 5: MapTuple for key-value pairs</h3>
+<p>If your <code>PCollection</code> consists of <code>(key, value)</code> pairs,
+you can use <code>MapTuple</code> to unpack them into different function arguments.</p>
 
-<p>If your <code class="highlighter-rouge">PCollection</code> consists of <code class="highlighter-rouge">(key, value)</code> pairs,
-you can use <code class="highlighter-rouge">MapTuple</code> to unpack them into different function arguments.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="p">(</span><span class="s">'🍓'</span><span class="p">,</span> <span class="s">'Strawberry'</span><span class="p">),</span>
-          <span class="p">(</span><span class="s">'🥕'</span><span class="p">,</span> <span class="s">'Carrot'</span><span class="p">),</span>
-          <span class="p">(</span><span class="s">'🍆'</span><span class="p">,</span> <span class="s">'Eggplant'</span><span class="p">),</span>
-          <span class="p">(</span><span class="s">'🍅'</span><span class="p">,</span> <span class="s">'Tomato'</span><span class="p">),</span>
-          <span class="p">(</span><span class="s">'🥔'</span><span class="p">,</span> <span class="s">'Potato'</span><span class="p">),</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="p">(</span><span class="s1">&#39;🍓&#39;</span><span class="p">,</span> <span class="s1">&#39;Strawberry&#39;</span><span class="p">),</span>
+          <span class="p">(</span><span class="s1">&#39;🥕&#39;</span><span class="p">,</span> <span class="s1">&#39;Carrot&#39;</span><span class="p">),</span>
+          <span class="p">(</span><span class="s1">&#39;🍆&#39;</span><span class="p">,</span> <span class="s1">&#39;Eggplant&#39;</span><span class="p">),</span>
+          <span class="p">(</span><span class="s1">&#39;🍅&#39;</span><span class="p">,</span> <span class="s1">&#39;Tomato&#39;</span><span class="p">),</span>
+          <span class="p">(</span><span class="s1">&#39;🥔&#39;</span><span class="p">,</span> <span class="s1">&#39;Potato&#39;</span><span class="p">),</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Format'</span> <span class="o">&gt;&gt;</span>
-      <span class="n">beam</span><span class="o">.</span><span class="n">MapTuple</span><span class="p">(</span><span class="k">lambda</span> <span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">:</span> <span class="s">'{}{}'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="s1">&#39;Format&#39;</span> <span class="o">&gt;&gt;</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">MapTuple</span><span class="p">(</span><span class="k">lambda</span> <span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">:</span> <span class="s1">&#39;{}{}&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">icon</span><span class="p">,</span> <span class="n">plant</span><span class="p">))</span>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">MapTuple</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>MapTuple</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-6-map-with-side-inputs-as-singletons">Example 6: Map with side inputs as singletons</h3>
+<p>If the <code>PCollection</code> has a single value, such as the average from another computation,
+passing the <code>PCollection</code> as a <em>singleton</em> accesses that value.</p>
+<p>In this example, we pass a <code>PCollection</code> the value <code>'# \n'</code> as a singleton.
+We then use that value as the characters for the <code>str.strip</code> method.</p>
 
-<p>If the <code class="highlighter-rouge">PCollection</code> has a single value, such as the average from another computation,
-passing the <code class="highlighter-rouge">PCollection</code> as a <em>singleton</em> accesses that value.</p>
 
-<p>In this example, we pass a <code class="highlighter-rouge">PCollection</code> the value <code class="highlighter-rouge">'# \n'</code> as a singleton.
-We then use that value as the characters for the <code class="highlighter-rouge">str.strip</code> method.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">chars</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Create chars'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'# </span><span class="se">\n</span><span class="s">'</span><span class="p">])</span>
+  <span class="n">chars</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create chars&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;# </span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">])</span>
 
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓Strawberry</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕Carrot</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆Eggplant</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅Tomato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔Potato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+      <span class="o">|</span> <span class="s1">&#39;Strip header&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
           <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span>
           <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
           <span class="n">chars</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsSingleton</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <h3 id="example-7-map-with-side-inputs-as-iterators">Example 7: Map with side inputs as iterators</h3>
-
-<p>If the <code class="highlighter-rouge">PCollection</code> has multiple values, pass the <code class="highlighter-rouge">PCollection</code> as an <em>iterator</em>.
+<p>If the <code>PCollection</code> has multiple values, pass the <code>PCollection</code> as an <em>iterator</em>.
 This accesses elements lazily as they are needed,
-so it is possible to iterate over large <code class="highlighter-rouge">PCollection</code>s that won’t fit into memory.</p>
+so it is possible to iterate over large <code>PCollection</code>s that won&rsquo;t fit into memory.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">chars</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Create chars'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s">'#'</span><span class="p">,</span> <span class="s">' '</span><span class="p">,</span> <span class="s">'</span><span class="se">\n</span><span class="s">'</span><span class="p">])</span>
+  <span class="n">chars</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Create chars&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;#&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">])</span>
 
   <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s">'# 🍓Strawberry</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥕Carrot</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍆Eggplant</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🍅Tomato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
-          <span class="s">'# 🥔Potato</span><span class="se">\n</span><span class="s">'</span><span class="p">,</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+          <span class="s1">&#39;# 🍓Strawberry</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥕Carrot</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍆Eggplant</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🍅Tomato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+          <span class="s1">&#39;# 🥔Potato</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Strip header'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+      <span class="o">|</span> <span class="s1">&#39;Strip header&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
           <span class="k">lambda</span> <span class="n">text</span><span class="p">,</span>
-          <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s">''</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)),</span>
+          <span class="n">chars</span><span class="p">:</span> <span class="n">text</span><span class="o">.</span><span class="n">strip</span><span class="p">(</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">chars</span><span class="p">)),</span>
           <span class="n">chars</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsIter</span><span class="p">(</span><span class="n">chars</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>🍓Strawberry
+
+
+
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
+
+
+
+
+
+
+    <div class=notebook-skip>
+        
+            <pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato
-</code></pre></div></div>
+🥔Potato</code></pre>
+        
+    </div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
-
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 <blockquote>
-  <p><strong>Note</strong>: You can pass the <code class="highlighter-rouge">PCollection</code> as a <em>list</em> with <code class="highlighter-rouge">beam.pvalue.AsList(pcollection)</code>,
+<p><strong>Note</strong>: You can pass the <code>PCollection</code> as a <em>list</em> with <code>beam.pvalue.AsList(pcollection)</code>,
 but this requires that all the elements fit into memory.</p>
 </blockquote>
-
 <h3 id="example-8-map-with-side-inputs-as-dictionaries">Example 8: Map with side inputs as dictionaries</h3>
+<p>If a <code>PCollection</code> is small enough to fit into memory, then that <code>PCollection</code> can be passed as a <em>dictionary</em>.
+Each element must be a <code>(key, value)</code> pair.
+Note that all the elements of the <code>PCollection</code> must fit into memory for this.
+If the <code>PCollection</code> won&rsquo;t fit into memory, use <code>beam.pvalue.AsIter(pcollection)</code> instead.</p>
 
-<p>If a <code class="highlighter-rouge">PCollection</code> is small enough to fit into memory, then that <code class="highlighter-rouge">PCollection</code> can be passed as a <em>dictionary</em>.
-Each element must be a <code class="highlighter-rouge">(key, value)</code> pair.
-Note that all the elements of the <code class="highlighter-rouge">PCollection</code> must fit into memory for this.
-If the <code class="highlighter-rouge">PCollection</code> won’t fit into memory, use <code class="highlighter-rouge">beam.pvalue.AsIter(pcollection)</code> instead.</p>
 
-<div class="language-py highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="k">as</span> <span class="n">beam</span>
+
+
+
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
 
 <span class="k">def</span> <span class="nf">replace_duration</span><span class="p">(</span><span class="n">plant</span><span class="p">,</span> <span class="n">durations</span><span class="p">):</span>
-  <span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]</span> <span class="o">=</span> <span class="n">durations</span><span class="p">[</span><span class="n">plant</span><span class="p">[</span><span class="s">'duration'</span><span class="p">]]</span>
+  <span class="n">plant</span><span class="p">[</span><span class="s1">&#39;duration&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">durations</span><span class="p">[</span><span class="n">plant</span><span class="p">[</span><span class="s1">&#39;duration&#39;</span><span class="p">]]</span>
   <span class="k">return</span> <span class="n">plant</span>
 
 <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">durations</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s">'Durations'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-      <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s">'annual'</span><span class="p">),</span>
-      <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s">'biennial'</span><span class="p">),</span>
-      <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s">'perennial'</span><span class="p">),</span>
+  <span class="n">durations</span> <span class="o">=</span> <span class="n">pipeline</span> <span class="o">|</span> <span class="s1">&#39;Durations&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+      <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;annual&#39;</span><span class="p">),</span>
+      <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;biennial&#39;</span><span class="p">),</span>
+      <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;perennial&#39;</span><span class="p">),</span>
   <span class="p">])</span>
 
   <span class="n">plant_details</span> <span class="o">=</span> <span class="p">(</span>
       <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s">'Gardening plants'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
+      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
           <span class="p">{</span>
-              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍓'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Strawberry'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span>
+              <span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="s1">&#39;🍓&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Strawberry&#39;</span><span class="p">,</span> <span class="s1">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">2</span>
           <span class="p">},</span>
           <span class="p">{</span>
-              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥕'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Carrot'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">1</span>
+              <span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="s1">&#39;🥕&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Carrot&#39;</span><span class="p">,</span> <span class="s1">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">1</span>
           <span class="p">},</span>
           <span class="p">{</span>
-              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍆'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Eggplant'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span>
+              <span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="s1">&#39;🍆&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Eggplant&#39;</span><span class="p">,</span> <span class="s1">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">2</span>
           <span class="p">},</span>
           <span class="p">{</span>
-              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🍅'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Tomato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">0</span>
+              <span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="s1">&#39;🍅&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Tomato&#39;</span><span class="p">,</span> <span class="s1">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">0</span>
           <span class="p">},</span>
           <span class="p">{</span>
-              <span class="s">'icon'</span><span class="p">:</span> <span class="s">'🥔'</span><span class="p">,</span> <span class="s">'name'</span><span class="p">:</span> <span class="s">'Potato'</span><span class="p">,</span> <span class="s">'duration'</span><span class="p">:</span> <span class="mi">2</span>
+              <span class="s1">&#39;icon&#39;</span><span class="p">:</span> <span class="s1">&#39;🥔&#39;</span><span class="p">,</span> <span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;Potato&#39;</span><span class="p">,</span> <span class="s1">&#39;duration&#39;</span><span class="p">:</span> <span class="mi">2</span>
           <span class="p">},</span>
       <span class="p">])</span>
-      <span class="o">|</span> <span class="s">'Replace duration'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
+      <span class="o">|</span> <span class="s1">&#39;Replace duration&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
           <span class="n">replace_duration</span><span class="p">,</span>
           <span class="n">durations</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">pvalue</span><span class="o">.</span><span class="n">AsDict</span><span class="p">(</span><span class="n">durations</span><span class="p">),</span>
       <span class="p">)</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span>
-</code></pre></div></div>
+      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
+        </div>
+    
 
-<p class="notebook-skip">Output <code class="highlighter-rouge">PCollection</code> after <code class="highlighter-rouge">Map</code>:</p>
 
-<div class="notebook-skip highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{'icon': '🍓', 'name': 'Strawberry', 'duration': 'perennial'}
-{'icon': '🥕', 'name': 'Carrot', 'duration': 'biennial'}
-{'icon': '🍆', 'name': 'Eggplant', 'duration': 'perennial'}
-{'icon': '🍅', 'name': 'Tomato', 'duration': 'annual'}
-{'icon': '🥔', 'name': 'Potato', 'duration': 'perennial'}
-</code></pre></div></div>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+  <p class="notebook-skip">Output <code>PCollection</code> after <code>Map</code>:</p>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py notebook-skip">
-  <td>
-    <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-  </td>
-</table>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+    <div class=notebook-skip>
+        
+            <pre><code>{&#39;icon&#39;: &#39;🍓&#39;, &#39;name&#39;: &#39;Strawberry&#39;, &#39;duration&#39;: &#39;perennial&#39;}
+{&#39;icon&#39;: &#39;🥕&#39;, &#39;name&#39;: &#39;Carrot&#39;, &#39;duration&#39;: &#39;biennial&#39;}
+{&#39;icon&#39;: &#39;🍆&#39;, &#39;name&#39;: &#39;Eggplant&#39;, &#39;duration&#39;: &#39;perennial&#39;}
+{&#39;icon&#39;: &#39;🍅&#39;, &#39;name&#39;: &#39;Tomato&#39;, &#39;duration&#39;: &#39;annual&#39;}
+{&#39;icon&#39;: &#39;🥔&#39;, &#39;name&#39;: &#39;Potato&#39;, &#39;duration&#39;: &#39;perennial&#39;}</code></pre>
+        
+    </div>
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
-<table align="left" style="margin-right:1em" class="language-py">
-  <td>
-    <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-  </td>
-</table>
 
-<p><br /><br /><br /></p>
+
+
+
+
+
+
+  
+    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
+      <td>
+        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/map-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
+      </td>
+    </table>
+  
+  <table align="left" style="margin-right:1em" class=".language-py" >
+    <td>
+      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/map.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
+    </td>
+  </table>
+
+
+<p><br><br><br></p>
 
 <h2 id="related-transforms">Related transforms</h2>
-
 <ul>
-  <li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code class="highlighter-rouge">Map</code>, but for
+<li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code>Map</code>, but for
 each input it may produce zero or more outputs.</li>
-  <li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just
+<li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just
 deciding whether to output an element or not.</li>
-  <li><a href="/documentation/transforms/python/elementwise/pardo">ParDo</a> is the most general elementwise mapping
+<li><a href="/documentation/transforms/python/elementwise/pardo">ParDo</a> is the most general elementwise mapping
 operation, and includes other abilities such as multiple output collections and side-inputs.</li>
 </ul>
 
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-
-<!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
 
 <table align="left" style="margin-right:1em">
   <td>
-    <a class="button" target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map"><img src="https://beam.apache.org/images/logos/sdks/python.png" width="32px" height="32px" alt="Pydoc" /> Pydoc</a>
+    <a
+      class="button"
+      target="_blank"
+      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map"
+      ><img
+        src="https://beam.apache.org/images/logos/sdks/python.png"
+        width="32px"
+        height="32px"
+        alt="Pydoc"
+      />
+      Pydoc</a
+    >
   </td>
 </table>
 
-<p><br /><br /><br /></p>
+<p><br><br><br></p>
 
 
-      </div>
     </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+  </div>
+
 
 <footer class="footer">
   <div class="footer__contained">
@@ -1385,47 +1176,44 @@ limitations under the License.
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
+</body>
 </html>

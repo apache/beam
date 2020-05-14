@@ -1,73 +1,54 @@
-<!DOCTYPE html>
-<!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
 
-<html lang="en">
-  <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+ 
+ <!DOCTYPE html>
+ <html lang="en" class="no-js">
+ <head>
+   
+ 
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-<head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Euphoria Java 8 DSL</title>
-  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
-">
-  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
-  <link rel="stylesheet" href="/css/site.css">
-  <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-  <style>
-    .body__contained img { max-width: 100% }
-  </style>
-  <script src="/js/bootstrap.min.js"></script>
-  <script src="/js/language-switch.js"></script>
-  <script src="/js/fix-menu.js"></script>
-  <script src="/js/section-nav.js"></script>
-  <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/java/euphoria/" data-proofer-ignore>
-  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
-  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-    ga('create', 'UA-73650088-1', 'auto');
-    ga('send', 'pageview');
-  </script>
-</head>
+<title>Euphoria Java 8 DSL</title>
+<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
+ 
+<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+ 
 
-  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+
+    
+    <link rel="preload" href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" as="style">
+    <link href="/scss/main.min.6cf124c52d81266909df192fec23a0016213aa4e3900fa5452abcab3d7bab97b.css" rel="stylesheet" integrity="">
+
+
+<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+
+<style>
+  .body__contained img { max-width: 100% }
+</style>
+
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/language-switch.js"></script>
+<script src="/js/fix-menu.js"></script>
+<script src="/js/section-nav.js"></script>
+<script src="/js/page-nav.js"></script>
+
+<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
+<link rel="canonical" href="/documentation/sdks/java/euphoria/" data-proofer-ignore>
+<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
+ 
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-73650088-1', 'auto');
+  ga('send', 'pageview');
+</script>
+ </head>
+ <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
+   
 
 <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
@@ -78,7 +59,7 @@
         <span class="icon-bar"></span>
       </button>
 
-      <a href="/" class="navbar-brand" >
+      <a href=/ class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
     </div>
@@ -88,27 +69,27 @@
     <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
         <li>
-          <a href="/get-started/beam-overview/">Get Started</a>
+          <a href=/get-started/beam-overview/>Get Started</a>
         </li>
         <li>
-          <a href="/documentation/">Documentation</a>
+          <a href=/documentation/>Documentation</a>
         </li>
         <li>
-          <a href="/documentation/sdks/java/">Languages</a>
+          <a href=/documentation/sdks/java/>Languages</a>
         </li>
         <li>
-          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
         </li>
         <li>
-          <a href="/roadmap/">Roadmap</a>
+          <a href=/roadmap/>Roadmap</a>
         </li>
         <li>
-          <a href="/contribute/">Contribute</a>
+          <a href=/contribute/>Contribute</a>
         </li>
         <li>
-          <a href="/community/contact-us/">Community</a>
+          <a href=/community/contact-us/>Community</a>
         </li>
-        <li><a href="/blog">Blog</a></li>
+        <li><a href=/blog/>Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
@@ -139,12 +120,8 @@
           </ul>
         </li>
         <li>
-          <!--
-            data-proofer-ignore disables link checking from website test automation.
-            GitHub links will not resolve until the markdown source is available on the master branch.
-            New pages would fail validation during development / PR test automation.
-          -->
-          <a href="https://github.com/apache/beam/edit/master/website/src/documentation/sdks/euphoria.md" data-proofer-ignore>
+          
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/sdks/java/euphoria.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -152,22 +129,12 @@
     </div>
 </nav>
 
-    <div class="clearfix container-main-content">
-      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-        <nav>
-          <ul class="section-nav-list" data-section-nav>
-            <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+   <div class="clearfix container-main-content">
+     <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+       <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+       <nav>
+         <ul class="section-nav-list" data-section-nav>
+           
 
 <li><span class="section-nav-list-main-title">Languages</span></li>
 
@@ -267,72 +234,68 @@
   </ul>
 </li>
 
+         </ul>
+       </nav>
+     </div>
+ 
+     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+       <nav id="TableOfContents">
+  <ul>
+    <li><a href="#what-is-euphoria">What is Euphoria</a></li>
+    <li><a href="#wordcount-example">WordCount Example</a></li>
+    <li><a href="#euphoria-guide">Euphoria Guide</a>
+      <ul>
+        <li><a href="#inputs-and-outputs">Inputs and Outputs</a></li>
+        <li><a href="#adding-operators">Adding Operators</a></li>
+        <li><a href="#coders-and-types">Coders and Types</a></li>
+        <li><a href="#metrics-and-accumulators">Metrics and Accumulators</a></li>
+        <li><a href="#windowing">Windowing</a></li>
+      </ul>
+    </li>
+    <li><a href="#how-to-get-euphoria">How to get Euphoria</a></li>
+    <li><a href="#operator-reference">Operator Reference</a>
+      <ul>
+        <li><a href="#countbykey"><code>CountByKey</code></a></li>
+        <li><a href="#distinct"><code>Distinct</code></a></li>
+        <li><a href="#join"><code>Join</code></a></li>
+        <li><a href="#leftjoin"><code>LeftJoin</code></a></li>
+        <li><a href="#rightjoin"><code>RightJoin</code></a></li>
+        <li><a href="#fulljoin"><code>FullJoin</code></a></li>
+        <li><a href="#mapelements"><code>MapElements</code></a></li>
+        <li><a href="#flatmap"><code>FlatMap</code></a></li>
+        <li><a href="#filter"><code>Filter</code></a></li>
+        <li><a href="#reducebykey"><code>ReduceByKey</code></a></li>
+        <li><a href="#reducewindow"><code>ReduceWindow</code></a></li>
+        <li><a href="#sumbykey"><code>SumByKey</code></a></li>
+        <li><a href="#union"><code>Union</code></a></li>
+        <li><a href="#topperkey"><code>TopPerKey</code></a></li>
+        <li><a href="#assigneventtime"><code>AssignEventTime</code></a></li>
+      </ul>
+    </li>
+    <li><a href="#translation">Translation</a>
+      <ul>
+        <li><a href="#translationproviders">TranslationProviders</a>
+          <ul>
+            <li><a href="#generictranslatorprovider"><code>GenericTranslatorProvider</code></a></li>
+            <li><a href="#compositeprovider"><code>CompositeProvider</code></a></li>
           </ul>
-        </nav>
-      </div>
-
-      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-        <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
-
-
-
-<ul class="nav">
-  <li><a href="#what-is-euphoria">What is Euphoria</a></li>
-  <li><a href="#wordcount-example">WordCount Example</a></li>
-  <li><a href="#euphoria-guide">Euphoria Guide</a>
-    <ul>
-      <li><a href="#inputs-and-outputs">Inputs and Outputs</a></li>
-      <li><a href="#adding-operators">Adding Operators</a></li>
-      <li><a href="#coders-and-types">Coders and Types</a></li>
-      <li><a href="#metrics-and-accumulators">Metrics and Accumulators</a></li>
-      <li><a href="#windowing">Windowing</a></li>
-    </ul>
-  </li>
-  <li><a href="#how-to-get-euphoria">How to get Euphoria</a></li>
-  <li><a href="#operator-reference">Operator Reference</a>
-    <ul>
-      <li><a href="#countbykey"><code class="highlighter-rouge">CountByKey</code></a></li>
-      <li><a href="#distinct"><code class="highlighter-rouge">Distinct</code></a></li>
-      <li><a href="#join"><code class="highlighter-rouge">Join</code></a></li>
-      <li><a href="#leftjoin"><code class="highlighter-rouge">LeftJoin</code></a></li>
-      <li><a href="#rightjoin"><code class="highlighter-rouge">RightJoin</code></a></li>
-      <li><a href="#fulljoin"><code class="highlighter-rouge">FullJoin</code></a></li>
-      <li><a href="#mapelements"><code class="highlighter-rouge">MapElements</code></a></li>
-      <li><a href="#flatmap"><code class="highlighter-rouge">FlatMap</code></a></li>
-      <li><a href="#filter"><code class="highlighter-rouge">Filter</code></a></li>
-      <li><a href="#reducebykey"><code class="highlighter-rouge">ReduceByKey</code></a></li>
-      <li><a href="#reducewindow"><code class="highlighter-rouge">ReduceWindow</code></a></li>
-      <li><a href="#sumbykey"><code class="highlighter-rouge">SumByKey</code></a></li>
-      <li><a href="#union"><code class="highlighter-rouge">Union</code></a></li>
-      <li><a href="#topperkey"><code class="highlighter-rouge">TopPerKey</code></a></li>
-      <li><a href="#assigneventtime"><code class="highlighter-rouge">AssignEventTime</code></a></li>
-    </ul>
-  </li>
-  <li><a href="#translation">Translation</a>
-    <ul>
-      <li><a href="#translationproviders">TranslationProviders</a></li>
-      <li><a href="#operator-translators">Operator Translators</a></li>
-      <li><a href="#details">Details</a></li>
-    </ul>
-  </li>
-  <li><a href="#unsupported-features">Unsupported Features</a></li>
-</ul>
-
-
-      </nav>
-
-      <div class="body__contained body__section-nav">
-        <!--
+        </li>
+        <li><a href="#operator-translators">Operator Translators</a>
+          <ul>
+            <li><a href="#broadcasthashjointranslator"><code>BroadcastHashJoinTranslator</code></a></li>
+            <li><a href="#compositeoperatortranslator"><code>CompositeOperatorTranslator</code></a></li>
+          </ul>
+        </li>
+        <li><a href="#details">Details</a></li>
+      </ul>
+    </li>
+    <li><a href="#unsupported-features">Unsupported Features</a></li>
+  </ul>
+</nav>
+     </nav>
+ 
+     <div class="body__contained body__section-nav">
+       <!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -358,554 +321,807 @@ For each of the assigned windows the extracted value is accumulated using a user
  implementation under the extracted key. I.e. the value is accumulated into a state identified by
  a key/window pair.
 -->
-
 <h2 id="what-is-euphoria">What is Euphoria</h2>
-<p>Easy to use Java 8 API build on top of the Beam’s Java SDK. API provides a <a href="#operator-reference">high-level abstraction</a> of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> based coders, lambdas and high level operators and can be seamlessly integrated into existing Beam <code class="highlighter-rouge">Pipelines</code>.</p>
-
-<p><a href="https://github.com/seznam/euphoria">Euphoria API</a> project has been started in 2014, with a clear goal of providing the main building block for <a href="https://www.seznam.cz/">Seznam.cz’s</a> data infrastructure.
+<p>Easy to use Java 8 API build on top of the Beam&rsquo;s Java SDK. API provides a <a href="#operator-reference">high-level abstraction</a> of data transformations, with focus on the Java 8 language features (e.g. lambdas and streams). It is fully inter-operable with existing Beam SDK and convertible back and forth. It allows fast prototyping through use of (optional) <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> based coders, lambdas and high level operators and can be seamlessly integrated into existing Beam <code>Pipelines</code>.</p>
+<p><a href="https://github.com/seznam/euphoria">Euphoria API</a> project has been started in 2014, with a clear goal of providing the main building block for <a href="https://www.seznam.cz/">Seznam.cz&rsquo;s</a> data infrastructure.
 In 2015, <a href="https://www.vldb.org/pvldb/vol8/p1792-Akidau.pdf">DataFlow whitepaper</a> inspired original authors to go one step further and also provide the unified API for both stream and batch processing.
-The API has been open-sourced in 2016 and is still in active development. As the Beam’s community goal was very similar, we decided to contribute
+The API has been open-sourced in 2016 and is still in active development. As the Beam&rsquo;s community goal was very similar, we decided to contribute
 the API as a high level DSL over Beam Java SDK and share our effort with the community.</p>
-
 <p>Euphoria DSL integration is still work in progress and is tracked as part of <a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900</a>.</p>
-
 <h2 id="wordcount-example">WordCount Example</h2>
-<p>Lets start with the small example.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+<p>Lets start with the small example.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 <span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
-<span class="c1">// Use Kryo as coder fallback</span>
-<span class="n">KryoCoderProvider</span><span class="o">.</span><span class="na">of</span><span class="o">().</span><span class="na">registerTo</span><span class="o">(</span><span class="n">pipeline</span><span class="o">);</span>
+<span class="c1">// Use Kryo as coder fallback
+</span><span class="c1"></span><span class="n">KryoCoderProvider</span><span class="o">.</span><span class="na">of</span><span class="o">().</span><span class="na">registerTo</span><span class="o">(</span><span class="n">pipeline</span><span class="o">);</span>
 
-<span class="c1">// Source of data loaded from Beam IO.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span>
+<span class="c1">// Source of data loaded from Beam IO.
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span>
     <span class="n">pipeline</span>
         <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">textLineByLine</span><span class="o">))</span>
         <span class="o">.</span><span class="na">setTypeDescriptor</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
 
-<span class="c1">// zero, one, or more output elements. From input lines we will get data set of words.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span>
-    <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"TOKENIZER"</span><span class="o">)</span>
+<span class="c1">// zero, one, or more output elements. From input lines we will get data set of words.
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">words</span> <span class="o">=</span>
+    <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;TOKENIZER&#34;</span><span class="o">)</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">lines</span><span class="o">)</span>
         <span class="o">.</span><span class="na">using</span><span class="o">(</span>
             <span class="o">(</span><span class="n">String</span> <span class="n">line</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">context</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
-              <span class="k">for</span> <span class="o">(</span><span class="n">String</span> <span class="n">word</span> <span class="o">:</span> <span class="n">Splitter</span><span class="o">.</span><span class="na">onPattern</span><span class="o">(</span><span class="s">"\\s+"</span><span class="o">).</span><span class="na">split</span><span class="o">(</span><span class="n">line</span><span class="o">))</span> <span class="o">{</span>
+              <span class="k">for</span> <span class="o">(</span><span class="n">String</span> <span class="n">word</span> <span class="o">:</span> <span class="n">Splitter</span><span class="o">.</span><span class="na">onPattern</span><span class="o">(</span><span class="s">&#34;\\s+&#34;</span><span class="o">).</span><span class="na">split</span><span class="o">(</span><span class="n">line</span><span class="o">))</span> <span class="o">{</span>
                 <span class="n">context</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">word</span><span class="o">);</span>
               <span class="o">}</span>
             <span class="o">})</span>
         <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 
-<span class="c1">// Now we can count input words - the operator ensures that all values for the same</span>
-<span class="c1">// key (word in this case) end up being processed together. Then it counts number of appearances</span>
-<span class="c1">// of the same key in 'words' PCollection and emits it to output.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">counted</span> <span class="o">=</span>
-    <span class="n">CountByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"COUNT"</span><span class="o">)</span>
+<span class="c1">// Now we can count input words - the operator ensures that all values for the same
+</span><span class="c1">// key (word in this case) end up being processed together. Then it counts number of appearances
+</span><span class="c1">// of the same key in &#39;words&#39; PCollection and emits it to output.
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">counted</span> <span class="o">=</span>
+    <span class="n">CountByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;COUNT&#34;</span><span class="o">)</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">words</span><span class="o">)</span>
         <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">w</span> <span class="o">-&gt;</span> <span class="n">w</span><span class="o">)</span>
         <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 
-<span class="c1">// Format output.</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
-    <span class="n">MapElements</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"FORMAT"</span><span class="o">)</span>
+<span class="c1">// Format output.
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
+    <span class="n">MapElements</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;FORMAT&#34;</span><span class="o">)</span>
         <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">counted</span><span class="o">)</span>
-        <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">p</span> <span class="o">-&gt;</span> <span class="n">p</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">": "</span> <span class="o">+</span> <span class="n">p</span><span class="o">.</span><span class="na">getValue</span><span class="o">())</span>
+        <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">p</span> <span class="o">-&gt;</span> <span class="n">p</span><span class="o">.</span><span class="na">getKey</span><span class="o">()</span> <span class="o">+</span> <span class="s">&#34;: &#34;</span> <span class="o">+</span> <span class="n">p</span><span class="o">.</span><span class="na">getValue</span><span class="o">())</span>
         <span class="o">.</span><span class="na">output</span><span class="o">();</span>
 
-<span class="c1">// Now we can again use Beam transformation. In this case we save words and their count</span>
-<span class="c1">// into the text file.</span>
-<span class="n">output</span>
+<span class="c1">// Now we can again use Beam transformation. In this case we save words and their count
+</span><span class="c1">// into the text file.
+</span><span class="c1"></span><span class="n">output</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">()</span>
-    <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">"counted_words"</span><span class="o">));</span>
+    <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">&#34;counted_words&#34;</span><span class="o">));</span>
 
-<span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
-</code></pre></div></div>
+<span class="n">pipeline</span><span class="o">.</span><span class="na">run</span><span class="o">();</span></code></pre></div>
+        </div>
+    
 
+</p>
 <h2 id="euphoria-guide">Euphoria Guide</h2>
-
-<p>Euphoria API is composed from a set of operators, which allows you to construct <code class="highlighter-rouge">Pipeline</code> according to your application needs.</p>
-
+<p>Euphoria API is composed from a set of operators, which allows you to construct <code>Pipeline</code> according to your application needs.</p>
 <h3 id="inputs-and-outputs">Inputs and Outputs</h3>
-<p>Input data can be supplied through Beams IO into <code class="highlighter-rouge">PCollection</code>, the same way as in Beam.</p>
+<p>Input data can be supplied through Beams IO into <code>PCollection</code>, the same way as in Beam.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span>
   <span class="n">pipeline</span>
-    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">"mouse"</span><span class="o">,</span> <span class="s">"rat"</span><span class="o">,</span> <span class="s">"elephant"</span><span class="o">,</span> <span class="s">"cat"</span><span class="o">,</span> <span class="s">"X"</span><span class="o">,</span> <span class="s">"duck"</span><span class="o">))</span>
-    <span class="o">.</span><span class="na">setTypeDescriptor</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
-</code></pre></div></div>
+    <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">&#34;mouse&#34;</span><span class="o">,</span> <span class="s">&#34;rat&#34;</span><span class="o">,</span> <span class="s">&#34;elephant&#34;</span><span class="o">,</span> <span class="s">&#34;cat&#34;</span><span class="o">,</span> <span class="s">&#34;X&#34;</span><span class="o">,</span> <span class="s">&#34;duck&#34;</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">setTypeDescriptor</span><span class="o">(</span><span class="n">TypeDescriptor</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span></code></pre></div>
+        </div>
+    
+
 
 <h3 id="adding-operators">Adding Operators</h3>
 <p>Real power of Euphoria API is in its <a href="#operator-reference">operators suite</a>. Each Operator consumes one or more input and produces one output
-<code class="highlighter-rouge">PCollection</code>. Lets take a look at simple <code class="highlighter-rouge">MapElements</code> example.</p>
+<code>PCollection</code>. Lets take a look at simple <code>MapElements</code> example.</p>
+<p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mappedElements</span> <span class="o">=</span>
   <span class="n">MapElements</span>
-    <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"Int2Str"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;Int2Str&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">valueOf</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-</code></pre></div></div>
-<p>The operator consumes <code class="highlighter-rouge">input</code>, it applies given lambda expression (<code class="highlighter-rouge">String::valueOf</code>) on each element of <code class="highlighter-rouge">input</code> and returns mapped <code class="highlighter-rouge">PCollection</code>. Developer is guided through series of steps when creating operator so the declaration of an operator is straightforward. To start building operator just wrote its name and ‘.’ (dot). Your IDE will give you hints.</p>
+    <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">valueOf</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">output</span><span class="o">();</span></code></pre></div>
+        </div>
+    
 
-<p>First step to build any operator is to give it a name through <code class="highlighter-rouge">named()</code> method. The name is propagated through system and can latter be used when debugging.</p>
 
+The operator consumes <code>input</code>, it applies given lambda expression (<code>String::valueOf</code>) on each element of <code>input</code> and returns mapped <code>PCollection</code>. Developer is guided through series of steps when creating operator so the declaration of an operator is straightforward. To start building operator just wrote its name and &lsquo;.&rsquo; (dot). Your IDE will give you hints.</p>
+<p>First step to build any operator is to give it a name through <code>named()</code> method. The name is propagated through system and can latter be used when debugging.</p>
 <h3 id="coders-and-types">Coders and Types</h3>
-<p>Beam’s Java SDK requires developers to supply <code class="highlighter-rouge">Coder</code> for custom element type in order to have a way of materializing elements. Euphoria allows to use <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> as a way of serialization. The <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> is located in <code class="highlighter-rouge">:sdks:java:extensions:kryo</code> module.</p>
+<p>Beam&rsquo;s Java SDK requires developers to supply <code>Coder</code> for custom element type in order to have a way of materializing elements. Euphoria allows to use <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> as a way of serialization. The <a href="https://github.com/EsotericSoftware/kryo">Kryo</a> is located in <code>:sdks:java:extensions:kryo</code> module.</p>
+<pre><code>//gradle
+dependencies {
+    compile &quot;org.apache.beam:sdks:java:extensions:kryo:${beam.version}&quot;
+}
+</code></pre><pre><code>//maven
+&lt;dependency&gt;
+  &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+  &lt;artifactId&gt;beam-sdks-java-extensions-kryo&lt;/artifactId&gt;
+  &lt;version&gt;${beam.version}&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre><p>All you need is to create <code>KryoCoderProvider</code> and register it to your
+<code>Pipeline</code>. There are two ways of doing that.</p>
+<p>When prototyping you may decide not to care much about coders, then create <code>KryoCoderProvider</code> without any class registrations to <a href="https://github.com/EsotericSoftware/kryo">Kryo</a>.
 
-<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//gradle</span>
-<span class="n">dependencies</span> <span class="o">{</span>
-    <span class="n">compile</span> <span class="s2">"org.apache.beam:sdks:java:extensions:kryo:${beam.version}"</span>
-<span class="o">}</span>
-</code></pre></div></div>
-<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code>//maven
-<span class="nt">&lt;dependency&gt;</span>
-  <span class="nt">&lt;groupId&gt;</span>org.apache.beam<span class="nt">&lt;/groupId&gt;</span>
-  <span class="nt">&lt;artifactId&gt;</span>beam-sdks-java-extensions-kryo<span class="nt">&lt;/artifactId&gt;</span>
-  <span class="nt">&lt;version&gt;</span>${beam.version}<span class="nt">&lt;/version&gt;</span>
-<span class="nt">&lt;/dependency&gt;</span>
-</code></pre></div></div>
 
-<p>All you need is to create <code class="highlighter-rouge">KryoCoderProvider</code> and register it to your
-<code class="highlighter-rouge">Pipeline</code>. There are two ways of doing that.</p>
 
-<p>When prototyping you may decide not to care much about coders, then create <code class="highlighter-rouge">KryoCoderProvider</code> without any class registrations to <a href="https://github.com/EsotericSoftware/kryo">Kryo</a>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Register `KryoCoderProvider` which attempt to use `KryoCoder` to every non-primitive type</span>
-<span class="n">KryoCoderProvider</span><span class="o">.</span><span class="na">of</span><span class="o">().</span><span class="na">registerTo</span><span class="o">(</span><span class="n">pipeline</span><span class="o">);</span>
-</code></pre></div></div>
-<p>Such a <code class="highlighter-rouge">KryoCoderProvider</code> will return <code class="highlighter-rouge">KryoCoder</code> for every non-primitive element type. That of course degrades performance, since Kryo is not able to serialize instance of unknown types effectively. But it boost speed of pipeline development. This behavior is enabled by default and can be disabled when creating <code class="highlighter-rouge">Pipeline</code> through <code class="highlighter-rouge">KryoOptions</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
-<span class="n">options</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">KryoOptions</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">setKryoRegistrationRequired</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
-</code></pre></div></div>
 
-<p>Second more performance friendly way is to register all the types which will Kryo serialize. Sometimes it is also a good idea to register Kryo serializers of its own too. Euphoria allows you to do that by implementing your own <code class="highlighter-rouge">KryoRegistrar</code> and using it when creating <code class="highlighter-rouge">KryoCoderProvider</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//Do not allow `KryoCoderProvider` to return `KryoCoder` for unregistered types</span>
-<span class="n">options</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">KryoOptions</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">setKryoRegistrationRequired</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//Register `KryoCoderProvider` which attempt to use `KryoCoder` to every non-primitive type
+</span><span class="c1"></span><span class="n">KryoCoderProvider</span><span class="o">.</span><span class="na">of</span><span class="o">().</span><span class="na">registerTo</span><span class="o">(</span><span class="n">pipeline</span><span class="o">);</span></code></pre></div>
+        </div>
+    
+
+
+Such a <code>KryoCoderProvider</code> will return <code>KryoCoder</code> for every non-primitive element type. That of course degrades performance, since Kryo is not able to serialize instance of unknown types effectively. But it boost speed of pipeline development. This behavior is enabled by default and can be disabled when creating <code>Pipeline</code> through <code>KryoOptions</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
+<span class="n">options</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">KryoOptions</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">setKryoRegistrationRequired</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span></code></pre></div>
+        </div>
+    
+
+</p>
+<p>Second more performance friendly way is to register all the types which will Kryo serialize. Sometimes it is also a good idea to register Kryo serializers of its own too. Euphoria allows you to do that by implementing your own <code>KryoRegistrar</code> and using it when creating <code>KryoCoderProvider</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//Do not allow `KryoCoderProvider` to return `KryoCoder` for unregistered types
+</span><span class="c1"></span><span class="n">options</span><span class="o">.</span><span class="na">as</span><span class="o">(</span><span class="n">KryoOptions</span><span class="o">.</span><span class="na">class</span><span class="o">).</span><span class="na">setKryoRegistrationRequired</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
 
 <span class="n">KryoCoderProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
-        <span class="o">(</span><span class="n">kryo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span> <span class="c1">//KryoRegistrar of your uwn</span>
-          <span class="n">kryo</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">KryoSerializedElementType</span><span class="o">.</span><span class="na">class</span><span class="o">);</span> <span class="c1">//other may follow</span>
-        <span class="o">})</span>
-    <span class="o">.</span><span class="na">registerTo</span><span class="o">(</span><span class="n">pipeline</span><span class="o">);</span>
-</code></pre></div></div>
-<p>Beam resolves coders using types of elements. Type information is not available at runtime when element type is described by lambda implementation. It is due to type erasure and dynamic nature of lambda expressions. So there is an optional way of supplying <code class="highlighter-rouge">TypeDescriptor</code> every time new type is introduced during Operator construction.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
+        <span class="o">(</span><span class="n">kryo</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span> <span class="c1">//KryoRegistrar of your uwn
+</span><span class="c1"></span>          <span class="n">kryo</span><span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">KryoSerializedElementType</span><span class="o">.</span><span class="na">class</span><span class="o">);</span> <span class="c1">//other may follow
+</span><span class="c1"></span>        <span class="o">})</span>
+    <span class="o">.</span><span class="na">registerTo</span><span class="o">(</span><span class="n">pipeline</span><span class="o">);</span></code></pre></div>
+        </div>
+    
+
+
+Beam resolves coders using types of elements. Type information is not available at runtime when element type is described by lambda implementation. It is due to type erasure and dynamic nature of lambda expressions. So there is an optional way of supplying <code>TypeDescriptor</code> every time new type is introduced during Operator construction.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">input</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="n">MapElements</span>
-  <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"Int2Str"</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;Int2Str&#34;</span><span class="o">)</span>
   <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
-  <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">valueOf</span><span class="o">,</span> <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">())</span>
-  <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-</code></pre></div></div>
-<p>Euphoria operator’s will use <code class="highlighter-rouge">TypeDescriptor&lt;Object&gt;</code>, when <code class="highlighter-rouge">TypeDescriptors</code> is not supplied by user. So <code class="highlighter-rouge">KryoCoderProvider</code> may return <code class="highlighter-rouge">KryoCoder&lt;Object&gt;</code> for every element with unknown type, if allowed by <code class="highlighter-rouge">KryoOptions</code>. Supplying <code class="highlighter-rouge">TypeDescriptors</code> becomes mandatory when using <code class="highlighter-rouge">.setKryoRegistrationRequired(true)</code>.</p>
+  <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">valueOf</span><span class="o">,</span> <span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">())</span>
+  <span class="o">.</span><span class="na">output</span><span class="o">();</span></code></pre></div>
+        </div>
+    
 
+
+Euphoria operator&rsquo;s will use <code>TypeDescriptor&lt;Object&gt;</code>, when <code>TypeDescriptors</code> is not supplied by user. So <code>KryoCoderProvider</code> may return <code>KryoCoder&lt;Object&gt;</code> for every element with unknown type, if allowed by <code>KryoOptions</code>. Supplying <code>TypeDescriptors</code> becomes mandatory when using <code>.setKryoRegistrationRequired(true)</code>.</p>
 <h3 id="metrics-and-accumulators">Metrics and Accumulators</h3>
-<p>Statistics about job’s internals are very helpful during development of distributed jobs. Euphoria calls them accumulators. They are accessible through environment <code class="highlighter-rouge">Context</code>, which can be obtained from <code class="highlighter-rouge">Collector</code>, whenever working with it. It is usually present when zero-to-many output elements are expected from operator. For example in case of <code class="highlighter-rouge">FlatMap</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="o">...</span>
+<p>Statistics about job&rsquo;s internals are very helpful during development of distributed jobs. Euphoria calls them accumulators. They are accessible through environment <code>Context</code>, which can be obtained from <code>Collector</code>, whenever working with it. It is usually present when zero-to-many output elements are expected from operator. For example in case of <code>FlatMap</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="o">...</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="o">..</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mapped</span> <span class="o">=</span>
 <span class="n">FlatMap</span>
-  <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"FlatMap1"</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;FlatMap1&#34;</span><span class="o">)</span>
   <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">dataset</span><span class="o">)</span>
   <span class="o">.</span><span class="na">using</span><span class="o">(</span>
     <span class="o">(</span><span class="n">String</span> <span class="n">value</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">context</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
-      <span class="n">context</span><span class="o">.</span><span class="na">getCounter</span><span class="o">(</span><span class="s">"my-counter"</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
+      <span class="n">context</span><span class="o">.</span><span class="na">getCounter</span><span class="o">(</span><span class="s">&#34;my-counter&#34;</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
         <span class="n">context</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">value</span><span class="o">);</span>
     <span class="o">})</span>
-  <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-</code></pre></div></div>
-<p><code class="highlighter-rouge">MapElements</code> also allows for <code class="highlighter-rouge">Context</code> to be accessed by supplying implementations of <code class="highlighter-rouge">UnaryFunctionEnv</code> (add second context argument) instead of <code class="highlighter-rouge">UnaryFunctor</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="o">...</span>
+  <span class="o">.</span><span class="na">output</span><span class="o">();</span></code></pre></div>
+        </div>
+    
+
+
+<code>MapElements</code> also allows for <code>Context</code> to be accessed by supplying implementations of <code>UnaryFunctionEnv</code> (add second context argument) instead of <code>UnaryFunctor</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">Pipeline</span> <span class="n">pipeline</span> <span class="o">=</span> <span class="o">...</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dataset</span> <span class="o">=</span> <span class="o">...</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mapped</span> <span class="o">=</span>
   <span class="n">MapElements</span>
-    <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"MapThem"</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;MapThem&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">dataset</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span>
       <span class="o">(</span><span class="n">input</span><span class="o">,</span> <span class="n">context</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
-        <span class="c1">// use simple counter</span>
-        <span class="n">context</span><span class="o">.</span><span class="na">getCounter</span><span class="o">(</span><span class="s">"my-counter"</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
+        <span class="c1">// use simple counter
+</span><span class="c1"></span>        <span class="n">context</span><span class="o">.</span><span class="na">getCounter</span><span class="o">(</span><span class="s">&#34;my-counter&#34;</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
         <span class="k">return</span> <span class="n">input</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">();</span>
         <span class="o">})</span>
-      <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-</code></pre></div></div>
-<p>Accumulators are translated into Beam Metrics in background so they can be viewed the same way. Namespace of translated metrics is set to operator’s name.</p>
+      <span class="o">.</span><span class="na">output</span><span class="o">();</span></code></pre></div>
+        </div>
+    
 
+
+Accumulators are translated into Beam Metrics in background so they can be viewed the same way. Namespace of translated metrics is set to operator&rsquo;s name.</p>
 <h3 id="windowing">Windowing</h3>
-<p>Euphoria follows the same <a href="/documentation/programming-guide/#windowing">windowing principles</a> as Beam Java SDK. Every shuffle operator (operator which needs to shuffle data over the network) allows you to set it. The same parameters as in Beam are required. <code class="highlighter-rouge">WindowFn</code>, <code class="highlighter-rouge">Trigger</code>, <code class="highlighter-rouge">WindowingStrategy</code> and other. Users are guided to either set all mandatory and several optional parameters  or none when building an operator. Windowing is propagated down through the <code class="highlighter-rouge">Pipeline</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countedElements</span> <span class="o">=</span>
+<p>Euphoria follows the same <a href="/documentation/programming-guide/#windowing">windowing principles</a> as Beam Java SDK. Every shuffle operator (operator which needs to shuffle data over the network) allows you to set it. The same parameters as in Beam are required. <code>WindowFn</code>, <code>Trigger</code>, <code>WindowingStrategy</code> and other. Users are guided to either set all mandatory and several optional parameters  or none when building an operator. Windowing is propagated down through the <code>Pipeline</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countedElements</span> <span class="o">=</span>
   <span class="n">CountByKey</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
       <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span><span class="o">)</span>
-      <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">1</span><span class="o">)))</span>
+      <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">1</span><span class="o">)))</span>
       <span class="o">.</span><span class="na">triggeredBy</span><span class="o">(</span><span class="n">DefaultTrigger</span><span class="o">.</span><span class="na">of</span><span class="o">())</span>
       <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">()</span>
-      <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="mi">5</span><span class="o">))</span>
+      <span class="o">.</span><span class="na">withAllowedLateness</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">standardSeconds</span><span class="o">(</span><span class="n">5</span><span class="o">))</span>
       <span class="o">.</span><span class="na">withOnTimeBehavior</span><span class="o">(</span><span class="n">OnTimeBehavior</span><span class="o">.</span><span class="na">FIRE_IF_NON_EMPTY</span><span class="o">)</span>
       <span class="o">.</span><span class="na">withTimestampCombiner</span><span class="o">(</span><span class="n">TimestampCombiner</span><span class="o">.</span><span class="na">EARLIEST</span><span class="o">)</span>
-      <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-</code></pre></div></div>
+      <span class="o">.</span><span class="na">output</span><span class="o">();</span></code></pre></div>
+        </div>
+    
 
+</p>
 <h2 id="how-to-get-euphoria">How to get Euphoria</h2>
-<p>Euphoria is located in <code class="highlighter-rouge">dsl-euphoria</code> branch, <code class="highlighter-rouge">beam-sdks-java-extensions-euphoria</code> module of The Apache Beam project. To build <code class="highlighter-rouge">euphoria</code> subproject call:</p>
-
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./gradlew beam-sdks-java-extensions-euphoria:build
-</code></pre></div></div>
-
-<h2 id="operator-reference">Operator Reference</h2>
+<p>Euphoria is located in <code>dsl-euphoria</code> branch, <code>beam-sdks-java-extensions-euphoria</code> module of The Apache Beam project. To build <code>euphoria</code> subproject call:</p>
+<pre><code>./gradlew beam-sdks-java-extensions-euphoria:build
+</code></pre><h2 id="operator-reference">Operator Reference</h2>
 <p>Operators are basically higher level data transformations, which allows you to build business logic of your data processing job in a simple way. All the Euphoria operators are documented in this section including examples. There are no examples with <a href="#windowing">windowing</a> applied for the sake of simplicity. Refer to the <a href="#windowing">windowing section</a> for more details.</p>
+<h3 id="countbykey"><code>CountByKey</code></h3>
+<p>Counting elements with the same key. Requires input dataset to be mapped by given key extractor (<code>UnaryFunction</code>) to keys which are then counted. Output is emitted as <code>KV&lt;K, Long&gt;</code> (<code>K</code> is key type) where each <code>KV</code> contains key and number of element in input dataset for the key.
 
-<h3 id="countbykey"><code class="highlighter-rouge">CountByKey</code></h3>
-<p>Counting elements with the same key. Requires input dataset to be mapped by given key extractor (<code class="highlighter-rouge">UnaryFunction</code>) to keys which are then counted. Output is emitted as <code class="highlighter-rouge">KV&lt;K, Long&gt;</code> (<code class="highlighter-rouge">K</code> is key type) where each <code class="highlighter-rouge">KV</code> contains key and number of element in input dataset for the key.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose input: [1, 2, 4, 1, 1, 3]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose input: [1, 2, 4, 1, 1, 3]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
   <span class="n">CountByKey</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
     <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// Output will contain:  [KV(1, 3), KV(2, 1), KV(3, 1), (4, 1)]</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">Output</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span>  <span class="o">[</span><span class="n">KV</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">3</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">2</span><span class="o">,</span> <span class="n">1</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="n">1</span><span class="o">),</span> <span class="o">(</span><span class="n">4</span><span class="o">,</span> <span class="n">1</span><span class="o">)]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="distinct"><code class="highlighter-rouge">Distinct</code></h3>
-<p>Outputting distinct (based on equals method) elements. It takes optional <code class="highlighter-rouge">UnaryFunction</code> mapper parameter which maps elements to output type.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose input: [1, 2, 3, 3, 2, 1]</span>
-<span class="n">Distinct</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"unique-integers-only"</span><span class="o">)</span>
+</p>
+<h3 id="distinct"><code>Distinct</code></h3>
+<p>Outputting distinct (based on equals method) elements. It takes optional <code>UnaryFunction</code> mapper parameter which maps elements to output type.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose input: [1, 2, 3, 3, 2, 1]
+</span><span class="c1"></span><span class="n">Distinct</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;unique-integers-only&#34;</span><span class="o">)</span>
   <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
   <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// Output will contain:  1, 2, 3</span>
-</code></pre></div></div>
-<p><code class="highlighter-rouge">Distinct</code> with mapper.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose keyValueInput: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]</span>
-<span class="n">Distinct</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"unique-keys-only"</span><span class="o">)</span>
+<span class="c1">// Output will contain:  1, 2, 3
+</span><span class="c1"></span> </code></pre></div>
+        </div>
+    
+
+
+<code>Distinct</code> with mapper.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose keyValueInput: [KV(1, 100L), KV(3, 100_000L), KV(42, 10L), KV(1, 0L), KV(3, 0L)]
+</span><span class="c1"></span><span class="n">Distinct</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;unique-keys-only&#34;</span><span class="o">)</span>
   <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">keyValueInput</span><span class="o">)</span>
-  <span class="o">.</span><span class="na">projected</span><span class="o">(</span><span class="nl">KV:</span><span class="o">:</span><span class="n">getKey</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">projected</span><span class="o">(</span><span class="n">KV</span><span class="o">::</span><span class="n">getKey</span><span class="o">)</span>
   <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// Output will contain kvs with keys:  1, 3, 42 with some arbitrary values associated with given keys</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">Output</span> <span class="n">will</span> <span class="n">contain</span> <span class="n">kvs</span> <span class="n">with</span> <span class="n">keys</span><span class="o">:</span>  <span class="n">1</span><span class="o">,</span> <span class="n">3</span><span class="o">,</span> <span class="n">42</span> <span class="n">with</span> <span class="n">some</span> <span class="n">arbitrary</span> <span class="n">values</span> <span class="n">associated</span> <span class="n">with</span> <span class="n">given</span> <span class="n">keys</span></code></pre></div>
+        </div>
+    
 
-<h3 id="join"><code class="highlighter-rouge">Join</code></h3>
-<p>Represents inner join of two (left and right) datasets on given key producing a new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes elements from both dataset sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
-<span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
-  <span class="n">Join</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"join-length-to-words"</span><span class="o">)</span>
+</p>
+<h3 id="join"><code>Join</code></h3>
+<p>Represents inner join of two (left and right) datasets on given key producing a new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code>LeftT</code> and <code>RightT</code>. The join itself is performed by user-supplied <code>BinaryFunctor</code> which consumes elements from both dataset sharing the same key. And outputs result of the join (<code>OutputT</code>). The operator emits output dataset of <code>KV&lt;K, OutputT&gt;</code> type.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
+</span><span class="c1">// suppose that right contains: [&#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+  <span class="n">Join</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;join-length-to-words&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
-    <span class="o">.</span><span class="na">using</span><span class="o">((</span><span class="n">Integer</span> <span class="n">l</span><span class="o">,</span> <span class="n">String</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span> <span class="o">+</span> <span class="s">"+"</span> <span class="o">+</span> <span class="n">r</span><span class="o">))</span>
+    <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">using</span><span class="o">((</span><span class="n">Integer</span> <span class="n">l</span><span class="o">,</span> <span class="n">String</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span> <span class="o">+</span> <span class="s">&#34;+&#34;</span> <span class="o">+</span> <span class="n">r</span><span class="o">))</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// joined will contain: [ KV(1, "1+X"), KV(3, "3+cat"), KV(3, "3+rat"), KV(4, "4+duck"),</span>
-<span class="c1">// KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X")]</span>
-</code></pre></div></div>
+<span class="c1">// joined will contain: [ KV(1, &#34;1+X&#34;), KV(3, &#34;3+cat&#34;), KV(3, &#34;3+rat&#34;), KV(4, &#34;4+duck&#34;),
+</span><span class="c1"></span><span class="o">//</span> <span class="n">KV</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="s">&#34;3+cat&#34;</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="s">&#34;3+rat&#34;</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="s">&#34;1+X&#34;</span><span class="o">)]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="leftjoin"><code class="highlighter-rouge">LeftJoin</code></h3>
-<p>Represents left join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where right is present optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
-<span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
-  <span class="n">LeftJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"left-join-length-to-words"</span><span class="o">)</span>
+</p>
+<h3 id="leftjoin"><code>LeftJoin</code></h3>
+<p>Represents left join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code>LeftT</code> and <code>RightT</code>. The join itself is performed by user-supplied <code>BinaryFunctor</code> which consumes one element from both dataset, where right is present optionally, sharing the same key. And outputs result of the join (<code>OutputT</code>). The operator emits output dataset of <code>KV&lt;K, OutputT&gt;</code> type.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
+</span><span class="c1">// suppose that right contains: [&#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+  <span class="n">LeftJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;left-join-length-to-words&#34;</span><span class="o">)</span>
       <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
-      <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
-      <span class="o">.</span><span class="na">using</span><span class="o">(</span>
+      <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors
+</span><span class="c1"></span>      <span class="o">.</span><span class="na">using</span><span class="o">(</span>
           <span class="o">(</span><span class="n">Integer</span> <span class="n">l</span><span class="o">,</span> <span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span>
-              <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span> <span class="o">+</span> <span class="s">"+"</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)))</span>
+              <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span> <span class="o">+</span> <span class="s">&#34;+&#34;</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)))</span>
       <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// joined will contain: [KV(1, "1+X"), KV(2, "2+null"), KV(3, "3+cat"),</span>
-<span class="c1">// KV(3, "3+rat"), KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"),</span>
-<span class="c1">// KV(3, "3+rat"), KV(1, "1+X")]</span>
-</code></pre></div></div>
-<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">LeftJoin</code>. Broadcast join can be very efficient when joining two datasets where one fits in memory (in <code class="highlighter-rouge">LeftJoin</code> right dataset has to fit in memory). How to use ‘Broadcast Hash Join’ is described in <a href="#translation">Translation</a> section.</p>
+<span class="c1">// joined will contain: [KV(1, &#34;1+X&#34;), KV(2, &#34;2+null&#34;), KV(3, &#34;3+cat&#34;),
+</span><span class="c1">// KV(3, &#34;3+rat&#34;), KV(0, &#34;0+null&#34;), KV(4, &#34;4+duck&#34;), KV(3, &#34;3+cat&#34;),
+</span><span class="c1"></span><span class="o">//</span> <span class="n">KV</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="s">&#34;3+rat&#34;</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="s">&#34;1+X&#34;</span><span class="o">)]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="rightjoin"><code class="highlighter-rouge">RightJoin</code></h3>
-<p>Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
-<span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
-  <span class="n">RightJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"right-join-length-to-words"</span><span class="o">)</span>
+
+Euphoria support performance optimization called &lsquo;BroadcastHashJoin&rsquo; for the <code>LeftJoin</code>. Broadcast join can be very efficient when joining two datasets where one fits in memory (in <code>LeftJoin</code> right dataset has to fit in memory). How to use &lsquo;Broadcast Hash Join&rsquo; is described in <a href="#translation">Translation</a> section.</p>
+<h3 id="rightjoin"><code>RightJoin</code></h3>
+<p>Represents right join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code>LeftT</code> and <code>RightT</code>. The join itself is performed by user-supplied <code>BinaryFunctor</code> which consumes one element from both dataset, where left is present optionally, sharing the same key. And outputs result of the join (<code>OutputT</code>). The operator emits output dataset of <code>KV&lt;K, OutputT&gt;</code> type.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
+</span><span class="c1">// suppose that right contains: [&#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+  <span class="n">RightJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;right-join-length-to-words&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
-    <span class="o">.</span><span class="na">using</span><span class="o">(</span>
+    <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">using</span><span class="o">(</span>
       <span class="o">(</span><span class="n">Optional</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">l</span><span class="o">,</span> <span class="n">String</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span>
-        <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)</span> <span class="o">+</span> <span class="s">"+"</span> <span class="o">+</span> <span class="n">r</span><span class="o">))</span>
+        <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)</span> <span class="o">+</span> <span class="s">&#34;+&#34;</span> <span class="o">+</span> <span class="n">r</span><span class="o">))</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-    <span class="c1">// joined will contain: [ KV(1, "1+X"), KV(3, "3+cat"), KV(3, "3+rat"),</span>
-    <span class="c1">// KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"), KV(1, "1+X"),</span>
-    <span class="c1">// KV(8, "null+elephant"), KV(5, "null+mouse")]</span>
-</code></pre></div></div>
-<p>Euphoria support performance optimization called ‘BroadcastHashJoin’ for the <code class="highlighter-rouge">RightJoin</code>. Broadcast join can be very efficient when joining two datasets where one fits in memory (in <code class="highlighter-rouge">RightJoin</code> left dataset has to fit in memory). How to use ‘Broadcast Hash Join’ is described in <a href="#translation">Translation</a> section.</p>
+    <span class="c1">// joined will contain: [ KV(1, &#34;1+X&#34;), KV(3, &#34;3+cat&#34;), KV(3, &#34;3+rat&#34;),
+</span><span class="c1"></span>    <span class="c1">// KV(4, &#34;4+duck&#34;), KV(3, &#34;3+cat&#34;), KV(3, &#34;3+rat&#34;), KV(1, &#34;1+X&#34;),
+</span><span class="c1"></span>    <span class="o">//</span> <span class="n">KV</span><span class="o">(</span><span class="n">8</span><span class="o">,</span> <span class="s">&#34;null+elephant&#34;</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">5</span><span class="o">,</span> <span class="s">&#34;null+mouse&#34;</span><span class="o">)]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="fulljoin"><code class="highlighter-rouge">FullJoin</code></h3>
-<p>Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code class="highlighter-rouge">LeftT</code> and <code class="highlighter-rouge">RightT</code>. The join itself is performed by user-supplied <code class="highlighter-rouge">BinaryFunctor</code> which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (<code class="highlighter-rouge">OutputT</code>). The operator emits output dataset of <code class="highlighter-rouge">KV&lt;K, OutputT&gt;</code> type.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]</span>
-<span class="c1">// suppose that right contains: ["mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
-  <span class="n">FullJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"join-length-to-words"</span><span class="o">)</span>
+
+Euphoria support performance optimization called &lsquo;BroadcastHashJoin&rsquo; for the <code>RightJoin</code>. Broadcast join can be very efficient when joining two datasets where one fits in memory (in <code>RightJoin</code> left dataset has to fit in memory). How to use &lsquo;Broadcast Hash Join&rsquo; is described in <a href="#translation">Translation</a> section.</p>
+<h3 id="fulljoin"><code>FullJoin</code></h3>
+<p>Represents full outer join of two (left and right) datasets on given key producing single new dataset. Key is extracted from both datasets by separate extractors so elements in left and right can have different types denoted as <code>LeftT</code> and <code>RightT</code>. The join itself is performed by user-supplied <code>BinaryFunctor</code> which consumes one element from both dataset, where both are present only optionally, sharing the same key. And outputs result of the join (<code>OutputT</code>). The operator emits output dataset of <code>KV&lt;K, OutputT&gt;</code> type.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose that left contains: [1, 2, 3, 0, 4, 3, 1]
+</span><span class="c1">// suppose that right contains: [&#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">joined</span> <span class="o">=</span>
+  <span class="n">FullJoin</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;join-length-to-words&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">left</span><span class="o">,</span> <span class="n">right</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors</span>
-    <span class="o">.</span><span class="na">using</span><span class="o">(</span>
+    <span class="o">.</span><span class="na">by</span><span class="o">(</span><span class="n">le</span> <span class="o">-&gt;</span> <span class="n">le</span><span class="o">,</span> <span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// key extractors
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">using</span><span class="o">(</span>
       <span class="o">(</span><span class="n">Optional</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">l</span><span class="o">,</span> <span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">r</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span>
-        <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)</span> <span class="o">+</span> <span class="s">"+"</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)))</span>
+        <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">l</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)</span> <span class="o">+</span> <span class="s">&#34;+&#34;</span> <span class="o">+</span> <span class="n">r</span><span class="o">.</span><span class="na">orElse</span><span class="o">(</span><span class="kc">null</span><span class="o">)))</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// joined will contain: [ KV(1, "1+X"), KV(2, "2+null"), KV(3, "3+cat"), KV(3, "3+rat"),</span>
-<span class="c1">// KV(0, "0+null"), KV(4, "4+duck"), KV(3, "3+cat"), KV(3, "3+rat"),KV(1, "1+X"),</span>
-<span class="c1">//  KV(1, "null+elephant"), KV(5, "null+mouse")]</span>
-</code></pre></div></div>
+<span class="c1">// joined will contain: [ KV(1, &#34;1+X&#34;), KV(2, &#34;2+null&#34;), KV(3, &#34;3+cat&#34;), KV(3, &#34;3+rat&#34;),
+</span><span class="c1">// KV(0, &#34;0+null&#34;), KV(4, &#34;4+duck&#34;), KV(3, &#34;3+cat&#34;), KV(3, &#34;3+rat&#34;),KV(1, &#34;1+X&#34;),
+</span><span class="c1"></span><span class="o">//</span>  <span class="n">KV</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="s">&#34;null+elephant&#34;</span><span class="o">),</span> <span class="n">KV</span><span class="o">(</span><span class="n">5</span><span class="o">,</span> <span class="s">&#34;null+mouse&#34;</span><span class="o">)]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="mapelements"><code class="highlighter-rouge">MapElements</code></h3>
-<p>Transforms one input element of input type <code class="highlighter-rouge">InputT</code> to one output element of another (potentially the same) <code class="highlighter-rouge">OutputT</code> type. Transformation is done through user specified <code class="highlighter-rouge">UnaryFunction</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose inputs contains: [ 0, 1, 2, 3, 4, 5]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">strings</span> <span class="o">=</span>
-  <span class="n">MapElements</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"int2str"</span><span class="o">)</span>
+</p>
+<h3 id="mapelements"><code>MapElements</code></h3>
+<p>Transforms one input element of input type <code>InputT</code> to one output element of another (potentially the same) <code>OutputT</code> type. Transformation is done through user specified <code>UnaryFunction</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose inputs contains: [ 0, 1, 2, 3, 4, 5]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">strings</span> <span class="o">=</span>
+  <span class="n">MapElements</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;int2str&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="s">"#"</span> <span class="o">+</span> <span class="n">i</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="s">&#34;#&#34;</span> <span class="o">+</span> <span class="n">i</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// strings will contain: [ "#0", "#1", "#2", "#3", "#4", "#5"]</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">strings</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span> <span class="o">[</span> <span class="s">&#34;#0&#34;</span><span class="o">,</span> <span class="s">&#34;#1&#34;</span><span class="o">,</span> <span class="s">&#34;#2&#34;</span><span class="o">,</span> <span class="s">&#34;#3&#34;</span><span class="o">,</span> <span class="s">&#34;#4&#34;</span><span class="o">,</span> <span class="s">&#34;#5&#34;</span><span class="o">]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="flatmap"><code class="highlighter-rouge">FlatMap</code></h3>
-<p>Transforms one input element of input type <code class="highlighter-rouge">InputT</code> to zero or more output elements of another (potentially the same) <code class="highlighter-rouge">OutputT</code> type. Transformation is done through user specified <code class="highlighter-rouge">UnaryFunctor</code>, where <code class="highlighter-rouge">Collector&lt;OutputT&gt;</code> is utilized to emit output elements. Notice similarity with <code class="highlighter-rouge">MapElements</code> which can always emit only one element.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose words contain: ["Brown", "fox", ".", ""]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">letters</span> <span class="o">=</span>
-  <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"str2char"</span><span class="o">)</span>
+</p>
+<h3 id="flatmap"><code>FlatMap</code></h3>
+<p>Transforms one input element of input type <code>InputT</code> to zero or more output elements of another (potentially the same) <code>OutputT</code> type. Transformation is done through user specified <code>UnaryFunctor</code>, where <code>Collector&lt;OutputT&gt;</code> is utilized to emit output elements. Notice similarity with <code>MapElements</code> which can always emit only one element.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose words contain: [&#34;Brown&#34;, &#34;fox&#34;, &#34;.&#34;, &#34;&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">letters</span> <span class="o">=</span>
+  <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;str2char&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">words</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span>
       <span class="o">(</span><span class="n">String</span> <span class="n">s</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">collector</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
-        <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">s</span><span class="o">.</span><span class="na">length</span><span class="o">();</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
+        <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="n">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">s</span><span class="o">.</span><span class="na">length</span><span class="o">();</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
           <span class="kt">char</span> <span class="n">c</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="na">charAt</span><span class="o">(</span><span class="n">i</span><span class="o">);</span>
           <span class="n">collector</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="n">c</span><span class="o">));</span>
         <span class="o">}</span>
       <span class="o">})</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// characters will contain: ["B", "r", "o", "w", "n",  "f", "o", "x", "."]</span>
-</code></pre></div></div>
-<p><code class="highlighter-rouge">FlatMap</code> may be used to determine time-stamp of elements. It is done by supplying implementation of <code class="highlighter-rouge">ExtractEventTime</code> time extractor when building it. There is specialized <code class="highlighter-rouge">AssignEventTime</code> operator to assign time-stamp to elements. Consider using it, you code may be more readable.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
-  <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"extract-event-time"</span><span class="o">)</span>
+<span class="o">//</span> <span class="n">characters</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span> <span class="o">[</span><span class="s">&#34;B&#34;</span><span class="o">,</span> <span class="s">&#34;r&#34;</span><span class="o">,</span> <span class="s">&#34;o&#34;</span><span class="o">,</span> <span class="s">&#34;w&#34;</span><span class="o">,</span> <span class="s">&#34;n&#34;</span><span class="o">,</span>  <span class="s">&#34;f&#34;</span><span class="o">,</span> <span class="s">&#34;o&#34;</span><span class="o">,</span> <span class="s">&#34;x&#34;</span><span class="o">,</span> <span class="s">&#34;.&#34;</span><span class="o">]</span></code></pre></div>
+        </div>
+    
+
+
+<code>FlatMap</code> may be used to determine time-stamp of elements. It is done by supplying implementation of <code>ExtractEventTime</code> time extractor when building it. There is specialized <code>AssignEventTime</code> operator to assign time-stamp to elements. Consider using it, you code may be more readable.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose events contain events of SomeEventObject, its &#39;getEventTimeInMillis()&#39; methods returns time-stamp
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
+  <span class="n">FlatMap</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;extract-event-time&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">events</span><span class="o">)</span>
     <span class="o">.</span><span class="na">using</span><span class="o">(</span> <span class="o">(</span><span class="n">SomeEventObject</span> <span class="n">e</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">c</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">e</span><span class="o">))</span>
-    <span class="o">.</span><span class="na">eventTimeBy</span><span class="o">(</span><span class="nl">SomeEventObject:</span><span class="o">:</span><span class="n">getEventTimeInMillis</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">eventTimeBy</span><span class="o">(</span><span class="n">SomeEventObject</span><span class="o">::</span><span class="n">getEventTimeInMillis</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">//Euphoria will now know event time for each event</span>
-</code></pre></div></div>
+<span class="o">//</span><span class="n">Euphoria</span> <span class="n">will</span> <span class="n">now</span> <span class="n">know</span> <span class="n">event</span> <span class="n">time</span> <span class="k">for</span> <span class="n">each</span> <span class="n">event</span></code></pre></div>
+        </div>
+    
 
-<h3 id="filter"><code class="highlighter-rouge">Filter</code></h3>
-<p><code class="highlighter-rouge">Filter</code> throws away all the elements which do not pass given condition. The condition is supplied by the user as implementation of <code class="highlighter-rouge">UnaryPredicate</code>. Input and output elements are of the same type.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">divisibleBythree</span> <span class="o">=</span>
-  <span class="n">Filter</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"divisibleByThree"</span><span class="o">).</span><span class="na">of</span><span class="o">(</span><span class="n">nums</span><span class="o">).</span><span class="na">by</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">%</span> <span class="mi">3</span> <span class="o">==</span> <span class="mi">0</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">//divisibleBythree will contain: [ 0, 3, 6, 9]</span>
-</code></pre></div></div>
+</p>
+<h3 id="filter"><code>Filter</code></h3>
+<p><code>Filter</code> throws away all the elements which do not pass given condition. The condition is supplied by the user as implementation of <code>UnaryPredicate</code>. Input and output elements are of the same type.
 
-<h3 id="reducebykey"><code class="highlighter-rouge">ReduceByKey</code></h3>
-<p>Performs aggregation of <code class="highlighter-rouge">InputT</code> type elements with the same key through user-supplied reduce function. Key is extracted from each element through <code class="highlighter-rouge">UnaryFunction</code> which takes input element and outputs its key of type <code class="highlighter-rouge">K</code>. Elements can optionally be mapped to value of type <code class="highlighter-rouge">V</code>, it happens before elements shuffle, so it can have positive performance influence.</p>
 
-<p>Finally, elements with the same key are aggregated by user-defined <code class="highlighter-rouge">ReduceFunctor</code>, <code class="highlighter-rouge">ReduceFunction</code> or <code class="highlighter-rouge">CombinableReduceFunction</code>. They differs in number of arguments they take and in way output is interpreted. <code class="highlighter-rouge">ReduceFunction</code> is basically a function which takes <code class="highlighter-rouge">Stream</code> of elements as input and outputs one aggregation result. <code class="highlighter-rouge">ReduceFunctor</code> takes second <code class="highlighter-rouge">Collector</code> which allows for access to <code class="highlighter-rouge">Context</code>. When <code class="highlighter-rouge">CombinableReduceFunction</code> is provided, partial reduction is performed before shuffle so less data have to be transported through network.</p>
 
-<p>Following example shows basic usage of <code class="highlighter-rouge">ReduceByKey</code> operator including value extraction.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLength</span> <span class="o">=</span>
-  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose nums contains: [0,  1, 2, 3, 4, 5, 6, 7, 8, 9]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">divisibleBythree</span> <span class="o">=</span>
+  <span class="n">Filter</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;divisibleByThree&#34;</span><span class="o">).</span><span class="na">of</span><span class="o">(</span><span class="n">nums</span><span class="o">).</span><span class="na">by</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">%</span> <span class="n">3</span> <span class="o">==</span> <span class="n">0</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
+<span class="o">//</span><span class="n">divisibleBythree</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span> <span class="o">[</span> <span class="n">0</span><span class="o">,</span> <span class="n">3</span><span class="o">,</span> <span class="n">6</span><span class="o">,</span> <span class="n">9</span><span class="o">]</span></code></pre></div>
+        </div>
+    
+
+</p>
+<h3 id="reducebykey"><code>ReduceByKey</code></h3>
+<p>Performs aggregation of <code>InputT</code> type elements with the same key through user-supplied reduce function. Key is extracted from each element through <code>UnaryFunction</code> which takes input element and outputs its key of type <code>K</code>. Elements can optionally be mapped to value of type <code>V</code>, it happens before elements shuffle, so it can have positive performance influence.</p>
+<p>Finally, elements with the same key are aggregated by user-defined <code>ReduceFunctor</code>, <code>ReduceFunction</code> or <code>CombinableReduceFunction</code>. They differs in number of arguments they take and in way output is interpreted. <code>ReduceFunction</code> is basically a function which takes <code>Stream</code> of elements as input and outputs one aggregation result. <code>ReduceFunctor</code> takes second <code>Collector</code> which allows for access to <code>Context</code>. When <code>CombinableReduceFunction</code> is provided, partial reduction is performed before shuffle so less data have to be transported through network.</p>
+<p>Following example shows basic usage of <code>ReduceByKey</code> operator including value extraction.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose animals contains : [ &#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLength</span> <span class="o">=</span>
+  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;to-letters-couts&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as groupping key</span>
-    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1</span>
-    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="mi">1</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">reduceBy</span><span class="o">(</span><span class="nl">Stream:</span><span class="o">:</span><span class="n">count</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as groupping key
+</span><span class="c1"></span>    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">1</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">reduceBy</span><span class="o">(</span><span class="n">Stream</span><span class="o">::</span><span class="n">count</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">countOfAnimalNamesByLength</span> <span class="n">wil</span> <span class="n">contain</span> <span class="o">[</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="n">2L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">4</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">5</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">8</span><span class="o">,</span> <span class="n">1L</span><span class="o">)</span> <span class="o">]</span></code></pre></div>
+        </div>
+    
 
-<p>Now suppose that we want to track our <code class="highlighter-rouge">ReduceByKey</code> internals using counter.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
-  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
+</p>
+<p>Now suppose that we want to track our <code>ReduceByKey</code> internals using counter.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose animals contains : [ &#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
+  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;to-letters-couts&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as grouping key</span>
-    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1</span>
-    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="mi">1</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as grouping key
+</span><span class="c1"></span>    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">1</span><span class="o">)</span>
     <span class="o">.</span><span class="na">reduceBy</span><span class="o">(</span>
       <span class="o">(</span><span class="n">Stream</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">s</span><span class="o">,</span> <span class="n">Collector</span><span class="o">&lt;</span><span class="n">Long</span><span class="o">&gt;</span> <span class="n">collector</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
         <span class="n">collector</span><span class="o">.</span><span class="na">collect</span><span class="o">(</span><span class="n">s</span><span class="o">.</span><span class="na">count</span><span class="o">());</span>
-        <span class="n">collector</span><span class="o">.</span><span class="na">asContext</span><span class="o">().</span><span class="na">getCounter</span><span class="o">(</span><span class="s">"num-of-keys"</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
+        <span class="n">collector</span><span class="o">.</span><span class="na">asContext</span><span class="o">().</span><span class="na">getCounter</span><span class="o">(</span><span class="s">&#34;num-of-keys&#34;</span><span class="o">).</span><span class="na">increment</span><span class="o">();</span>
       <span class="o">})</span>
       <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">countOfAnimalNamesByLength</span> <span class="n">wil</span> <span class="n">contain</span> <span class="o">[</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="n">2L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">4</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">5</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">8</span><span class="o">,</span> <span class="n">1L</span><span class="o">)</span> <span class="o">]</span></code></pre></div>
+        </div>
+    
 
-<p>Again the same example with optimized combinable output.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
-  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will e used as grouping key</span>
-    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1</span>
-    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="mi">1L</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">combineBy</span><span class="o">(</span><span class="n">s</span> <span class="o">-&gt;</span> <span class="n">s</span><span class="o">.</span><span class="na">mapToLong</span><span class="o">(</span><span class="n">l</span> <span class="o">-&gt;</span> <span class="n">l</span><span class="o">).</span><span class="na">sum</span><span class="o">())</span> <span class="c1">//Stream::count will not be enough</span>
-    <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// countOfAnimalNamesByLength wil contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]</span>
-</code></pre></div></div>
-<p>Note that the provided <code class="highlighter-rouge">CombinableReduceFunction</code> has to be associative and commutative to be truly combinable. So it can be used to compute partial results before shuffle. And then merge partial result to one. That is why simple <code class="highlighter-rouge">Stream::count</code> will not work in this example unlike in the previous one.</p>
+</p>
+<p>Again the same example with optimized combinable output.
 
-<p>Euphoria aims to make code easy to write and read. Therefore some support to write combinable reduce functions in form of <code class="highlighter-rouge">Fold</code> or folding function is already there. It allows user to supply only the reduction logic (<code class="highlighter-rouge">BinaryFunction</code>) and creates <code class="highlighter-rouge">CombinableReduceFunction</code> out of it. Supplied <code class="highlighter-rouge">BinaryFunction</code> still have to be associative.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose animals contains : [ "mouse", "rat", "elephant", "cat", "X", "duck"]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
-  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-letters-couts"</span><span class="o">)</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose animals contains : [ &#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
+  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;to-letters-couts&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as grouping key</span>
-    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1</span>
-    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="mi">1L</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will e used as grouping key
+</span><span class="c1"></span>    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">1L</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">combineBy</span><span class="o">(</span><span class="n">s</span> <span class="o">-&gt;</span> <span class="n">s</span><span class="o">.</span><span class="na">mapToLong</span><span class="o">(</span><span class="n">l</span> <span class="o">-&gt;</span> <span class="n">l</span><span class="o">).</span><span class="na">sum</span><span class="o">())</span> <span class="c1">//Stream::count will not be enough
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">output</span><span class="o">();</span>
+<span class="o">//</span> <span class="n">countOfAnimalNamesByLength</span> <span class="n">wil</span> <span class="n">contain</span> <span class="o">[</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="n">2L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">4</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">5</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">8</span><span class="o">,</span> <span class="n">1L</span><span class="o">)</span> <span class="o">]</span></code></pre></div>
+        </div>
+    
+
+
+Note that the provided <code>CombinableReduceFunction</code> has to be associative and commutative to be truly combinable. So it can be used to compute partial results before shuffle. And then merge partial result to one. That is why simple <code>Stream::count</code> will not work in this example unlike in the previous one.</p>
+<p>Euphoria aims to make code easy to write and read. Therefore some support to write combinable reduce functions in form of <code>Fold</code> or folding function is already there. It allows user to supply only the reduction logic (<code>BinaryFunction</code>) and creates <code>CombinableReduceFunction</code> out of it. Supplied <code>BinaryFunction</code> still have to be associative.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose animals contains : [ &#34;mouse&#34;, &#34;rat&#34;, &#34;elephant&#34;, &#34;cat&#34;, &#34;X&#34;, &#34;duck&#34;]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">countOfAnimalNamesByLenght</span> <span class="o">=</span>
+  <span class="n">ReduceByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;to-letters-couts&#34;</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length of animal name will be used as grouping key
+</span><span class="c1"></span>    <span class="c1">// we need to count each animal name once, so why not to optimize each string to 1
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">1L</span><span class="o">)</span>
     <span class="o">.</span><span class="na">combineBy</span><span class="o">(</span><span class="n">Fold</span><span class="o">.</span><span class="na">of</span><span class="o">((</span><span class="n">l1</span><span class="o">,</span> <span class="n">l2</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">l1</span> <span class="o">+</span> <span class="n">l2</span><span class="o">))</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// countOfAnimalNamesByLength will contain [ KV.of(1, 1L), KV.of(3, 2L), KV.of(4, 1L), KV.of(5, 1L), KV.of(8, 1L) ]</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">countOfAnimalNamesByLength</span> <span class="n">will</span> <span class="n">contain</span> <span class="o">[</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">3</span><span class="o">,</span> <span class="n">2L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">4</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">5</span><span class="o">,</span> <span class="n">1L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">8</span><span class="o">,</span> <span class="n">1L</span><span class="o">)</span> <span class="o">]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="reducewindow"><code class="highlighter-rouge">ReduceWindow</code></h3>
-<p>Reduces all elements in a <a href="#windowing">window</a>. The operator corresponds to <code class="highlighter-rouge">ReduceByKey</code> with the same key for all elements, so the actual key is defined only by window.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]</span>
-<span class="c1">//lets assign time-stamp to each input element</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">withEventTime</span> <span class="o">=</span> <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="mi">1000L</span> <span class="o">*</span> <span class="n">i</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
+</p>
+<h3 id="reducewindow"><code>ReduceWindow</code></h3>
+<p>Reduces all elements in a <a href="#windowing">window</a>. The operator corresponds to <code>ReduceByKey</code> with the same key for all elements, so the actual key is defined only by window.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose input contains [ 1, 2, 3, 4, 5, 6, 7, 8 ]
+</span><span class="c1">//lets assign time-stamp to each input element
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">withEventTime</span> <span class="o">=</span> <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="n">i</span> <span class="o">-&gt;</span> <span class="n">1000L</span> <span class="o">*</span> <span class="n">i</span><span class="o">).</span><span class="na">output</span><span class="o">();</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;</span> <span class="n">output</span> <span class="o">=</span>
   <span class="n">ReduceWindow</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">withEventTime</span><span class="o">)</span>
     <span class="o">.</span><span class="na">combineBy</span><span class="o">(</span><span class="n">Fold</span><span class="o">.</span><span class="na">of</span><span class="o">((</span><span class="n">i1</span><span class="o">,</span> <span class="n">i2</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="n">i1</span> <span class="o">+</span> <span class="n">i2</span><span class="o">))</span>
-    <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">millis</span><span class="o">(</span><span class="mi">5000</span><span class="o">)))</span>
+    <span class="o">.</span><span class="na">windowBy</span><span class="o">(</span><span class="n">FixedWindows</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">Duration</span><span class="o">.</span><span class="na">millis</span><span class="o">(</span><span class="n">5000</span><span class="o">)))</span>
     <span class="o">.</span><span class="na">triggeredBy</span><span class="o">(</span><span class="n">DefaultTrigger</span><span class="o">.</span><span class="na">of</span><span class="o">())</span>
     <span class="o">.</span><span class="na">discardingFiredPanes</span><span class="o">()</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">//output will contain: [ 10, 26 ]</span>
-</code></pre></div></div>
+<span class="o">//</span><span class="n">output</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span> <span class="o">[</span> <span class="n">10</span><span class="o">,</span> <span class="n">26</span> <span class="o">]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="sumbykey"><code class="highlighter-rouge">SumByKey</code></h3>
-<p>Summing elements with same key. Requires input dataset to be mapped by given key extractor (<code class="highlighter-rouge">UnaryFunction</code>) to keys. By value extractor, also <code class="highlighter-rouge">UnaryFunction</code> which outputs to <code class="highlighter-rouge">Long</code>, to values. Those values are then grouped by key and summed. Output is emitted as <code class="highlighter-rouge">KV&lt;K, Long&gt;</code> (<code class="highlighter-rouge">K</code> is key type) where each <code class="highlighter-rouge">KV</code> contains key and number of element in input dataset for the key.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
-  <span class="n">SumByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"sum-odd-and-even"</span><span class="o">)</span>
+</p>
+<h3 id="sumbykey"><code>SumByKey</code></h3>
+<p>Summing elements with same key. Requires input dataset to be mapped by given key extractor (<code>UnaryFunction</code>) to keys. By value extractor, also <code>UnaryFunction</code> which outputs to <code>Long</code>, to values. Those values are then grouped by key and summed. Output is emitted as <code>KV&lt;K, Long&gt;</code> (<code>K</code> is key type) where each <code>KV</code> contains key and number of element in input dataset for the key.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose input contains: [ 1, 2, 3, 4, 5, 6, 7, 8, 9 ]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">output</span> <span class="o">=</span>
+  <span class="n">SumByKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;sum-odd-and-even&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">input</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">%</span> <span class="mi">2</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="n">e</span> <span class="o">%</span> <span class="n">2</span><span class="o">)</span>
     <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">e</span> <span class="o">-&gt;</span> <span class="o">(</span><span class="kt">long</span><span class="o">)</span> <span class="n">e</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// output will contain: [ KV.of(0, 20L), KV.of(1, 25L)]</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">output</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span> <span class="o">[</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">0</span><span class="o">,</span> <span class="n">20L</span><span class="o">),</span> <span class="n">KV</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">25L</span><span class="o">)]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="union"><code class="highlighter-rouge">Union</code></h3>
-<p>Merge of at least two datasets of the same type without any guarantee about elements ordering.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//suppose cats contains: [ "cheetah", "cat", "lynx", "jaguar" ]</span>
-<span class="c1">//suppose rodents conains: [ "squirrel", "mouse", "rat", "lemming", "beaver" ]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">animals</span> <span class="o">=</span>
-  <span class="n">Union</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"to-animals"</span><span class="o">)</span>
+</p>
+<h3 id="union"><code>Union</code></h3>
+<p>Merge of at least two datasets of the same type without any guarantee about elements ordering.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">//suppose cats contains: [ &#34;cheetah&#34;, &#34;cat&#34;, &#34;lynx&#34;, &#34;jaguar&#34; ]
+</span><span class="c1">//suppose rodents conains: [ &#34;squirrel&#34;, &#34;mouse&#34;, &#34;rat&#34;, &#34;lemming&#34;, &#34;beaver&#34; ]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">animals</span> <span class="o">=</span>
+  <span class="n">Union</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;to-animals&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">cats</span><span class="o">,</span> <span class="n">rodents</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">// animal will contain: "cheetah", "cat", "lynx", "jaguar", "squirrel", "mouse", "rat", "lemming", "beaver"</span>
-</code></pre></div></div>
+<span class="o">//</span> <span class="n">animal</span> <span class="n">will</span> <span class="n">contain</span><span class="o">:</span> <span class="s">&#34;cheetah&#34;</span><span class="o">,</span> <span class="s">&#34;cat&#34;</span><span class="o">,</span> <span class="s">&#34;lynx&#34;</span><span class="o">,</span> <span class="s">&#34;jaguar&#34;</span><span class="o">,</span> <span class="s">&#34;squirrel&#34;</span><span class="o">,</span> <span class="s">&#34;mouse&#34;</span><span class="o">,</span> <span class="s">&#34;rat&#34;</span><span class="o">,</span> <span class="s">&#34;lemming&#34;</span><span class="o">,</span> <span class="s">&#34;beaver&#34;</span></code></pre></div>
+        </div>
+    
 
-<h3 id="topperkey"><code class="highlighter-rouge">TopPerKey</code></h3>
-<p>Emits one top-rated element per key. Key of type <code class="highlighter-rouge">K</code> is extracted by given <code class="highlighter-rouge">UnaryFunction</code>. Another <code class="highlighter-rouge">UnaryFunction</code> extractor allows for conversion input elements to values of type <code class="highlighter-rouge">V</code>. Selection of top element is based on <em>score</em>, which is obtained from each element by user supplied <code class="highlighter-rouge">UnaryFunction</code> called score calculator. Score type is denoted as <code class="highlighter-rouge">ScoreT</code> and it is required to extend <code class="highlighter-rouge">Comparable&lt;ScoreT&gt;</code> so scores of two elements can be compared directly. Output dataset elements are of type <code class="highlighter-rouge">Triple&lt;K, V, ScoreT&gt;</code>.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose 'animals contain: [ "mouse", "elk", "rat", "mule", "elephant", "dinosaur", "cat", "duck", "caterpillar" ]</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Triple</span><span class="o">&lt;</span><span class="n">Character</span><span class="o">,</span> <span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">longestNamesByLetter</span> <span class="o">=</span>
-  <span class="n">TopPerKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"longest-animal-names"</span><span class="o">)</span>
+</p>
+<h3 id="topperkey"><code>TopPerKey</code></h3>
+<p>Emits one top-rated element per key. Key of type <code>K</code> is extracted by given <code>UnaryFunction</code>. Another <code>UnaryFunction</code> extractor allows for conversion input elements to values of type <code>V</code>. Selection of top element is based on <em>score</em>, which is obtained from each element by user supplied <code>UnaryFunction</code> called score calculator. Score type is denoted as <code>ScoreT</code> and it is required to extend <code>Comparable&lt;ScoreT&gt;</code> so scores of two elements can be compared directly. Output dataset elements are of type <code>Triple&lt;K, V, ScoreT&gt;</code>.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose &#39;animals contain: [ &#34;mouse&#34;, &#34;elk&#34;, &#34;rat&#34;, &#34;mule&#34;, &#34;elephant&#34;, &#34;dinosaur&#34;, &#34;cat&#34;, &#34;duck&#34;, &#34;caterpillar&#34; ]
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Triple</span><span class="o">&lt;</span><span class="n">Character</span><span class="o">,</span> <span class="n">String</span><span class="o">,</span> <span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">longestNamesByLetter</span> <span class="o">=</span>
+  <span class="n">TopPerKey</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;longest-animal-names&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">animals</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">name</span> <span class="o">-&gt;</span> <span class="n">name</span><span class="o">.</span><span class="na">charAt</span><span class="o">(</span><span class="mi">0</span><span class="o">))</span> <span class="c1">// first character is the key</span>
-    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">UnaryFunction</span><span class="o">.</span><span class="na">identity</span><span class="o">())</span> <span class="c1">// value type is the same as input element type</span>
-    <span class="o">.</span><span class="na">scoreBy</span><span class="o">(</span><span class="nl">String:</span><span class="o">:</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length defines score, note that Integer implements Comparable&lt;Integer&gt;</span>
-    <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">//longestNamesByLetter wil contain: [ ('m', "mouse", 5), ('r', "rat", 3), ('e', "elephant", 8), ('d', "dinosaur", 8), ('c', "caterpillar", 11) ]</span>
-</code></pre></div></div>
-<p><code class="highlighter-rouge">TopPerKey</code> is a shuffle operator so it allows for widowing to be defined.</p>
+    <span class="o">.</span><span class="na">keyBy</span><span class="o">(</span><span class="n">name</span> <span class="o">-&gt;</span> <span class="n">name</span><span class="o">.</span><span class="na">charAt</span><span class="o">(</span><span class="n">0</span><span class="o">))</span> <span class="c1">// first character is the key
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">valueBy</span><span class="o">(</span><span class="n">UnaryFunction</span><span class="o">.</span><span class="na">identity</span><span class="o">())</span> <span class="c1">// value type is the same as input element type
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">scoreBy</span><span class="o">(</span><span class="n">String</span><span class="o">::</span><span class="n">length</span><span class="o">)</span> <span class="c1">// length defines score, note that Integer implements Comparable&lt;Integer&gt;
+</span><span class="c1"></span>    <span class="o">.</span><span class="na">output</span><span class="o">();</span>
+<span class="o">//</span><span class="n">longestNamesByLetter</span> <span class="n">wil</span> <span class="n">contain</span><span class="o">:</span> <span class="o">[</span> <span class="o">(</span><span class="sc">&#39;m&#39;</span><span class="o">,</span> <span class="s">&#34;mouse&#34;</span><span class="o">,</span> <span class="n">5</span><span class="o">),</span> <span class="o">(</span><span class="sc">&#39;r&#39;</span><span class="o">,</span> <span class="s">&#34;rat&#34;</span><span class="o">,</span> <span class="n">3</span><span class="o">),</span> <span class="o">(</span><span class="sc">&#39;e&#39;</span><span class="o">,</span> <span class="s">&#34;elephant&#34;</span><span class="o">,</span> <span class="n">8</span><span class="o">),</span> <span class="o">(</span><span class="sc">&#39;d&#39;</span><span class="o">,</span> <span class="s">&#34;dinosaur&#34;</span><span class="o">,</span> <span class="n">8</span><span class="o">),</span> <span class="o">(</span><span class="sc">&#39;c&#39;</span><span class="o">,</span> <span class="s">&#34;caterpillar&#34;</span><span class="o">,</span> <span class="n">11</span><span class="o">)</span> <span class="o">]</span></code></pre></div>
+        </div>
+    
 
-<h3 id="assigneventtime"><code class="highlighter-rouge">AssignEventTime</code></h3>
-<p>Euphoria needs to know how to extract time-stamp from elements when <a href="#windowing">windowing</a> is applied. <code class="highlighter-rouge">AssignEventTime</code> tells Euphoria how to do that through given implementation of <code class="highlighter-rouge">ExtractEventTime</code> function.</p>
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// suppose events contain events of SomeEventObject, its 'getEventTimeInMillis()' methods returns time-stamp</span>
-<span class="n">PCollection</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
-  <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">"extract-event-tyme"</span><span class="o">)</span>
+
+<code>TopPerKey</code> is a shuffle operator so it allows for widowing to be defined.</p>
+<h3 id="assigneventtime"><code>AssignEventTime</code></h3>
+<p>Euphoria needs to know how to extract time-stamp from elements when <a href="#windowing">windowing</a> is applied. <code>AssignEventTime</code> tells Euphoria how to do that through given implementation of <code>ExtractEventTime</code> function.
+
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// suppose events contain events of SomeEventObject, its &#39;getEventTimeInMillis()&#39; methods returns time-stamp
+</span><span class="c1"></span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">SomeEventObject</span><span class="o">&gt;</span> <span class="n">timeStampedEvents</span> <span class="o">=</span>
+  <span class="n">AssignEventTime</span><span class="o">.</span><span class="na">named</span><span class="o">(</span><span class="s">&#34;extract-event-tyme&#34;</span><span class="o">)</span>
     <span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">events</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="nl">SomeEventObject:</span><span class="o">:</span><span class="n">getEventTimeInMillis</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">using</span><span class="o">(</span><span class="n">SomeEventObject</span><span class="o">::</span><span class="n">getEventTimeInMillis</span><span class="o">)</span>
     <span class="o">.</span><span class="na">output</span><span class="o">();</span>
-<span class="c1">//Euphoria will now know event time for each event</span>
-</code></pre></div></div>
+<span class="o">//</span><span class="n">Euphoria</span> <span class="n">will</span> <span class="n">now</span> <span class="n">know</span> <span class="n">event</span> <span class="n">time</span> <span class="k">for</span> <span class="n">each</span> <span class="n">event</span></code></pre></div>
+        </div>
+    
 
+</p>
 <h2 id="translation">Translation</h2>
-<p>Euphoria API is built on top of Beam Java SDK. The API is transparently translated into Beam’s <code class="highlighter-rouge">PTransforms</code> in background.</p>
-
-<p>The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Translation of an <code class="highlighter-rouge">Operator</code> is realized through implementations of <code class="highlighter-rouge">OperatorTranslator</code>.
-Euphoria uses <code class="highlighter-rouge">TranslationProvider</code> to decide which translator should be used. User of Euphoria API can supply its own <code class="highlighter-rouge">OperatorTranslator</code> through <code class="highlighter-rouge">TranslationProvider</code> by extending <code class="highlighter-rouge">EuphoriaOptions</code>. 
+<p>Euphoria API is built on top of Beam Java SDK. The API is transparently translated into Beam&rsquo;s <code>PTransforms</code> in background.</p>
+<p>The fact that Euphoria API is translated to Beam Java SDK give us option to fine tune the translation itself. Translation of an <code>Operator</code> is realized through implementations of <code>OperatorTranslator</code>.
+Euphoria uses <code>TranslationProvider</code> to decide which translator should be used. User of Euphoria API can supply its own <code>OperatorTranslator</code> through <code>TranslationProvider</code> by extending <code>EuphoriaOptions</code>.
 Euphoria already contains some useful implementations.</p>
-
 <h3 id="translationproviders">TranslationProviders</h3>
-<h4 id="generictranslatorprovider"><code class="highlighter-rouge">GenericTranslatorProvider</code></h4>
-<p>General <code class="highlighter-rouge">TranslationProvider</code>. Allows for registration of <code class="highlighter-rouge">OperatorTranslator</code> three different ways:</p>
+<h4 id="generictranslatorprovider"><code>GenericTranslatorProvider</code></h4>
+<p>General <code>TranslationProvider</code>. Allows for registration of <code>OperatorTranslator</code> three different ways:</p>
 <ul>
-  <li>Registration of operator specific translator by operator class.</li>
-  <li>Registration operator specific translator by operator class and additional user defined predicate.</li>
-  <li>Registration of general (not specific to one operator type) translator with user defined predicate. 
-Order of registration is important since <code class="highlighter-rouge">GenericTranslatorProvider</code> returns first suitable translator.</li>
+<li>Registration of operator specific translator by operator class.</li>
+<li>Registration operator specific translator by operator class and additional user defined predicate.</li>
+<li>Registration of general (not specific to one operator type) translator with user defined predicate.
+Order of registration is important since <code>GenericTranslatorProvider</code> returns first suitable translator.</li>
 </ul>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">GenericTranslatorProvider</span><span class="o">.</span><span class="na">newBuilder</span><span class="o">()</span>
-  <span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">FlatMap</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="n">FlatMapTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by operator class</span>
-  <span class="o">.</span><span class="na">register</span><span class="o">(</span>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">GenericTranslatorProvider</span><span class="o">.</span><span class="na">newBuilder</span><span class="o">()</span>
+  <span class="o">.</span><span class="na">register</span><span class="o">(</span><span class="n">FlatMap</span><span class="o">.</span><span class="na">class</span><span class="o">,</span> <span class="k">new</span> <span class="n">FlatMapTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by operator class
+</span><span class="c1"></span>  <span class="o">.</span><span class="na">register</span><span class="o">(</span>
     <span class="n">Join</span><span class="o">.</span><span class="na">class</span><span class="o">,</span>
     <span class="o">(</span><span class="n">Join</span> <span class="n">op</span><span class="o">)</span> <span class="o">-&gt;</span> <span class="o">{</span>
-      <span class="n">String</span> <span class="n">name</span> <span class="o">=</span> <span class="o">((</span><span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;)</span> <span class="n">op</span><span class="o">.</span><span class="na">getName</span><span class="o">()).</span><span class="na">orElse</span><span class="o">(</span><span class="s">""</span><span class="o">);</span>
-      <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">"broadcast"</span><span class="o">);</span>
+      <span class="n">String</span> <span class="n">name</span> <span class="o">=</span> <span class="o">((</span><span class="n">Optional</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;)</span> <span class="n">op</span><span class="o">.</span><span class="na">getName</span><span class="o">()).</span><span class="na">orElse</span><span class="o">(</span><span class="s">&#34;&#34;</span><span class="o">);</span>
+      <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="na">toLowerCase</span><span class="o">().</span><span class="na">startsWith</span><span class="o">(</span><span class="s">&#34;broadcast&#34;</span><span class="o">);</span>
     <span class="o">},</span>
-    <span class="k">new</span> <span class="n">BroadcastHashJoinTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by class and predicate</span>
-  <span class="o">.</span><span class="na">register</span><span class="o">(</span>
+    <span class="k">new</span> <span class="n">BroadcastHashJoinTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by class and predicate
+</span><span class="c1"></span>  <span class="o">.</span><span class="na">register</span><span class="o">(</span>
     <span class="n">op</span> <span class="o">-&gt;</span> <span class="n">op</span> <span class="k">instanceof</span> <span class="n">CompositeOperator</span><span class="o">,</span>
-    <span class="k">new</span> <span class="n">CompositeOperatorTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by predicate only</span>
-  <span class="o">.</span><span class="na">build</span><span class="o">();</span>
-</code></pre></div></div>
+    <span class="k">new</span> <span class="n">CompositeOperatorTranslator</span><span class="o">&lt;&gt;())</span> <span class="c1">// register by predicate only
+</span><span class="c1"></span>  <span class="o">.</span><span class="na">build</span><span class="o">();</span></code></pre></div>
+        </div>
+    
 
-<p><code class="highlighter-rouge">GenericTranslatorProvider</code> is default provider, see <code class="highlighter-rouge">GenericTranslatorProvider.createWithDefaultTranslators()</code>.</p>
 
-<h4 id="compositeprovider"><code class="highlighter-rouge">CompositeProvider</code></h4>
-<p>Implements chaining of <code class="highlighter-rouge">TranslationProvider</code>s in given order. That in turn allows for composing user defined <code class="highlighter-rouge">TranslationProvider</code> with already supplied by Euphoria API.</p>
+<p><code>GenericTranslatorProvider</code> is default provider, see <code>GenericTranslatorProvider.createWithDefaultTranslators()</code>.</p>
+<h4 id="compositeprovider"><code>CompositeProvider</code></h4>
+<p>Implements chaining of <code>TranslationProvider</code>s in given order. That in turn allows for composing user defined <code>TranslationProvider</code> with already supplied by Euphoria API.</p>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompositeProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
-  <span class="n">CustomTranslatorProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(),</span> <span class="c1">// first ask CustomTranslatorProvider for translator</span>
-  <span class="n">GenericTranslatorProvider</span><span class="o">.</span><span class="na">createWithDefaultTranslators</span><span class="o">());</span> <span class="c1">// then ask default provider if needed</span>
-</code></pre></div></div>
+
+
+
+
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">CompositeProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+  <span class="n">CustomTranslatorProvider</span><span class="o">.</span><span class="na">of</span><span class="o">(),</span> <span class="c1">// first ask CustomTranslatorProvider for translator
+</span><span class="c1"></span>  <span class="n">GenericTranslatorProvider</span><span class="o">.</span><span class="na">createWithDefaultTranslators</span><span class="o">());</span> <span class="o">//</span> <span class="n">then</span> <span class="n">ask</span> <span class="k">default</span> <span class="n">provider</span> <span class="k">if</span> <span class="n">needed</span></code></pre></div>
+        </div>
+    
+
 
 <h3 id="operator-translators">Operator Translators</h3>
-<p>Each <code class="highlighter-rouge">Operator</code> needs to be translated to Java Beam SDK. That is done by implementations of <code class="highlighter-rouge">OperatorTranslator</code>. Euphoria API contains translator for every <code class="highlighter-rouge">Operator</code> implementation supplied with it. 
-Some operators may have an alternative translations suitable in some cases. <code class="highlighter-rouge">Join</code> typically may have many implementations. We are describing only the most interesting here.</p>
-
-<h4 id="broadcasthashjointranslator"><code class="highlighter-rouge">BroadcastHashJoinTranslator</code></h4>
-<p>Is able to translate <code class="highlighter-rouge">LeftJoin</code> and <code class="highlighter-rouge">RightJoin</code> when whole dataset of one side fits in memory of target executor. So it can be distributed using Beam’s side inputs. Resulting in better performance.</p>
-
-<h4 id="compositeoperatortranslator"><code class="highlighter-rouge">CompositeOperatorTranslator</code></h4>
-<p>Some operators are composite. Meaning that they are in fact wrapped chain of other operators. <code class="highlighter-rouge">CompositeOperatorTranslator</code> ensures that they are decomposed to elemental operators during translation process.</p>
-
+<p>Each <code>Operator</code> needs to be translated to Java Beam SDK. That is done by implementations of <code>OperatorTranslator</code>. Euphoria API contains translator for every <code>Operator</code> implementation supplied with it.
+Some operators may have an alternative translations suitable in some cases. <code>Join</code> typically may have many implementations. We are describing only the most interesting here.</p>
+<h4 id="broadcasthashjointranslator"><code>BroadcastHashJoinTranslator</code></h4>
+<p>Is able to translate <code>LeftJoin</code> and <code>RightJoin</code> when whole dataset of one side fits in memory of target executor. So it can be distributed using Beam&rsquo;s side inputs. Resulting in better performance.</p>
+<h4 id="compositeoperatortranslator"><code>CompositeOperatorTranslator</code></h4>
+<p>Some operators are composite. Meaning that they are in fact wrapped chain of other operators. <code>CompositeOperatorTranslator</code> ensures that they are decomposed to elemental operators during translation process.</p>
 <h3 id="details">Details</h3>
-<p>Most of the translation happens in <code class="highlighter-rouge">org.apache.beam.sdk.extensions.euphoria.core.translate</code> package. Where the most interesting classes are:</p>
+<p>Most of the translation happens in <code>org.apache.beam.sdk.extensions.euphoria.core.translate</code> package. Where the most interesting classes are:</p>
 <ul>
-  <li><code class="highlighter-rouge">OperatorTranslator</code> - Interface which defining inner API of Euphoria to Beam translation.</li>
-  <li><code class="highlighter-rouge">TranslatorProvider</code> - Way of supplying custom translators.</li>
-  <li><code class="highlighter-rouge">OperatorTransform</code> - Is governing actual translation and/or expansion Euphoria’s operators to Beam’s <code class="highlighter-rouge">PTransform</code></li>
-  <li><code class="highlighter-rouge">EuphoriaOptions</code> - A <code class="highlighter-rouge">PipelineOptions</code>, allows for setting custom <code class="highlighter-rouge">TranslatorProvider</code>.</li>
+<li><code>OperatorTranslator</code> - Interface which defining inner API of Euphoria to Beam translation.</li>
+<li><code>TranslatorProvider</code> - Way of supplying custom translators.</li>
+<li><code>OperatorTransform</code> - Is governing actual translation and/or expansion Euphoria&rsquo;s operators to Beam&rsquo;s <code>PTransform</code></li>
+<li><code>EuphoriaOptions</code> - A <code>PipelineOptions</code>, allows for setting custom <code>TranslatorProvider</code>.</li>
 </ul>
-
-<p>The package also contains implementation of <code class="highlighter-rouge">OperatorTranslator</code> for each supported operator type (<code class="highlighter-rouge">JoinTranslator</code>, <code class="highlighter-rouge">FlatMapTranslator</code>, <code class="highlighter-rouge">ReduceByKeyTranslator</code>). Not every operator needs to have translator of its own. Some of them can be composed from other operators. That is why operators may implement <code class="highlighter-rouge">CompositeOperator</code> which give them option to be expanded to set of other Euphoria operators.</p>
-
-<p>The translation process was designed with flexibility in mind. We wanted to allow different ways of translating higher-level Euphoria operators to Beam’s SDK’s primitives. It allows for further performance optimizations based on user choices or some knowledge about data obtained automatically.</p>
-
+<p>The package also contains implementation of <code>OperatorTranslator</code> for each supported operator type (<code>JoinTranslator</code>, <code>FlatMapTranslator</code>, <code>ReduceByKeyTranslator</code>). Not every operator needs to have translator of its own. Some of them can be composed from other operators. That is why operators may implement <code>CompositeOperator</code> which give them option to be expanded to set of other Euphoria operators.</p>
+<p>The translation process was designed with flexibility in mind. We wanted to allow different ways of translating higher-level Euphoria operators to Beam&rsquo;s SDK&rsquo;s primitives. It allows for further performance optimizations based on user choices or some knowledge about data obtained automatically.</p>
 <h2 id="unsupported-features">Unsupported Features</h2>
 <p><a href="https://github.com/seznam/euphoria">Original Euphoria</a> contained some features and operators not jet supported in Beam port. List of not yet supported features follows:</p>
 <ul>
-  <li><code class="highlighter-rouge">ReduceByKey</code> in original Euphoria was allowed to sort output values (per key). This is also not yet translatable into Beam, therefore not supported.</li>
+<li><code>ReduceByKey</code> in original Euphoria was allowed to sort output values (per key). This is also not yet translatable into Beam, therefore not supported.</li>
 </ul>
 
-      </div>
-    </div>
-    <!--
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-   http://www.apache.org/licenses/LICENSE-2.0
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License. See accompanying LICENSE file.
--->
+     </div>
+   </div>
+ 
 
 <footer class="footer">
   <div class="footer__contained">
@@ -920,47 +1136,45 @@ Some operators may have an alternative translations suitable in some cases. <cod
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/quickstart-go/">Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
+        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
-        <div class="footer__cols__col__link"><a href="https://projects.apache.org/committee.html?beam" target="_blank">Team<img src="/images/external-link-icon.png"
+        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
+        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
                                                                                                                                 width="14" height="14"
                                                                                                                                 alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
-       <div class="footer__cols__col__link"><a href="/community/in-person/">Events/Meetups</a></div>
+        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
+       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
       </div>
       <div class="footer__cols__col footer__cols__col--md">
         <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
-        <div class="footer__cols__col__link"><a href="/community/contact-us/">Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
+        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
+        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
       </div>
     </div>
   </div>
   <div class="footer__bottom">
     &copy;
     <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href="/privacy_policy">Privacy Policy</a>
-    | <a href="/feed.xml">RSS Feed</a>
+    | <a href=/privacy_policy>Privacy Policy</a>
+    | <a href=/feed.xml>RSS Feed</a>
     <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
-    either registered trademarks or trademarks of The Apache Software
-    Foundation. All other products or name brands are trademarks of their
-    respective holders, including The Apache Software Foundation.
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
   </div>
 </footer>
 
-  </body>
-</html>
+ </body>
+ </html>
+ 
