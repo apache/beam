@@ -28,6 +28,11 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType.Value;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedLengthString;
+import org.apache.beam.sdk.schemas.logicaltypes.LogicalDecimal;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.VariableLengthString;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -164,8 +169,35 @@ public class RowCoderTest {
   @Test
   public void testLogicalType() throws Exception {
     EnumerationType enumeration = EnumerationType.create("one", "two", "three");
-    Schema schema = Schema.builder().addLogicalTypeField("f_enum", enumeration).build();
-    Row row = Row.withSchema(schema).addValue(enumeration.valueOf("two")).build();
+    FixedBytes fixedBytes = FixedBytes.of(5);
+    VariableLengthBytes variableLengthBytes = VariableLengthBytes.of(10);
+    FixedLengthString fixedLengthString = FixedLengthString.of(5);
+    VariableLengthString variableLengthString = VariableLengthString.of(10);
+    LogicalDecimal logicalDecimal = LogicalDecimal.of(10, 5);
+
+    Schema schema =
+        Schema.builder()
+            .addLogicalTypeField("f_enum", enumeration)
+            .addLogicalTypeField("f_fixed_bytes", fixedBytes)
+            .addLogicalTypeField("f_variable_bytes", variableLengthBytes)
+            .addLogicalTypeField("f_fixed_string", fixedLengthString)
+            .addLogicalTypeField("f_variable_string", variableLengthString)
+            .addLogicalTypeField("f_logical_decimal", logicalDecimal)
+            .build();
+
+    byte[] bytes = {1, 2, 3, 4, 5};
+    String string = "fixed";
+    BigDecimal customDecimal = new BigDecimal("12345.12345");
+
+    Row row =
+        Row.withSchema(schema)
+            .addValue(enumeration.valueOf("two"))
+            .addValue(bytes)
+            .addValue(bytes)
+            .addValue(string)
+            .addValue(string)
+            .addValue(customDecimal)
+            .build();
 
     CoderProperties.coderDecodeEncodeEqual(RowCoder.of(schema), row);
   }

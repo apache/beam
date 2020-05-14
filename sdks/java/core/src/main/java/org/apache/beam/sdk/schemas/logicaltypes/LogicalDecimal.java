@@ -38,7 +38,7 @@ public class LogicalDecimal extends IdenticalBaseTAndInputTLogicalType<BigDecima
         IDENTIFIER,
         Schema.FieldType.row(schema),
         Row.withSchema(schema).addValues(precision, scale).build(),
-        Schema.FieldType.STRING);
+        Schema.FieldType.DECIMAL);
     this.precision = precision;
     this.scale = scale;
   }
