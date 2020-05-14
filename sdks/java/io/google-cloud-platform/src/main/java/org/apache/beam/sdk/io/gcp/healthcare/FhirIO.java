@@ -37,7 +37,10 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
@@ -46,6 +49,7 @@ import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
@@ -105,14 +109,14 @@ import org.slf4j.LoggerFactory;
  * other clients or otherwise need referential integrity (e.g. A Streaming HL7v2 to FHIR ETL
  * pipeline).
  *
+ * <p>Import This is best for use cases where you are populating an empty FHIR store with no other
+ * clients. It is faster than the execute bundles method but does not respect referential integrity
+ * and the resources are not written transactionally (e.g. a historicaly backfill on a new FHIR
+ * store) This requires each resource to contain a client provided ID. It is important that when
+ * using import you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
+ *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
- *     <p>Import This is best for use cases where you are populating an empty FHIR store with no
- *     other clients. It is faster than the execute bundles method but does not respect referential
- *     integrity and the resources are not written transactionally (e.g. a historicaly backfill on a
- *     new FHIR store) This requires each resource to contain a client provided ID. It is important
- *     that when using import you give the appropriate permissions to the Google Cloud Healthcare
- *     Service Agent
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
  * @see <a
@@ -818,7 +822,10 @@ public class FhirIO {
               .apply(
                   "Shard files", // to paralelize group into batches
                   WithKeys.of(elm -> ThreadLocalRandom.current().nextInt(0, numShards)))
+              .setCoder(KvCoder.of(TextualIntegerCoder.of(), ResourceIdCoder.of()))
               .apply("File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
+              .setCoder(
+                  KvCoder.of(TextualIntegerCoder.of(), IterableCoder.of(ResourceIdCoder.of())))
               .apply(
                   ParDo.of(new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
@@ -843,8 +850,6 @@ public class FhirIO {
               "Delete tempGcsPath",
               ParDo.of(
                   new DoFn<Metadata, Void>() {
-                    private final Logger LOG = LoggerFactory.getLogger(Import.class);
-
                     @ProcessElement
                     public void delete(@Element Metadata path) {
                       try {
