@@ -294,7 +294,7 @@ class SchemaTest(unittest.TestCase):
 
     schema = named_tuple_to_schema(MyCuteClass)
     self.assertTrue(hasattr(MyCuteClass, '_beam_schema_id'))
-    self.assertEquals(MyCuteClass._beam_schema_id, schema.id)
+    self.assertEqual(MyCuteClass._beam_schema_id, schema.id)
 
 
 if __name__ == '__main__':
