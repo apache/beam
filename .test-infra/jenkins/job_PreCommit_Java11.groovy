@@ -22,9 +22,14 @@ import CommonJobProperties as properties
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
     nameBase: 'Java11',
-    gradleTask: ':clean',
+    gradleTask: ':javaPreCommit',
     commitTriggering: false,
-    gradleSwitches: ['-PdisableSpotlessCheck=true'], // spotless checked in separate pre-commit
+    gradleSwitches: [
+            '-Pdockerfile=Dockerfile-java11',
+            '-PdisableSpotlessCheck=true',
+            '-PcompileAndRunTestsWithJava11',
+            "-Pjava11Home=${properties.JAVA_11_HOME}"
+    ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^model/.*$',
       '^sdks/java/.*$',
@@ -57,18 +62,6 @@ builder.build {
     }
     jacocoCodeCoverage {
       execPattern('**/build/jacoco/*.exec')
-    }
-  }
-
-  steps {
-    gradle {
-      rootBuildScriptDir(properties.checkoutDir)
-      tasks 'javaPrecommit'
-      switches '-Pdockerfile=Dockerfile-java11'
-      switches '-PdisableSpotlessCheck=true'
-      switches '-PcompileAndRunTestsWithJava11'
-      switches "-Pjava11Home=${properties.JAVA_11_HOME}"
-      properties.setGradleSwitches(delegate, 3 * Runtime.runtime.availableProcessors())
     }
   }
 }
