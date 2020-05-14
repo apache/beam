@@ -66,13 +66,14 @@ public class WindmillStateCache implements StatusDataProvider {
   private HashMultimap<ComputationKey, StateId> keyIndex =
       HashMultimap.<ComputationKey, StateId>create();
   private int displayedWeight = 0; // Only used for status pages and unit tests.
+  private long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
 
   public WindmillStateCache(Integer workerCacheMb) {
     final Weigher<Weighted, Weighted> weigher = Weighers.weightedKeysAndValues();
-
+    workerCacheBytes = workerCacheMb * MEGABYTES;
     stateCache =
         CacheBuilder.newBuilder()
-            .maximumWeight(workerCacheMb * MEGABYTES)
+            .maximumWeight(workerCacheBytes)
             .recordStats()
             .weigher(weigher)
             .removalListener(
@@ -94,6 +95,10 @@ public class WindmillStateCache implements StatusDataProvider {
 
   public long getWeight() {
     return displayedWeight;
+  }
+
+  public long getMaxWeight() {
+    return workerCacheBytes;
   }
 
   /** Per-computation view of the state cache. */
