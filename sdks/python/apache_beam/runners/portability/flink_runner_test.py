@@ -39,8 +39,10 @@ from apache_beam.io.external.kafka import ReadFromKafka
 from apache_beam.io.external.kafka import WriteToKafka
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import FlinkRunnerOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
 from apache_beam.testing.util import assert_that
@@ -68,8 +70,8 @@ if __name__ == '__main__':
       help='Job type. batch or streaming')
   parser.add_argument(
       '--environment_type',
-      default='docker',
-      help='Environment type. docker or process')
+      default='loopback',
+      help='Environment type. docker, process, or loopback.')
   parser.add_argument('--environment_config', help='Environment config.')
   parser.add_argument(
       '--extra_experiments',
@@ -79,7 +81,11 @@ if __name__ == '__main__':
   known_args, args = parser.parse_known_args(sys.argv)
   sys.argv = args
 
-  flink_job_server_jar = known_args.flink_job_server_jar
+  flink_job_server_jar = (
+      known_args.flink_job_server_jar or
+      job_server.JavaJarJobServer.path_to_beam_jar(
+          'runners:flink:%s:job-server:shadowJar' %
+          FlinkRunnerOptions.PUBLISHED_FLINK_VERSIONS[-1]))
   streaming = known_args.streaming
   environment_type = known_args.environment_type.lower()
   environment_config = (
