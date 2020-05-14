@@ -124,6 +124,8 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
     see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
 * Added integration of Java SDK with Google Cloud AI VideoIntelligence service 
 ([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
+* Added integration of Java SDK with Google Cloud AI natural language processing API
+([BEAM-9634](https://issues.apache.org/jira/browse/BEAM-9634))
 
  
 ## Breaking Changes
