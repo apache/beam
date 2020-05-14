@@ -19,10 +19,12 @@ package org.apache.beam.sdk.io;
 
 import static java.nio.channels.Channels.newInputStream;
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
+import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -44,6 +46,23 @@ public class ClassLoaderFileSystemTest {
   @Test
   public void testRegistrar() throws IOException {
     ReadableByteChannel channel = FileSystems.open(FileSystems.matchNewResource(SOME_CLASS, false));
+    checkIsClass(channel);
+  }
+
+  @Test
+  public void testResolve() throws IOException {
+    ClassLoaderFileSystem filesystem = new ClassLoaderFileSystem();
+    ClassLoaderFileSystem.ClassLoaderResourceId original =
+        filesystem.matchNewResource(SOME_CLASS, false);
+    ClassLoaderFileSystem.ClassLoaderResourceId parent = original.getCurrentDirectory();
+    ClassLoaderFileSystem.ClassLoaderResourceId grandparent = parent.getCurrentDirectory();
+    assertEquals("classpath://org/apache/beam/sdk", grandparent.getFilename());
+    ClassLoaderFileSystem.ClassLoaderResourceId resource =
+        grandparent
+            .resolve("io", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
+            .resolve(
+                "ClassLoaderFilesystem.class", ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
+    ReadableByteChannel channel = filesystem.open(resource);
     checkIsClass(channel);
   }
 

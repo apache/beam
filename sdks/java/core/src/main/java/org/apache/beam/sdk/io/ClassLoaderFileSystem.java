@@ -46,7 +46,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
 
   @Override
   protected List<MatchResult> match(List<String> specs) throws IOException {
-    throw new UnsupportedOperationException("Un-globable filesystem.");
+    throw new UnsupportedOperationException("Un-globbable filesystem.");
   }
 
   @Override
@@ -60,7 +60,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
     InputStream inputStream =
         ClassLoader.getSystemResourceAsStream(resourceId.path.substring(PREFIX.length()));
     if (inputStream == null) {
-      throw new IOException("Unable to load " + resourceId.path + " with " + classLoader);
+      throw new IOException("Unable to load " + resourceId.path);
     }
     return Channels.newChannel(inputStream);
   }
@@ -104,7 +104,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
     }
 
     @Override
-    public ResourceId resolve(String other, ResolveOptions resolveOptions) {
+    public ClassLoaderResourceId resolve(String other, ResolveOptions resolveOptions) {
       if (other.startsWith(PREFIX)) {
         return new ClassLoaderResourceId(other);
       } else if (other.startsWith("/")) {
@@ -115,7 +115,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
     }
 
     @Override
-    public ResourceId getCurrentDirectory() {
+    public ClassLoaderResourceId getCurrentDirectory() {
       int ix = path.lastIndexOf('/');
       if (ix <= PREFIX.length()) {
         return new ClassLoaderResourceId(PREFIX);
