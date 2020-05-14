@@ -13,29 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This file configures github and jira notifications based on
-# https://s.apache.org/asfyaml-notify
+extends: default
 
-github:
-  description: "Apache Beam is a unified programming model for Batch and Streaming"
-  homepage: https://beam.apache.org/
-  labels:
-    - batch
-    - beam
-    - big-data
-    - golang
-    - java
-    - python
-    - sql
-    - streaming
+rules:
+  # Change line length from error to warning
+  line-length:
+    level: warning
 
-  enabled_merge_buttons:
-    squash: true
-    merge: true
-    rebase: false
-
-notifications:
-  commits: commits@beam.apache.org
-  issues: github@beam.apache.org
-  pullrequests: github@beam.apache.org
-  jira_options: link worklog
+  # Disabling the document-start error messages
+  document-start:
+    present: false
