@@ -86,14 +86,17 @@ rat {
     // JDBC package config files
     "**/META-INF/services/java.sql.Driver",
 
-    // Ruby build files
+    // Website build files
     "**/Gemfile.lock",
     "**/Rakefile",
     "**/.htaccess",
-    "website/src/_sass/_bootstrap.scss",
-    "website/src/_sass/bootstrap/**/*",
-    "website/src/js/bootstrap*.js",
-    "website/src/js/bootstrap/**/*",
+    "website/www/site/assets/scss/_bootstrap.scss",
+    "website/www/site/assets/scss/bootstrap/**/*",
+    "website/www/site/static/js/bootstrap*.js",
+    "website/www/site/static/js/bootstrap/**/*",
+    "website/www/site/themes",
+    "website/www/yarn.lock",
+    "website/www/package.json",
 
     // Ignore ownership files
     "ownership/**/*",
