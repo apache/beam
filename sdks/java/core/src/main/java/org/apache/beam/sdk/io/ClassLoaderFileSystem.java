@@ -57,9 +57,8 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
 
   @Override
   protected ReadableByteChannel open(ClassLoaderResourceId resourceId) throws IOException {
-    ClassLoader classLoader = getClass().getClassLoader();
     InputStream inputStream =
-        classLoader.getResourceAsStream(resourceId.path.substring(PREFIX.length()));
+        ClassLoader.getSystemResourceAsStream(resourceId.path.substring(PREFIX.length()));
     if (inputStream == null) {
       throw new IOException("Unable to load " + resourceId.path + " with " + classLoader);
     }

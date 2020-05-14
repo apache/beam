@@ -362,7 +362,8 @@ class UberJarBeamJob(AbstractBeamJob):
     pipeline = copy.copy(self._pipeline_proto)
     if any(env.dependencies
            for env in pipeline.components.environments.values()):
-      for env_id, deps in self._artifact_staging_service.resolved_deps(self._job_id).items():
+      for env_id, deps in self._artifact_staging_service.resolved_deps(
+          self._job_id).items():
         # Slice assignment not supported for repeated fields.
         env = self._pipeline_proto.components.environments[env_id]
         del env.dependencies[:]
