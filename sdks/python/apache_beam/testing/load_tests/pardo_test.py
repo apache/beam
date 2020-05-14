@@ -213,11 +213,9 @@ class StatefulLoadGenerator(beam.PTransform):
         | 'Impulse' >> beam.Impulse()
         | 'GenerateKeys' >> beam.ParDo(
             StatefulLoadGenerator.GenerateKeys(self.num_keys, self.key_size))
-        | 'Reshuffle' >> beam.Reshuffle()
         | 'GenerateLoad' >> beam.ParDo(
             StatefulLoadGenerator.GenerateLoad(
-                self.num_records // self.num_keys, self.value_size))
-        | 'Reshuffle2' >> beam.Reshuffle())
+                self.num_records // self.num_keys, self.value_size)))
 
 
 if __name__ == '__main__':
