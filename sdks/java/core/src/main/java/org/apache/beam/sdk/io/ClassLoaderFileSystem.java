@@ -100,7 +100,7 @@ public class ClassLoaderFileSystem extends FileSystem<ClassLoaderFileSystem.Clas
     private final String path;
 
     private ClassLoaderResourceId(String path) {
-      checkArgument(path.startsWith(PREFIX));
+      checkArgument(path.startsWith(PREFIX), path);
       this.path = path;
     }
 

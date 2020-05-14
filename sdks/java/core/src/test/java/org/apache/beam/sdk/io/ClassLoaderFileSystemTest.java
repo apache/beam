@@ -32,7 +32,7 @@ import org.junit.runners.JUnit4;
 public class ClassLoaderFileSystemTest {
 
   private static final String SOME_CLASS =
-      "classloader://org/apache/beam/sdk/io/ClassLoaderFilesystem.class";
+      "classpath://org/apache/beam/sdk/io/ClassLoaderFilesystem.class";
 
   @Test
   public void testOpen() throws IOException {

@@ -337,8 +337,11 @@ class UberJarBeamJob(AbstractBeamJob):
         self._artifact_manager.file_writer)
     self._artifact_staging_service.register_job(
         self._job_id,
-        {env_id: env.dependencies
-         for (env_id, env) in self._pipeline_proto.components.environments.items()})
+        {
+            env_id: env.dependencies
+            for (env_id,
+                 env) in self._pipeline_proto.components.environments.items()
+        })
     self._artifact_staging_server = grpc.server(futures.ThreadPoolExecutor())
     port = self._artifact_staging_server.add_insecure_port(
         '[::]:%s' % requested_port)
@@ -357,8 +360,8 @@ class UberJarBeamJob(AbstractBeamJob):
 
     # Update dependencies to point to staged files.
     pipeline = copy.copy(self._pipeline_proto)
-    if any(
-        env.dependencies for env in pipeline.components.environments.values()):
+    if any(env.dependencies
+           for env in pipeline.components.environments.values()):
       for env_id, deps in self._artifact_staging_service.resolved_deps(self._job_id).items():
         # Slice assignment not supported for repeated fields.
         env = self._pipeline_proto.components.environments[env_id]

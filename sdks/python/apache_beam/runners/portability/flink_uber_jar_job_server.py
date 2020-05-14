@@ -27,7 +27,6 @@ import os
 import tempfile
 import time
 import urllib
-import zipfile
 
 import requests
 from google.protobuf import json_format
