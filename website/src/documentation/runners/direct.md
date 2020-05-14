@@ -139,7 +139,7 @@ Same as other options, `direct_running_mode` can be passed through CLI or set wi
 For the versions before 2.19.0, the running mode should be set with `FnApiRunner()`. Please refer following examples.
 
 {:.language-py}
-#### Running with multi-threading mode</span>
+#### Running with multi-threading mode
 ```py
 import argparse
 
@@ -161,7 +161,7 @@ p = beam.Pipeline(options=pipeline_options,
 ```
 
 {:.language-py}
-#### Running with multi-processing mode</span>
+#### Running with multi-processing mode
 ```py
 import argparse
 import sys
