@@ -1,0 +1,98 @@
+{{/*
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+   http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "capability-matrix-row" }}
+    {{ if or (eq .type "blog") (eq .type "summary") }}
+        <center>
+            <b>
+                {{ if eq .val.l1 "Yes" }}
+                    &#x2713;
+                {{ else if eq .val.l1 "Partially" }}
+                    ~
+                {{ else }}
+                    &#x2715;
+                {{ end }}
+            </b>
+            <b>
+                {{ if eq .type "summary" }}
+                    {{ with .val.jira }}
+                        <br>
+                        (<a href='https://issues.apache.org/jira/browse/{{ . }}'>{{ . }}</a>)
+                    {{ end }}
+                {{ end }}
+            </b>
+        </center>
+    {{ else if eq .type "full" }}
+        <center>
+            <b>
+                {{ .val.l1 }}
+                {{ if ne .val.l2 "" }}
+                    : {{ .val.l2 }}
+                {{ end }}
+
+                {{ with .val.jira }}
+                    <br>
+                    (<a href='https://issues.apache.org/jira/browse/{{ . }}'>{{ . }}</a>)
+                {{ end }}
+            </b>
+        </center>
+        <br>
+        {{ .val.l3 }}
+    {{ end }}
+{{ end }}
+
+{{ $cap_data := index $.Site.Data.capability_matrix (.Get "cap-data") }}
+{{ if eq (.Get "cap-data") "capability-matrix-snapshot" }}
+    {{ $cap_data = index $.Site.Data.capability_matrix_snapshot (.Get "cap-data") }}
+{{ end }}
+{{ $cap_style := .Get "cap-style" }}
+{{ $cap_view := .Get "cap-view" }}
+{{ $cap_other_view := .Get "cap-other-view" }}
+{{ $cap_toggle_details := .Get "cap-toggle-details" }}
+{{ $cap_display := .Get "cap-display" }}
+
+<div id='cap-{{ $cap_view }}' style='display:{{ $cap_display }}'>
+<table class='{{ $cap_style }}'>
+    {{ range $category := $cap_data.categories }}
+        <tr class='{{ $cap_style }}' id='cap-{{ $cap_view }}-{{ $category.anchor }}'>
+            <th class='{{ $cap_style }} color-metadata format-category' colspan='8' style='color:#{{ index $category "color-b" }}'>
+                {{ if ne $cap_view "blog" }}
+                    <div class='cap-toggle' onclick='ToggleTables({{ $cap_toggle_details }}, "cap-{{ $cap_other_view }}-{{ $category.anchor }}")'>
+                        ({{ if eq $cap_toggle_details 1 }}click to expand{{ else }}click to collapse{{ end }} details)
+                    </div>
+                {{ end }}
+                {{ $category.description }}
+            </th>
+        </tr>
+        <tr class='{{ $cap_style }}'>
+            <th class='{{ $cap_style }} color-capability'></th>
+
+            {{ range $column := $cap_data.columns }}
+                <th class='{{ $cap_style }} color-platform format-platform' style='color:#{{ index $category "color-y" }}'>{{ $column.name }}</th>
+            {{ end }}
+        </tr>
+        {{ range $row := $category.rows }}
+            <tr class='{{ $cap_style }}'>
+                <th class='{{ $cap_style }} color-capability format-capability' style='color:#{{ index $category "color-y" }}'>{{ $row.name }}</th>
+                {{ range $val := $row.values }}
+                    <td width='25%' class='{{ $cap_style }}' style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $category "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $category "color-p" }}{{ else }}{{ index $category "color-n" }}{{ end }};border-color:#{{ index $category "color-b" }}'>
+                        {{ block "capability-matrix-row" (dict "type" $cap_view "val" $val) }}{{ end }}
+                    </td>
+                {{ end }}
+            </tr>
+        {{ end }}
+        <tr class='{{ $cap_style }}'>
+            <td class='{{ $cap_style }} color-blank cap-blank' colspan='5'></td>
+        </tr>
+    {{ end }}
+</table>
+</div>
