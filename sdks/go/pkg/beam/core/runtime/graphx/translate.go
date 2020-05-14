@@ -177,6 +177,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 
 	m.updateIfCombineComposite(s, transform)
@@ -208,7 +209,6 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 		AccumulatorCoderId: acID,
 	}
 	transform.Spec = &pipepb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
-	transform.EnvironmentId = m.addDefaultEnv()
 }
 
 func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
@@ -238,10 +238,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
 	var spec *pipepb.FunctionSpec
-	var transformEnvID = ""
 	switch edge.Edge.Op {
 	case graph.Impulse:
-		// TODO(herohde) 7/18/2018: Encode data?
 		spec = &pipepb.FunctionSpec{Urn: URNImpulse}
 
 	case graph.ParDo:
@@ -315,7 +313,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 		if edge.Edge.DoFn.IsSplittable() {
 			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Combine:
@@ -325,7 +322,6 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
@@ -345,6 +341,11 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 
 	default:
 		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Edge.Op))
+	}
+
+	var transformEnvID = ""
+	if !(spec.Urn == URNGBK || spec.Urn == URNImpulse) {
+		transformEnvID = m.addDefaultEnv()
 	}
 
 	transform := &pipepb.PTransform{
@@ -413,10 +414,11 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pipepb.PTransform{
-		UniqueName: flattenID,
-		Spec:       &pipepb.FunctionSpec{Urn: URNFlatten},
-		Inputs:     inputs,
-		Outputs:    map[string]string{"i0": out},
+		UniqueName:    flattenID,
+		Spec:          &pipepb.FunctionSpec{Urn: URNFlatten},
+		Inputs:        inputs,
+		Outputs:       map[string]string{"i0": out},
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	m.transforms[flattenID] = flatten
 	subtransforms = append(subtransforms, flattenID)
@@ -468,6 +470,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	m.transforms[cogbkID] = &pipepb.PTransform{
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	return cogbkID
 }
@@ -632,6 +635,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 		Spec: &pipepb.FunctionSpec{
 			Urn: URNReshuffle,
 		},
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	return reshuffleID
 }
