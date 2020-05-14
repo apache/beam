@@ -88,6 +88,7 @@ Please migrate your code to use
 See the updated
 [datastore_wordcount](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py)
 for example usage.
+* Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform ([BEAM-8949](https://issues.apache.org/jira/browse/BEAM-8949)).
 
 ## New Features / Improvements
 * Python SDK will now use Python 3 type annotations as pipeline type hints.
