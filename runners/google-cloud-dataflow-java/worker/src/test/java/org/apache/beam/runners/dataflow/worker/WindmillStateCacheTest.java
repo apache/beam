@@ -25,6 +25,8 @@ import java.util.Objects;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -41,6 +43,7 @@ public class WindmillStateCacheTest {
   private static final String COMPUTATION = "computation";
   private static final ByteString KEY = ByteString.copyFromUtf8("key");
   private static final String STATE_FAMILY = "family";
+  DataflowWorkerHarnessOptions options;
 
   private static class TestStateTag implements StateTag<TestState> {
     final String id;
@@ -130,7 +133,8 @@ public class WindmillStateCacheTest {
 
   @Before
   public void setUp() {
-    cache = new WindmillStateCache();
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    cache = new WindmillStateCache(options.getWorkerCacheMb());
     assertEquals(0, cache.getWeight());
   }
 
