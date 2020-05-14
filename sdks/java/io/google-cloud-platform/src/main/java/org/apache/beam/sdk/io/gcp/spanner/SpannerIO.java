@@ -1008,13 +1008,13 @@ public class SpannerIO {
       spec.getSpannerConfig().populateDisplayData(builder);
       builder.add(
           DisplayData.item("batchSizeBytes", spec.getBatchSizeBytes())
-              .withLabel("Max batch Size in Bytes"));
+              .withLabel("Max batch size in sytes"));
       builder.add(
           DisplayData.item("maxNumMutations", spec.getMaxNumMutations())
-              .withLabel("Max number of mutated cells in batches"));
+              .withLabel("Max number of mutated cells in each batch"));
       builder.add(
           DisplayData.item("maxNumRows", spec.getMaxNumRows())
-              .withLabel("Max number of rows in Batches"));
+              .withLabel("Max number of rows in each batch"));
       builder.add(
           DisplayData.item("groupingFactor", spec.getGroupingFactor())
               .withLabel("Number of batches to sort over"));
