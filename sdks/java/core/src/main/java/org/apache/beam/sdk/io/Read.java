@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -537,6 +538,12 @@ public class Read {
     @NewWatermarkEstimator
     public WatermarkEstimators.Manual newWatermarkEstimator(
         @WatermarkEstimatorState Instant watermarkEstimatorState) {
+      // Making sure that the watermark is within bounds.
+      if (watermarkEstimatorState.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+        watermarkEstimatorState = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      } else if (watermarkEstimatorState.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        watermarkEstimatorState = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      }
       return new WatermarkEstimators.Manual(watermarkEstimatorState);
     }
 

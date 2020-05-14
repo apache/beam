@@ -22,7 +22,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Instant;
 
 /**
@@ -37,18 +37,23 @@ public class WatermarkEstimators {
     private Instant lastReportedWatermark;
 
     public Manual(Instant watermark) {
+      validateWatermark(watermark);
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
-      if (watermark.isBefore(GlobalWindow.TIMESTAMP_MIN_VALUE)
-          || watermark.isAfter(GlobalWindow.TIMESTAMP_MAX_VALUE)) {
+    }
+
+    private void validateWatermark(Instant watermark) {
+      if (watermark.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+          || watermark.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         throw new IllegalArgumentException(
             String.format(
                 "Provided watermark %s must be within bounds [%s, %s].",
-                watermark, GlobalWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.TIMESTAMP_MAX_VALUE));
+                watermark, BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
     }
 
     @Override
     public void setWatermark(Instant watermark) {
+      validateWatermark(watermark);
       this.lastReportedWatermark = watermark;
     }
 
@@ -59,7 +64,6 @@ public class WatermarkEstimators {
       if (lastReportedWatermark != null && lastReportedWatermark.isAfter(watermark)) {
         watermark = lastReportedWatermark;
       }
-
       return watermark;
     }
 
@@ -82,12 +86,12 @@ public class WatermarkEstimators {
 
     public WallTime(Instant watermark) {
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
-      if (watermark.isBefore(GlobalWindow.TIMESTAMP_MIN_VALUE)
-          || watermark.isAfter(GlobalWindow.TIMESTAMP_MAX_VALUE)) {
+      if (watermark.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+          || watermark.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         throw new IllegalArgumentException(
             String.format(
                 "Provided watermark %s must be within bounds [%s, %s].",
-                watermark, GlobalWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.TIMESTAMP_MAX_VALUE));
+                watermark, BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
     }
 
@@ -121,12 +125,12 @@ public class WatermarkEstimators {
 
     public MonotonicallyIncreasing(Instant watermark) {
       this.watermark = checkNotNull(watermark, "timestamp must not be null.");
-      if (watermark.isBefore(GlobalWindow.TIMESTAMP_MIN_VALUE)
-          || watermark.isAfter(GlobalWindow.TIMESTAMP_MAX_VALUE)) {
+      if (watermark.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)
+          || watermark.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
         throw new IllegalArgumentException(
             String.format(
                 "Provided watermark %s must be within bounds [%s, %s].",
-                watermark, GlobalWindow.TIMESTAMP_MIN_VALUE, GlobalWindow.TIMESTAMP_MAX_VALUE));
+                watermark, BoundedWindow.TIMESTAMP_MIN_VALUE, BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
     }
 
