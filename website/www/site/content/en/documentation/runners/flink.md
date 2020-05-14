@@ -379,14 +379,14 @@ reference class:
 <!-- Java Options -->
 <div class="language-java">
 
-{{< flink-java-pipeline-options >}}
+{{< flink_java_pipeline_options >}}
 
 </div>
 
 <!-- Python Options -->
 <div class="language-py">
 
-{{< flink-python-pipeline-options >}}
+{{< flink_python_pipeline_options >}}
 
 </div>
 
