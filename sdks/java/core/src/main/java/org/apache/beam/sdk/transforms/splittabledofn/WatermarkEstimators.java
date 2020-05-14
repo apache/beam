@@ -37,13 +37,13 @@ public class WatermarkEstimators {
     private Instant lastReportedWatermark;
 
     public Manual(Instant watermark) {
-      BoundedWindow.validateWatermarkWithinBounds(watermark);
+      BoundedWindow.validateTimestampBounds(watermark);
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
     }
 
     @Override
     public void setWatermark(Instant watermark) {
-      BoundedWindow.validateWatermarkWithinBounds(watermark);
+      BoundedWindow.validateTimestampBounds(watermark);
       this.lastReportedWatermark = watermark;
     }
 
@@ -75,7 +75,7 @@ public class WatermarkEstimators {
     private Instant watermark;
 
     public WallTime(Instant watermark) {
-      BoundedWindow.validateWatermarkWithinBounds(watermark);
+      BoundedWindow.validateTimestampBounds(watermark);
       this.watermark = checkNotNull(watermark, "watermark must not be null.");
     }
 
@@ -108,7 +108,7 @@ public class WatermarkEstimators {
     private Instant lastObservedTimestamp;
 
     public MonotonicallyIncreasing(Instant watermark) {
-      BoundedWindow.validateWatermarkWithinBounds(watermark);
+      BoundedWindow.validateTimestampBounds(watermark);
       this.watermark = checkNotNull(watermark, "timestamp must not be null.");
     }
 

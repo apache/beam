@@ -85,16 +85,16 @@ public abstract class BoundedWindow {
   }
 
   /**
-   * Validates that a given watermark is within timestamp min and max bounds.
+   * Validates that a given timestamp is within min and max bounds.
    *
-   * @param watermark watermark to validate
+   * @param timestamp timestamp to validate
    */
-  public static void validateWatermarkWithinBounds(Instant watermark) {
-    if (watermark.isBefore(TIMESTAMP_MIN_VALUE) || watermark.isAfter(TIMESTAMP_MAX_VALUE)) {
+  public static void validateTimestampBounds(Instant timestamp) {
+    if (timestamp.isBefore(TIMESTAMP_MIN_VALUE) || timestamp.isAfter(TIMESTAMP_MAX_VALUE)) {
       throw new IllegalArgumentException(
           String.format(
-              "Provided watermark %s must be within bounds [%s, %s].",
-              watermark, TIMESTAMP_MIN_VALUE, TIMESTAMP_MAX_VALUE));
+              "Provided timestamp %s must be within bounds [%s, %s].",
+              timestamp, TIMESTAMP_MIN_VALUE, TIMESTAMP_MAX_VALUE));
     }
   }
 }
