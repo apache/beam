@@ -29,12 +29,16 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table.Cell;
 import org.joda.time.Instant;
+
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Windmill {@link TimerInternals}.
@@ -309,26 +313,33 @@ class WindmillTimerInternals implements TimerInternals {
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
-    // Timers without timerFamily would have timerFamily would be an empty string
-    if ("".equals(timerData.getTimerFamilyId())) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    if (!"".equals(timerData.getTimerFamilyId()) || timerData.getOutputTimestamp() != timerData.getTimestamp())) {
       tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .toString();
+              new StringBuilder()
+                      .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+                      .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
+                      .append('+')
+                      .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+                      .append('+')
+                      .append(timerData.getTimerFamilyId())
+                      .append('+')
+                      .toString();
+      out.write(tagString.getBytes(StandardCharsets.UTF_8));
+      VarInt.encode(value, out);
     } else {
+    // Timers without timerFamily would have timerFamily would be an empty string
       tagString =
           new StringBuilder()
               .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
               .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
               .append('+')
               .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .append('+')
-              .append(timerData.getTimerFamilyId())
               .toString();
+      out.write(tagString.getBytes(StandardCharsets.UTF_8));
     }
+    out.
+    return ByteString.
     return ByteString.copyFromUtf8(tagString);
   }
 
