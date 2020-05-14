@@ -295,7 +295,13 @@ class StreamingCache(CacheManager):
 
     reader = StreamingCacheSource(
         self._cache_dir, labels, self._is_cache_complete).read(tail=False)
-    header = next(reader)
+
+    # Return an empty iterator if there is nothing in the file yet. This can
+    # only happen when tail is False.
+    try:
+      header = next(reader)
+    except StopIteration:
+      return iter([]), -1
     return StreamingCache.Reader([header], [reader]).read(), 1
 
   def read_multiple(self, labels):

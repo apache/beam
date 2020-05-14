@@ -44,7 +44,6 @@ import org.apache.beam.runners.fnexecution.environment.EnvironmentFactory;
 import org.apache.beam.runners.fnexecution.environment.RemoteEnvironment;
 import org.apache.beam.runners.fnexecution.state.GrpcStateService;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.fn.IdGenerators;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -70,6 +69,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
   private GrpcFnServer<GrpcStateService> stateServer;
   private JobBundleFactory factory;
 
+  private static final String GENERATED_ID = "staticId";
+
   @Before
   public void setup() throws Exception {
     MockitoAnnotations.initMocks(this);
@@ -86,7 +87,7 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
 
     factory =
         SingleEnvironmentInstanceJobBundleFactory.create(
-            environmentFactory, dataServer, stateServer, IdGenerators.incrementingLongs());
+            environmentFactory, dataServer, stateServer, () -> GENERATED_ID);
   }
 
   @After
@@ -109,7 +110,8 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
             .get();
     RemoteEnvironment remoteEnv = mock(RemoteEnvironment.class);
     when(remoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
-    when(environmentFactory.createEnvironment(stage.getEnvironment())).thenReturn(remoteEnv);
+    when(environmentFactory.createEnvironment(stage.getEnvironment(), GENERATED_ID))
+        .thenReturn(remoteEnv);
 
     factory.forStage(stage);
     factory.close();
@@ -140,11 +142,11 @@ public class SingleEnvironmentInstanceJobBundleFactoryTest {
     RemoteEnvironment firstRemoteEnv = mock(RemoteEnvironment.class, "First Remote Env");
     RemoteEnvironment secondRemoteEnv = mock(RemoteEnvironment.class, "Second Remote Env");
     RemoteEnvironment thirdRemoteEnv = mock(RemoteEnvironment.class, "Third Remote Env");
-    when(environmentFactory.createEnvironment(firstEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(firstEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(firstRemoteEnv);
-    when(environmentFactory.createEnvironment(secondEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(secondEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(secondRemoteEnv);
-    when(environmentFactory.createEnvironment(thirdEnvStage.getEnvironment()))
+    when(environmentFactory.createEnvironment(thirdEnvStage.getEnvironment(), GENERATED_ID))
         .thenReturn(thirdRemoteEnv);
     when(firstRemoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);
     when(secondRemoteEnv.getInstructionRequestHandler()).thenReturn(instructionRequestHandler);

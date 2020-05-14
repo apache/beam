@@ -38,7 +38,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                           publishToBigQuery   : true,
                           bigQueryDataset     : datasetName,
                           bigQueryTable       : "java_dataflow_${jobType}_Combine_1",
-                          influxMeasurement   : "java_${jobType}_Combine_1",
+                          influxMeasurement   : "java_${jobType}_combine_1",
                           publishToInfluxDB   : true,
                           sourceOptions       : """
                                             {
@@ -68,7 +68,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_Combine_4",
-                            influxMeasurement   : "java_${jobType}_Combine_4",
+                            influxMeasurement   : "java_${jobType}_combine_4",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -98,7 +98,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_Combine_5",
-                            influxMeasurement   : "java_${jobType}_Combine_5",
+                            influxMeasurement   : "java_${jobType}_combine_5",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -137,7 +137,6 @@ def streamingLoadTestJob = {scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Dataflow_Batch', 'H 12 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
@@ -146,7 +145,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Dataflow_Batch', 'H 12 * * *
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_Combine_Dataflow_Streaming', 'H 12 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,

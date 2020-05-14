@@ -37,7 +37,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_1",
-                            influxMeasurement     : "java_${mode}_CoGBK_1",
+                            influxMeasurement     : "java_${mode}_cogbk_1",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -73,7 +73,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_2",
-                            influxMeasurement     : "java_${mode}_CoGBK_2",
+                            influxMeasurement     : "java_${mode}_cogbk_2",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -110,7 +110,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_3",
-                            influxMeasurement     : "java_${mode}_CoGBK_3",
+                            influxMeasurement     : "java_${mode}_cogbk_3",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -147,7 +147,7 @@ def loadTestConfigurations = { mode, isStreaming, datasetName ->
                             publishToBigQuery     : true,
                             bigQueryDataset       : datasetName,
                             bigQueryTable         : "java_dataflow_${mode}_CoGBK_4",
-                            influxMeasurement     : "java_${mode}_CoGBK_4",
+                            influxMeasurement     : "java_${mode}_cogbk_4",
                             publishToInfluxDB     : true,
                             sourceOptions         : """
                                             {
@@ -186,7 +186,6 @@ def streamingLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_Streaming', 'H 12 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
@@ -211,7 +210,6 @@ def batchLoadTestJob = { scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_CoGBK_Dataflow_Batch', 'H 14 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,

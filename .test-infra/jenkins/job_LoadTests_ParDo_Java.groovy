@@ -37,7 +37,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                     publishToBigQuery   : true,
                     bigQueryDataset     : datasetName,
                     bigQueryTable       : "java_dataflow_${jobType}_ParDo_1",
-                    influxMeasurement   : "java_${jobType}_ParDo_1",
+                    influxMeasurement   : "java_${jobType}_pardo_1",
                     publishToInfluxDB   : true,
                     sourceOptions       : """
                                             {
@@ -66,7 +66,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_2",
-                            influxMeasurement   : "java_${jobType}_ParDo_2",
+                            influxMeasurement   : "java_${jobType}_pardo_2",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -96,7 +96,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_3",
-                            influxMeasurement   : "java_${jobType}_ParDo_3",
+                            influxMeasurement   : "java_${jobType}_pardo_3",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -126,7 +126,7 @@ def commonLoadTestConfig = { jobType, isStreaming, datasetName ->
                             publishToBigQuery   : true,
                             bigQueryDataset     : datasetName,
                             bigQueryTable       : "java_dataflow_${jobType}_ParDo_4",
-                            influxMeasurement   : "java_${jobType}_ParDo_4",
+                            influxMeasurement   : "java_${jobType}_pardo_4",
                             publishToInfluxDB   : true,
                             sourceOptions       : """
                                                     {
@@ -164,7 +164,6 @@ def streamingLoadTestJob = {scope, triggeringContext ->
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_Batch', 'H 12 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
@@ -173,7 +172,6 @@ CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_Batch', 'H 12 * * *',
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Java_ParDo_Dataflow_Streaming', 'H 12 * * *', this) {
-    InfluxDBCredentialsHelper.useCredentials(delegate)
     additionalPipelineArgs = [
         influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
         influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,

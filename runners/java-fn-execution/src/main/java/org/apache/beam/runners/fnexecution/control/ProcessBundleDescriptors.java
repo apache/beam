@@ -396,18 +396,16 @@ public class ProcessBundleDescriptors {
               .getTransformsOrThrow(timerReference.transform().getId())
               .toBuilder()
               .getSpecBuilder();
-      RunnerApi.ParDoPayload updatedPayload =
-          RunnerApi.ParDoPayload.parseFrom(updatedSpec.getPayload());
-      updatedPayload
-          .toBuilder()
-          .putTimerFamilySpecs(
-              timerReference.localName(),
-              updatedPayload
-                  .getTimerFamilySpecsOrThrow(timerReference.localName())
-                  .toBuilder()
-                  .setTimerFamilyCoderId(sdkCoderId)
-                  .build());
-      updatedSpec.setPayload(updatedPayload.toByteString());
+      RunnerApi.ParDoPayload.Builder updatedPayload =
+          RunnerApi.ParDoPayload.parseFrom(updatedSpec.getPayload()).toBuilder();
+      updatedPayload.putTimerFamilySpecs(
+          timerReference.localName(),
+          updatedPayload
+              .getTimerFamilySpecsOrThrow(timerReference.localName())
+              .toBuilder()
+              .setTimerFamilyCoderId(sdkCoderId)
+              .build());
+      updatedSpec.setPayload(updatedPayload.build().toByteString());
       components.putTransforms(
           timerReference.transform().getId(),
           // Since a transform can have more then one timer, update the transform inside components
