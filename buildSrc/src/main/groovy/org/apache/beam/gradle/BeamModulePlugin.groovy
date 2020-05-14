@@ -766,7 +766,7 @@ class BeamModulePlugin implements Plugin<Project> {
         // sdks/java/core's FieldValueTypeInformation needs javax.annotations.Nullable at runtime.
         // Therefore, the java core module declares jsr305 dependency (BSD license) as "compile".
         // https://github.com/findbugsproject/findbugs/blob/master/findbugs/licenses/LICENSE-jsr305.txt
-        "com.github.spotbugs:spotbugs-annotations:3.1.12",
+        "com.github.spotbugs:spotbugs-annotations:4.0.3",
         "net.jcip:jcip-annotations:1.0",
       ]
 
@@ -848,7 +848,7 @@ class BeamModulePlugin implements Plugin<Project> {
       if (configuration.enableSpotbugs) {
         project.apply plugin: 'com.github.spotbugs'
         project.dependencies {
-          spotbugs "com.github.spotbugs:spotbugs:3.1.12"
+          spotbugs "com.github.spotbugs:spotbugs:4.0.3"
           spotbugs "com.google.auto.value:auto-value:1.7"
           compileOnlyAnnotationDeps.each { dep -> spotbugs dep }
         }

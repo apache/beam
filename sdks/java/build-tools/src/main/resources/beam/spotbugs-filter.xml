@@ -167,6 +167,17 @@
   </Match>
 
   <Match>
+    <Class name="org.apache.beam.runners.dataflow.worker.WindmillTimerInternals" />
+    <Method name="persistTo" />
+    <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE" />
+    <!--
+      persistTo iterates Guava Cells whose content can be null, but Null dereference is not a
+      possibility here because we guarantee that there is always content.
+      -->
+  </Match>
+  .
+
+  <Match>
     <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$QueueMessageReceiver" />
     <Or>
       <Method name="failed" />
