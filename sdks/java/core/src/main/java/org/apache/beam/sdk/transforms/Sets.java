@@ -35,7 +35,50 @@ import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 
-public class SetFns {
+/**
+ * The {@code PTransform}s that allow to compute different set functions across {@link
+ * PCollection}s.
+ *
+ * <p>They come in two variants. 1. Between two {@link PCollection} 2. Between two or more {@link
+ * PCollection} in a {@link PCollectionList}.
+ *
+ * <p>Following {@code PTransform}s follows SET DISTINCT semantics: intersectDistinct,
+ * expectDistinct, unionDistinct
+ *
+ * <p>Following {@code PTransform}s follows SET ALL semantics: intersectAll, expectAll, unionAll
+ *
+ * <p>For example, the following demonstrates intersectDistinct between two collections {@link
+ * PCollection}s.
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<String> left = p.apply(Create.of("1", "2", "3", "3", "4", "5"));
+ * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4", "6"));
+ *
+ * PCollection<String> results =
+ *     left.apply(SetFns.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
+ *
+ * }</pre>
+ *
+ * <p>For example, the following demonstrates intersectDistinct between three collections {@link
+ * PCollection}s in a {@link PCollectionList}.
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<String> first = p.apply(Create.of("1", "2", "3", "3", "4", "5"));
+ * PCollection<String> second = p.apply(Create.of("1", "3", "4", "4", "6"));
+ * PCollection<String> third = p.apply(Create.of("3", "4", "4"));
+ *
+ * // Following example will perform (first intersect second) intersect third.
+ * PCollection<String> results =
+ *     PCollectionList.of(first).and(second).and(third)
+ *     .apply(SetFns.intersectDistinct()); // results will be PCollection<String> containing: "3","4"
+ *
+ * }</pre>
+ */
+public class Sets {
 
   /**
    * Returns a new {@code PTransform} transform that follows SET DISTINCT semantics to compute the
@@ -51,16 +94,17 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}). Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of {@code PCollection<T>}
+   * Coder} as that of the input {@code PCollection<T>}
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "3","4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1", "2", "3", "3", "4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
    *     left.apply(SetFns.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
@@ -76,11 +120,11 @@ public class SetFns {
 
   /**
    * Returns a {@code PTransform} that takes a {@code PCollectionList<PCollection<T>>} and returns a
-   * {@code PCollection<T>} containing intersection of collections done in order for all collections
-   * in {@code PCollectionList<T>}.
+   * {@code PCollection<T>} containing the intersection of collections done in order for all
+   * collections in {@code PCollectionList<T>}.
    *
    * <p>Returns a new {@code PTransform} transform that follows SET DISTINCT semantics which takes a
-   * {@code PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing
+   * {@code PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing the
    * intersection of collections done in order for all collections in {@code PCollectionList<T>}.
    *
    * <p>The elements of the output {@link PCollection} will have all distinct elements that are
@@ -92,17 +136,18 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of first in {@code PCollectionList<T>}
+   * Coder} as that of the first {@code PCollection<T>} in {@code PCollectionList<T>}.
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> first = p.apply(Create.of("1", "2", "3", "3","4", "5"));
-   * PCollection<String> second = p.apply(Create.of("1", "3", "4","4", "6"));
-   * PCollection<String> third = p.apply(Create.of("3", "4","4"));
+   * PCollection<String> first = p.apply(Create.of("1", "2", "3", "3", "4", "5"));
+   * PCollection<String> second = p.apply(Create.of("1", "3", "4", "4", "6"));
+   * PCollection<String> third = p.apply(Create.of("3", "4", "4"));
    *
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
@@ -137,16 +182,17 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of {@code PCollection<T>}
+   * Coder} as that of the input {@code PCollection<T>}
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1","1","1", "2", "3", "3","4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1","1", "3", "4","4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1", "1", "1", "2", "3", "3", "4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1", "1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
    *     left.apply(SetFns.intersectAll(right)); // results will be PCollection<String> containing: "1","1","3","4"
@@ -161,8 +207,9 @@ public class SetFns {
 
   /**
    * Returns a new {@code PTransform} transform that follows SET ALL semantics which takes a {@code
-   * PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing intersection
-   * all of collections done in order for all collections in {@code PCollectionList<T>}.
+   * PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing the
+   * intersection all of collections done in order for all collections in {@code
+   * PCollectionList<T>}.
    *
    * <p>The elements of the output {@link PCollection} which will follow INTERSECT_ALL semantics.
    * Output is calculated as follows: Given there are m elements on pipeline which is constructed
@@ -175,15 +222,16 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of first in {@code PCollectionList<T>}
+   * Coder} as that of the first {@code PCollection<T>} in {@code PCollectionList<T>}.
    *
    * <pre>{@code
    * Pipeline p = ...;
-   * PCollection<String> first = p.apply(Create.of("1","1","1", "2", "3", "3","4", "5"));
-   * PCollection<String> second = p.apply(Create.of("1","1", "3", "4","4", "6"));
+   * PCollection<String> first = p.apply(Create.of("1", "1", "1", "2", "3", "3", "4", "5"));
+   * PCollection<String> second = p.apply(Create.of("1", "1", "3", "4", "4", "6"));
    * PCollection<String> third = p.apply(Create.of("1", "5"));
    *
    * // Following example will perform (first intersect second) intersect third.
@@ -214,16 +262,17 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of {@code PCollection<T>}
+   * Coder} as that of the input {@code PCollection<T>}
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1","1","1", "2", "3", "3","4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1","1", "3", "4","4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1", "1", "1", "2", "3", "3","4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1", "1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
    *     left.apply(SetFns.exceptDistinct(right)); // results will be PCollection<String> containing: "2","5"
@@ -238,11 +287,11 @@ public class SetFns {
 
   /**
    * Returns a {@code PTransform} that takes a {@code PCollectionList<PCollection<T>>} and returns a
-   * {@code PCollection<T>} containing difference (except) of collections done in order for all
+   * {@code PCollection<T>} containing the difference (except) of collections done in order for all
    * collections in {@code PCollectionList<T>}.
    *
    * <p>Returns a new {@code PTransform} transform that follows SET DISTINCT semantics which takes a
-   * {@code PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing
+   * {@code PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing the
    * difference (except) of collections done in order for all collections in {@code
    * PCollectionList<T>}.
    *
@@ -255,17 +304,18 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of first in {@code PCollectionList<T>}
+   * Coder} as that of the first {@code PCollection<T>} in {@code PCollectionList<T>}.
    *
    * <pre>{@code
    * Pipeline p = ...;
-   * PCollection<String> first = p.apply(Create.of("1","1","1", "2", "3", "3","4", "5"));
-   * PCollection<String> second = p.apply(Create.of("1","1", "3", "4","4", "6"));
+   * PCollection<String> first = p.apply(Create.of("1", "1", "1", "2", "3", "3", "4", "5"));
+   * PCollection<String> second = p.apply(Create.of("1", "1", "3", "4", "4", "6"));
    *
-   * PCollection<String> third = p.apply(Create.of("1", "2","2"));
+   * PCollection<String> third = p.apply(Create.of("1", "2", "2"));
    *
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
@@ -301,16 +351,17 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of {@code PCollection<T>}
+   * Coder} as that of the input {@code PCollection<T>}
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1","1","1", "2", "3", "3","3","4", "5"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4", "6"));
+   * PCollection<String> left = p.apply(Create.of("1", "1", "1", "2", "3", "3", "3", "4", "5"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
    *     left.apply(SetFns.exceptAll(right)); // results will be PCollection<String> containing: "1","1","2","3","3","5"
@@ -325,8 +376,8 @@ public class SetFns {
 
   /**
    * Returns a new {@code PTransform} transform that follows SET ALL semantics which takes a {@code
-   * PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing difference all
-   * (exceptAll) of collections done in order for all collections in {@code PCollectionList<T>}.
+   * PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing the difference
+   * all (exceptAll) of collections done in order for all collections in {@code PCollectionList<T>}.
    *
    * <p>The elements of the output {@link PCollection} which will follow EXCEPT_ALL semantics.
    * Output is calculated as follows: Given there are m elements on pipeline which is constructed
@@ -340,15 +391,16 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of first in {@code PCollectionList<T>}
+   * Coder} as that of the first {@code PCollection<T>} in {@code PCollectionList<T>}.
    *
    * <pre>{@code
    * Pipeline p = ...;
-   * PCollection<String> first = p.apply(Create.of("1","1","1", "2", "3", "3","3","4", "5"));
-   * PCollection<String> second = p.apply(Create.of("1", "3", "4","4", "6"));
+   * PCollection<String> first = p.apply(Create.of("1", "1", "1", "2", "3", "3", "3", "4", "5"));
+   * PCollection<String> second = p.apply(Create.of("1", "3", "4", "4", "6"));
    * PCollection<String> third = p.apply(Create.of("1", "5"));
    *
    * // Following example will perform (first intersect second) intersect third.
@@ -382,16 +434,17 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of {@code PCollection<T>}
+   * Coder} as that of the input {@code PCollection<T>}
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1","1","2"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4"));
+   * PCollection<String> left = p.apply(Create.of("1", "1", "2"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4"));
    *
    * PCollection<String> results =
    *     left.apply(SetFns.unionDistinct(right)); // results will be PCollection<String> containing: "1","2","3","4"
@@ -406,8 +459,8 @@ public class SetFns {
 
   /**
    * Returns a new {@code PTransform} transform that follows SET DISTINCT semantics which takes a
-   * {@code PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing union
-   * of collections done in order for all collections in {@code PCollectionList<T>}.
+   * {@code PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing the
+   * union of collections done in order for all collections in {@code PCollectionList<T>}.
    *
    * <p>The elements of the output {@link PCollection} will have all distinct elements that are
    * present in pipeline is constructed or present in next {@link PCollection} in the list and
@@ -418,15 +471,16 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of first in {@code PCollectionList<T>}
+   * Coder} as that of the first {@code PCollection<T>} in {@code PCollectionList<T>}.
    *
    * <pre>{@code
    * Pipeline p = ...;
-   * PCollection<String> first = p.apply(Create.of("1","1","2"));
-   * PCollection<String> second = p.apply(Create.of("1", "3", "4","4"));
+   * PCollection<String> first = p.apply(Create.of("1", "1", "2"));
+   * PCollection<String> second = p.apply(Create.of("1", "3", "4", "4"));
    *
    * PCollection<String> third = p.apply(Create.of("1", "5"));
    *
@@ -462,16 +516,17 @@ public class SetFns {
    * is not deterministic, an exception is thrown at pipeline construction time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of {@code PCollection<T>}
+   * Coder} as that of the input {@code PCollection<T>}
    *
    * <pre>{@code
    * Pipeline p = ...;
    *
-   * PCollection<String> left = p.apply(Create.of("1","1","2"));
-   * PCollection<String> right = p.apply(Create.of("1", "3", "4","4"));
+   * PCollection<String> left = p.apply(Create.of("1", "1", "2"));
+   * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4"));
    *
    * PCollection<String> results =
    *     left.apply(SetFns.unionAll(right)); // results will be PCollection<String> containing: "1","1","1","2","3","4","4"
@@ -486,8 +541,8 @@ public class SetFns {
 
   /**
    * Returns a new {@code PTransform} transform that follows SET ALL semantics which takes a {@code
-   * PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing unionAll of
-   * collections done in order for all collections in {@code PCollectionList<T>}.
+   * PCollectionList<PCollection<T>>} and returns a {@code PCollection<T>} containing the unionAll
+   * of collections done in order for all collections in {@code PCollectionList<T>}.
    *
    * <p>The elements of the output {@link PCollection} which will follow UNION_ALL semantics. Output
    * is calculated as follows: Given there are m elements on pipeline which is constructed {@link
@@ -500,15 +555,16 @@ public class SetFns {
    * time.
    *
    * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
-   * Trigger#isCompatible(Trigger)}).
+   * Trigger#isCompatible(Trigger)}).Triggers with multiple firings may lead to nondeterministic
+   * results since the this {@code PTransform} is only computed over each individual firing.
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
-   * Coder} that of first in {@code PCollectionList<T>}
+   * Coder} as that of the first {@code PCollection<T>} in {@code PCollectionList<T>}.
    *
    * <pre>{@code
    * Pipeline p = ...;
-   * PCollection<String> first = p.apply(Create.of("1","1","2"));
-   * PCollection<String> second = p.apply(Create.of("1", "3", "4","4"));
+   * PCollection<String> first = p.apply(Create.of("1", "1", "2"));
+   * PCollection<String> second = p.apply(Create.of("1", "3", "4", "4"));
    * PCollection<String> third = p.apply(Create.of("1", "5"));
    *
    * // Following example will perform (first intersect second) intersect third.
@@ -564,7 +620,7 @@ public class SetFns {
                 }
               });
 
-      checkArgument(all.size() > 0, "must have at least one input to a PCollectionList");
+      checkArgument(all.size() > 1, "must have at least two input to a PCollectionList");
 
       PCollection<T> first = all.get(0);
       Pipeline pipeline = first.getPipeline();

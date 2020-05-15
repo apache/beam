@@ -21,7 +21,7 @@ import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Prec
 
 import java.io.Serializable;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.SetFns;
+import org.apache.beam.sdk.transforms.Sets;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -74,21 +74,21 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
     switch (opType) {
       case UNION:
         if (all) {
-          return leftRows.apply(SetFns.unionAll(rightRows));
+          return leftRows.apply(Sets.unionAll(rightRows));
         } else {
-          return leftRows.apply(SetFns.unionDistinct(rightRows));
+          return leftRows.apply(Sets.unionDistinct(rightRows));
         }
       case INTERSECT:
         if (all) {
-          return leftRows.apply(SetFns.intersectAll(rightRows));
+          return leftRows.apply(Sets.intersectAll(rightRows));
         } else {
-          return leftRows.apply(SetFns.intersectDistinct(rightRows));
+          return leftRows.apply(Sets.intersectDistinct(rightRows));
         }
       case MINUS:
         if (all) {
-          return leftRows.apply(SetFns.exceptAll(rightRows));
+          return leftRows.apply(Sets.exceptAll(rightRows));
         } else {
-          return leftRows.apply(SetFns.exceptDistinct(rightRows));
+          return leftRows.apply(Sets.exceptDistinct(rightRows));
         }
       default:
         throw new IllegalStateException("Unexpected set operation value: " + opType);

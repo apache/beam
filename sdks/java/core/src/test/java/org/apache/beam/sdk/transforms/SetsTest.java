@@ -36,7 +36,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class SetFnsTest {
+public class SetsTest {
 
   @Rule public final TestPipeline p = TestPipeline.create();
 
@@ -67,10 +67,10 @@ public class SetFnsTest {
   @Test
   @Category(NeedsRunner.class)
   public void testIntersection() {
-    PAssert.that(first.apply("strings", SetFns.intersectDistinct(second)))
+    PAssert.that(first.apply("strings", Sets.intersectDistinct(second)))
         .containsInAnyOrder("a", "b", "c", "d");
 
-    PCollection<Row> results = firstRows.apply("rows", SetFns.intersectDistinct(secondRows));
+    PCollection<Row> results = firstRows.apply("rows", Sets.intersectDistinct(secondRows));
 
     PAssert.that(results).containsInAnyOrder(toRows("a", "b", "c", "d"));
 
@@ -90,14 +90,14 @@ public class SetFnsTest {
             PCollectionList.of(first)
                 .and(second)
                 .and(third)
-                .apply("stringsCols", SetFns.intersectDistinct()))
+                .apply("stringsCols", Sets.intersectDistinct()))
         .containsInAnyOrder("b", "c");
 
     PCollection<Row> results =
         PCollectionList.of(firstRows)
             .and(secondRows)
             .and(thirdRows)
-            .apply("rowCols", SetFns.intersectDistinct());
+            .apply("rowCols", Sets.intersectDistinct());
 
     PAssert.that(results).containsInAnyOrder(toRows("b", "c"));
 
@@ -110,10 +110,10 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testIntersectionAll() {
 
-    PAssert.that(first.apply("strings", SetFns.intersectAll(second)))
+    PAssert.that(first.apply("strings", Sets.intersectAll(second)))
         .containsInAnyOrder("a", "a", "b", "b", "c", "d", "d");
 
-    PCollection<Row> results = firstRows.apply("rows", SetFns.intersectAll(secondRows));
+    PCollection<Row> results = firstRows.apply("rows", Sets.intersectAll(secondRows));
 
     PAssert.that(results).containsInAnyOrder(toRows("a", "a", "b", "b", "c", "d", "d"));
 
@@ -132,14 +132,14 @@ public class SetFnsTest {
             PCollectionList.of(first)
                 .and(second)
                 .and(third)
-                .apply("stringsCols", SetFns.intersectAll()))
+                .apply("stringsCols", Sets.intersectAll()))
         .containsInAnyOrder("a", "b");
 
     PCollection<Row> results =
         PCollectionList.of(firstRows)
             .and(secondRows)
             .and(thirdRows)
-            .apply("rowCols", SetFns.intersectAll());
+            .apply("rowCols", Sets.intersectAll());
 
     PAssert.that(results).containsInAnyOrder(toRows("a", "b"));
 
@@ -152,10 +152,9 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testExcept() {
 
-    PAssert.that(first.apply("strings", SetFns.exceptDistinct(second)))
-        .containsInAnyOrder("g", "h");
+    PAssert.that(first.apply("strings", Sets.exceptDistinct(second))).containsInAnyOrder("g", "h");
 
-    PCollection<Row> results = firstRows.apply("rows", SetFns.exceptDistinct(secondRows));
+    PCollection<Row> results = firstRows.apply("rows", Sets.exceptDistinct(secondRows));
 
     PAssert.that(results).containsInAnyOrder(toRows("g", "h"));
 
@@ -174,14 +173,14 @@ public class SetFnsTest {
             PCollectionList.of(first)
                 .and(second)
                 .and(third)
-                .apply("stringsCols", SetFns.exceptDistinct()))
+                .apply("stringsCols", Sets.exceptDistinct()))
         .containsInAnyOrder("h");
 
     PCollection<Row> results =
         PCollectionList.of(firstRows)
             .and(secondRows)
             .and(thirdRows)
-            .apply("rowCols", SetFns.exceptDistinct());
+            .apply("rowCols", Sets.exceptDistinct());
 
     PAssert.that(results).containsInAnyOrder(toRows("h"));
 
@@ -194,10 +193,10 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testExceptAll() {
 
-    PAssert.that(first.apply("strings", SetFns.exceptAll(second)))
+    PAssert.that(first.apply("strings", Sets.exceptAll(second)))
         .containsInAnyOrder("a", "g", "g", "h", "h");
 
-    PCollection<Row> results = firstRows.apply("rows", SetFns.exceptAll(secondRows));
+    PCollection<Row> results = firstRows.apply("rows", Sets.exceptAll(secondRows));
 
     PAssert.that(results).containsInAnyOrder(toRows("a", "g", "g", "h", "h"));
 
@@ -213,17 +212,14 @@ public class SetFnsTest {
     PCollection<Row> thirdRows = p.apply("thirdRows", Create.of(toRows("a", "b", "b", "g")));
 
     PAssert.that(
-            PCollectionList.of(first)
-                .and(second)
-                .and(third)
-                .apply("stringsCols", SetFns.exceptAll()))
+            PCollectionList.of(first).and(second).and(third).apply("stringsCols", Sets.exceptAll()))
         .containsInAnyOrder("g", "h", "h");
 
     PCollection<Row> results =
         PCollectionList.of(firstRows)
             .and(secondRows)
             .and(thirdRows)
-            .apply("rowCols", SetFns.exceptAll());
+            .apply("rowCols", Sets.exceptAll());
 
     PAssert.that(results).containsInAnyOrder(toRows("g", "h", "h"));
 
@@ -236,10 +232,10 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testUnion() {
 
-    PAssert.that(first.apply("strings", SetFns.unionDistinct(second)))
+    PAssert.that(first.apply("strings", Sets.unionDistinct(second)))
         .containsInAnyOrder("a", "b", "c", "d", "e", "f", "g", "h");
 
-    PCollection<Row> results = firstRows.apply("rows", SetFns.unionDistinct(secondRows));
+    PCollection<Row> results = firstRows.apply("rows", Sets.unionDistinct(secondRows));
 
     PAssert.that(results).containsInAnyOrder(toRows("a", "b", "c", "d", "e", "f", "g", "h"));
 
@@ -258,14 +254,14 @@ public class SetFnsTest {
             PCollectionList.of(first)
                 .and(second)
                 .and(third)
-                .apply("stringsCols", SetFns.unionDistinct()))
+                .apply("stringsCols", Sets.unionDistinct()))
         .containsInAnyOrder("a", "b", "c", "d", "e", "f", "g", "h", "k");
 
     PCollection<Row> results =
         PCollectionList.of(firstRows)
             .and(secondRows)
             .and(thirdRows)
-            .apply("rowCols", SetFns.unionDistinct());
+            .apply("rowCols", Sets.unionDistinct());
 
     PAssert.that(results).containsInAnyOrder(toRows("a", "b", "c", "d", "e", "f", "g", "h", "k"));
 
@@ -278,12 +274,12 @@ public class SetFnsTest {
   @Category(NeedsRunner.class)
   public void testUnionAll() {
 
-    PAssert.that(first.apply("strings", SetFns.unionAll(second)))
+    PAssert.that(first.apply("strings", Sets.unionAll(second)))
         .containsInAnyOrder(
             "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "c", "c", "d", "d", "d", "d", "e",
             "e", "f", "f", "g", "g", "h", "h");
 
-    PCollection<Row> results = firstRows.apply("rows", SetFns.unionAll(secondRows));
+    PCollection<Row> results = firstRows.apply("rows", Sets.unionAll(secondRows));
 
     PAssert.that(results)
         .containsInAnyOrder(
@@ -304,10 +300,7 @@ public class SetFnsTest {
     PCollection<Row> thirdRows = p.apply("thirdRows", Create.of(toRows("a", "b", "b", "k", "k")));
 
     PAssert.that(
-            PCollectionList.of(first)
-                .and(second)
-                .and(third)
-                .apply("stringsCols", SetFns.unionAll()))
+            PCollectionList.of(first).and(second).and(third).apply("stringsCols", Sets.unionAll()))
         .containsInAnyOrder(
             "a", "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "b", "b", "c", "c", "d", "d",
             "d", "d", "e", "e", "f", "f", "g", "g", "h", "h", "k", "k");
@@ -316,35 +309,13 @@ public class SetFnsTest {
         PCollectionList.of(firstRows)
             .and(secondRows)
             .and(thirdRows)
-            .apply("rowCols", SetFns.unionAll());
+            .apply("rowCols", Sets.unionAll());
 
     PAssert.that(results)
         .containsInAnyOrder(
             toRows(
                 "a", "a", "a", "a", "a", "a", "b", "b", "b", "b", "b", "b", "b", "c", "c", "d", "d",
                 "d", "d", "e", "e", "f", "f", "g", "g", "h", "h", "k", "k"));
-
-    assertEquals(schema, results.getSchema());
-
-    p.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testOnlyOneCollectionInPCollectionList() {
-
-    String[] strings = {"a", "b", "b", "k", "k"};
-    PCollection<String> col = p.apply("third", Create.of(Arrays.asList(strings)));
-    PCollection<Row> colRows =
-        p.apply("thirdRows", Create.of(toRows(strings)).withRowSchema(schema));
-
-    PAssert.that(PCollectionList.of(col).apply("stringsCol", SetFns.intersectDistinct()))
-        .containsInAnyOrder(strings);
-
-    PCollection<Row> results =
-        PCollectionList.of(colRows).apply("rowCol", SetFns.intersectDistinct());
-
-    PAssert.that(results).containsInAnyOrder(toRows(strings));
 
     assertEquals(schema, results.getSchema());
 
