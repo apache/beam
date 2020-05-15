@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.AddHarnessIdInterceptor;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -204,6 +205,8 @@ public class FnHarness {
 
       LoadingCache<String, BeamFnApi.ProcessBundleDescriptor> processBundleDescriptors =
           CacheBuilder.newBuilder()
+              .maximumSize(1000)
+              .expireAfterAccess(10, TimeUnit.MINUTES)
               .build(
                   new CacheLoader<String, BeamFnApi.ProcessBundleDescriptor>() {
                     @Override
