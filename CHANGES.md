@@ -75,7 +75,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.21.0] - Unreleased (In Progress)
+# [2.21.0] - 2020-05-xx
 
 ## Highlights
 
@@ -139,6 +139,7 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 ## Deprecations
 * Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
 Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://issues.apache.org/jira/browse/BEAM-9704))
+* The `--zone` option in the Dataflow runner is now deprecated. Please use `--worker_zone` instead. ([BEAM-9716](https://issues.apache.org/jira/browse/BEAM-9716))
 
 ## Known Issues
 
