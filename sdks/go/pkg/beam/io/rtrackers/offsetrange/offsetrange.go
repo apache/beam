@@ -12,6 +12,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package offsetrange defines a restriction and restriction tracker for offset
+// ranges. An offset range is just a range, with a start and end, that can
+// begin at an offset, and is commonly used to represent byte ranges for files
+// or indices for iterable containers.
 package offsetrange
 
 import (
