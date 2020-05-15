@@ -53,12 +53,12 @@ func Source(s beam.Scope, col beam.PCollection) beam.PCollection {
 }
 
 // sourceFn is a splittable DoFn implementing behavior for synthetic sources.
-// For usage information, see `Source`.
+// For usage information, see synthetic.Source.
 //
 // The sourceFn is expected to receive elements of type sourceConfig and follow
 // that config to determine its behavior when splitting and emitting elements.
 type sourceFn struct {
-	rng *rand.Rand
+	rng randWrapper
 }
 
 // CreateInitialRestriction creates an offset range restriction representing
@@ -77,8 +77,7 @@ func (fn *sourceFn) CreateInitialRestriction(config SourceConfig) offsetrange.Re
 func (fn *sourceFn) SplitRestriction(config SourceConfig, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
 	if config.InitialSplits <= 1 {
 		// Don't split, just return original restriction.
-		splits = append(splits, rest)
-		return splits
+		return append(splits, rest)
 	}
 
 	// TODO(BEAM-9978) Move this implementation of the offset range restriction
@@ -140,7 +139,7 @@ func (fn *sourceFn) ProcessElement(rt *offsetrange.Tracker, config SourceConfig,
 // fields. SourceConfigs should be initialized with this method.
 func DefaultSourceConfig() SourceConfig {
 	return SourceConfig{
-		NumElements:   1, // Defaults to 1 so at least an element is output.
+		NumElements:   1, // Defaults shouldn't drop elements, so at least 1.
 		InitialSplits: 1, // Defaults to 1, i.e. no initial splitting.
 	}
 }
