@@ -358,11 +358,11 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
      * @return the healthcare http exception
      * @throws IOException the io exception
      */
-    public static HealthcareHttpException of(HttpResponse response) throws IOException {
+    static HealthcareHttpException of(HttpResponse response) throws IOException {
       return new HealthcareHttpException(response, EntityUtils.toString(response.getEntity()));
     }
 
-    public Integer getStatusCode() {
+    Integer getStatusCode() {
       return statusCode;
     }
   }
