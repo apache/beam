@@ -79,27 +79,43 @@ public class WindmillTimerInternalsTest {
         for (TimeDomain timeDomain : TimeDomain.values()) {
           for (WindmillNamespacePrefix prefix : WindmillNamespacePrefix.values()) {
             for (Instant timestamp : TEST_TIMESTAMPS) {
-              TimerData anonymousTimerData =
-                  TimerData.of(namespace, timestamp, timestamp.minus(1), timeDomain);
-
-              assertThat(
-                  WindmillTimerInternals.windmillTimerToTimerData(
-                      prefix,
-                      WindmillTimerInternals.timerDataToWindmillTimer(
-                          stateFamily, prefix, anonymousTimerData),
-                      coder),
-                  equalTo(anonymousTimerData));
-
-              for (String timerId : TEST_TIMER_IDS) {
-                TimerData timerData =
-                    TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain);
+              List<TimerData> anonymousTimers =
+                  ImmutableList.of(
+                      TimerData.of(namespace, timestamp, timestamp, timeDomain),
+                      TimerData.of(namespace, timestamp, timestamp.minus(1), timeDomain));
+              for (TimerData timer : anonymousTimers) {
                 assertThat(
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
-                        WindmillTimerInternals.timerDataToWindmillTimer(
-                            stateFamily, prefix, timerData),
+                        WindmillTimerInternals.timerDataToWindmillTimer(stateFamily, prefix, timer),
                         coder),
-                    equalTo(timerData));
+                    equalTo(timer));
+              }
+
+              for (String timerId : TEST_TIMER_IDS) {
+                List<TimerData> timers =
+                    ImmutableList.of(
+                        TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain),
+                        TimerData.of(
+                            timerId, "family", namespace, timestamp, timestamp, timeDomain),
+                        TimerData.of(timerId, namespace, timestamp, timestamp.minus(1), timeDomain),
+                        TimerData.of(
+                            timerId,
+                            "family",
+                            namespace,
+                            timestamp,
+                            timestamp.minus(1),
+                            timeDomain));
+
+                for (TimerData timer : timers) {
+                  assertThat(
+                      WindmillTimerInternals.windmillTimerToTimerData(
+                          prefix,
+                          WindmillTimerInternals.timerDataToWindmillTimer(
+                              stateFamily, prefix, timer),
+                          coder),
+                      equalTo(timer));
+                }
               }
             }
           }

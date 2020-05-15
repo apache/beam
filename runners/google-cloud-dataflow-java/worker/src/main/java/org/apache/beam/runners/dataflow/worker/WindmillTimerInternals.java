@@ -376,10 +376,13 @@ class WindmillTimerInternals implements TimerInternals {
                 .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
                 .append('+')
                 .append(timerData.getTimerFamilyId())
-                .append('+')
                 .toString();
         out.write(tagString.getBytes(StandardCharsets.UTF_8));
-        VarInt.encode(timerData.getOutputTimestamp().getMillis(), out);
+        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp;
+        if (!timerData.getOutputTimestamp().equals(timerData.getTimestamp())) {
+          out.write('+');
+          VarInt.encode(timerData.getOutputTimestamp().getMillis(), out);
+        }
       } else {
         // Timers without timerFamily would have timerFamily would be an empty string
         tagString =
