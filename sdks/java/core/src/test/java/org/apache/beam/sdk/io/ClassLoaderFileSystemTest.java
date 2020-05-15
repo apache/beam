@@ -34,7 +34,7 @@ import org.junit.runners.JUnit4;
 public class ClassLoaderFileSystemTest {
 
   private static final String SOME_CLASS =
-      "classpath://org/apache/beam/sdk/io/ClassLoaderFilesystem.class";
+      "classpath://org/apache/beam/sdk/io/ClassLoaderFileSystem.class";
 
   @Test
   public void testOpen() throws IOException {
@@ -61,7 +61,7 @@ public class ClassLoaderFileSystemTest {
         grandparent
             .resolve("io", ResolveOptions.StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve(
-                "ClassLoaderFilesystem.class", ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
+                "ClassLoaderFileSystem.class", ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
     ReadableByteChannel channel = filesystem.open(resource);
     checkIsClass(channel);
   }
