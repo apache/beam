@@ -127,6 +127,9 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 ([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
 * Added integration of Java SDK with Google Cloud AI natural language processing API
 ([BEAM-9634](https://issues.apache.org/jira/browse/BEAM-9634))
+* `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
+  The files are added to `/opt/apache/beam/third_party_licenses/`. 
+  By default, no licenses/notices are added to the docker images. ([BEAM-9136](https://issues.apache.org/jira/browse/BEAM-9136))
 
  
 ## Breaking Changes
@@ -135,6 +138,7 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 * HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects ([BEAM-9279](https://issues.apache.org/jira/browse/BEAM-9279)).
 * ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator ([BEAM-9430](https://issues.apache.org/jira/browse/BEAM-9430)).
 * Coder inference for PCollection of Row objects has been disabled ([BEAM-9569](https://issues.apache.org/jira/browse/BEAM-9569)).
+* Go SDK docker images are no longer released until further notice.
 
 ## Deprecations
 * Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
