@@ -17,14 +17,18 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
 import org.apache.beam.sdk.transforms.join.CoGroupByKey;
 import org.apache.beam.sdk.transforms.join.KeyedPCollectionTuple;
+import org.apache.beam.sdk.transforms.windowing.Trigger;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
@@ -41,6 +45,13 @@ public class SetFns {
    *
    * <p>The elements of the output {@link PCollection} will all distinct elements that present in
    * both pipeline is constructed and provided {@link PCollection}.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of {@code PCollection<T>}
@@ -75,6 +86,13 @@ public class SetFns {
    * <p>The elements of the output {@link PCollection} will have all distinct elements that are
    * present in both pipeline is constructed and next {@link PCollection} in the list and applied to
    * all collections in order.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of first in {@code PCollectionList<T>}
@@ -114,6 +132,13 @@ public class SetFns {
    * and n elements on in provided {@link PCollection} (right): - it will output MIN(m - n, 0)
    * elements of left for all elements which are present in both left and right.
    *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
+   *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of {@code PCollection<T>}
    *
@@ -144,6 +169,13 @@ public class SetFns {
    * {@link PCollection} (left) and n elements on in provided {@link PCollection} (right): - it will
    * output MIN(m - n, 0) elements of left for all elements which are present in both left and
    * right.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of first in {@code PCollectionList<T>}
@@ -176,6 +208,13 @@ public class SetFns {
    *
    * <p>The elements of the output {@link PCollection} will all distinct elements that present in
    * pipeline is constructed but not present in provided {@link PCollection}.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of {@code PCollection<T>}
@@ -210,6 +249,13 @@ public class SetFns {
    * <p>The elements of the output {@link PCollection} will have all distinct elements that are
    * present in pipeline is constructed but not present in next {@link PCollection} in the list and
    * applied to all collections in order.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of first in {@code PCollectionList<T>}
@@ -250,6 +296,13 @@ public class SetFns {
    * for all elements which are present in left but not in right. - it will output MAX(m - n, 0)
    * elements of left for all elements which are present in both left and right.
    *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
+   *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of {@code PCollection<T>}
    *
@@ -281,6 +334,13 @@ public class SetFns {
    * output m elements of left for all elements which are present in left but not in right. - it
    * will output MAX(m - n, 0) elements of left for all elements which are present in both left and
    * right.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of first in {@code PCollectionList<T>}
@@ -317,6 +377,13 @@ public class SetFns {
    * <p>The elements of the output {@link PCollection} will all distinct elements that present in
    * pipeline is constructed or present in provided {@link PCollection}.
    *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
+   *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of {@code PCollection<T>}
    *
@@ -345,6 +412,13 @@ public class SetFns {
    * <p>The elements of the output {@link PCollection} will have all distinct elements that are
    * present in pipeline is constructed or present in next {@link PCollection} in the list and
    * applied to all collections in order.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of first in {@code PCollectionList<T>}
@@ -383,6 +457,13 @@ public class SetFns {
    * and n elements on in provided {@link PCollection} (right): - it will output m elements of left
    * and m elements of right.
    *
+   * <p>Note that this transform requires that the {@code Coder} of the all {@code PCollection<T>}
+   * to be deterministic (see {@link Coder#verifyDeterministic()}). If the collection {@code Coder}
+   * is not deterministic, an exception is thrown at pipeline construction time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
+   *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of {@code PCollection<T>}
    *
@@ -412,6 +493,14 @@ public class SetFns {
    * is calculated as follows: Given there are m elements on pipeline which is constructed {@link
    * PCollection} (left) and n elements on in provided {@link PCollection} (right): - it will output
    * m elements of left and m elements of right.
+   *
+   * <p>Note that this transform requires that the {@code Coder} of the all inputs {@code
+   * PCollection<T>} to be deterministic (see {@link Coder#verifyDeterministic()}). If the
+   * collection {@code Coder} is not deterministic, an exception is thrown at pipeline construction
+   * time.
+   *
+   * <p>All inputs must have equal {@link WindowFn}s and compatible triggers (see {@link
+   * Trigger#isCompatible(Trigger)}).
    *
    * <p>By default, the output {@code PCollection<T>} encodes its elements using the same {@code
    * Coder} that of first in {@code PCollectionList<T>}
@@ -466,7 +555,6 @@ public class SetFns {
     @Override
     public PCollection<T> expand(PCollectionList<T> input) {
       List<PCollection<T>> all = input.getAll();
-
       MapElements<T, KV<T, Void>> elementToVoid =
           MapElements.via(
               new SimpleFunction<T, KV<T, Void>>() {
@@ -475,6 +563,8 @@ public class SetFns {
                   return KV.of(element, null);
                 }
               });
+
+      checkArgument(all.size() > 0, "must have at least one input to a PCollectionList");
 
       PCollection<T> first = all.get(0);
       Pipeline pipeline = first.getPipeline();
