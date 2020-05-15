@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.dataflow.model.JobMessage;
@@ -209,12 +208,7 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   void updatePAssertCount(Pipeline pipeline) {
-    if (hasExperiment(options, "beam_fn_api")) {
-      // TODO[BEAM-1866]: FnAPI does not support metrics, so expect 0 assertions.
-      expectedNumberOfAssertions = 0;
-    } else {
-      expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
-    }
+    expectedNumberOfAssertions = PAssert.countAsserts(pipeline);
   }
 
   /**
