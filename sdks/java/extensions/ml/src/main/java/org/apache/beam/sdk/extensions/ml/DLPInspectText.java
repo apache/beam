@@ -20,22 +20,24 @@ package org.apache.beam.sdk.extensions.ml;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.dlp.v2.DlpServiceClient;
 import com.google.privacy.dlp.v2.ContentItem;
-import com.google.privacy.dlp.v2.Finding;
+import com.google.privacy.dlp.v2.FieldId;
 import com.google.privacy.dlp.v2.InspectConfig;
 import com.google.privacy.dlp.v2.InspectContentRequest;
 import com.google.privacy.dlp.v2.InspectContentResponse;
 import com.google.privacy.dlp.v2.ProjectName;
+import com.google.privacy.dlp.v2.Table;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.metrics.Counter;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +52,8 @@ import org.slf4j.LoggerFactory;
 @Experimental
 @AutoValue
 public abstract class DLPInspectText
-    extends PTransform<PCollection<KV<String, String>>, PCollection<List<Finding>>> {
+    extends PTransform<
+        PCollection<KV<String, String>>, PCollection<KV<String, InspectContentResponse>>> {
   public static final Logger LOG = LoggerFactory.getLogger(DLPInspectText.class);
 
   public static final Integer DLP_PAYLOAD_LIMIT = 52400;
@@ -65,6 +68,12 @@ public abstract class DLPInspectText
 
   public abstract String projectId();
 
+  @Nullable
+  public abstract String csvDelimiter();
+
+  @Nullable
+  public abstract PCollectionView<List<String>> csvHeader();
+
   @AutoValue.Builder
   public abstract static class Builder {
     public abstract Builder setInspectTemplateName(String inspectTemplateName);
@@ -75,6 +84,10 @@ public abstract class DLPInspectText
 
     public abstract Builder setProjectId(String projectId);
 
+    public abstract Builder setCsvDelimiter(String csvDelimiter);
+
+    public abstract Builder setCsvHeader(PCollectionView<List<String>> csvHeader);
+
     public abstract DLPInspectText build();
   }
 
@@ -83,26 +96,34 @@ public abstract class DLPInspectText
   }
 
   @Override
-  public PCollection<List<Finding>> expand(PCollection<KV<String, String>> input) {
+  public PCollection<KV<String, InspectContentResponse>> expand(
+      PCollection<KV<String, String>> input) {
     return input
+        .apply(ParDo.of(new MapStringToDlpRow(csvDelimiter())))
         .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSize())))
         .apply(
             "DLPInspect",
-            ParDo.of(new InspectData(projectId(), inspectTemplateName(), inspectConfig())));
+            ParDo.of(
+                new InspectData(projectId(), inspectTemplateName(), inspectConfig(), csvHeader())));
   }
 
-  public static class InspectData extends DoFn<KV<String, String>, List<Finding>> {
+  public static class InspectData
+      extends DoFn<KV<String, Iterable<Table.Row>>, KV<String, InspectContentResponse>> {
     private final String projectId;
     private final String inspectTemplateName;
     private final InspectConfig inspectConfig;
     private transient InspectContentRequest.Builder requestBuilder;
-    private final Counter numberOfBytesInspected =
-        Metrics.counter(InspectData.class, "NumberOfBytesInspected");
+    private final PCollectionView<List<String>> csvHeader;
 
-    public InspectData(String projectId, String inspectTemplateName, InspectConfig inspectConfig) {
+    public InspectData(
+        String projectId,
+        String inspectTemplateName,
+        InspectConfig inspectConfig,
+        PCollectionView<List<String>> csvHeader) {
       this.projectId = projectId;
       this.inspectTemplateName = inspectTemplateName;
       this.inspectConfig = inspectConfig;
+      this.csvHeader = csvHeader;
     }
 
     @Setup
@@ -123,24 +144,26 @@ public abstract class DLPInspectText
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
       try (DlpServiceClient dlpServiceClient = DlpServiceClient.create()) {
-        if (!c.element().getValue().isEmpty()) {
-          ContentItem contentItem =
-              ContentItem.newBuilder().setValue(c.element().getValue()).build();
-          this.requestBuilder.setItem(contentItem);
-          if (this.requestBuilder.build().getSerializedSize() > DLP_PAYLOAD_LIMIT) {
-            String errorMessage =
-                String.format(
-                    "Payload Size %s Exceeded Batch Size %s",
-                    this.requestBuilder.build().getSerializedSize(), DLP_PAYLOAD_LIMIT);
-            LOG.error(errorMessage);
-          } else {
-            InspectContentResponse response =
-                dlpServiceClient.inspectContent(this.requestBuilder.build());
-            List<Finding> findingsList = response.getResult().getFindingsList();
-            c.output(findingsList);
-            numberOfBytesInspected.inc(contentItem.getSerializedSize());
-          }
+        List<FieldId> tableHeaders;
+        if (csvHeader != null) {
+          tableHeaders =
+              c.sideInput(csvHeader).stream()
+                  .map(header -> FieldId.newBuilder().setName(header).build())
+                  .collect(Collectors.toList());
+        } else {
+          tableHeaders = new ArrayList<>();
+          tableHeaders.add(FieldId.newBuilder().setName("value").build());
         }
+        Table table =
+            Table.newBuilder()
+                .addAllHeaders(tableHeaders)
+                .addAllRows(c.element().getValue())
+                .build();
+        ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
+        this.requestBuilder.setItem(contentItem);
+        InspectContentResponse response =
+            dlpServiceClient.inspectContent(this.requestBuilder.build());
+        c.output(KV.of(c.element().getKey(), response));
       }
     }
   }

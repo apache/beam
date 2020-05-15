@@ -17,8 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.ml;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
+import com.google.privacy.dlp.v2.Table;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,26 +42,27 @@ import org.slf4j.LoggerFactory;
  * service.
  */
 @Experimental
-class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
+class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable<Table.Row>>> {
   public static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
-  private final Counter numberOfElementsBagged =
-      Metrics.counter(BatchRequestForDLP.class, "numberOfElementsBagged");
+
+  private final Counter numberOfRowsBagged =
+      Metrics.counter(BatchRequestForDLP.class, "numberOfRowsBagged");
   private final Integer batchSize;
+
+  @StateId("elementsBag")
+  private final StateSpec<BagState<KV<String, Table.Row>>> elementsBag = StateSpecs.bag();
+
+  @TimerId("eventTimer")
+  private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
   public BatchRequestForDLP(Integer batchSize) {
     this.batchSize = batchSize;
   }
 
-  @StateId("elementsBag")
-  private final StateSpec<BagState<KV<String, String>>> elementsBag = StateSpecs.bag();
-
-  @TimerId("eventTimer")
-  private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
-
   @ProcessElement
   public void process(
-      @Element KV<String, String> element,
-      @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
+      @Element KV<String, Table.Row> element,
+      @StateId("elementsBag") BagState<KV<String, Table.Row>> elementsBag,
       @TimerId("eventTimer") Timer eventTimer,
       BoundedWindow w) {
     elementsBag.add(element);
@@ -71,30 +71,30 @@ class BatchRequestForDLP extends DoFn<KV<String, String>, KV<String, String>> {
 
   @OnTimer("eventTimer")
   public void onTimer(
-      @StateId("elementsBag") BagState<KV<String, String>> elementsBag,
-      OutputReceiver<KV<String, Iterable<String>>> output) {
+      @StateId("elementsBag") BagState<KV<String, Table.Row>> elementsBag,
+      OutputReceiver<KV<String, Iterable<Table.Row>>> output) {
     String key = elementsBag.read().iterator().next().getKey();
     AtomicInteger bufferSize = new AtomicInteger();
-    List<String> rows = new ArrayList<>();
+    List<Table.Row> rows = new ArrayList<>();
     elementsBag
         .read()
         .forEach(
             element -> {
-              int elementSize = element.getValue().getBytes(UTF_8).length;
+              int elementSize = element.getValue().getSerializedSize();
               boolean clearBuffer = bufferSize.intValue() + elementSize > batchSize;
               if (clearBuffer) {
-                numberOfElementsBagged.inc(rows.size());
+                numberOfRowsBagged.inc(rows.size());
                 LOG.debug("Clear Buffer {} , Key {}", bufferSize.intValue(), element.getKey());
                 output.output(KV.of(element.getKey(), rows));
                 rows.clear();
                 bufferSize.set(0);
               }
               rows.add(element.getValue());
-              bufferSize.getAndAdd(element.getValue().getBytes(UTF_8).length);
+              bufferSize.getAndAdd(element.getValue().getSerializedSize());
             });
     if (!rows.isEmpty()) {
       LOG.debug("Remaining rows {}", rows.size());
-      numberOfElementsBagged.inc(rows.size());
+      numberOfRowsBagged.inc(rows.size());
       output.output(KV.of(key, rows));
     }
   }

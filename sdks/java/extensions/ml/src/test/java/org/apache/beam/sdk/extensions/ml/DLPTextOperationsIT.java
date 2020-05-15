@@ -17,14 +17,16 @@
  */
 package org.apache.beam.sdk.extensions.ml;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.privacy.dlp.v2.CharacterMaskConfig;
 import com.google.privacy.dlp.v2.DeidentifyConfig;
+import com.google.privacy.dlp.v2.DeidentifyContentResponse;
 import com.google.privacy.dlp.v2.Finding;
 import com.google.privacy.dlp.v2.InfoType;
 import com.google.privacy.dlp.v2.InfoTypeTransformations;
 import com.google.privacy.dlp.v2.InspectConfig;
+import com.google.privacy.dlp.v2.InspectContentResponse;
 import com.google.privacy.dlp.v2.Likelihood;
 import com.google.privacy.dlp.v2.PrimitiveTransformation;
 import java.util.ArrayList;
@@ -46,8 +48,8 @@ public class DLPTextOperationsIT {
   @Rule public TestPipeline testPipeline = TestPipeline.create();
 
   private static final String IDENTIFYING_TEXT = "mary.sue@example.com";
-  private static InfoType emailAddress = InfoType.newBuilder().setName("EMAIL_ADDRESS").build();;
-  private static InspectConfig inspectConfig =
+  private static InfoType emailAddress = InfoType.newBuilder().setName("EMAIL_ADDRESS").build();
+  private static final InspectConfig inspectConfig =
       InspectConfig.newBuilder()
           .addInfoTypes(emailAddress)
           .setMinLikelihood(Likelihood.LIKELY)
@@ -56,7 +58,7 @@ public class DLPTextOperationsIT {
   @Test
   public void inspectsText() {
     String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
-    PCollection<List<Finding>> inspectionResult =
+    PCollection<KV<String, InspectContentResponse>> inspectionResult =
         testPipeline
             .apply(Create.of(KV.of("", IDENTIFYING_TEXT)))
             .apply(
@@ -74,7 +76,7 @@ public class DLPTextOperationsIT {
     emailAddress = InfoType.newBuilder().setName("EMAIL_ADDRESS").build();
     String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
 
-    PCollection<KV<String, String>> deidentificationResult =
+    PCollection<KV<String, DeidentifyContentResponse>> deidentificationResult =
         testPipeline
             .apply(Create.of(KV.of("", IDENTIFYING_TEXT)))
             .apply(
@@ -84,7 +86,8 @@ public class DLPTextOperationsIT {
                     .setInspectConfig(inspectConfig)
                     .setDeidentifyConfig(getDeidentifyConfig())
                     .build());
-    PAssert.that(deidentificationResult).containsInAnyOrder(KV.of("", "####################"));
+    PAssert.that(deidentificationResult)
+        .satisfies(new VerifyDeidentificationResult("####################"));
     testPipeline.run().waitUntilFinish();
   }
 
@@ -105,16 +108,46 @@ public class DLPTextOperationsIT {
   }
 
   private static class VerifyInspectionResult
-      implements SerializableFunction<Iterable<List<Finding>>, Void> {
+      implements SerializableFunction<Iterable<KV<String, InspectContentResponse>>, Void> {
     @Override
-    public Void apply(Iterable<List<Finding>> input) {
+    public Void apply(Iterable<KV<String, InspectContentResponse>> input) {
       List<Boolean> matches = new ArrayList<>();
       input.forEach(
-          resultList ->
-              matches.add(
-                  resultList.stream()
-                      .anyMatch(finding -> finding.getInfoType().equals(emailAddress))));
-      assertEquals(Boolean.TRUE, matches.contains(Boolean.TRUE));
+          item -> {
+            List<Finding> resultList = item.getValue().getResult().getFindingsList();
+            matches.add(
+                resultList.stream()
+                    .anyMatch(finding -> finding.getInfoType().equals(emailAddress)));
+          });
+      assertTrue(matches.contains(Boolean.TRUE));
+      return null;
+    }
+  }
+
+  private static class VerifyDeidentificationResult
+      implements SerializableFunction<Iterable<KV<String, DeidentifyContentResponse>>, Void> {
+    private final String expectedValue;
+
+    public VerifyDeidentificationResult(String expectedValue) {
+      this.expectedValue = expectedValue;
+    }
+
+    @Override
+    public Void apply(Iterable<KV<String, DeidentifyContentResponse>> input) {
+      List<Boolean> matches = new ArrayList<>();
+      input.forEach(
+          item -> {
+            item.getValue()
+                .getItem()
+                .getTable()
+                .getRowsList()
+                .forEach(
+                    row ->
+                        matches.add(
+                            row.getValuesList().stream()
+                                .anyMatch(value -> value.getStringValue().equals(expectedValue))));
+          });
+      assertTrue(matches.contains(Boolean.TRUE));
       return null;
     }
   }
