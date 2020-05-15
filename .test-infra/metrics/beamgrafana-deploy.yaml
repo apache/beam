@@ -37,7 +37,7 @@ spec:
         fsGroup: 1000
       containers:
       - name: beamgrafana
-        image: gcr.io/apache-beam-testing/beamgrafana:beammetrics20200506
+        image: gcr.io/apache-beam-testing/beamgrafana:beammetrics20200515
         securityContext:
           runAsUser: 0
         env:
