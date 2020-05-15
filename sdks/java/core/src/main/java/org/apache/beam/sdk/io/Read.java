@@ -496,7 +496,6 @@ public class Read {
 
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context,
         RestrictionTracker<
                 KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
             tracker,
@@ -504,6 +503,9 @@ public class Read {
         OutputReceiver<ValueWithRecordId<OutputT>> receiver,
         BundleFinalizer bundleFinalizer)
         throws IOException {
+      KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction =
+          tracker.currentRestriction();
+
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
       while (tracker.tryClaim(out)) {
         receiver.outputWithTimestamp(
@@ -511,10 +513,15 @@ public class Read {
         watermarkEstimator.setWatermark(ensureTimestampWithinBounds(out[0].getWatermark()));
       }
 
-      // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
+      // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial and is not
+      // the initial restriction. The initial restriction would have been finalized as part of
+      // a prior bundle being executed.
       KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction =
           tracker.currentRestriction();
+      @SuppressWarnings("ReferenceEquality")
+      boolean isInitialRestriction = initialRestriction == currentRestriction;
       if (currentRestriction.getValue() != null
+          && !isInitialRestriction
           && !(tracker.currentRestriction().getValue() instanceof NoopCheckpointMark)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardMinutes(DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS)),
