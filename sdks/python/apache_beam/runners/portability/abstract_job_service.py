@@ -47,7 +47,8 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
+  from typing import BinaryIO  # pylint: disable=ungrouped-imports
+  from google.protobuf import struct_pb2
   from apache_beam.portability.api import beam_runner_api_pb2
 
 _LOGGER = logging.getLogger(__name__)
@@ -288,6 +289,9 @@ class JarArtifactManager(object):
     self._zipfile_handle.close()
 
   def file_writer(self, path):
+    # type: (str) -> Tuple[BinaryIO, str]
+    """Given a relative path, returns an open handle that can be written to
+    and an reference that can later be used to read this file."""
     full_path = '%s/%s' % (self._root, path)
     return self._zipfile_handle.open(
         full_path, 'w', force_zip64=True), 'classpath://%s' % full_path
@@ -351,12 +355,10 @@ class UberJarBeamJob(AbstractBeamJob):
         url='localhost:%d' % port)
     self._artifact_staging_server.start()
     _LOGGER.info('Artifact server started on port %s', port)
-    _LOGGER.error('Artifact server started on port %s', port)
     return port
 
   def _stop_artifact_service(self):
     self._artifact_staging_server.stop(1)
-    self._artifact_manifest_location = None
 
     # Update dependencies to point to staged files.
     pipeline = copy.copy(self._pipeline_proto)
