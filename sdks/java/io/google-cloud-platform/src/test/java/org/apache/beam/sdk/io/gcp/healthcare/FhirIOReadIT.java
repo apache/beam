@@ -102,6 +102,7 @@ public class FhirIOReadIT {
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
     pubsub.deleteTopic(topicPath);
+    pubsub.close();
   }
 
   @Test

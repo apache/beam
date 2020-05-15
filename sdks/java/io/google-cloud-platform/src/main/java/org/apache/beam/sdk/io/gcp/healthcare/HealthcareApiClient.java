@@ -110,7 +110,10 @@ public interface HealthcareApiClient {
   HttpBody fhirCreate(String fhirStore, String type, String resource, @Nullable String ifNoneExist)
       throws IOException, HealthcareHttpException;
 
-  HttpBody fhirConditionalUpdate(String fhirStore, String relativeResourceName, String resource,
+  HttpBody fhirConditionalUpdate(
+      String fhirStore,
+      String relativeResourceName,
+      String resource,
       Map<String, String> searchParameters)
       throws IOException, HealthcareHttpException;
 
