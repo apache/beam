@@ -18,7 +18,7 @@
 .highlight {
     background: #fff;
 
-    .highlighter-rouge & {
+    .chroma {
       background: #eef;
     }
 
@@ -98,4 +98,8 @@
   h3 {
     margin: 10px;
   }
+}
+
+pre {
+  background: #eef;
 }
