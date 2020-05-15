@@ -79,7 +79,8 @@ public class WindmillTimerInternalsTest {
         for (TimeDomain timeDomain : TimeDomain.values()) {
           for (WindmillNamespacePrefix prefix : WindmillNamespacePrefix.values()) {
             for (Instant timestamp : TEST_TIMESTAMPS) {
-              TimerData anonymousTimerData = TimerData.of(namespace, timestamp, timeDomain);
+              TimerData anonymousTimerData =
+                  TimerData.of(namespace, timestamp, timestamp.minus(1), timeDomain);
 
               assertThat(
                   WindmillTimerInternals.windmillTimerToTimerData(
@@ -90,7 +91,8 @@ public class WindmillTimerInternalsTest {
                   equalTo(anonymousTimerData));
 
               for (String timerId : TEST_TIMER_IDS) {
-                TimerData timerData = TimerData.of(timerId, namespace, timestamp, timeDomain);
+                TimerData timerData =
+                    TimerData.of(timerId, namespace, timestamp, timestamp, timeDomain);
                 assertThat(
                     WindmillTimerInternals.windmillTimerToTimerData(
                         prefix,
