@@ -93,11 +93,10 @@ class ParDoTest(LoadTest):
   def __init__(self):
     super(ParDoTest, self).__init__()
     self.iterations = self.get_option_or_default('iterations')
-    self.number_of_counters = self.get_option_or_default('number_of_counters')
-    self.number_of_operations = self.get_option_or_default(
-        'number_of_counter_operations', 1)
     self.number_of_counters = self.get_option_or_default(
         'number_of_counters', 1)
+    self.number_of_operations = self.get_option_or_default(
+        'number_of_counter_operations', 1)
     self.stateful = self.get_option_or_default('stateful', False)
     if self.get_option_or_default('state_cache', False):
       self.pipeline.options.view_as(DebugOptions).add_experiment(
@@ -182,26 +181,25 @@ class StatefulLoadGenerator(beam.PTransform):
       self.num_records_per_key = num_records_per_key
       self.payload = os.urandom(value_size)
       self.bundle_size = bundle_size
-      self.key = None
 
     def process(
         self,
-        element,
+        _element,
         records_remaining=beam.DoFn.StateParam(state_spec),
         timer=beam.DoFn.TimerParam(timer_spec)):
-      self.key, _ = element
       records_remaining.add(self.num_records_per_key)
       timer.set(0)
 
     @userstate.on_timer(timer_spec)
     def process_timer(
         self,
+        key=beam.DoFn.KeyParam,
         records_remaining=beam.DoFn.StateParam(state_spec),
         timer=beam.DoFn.TimerParam(timer_spec)):
       cur_bundle_size = min(self.bundle_size, records_remaining.read())
       for _ in range(cur_bundle_size):
         records_remaining.add(-1)
-        yield self.key, self.payload
+        yield key, self.payload
       if records_remaining.read() > 0:
         timer.set(0)
 
