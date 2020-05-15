@@ -95,7 +95,8 @@ docker {
   files "./build/"
 }
 
-if (project.rootProject.hasProperty(["docker-pull-licenses"])) {
+if (project.rootProject.hasProperty(["docker-pull-licenses"]) ||
+        project.rootProject.hasProperty(["isRelease"])) {
   task pullLicenses(type: Exec) {
     workingDir project.rootProject.projectDir
     commandLine './sdks/java/container/license_scripts/license_script.sh'

@@ -685,8 +685,20 @@ Verify that files are [present](https://dist.apache.org/repos/dist/dev/beam).
 * Build Python images and push to DockerHub.
 
 ```
-./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+./gradlew :sdks:python:container:buildAll -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+```
 
+Verify that third party licenses are included by logging in to the images. For Python SDK images, there should be around 80 ~ 100 dependencies. 
+Please note that dependencies for the SDKs with different Python versions vary. 
+Need to verify all Python images by replacing `${ver}` in the following command to `python2.7, python3.5, python3.6, python3.7`.
+
+```
+docker run -it --entrypoint=/bin/bash apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
+ls -al /opt/apache/beam/third_party_licenses/ | wc -l
+```
+
+After verifying the third party licenses are included correctly, push the images to DockerHub.
+```
 PYTHON_VER=("python2.7" "python3.5" "python3.6" "python3.7")
 for ver in "${PYTHON_VER[@]}"; do
    docker push apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM} &
@@ -696,7 +708,18 @@ done
 * Build Java images and push to DockerHub.
 
 ```
-./gradlew :sdks:java:container:dockerPush -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+./gradlew :sdks:java:container:docker -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
+```
+
+Verify that third party licenses are included by logging in to the images. For Java SDK images, there should be around 1400 dependencies. 
+```
+docker run -it --entrypoint=/bin/bash apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+ls -al /opt/apache/beam/third_party_licenses/ | wc -l
+```
+
+After verifying the third party licenses are included correctly, push the images to DockerHub.
+```
+docker push apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
 ```
 
 * Build Flink job server images and push to DockerHub.

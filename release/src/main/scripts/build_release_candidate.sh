@@ -223,7 +223,7 @@ if [[ $confirmation = "y" ]]; then
   git checkout ${RELEASE_BRANCH}
 
   echo '-------------------Generating and Pushing Python images-----------------'
-  ./gradlew :sdks:python:container:buildAll -Pdocker-tag=${RELEASE}_rc${RC_NUM}
+  ./gradlew :sdks:python:container:buildAll -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc${RC_NUM}
   for ver in "${PYTHON_VER[@]}"; do
     docker push ${DOCKER_IMAGE_DEFAULT_REPO_ROOT}/${DOCKER_IMAGE_DEFAULT_REPO_PREFIX}${ver}_sdk:${RELEASE}_rc${RC_NUM} &
   done
