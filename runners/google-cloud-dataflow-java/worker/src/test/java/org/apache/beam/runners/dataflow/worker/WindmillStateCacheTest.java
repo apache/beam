@@ -25,6 +25,8 @@ import java.util.Objects;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.StateTag;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -41,6 +43,8 @@ public class WindmillStateCacheTest {
   private static final String COMPUTATION = "computation";
   private static final ByteString KEY = ByteString.copyFromUtf8("key");
   private static final String STATE_FAMILY = "family";
+  private static final long MEGABYTES = 1024 * 1024;
+  DataflowWorkerHarnessOptions options;
 
   private static class TestStateTag implements StateTag<TestState> {
     final String id;
@@ -130,7 +134,8 @@ public class WindmillStateCacheTest {
 
   @Before
   public void setUp() {
-    cache = new WindmillStateCache();
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    cache = new WindmillStateCache(400);
     assertEquals(0, cache.getWeight());
   }
 
@@ -159,6 +164,12 @@ public class WindmillStateCacheTest {
         new TestState("t3"), keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag3")));
     assertEquals(
         new TestState("t2"), keyCache.get(triggerNamespace(0, 0), new TestStateTag("tag2")));
+  }
+
+  /** Verifies that max weight is set */
+  @Test
+  public void testMaxWeight() throws Exception {
+    assertEquals(400 * MEGABYTES, cache.getMaxWeight());
   }
 
   /** Verifies that values are cached in the appropriate namespaces. */
