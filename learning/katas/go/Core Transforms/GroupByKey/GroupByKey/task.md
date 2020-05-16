@@ -34,11 +34,12 @@ beam.GroupByKey</a> transform that groups words by its first letter.
 </div>
 <div class="hint">
   Providing your ParDo a func with two return values, such as below, will transform a PCollection&lt;B&gt; 
-  into a beam.PCollection&lt;KV&lt;A,B&gt;&gt;.
+  into a PCollection&lt;KV&lt;A,B&gt;&gt;.
   
 ```
 func someFunc(element string) (uint8, string) {
-    return //  
+    c := // assign c the first character rune of element
+    return c, element 
 }
 ``` 
 </div>
