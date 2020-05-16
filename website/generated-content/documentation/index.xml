@@ -8789,8 +8789,8 @@ python -m apache_beam.examples.wordcount \
 &lt;h2 id=&#34;building-container-images&#34;&gt;Building container images&lt;/h2&gt;
 &lt;p&gt;To build Beam SDK container images:&lt;/p&gt;
 &lt;ol&gt;
-&lt;li&gt;Navigate to the local copy of your &lt;a href=&#34;#customizing-container-images&#34;&gt;customized container image&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;Run Gradle with the &lt;code&gt;docker&lt;/code&gt; target. If you&amp;rsquo;re &lt;a href=&#34;#writing-new-dockerfiles&#34;&gt;building a child image&lt;/a&gt;, set the optional &lt;code&gt;--file&lt;/code&gt; flag to the new Dockerfile. If you&amp;rsquo;re &lt;a href=&#34;#modifying-dockerfiles&#34;&gt;building an image from an original Dockerfile&lt;/a&gt;, ignore the &lt;code&gt;--file&lt;/code&gt; flag and use a default repository:&lt;/li&gt;
+&lt;li&gt;Navigate to the root directory of the local copy of your Apache Beam.&lt;/li&gt;
+&lt;li&gt;Run Gradle with the &lt;code&gt;docker&lt;/code&gt; target. If you&amp;rsquo;re &lt;a href=&#34;#writing-new-dockerfiles&#34;&gt;building a child image&lt;/a&gt;, set the optional &lt;code&gt;--file&lt;/code&gt; flag to the new Dockerfile. If you&amp;rsquo;re &lt;a href=&#34;#modifying-dockerfiles&#34;&gt;building an image from an original Dockerfile&lt;/a&gt;, ignore the &lt;code&gt;--file&lt;/code&gt; flag:&lt;/li&gt;
 &lt;/ol&gt;
 &lt;pre&gt;&lt;code&gt;# The default repository of each SDK
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
@@ -8802,7 +8802,10 @@ python -m apache_beam.examples.wordcount \
 
 # Shortcut for building all four Python SDKs
 ./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;To examine the containers that you built, run &lt;code&gt;docker images&lt;/code&gt; from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;From 2.21.0, &lt;code&gt;docker-pull-licenses&lt;/code&gt; tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when &lt;code&gt;docker-pull-licenses&lt;/code&gt; was set.
+For example, &lt;code&gt;./gradlew :sdks:java:container:docker -Pdocker-pull-licenses&lt;/code&gt;. The files are added to &lt;code&gt;/opt/apache/beam/third_party_licenses/&lt;/code&gt;.
+By default, no licenses/notices are added to the docker images.&lt;/p&gt;
+&lt;p&gt;To examine the containers that you built, run &lt;code&gt;docker images&lt;/code&gt; from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:&lt;/p&gt;
 &lt;pre&gt;&lt;code&gt;REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
 apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
 apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
