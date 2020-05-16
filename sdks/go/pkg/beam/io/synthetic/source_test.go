@@ -38,7 +38,7 @@ func TestSourceConfig_NumElements(t *testing.T) {
 			cfg := DefaultSourceConfig()
 			cfg.NumElements = test.elms
 
-			keys, _, err := simulateSourceFn(&dfn, cfg)
+			keys, _, err := simulateSourceFn(t, &dfn, cfg)
 			if err != nil {
 				t.Errorf("Failure processing sourceFn: %v", err)
 			}
@@ -50,6 +50,8 @@ func TestSourceConfig_NumElements(t *testing.T) {
 	}
 }
 
+// TestSourceConfig_InitialSplits tests that the InitialSplits config option
+// works correctly.
 func TestSourceConfig_InitialSplits(t *testing.T) {
 	// Test that SplitRestriction creates the expected number of restrictions.
 	t.Run("NumSplits", func(t *testing.T) {
@@ -100,7 +102,7 @@ func TestSourceConfig_InitialSplits(t *testing.T) {
 				cfg.NumElements = test.elms
 				cfg.InitialSplits = test.splits
 
-				keys, _, err := simulateSourceFn(&dfn, cfg)
+				keys, _, err := simulateSourceFn(t, &dfn, cfg)
 				if err != nil {
 					t.Errorf("Failure processing sourceFn: %v", err)
 				}
@@ -119,7 +121,9 @@ func TestSourceConfig_InitialSplits(t *testing.T) {
 // expected to accurately reflect how SDFs are executed in practice (that
 // should be done via integration tests), but to validate the implementations of
 // those methods.
-func simulateSourceFn(dfn *sourceFn, cfg SourceConfig) (keys [][]byte, vals [][]byte, err error) {
+func simulateSourceFn(t *testing.T, dfn *sourceFn, cfg SourceConfig) (keys [][]byte, vals [][]byte, err error) {
+	t.Helper()
+
 	emitFn := func(key []byte, val []byte) {
 		keys = append(keys, key)
 		vals = append(vals, key)
