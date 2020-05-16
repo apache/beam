@@ -441,6 +441,7 @@ public class SimpleDoFnRunnerTest {
           TimerData.of(
               DoFnWithTimers.TIMER_ID,
               StateNamespaces.window(windowCoder, (W) context.window()),
+              context.fireTimestamp(),
               context.timestamp(),
               context.timeDomain()));
     }

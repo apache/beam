@@ -318,6 +318,7 @@ public class SimplePushbackSideInputDoFnRunnerTest {
                 timerId,
                 StateNamespaces.window(IntervalWindow.getCoder(), window),
                 timestamp,
+                timestamp,
                 TimeDomain.EVENT_TIME)));
   }
 

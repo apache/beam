@@ -3541,6 +3541,44 @@ public class ParDoTest implements Serializable {
       UsesTimersInParDo.class,
       DataflowPortabilityApiUnsupported.class
     })
+    public void testOutputTimestampDefault() throws Exception {
+      final String timerId = "foo";
+      DoFn<KV<String, Long>, Long> fn1 =
+          new DoFn<KV<String, Long>, Long>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<Long> o) {
+              o.output(timestamp.getMillis());
+            }
+          };
+
+      PCollection<Long> output =
+          pipeline
+              .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 1L), new Instant(3))))
+              .setIsBoundedInternal(IsBounded.UNBOUNDED)
+              .apply("first", ParDo.of(fn1));
+
+      PAssert.that(output).containsInAnyOrder(new Instant(8).getMillis()); // result output
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testOutOfBoundsEventTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
