@@ -270,10 +270,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.TIMERS)
   public abstract class OnTimerContext extends WindowedContext {
 
-    /** Returns the timestamp of the current timer. */
+    /** Returns the output timestamp of the current timer. */
     public abstract Instant timestamp();
 
-    /** Returns the output timestamp of the current timer. */
+    /** Returns the firing timestamp of the current timer. */
     public abstract Instant fireTimestamp();
 
     /** Returns the window in which the timer is firing. */
