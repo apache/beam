@@ -18,11 +18,10 @@ package task
 import "github.com/apache/beam/sdks/go/pkg/beam"
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	kv := beam.ParDo(s, groupByFirstLetter, input)
+	kv := beam.ParDo(s, splitByFirstChar, input)
 	return beam.GroupByKey(s, kv)
 }
 
-func groupByFirstLetter(element string) (uint8, string) {
+func splitByFirstChar(element string) (uint8, string) {
 	return element[0], element
 }
-
