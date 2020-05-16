@@ -1021,7 +1021,7 @@ class DataflowRunner(PipelineRunner):
     # will be 'None' for main output and '<tag>' for a tagged output.
     outputs = []
 
-    all_output_tags = transform_proto.outputs.keys()
+    all_output_tags = list(transform_proto.outputs.keys())
 
     # Some external transforms require output tags to not be modified.
     # So we randomly select one of the output tags as the main output and
