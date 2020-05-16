@@ -158,8 +158,9 @@ public abstract class BeamJoinRel extends Join implements BeamRelNode {
 
   static List<Pair<RexNode, RexNode>> extractJoinRexNodes(RexNode condition) {
     // it's a CROSS JOIN because: condition == true
-    if (condition instanceof RexLiteral && (Boolean) ((RexLiteral) condition).getValue()) {
-      throw new UnsupportedOperationException("CROSS JOIN is not supported!");
+    // or it's a JOIN ON false because: condition == false
+    if (condition instanceof RexLiteral) {
+      throw new UnsupportedOperationException("CROSS JOIN, JOIN ON FALSE is not supported!");
     }
 
     RexCall call = (RexCall) condition;

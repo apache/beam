@@ -50,8 +50,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
@@ -73,6 +73,10 @@ public class PTransformTranslation {
   public static final String TEST_STREAM_TRANSFORM_URN = "beam:transform:teststream:v1";
   public static final String MAP_WINDOWS_TRANSFORM_URN = "beam:transform:map_windows:v1";
   public static final String MERGE_WINDOWS_TRANSFORM_URN = "beam:transform:merge_windows:v1";
+
+  // Required runner implemented transforms. These transforms should never specify an environment.
+  public static final ImmutableSet<String> RUNNER_IMPLEMENTED_TRANSFORMS =
+      ImmutableSet.of(GROUP_BY_KEY_TRANSFORM_URN, IMPULSE_TRANSFORM_URN);
 
   // DeprecatedPrimitives
   /**
@@ -350,10 +354,15 @@ public class PTransformTranslation {
 
       // A composite transform is permitted to have a null spec. There are also some pseudo-
       // primitives not yet supported by the portability framework that have null specs
+      String urn = "";
       if (spec != null) {
+        urn = spec.getUrn();
         transformBuilder.setSpec(spec);
       }
-      transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+
+      if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(urn)) {
+        transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+      }
       return transformBuilder.build();
     }
   }
@@ -366,11 +375,6 @@ public class PTransformTranslation {
       implements TransformTranslator<T> {
     private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
         KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
-
-    // TODO: BEAM-9001 - set environment ID in all transforms and allow runners to override.
-    private static List<String> sdkTransformsWithEnvironment =
-        ImmutableList.of(
-            PAR_DO_TRANSFORM_URN, COMBINE_PER_KEY_TRANSFORM_URN, ASSIGN_WINDOWS_TRANSFORM_URN);
 
     private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
         loadTransformPayloadTranslators() {
@@ -423,14 +427,20 @@ public class PTransformTranslation {
       if (spec != null) {
         transformBuilder.setSpec(spec);
 
-        if (sdkTransformsWithEnvironment.contains(spec.getUrn())) {
-          transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
-        } else if (spec.getUrn().equals(READ_TRANSFORM_URN)
-            && (appliedPTransform.getTransform().getClass() == Read.Bounded.class)) {
-          // Only assigning environment to Bounded reads. Not assigning an environment to Unbounded
-          // reads since they are a Runner translated transform, unless, in the future, we have an
-          // adapter available for splittable DoFn.
-          transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+        // Required runner implemented transforms should not have an environment id.
+        if (!RUNNER_IMPLEMENTED_TRANSFORMS.contains(spec.getUrn())) {
+          // TODO(BEAM-9309): Remove existing hacks around deprecated READ transform.
+          if (spec.getUrn().equals(READ_TRANSFORM_URN)) {
+            // Only assigning environment to Bounded reads. Not assigning an environment to
+            // Unbounded
+            // reads since they are a Runner translated transform, unless, in the future, we have an
+            // adapter available for splittable DoFn.
+            if (appliedPTransform.getTransform().getClass() == Read.Bounded.class) {
+              transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+            }
+          } else {
+            transformBuilder.setEnvironmentId(components.getOnlyEnvironmentId());
+          }
         }
       }
       return transformBuilder.build();

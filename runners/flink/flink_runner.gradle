@@ -247,7 +247,7 @@ def createPipelineOptionsTableTask(String target) {
     args = [target]
     standardOutput = new ByteArrayOutputStream()
     doLast {
-      def dest = file("${project(':website').getProjectDir()}/src/_includes/flink_${target.toLowerCase()}_pipeline_options.html")
+      def dest = file("${project(':website').getProjectDir()}/www/site/layouts/shortcodes/flink_${target.toLowerCase()}_pipeline_options.html")
       if (!dest.exists()) {
         throw new GradleException("Pipeline options file is not in expected location: ${dest}")
       }

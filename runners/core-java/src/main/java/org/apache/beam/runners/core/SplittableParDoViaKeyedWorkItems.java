@@ -545,7 +545,8 @@ public class SplittableParDoViaKeyedWorkItems {
       holdState.add(futureOutputWatermark);
       // Set a timer to continue processing this element.
       timerInternals.setTimer(
-          TimerInternals.TimerData.of(stateNamespace, wakeupTime, TimeDomain.PROCESSING_TIME));
+          TimerInternals.TimerData.of(
+              stateNamespace, wakeupTime, wakeupTime, TimeDomain.PROCESSING_TIME));
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapContextAsStartBundle(

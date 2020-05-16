@@ -218,6 +218,7 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
                   timerData.getTimerId(),
                   timerData.getNamespace(),
                   new Instant(lastTimestamp),
+                  new Instant(lastTimestamp),
                   timerData.getDomain());
           deleteTimer(lastTimerData, false);
         }
@@ -244,12 +245,14 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, TimeDomain timeDomain) {
-      deleteTimer(TimerData.of(timerId, namespace, Instant.now(), timeDomain));
+      Instant now = Instant.now();
+      deleteTimer(TimerData.of(timerId, namespace, now, now, timeDomain));
     }
 
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
-      deleteTimer(TimerData.of(timerId, namespace, Instant.now(), TimeDomain.EVENT_TIME));
+      Instant now = Instant.now();
+      deleteTimer(TimerData.of(timerId, namespace, now, now, TimeDomain.EVENT_TIME));
     }
 
     @Override
@@ -455,7 +458,11 @@ public class SamzaTimerInternalsFactory<K> implements TimerInternalsFactory<K> {
           keyBytes,
           timerKey.key,
           TimerInternals.TimerData.of(
-              timerKey.timerId, timerKey.stateNamespace, new Instant(timestamp), domain));
+              timerKey.timerId,
+              timerKey.stateNamespace,
+              new Instant(timestamp),
+              new Instant(timestamp),
+              domain));
     }
 
     private TimerKey(K key, StateNamespace stateNamespace, String timerId) {
