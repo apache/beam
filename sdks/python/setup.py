@@ -160,7 +160,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4',
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.15.1,<0.17.0; python_version >= "3.0" or '
+    ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',

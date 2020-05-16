@@ -1,0 +1,36 @@
+{{/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+  http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License. See accompanying LICENSE file.
+*/}}
+
+{{ define "main" }}
+    {{ $authors := .Params.authors }}
+    <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">{{ .Title }}</h1>
+        <p class="post-meta"><time datetime="{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}" itemprop="datePublished">{{ .Date.Format "Jan 2, 2006" }}</time>
+        {{ with $authors }} •
+            {{ $count := len . }}
+            {{ range $index, $authorId := . }}
+                {{ if and (ne $index 0) (gt $count 2) }},{{ end }}
+                {{ if and (eq $index (sub $count 1)) (gt $count 1) }} &amp;{{ end }}
+                {{ $author := index $.Site.Data.authors $authorId }} {{ $author.name }} {{ with $author.twitter }}[<a href="https://twitter.com/{{ $author.twitter }}">@{{ $author.twitter }}</a>]{{ end }}
+            {{ end }}
+        {{ end }}
+        </p>
+      </header>
+
+      <div class="post-content" itemprop="articleBody">
+        {{ .Content }}
+      </div>
+
+    </article>
+{{ end }}

@@ -46,6 +46,7 @@ import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
+import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
@@ -87,10 +88,12 @@ public class StreamingModeExecutionContextTest {
   private StreamingModeExecutionStateRegistry executionStateRegistry =
       new StreamingModeExecutionStateRegistry(null);
   private StreamingModeExecutionContext executionContext;
+  DataflowWorkerHarnessOptions options;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    options = PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     CounterSet counterSet = new CounterSet();
     ConcurrentHashMap<String, String> stateNameMap = new ConcurrentHashMap<>();
     stateNameMap.put(NameContextsForTests.nameContextForTest().userName(), "testStateFamily");
@@ -100,7 +103,7 @@ public class StreamingModeExecutionContextTest {
             "computationId",
             new ReaderCache(),
             stateNameMap,
-            new WindmillStateCache().forComputation("comp"),
+            new WindmillStateCache(options.getWorkerCacheMb()).forComputation("comp"),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),

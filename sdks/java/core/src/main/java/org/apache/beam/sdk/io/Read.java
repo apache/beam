@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.SplitResult;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.NameUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
@@ -495,7 +496,6 @@ public class Read {
 
     @ProcessElement
     public ProcessContinuation processElement(
-        ProcessContext context,
         RestrictionTracker<
                 KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT>, UnboundedSourceValue[]>
             tracker,
@@ -503,17 +503,25 @@ public class Read {
         OutputReceiver<ValueWithRecordId<OutputT>> receiver,
         BundleFinalizer bundleFinalizer)
         throws IOException {
+      KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> initialRestriction =
+          tracker.currentRestriction();
+
       UnboundedSourceValue<OutputT>[] out = new UnboundedSourceValue[1];
       while (tracker.tryClaim(out)) {
         receiver.outputWithTimestamp(
             new ValueWithRecordId<>(out[0].getValue(), out[0].getId()), out[0].getTimestamp());
-        watermarkEstimator.setWatermark(out[0].getWatermark());
+        watermarkEstimator.setWatermark(ensureTimestampWithinBounds(out[0].getWatermark()));
       }
 
-      // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial.
+      // Add the checkpoint mark to be finalized if the checkpoint mark isn't trivial and is not
+      // the initial restriction. The initial restriction would have been finalized as part of
+      // a prior bundle being executed.
       KV<UnboundedSource<OutputT, CheckpointT>, CheckpointT> currentRestriction =
           tracker.currentRestriction();
+      @SuppressWarnings("ReferenceEquality")
+      boolean isInitialRestriction = initialRestriction == currentRestriction;
       if (currentRestriction.getValue() != null
+          && !isInitialRestriction
           && !(tracker.currentRestriction().getValue() instanceof NoopCheckpointMark)) {
         bundleFinalizer.afterBundleCommit(
             Instant.now().plus(Duration.standardMinutes(DEFAULT_BUNDLE_FINALIZATION_LIMIT_MINS)),
@@ -534,10 +542,19 @@ public class Read {
       return currentElementTimestamp;
     }
 
+    private Instant ensureTimestampWithinBounds(Instant timestamp) {
+      if (timestamp.isBefore(BoundedWindow.TIMESTAMP_MIN_VALUE)) {
+        timestamp = BoundedWindow.TIMESTAMP_MIN_VALUE;
+      } else if (timestamp.isAfter(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        timestamp = BoundedWindow.TIMESTAMP_MAX_VALUE;
+      }
+      return timestamp;
+    }
+
     @NewWatermarkEstimator
     public WatermarkEstimators.Manual newWatermarkEstimator(
         @WatermarkEstimatorState Instant watermarkEstimatorState) {
-      return new WatermarkEstimators.Manual(watermarkEstimatorState);
+      return new WatermarkEstimators.Manual(ensureTimestampWithinBounds(watermarkEstimatorState));
     }
 
     @GetRestrictionCoder
