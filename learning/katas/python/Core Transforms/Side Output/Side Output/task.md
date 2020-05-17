@@ -16,18 +16,16 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Side Output</h2>
-<p>
-  While ParDo always produces a main output PCollection (as the return value from apply), you can
-  also have your ParDo produce any number of additional output PCollections. If you choose to have
-  multiple outputs, your ParDo returns all of the output PCollections (including the main output)
-  bundled together.
-</p>
-<p>
-  <b>Kata:</b> Implement additional output to your ParDo for numbers bigger than 100.
-</p>
-<br>
+Side Output
+-----------
+
+While ParDo always produces a main output PCollection (as the return value from apply), you can 
+also have your ParDo produce any number of additional output PCollections. If you choose to have 
+multiple outputs, your ParDo returns all of the output PCollections (including the main output) 
+bundled together.
+
+**Kata:** Implement additional output to your ParDo for numbers bigger than 100.
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.pvalue.html#apache_beam.pvalue.TaggedOutput">
   pvalue.TaggedOutput</a> and
@@ -36,9 +34,9 @@
   <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
   ParDo.</a>
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#additional-outputs">
   "Additional outputs"</a> section for more information.
 </div>
-</html>
