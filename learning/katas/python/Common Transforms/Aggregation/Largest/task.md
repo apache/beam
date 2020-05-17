@@ -16,19 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Filter</h2>
-<p>
-  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
-</p>
-<p>
-  <b>Kata:</b> Implement a filter function that filters out the odd numbers by using
-  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
-    Filter</a>.
-</p>
-<br>
+Aggregation - Largest
+---------------------
+
+**Kata:** Compute the largest of the elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Filter">
-  Filter</a> with a lambda.
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Largest">
+  Top.Largest</a>.
 </div>
-</html>

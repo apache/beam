@@ -16,16 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Filter using ParDo</h2>
-<p>
-  <b>Kata:</b> Implement a filter function that filters out the even numbers by using
-  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
-    ParDo</a>.
-</p>
-<br>
+Aggregation - Mean
+------------------
+
+**Kata:** Compute the mean/average of all elements from an input.
+
 <div class="hint">
-  Override <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process">
-  process</a> method. You can use "yield" for each intended element.
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Mean">
+  Mean</a>.
 </div>
-</html>

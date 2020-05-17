@@ -16,15 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Sum</h2>
-<p>
-  <b>Kata:</b> Compute the sum of all elements from an input.
-</p>
-<br>
+Aggregation - Smallest
+----------------------
+
+**Kata:** Compute the smallest of the elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.CombineGlobally">
-  CombineGlobally</a> and Python built-in
-  <a href="https://docs.python.org/2/library/functions.html#sum">sum</a>.
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Smallest">
+  Top.Smallest</a>.
 </div>
-</html>
