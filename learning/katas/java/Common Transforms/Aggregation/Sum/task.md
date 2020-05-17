@@ -16,19 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Filter</h2>
-<p>
-  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
-</p>
-<p>
-  <b>Kata:</b> Implement a filter function that filters out the odd numbers by using
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html">
-    Filter</a>.
-</p>
-<br>
+Aggregation - Sum
+-----------------
+
+**Kata:** Compute the sum of all elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html">
-  Filter.by(...)</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sum.html">
+  Sum</a>.
 </div>
-</html>
