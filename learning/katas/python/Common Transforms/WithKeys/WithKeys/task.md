@@ -16,15 +16,13 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>WithKeys</h2>
-<p>
-  <b>Kata:</b> Convert each fruit name into a KV of its first letter and itself, e.g.
-  <code>apple => ('a', 'apple')</code>
-</p>
-<br>
+WithKeys
+--------
+
+**Kata:** Convert each fruit name into a KV of its first letter and itself, e.g. 
+`apple => ('a', 'apple')`
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html#apache_beam.transforms.util.WithKeys">
   WithKeys</a>.
 </div>
-</html>

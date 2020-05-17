@@ -16,14 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Largest</h2>
-<p>
-  <b>Kata:</b> Compute the largest of the elements from an input.
-</p>
-<br>
+Aggregation - Count
+-------------------
+
+**Kata:** Count the number of elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Largest">
-  Top.Largest</a>.
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Count">
+  Count</a>.
 </div>
-</html>

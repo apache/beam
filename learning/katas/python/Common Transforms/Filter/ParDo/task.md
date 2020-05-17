@@ -16,14 +16,13 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Smallest</h2>
-<p>
-  <b>Kata:</b> Compute the smallest of the elements from an input.
-</p>
-<br>
+Filter using ParDo
+------------------
+
+**Kata:** Implement a filter function that filters out the even numbers by using 
+[ParDo](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo).
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.combiners.html#apache_beam.transforms.combiners.Top.Smallest">
-  Top.Smallest</a>.
+  Override <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process">
+  process</a> method. You can use "yield" for each intended element.
 </div>
-</html>
