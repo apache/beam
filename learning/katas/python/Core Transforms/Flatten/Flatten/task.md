@@ -16,25 +16,23 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Flatten</h2>
-<p>
-  Flatten is a Beam transform for PCollection objects that store the same data type.
-  Flatten merges multiple PCollection objects into a single logical PCollection.
-</p>
-<p>
-  <b>Kata:</b> Implement a
-  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten">
-    Flatten</a> transform that merges two PCollection of words into a single PCollection.
-</p>
-<br>
+Flatten
+-------
+
+Flatten is a Beam transform for PCollection objects that store the same data type. Flatten merges 
+multiple PCollection objects into a single logical PCollection.
+
+**Kata:** Implement a 
+[Flatten](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten) 
+transform that merges two PCollection of words into a single PCollection.
+
 <div class="hint">
   Refer to <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Flatten">
   Flatten</a> to solve this problem.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#flatten">
     "Flatten"</a> section for more information.
 </div>
-</html>

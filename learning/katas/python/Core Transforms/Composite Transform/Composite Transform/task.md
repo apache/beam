@@ -16,34 +16,31 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Composite Transform</h2>
-<p>
-  Transforms can have a nested structure, where a complex transform performs multiple simpler
-  transforms (such as more than one ParDo, Combine, GroupByKey, or even other composite transforms).
-  These transforms are called composite transforms. Nesting multiple transforms inside a single
-  composite transform can make your code more modular and easier to understand.
-</p>
-<p>
-  To create your own composite transform, create a subclass of the PTransform class and override
-  the expand method to specify the actual processing logic. You can then use this transform just as
-  you would a built-in transform from the Beam SDK. Within your PTransform subclass, you’ll need to
-  override the expand method. The expand method is where you add the processing logic for the
-  PTransform. Your override of expand must accept the appropriate type of input PCollection as a
-  parameter, and specify the output PCollection as the return value.
-</p>
-<p>
-  <b>Kata:</b> Please implement a composite transform "ExtractAndMultiplyNumbers" that extracts
-  numbers from comma separated line and then multiplies each number by 10.
-</p>
-<br>
+Composite Transform
+-------------------
+
+Transforms can have a nested structure, where a complex transform performs multiple simpler 
+transforms (such as more than one ParDo, Combine, GroupByKey, or even other composite transforms). 
+These transforms are called composite transforms. Nesting multiple transforms inside a single 
+composite transform can make your code more modular and easier to understand.
+
+To create your own composite transform, create a subclass of the PTransform class and override the 
+expand method to specify the actual processing logic. You can then use this transform just as you 
+would a built-in transform from the Beam SDK. Within your PTransform subclass, you’ll need to 
+override the expand method. The expand method is where you add the processing logic for the 
+PTransform. Your override of expand must accept the appropriate type of input PCollection as a 
+parameter, and specify the output PCollection as the return value.
+
+**Kata:** Please implement a composite transform "ExtractAndMultiplyNumbers" that extracts numbers 
+from comma separated line and then multiplies each number by 10.
+
 <div class="hint">
   Refer to <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform">
   PTransform</a>.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#composite-transforms">
     "Composite transforms"</a> section for more information.
 </div>
-</html>
