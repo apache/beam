@@ -5155,9 +5155,24 @@ public class ParDoTest implements Serializable {
       UsesStatefulParDo.class,
       UsesTimersInParDo.class,
       UsesOnWindowExpiration.class,
+    })
+    public void testOnWindowExpirationSimpleBounded() {
+      runOnWindowExpirationSimple(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
       UsesUnboundedPCollections.class,
     })
     public void testOnWindowExpirationSimpleUnbounded() {
+      runOnWindowExpirationSimple(true);
+    }
+
+    public void runOnWindowExpirationSimple(boolean useStreaming) {
       final String stateId = "foo";
       final String timerId = "bar";
       IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
@@ -5210,6 +5225,7 @@ public class ParDoTest implements Serializable {
                       // second window
                       TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
               .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply(ParDo.of(fn));
 
       PAssert.that(output)

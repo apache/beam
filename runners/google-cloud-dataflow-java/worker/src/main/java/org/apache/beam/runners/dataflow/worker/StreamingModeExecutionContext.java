@@ -552,7 +552,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       if (!cachedFiredTimers.hasNext()) {
         return null;
       }
-      return cachedFiredTimers.next();
+      TimerData nextTimer = cachedFiredTimers.next();
+      // system timers ( GC timer) must be explicitly deleted when delivered, to release the implied
+      // hold.
+      systemTimerInternals.deleteTimer(nextTimer);
+      return nextTimer;
     }
 
     // Lazily initialized
