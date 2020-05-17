@@ -15,7 +15,6 @@
 #   limitations under the License.
 
 import datetime
-import time
 import pytz
 
 import apache_beam as beam
