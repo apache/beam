@@ -16,23 +16,24 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>ParDo OneToMany</h2>
-<p>
-  <b>Kata:</b> Please write a ParDo that maps each input sentence into words tokenized by
-  whitespace (" ").
-</p>
-<br>
+FlatMapElements
+---------------
+
+The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
+
+FlatMapElements can be used to simplify a DoFn that maps an element to multiple elements (one to 
+many).
+
+**Kata:** Implement a function that maps each input sentence into words tokenized by whitespace 
+(" ") using [FlatMapElements.into(...).via(...)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html).
+
 <div class="hint">
-  You can call <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.OutputReceiver.html">
-  OutputReceiver</a> multiple times in a
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
-  ParDo</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html">
+  FlatMapElements.into(...).via(...)</a>.
 </div>
+
 <div class="hint">
-  If you're using Beam version before v2.5.0, you can call
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.WindowedContext.html#output-OutputT-">
-  DoFn.ProcessContext.output(..)</a> multiple times in a
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">ParDo</a>.
+  Refer to the Beam Programming Guide
+  <a href="https://beam.apache.org/documentation/programming-guide/#lightweight-dofns">
+    "Lightweight DoFns and other abstractions"</a> section for more information.
 </div>
-</html>

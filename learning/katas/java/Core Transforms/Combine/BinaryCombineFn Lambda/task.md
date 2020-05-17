@@ -16,28 +16,25 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Combine - BinaryCombineFn Lambda</h2>
-<p>
-  BinaryCombineFn is used for implementing combiners that are more easily expressed as binary
-  operations.
-</p>
-<p>
-  Since Beam v2.13.0, you can also use lambda or method reference in order to create the
-  BinaryCombineFn.
-</p>
-<p>
-  <b>Kata:</b> Implement the summation of BigInteger using lambda or method reference.
-</p>
-<br>
+Combine - BinaryCombineFn Lambda
+--------------------------------
+
+BinaryCombineFn is used for implementing combiners that are more easily expressed as binary 
+operations.
+
+Since Beam v2.13.0, you can also use lambda or method reference in order to create the 
+BinaryCombineFn.
+
+**Kata:** Implement the summation of BigInteger using lambda or method reference.
+
 <div class="hint">
   Refer to
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/SerializableBiFunction.html">
     SerializableBiFunction</a>.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#combine">
     "Combine"</a> section for more information.
 </div>
-</html>

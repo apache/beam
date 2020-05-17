@@ -16,27 +16,22 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>MapElements</h2>
-<p>
-  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
-</p>
-<p>
-  MapElements can be used to simplify a DoFn that maps an element to another element (one to one).
-</p>
-<p>
-  <b>Kata:</b> Implement a simple map function that multiplies all input elements by 5 using
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html">
-  MapElements.into(...).via(...)</a>.
-</p>
-<br>
+ParDo OneToMany
+---------------
+
+**Kata:** Please write a ParDo that maps each input sentence into words tokenized by whitespace 
+(" ").
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html">
-  MapElements.into(...).via(...)</a>.
+  You can call <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.OutputReceiver.html">
+  OutputReceiver</a> multiple times in a
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
+  ParDo</a>.
 </div>
+
 <div class="hint">
-  Refer to the Beam Programming Guide
-  <a href="https://beam.apache.org/documentation/programming-guide/#lightweight-dofns">
-    "Lightweight DoFns and other abstractions"</a> section for more information.
+  If you're using Beam version before v2.5.0, you can call
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.WindowedContext.html#output-OutputT-">
+  DoFn.ProcessContext.output(..)</a> multiple times in a
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">ParDo</a>.
 </div>
-</html>

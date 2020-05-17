@@ -16,20 +16,17 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Branching</h2>
-<p>
-  You can use the same PCollection as input for multiple transforms without consuming the input
-  or altering it.
-</p>
-<p>
-  <b>Kata:</b> Branch out the numbers to two different transforms: one transform is multiplying
-  each number by 5 and the other transform is multiplying each number by 10.
-</p>
-<br>
+Branching
+---------
+
+You can use the same PCollection as input for multiple transforms without consuming the input or 
+altering it.
+
+**Kata:** Branch out the numbers to two different transforms: one transform is multiplying each 
+number by 5 and the other transform is multiplying each number by 10.
+
 <div class="hint">
   Refer to the Beam Design Your Pipeline Guide
   <a href="https://beam.apache.org/documentation/pipelines/design-your-pipeline/#multiple-transforms-process-the-same-pcollection">
     "Multiple transforms process the same PCollection"</a> section for more information.
 </div>
-</html>

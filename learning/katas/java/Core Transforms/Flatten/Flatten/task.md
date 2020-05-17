@@ -16,29 +16,24 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>FlatMapElements</h2>
-<p>
-  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
-</p>
-<p>
-  FlatMapElements can be used to simplify a DoFn that maps an element to multiple elements (one to
-  many).
-</p>
-<p>
-  <b>Kata:</b> Implement a function that maps each input sentence into words tokenized by whitespace
-  (" ") using
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html">
-  FlatMapElements.into(...).via(...)</a>.
-</p>
-<br>
+Flatten
+-------
+
+Flatten is a Beam transform for PCollection objects that store the same data type. Flatten merges 
+multiple PCollection objects into a single logical PCollection.
+
+**Kata:** Implement a 
+[Flatten](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Flatten.html) 
+transform that merges two PCollection of words into a single PCollection.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/FlatMapElements.html">
-  FlatMapElements.into(...).via(...)</a>.
+  Refer to
+  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Flatten.html">
+    Flatten</a> to solve this problem.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
-  <a href="https://beam.apache.org/documentation/programming-guide/#lightweight-dofns">
-    "Lightweight DoFns and other abstractions"</a> section for more information.
+  <a href="https://beam.apache.org/documentation/programming-guide/#flatten">
+    "Flatten"</a> section for more information.
 </div>
-</html>

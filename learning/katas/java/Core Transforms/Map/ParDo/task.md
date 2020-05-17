@@ -16,26 +16,25 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Flatten</h2>
-<p>
-  Flatten is a Beam transform for PCollection objects that store the same data type.
-  Flatten merges multiple PCollection objects into a single logical PCollection.
-</p>
-<p>
-  <b>Kata:</b> Implement a
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Flatten.html">
-    Flatten</a> transform that merges two PCollection of words into a single PCollection.
-</p>
-<br>
+ParDo
+-----
+
+ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is similar 
+to the “Map” phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers each 
+element in the input PCollection, performs some processing function (your user code) on that 
+element, and emits zero, one, or multiple elements to an output PCollection.
+
+**Kata:** Please write a simple ParDo that maps the input element by multiplying it by 10.
+
 <div class="hint">
-  Refer to
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Flatten.html">
-    Flatten</a> to solve this problem.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
+  ParDo</a>
+  with <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html">
+  DoFn</a>.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
-  <a href="https://beam.apache.org/documentation/programming-guide/#flatten">
-    "Flatten"</a> section for more information.
+  <a href="https://beam.apache.org/documentation/programming-guide/#pardo">"ParDo"</a> section for
+  more information.
 </div>
-</html>

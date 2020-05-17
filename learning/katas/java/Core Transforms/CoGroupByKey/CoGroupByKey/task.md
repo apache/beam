@@ -16,19 +16,17 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>CoGroupByKey</h2>
-<p>
-  CoGroupByKey performs a relational join of two or more key/value PCollections that have the same
-  key type.
-</p>
-<p>
-  <b>Kata:</b> Implement a
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html">
-    CoGroupByKey</a> transform that join words by its first alphabetical letter, and then produces
-  the toString() representation of the WordsAlphabet model.
-</p>
-<br>
+CoGroupByKey
+------------
+
+CoGroupByKey performs a relational join of two or more key/value PCollections that have the same 
+key type.
+
+**Kata:** Implement a 
+[CoGroupByKey](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html) 
+transform that join words by its first alphabetical letter, and then produces the toString() 
+representation of the WordsAlphabet model.
+
 <div class="hint">
   Refer to <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGroupByKey.html">
   CoGroupByKey</a>,
@@ -37,9 +35,9 @@
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/join/CoGbkResult.html">
     CoGbkResult</a>.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#cogroupbykey">
     "CoGroupByKey"</a> section for more information.
 </div>
-</html>
