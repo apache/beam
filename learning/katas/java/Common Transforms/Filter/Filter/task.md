@@ -16,14 +16,15 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Mean</h2>
-<p>
-  <b>Kata:</b> Compute the mean/average of all elements from an input.
-</p>
-<br>
+Filter
+------
+
+The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
+
+**Kata:** Implement a filter function that filters out the odd numbers by using 
+[Filter](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html).
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Mean.html">
-  Mean</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html">
+  Filter.by(...)</a>.
 </div>
-</html>
