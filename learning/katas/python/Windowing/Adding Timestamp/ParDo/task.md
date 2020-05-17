@@ -16,32 +16,30 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Adding Timestamp - ParDo</h2>
-<p>
-  Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need
-  timestamps, you must add them to your PCollection’s elements.
-</p>
-<p>
-  You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that
-  outputs new elements with timestamps that you set.
-</p>
-<p>
-  <b>Kata:</b> Please assign each element a timestamp based on the the <code>Event.timestamp</code>.
-</p>
-<br>
+Adding Timestamp - ParDo
+------------------------
+
+Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need 
+timestamps, you must add them to your PCollection’s elements.
+
+You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that 
+outputs new elements with timestamps that you set.
+
+**Kata:** Please assign each element a timestamp based on the the `Event.date`.
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
   ParDo</a> with
   <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn">DoFn</a>.
 </div>
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html#apache_beam.transforms.window.TimestampedValue">
   beam.window.TimestampedValue</a> to assign timestamp to the element.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">
     "Adding timestamps to a PCollection’s elements"</a> section for more information.
 </div>
-</html>
