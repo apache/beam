@@ -16,27 +16,23 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>ParDo</h2>
-<p>
-  ParDo is a Beam transform for generic parallel processing. The ParDo processing paradigm is
-  similar to the “Map” phase of a Map/Shuffle/Reduce-style algorithm: a ParDo transform considers
-  each element in the input PCollection, performs some processing function (your user code) on
-  that element, and emits zero, one, or multiple elements to an output PCollection.
-</p>
-<p>
-  <b>Kata:</b> Please write a simple ParDo that maps the input element by multiplying it by 10.
-</p>
-<br>
+MapElements
+-----------
+
+The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
+
+MapElements can be used to simplify a DoFn that maps an element to another element (one to one).
+
+**Kata:** Implement a simple map function that multiplies all input elements by 5 using 
+[MapElements.into(...).via(...)](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html).
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
-  ParDo</a>
-  with <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html">
-  DoFn</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/MapElements.html">
+  MapElements.into(...).via(...)</a>.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
-  <a href="https://beam.apache.org/documentation/programming-guide/#pardo">"ParDo"</a> section for
-  more information.
+  <a href="https://beam.apache.org/documentation/programming-guide/#lightweight-dofns">
+    "Lightweight DoFns and other abstractions"</a> section for more information.
 </div>
-</html>

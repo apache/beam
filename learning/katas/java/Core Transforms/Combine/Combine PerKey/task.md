@@ -16,33 +16,31 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Combine - Combine PerKey</h2>
-<p>
-  After creating a keyed PCollection (for example, by using a GroupByKey transform), a common
-  pattern is to combine the collection of values associated with each key into a single, merged
-  value. This pattern of a GroupByKey followed by merging the collection of values is equivalent to
-  Combine PerKey transform. The combine function you supply to Combine PerKey must be an associative
-  reduction function or a subclass of CombineFn.
-</p>
-<p>
-  <b>Kata:</b> Implement the sum of scores per player using
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html">
-    Combine.perKey</a>.
-</p>
-<br>
+Combine - Combine PerKey
+------------------------
+
+After creating a keyed PCollection (for example, by using a GroupByKey transform), a common pattern 
+is to combine the collection of values associated with each key into a single, merged value. This 
+pattern of a GroupByKey followed by merging the collection of values is equivalent to Combine 
+PerKey transform. The combine function you supply to Combine PerKey must be an associative 
+reduction function or a subclass of CombineFn.
+
+**Kata:** Implement the sum of scores per player using 
+[Combine.perKey](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html).
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/CombineFnBase.GlobalCombineFn.html">
   Combine.perKey(GlobalCombineFn)</a>.
 </div>
+
 <div class="hint">
   Extend the
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.BinaryCombineFn.html">
     Combine.BinaryCombineFn</a> class that counts the sum of the number.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#combining-values-in-a-keyed-pcollection">
     "Combining values in a keyed PCollection"</a> section for more information.
 </div>
-</html>
