@@ -16,25 +16,23 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Word Count Pipeline</h2>
-<p>
-  <b>Kata:</b> Create a pipeline that counts the number of words.
-</p>
-<p>
-  Please output the count of each word in the following format:
-</p>
-<pre>
+Word Count Pipeline
+-------------------
+
+**Kata:** Create a pipeline that counts the number of words.
+
+Please output the count of each word in the following format:
+```text
   word:count
   ball:5
   book:3
-</pre>
-<br>
+```
+
 <div class="hint">
   Refer to your katas above.
 </div>
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.MapTuple">
   MapTuple</a> to unpack key-value pair into different function arguments.
 </div>
-</html>
