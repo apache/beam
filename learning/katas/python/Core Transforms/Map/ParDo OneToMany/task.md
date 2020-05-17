@@ -16,28 +16,28 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>ParDo OneToMany</h2>
-<p>
-  <b>Kata:</b> Please write a ParDo that maps each input sentence into words tokenized by
-  whitespace (" ").
-</p>
-<br>
+ParDo OneToMany
+---------------
+
+**Kata:** Please write a ParDo that maps each input sentence into words tokenized by
+whitespace (" ").
+
 <div class="hint">
   Override
   <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process">
   process</a> method. You can return an Iterable for multiple elements or call "yield" for each
   element to return a generator.
 </div>
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo">
   ParDo</a> with
   <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn">
   DoFn</a>.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#pardo">"ParDo"</a> section for
   more information.
 </div>
-</html>
