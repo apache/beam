@@ -16,32 +16,29 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>TextIO Read</h2>
-<p>
-  When you create a pipeline, you often need to read data from some external source, such as a file
-  or a database. Likewise, you may want your pipeline to output its result data to an external
-  storage system. Beam provides read and write transforms for a number of common data storage types.
-  If you want your pipeline to read from or write to a data storage format that isn’t supported by
-  the built-in transforms, you can implement your own read and write transforms.
-</p>
-<p>
-  To read a PCollection from one or more text files, use TextIO.read() to instantiate a transform
-  and use TextIO.Read.from(String) to specify the path of the file(s) to be read.
-</p>
-<p>
-  <b>Kata:</b> Read the 'countries.txt' file and convert each country name into uppercase.
-</p>
-<br>
+TextIO Read
+-----------
+
+When you create a pipeline, you often need to read data from some external source, such as a file 
+or a database. Likewise, you may want your pipeline to output its result data to an external 
+storage system. Beam provides read and write transforms for a number of common data storage types. 
+If you want your pipeline to read from or write to a data storage format that isn’t supported by 
+the built-in transforms, you can implement your own read and write transforms.
+
+To read a PCollection from one or more text files, use TextIO.read() to instantiate a transform 
+and use TextIO.Read.from(String) to specify the path of the file(s) to be read.
+
+**Kata:** Read the 'countries.txt' file and convert each country name into uppercase.
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html">
   TextIO</a> and its corresponding
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html#read--">
     TextIO.read()</a> method.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#pipeline-io-reading-data">
     "Reading input data"</a> section for more information.
 </div>
-</html>

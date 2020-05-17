@@ -16,33 +16,24 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Adding Timestamp - ParDo</h2>
-<p>
-  Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need
-  timestamps, you must add them to your PCollection’s elements.
-</p>
-<p>
-  You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that
-  outputs new elements with timestamps that you set.
-</p>
-<p>
-  <b>Kata:</b> Please assign each element a timestamp based on the the <code>Event.getDate()</code>.
-</p>
-<br>
+Adding Timestamp - WithTimestamps
+---------------------------------
+
+Bounded sources (such as a file from TextIO) do not provide timestamps for elements. If you need 
+timestamps, you must add them to your PCollection’s elements.
+
+You can assign new timestamps to the elements of a PCollection by applying a ParDo transform that 
+outputs new elements with timestamps that you set.
+
+**Kata:** Please assign each element a timestamp based on the the `Event.getDate()`.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
-  ParDo</a>
-  with <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html">
-  DoFn</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/WithTimestamps.html">
+  WithTimestamps</a>.
 </div>
-<div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.OutputReceiver.html#outputWithTimestamp-T-org.joda.time.Instant-">
-  OutputReceiver.outputWithTimestamp</a> method to assign timestamp to the element.
-</div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">
     "Adding timestamps to a PCollection’s elements"</a> section for more information.
 </div>
-</html>
