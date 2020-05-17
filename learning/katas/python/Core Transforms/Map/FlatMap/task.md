@@ -16,24 +16,24 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>MapElements</h2>
-<p>
-  The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
-</p>
-<p>
-  <b>Kata:</b> Implement a simple map function that multiplies all input elements by 5 using
-  <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
-  Map</a>.
-</p>
-<br>
+FlatMapElements
+---------------
+
+The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
+
+FlatMap can be used to simplify DoFn that maps an element to multiple elements (one to many).
+
+**Kata:** Implement a function that maps each input sentence into words tokenized by 
+whitespace (" ") using 
+[FlatMap](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap).
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Map">
-  Map</a> with a lambda.
+  Use <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.FlatMap">
+  FlatMap</a> with a lambda.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#lightweight-dofns">
   "Lightweight DoFns and other abstractions"</a> section for more information.
 </div>
-</html>
