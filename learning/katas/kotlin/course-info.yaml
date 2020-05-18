@@ -17,12 +17,12 @@
 # under the License.
 #
 
-title: Beam Katas - Java
+title: Beam Katas - Kotlin
 language: English
 summary: "This course provides a series of katas to get familiar with Apache Beam.\
   \ \n\nApache Beam website – https://beam.apache.org/"
-programming_language: Java
-programming_language_version: 8
+programming_language: Kotlin
+programming_language_version: 1.3.72
 content:
 - Introduction
 - Core Transforms
