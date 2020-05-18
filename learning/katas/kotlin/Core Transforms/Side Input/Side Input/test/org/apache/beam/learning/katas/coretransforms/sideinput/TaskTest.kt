@@ -27,6 +27,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -41,7 +42,9 @@ class TaskTest {
                         KV.of("Singapore", "Singapore"),
                         KV.of("Sydney", "Australia")
                 ))
+
         val citiesToCountriesView = createView(citiesToCountries)
+
         val persons = testPipeline.apply("Persons",
                 Create.of(
                         Person("Henry", "Singapore"),
@@ -50,6 +53,7 @@ class TaskTest {
                         Person("John", "Sydney"),
                         Person("Alfred", "London")
                 ))
+
         val results = applyTransform(persons, citiesToCountriesView)
 
         PAssert.that(results).containsInAnyOrder(
@@ -59,6 +63,8 @@ class TaskTest {
                 Person("John", "Sydney", "Australia"),
                 Person("Alfred", "London", "United Kingdom")
         )
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

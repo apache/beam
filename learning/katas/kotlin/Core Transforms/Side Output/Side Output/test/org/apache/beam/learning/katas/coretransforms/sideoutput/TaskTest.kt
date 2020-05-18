@@ -27,6 +27,7 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -34,12 +35,17 @@ class TaskTest : Serializable {
     @Test
     fun `Core Transforms - Side Output - Side Output`() {
         val numbers = testPipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
+
         val numBelow100Tag = TupleTag<Int>()
         val numAbove100Tag = TupleTag<Int>()
+
         val resultsTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
 
         PAssert.that(resultsTuple.get(numBelow100Tag)).containsInAnyOrder(0, 10, 20, 50)
+
         PAssert.that(resultsTuple.get(numAbove100Tag)).containsInAnyOrder(120, 200)
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

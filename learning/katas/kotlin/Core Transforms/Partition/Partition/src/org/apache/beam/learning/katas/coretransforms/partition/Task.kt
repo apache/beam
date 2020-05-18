@@ -27,16 +27,21 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val numbers = pipeline.apply(
                 Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
         )
+
         val partition = applyTransform(numbers)
+
         partition[0].apply(Log.ofElements("Number > 100: "))
         partition[1].apply(Log.ofElements("Number <= 100: "))
+
         pipeline.run()
     }
 
@@ -52,4 +57,5 @@ object Task {
                             }
                         } as PartitionFn<Int>))
     }
+
 }

@@ -29,16 +29,21 @@ import org.apache.beam.sdk.values.TupleTag
 import org.apache.beam.sdk.values.TupleTagList
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val numbers = pipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
+
         val numBelow100Tag = TupleTag<Int>()
         val numAbove100Tag = TupleTag<Int>()
         val outputTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
+
         outputTuple.get(numBelow100Tag).apply(Log.ofElements("Number <= 100: "))
         outputTuple.get(numAbove100Tag).apply(Log.ofElements("Number > 100: "))
+
         pipeline.run()
     }
 
@@ -46,7 +51,9 @@ object Task {
     fun applyTransform(numbers: PCollection<Int>,
                        numBelow100Tag: TupleTag<Int>,
                        numAbove100Tag: TupleTag<Int>): PCollectionTuple {
+
         return numbers.apply(ParDo.of(object : DoFn<Int, Int>() {
+
             @ProcessElement
             fun processElement(@Element number: Int, out: MultiOutputReceiver) {
                 if (number <= 100) {
@@ -55,6 +62,8 @@ object Task {
                     out.get(numAbove100Tag).output(number)
                 }
             }
+
         }).withOutputTags(numBelow100Tag, TupleTagList.of(numAbove100Tag)))
     }
+
 }

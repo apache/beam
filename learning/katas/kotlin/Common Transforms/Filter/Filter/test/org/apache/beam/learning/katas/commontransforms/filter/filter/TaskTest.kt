@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()

@@ -33,6 +33,7 @@ object Task {
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val citiesToCountries = pipeline.apply("Cities and Countries",
                 Create.of(
                         KV.of("Beijing", "China"),
@@ -41,7 +42,9 @@ object Task {
                         KV.of("Singapore", "Singapore"),
                         KV.of("Sydney", "Australia")
                 ))
+
         val citiesToCountriesView = createView(citiesToCountries)
+
         val persons = pipeline.apply("Persons",
                 Create.of(
                         Person("Henry", "Singapore"),
@@ -50,28 +53,35 @@ object Task {
                         Person("John", "Sydney"),
                         Person("Alfred", "London")
                 ))
+
         val output = applyTransform(persons, citiesToCountriesView)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
     @JvmStatic
-    fun createView(
-            citiesToCountries: PCollection<KV<String, String>>): PCollectionView<Map<String, String>> {
+    fun createView(citiesToCountries: PCollection<KV<String, String>>): PCollectionView<Map<String, String>> {
         return citiesToCountries.apply(View.asMap())
     }
 
     @JvmStatic
     fun applyTransform(persons: PCollection<Person>,
                        citiesToCountriesView: PCollectionView<Map<String, String>>): PCollection<Person> {
+
         return persons.apply(ParDo.of(object : DoFn<Person, Person>() {
+
             @ProcessElement
             fun processElement(@Element person: Person, out: OutputReceiver<Person>, context: ProcessContext) {
                 val citiesToCountries: Map<String, String> = context.sideInput(citiesToCountriesView)
                 val city = person.city
                 val country = citiesToCountries[city]
+
                 out.output(Person(person.name, city, country))
             }
+
         }).withSideInputs(citiesToCountriesView))
     }
+
 }

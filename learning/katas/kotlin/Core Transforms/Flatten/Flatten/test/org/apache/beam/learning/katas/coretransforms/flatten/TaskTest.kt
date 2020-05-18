@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -35,9 +36,11 @@ class TaskTest {
                 Create.of("apple", "ant", "arrow"))
         val wordsStartingWithB = testPipeline.apply("Words starting with B",
                 Create.of("ball", "book", "bow"))
+
         val results = applyTransform(wordsStartingWithA, wordsStartingWithB)
 
         PAssert.that(results).containsInAnyOrder("apple", "ant", "arrow", "ball", "book", "bow")
+
         testPipeline.run().waitUntilFinish()
     }
 }

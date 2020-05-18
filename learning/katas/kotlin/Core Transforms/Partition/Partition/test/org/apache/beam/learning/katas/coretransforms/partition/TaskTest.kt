@@ -25,19 +25,22 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
 
     @Test
     fun `Core Transforms - Partition - Partition`() {
-        val numbers = testPipeline.apply(
-                Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
-        )
+        val numbers = testPipeline.apply( Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250))
+
         val results = applyTransform(numbers)
 
         PAssert.that(results[0]).containsInAnyOrder(110, 150, 250)
+
         PAssert.that(results[1]).containsInAnyOrder(1, 2, 3, 4, 5, 100)
+
         testPipeline.run().waitUntilFinish()
     }
+
 }
