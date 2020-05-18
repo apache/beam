@@ -798,7 +798,7 @@ public class ExpressionConverter {
         if (returnType != null) {
           op =
               SqlOperators.createSimpleSqlFunction(
-                  funName, ZetaSqlUtils.zetaSqlTypeToCalciteType(returnType.getKind()));
+                  funName, ZetaSqlUtils.zetaSqlTypeToCalciteTypeName(returnType.getKind()));
         } else {
           throw new UnsupportedOperationException("Does not support ZetaSQL function: " + funName);
         }

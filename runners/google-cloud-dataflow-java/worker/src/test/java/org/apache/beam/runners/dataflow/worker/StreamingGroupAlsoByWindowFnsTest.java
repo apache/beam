@@ -149,6 +149,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
                 TimerData.of(
                     namespace,
                     timestamp,
+                    timestamp,
                     type == Windmill.Timer.Type.WATERMARK
                         ? TimeDomain.EVENT_TIME
                         : TimeDomain.PROCESSING_TIME)))

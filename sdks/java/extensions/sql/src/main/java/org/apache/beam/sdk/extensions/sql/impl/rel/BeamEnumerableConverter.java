@@ -18,9 +18,9 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.DateTimeUtils.MILLIS_PER_DAY;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +36,6 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.CharType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.Counter;
@@ -50,6 +49,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
@@ -303,11 +303,15 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     switch (type.getTypeName()) {
       case LOGICAL_TYPE:
         String logicalId = type.getLogicalType().getIdentifier();
-        if (logicalId.equals(TimeType.IDENTIFIER)) {
+        if (TimeType.IDENTIFIER.equals(logicalId)) {
           return (int) ((ReadableInstant) beamValue).getMillis();
-        } else if (logicalId.equals(DateType.IDENTIFIER)) {
-          return (int) (((ReadableInstant) beamValue).getMillis() / MILLIS_PER_DAY);
-        } else if (logicalId.equals(CharType.IDENTIFIER)) {
+        } else if (SqlTypes.DATE.getIdentifier().equals(logicalId)) {
+          if (beamValue instanceof Long) { // base type
+            return ((Long) beamValue).intValue();
+          } else { // input type
+            return (int) (((LocalDate) beamValue).toEpochDay());
+          }
+        } else if (CharType.IDENTIFIER.equals(logicalId)) {
           return beamValue;
         } else {
           throw new UnsupportedOperationException("Unknown DateTime type " + logicalId);

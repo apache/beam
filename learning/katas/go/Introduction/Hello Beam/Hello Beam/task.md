@@ -41,7 +41,7 @@ a resource to get started with the Go language.
 <div class="hint">
   Hardcoded input can be created using
   <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#Create">
-  Create</a>.
+  beam.Create</a>.
 </div>
 
 <div class="hint">

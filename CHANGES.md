@@ -60,7 +60,8 @@
 
 ## New Features / Improvements
 
-* --direct_num_workers=0 is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline ([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
+* `--workerCacheMB` flag is supported in Dataflow streaming pipeline ([BEAM-9964](https://issues.apache.org/jira/browse/BEAM-9964))
+* `--direct_num_workers=0` is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline ([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
 * Python SDK now has experimental support for SqlTransform ([BEAM-8603](https://issues.apache.org/jira/browse/BEAM-8603)).
 
 ## Breaking Changes
@@ -88,6 +89,7 @@ Please migrate your code to use
 See the updated
 [datastore_wordcount](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py)
 for example usage.
+* Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform ([BEAM-8949](https://issues.apache.org/jira/browse/BEAM-8949)).
 
 ## New Features / Improvements
 * Python SDK will now use Python 3 type annotations as pipeline type hints.
@@ -124,6 +126,11 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
     see https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions.
 * Added integration of Java SDK with Google Cloud AI VideoIntelligence service 
 ([BEAM-9147](https://issues.apache.org/jira/browse/BEAM-9147))
+* Added integration of Java SDK with Google Cloud AI natural language processing API
+([BEAM-9634](https://issues.apache.org/jira/browse/BEAM-9634))
+* `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
+  The files are added to `/opt/apache/beam/third_party_licenses/`. 
+  By default, no licenses/notices are added to the docker images. ([BEAM-9136](https://issues.apache.org/jira/browse/BEAM-9136))
 
  
 ## Breaking Changes
@@ -132,6 +139,7 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 * HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects ([BEAM-9279](https://issues.apache.org/jira/browse/BEAM-9279)).
 * ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator ([BEAM-9430](https://issues.apache.org/jira/browse/BEAM-9430)).
 * Coder inference for PCollection of Row objects has been disabled ([BEAM-9569](https://issues.apache.org/jira/browse/BEAM-9569)).
+* Go SDK docker images are no longer released until further notice.
 
 ## Deprecations
 * Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam

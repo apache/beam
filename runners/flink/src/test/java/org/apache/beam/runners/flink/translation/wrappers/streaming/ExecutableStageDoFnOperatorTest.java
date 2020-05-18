@@ -759,6 +759,7 @@ public class ExecutableStageDoFnOperatorTest {
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,
             window.maxTimestamp(),
+            window.maxTimestamp(),
             TimeDomain.EVENT_TIME);
     timerInternals.setTimer(userTimer);
 
@@ -792,6 +793,7 @@ public class ExecutableStageDoFnOperatorTest {
             TimerReceiverFactory.encodeToTimerDataTimerId(
                 timerInputKey.getKey(), timerInputKey.getValue()),
             stateNamespace,
+            window.maxTimestamp(),
             window.maxTimestamp(),
             TimeDomain.EVENT_TIME);
     operator.setTimer(
