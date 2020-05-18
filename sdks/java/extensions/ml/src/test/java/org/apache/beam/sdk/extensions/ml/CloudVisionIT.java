@@ -39,13 +39,14 @@ public class CloudVisionIT {
   private static final String EXPECTED_LABEL = "Street";
   private List<Feature> features =
       Collections.singletonList(Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION).build());
+  private static final int NUMBER_OF_KEYS = 1;
 
   @Test
   public void annotateImageFromURINoContext() {
     PCollection<List<AnnotateImageResponse>> annotationResponses =
         testPipeline
             .apply(Create.of(TEST_IMAGE_URI))
-            .apply(CloudVision.annotateImagesFromGcsUri(null, features, 1));
+            .apply(CloudVision.annotateImagesFromGcsUri(null, features, 1, NUMBER_OF_KEYS));
 
     PAssert.that(annotationResponses).satisfies(new VerifyImageAnnotationResult());
 

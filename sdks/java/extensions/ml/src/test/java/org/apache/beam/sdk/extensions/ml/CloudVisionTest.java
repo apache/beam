@@ -40,7 +40,7 @@ public class CloudVisionTest {
   @Test
   public void shouldConvertStringToRequest() {
     CloudVision.AnnotateImagesFromGcsUri annotateImagesFromGcsUri =
-        CloudVision.annotateImagesFromGcsUri(null, features, 1);
+        CloudVision.annotateImagesFromGcsUri(null, features, 1, 1);
     AnnotateImageRequest request = annotateImagesFromGcsUri.mapToRequest(TEST_URI, null);
     assertEquals(1, request.getFeaturesCount());
     assertEquals(TEST_URI, request.getImage().getSource().getGcsImageUri());
@@ -49,7 +49,7 @@ public class CloudVisionTest {
   @Test
   public void shouldConvertByteStringToRequest() {
     CloudVision.AnnotateImagesFromBytes annotateImagesFromBytes =
-        CloudVision.annotateImagesFromBytes(null, features, 1);
+        CloudVision.annotateImagesFromBytes(null, features, 1, 1);
     AnnotateImageRequest request = annotateImagesFromBytes.mapToRequest(TEST_BYTES, null);
     assertEquals(1, request.getFeaturesCount());
     assertEquals(TEST_BYTES, request.getImage().getContent());
@@ -58,7 +58,7 @@ public class CloudVisionTest {
   @Test
   public void shouldConvertKVOfStringToRequest() {
     CloudVision.AnnotateImagesFromGcsUriWithContext annotateImagesFromGcsUriWithContext =
-        CloudVision.annotateImagesFromGcsUriWithContext(features, 1);
+        CloudVision.annotateImagesFromGcsUriWithContext(features, 1, 1);
     AnnotateImageRequest request =
         annotateImagesFromGcsUriWithContext.mapToRequest(KV.of(TEST_URI, null), null);
     assertEquals(1, request.getFeaturesCount());
@@ -68,7 +68,7 @@ public class CloudVisionTest {
   @Test
   public void shouldConvertKVOfBytesToRequest() {
     CloudVision.AnnotateImagesFromBytesWithContext annotateImagesFromBytesWithContext =
-        CloudVision.annotateImagesFromBytesWithContext(features, 1);
+        CloudVision.annotateImagesFromBytesWithContext(features, 1, 1);
     AnnotateImageRequest request =
         annotateImagesFromBytesWithContext.mapToRequest(KV.of(TEST_BYTES, null), null);
     assertEquals(1, request.getFeaturesCount());

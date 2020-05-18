@@ -38,7 +38,7 @@ public class AnnotateImagesTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldThrowExceptionOnLargeBatchSize() {
-    CloudVision.annotateImagesFromBytes(null, null, 10);
+    CloudVision.annotateImagesFromBytes(null, null, 20, 0);
   }
 
   @Test

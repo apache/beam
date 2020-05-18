@@ -28,16 +28,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TypeDescriptors;
 
 /**
  * Parent class for transform utilizing Cloud Vision API. https://cloud.google.com/vision/docs/batch
@@ -50,25 +53,29 @@ abstract class AnnotateImages<T>
     extends PTransform<PCollection<T>, PCollection<List<AnnotateImageResponse>>> {
 
   private static final Long MIN_BATCH_SIZE = 1L;
-  private static final Long MAX_BATCH_SIZE = 5L;
+  private static final Long MAX_BATCH_SIZE = 16L;
 
   protected final PCollectionView<Map<T, ImageContext>> contextSideInput;
   protected final List<Feature> featureList;
-  private long batchSize;
+  private final long batchSize;
+  protected final int numKeys;
 
   /**
    * @param contextSideInput Side input optionally containting a map of elements to {@link
    *     ImageContext} objects with metadata for the analysis.
    * @param featureList list of features to be extracted from the image.
    * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
-   *     5.
+   *     16.
+   * @param numKeys number of keys to map the requests into for batching.
    */
   public AnnotateImages(
       @Nullable PCollectionView<Map<T, ImageContext>> contextSideInput,
       List<Feature> featureList,
-      long batchSize) {
+      long batchSize,
+      int numKeys) {
     this.contextSideInput = contextSideInput;
     this.featureList = featureList;
+    this.numKeys = numKeys;
     checkBatchSizeCorrectness(batchSize);
     this.batchSize = batchSize;
   }
@@ -78,9 +85,11 @@ abstract class AnnotateImages<T>
    *
    * @param featureList list of features to be extracted from the image.
    * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
-   *     5.
+   *     16.
+   * @param numKeys number of keys to map the requests into for batching.
    */
-  public AnnotateImages(List<Feature> featureList, long batchSize) {
+  public AnnotateImages(List<Feature> featureList, long batchSize, int numKeys) {
+    this.numKeys = numKeys;
     contextSideInput = null;
     this.featureList = featureList;
     checkBatchSizeCorrectness(batchSize);
@@ -116,7 +125,11 @@ abstract class AnnotateImages<T>
     }
     return input
         .apply(inputToRequestMapper)
-        .apply(WithKeys.of(0))
+        .apply(
+            WithKeys.of(
+                    (SerializableFunction<AnnotateImageRequest, Integer>)
+                        ignored -> new Random().nextInt(numKeys))
+                .withKeyType(TypeDescriptors.integers()))
         .apply(GroupIntoBatches.ofSize(batchSize))
         .apply(ParDo.of(new PerformImageAnnotation()));
   }
