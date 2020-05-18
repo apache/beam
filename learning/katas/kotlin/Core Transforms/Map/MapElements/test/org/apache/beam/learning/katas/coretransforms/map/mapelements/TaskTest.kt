@@ -15,32 +15,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package org.apache.beam.learning.katas.coretransforms.map.mapelements
 
-package org.apache.beam.learning.katas.coretransforms.map.mapelements;
+import org.apache.beam.learning.katas.coretransforms.map.mapelements.Task.applyTransform
+import org.apache.beam.sdk.testing.PAssert
+import org.apache.beam.sdk.testing.TestPipeline
+import org.apache.beam.sdk.transforms.Create
+import org.junit.Rule
+import org.junit.Test
 
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
-import org.junit.Test;
+class TaskTest {
+    @Rule
+    @Transient
+    private val testPipeline = TestPipeline.create()
 
-public class TaskTest {
-
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
-
-  @Test
-  public void mapElements() {
-    Create.Values<Integer> values = Create.of(10, 20, 30, 40, 50);
-    PCollection<Integer> numbers = testPipeline.apply(values);
-
-    PCollection<Integer> results = Task.applyTransform(numbers);
-
-    PAssert.that(results)
-        .containsInAnyOrder(50, 100, 150, 200, 250);
-
-    testPipeline.run().waitUntilFinish();
-  }
-
+    @Test
+    fun mapElements() {
+        val values = Create.of(10, 20, 30, 40, 50)
+        val numbers = testPipeline.apply(values)
+        val results = applyTransform(numbers)
+        PAssert.that(results)
+                .containsInAnyOrder(50, 100, 150, 200, 250)
+        testPipeline.run().waitUntilFinish()
+    }
 }

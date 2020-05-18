@@ -15,32 +15,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package org.apache.beam.learning.katas.coretransforms.map.pardoonetomany
 
-package org.apache.beam.learning.katas.coretransforms.map.pardo;
+import org.apache.beam.learning.katas.coretransforms.map.pardoonetomany.Task.applyTransform
+import org.apache.beam.sdk.testing.PAssert
+import org.apache.beam.sdk.testing.TestPipeline
+import org.apache.beam.sdk.transforms.Create
+import org.junit.Rule
+import org.junit.Test
 
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
-import org.junit.Test;
+class TaskTest {
+    @Rule
+    @Transient
+    private val testPipeline = TestPipeline.create()
 
-public class TaskTest {
-
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
-
-  @Test
-  public void parDo() {
-    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5);
-    PCollection<Integer> numbers = testPipeline.apply(values);
-
-    PCollection<Integer> results = Task.applyTransform(numbers);
-
-    PAssert.that(results)
-        .containsInAnyOrder(10, 20, 30, 40, 50);
-
-    testPipeline.run().waitUntilFinish();
-  }
-
+    @Test
+    fun parDo_oneToMany() {
+        val values = Create.of("Hello Beam", "It is awesome")
+        val numbers = testPipeline.apply(values)
+        val results = applyTransform(numbers)
+        PAssert.that(results)
+                .containsInAnyOrder("Hello", "Beam", "It", "is", "awesome")
+        testPipeline.run().waitUntilFinish()
+    }
 }
