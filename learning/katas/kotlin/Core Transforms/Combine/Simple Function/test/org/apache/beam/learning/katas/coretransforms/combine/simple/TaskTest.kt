@@ -15,32 +15,27 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package org.apache.beam.learning.katas.coretransforms.combine.simple
 
-package org.apache.beam.learning.katas.coretransforms.combine.simple;
+import org.apache.beam.learning.katas.coretransforms.combine.simple.Task.applyTransform
+import org.apache.beam.sdk.testing.PAssert
+import org.apache.beam.sdk.testing.TestPipeline
+import org.apache.beam.sdk.transforms.Create
+import org.junit.Rule
+import org.junit.Test
 
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
-import org.junit.Test;
+class TaskTest {
+    @Rule
+    @Transient
+    private val testPipeline = TestPipeline.create()
 
-public class TaskTest {
-
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
-
-  @Test
-  public void combine_simpleFn() {
-    Create.Values<Integer> values = Create.of(10, 30, 50, 70, 90);
-    PCollection<Integer> numbers = testPipeline.apply(values);
-
-    PCollection<Integer> results = Task.applyTransform(numbers);
-
-    PAssert.that(results)
-        .containsInAnyOrder(250);
-
-    testPipeline.run().waitUntilFinish();
-  }
-
+    @Test
+    fun `Map - Combine - Simple Function`() {
+        val values = Create.of(10, 30, 50, 70, 90)
+        val numbers = testPipeline.apply(values)
+        val results = applyTransform(numbers)
+        PAssert.that(results)
+                .containsInAnyOrder(250)
+        testPipeline.run().waitUntilFinish()
+    }
 }
