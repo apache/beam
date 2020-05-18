@@ -54,6 +54,7 @@ from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.sdf_utils import RestrictionTrackerView
@@ -830,6 +831,21 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(SyntheticSDFAsSource())
           | beam.combiners.Count.Globally())
       assert_that(res, equal_to([total_num_records]))
+
+  def test_create_value_provider_pipeline_option(self):
+    # Verify that the runner can execute a pipeline when there are value
+    # provider pipeline options
+    # pylint: disable=unused-variable
+    class FooOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument(
+            "--foo", help='a value provider argument', default="bar")
+
+    RuntimeValueProvider.set_runtime_options({})
+
+    with self.create_pipeline() as p:
+      assert_that(p | beam.Create(['a', 'b']), equal_to(['a', 'b']))
 
 
 # These tests are kept in a separate group so that they are
