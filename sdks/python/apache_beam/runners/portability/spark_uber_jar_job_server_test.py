@@ -135,17 +135,14 @@ class SparkUberJarJobServerTest(unittest.TestCase):
           'http://host:6066', options)
 
       # Prepare the job.
-      prepare_response = job_server.Prepare(
-          beam_job_api_pb2.PrepareJobRequest(
-              job_name='job', pipeline=beam_runner_api_pb2.Pipeline()))
-      channel = grpc.insecure_channel(
-          prepare_response.artifact_staging_endpoint.url)
-      retrieval_token = beam_artifact_api_pb2_grpc.LegacyArtifactStagingServiceStub(
-          channel).CommitManifest(
-              beam_artifact_api_pb2.CommitManifestRequest(
-                  staging_session_token=prepare_response.staging_session_token,
-                  manifest=beam_artifact_api_pb2.Manifest())).retrieval_token
-      channel.close()
+      plan = TestJobServicePlan(job_server)
+
+      # Prepare the job.
+      prepare_response = plan.prepare(beam_runner_api_pb2.Pipeline())
+      retrieval_token = plan.stage(
+          beam_runner_api_pb2.Pipeline(),
+          prepare_response.artifact_staging_endpoint.url,
+          prepare_response.staging_session_token)
 
       # Now actually run the job.
       http_mock.post(

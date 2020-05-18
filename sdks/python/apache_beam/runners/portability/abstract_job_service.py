@@ -47,7 +47,8 @@ from apache_beam.runners.portability import artifact_service
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
-  from typing import BinaryIO  # pylint: disable=ungrouped-imports
+  # pylint: disable=ungrouped-imports
+  from typing import BinaryIO
   from google.protobuf import struct_pb2
   from apache_beam.portability.api import beam_runner_api_pb2
 
@@ -290,6 +291,7 @@ class JarArtifactManager(object):
 
   def file_writer(self, path):
     # type: (str) -> Tuple[BinaryIO, str]
+
     """Given a relative path, returns an open handle that can be written to
     and an reference that can later be used to read this file."""
     full_path = '%s/%s' % (self._root, path)
