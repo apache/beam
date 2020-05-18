@@ -3539,6 +3539,7 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
+      UsesUnboundedPCollections.class,
       DataflowPortabilityApiUnsupported.class
     })
     public void testOutputTimestampDefault() throws Exception {
