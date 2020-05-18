@@ -15,22 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.learning.katas.io.builtinios
 
-package org.apache.beam.learning.katas.io.builtinios;
+import org.apache.beam.sdk.Pipeline
+import org.apache.beam.sdk.options.PipelineOptionsFactory
 
-import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+object Task {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val options = PipelineOptionsFactory.fromArgs(*args).create()
+        val pipeline = Pipeline.create(options)
 
-public class Task {
-
-  public static void main(String[] args) {
-    PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
-    Pipeline pipeline = Pipeline.create(options);
-
-
-
-    pipeline.run();
-  }
-
+        pipeline.run()
+    }
 }
