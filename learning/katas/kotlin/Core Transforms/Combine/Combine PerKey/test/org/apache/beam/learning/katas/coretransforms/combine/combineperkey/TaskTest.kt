@@ -31,17 +31,17 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun combine_combineFn() {
+    fun `Core Transforms - Combine - Combine PerKey`() {
         val values = Create.of(
                 KV.of(Task.PLAYER_1, 15), KV.of(Task.PLAYER_2, 10), KV.of(Task.PLAYER_1, 100),
                 KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
         )
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder(
-                        KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
-                )
+
+        PAssert.that(results).containsInAnyOrder(
+                KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
+        )
         testPipeline.run().waitUntilFinish()
     }
 }

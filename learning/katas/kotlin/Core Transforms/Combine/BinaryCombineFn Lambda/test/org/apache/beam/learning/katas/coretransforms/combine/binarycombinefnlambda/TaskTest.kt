@@ -31,15 +31,15 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun `Map - Combine - BinaryCombineFn Lambda`() {
+    fun `Core Transforms - Combine - BinaryCombineFn Lambda`() {
         val values = Create.of(
                 BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
                 BigInteger.valueOf(40), BigInteger.valueOf(50)
         )
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder(BigInteger.valueOf(150))
+
+        PAssert.that(results).containsInAnyOrder(BigInteger.valueOf(150))
         testPipeline.run().waitUntilFinish()
     }
 }

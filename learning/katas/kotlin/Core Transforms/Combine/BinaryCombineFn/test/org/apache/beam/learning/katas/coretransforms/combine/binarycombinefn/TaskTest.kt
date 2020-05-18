@@ -31,7 +31,7 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun `Map - Combine - BinaryCombineFn`() {
+    fun `Core Transforms - Combine - BinaryCombineFn`() {
         val values = Create.of(
                 BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
                 BigInteger.valueOf(40), BigInteger.valueOf(50)
