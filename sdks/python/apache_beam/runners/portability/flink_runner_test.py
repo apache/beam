@@ -206,28 +206,30 @@ if __name__ == '__main__':
       # We expect to fail here because we do not have a Kafka cluster handy.
       # Nevertheless, we check that the transform is expanded by the
       # ExpansionService and that the pipeline fails during execution.
-      with self.assertRaises(Exception) as ctx:
-        with self.create_pipeline() as p:
-          # pylint: disable=expression-not-assigned
-          (
-              p
-              | ReadFromKafka(
-                  consumer_config={
-                      'bootstrap.servers': 'notvalid1:7777, notvalid2:3531'
-                  },
-                  topics=['topic1', 'topic2'],
-                  key_deserializer='org.apache.kafka.'
-                  'common.serialization.'
-                  'ByteArrayDeserializer',
-                  value_deserializer='org.apache.kafka.'
-                  'common.serialization.'
-                  'LongDeserializer',
-                  expansion_service=get_expansion_service()))
-      self.assertTrue(
-          'No resolvable bootstrap urls given in bootstrap.servers' in str(
-              ctx.exception),
-          'Expected to fail due to invalid bootstrap.servers, but '
-          'failed due to:\n%s' % str(ctx.exception))
+      # TODO(BEAM-10231): Enable ReadFromKafka test once BEAM-10231 is fixed.
+
+      # with self.assertRaises(Exception) as ctx:
+      #   with self.create_pipeline() as p:
+      #     # pylint: disable=expression-not-assigned
+      #     (
+      #         p
+      #         | ReadFromKafka(
+      #             consumer_config={
+      #                 'bootstrap.servers': 'notvalid1:7777, notvalid2:3531'
+      #             },
+      #             topics=['topic1', 'topic2'],
+      #             key_deserializer='org.apache.kafka.'
+      #             'common.serialization.'
+      #             'ByteArrayDeserializer',
+      #             value_deserializer='org.apache.kafka.'
+      #             'common.serialization.'
+      #             'LongDeserializer',
+      #             expansion_service=get_expansion_service()))
+      # self.assertTrue(
+      #     'No resolvable bootstrap urls given in bootstrap.servers' in str(
+      #         ctx.exception),
+      #     'Expected to fail due to invalid bootstrap.servers, but '
+      #     'failed due to:\n%s' % str(ctx.exception))
 
       # We just test the expansion but do not execute.
       # pylint: disable=expression-not-assigned

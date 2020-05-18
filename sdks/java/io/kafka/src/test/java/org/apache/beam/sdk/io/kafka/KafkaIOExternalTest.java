@@ -29,12 +29,12 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
-import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.expansion.service.ExpansionService;
+import org.apache.beam.sdk.io.kafka.ReadViaSDF.ReadFromKafkaDoFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -129,25 +129,60 @@ public class KafkaIOExternalTest {
 
     RunnerApi.PTransform kafkaComposite =
         result.getComponents().getTransformsOrThrow(transform.getSubtransforms(0));
-    RunnerApi.PTransform kafkaRead =
-        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(0));
-    RunnerApi.ReadPayload readPayload =
-        RunnerApi.ReadPayload.parseFrom(kafkaRead.getSpec().getPayload());
-    KafkaUnboundedSource source =
-        (KafkaUnboundedSource) ReadTranslation.unboundedSourceFromProto(readPayload);
-    KafkaIO.Read spec = source.getSpec();
 
-    assertThat(spec.getConsumerConfig(), Matchers.is(consumerConfig));
-    assertThat(spec.getTopics(), Matchers.is(topics));
+    // KafkaIO.Read should be expanded into SDF transform.
     assertThat(
-        spec.getKeyDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), true)
+        kafkaComposite.getSubtransformsList(),
+        Matchers.contains(
+            "test_namespacetest/KafkaIO.Read/Impulse",
+            "test_namespacetest/KafkaIO.Read/ParDo(AutoValue_KafkaIO_Read_GenerateKafkaSourceDescription)",
+            "test_namespacetest/KafkaIO.Read/ReadViaSDF"));
+
+    // Verify the consumerConfig and topics are populated correctly to
+    // GenerateKafkaSourceDescription.
+    RunnerApi.PTransform generateParDo =
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(1));
+    KafkaIO.Read.GenerateKafkaSourceDescription generateDoFn =
+        (KafkaIO.Read.GenerateKafkaSourceDescription)
+            ParDoTranslation.getDoFn(
+                RunnerApi.ParDoPayload.parseFrom(
+                    result
+                        .getComponents()
+                        .getTransformsOrThrow(generateParDo.getSubtransforms(0))
+                        .getSpec()
+                        .getPayload()));
+    assertThat(generateDoFn.getConsumerConfig(), Matchers.is(consumerConfig));
+    assertThat(generateDoFn.getTopics(), Matchers.is(topics));
+
+    // Verify that the consumerConfig, keyDeserializerProvider, valueDeserializerProvider are
+    // populated correctly to the SDF.
+    RunnerApi.PTransform readViaSDF =
+        result.getComponents().getTransformsOrThrow(kafkaComposite.getSubtransforms(2));
+    RunnerApi.PTransform subTransform =
+        result.getComponents().getTransformsOrThrow(readViaSDF.getSubtransforms(0));
+
+    ReadFromKafkaDoFn readSDF =
+        (ReadFromKafkaDoFn)
+            ParDoTranslation.getDoFn(
+                RunnerApi.ParDoPayload.parseFrom(
+                    result
+                        .getComponents()
+                        .getTransformsOrThrow(subTransform.getSubtransforms(0))
+                        .getSpec()
+                        .getPayload()));
+
+    assertThat(readSDF.getConsumerConfig(), Matchers.is(consumerConfig));
+    assertThat(
+        readSDF
+            .getKeyDeserializerProvider()
+            .getDeserializer(readSDF.getConsumerConfig(), true)
             .getClass()
             .getName(),
         Matchers.is(keyDeserializer));
     assertThat(
-        spec.getValueDeserializerProvider()
-            .getDeserializer(spec.getConsumerConfig(), false)
+        readSDF
+            .getValueDeserializerProvider()
+            .getDeserializer(readSDF.getConsumerConfig(), false)
             .getClass()
             .getName(),
         Matchers.is(valueDeserializer));
