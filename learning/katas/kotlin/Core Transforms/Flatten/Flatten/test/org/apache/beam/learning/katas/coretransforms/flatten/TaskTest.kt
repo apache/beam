@@ -30,7 +30,7 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun flatten() {
+    fun `Core Transforms - Flatten - Flatten`() {
         val wordsStartingWithA = testPipeline.apply("Words starting with A",
                 Create.of("apple", "ant", "arrow"))
         val wordsStartingWithB = testPipeline.apply("Words starting with B",
