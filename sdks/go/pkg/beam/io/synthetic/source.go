@@ -23,6 +23,7 @@
 package synthetic
 
 import (
+	"fmt"
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 	"math/rand"
@@ -33,22 +34,41 @@ import (
 // generated KV<[]byte, []byte> elements.
 //
 // This transform accepts a PCollection of SourceConfig, where each SourceConfig
-// determines the synthetic source's behavior for that element and outputs the
-// randomly generated elements.
+// determines the synthetic source's behavior for producing a batch of elements.
+// This allows multiple batches of elements to be produced with different
+// behavior, in order to simulate a source transform that reads from multiple
+// differently behaving sources, such as a file read that received small files
+// and large files.
 //
-// SourceConfigs are recommended to be created via the DefaultSourceConfig and
-// then sent to a beam.Create transform once modified. Example:
+// The recommended way to create SourceConfigs is via the SourceConfigBuilder.
+// Usage example:
 //
-//    cfg1 := synthetic.DefaultSourceConfig()
-//    cfg1.NumElements = 1000
-//    cfg2 := synthetic.DefaultSourceConfig()
-//    cfg2.NumElements = 5000
-//    cfg2.InitialSplits = 2
-//    cfgs := beam.Create(s, cfg1, cfg2)
+//    cfgs := beam.Create(s,
+//        synthetic.DefaultSourceConfig().NumElements(1000).Build(),
+//        synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build())
 //    src := synthetic.Source(s, cfgs)
 func Source(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("synthetic.Source")
 
+	return beam.ParDo(s, &sourceFn{}, col)
+}
+
+// SourceSingle creates a synthetic source transform that emits randomly
+// generated KV<[]byte, []byte> elements.
+//
+// This transform is a version of Source for when only one SourceConfig is
+// needed. This transform accepts one SourceConfig which determines the
+// synthetic source's behavior.
+//
+// The recommended way to create SourceConfigs are via the SourceConfigBuilder.
+// Usage example:
+//
+//    src := synthetic.SourceSingle(s,
+//        synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build())
+func SourceSingle(s beam.Scope, cfg SourceConfig) beam.PCollection {
+	s = s.Scope("synthetic.Source")
+
+	col := beam.Create(s, cfg)
 	return beam.ParDo(s, &sourceFn{}, col)
 }
 
@@ -135,27 +155,80 @@ func (fn *sourceFn) ProcessElement(rt *offsetrange.Tracker, config SourceConfig,
 	return nil
 }
 
-// DefaultSourceConfig creates a SourceConfig with intended defaults for its
-// fields. SourceConfigs should be initialized with this method.
-func DefaultSourceConfig() SourceConfig {
-	return SourceConfig{
-		NumElements:   1, // Defaults shouldn't drop elements, so at least 1.
-		InitialSplits: 1, // Defaults to 1, i.e. no initial splitting.
+// SourceConfigBuilder is used to initialize SourceConfigs. See
+// SourceConfigBuilder's methods for descriptions of the fields in a
+// SourceConfig and how they can be set. The intended approach for using this
+// builder is to begin by calling the DefaultSourceConfig function, followed by
+// calling setters, followed by calling Build.
+//
+// Usage example:
+//
+//    cfg := synthetic.DefaultSourceConfig().NumElements(5000).InitialSplits(2).Build()
+type SourceConfigBuilder struct {
+	cfg SourceConfig
+}
+
+// DefaultSourceConfig creates a SourceConfigBuilder set with intended defaults
+// for the SourceConfig fields. This function is the intended starting point for
+// initializing a SourceConfig and should always be used to create
+// SourceConfigBuilders.
+//
+// To see descriptions of the various SourceConfig fields and their defaults,
+// see the methods to SourceConfigBuilder.
+func DefaultSourceConfig() *SourceConfigBuilder {
+	return &SourceConfigBuilder{
+		cfg: SourceConfig{
+			NumElements:   1, // 0 is invalid (drops elements).
+			InitialSplits: 1, // 0 is invalid (drops elements).
+		},
 	}
 }
 
-// SourceConfig is a struct containing all the configuration options for a
-// synthetic source.
-type SourceConfig struct {
-	// NumElements is the number of elements for the source to generate and
-	// emit.
-	NumElements int
+// NumElements is the number of elements for the source to generate and emit.
+//
+// Valid values are in the range of [1, ...] and the default value is 1. Values
+// of 0 (and below) are invalid as they result in sources that emit no elements.
+func (b *SourceConfigBuilder) NumElements(val int) *SourceConfigBuilder {
+	b.cfg.NumElements = val
+	return b
+}
 
-	// InitialSplits determines the number of initial splits to perform in the
-	// source's SplitRestriction method. Note that in some edge cases, the
-	// number of splits performed might differ from this config value. Each
-	// restriction will always have one element in it, and at least one
-	// restriction will always be output, so the number of splits will be in
-	// the range of [1, N] where N is the size of the original restriction.
+// InitialSplits determines the number of initial splits to perform in the
+// source's SplitRestriction method. Restrictions in synthetic sources represent
+// the number of elements being emitted, and this split is performed evenly
+// across that number of elements.
+//
+// Each resulting restriction will have at least 1 element in it, and each
+// element being emitted will be contained in exactly one restriction. That
+// means that if the desired number of splits is greater than the number of
+// elements N, then N initial restrictions will be created, each containing 1
+// element.
+//
+// Valid values are in the range of [1, ...] and the default value is 1. Values
+// of 0 (and below) are invalid as they would result in dropping elements that
+// are expected to be emitted.
+func (b *SourceConfigBuilder) InitialSplits(val int) *SourceConfigBuilder {
+	b.cfg.InitialSplits = val
+	return b
+}
+
+// Build constructs the SourceConfig initialized by this builder. It also
+// performs error checking on the fields, and panics if any have been set to
+// invalid values.
+func (b *SourceConfigBuilder) Build() SourceConfig {
+	if b.cfg.InitialSplits <= 0 {
+		panic(fmt.Sprintf("SourceConfig.InitialSplits must be >= 1. Got: %v", b.cfg.InitialSplits))
+	}
+	if b.cfg.NumElements <= 0 {
+		panic(fmt.Sprintf("SourceConfig.NumElements must be >= 1. Got: %v", b.cfg.NumElements))
+	}
+	return b.cfg
+}
+
+// SourceConfig is a struct containing all the configuration options for a
+// synthetic source. It should be created via a SourceConfigBuilder, not by
+// directly initializing it (the fields are public to allow encoding).
+type SourceConfig struct {
+	NumElements   int
 	InitialSplits int
 }
