@@ -33,6 +33,7 @@ public class SqlStdOperatorMappingTable {
       ImmutableList.of(
           FunctionSignatureId.FN_AND,
           FunctionSignatureId.FN_ANY_VALUE,
+          FunctionSignatureId.FN_BIT_OR_INT64,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
           FunctionSignatureId.FN_MULTIPLY_DOUBLE,
