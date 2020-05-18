@@ -15,32 +15,29 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package org.apache.beam.learning.katas.commontransforms.filter.filter
 
-package org.apache.beam.learning.katas.commontransforms.filter.filter;
+import org.apache.beam.learning.katas.commontransforms.filter.filter.Task.applyTransform
+import org.apache.beam.sdk.testing.PAssert
+import org.apache.beam.sdk.testing.TestPipeline
+import org.apache.beam.sdk.transforms.Create
+import org.junit.Rule
+import org.junit.Test
 
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
-import org.junit.Test;
+class TaskTest {
+    @Rule
+    @Transient
+    private val testPipeline = TestPipeline.create()
 
-public class TaskTest {
+    @Test
+    fun `Common Transforms - Filter - Filter`() {
+        val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        val numbers = testPipeline.apply(values)
 
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
+        val results = applyTransform(numbers)
 
-  @Test
-  public void filter() {
-    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-    PCollection<Integer> numbers = testPipeline.apply(values);
+        PAssert.that(results).containsInAnyOrder(2, 4, 6, 8, 10)
 
-    PCollection<Integer> results = Task.applyTransform(numbers);
-
-    PAssert.that(results)
-        .containsInAnyOrder(2, 4, 6, 8, 10);
-
-    testPipeline.run().waitUntilFinish();
-  }
-
+        testPipeline.run().waitUntilFinish()
+    }
 }
