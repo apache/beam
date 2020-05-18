@@ -32,7 +32,7 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun sideInput() {
+    fun `Core Transforms - Side Input - Side Input`() {
         val citiesToCountries = testPipeline.apply("Cities and Countries",
                 Create.of(
                         KV.of("Beijing", "China"),
