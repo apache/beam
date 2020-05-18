@@ -1251,37 +1251,54 @@ public class FhirIO {
   }
 
   /**
+   * Create resources fhir io . create resources.
+   *
+   * @param <T> the type parameter
+   * @param fhirStore the fhir store
+   * @return the fhir io . create resources
+   */
+  public static <T> FhirIO.CreateResources<T> createResources(ValueProvider<String> fhirStore){
+    return new CreateResources(fhirStore);
+  }
+
+  /**
+   * Create resources fhir io . create resources.
+   *
+   * @param <T> the type parameter
+   * @param fhirStore the fhir store
+   * @return the fhir io . create resources
+   */
+  public static <T> FhirIO.CreateResources<T> createResources(String fhirStore){
+    return new CreateResources(fhirStore);
+  }
+  /**
    * {@link PTransform} for Creating FHIR resources.
    *
    * <p>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create
    */
   public static class CreateResources<T> extends PTransform<PCollection<T>, Write.Result> {
     private final String fhirStore;
-    private final String type;
     private SerializableFunction<T, String> ifNoneExistFunction;
     private SerializableFunction<T, String> formatBodyFunction;
+    private SerializableFunction<T, String> typeFunction;
     private static final Logger LOG = LoggerFactory.getLogger(CreateResources.class);
 
     /**
      * Instantiates a new Create resources transform.
      *
      * @param fhirStore the fhir store
-     * @param type the type
      */
-    CreateResources(ValueProvider<String> fhirStore, String type) {
+    CreateResources(ValueProvider<String> fhirStore) {
       this.fhirStore = fhirStore.get();
-      this.type = type;
     }
 
     /**
      * Instantiates a new Create resources.
      *
      * @param fhirStore the fhir store
-     * @param type the type
      */
-    CreateResources(String fhirStore, String type) {
+    CreateResources(String fhirStore) {
       this.fhirStore = fhirStore;
-      this.type = type;
     }
 
     /**
@@ -1301,6 +1318,20 @@ public class FhirIO {
     }
 
     /**
+     * This adds a {@link SerializableFunction} that reads an resource string and extracts an
+     * resource type.
+     *
+     * <p>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/create
+     *
+     * @param typeFunction for extracting type from a resource.
+     * @return the create resources
+     */
+    public CreateResources withTypeFunction(
+        SerializableFunction<T, String> typeFunction) {
+      this.typeFunction = typeFunction;
+      return this;
+    }
+    /**
      * With format body function create resources.
      *
      * @param formatBodyFunction the format body function
@@ -1315,6 +1346,9 @@ public class FhirIO {
     @Override
     public FhirIO.Write.Result expand(PCollection<T> input) {
       checkArgument(
+          typeFunction != null,
+          "FhirIO.CreateResources should always be called with a " + "withTypeFunction");
+      checkArgument(
           formatBodyFunction != null,
           "FhirIO.CreateResources should always be called with a " + "withFromatBodyFunction");
 
@@ -1327,7 +1361,7 @@ public class FhirIO {
           input
               .apply(
                   ParDo.of(
-                      new CreateFn<T>(fhirStore, type, formatBodyFunction, ifNoneExistFunction)))
+                      new CreateFn<T>(fhirStore, typeFunction, formatBodyFunction, ifNoneExistFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
@@ -1337,17 +1371,17 @@ public class FhirIO {
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       private final String fhirStore;
-      private final String type;
       private SerializableFunction<T, String> ifNoneExistFunction;
       private SerializableFunction<T, String> formatBodyFunction;
+      private SerializableFunction<T, String> typeFunction;
 
       CreateFn(
           String fhirStore,
-          String type,
+          SerializableFunction typeFunction,
           SerializableFunction formatBodyFunction,
           @Nullable SerializableFunction ifNoneExistFunction) {
         this.fhirStore = fhirStore;
-        this.type = type;
+        this.typeFunction = typeFunction;
         this.formatBodyFunction = formatBodyFunction;
         this.ifNoneExistFunction = ifNoneExistFunction;
       }
@@ -1361,6 +1395,7 @@ public class FhirIO {
       public void create(ProcessContext context) {
         T input = context.element();
         String body = formatBodyFunction.apply(input);
+        String type = typeFunction.apply(input);
         try {
           // Validate that data was set to valid JSON.
           mapper.readTree(input.toString());
@@ -1376,6 +1411,28 @@ public class FhirIO {
         }
       }
     }
+  }
+
+  /**
+   * Update resources update resources.
+   *
+   * @param <T> the type parameter
+   * @param fhirStore the fhir store
+   * @return the update resources
+   */
+  public static <T> UpdateResources<T> update(ValueProvider<String> fhirStore){
+    return new UpdateResources<T>(fhirStore);
+  }
+
+  /**
+   * Update resources update resources.
+   *
+   * @param <T> the type parameter
+   * @param fhirStore the fhir store
+   * @return the update resources
+   */
+  public static <T> UpdateResources<T> update(String fhirStore){
+    return new UpdateResources<T>(fhirStore);
   }
 
   /**
@@ -1486,6 +1543,28 @@ public class FhirIO {
         }
       }
     }
+  }
+
+  /**
+   * Conditional update conditional update.
+   *
+   * @param <T> the type parameter
+   * @param fhirStore the fhir store
+   * @return the conditional update
+   */
+  public static <T> ConditionalUpdate<T> conditionalUpdate(ValueProvider<String> fhirStore){
+   return new ConditionalUpdate<T>(fhirStore);
+  }
+
+  /**
+   * Conditional update conditional update.
+   *
+   * @param <T> the type parameter
+   * @param fhirStore the fhir store
+   * @return the conditional update
+   */
+  public static <T> ConditionalUpdate<T> conditionalUpdate(String fhirStore){
+    return new ConditionalUpdate<T>(fhirStore);
   }
 
   /**

@@ -44,8 +44,11 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditio
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
+  // TODO read initial resources function.
+  // TODO read update resources function.
+  // TODO spot check resource update utility.
   private static Stream<String> readPrettyBundles(String version) {
-    Path resourceDir = Paths.get("src", "test", "resources", version);
+    Path resourceDir = Paths.get("src", "test", "resources", "transactional_bundles",version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
