@@ -27,6 +27,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.PCollection;
@@ -81,7 +82,8 @@ public class RehydratedComponents {
                 public Coder<?> load(String id) throws Exception {
                   @Nullable RunnerApi.Coder coder = components.getCodersOrDefault(id, null);
                   checkState(coder != null, "No coder with id '%s' in serialized components", id);
-                  return CoderTranslation.fromProto(coder, RehydratedComponents.this);
+                  return CoderTranslation.fromProto(
+                      coder, RehydratedComponents.this, TranslationContext.DEFAULT);
                 }
               });
 

@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.service.AutoService;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.coders.BooleanCoder;
@@ -97,7 +98,15 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
         CoderTranslator.class.getSimpleName(),
         Sets.difference(BEAM_MODEL_CODER_URNS.keySet(), BEAM_MODEL_CODERS.keySet()));
     checkState(
-        ModelCoders.urns().equals(BEAM_MODEL_CODER_URNS.values()),
+        Sets.symmetricDifference(
+                ModelCoders.urns(),
+                /**
+                 * The state backed iterable coder implementation is environment specific and hence
+                 * is not part of the coder translation checks as these are meant to be used only
+                 * during pipeline construction.
+                 */
+                Collections.singleton(ModelCoders.STATE_BACKED_ITERABLE_CODER_URN))
+            .equals(BEAM_MODEL_CODER_URNS.values()),
         "All Model %ss should have an associated java %s",
         Coder.class.getSimpleName(),
         Coder.class.getSimpleName());
