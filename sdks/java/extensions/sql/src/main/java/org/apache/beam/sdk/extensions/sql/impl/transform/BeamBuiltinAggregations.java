@@ -358,34 +358,29 @@ public class BeamBuiltinAggregations {
     }
   }
 
-  static class BitOr<T extends Number> extends CombineFn<T, BitOr.Accum, Long> {
-    static class Accum {
-      long val;
+  static class BitOr<T extends Number> extends CombineFn<T, Long, Long> {
+    @Override
+    public Long createAccumulator() {
+      return 0L;
     }
 
     @Override
-    public Accum createAccumulator() {
-      return new Accum();
+    public Long addInput(Long accum, T input) {
+      return accum | input.longValue();
     }
 
     @Override
-    public Accum addInput(Accum accum, T input) {
-      accum.val = accum.val | input.longValue();
-      return accum;
-    }
-
-    @Override
-    public Accum mergeAccumulators(Iterable<Accum> accums) {
-      Accum merged = createAccumulator();
-      for (Accum accum : accums) {
-        merged.val = merged.val | accum.val;
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged | accum;
       }
       return merged;
     }
 
     @Override
-    public Long extractOutput(Accum accum) {
-      return accum.val;
+    public Long extractOutput(Long accum) {
+      return accum;
     }
   }
 }
