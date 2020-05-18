@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseDate;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTime;
 import static org.apache.beam.sdk.extensions.sql.utils.DateTimeUtils.parseTimestampWithUTCTimeZone;
 import static org.hamcrest.Matchers.equalTo;
@@ -33,6 +32,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -1196,9 +1197,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' YEAR",
                 parseTimestampWithUTCTimeZone("1986-01-19 01:02:03"))
-            .addExpr("DATE '1984-04-19' + INTERVAL '2' DAY", parseDate("1984-04-21"))
-            .addExpr("DATE '1984-04-19' + INTERVAL '1' MONTH", parseDate("1984-05-19"))
-            .addExpr("DATE '1984-04-19' + INTERVAL '3' YEAR", parseDate("1987-04-19"))
+            .addExpr(
+                "DATE '1984-04-19' + INTERVAL '2' DAY",
+                LocalDate.parse("1984-04-21"),
+                CalciteUtils.DATE)
+            .addExpr(
+                "DATE '1984-04-19' + INTERVAL '1' MONTH",
+                LocalDate.parse("1984-05-19"),
+                CalciteUtils.DATE)
+            .addExpr(
+                "DATE '1984-04-19' + INTERVAL '3' YEAR",
+                LocalDate.parse("1987-04-19"),
+                CalciteUtils.DATE)
             .addExpr("TIME '14:28:30' + INTERVAL '15' SECOND", parseTime("14:28:45"))
             .addExpr("TIME '14:28:30.239' + INTERVAL '4' MINUTE", parseTime("14:32:30.239"))
             .addExpr("TIME '14:28:30.2' + INTERVAL '4' HOUR", parseTime("18:28:30.2"));
@@ -1317,9 +1327,18 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
             .addExpr(
                 "TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '1' YEAR",
                 parseTimestampWithUTCTimeZone("1983-01-19 01:01:58"))
-            .addExpr("DATE '1984-04-19' - INTERVAL '2' DAY", parseDate("1984-04-17"))
-            .addExpr("DATE '1984-04-19' - INTERVAL '1' MONTH", parseDate("1984-03-19"))
-            .addExpr("DATE '1984-04-19' - INTERVAL '3' YEAR", parseDate("1981-04-19"))
+            .addExpr(
+                "DATE '1984-04-19' - INTERVAL '2' DAY",
+                LocalDate.parse("1984-04-17"),
+                CalciteUtils.DATE)
+            .addExpr(
+                "DATE '1984-04-19' - INTERVAL '1' MONTH",
+                LocalDate.parse("1984-03-19"),
+                CalciteUtils.DATE)
+            .addExpr(
+                "DATE '1984-04-19' - INTERVAL '3' YEAR",
+                LocalDate.parse("1981-04-19"),
+                CalciteUtils.DATE)
             .addExpr("TIME '14:28:30' - INTERVAL '15' SECOND", parseTime("14:28:15"))
             .addExpr("TIME '14:28:30.239' - INTERVAL '4' MINUTE", parseTime("14:24:30.239"))
             .addExpr("TIME '14:28:30.2' - INTERVAL '4' HOUR", parseTime("10:28:30.2"));
