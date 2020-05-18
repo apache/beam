@@ -178,17 +178,17 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>SpannerWriteResult</h3>
  *
- * The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the transform,
- * including a {@link PCollection} of MutationGroups that failed to write, and a {@link PCollection}
- * that can be used in batch pipelines as a completion signal to {@link
+ * <p>The {@link SpannerWriteResult SpannerWriteResult} object contains the results of the
+ * transform, including a {@link PCollection} of MutationGroups that failed to write, and a {@link
+ * PCollection} that can be used in batch pipelines as a completion signal to {@link
  * org.apache.beam.sdk.transforms.Wait Wait.OnSignal} to indicate when all input has been written.
  * Note that in streaming pipelines, this signal will never be triggered as the input is unbounded
  * and this {@link PCollection} is using the {@link GlobalWindow}.
  *
- * <h3>Batching</h3>
+ * <h3>Batching and Grouping</h3>
  *
  * <p>To reduce the number of transactions sent to Spanner, the {@link Mutation Mutations} are
- * grouped into batches The default maximum size of the batch is set to 1MB or 5000 mutated cells,
+ * grouped into batches. The default maximum size of the batch is set to 1MB or 5000 mutated cells,
  * or 500 rows (whichever is reached first). To override this use {@link
  * Write#withBatchSizeBytes(long) withBatchSizeBytes()}, {@link Write#withMaxNumMutations(long)
  * withMaxNumMutations()} or {@link Write#withMaxNumMutations(long) withMaxNumRows()}. Setting
@@ -202,15 +202,41 @@ import org.slf4j.LoggerFactory;
  * MaxNumMutations}.
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
- * Bundle provided by Beam to form (by default) 1000 batches. This group of {@link Mutation
- * Mutations} is then sorted by table and primary key, and the batches are created from the sorted
- * group. Each batch will then have rows with keys that are 'close' to each other to optimise write
- * performance. This grouping factor (number of batches) is controlled by the parameter {@link
+ * Bundle provided by Beam to form several batches. This group of {@link Mutation Mutations} is then
+ * sorted by table and primary key, and the batches are created from the sorted group. Each batch
+ * will then have rows for the same table, with keys that are 'close' to each other, thus optimising
+ * write efficiency by each batch affecting as few table splits as possible performance.
+ *
+ * <p>This grouping factor (number of batches) is controlled by the parameter {@link
  * Write#withGroupingFactor(int) withGroupingFactor()}.
  *
  * <p>Note that each worker will need enough memory to hold {@code GroupingFactor x
  * MaxBatchSizeBytes} Mutations, so if you have a large {@code MaxBatchSize} you may need to reduce
  * {@code GroupingFactor}
+ *
+ * <p>While Grouping and Batching increases write efficiency, it dramatically increases the latency
+ * between when a Mutation is received by the transform, and when it is actually written to the
+ * database. This is because enough Mutations need to be received to fill the grouped batches. In
+ * Batch pipelines (bounded sources), this is not normally an issue, but in Streaming (unbounded)
+ * pipelines, this latency is often seen as unacceptable.
+ *
+ * <p>There are therefore 3 different ways that this transform can be configured:
+ *
+ * <ul>
+ *   <li>With Grouping and Batching. <br>
+ *       This is the default for Batch pipelines, where sorted batches of Mutations are created and
+ *       written. This is the most efficient way to ingest large amounts of data, but the highest
+ *       latency before writing
+ *   <li>With Batching but no Grouping <br>
+ *       If {@link Write#withGroupingFactor(int) .withGroupingFactor(1)}, is set, grouping is
+ *       disabled. This is the default for Streaming pipelines. Unsorted batches are created and
+ *       written as soon as enough mutations to fill a batch are received. This reflects a
+ *       compromise where a small amount of additional latency enables more efficient writes
+ *   <li>Without any Batching <br>
+ *       If {@link Write#withBatchSizeBytes(long) .withBatchSizeBytes(0)} is set, no batching is
+ *       performed and the Mutations are written to the database as soon as they are received.
+ *       ensuring the lowest latency before Mutations are written.
+ * </ul>
  *
  * <h3>Monitoring</h3>
  *
@@ -1149,11 +1175,11 @@ public class SpannerIO {
     private final ArrayList<MutationGroupContainer> mutationsToSort = new ArrayList<>();
 
     // total size of MutationGroups in mutationsToSort.
-    private long sortableSizeBytes;
+    private long sortableSizeBytes = 0;
     // total number of mutated cells in mutationsToSort
-    private long sortableNumCells;
+    private long sortableNumCells = 0;
     // total number of rows mutated in mutationsToSort
-    private long sortableNumRows;
+    private long sortableNumRows = 0;
 
     GatherSortCreateBatchesFn(
         long maxBatchSizeBytes,
@@ -1173,10 +1199,7 @@ public class SpannerIO {
       this.maxSortableNumMutations = maxNumMutations * groupingFactor;
       this.maxSortableNumRows = maxNumRows * groupingFactor;
       this.schemaView = schemaView;
-    }
 
-    @StartBundle
-    public synchronized void startBundle() throws Exception {
       initSorter();
     }
 
@@ -1194,57 +1217,58 @@ public class SpannerIO {
 
     private synchronized void sortAndOutputBatches(OutputReceiver<Iterable<MutationGroup>> out)
         throws IOException {
-      if (mutationsToSort.isEmpty()) {
-        // nothing to output.
-        initSorter();
-        return;
-      }
-
-      if (maxSortableNumMutations == maxBatchNumMutations) {
-        // no grouping is occurring, no need to sort and make batches, just output what we have.
-        outputBatch(out, 0, mutationsToSort.size());
-        initSorter();
-        return;
-      }
-
-      // Sort then split the sorted mutations into batches.
-      mutationsToSort.sort(Comparator.naturalOrder());
-      int batchStart = 0;
-      int batchEnd = 0;
-
-      // total size of the current batch.
-      long batchSizeBytes = 0;
-      // total number of mutated cells.
-      long batchCells = 0;
-      // total number of rows mutated.
-      long batchRows = 0;
-
-      // collect and output batches.
-      while (batchEnd < mutationsToSort.size()) {
-        MutationGroupContainer mg = mutationsToSort.get(batchEnd);
-
-        if (((batchCells + mg.numCells) > maxBatchNumMutations)
-            || ((batchSizeBytes + mg.sizeBytes) > maxBatchSizeBytes
-                || (batchRows + mg.numRows > maxBatchNumRows))) {
-          // Cannot add new element, current batch is full; output.
-          outputBatch(out, batchStart, batchEnd);
-          batchStart = batchEnd;
-          batchSizeBytes = 0;
-          batchCells = 0;
-          batchRows = 0;
+      try {
+        if (mutationsToSort.isEmpty()) {
+          // nothing to output.
+          return;
         }
 
-        batchEnd++;
-        batchSizeBytes += mg.sizeBytes;
-        batchCells += mg.numCells;
-        batchRows += mg.numRows;
-      }
+        if (maxSortableNumMutations == maxBatchNumMutations) {
+          // no grouping is occurring, no need to sort and make batches, just output what we have.
+          outputBatch(out, 0, mutationsToSort.size());
+          return;
+        }
 
-      if (batchStart < batchEnd) {
-        // output remaining elements
-        outputBatch(out, batchStart, mutationsToSort.size());
+        // Sort then split the sorted mutations into batches.
+        mutationsToSort.sort(Comparator.naturalOrder());
+        int batchStart = 0;
+        int batchEnd = 0;
+
+        // total size of the current batch.
+        long batchSizeBytes = 0;
+        // total number of mutated cells.
+        long batchCells = 0;
+        // total number of rows mutated.
+        long batchRows = 0;
+
+        // collect and output batches.
+        while (batchEnd < mutationsToSort.size()) {
+          MutationGroupContainer mg = mutationsToSort.get(batchEnd);
+
+          if (((batchCells + mg.numCells) > maxBatchNumMutations)
+              || ((batchSizeBytes + mg.sizeBytes) > maxBatchSizeBytes
+                  || (batchRows + mg.numRows > maxBatchNumRows))) {
+            // Cannot add new element, current batch is full; output.
+            outputBatch(out, batchStart, batchEnd);
+            batchStart = batchEnd;
+            batchSizeBytes = 0;
+            batchCells = 0;
+            batchRows = 0;
+          }
+
+          batchEnd++;
+          batchSizeBytes += mg.sizeBytes;
+          batchCells += mg.numCells;
+          batchRows += mg.numRows;
+        }
+
+        if (batchStart < batchEnd) {
+          // output remaining elements
+          outputBatch(out, batchStart, mutationsToSort.size());
+        }
+      } finally {
+        initSorter();
       }
-      initSorter();
     }
 
     private void outputBatch(
