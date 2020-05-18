@@ -71,7 +71,7 @@ ACCUMULATED_RESULT=0
 function runLinkageCheck () {
   COMMIT=$1
   BRANCH=$2
-  MODE=$3 # baseline or validate
+  MODE=$3 # "baseline" or "validate"
   # An empty invocation so that the subsequent checkJavaLinkage does not
   # contain garbage
   echo "`date`:" "Installing artifacts of ${BRANCH}(${COMMIT}) to Maven local repository."
@@ -81,18 +81,18 @@ function runLinkageCheck () {
 
     BASELINE_FILE=${OUTPUT_DIR}/baseline-${ARTIFACT}.xml
     if [ "$MODE" = "baseline" ]; then
-      BASELINE_OPTION='-PjavaLinkageWriteBaseline'
+      BASELINE_OPTION="-PjavaLinkageWriteBaseline=${BASELINE_FILE}"
       echo "`date`:" "to create a baseline (existing errors before change) $BASELINE_FILE"
     elif [ "$MODE" = "validate" ]; then
-      BASELINE_OPTION='-PjavaLinkageReadBaseline'
+      BASELINE_OPTION="-PjavaLinkageReadBaseline=${BASELINE_FILE}"
       echo "`date`:" "using baseline $BASELINE_FILE"
     else
-      echo "invalid parameter for runLinkageCheck: ${MODE}"
-      exit 1
+      BASELINE_OPTION=""
+      echo "`date`:" "Unexpected mode: ${MODE}. Not using baseline file."
     fi
 
     set +e
-    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=$ARTIFACT ${BASELINE_OPTION}=${BASELINE_FILE} :checkJavaLinkage
+    ./gradlew -Ppublishing -PjavaLinkageArtifactIds=$ARTIFACT ${BASELINE_OPTION} :checkJavaLinkage
     RESULT=$?
     set -e
     if [ "$MODE" = "validate" ]; then
