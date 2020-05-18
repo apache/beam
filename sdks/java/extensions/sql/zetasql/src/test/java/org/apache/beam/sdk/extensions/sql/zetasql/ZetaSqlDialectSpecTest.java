@@ -2385,6 +2385,17 @@ public class ZetaSqlDialectSpecTest extends ZetaSqlTestBase {
   }
 
   @Test
+  public void testUNNESTLiteralNull() {
+    String sql = "SELECT * FROM UNNEST(CAST(NULL AS ARRAY<INT64>));";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+    PAssert.that(stream).empty();
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testUNNESTParameters() {
     String sql = "SELECT * FROM UNNEST(@p0);";
     ImmutableMap<String, Value> params =

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamCostModel;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -103,7 +104,11 @@ public class BeamUncollectRel extends Uncollect implements BeamRelNode {
 
     @ProcessElement
     public void process(@Element Row inputRow, OutputReceiver<Row> output) {
-      for (Object element : inputRow.getArray(0)) {
+      Collection<Object> elements = inputRow.getArray(0);
+      if (elements == null) {
+        return;
+      }
+      for (Object element : elements) {
         if (element instanceof Row) {
           Row nestedRow = (Row) element;
           output.output(Row.withSchema(schema).addValues(nestedRow.getBaseValues()).build());
