@@ -28,18 +28,16 @@ import unittest
 import zipfile
 
 import freezegun
-import grpc
 import requests_mock
 
 from apache_beam.options import pipeline_options
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SparkRunnerOptions
-from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import spark_runner
 from apache_beam.runners.portability import spark_uber_jar_job_server
+from apache_beam.runners.portability.local_job_service_test import TestJobServicePlan
 
 
 @contextlib.contextmanager

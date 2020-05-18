@@ -22,10 +22,6 @@ from __future__ import print_function
 import logging
 import unittest
 
-import grpc
-
-from apache_beam.portability.api import beam_artifact_api_pb2
-from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import local_job_service
