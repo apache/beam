@@ -118,8 +118,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>Important</b> When reading data from Snowflake, temporary CSV files are created on the
  * specified stagingBucketName in directory named `sf_copy_csv_[RANDOM CHARS]_[TIMESTAMP]`. This
- * directory and all the files are cleaned up automatically by default, but in case of failed pipeline
- * they may remain and will have to be cleaned up manually.
+ * directory and all the files are cleaned up automatically by default, but in case of failed
+ * pipeline they may remain and will have to be cleaned up manually.
  */
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
@@ -214,13 +214,14 @@ public class SnowflakeIO {
      * @param config - An instance of {@link DataSourceConfiguration}.
      */
     public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
-
-      try {
-        Connection connection = config.buildDatasource().getConnection();
-        connection.close();
-      } catch (SQLException e) {
-        throw new IllegalArgumentException(
-            "Invalid DataSourceConfiguration. Underlying cause: " + e);
+      if (config.getValidate()) {
+        try {
+          Connection connection = config.buildDatasource().getConnection();
+          connection.close();
+        } catch (SQLException e) {
+          throw new IllegalArgumentException(
+              "Invalid DataSourceConfiguration. Underlying cause: " + e);
+        }
       }
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
@@ -487,6 +488,9 @@ public class SnowflakeIO {
     public abstract Boolean getSsl();
 
     @Nullable
+    public abstract Boolean getValidate();
+
+    @Nullable
     public abstract DataSource getDataSource();
 
     abstract Builder builder();
@@ -519,6 +523,8 @@ public class SnowflakeIO {
 
       abstract Builder setSsl(Boolean ssl);
 
+      abstract Builder setValidate(Boolean validate);
+
       abstract Builder setDataSource(DataSource dataSource);
 
       abstract DataSourceConfiguration build();
@@ -532,6 +538,7 @@ public class SnowflakeIO {
     public static DataSourceConfiguration create(DataSource dataSource) {
       checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+          .setValidate(true)
           .setDataSource(dataSource)
           .build();
     }
@@ -544,15 +551,18 @@ public class SnowflakeIO {
     public static DataSourceConfiguration create(SnowflakeCredentials credentials) {
       if (credentials instanceof UsernamePasswordSnowflakeCredentials) {
         return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setValidate(true)
             .setUsername(((UsernamePasswordSnowflakeCredentials) credentials).getUsername())
             .setPassword(((UsernamePasswordSnowflakeCredentials) credentials).getPassword())
             .build();
       } else if (credentials instanceof OAuthTokenSnowflakeCredentials) {
         return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setValidate(true)
             .setOauthToken(((OAuthTokenSnowflakeCredentials) credentials).getToken())
             .build();
       } else if (credentials instanceof KeyPairSnowflakeCredentials) {
         return new AutoValue_SnowflakeIO_DataSourceConfiguration.Builder()
+            .setValidate(true)
             .setUsername(((KeyPairSnowflakeCredentials) credentials).getUsername())
             .setPrivateKey(((KeyPairSnowflakeCredentials) credentials).getPrivateKey())
             .build();
@@ -646,6 +656,15 @@ public class SnowflakeIO {
      */
     public DataSourceConfiguration withLoginTimeout(Integer loginTimeout) {
       return builder().setLoginTimeout(loginTimeout).build();
+    }
+
+    /**
+     * Disables validation of connection parameters prior to pipeline submission.
+     *
+     * @return
+     */
+    public DataSourceConfiguration withoutValidation() {
+      return builder().setValidate(false).build();
     }
 
     void populateDisplayData(DisplayData.Builder builder) {
