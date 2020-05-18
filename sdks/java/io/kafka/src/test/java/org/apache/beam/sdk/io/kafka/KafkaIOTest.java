@@ -1594,49 +1594,6 @@ public class KafkaIOTest {
     }
   }
 
-  @Test
-  public void testOffsetConsumerConfigOverrides() throws Exception {
-    KafkaUnboundedReader reader1 =
-        new KafkaUnboundedReader(
-            new KafkaUnboundedSource(
-                KafkaIO.read()
-                    .withBootstrapServers("broker_1:9092,broker_2:9092")
-                    .withTopic("my_topic")
-                    .withOffsetConsumerConfigOverrides(null),
-                0),
-            null);
-    assertTrue(
-        reader1
-            .getOffsetConsumerConfig()
-            .get(ConsumerConfig.GROUP_ID_CONFIG)
-            .toString()
-            .matches(".*_offset_consumer_\\d+_none"));
-    assertEquals(
-        false, reader1.getOffsetConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
-    assertEquals(
-        "read_uncommitted",
-        reader1.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
-
-    String offsetGroupId = "group.offsetConsumer";
-    KafkaUnboundedReader reader2 =
-        new KafkaUnboundedReader(
-            new KafkaUnboundedSource(
-                KafkaIO.read()
-                    .withBootstrapServers("broker_1:9092,broker_2:9092")
-                    .withTopic("my_topic")
-                    .withOffsetConsumerConfigOverrides(
-                        ImmutableMap.of(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId)),
-                0),
-            null);
-    assertEquals(
-        offsetGroupId, reader2.getOffsetConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG));
-    assertEquals(
-        false, reader2.getOffsetConsumerConfig().get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG));
-    assertEquals(
-        "read_uncommitted",
-        reader2.getOffsetConsumerConfig().get(ConsumerConfig.ISOLATION_LEVEL_CONFIG));
-  }
-
   private static void verifyProducerRecords(
       MockProducer<Integer, Long> mockProducer,
       String topic,

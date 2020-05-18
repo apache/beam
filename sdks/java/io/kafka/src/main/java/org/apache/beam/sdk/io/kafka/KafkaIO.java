@@ -48,10 +48,12 @@ import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -73,6 +75,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -295,15 +298,15 @@ public class KafkaIO {
   /**
    * Creates an uninitialized {@link Read} {@link PTransform}. Before use, basic Kafka configuration
    * should set with {@link Read#withBootstrapServers(String)} and {@link Read#withTopics(List)}.
-   * Other optional settings include key and value {@link Deserializer}s, custom timestamp and
+   * Other optional settings include key and value {@link Deserializer}s, custom timestamp,
    * watermark functions.
    */
   public static <K, V> Read<K, V> read() {
     return new AutoValue_KafkaIO_Read.Builder<K, V>()
         .setTopics(new ArrayList<>())
         .setTopicPartitions(new ArrayList<>())
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
-        .setConsumerConfig(Read.DEFAULT_CONSUMER_PROPERTIES)
+        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
+        .setConsumerConfig(KafkaIOUtils.DEFAULT_CONSUMER_PROPERTIES)
         .setMaxNumRecords(Long.MAX_VALUE)
         .setCommitOffsetsInFinalizeEnabled(false)
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
@@ -322,7 +325,7 @@ public class KafkaIO {
                 .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
                 .setEOS(false)
                 .setNumShards(0)
-                .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
+                .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
                 .build())
         .build();
   }
@@ -337,7 +340,7 @@ public class KafkaIO {
         .setProducerConfig(WriteRecords.DEFAULT_PRODUCER_PROPERTIES)
         .setEOS(false)
         .setNumShards(0)
-        .setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN)
+        .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .build();
   }
 
@@ -381,6 +384,9 @@ public class KafkaIO {
     abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
 
     @Nullable
+    abstract SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
+
+    @Nullable
     abstract Map<String, Object> getOffsetConsumerConfig();
 
     @Nullable
@@ -421,6 +427,9 @@ public class KafkaIO {
       abstract Builder<K, V> setTimestampPolicyFactory(
           TimestampPolicyFactory<K, V> timestampPolicyFactory);
 
+      abstract Builder<K, V> setExtractOutputTimestampFn(
+          SerializableFunction<KafkaRecord<K, V>, Instant> extractOutputTimestampFn);
+
       abstract Builder<K, V> setOffsetConsumerConfig(Map<String, Object> offsetConsumerConfig);
 
       abstract Builder<K, V> setKeyDeserializerProvider(DeserializerProvider deserializerProvider);
@@ -459,7 +468,7 @@ public class KafkaIO {
 
         // Set required defaults
         setTopicPartitions(Collections.emptyList());
-        setConsumerFactoryFn(Read.KAFKA_CONSUMER_FACTORY_FN);
+        setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         setMaxNumRecords(Long.MAX_VALUE);
         setCommitOffsetsInFinalizeEnabled(false);
         setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
@@ -644,7 +653,8 @@ public class KafkaIO {
     @Deprecated
     public Read<K, V> updateConsumerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(
+              getConsumerConfig(), KafkaIOUtils.IGNORED_CONSUMER_PROPERTIES, configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
 
@@ -681,11 +691,13 @@ public class KafkaIO {
     }
 
     /**
-     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.LogAppendTimePolicy}. The
-     * policy assigns Kafka's log append time (server side ingestion time) to each record. The
-     * watermark for each Kafka partition is the timestamp of the last record read. If a partition
-     * is idle, the watermark advances to couple of seconds behind wall time. Every record consumed
-     * from Kafka is expected to have its timestamp type set to 'LOG_APPEND_TIME'.
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.LogAppendTimePolicy} which is
+     * used when beam_fn_api is disabled, and sets {@code extractOutputTimestampFn} as {@link
+     * ReadViaSDF.ExtractOutputTimestampFns#withLogAppendTime()}, which is used when beam_fn_api is
+     * enabled. The policy assigns Kafka's log append time (server side ingestion time) to each
+     * record. The watermark for each Kafka partition is the timestamp of the last record read. If a
+     * partition is idle, the watermark advances to couple of seconds behind wall time. Every record
+     * consumed from Kafka is expected to have its timestamp type set to 'LOG_APPEND_TIME'.
      *
      * <p>In Kafka, log append time needs to be enabled for each topic, and all the subsequent
      * records wil have their timestamp set to log append time. If a record does not have its
@@ -697,23 +709,33 @@ public class KafkaIO {
      * partitions, it ends up holding the watermark for the entire source.
      */
     public Read<K, V> withLogAppendTime() {
-      return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime());
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withLogAppendTime())
+          .toBuilder()
+          .setExtractOutputTimestampFn(ReadViaSDF.ExtractOutputTimestampFns.useLogAppendTime())
+          .build();
     }
 
     /**
-     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy}. This is
-     * the default timestamp policy. It assigns processing time to each record. Specifically, this
-     * is the timestamp when the record becomes 'current' in the reader. The watermark aways
-     * advances to current time. If server side time (log append time) is enabled in Kafka, {@link
-     * #withLogAppendTime()} is recommended over this.
+     * Sets {@link TimestampPolicy} to {@link TimestampPolicyFactory.ProcessingTimePolicy} which is
+     * used when beam_fn_api is disabled, and sets {@code extractOutputTimestampFn} to {@link
+     * ReadViaSDF.ExtractOutputTimestampFns#withProcessingTime()} which is used when beam_fn_api is
+     * enabled. This is the default timestamp policy. It assigns processing time to each record.
+     * Specifically, this is the timestamp when the record becomes 'current' in the reader. The
+     * watermark aways advances to current time. If server side time (log append time) is enabled in
+     * Kafka, {@link #withLogAppendTime()} is recommended over this.
      */
     public Read<K, V> withProcessingTime() {
-      return withTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime());
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
+          .toBuilder()
+          .setExtractOutputTimestampFn(ReadViaSDF.ExtractOutputTimestampFns.useProcessingTime())
+          .build();
     }
 
     /**
      * Sets the timestamps policy based on {@link KafkaTimestampType#CREATE_TIME} timestamp of the
-     * records. It is an error if a record's timestamp type is not {@link
+     * records which is used when beam_fn_api is disabled, and sets {@code extractOutputTimestamp}
+     * as {@link ReadViaSDF.ExtractOutputTimestampFns#withCreateTime()} which is used when
+     * beam_fn_api is enabled. It is an error if a record's timestamp type is not {@link
      * KafkaTimestampType#CREATE_TIME}. The timestamps within a partition are expected to be roughly
      * monotonically increasing with a cap on out of order delays (e.g. 'max delay' of 1 minute).
      * The watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
@@ -724,17 +746,23 @@ public class KafkaIO {
      *     is expected to be after {@code current record timestamp - maxDelay}.
      */
     public Read<K, V> withCreateTime(Duration maxDelay) {
-      return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay));
+      return withTimestampPolicyFactory(TimestampPolicyFactory.withCreateTime(maxDelay))
+          .toBuilder()
+          .setExtractOutputTimestampFn(ReadViaSDF.ExtractOutputTimestampFns.useCreateTime())
+          .build();
     }
 
     /**
      * Provide custom {@link TimestampPolicyFactory} to set event times and watermark for each
-     * partition. {@link TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)} is
-     * invoked for each partition when the reader starts.
+     * partition when beam_fn_api is disabled. {@link
+     * TimestampPolicyFactory#createTimestampPolicy(TopicPartition, Optional)} is invoked for each
+     * partition when the reader starts.
      *
      * @see #withLogAppendTime()
      * @see #withCreateTime(Duration)
      * @see #withProcessingTime()
+     *     <p>For the pipeline with beam_fn_api is enabled, you should use {@link
+     *     #withExtractOutputTimestampFn(SerializableFunction)} instead.
      */
     public Read<K, V> withTimestampPolicyFactory(
         TimestampPolicyFactory<K, V> timestampPolicyFactory) {
@@ -795,6 +823,12 @@ public class KafkaIO {
       return withWatermarkFn2(unwrapKafkaAndThen(watermarkFn));
     }
 
+    /** A function to the compute output timestamp from a {@link KafkaRecord}. */
+    public Read<K, V> withExtractOutputTimestampFn(
+        SerializableFunction<KafkaRecord<K, V>, Instant> fn) {
+      return toBuilder().setExtractOutputTimestampFn(fn).build();
+    }
+
     /**
      * Sets "isolation_level" to "read_committed" in Kafka consumer configuration. This is ensures
      * that the consumer does not read uncommitted messages. Kafka version 0.11 introduced
@@ -845,11 +879,12 @@ public class KafkaIO {
      * offset;<br>
      *
      * <p>By default, main consumer uses the configuration from {@link
-     * #DEFAULT_CONSUMER_PROPERTIES}.
+     * KafkaIOUtils#DEFAULT_CONSUMER_PROPERTIES}.
      */
     public Read<K, V> withConsumerConfigUpdates(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getConsumerConfig(), IGNORED_CONSUMER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(
+              getConsumerConfig(), KafkaIOUtils.IGNORED_CONSUMER_PROPERTIES, configUpdates);
       return toBuilder().setConsumerConfig(config).build();
     }
 
@@ -906,19 +941,111 @@ public class KafkaIO {
       Coder<K> keyCoder = getKeyCoder(coderRegistry);
       Coder<V> valueCoder = getValueCoder(coderRegistry);
 
-      // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
-      Unbounded<KafkaRecord<K, V>> unbounded =
-          org.apache.beam.sdk.io.Read.from(
-              toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
+      // The Read will be expanded into SDF transform when "beam_fn_api" is enabled and
+      // "beam_fn_api_use_deprecated_read" is not enabled.
+      if (!ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api")
+          || ExperimentalOptions.hasExperiment(
+              input.getPipeline().getOptions(), "beam_fn_api_use_deprecated_read")) {
+        // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
+        Unbounded<KafkaRecord<K, V>> unbounded =
+            org.apache.beam.sdk.io.Read.from(
+                toBuilder().setKeyCoder(keyCoder).setValueCoder(valueCoder).build().makeSource());
 
-      PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
+        PTransform<PBegin, PCollection<KafkaRecord<K, V>>> transform = unbounded;
 
-      if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
-        transform =
-            unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
+        if (getMaxNumRecords() < Long.MAX_VALUE || getMaxReadTime() != null) {
+          transform =
+              unbounded.withMaxReadTime(getMaxReadTime()).withMaxNumRecords(getMaxNumRecords());
+        }
+
+        return input.getPipeline().apply(transform);
+      } else {
+        PCollection<KafkaSourceDescription> inputTopicPartitions;
+        inputTopicPartitions =
+            input
+                .getPipeline()
+                .apply(Impulse.create())
+                .apply(
+                    ParDo.of(
+                        new AutoValue_KafkaIO_Read_GenerateKafkaSourceDescription(
+                            getConsumerConfig(),
+                            getConsumerFactoryFn(),
+                            getTopics(),
+                            getTopicPartitions(),
+                            getStartReadTime())))
+                .setCoder(new KafkaSourceDescription.Coder());
+
+        // If extractOutputTimestampFn is not set, use processing time by default.
+        SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn;
+        if (getExtractOutputTimestampFn() != null) {
+          timestampFn = getExtractOutputTimestampFn();
+        } else {
+          timestampFn = ReadViaSDF.ExtractOutputTimestampFns.useProcessingTime();
+        }
+        ReadViaSDF<K, V> readTransform =
+            ReadViaSDF.<K, V>read()
+                .withConsumerConfigOverrides(getConsumerConfig())
+                .withOffsetConsumerConfigOverrides(getOffsetConsumerConfig())
+                .withConsumerFactoryFn(getConsumerFactoryFn())
+                .withKeyDeserializerProvider(getKeyDeserializerProvider())
+                .withValueDeserializerProvider(getValueDeserializerProvider())
+                .withExtractOutputTimestampFn(timestampFn);
+        if (isCommitOffsetsInFinalizeEnabled()) {
+          readTransform = readTransform.commitOffsets();
+        }
+
+        return inputTopicPartitions
+            .apply(readTransform)
+            .setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
       }
+    }
 
-      return input.getPipeline().apply(transform);
+    /**
+     * A DoFn which generates {@link KafkaSourceDescription} based on the configuration of {@link
+     * Read}.
+     */
+    @AutoValue
+    abstract static class GenerateKafkaSourceDescription
+        extends DoFn<byte[], KafkaSourceDescription> {
+
+      abstract Map<String, Object> getConsumerConfig();
+
+      abstract SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+          getConsumerFactoryFn();
+
+      @Nullable
+      abstract List<String> getTopics();
+
+      @Nullable
+      abstract List<TopicPartition> getTopicPartitions();
+
+      @Nullable
+      abstract Instant getStartReadTime();
+
+      @ProcessElement
+      public void processElement(OutputReceiver<KafkaSourceDescription> receiver) {
+        List<TopicPartition> partitions = new ArrayList<>(getTopicPartitions());
+        if (partitions.isEmpty()) {
+          try (Consumer<?, ?> consumer = getConsumerFactoryFn().apply(getConsumerConfig())) {
+            for (String topic : getTopics()) {
+              for (PartitionInfo p : consumer.partitionsFor(topic)) {
+                partitions.add(new TopicPartition(p.topic(), p.partition()));
+              }
+            }
+          }
+        }
+        partitions.stream()
+            .forEach(
+                topicPartition -> {
+                  if (getStartReadTime() != null) {
+                    receiver.output(
+                        KafkaSourceDescription.withStartReadTime(
+                            topicPartition, getStartReadTime()));
+                  } else {
+                    receiver.output(KafkaSourceDescription.of(topicPartition));
+                  }
+                });
+      }
     }
 
     private Coder<K> getKeyCoder(CoderRegistry coderRegistry) {
@@ -949,45 +1076,6 @@ public class KafkaIO {
             final SerializableFunction<KV<KeyT, ValueT>, OutT> fn) {
       return record -> fn.apply(record.getKV());
     }
-    ///////////////////////////////////////////////////////////////////////////////////////
-
-    /** A set of properties that are not required or don't make sense for our consumer. */
-    private static final Map<String, String> IGNORED_CONSUMER_PROPERTIES =
-        ImmutableMap.of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, "Set keyDeserializer instead",
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "Set valueDeserializer instead"
-            // "group.id", "enable.auto.commit", "auto.commit.interval.ms" :
-            //     lets allow these, applications can have better resume point for restarts.
-            );
-
-    // set config defaults
-    private static final Map<String, Object> DEFAULT_CONSUMER_PROPERTIES =
-        ImmutableMap.of(
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName(),
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-            ByteArrayDeserializer.class.getName(),
-
-            // Use large receive buffer. Once KAFKA-3135 is fixed, this _may_ not be required.
-            // with default value of of 32K, It takes multiple seconds between successful polls.
-            // All the consumer work is done inside poll(), with smaller send buffer size, it
-            // takes many polls before a 1MB chunk from the server is fully read. In my testing
-            // about half of the time select() inside kafka consumer waited for 20-30ms, though
-            // the server had lots of data in tcp send buffers on its side. Compared to default,
-            // this setting increased throughput by many fold (3-4x).
-            ConsumerConfig.RECEIVE_BUFFER_CONFIG,
-            512 * 1024,
-
-            // default to latest offset when we are not resuming.
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
-            "latest",
-            // disable auto commit of offsets. we don't require group_id. could be enabled by user.
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
-            false);
-
-    // default Kafka 0.9 Consumer supplier.
-    private static final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-        KAFKA_CONSUMER_FACTORY_FN = KafkaConsumer::new;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -1002,7 +1090,7 @@ public class KafkaIO {
             DisplayData.item("topicPartitions", Joiner.on(",").join(topicPartitions))
                 .withLabel("Topic Partition/s"));
       }
-      Set<String> ignoredConsumerPropertiesKeys = IGNORED_CONSUMER_PROPERTIES.keySet();
+      Set<String> ignoredConsumerPropertiesKeys = KafkaIOUtils.IGNORED_CONSUMER_PROPERTIES.keySet();
       for (Map.Entry<String, Object> conf : getConsumerConfig().entrySet()) {
         String key = conf.getKey();
         if (!ignoredConsumerPropertiesKeys.contains(key)) {
@@ -1054,29 +1142,6 @@ public class KafkaIO {
   ////////////////////////////////////////////////////////////////////////////////////////////////
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaIO.class);
-
-  /**
-   * Returns a new config map which is merge of current config and updates. Verifies the updates do
-   * not includes ignored properties.
-   */
-  private static Map<String, Object> updateKafkaProperties(
-      Map<String, Object> currentConfig,
-      Map<String, String> ignoredProperties,
-      Map<String, Object> updates) {
-
-    for (String key : updates.keySet()) {
-      checkArgument(
-          !ignoredProperties.containsKey(key),
-          "No need to configure '%s'. %s",
-          key,
-          ignoredProperties.get(key));
-    }
-
-    Map<String, Object> config = new HashMap<>(currentConfig);
-    config.putAll(updates);
-
-    return config;
-  }
 
   /** Static class, prevent instantiation. */
   private KafkaIO() {}
@@ -1194,7 +1259,8 @@ public class KafkaIO {
     @Deprecated
     public WriteRecords<K, V> updateProducerProperties(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(
+              getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
       return toBuilder().setProducerConfig(config).build();
     }
 
@@ -1206,7 +1272,8 @@ public class KafkaIO {
      */
     public WriteRecords<K, V> withProducerConfigUpdates(Map<String, Object> configUpdates) {
       Map<String, Object> config =
-          updateKafkaProperties(getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
+          KafkaIOUtils.updateKafkaProperties(
+              getProducerConfig(), IGNORED_PRODUCER_PROPERTIES, configUpdates);
       return toBuilder().setProducerConfig(config).build();
     }
 
