@@ -22,7 +22,7 @@ language: English
 summary: "This course provides a series of katas to get familiar with Apache Beam.\
   \ \n\nApache Beam website – https://beam.apache.org/"
 programming_language: Kotlin
-programming_language_version: 1.3.72
+programming_language_version: 1.3
 content:
 - Introduction
 - Core Transforms

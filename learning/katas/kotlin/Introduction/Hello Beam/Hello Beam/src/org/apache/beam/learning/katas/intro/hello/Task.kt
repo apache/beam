@@ -15,29 +15,26 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package org.apache.beam.learning.katas.intro.hello
 
-package org.apache.beam.learning.katas.intro.hello;
+import org.apache.beam.learning.katas.util.Log
+import org.apache.beam.sdk.Pipeline
+import org.apache.beam.sdk.options.PipelineOptionsFactory
+import org.apache.beam.sdk.transforms.Create
+import org.apache.beam.sdk.values.PCollection
 
-import java.io.Serializable;
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
-import org.junit.Test;
+object Task {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val options = PipelineOptionsFactory.fromArgs(*args).create()
+        val pipeline = Pipeline.create(options)
+        val output = setupPipeline(pipeline)
+        output.apply(Log.ofElements())
+        pipeline.run()
+    }
 
-public class TaskTest implements Serializable {
-
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
-
-  @Test
-  public void helloWorld() {
-    PCollection<String> results = Task.setupPipeline(testPipeline);
-
-    PAssert.that(results)
-        .containsInAnyOrder("Hello Beam");
-
-    testPipeline.run().waitUntilFinish();
-  }
-
+    @JvmStatic
+    fun setupPipeline(pipeline: Pipeline): PCollection<String> {
+        return pipeline.apply(Create.of("Hello Beam"))
+    }
 }
