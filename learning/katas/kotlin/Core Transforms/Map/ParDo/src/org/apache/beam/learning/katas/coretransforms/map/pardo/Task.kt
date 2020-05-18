@@ -26,23 +26,31 @@ import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
+    
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5))
+
         val output = applyTransform(numbers)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollection<Int> {
         return input.apply(ParDo.of(object : DoFn<Int, Int>() {
+
             @ProcessElement
             fun processElement(@Element number: Int, out: OutputReceiver<Int>) {
                 out.output(number * 10)
             }
+
         }))
     }
+
 }

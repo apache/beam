@@ -28,13 +28,18 @@ import org.apache.beam.sdk.values.TypeDescriptors
 import java.util.*
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val sentences = pipeline.apply(Create.of("Apache Beam", "Unified Batch and Streaming"))
+
         val output = applyTransform(sentences)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -44,8 +49,9 @@ object Task {
             FlatMapElements
                 .into(TypeDescriptors.strings())
                 .via(SerializableFunction<String, Iterable<String>> {
-                    sentence: String -> listOf(*sentence.split(" ").toTypedArray())
+                    sentence: String -> sentence.split(" ")
                 })
         )
     }
+
 }

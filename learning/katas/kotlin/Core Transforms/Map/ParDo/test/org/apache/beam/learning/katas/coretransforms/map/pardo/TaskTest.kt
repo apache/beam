@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -33,9 +34,11 @@ class TaskTest {
     fun `Core Transforms - Map - ParDo`() {
         val values = Create.of(1, 2, 3, 4, 5)
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50)
+
         testPipeline.run().waitUntilFinish()
     }
 }

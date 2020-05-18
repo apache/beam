@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -33,9 +34,12 @@ class TaskTest {
     fun `Core Transforms - Map - MapElements`() {
         val values = Create.of(10, 20, 30, 40, 50)
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(50, 100, 150, 200, 250)
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

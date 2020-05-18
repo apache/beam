@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -33,6 +34,7 @@ class TaskTest {
     fun `Core Transforms - Map - FlatMapElements`() {
         val values = Create.of("Apache Beam", "Unified Batch and Streaming")
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(
@@ -40,4 +42,5 @@ class TaskTest {
         )
         testPipeline.run().waitUntilFinish()
     }
+
 }

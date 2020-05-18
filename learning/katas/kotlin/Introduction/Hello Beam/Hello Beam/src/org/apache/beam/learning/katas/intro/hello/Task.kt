@@ -28,8 +28,11 @@ object Task {
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val output = setupPipeline(pipeline)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 

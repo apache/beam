@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -38,4 +39,5 @@ class TaskTest {
         PAssert.that(results).containsInAnyOrder("Hello", "Beam", "It", "is", "awesome")
         testPipeline.run().waitUntilFinish()
     }
+
 }

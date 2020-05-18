@@ -27,13 +27,18 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
+    
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val numbers = pipeline.apply(Create.of(10, 20, 30, 40, 50))
+
         val output = applyTransform(numbers)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -45,4 +50,5 @@ object Task {
                 .via(SerializableFunction { number: Int -> number * 5 })
         )
     }
+
 }

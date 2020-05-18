@@ -26,26 +26,35 @@ import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val sentences = pipeline.apply(Create.of("Hello Beam", "It is awesome"))
+
         val output = applyTransform(sentences)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
         return input.apply(ParDo.of(object : DoFn<String, String>() {
+
             @ProcessElement
             fun processElement(@Element sentence: String, out: OutputReceiver<String?>) {
                 val words = sentence.split(" ").toTypedArray()
+
                 for (word in words) {
                     out.output(word)
                 }
             }
+
         }))
     }
+
 }
