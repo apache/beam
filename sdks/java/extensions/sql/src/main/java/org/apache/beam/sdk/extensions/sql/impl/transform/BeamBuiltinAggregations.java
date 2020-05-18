@@ -101,7 +101,7 @@ public class BeamBuiltinAggregations {
         return Max.ofDoubles();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in MAX", fieldType));
+            String.format("[%s] is not supported in MAX", fieldType));
     }
   }
 
@@ -127,7 +127,7 @@ public class BeamBuiltinAggregations {
         return Min.ofDoubles();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in MIN", fieldType));
+            String.format("[%s] is not supported in MIN", fieldType));
     }
   }
 
@@ -150,7 +150,7 @@ public class BeamBuiltinAggregations {
         return new BigDecimalSum();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in SUM", fieldType));
+            String.format("[%s] is not supported in SUM", fieldType));
     }
   }
 
@@ -173,7 +173,7 @@ public class BeamBuiltinAggregations {
         return new BigDecimalAvg();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in AVG", fieldType));
+            String.format("[%s] is not supported in AVG", fieldType));
     }
   }
 
@@ -182,7 +182,7 @@ public class BeamBuiltinAggregations {
       return new BitOr();
     }
     throw new UnsupportedOperationException(
-        String.format("[%s] is not support in BIT_OR", fieldType));
+        String.format("[%s] is not supported in BIT_OR", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
