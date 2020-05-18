@@ -113,7 +113,8 @@ public class Sets {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> intersectDistinct(PCollection<T> rightCollection) {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> intersectDistinct(
+      PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, intersectDistinct());
   }
@@ -159,7 +160,7 @@ public class Sets {
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> intersectDistinct() {
+  public static <T> PTransform<PCollectionList<T>, PCollection<T>> intersectDistinct() {
     SerializableBiFunction<Long, Long, Long> intersectFn =
         (numberOfElementsinLeft, numberOfElementsinRight) ->
             (numberOfElementsinLeft > 0 && numberOfElementsinRight > 0) ? 1L : 0L;
@@ -200,7 +201,8 @@ public class Sets {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> intersectAll(PCollection<T> rightCollection) {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> intersectAll(
+      PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, intersectAll());
   }
@@ -244,7 +246,7 @@ public class Sets {
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> intersectAll() {
+  public static <T> PTransform<PCollectionList<T>, PCollection<T>> intersectAll() {
     return new SetImplCollections<>(Math::min);
   }
 
@@ -280,7 +282,8 @@ public class Sets {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> exceptDistinct(PCollection<T> rightCollection) {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> exceptDistinct(
+      PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, exceptDistinct());
   }
@@ -327,7 +330,7 @@ public class Sets {
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> exceptDistinct() {
+  public static <T> PTransform<PCollectionList<T>, PCollection<T>> exceptDistinct() {
     SerializableBiFunction<Long, Long, Long> exceptFn =
         (numberOfElementsinLeft, numberOfElementsinRight) ->
             numberOfElementsinLeft > 0 && numberOfElementsinRight == 0 ? 1L : 0L;
@@ -369,7 +372,8 @@ public class Sets {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> exceptAll(PCollection<T> rightCollection) {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> exceptAll(
+      PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, exceptAll());
   }
@@ -413,7 +417,7 @@ public class Sets {
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> exceptAll() {
+  public static <T> PTransform<PCollectionList<T>, PCollection<T>> exceptAll() {
     SerializableBiFunction<Long, Long, Long> exceptFn =
         (numberOfElementsinLeft, numberOfElementsinRight) ->
             Math.max(numberOfElementsinLeft - numberOfElementsinRight, 0L);
@@ -452,7 +456,8 @@ public class Sets {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> unionDistinct(PCollection<T> rightCollection) {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> unionDistinct(
+      PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, unionDistinct());
   }
@@ -494,7 +499,7 @@ public class Sets {
    * @param <T> the type of the elements in the input {@code PCollectionList<T>} and output {@code
    *     PCollection<T>}s.
    */
-  public static <T> SetImplCollections<T> unionDistinct() {
+  public static <T> PTransform<PCollectionList<T>, PCollection<T>> unionDistinct() {
     SerializableBiFunction<Long, Long, Long> unionFn =
         (numberOfElementsinLeft, numberOfElementsinRight) -> 1L;
     return new SetImplCollections<>(unionFn);
@@ -534,7 +539,8 @@ public class Sets {
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
    */
-  public static <T> SetImpl<T> unionAll(PCollection<T> rightCollection) {
+  public static <T> PTransform<PCollection<T>, PCollection<T>> unionAll(
+      PCollection<T> rightCollection) {
     checkNotNull(rightCollection, "rightCollection argument is null");
     return new SetImpl<>(rightCollection, unionAll());
   }
