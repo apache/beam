@@ -118,8 +118,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p><b>Important</b> When reading data from Snowflake, temporary CSV files are created on the
  * specified stagingBucketName in directory named `sf_copy_csv_[RANDOM CHARS]_[TIMESTAMP]`. This
- * directory and all the files are deleted automatically by default, but in case of failed pipeline
- * they will remain and have to be removed manually.
+ * directory and all the files are cleaned up automatically by default, but in case of failed pipeline
+ * they may remain and will have to be cleaned up manually.
  */
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
