@@ -953,6 +953,10 @@ public class SpannerIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      populateDisplayDataWithParamaters(builder);
+    }
+
+    private void populateDisplayDataWithParamaters(DisplayData.Builder builder) {
       getSpannerConfig().populateDisplayData(builder);
       builder.add(
           DisplayData.item("batchSizeBytes", getBatchSizeBytes())
@@ -1005,19 +1009,7 @@ public class SpannerIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      spec.getSpannerConfig().populateDisplayData(builder);
-      builder.add(
-          DisplayData.item("batchSizeBytes", spec.getBatchSizeBytes())
-              .withLabel("Max batch size in sytes"));
-      builder.add(
-          DisplayData.item("maxNumMutations", spec.getMaxNumMutations())
-              .withLabel("Max number of mutated cells in each batch"));
-      builder.add(
-          DisplayData.item("maxNumRows", spec.getMaxNumRows())
-              .withLabel("Max number of rows in each batch"));
-      builder.add(
-          DisplayData.item("groupingFactor", spec.getGroupingFactor())
-              .withLabel("Number of batches to sort over"));
+      spec.populateDisplayDataWithParamaters(builder);
     }
 
     @Override
