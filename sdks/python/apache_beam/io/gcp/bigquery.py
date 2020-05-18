@@ -271,6 +271,8 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
+from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -1390,6 +1392,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
     """
+    self._table = table
+    self._dataset = dataset
+    self._project = project
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     self.create_disposition = BigQueryDisposition.validate_create(
@@ -1516,6 +1521,73 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         tableSpec = '{}:{}'.format(self.table_reference.projectId, tableSpec)
       res['table'] = DisplayDataItem(tableSpec, label='Table')
     return res
+
+  def to_runner_api_parameter(self, context):
+    from apache_beam.internal import pickler
+
+    # It'd be nice to name these according to their actual
+    # names/positions in the orignal argument list, but such a
+    # transformation is currently irreversible given how
+    # remove_objects_from_args and insert_values_in_args
+    # are currently implemented.
+    def serialize(side_inputs):
+      return {(SIDE_INPUT_PREFIX + '%s') % ix:
+              si.to_runner_api(context).SerializeToString()
+              for ix,
+              si in enumerate(side_inputs)}
+
+    table_side_inputs = serialize(self.table_side_inputs)
+    schema_side_inputs = serialize(self.schema_side_inputs)
+
+    config = {
+        'table': self._table,
+        'dataset': self._dataset,
+        'project': self._project,
+        'schema': self.schema,
+        'create_disposition': self.create_disposition,
+        'write_disposition': self.write_disposition,
+        'kms_key': self.kms_key,
+        'batch_size': self.batch_size,
+        'max_file_size': self.max_file_size,
+        'max_files_per_bundle': self.max_files_per_bundle,
+        'custom_gcs_temp_location': self.custom_gcs_temp_location,
+        'method': self.method,
+        'insert_retry_strategy': self.insert_retry_strategy,
+        'additional_bq_parameters': self.additional_bq_parameters,
+        'table_side_inputs': table_side_inputs,
+        'schema_side_inputs': schema_side_inputs,
+        'triggering_frequency': self.triggering_frequency,
+        'validate': self._validate,
+        'temp_file_format': self._temp_file_format,
+    }
+    return 'beam:transform:write_to_big_query:v0', pickler.dumps(config)
+
+  @PTransform.register_urn('beam:transform:write_to_big_query:v0', bytes)
+  def from_runner_api(unused_ptransform, payload, context):
+    from apache_beam.internal import pickler
+    from apache_beam.portability.api.beam_runner_api_pb2 import SideInput
+
+    config = pickler.loads(payload)
+
+    def deserialize(side_inputs):
+      deserialized_side_inputs = {}
+      for k, v in side_inputs.items():
+        side_input = SideInput()
+        side_input.ParseFromString(v)
+        deserialized_side_inputs[k] = side_input
+
+      # This is an ordered list stored as a dict (see the comments in
+      # to_runner_api_parameter above).
+      indexed_side_inputs = [(
+          get_sideinput_index(tag),
+          pvalue.AsSideInput.from_runner_api(si, context)) for tag,
+                             si in deserialized_side_inputs.items()]
+      return [si for _, si in sorted(indexed_side_inputs)]
+
+    config['table_side_inputs'] = deserialize(config['table_side_inputs'])
+    config['schema_side_inputs'] = deserialize(config['schema_side_inputs'])
+
+    return WriteToBigQuery(**config)
 
 
 class _PassThroughThenCleanup(PTransform):
