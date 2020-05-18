@@ -23,6 +23,7 @@ buildscript {
     jodaTimeVersion = '2.10.4'
     slf4jVersion = '1.7.28'
     log4jSlf4jImpl = '2.12.1'
+    kotlinVersion = '1.3.72'
 
     assertjVersion = '3.13.2'
     hamcrestVersion = '2.1'
@@ -31,6 +32,10 @@ buildscript {
   
   repositories {
     mavenCentral()
+  }
+
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
   }
 }
 
@@ -45,6 +50,7 @@ def printOutput(def output) {
 subprojects {
   apply plugin: 'application'
   apply plugin: 'java'
+  apply plugin: 'kotlin'
 
   sourceCompatibility = 1.8
 
@@ -54,6 +60,7 @@ subprojects {
 
   dependencies {
     compile "org.apache.beam:beam-sdks-java-core:$beamVersion"
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
     runtime "org.apache.beam:beam-runners-direct-java:$beamVersion"
 
     compile "joda-time:joda-time:$jodaTimeVersion"
@@ -65,6 +72,15 @@ subprojects {
     testCompile "org.hamcrest:hamcrest-core:$hamcrestVersion"
     testCompile "org.hamcrest:hamcrest-library:$hamcrestVersion"
     testCompile "org.assertj:assertj-core:$assertjVersion"
+  }
+
+  compileKotlin.destinationDir = compileJava.destinationDir
+
+  compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+  }
+  compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
   }
 
   sourceSets {
