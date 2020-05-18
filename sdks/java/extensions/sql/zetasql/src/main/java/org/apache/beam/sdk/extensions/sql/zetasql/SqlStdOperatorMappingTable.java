@@ -213,11 +213,10 @@ public class SqlStdOperatorMappingTable {
           // .put("array_concat_agg")
           // .put("string_agg")
           // .put("bit_and")
-          // .put("bit_or")
           // .put("bit_xor")
           // .put("logical_and")
           // .put("logical_or")
-
+          .put("bit_or", SqlStdOperatorTable.BIT_OR)
           // built-in statistical aggregate function
           // .put("covar_pop", SqlStdOperatorTable.COVAR_POP)
           // .put("covar_samp", SqlStdOperatorTable.COVAR_SAMP)

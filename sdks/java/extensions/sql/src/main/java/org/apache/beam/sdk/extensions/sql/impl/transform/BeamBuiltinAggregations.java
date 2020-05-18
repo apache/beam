@@ -33,6 +33,7 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
@@ -56,6 +57,7 @@ public class BeamBuiltinAggregations {
               .put("SUM", BeamBuiltinAggregations::createSum)
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
+              .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -173,6 +175,14 @@ public class BeamBuiltinAggregations {
         throw new UnsupportedOperationException(
             String.format("[%s] is not support in AVG", fieldType));
     }
+  }
+
+  static CombineFn createBitOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitOr();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not support in BIT_OR", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -345,6 +355,37 @@ public class BeamBuiltinAggregations {
     @Override
     public BigDecimal toBigDecimal(BigDecimal record) {
       return record;
+    }
+  }
+
+  static class BitOr<T extends Number> extends CombineFn<T, BitOr.Accum, Long> {
+    static class Accum {
+      long val;
+    }
+
+    @Override
+    public Accum createAccumulator() {
+      return new Accum();
+    }
+
+    @Override
+    public Accum addInput(Accum accum, T input) {
+      accum.val = accum.val | input.longValue();
+      return accum;
+    }
+
+    @Override
+    public Accum mergeAccumulators(Iterable<Accum> accums) {
+      Accum merged = createAccumulator();
+      for (Accum accum : accums) {
+        merged.val = merged.val | accum.val;
+      }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Accum accum) {
+      return accum.val;
     }
   }
 }
