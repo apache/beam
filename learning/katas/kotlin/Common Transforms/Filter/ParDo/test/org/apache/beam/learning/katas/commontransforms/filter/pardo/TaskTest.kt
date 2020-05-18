@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -33,9 +34,12 @@ class TaskTest {
     fun `Common Transforms - Filter - ParDo`() {
         val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(1, 3, 5, 7, 9)
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

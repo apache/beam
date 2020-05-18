@@ -26,13 +26,18 @@ import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+
         val output = applyTransform(numbers)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -49,4 +54,5 @@ object Task {
                 })
         )
     }
+    
 }
