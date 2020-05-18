@@ -15,8 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.learning.katas.coretransforms.dofnadditionalparams
 
-package org.apache.beam.learning.katas.coretransforms.dofnadditionalparams;
+import org.apache.beam.sdk.Pipeline
+import org.apache.beam.sdk.options.PipelineOptionsFactory
 
-public class TaskTest {
+object Task {
+    @JvmStatic
+    fun main(args: Array<String>) {
+        val options = PipelineOptionsFactory.fromArgs(*args).create()
+        val pipeline = Pipeline.create(options)
+        pipeline.run()
+    }
 }
