@@ -25,6 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -34,9 +35,11 @@ class TaskTest {
         val fruits = testPipeline.apply("Fruits",
                 Create.of("apple", "banana", "cherry")
         )
+
         val countries = testPipeline.apply("Countries",
                 Create.of("australia", "brazil", "canada")
         )
+
         val results = applyTransform(fruits, countries)
 
         PAssert.that(results).containsInAnyOrder(
@@ -44,6 +47,8 @@ class TaskTest {
                 "WordsAlphabet{alphabet='b', fruit='banana', country='brazil'}",
                 "WordsAlphabet{alphabet='c', fruit='cherry', country='canada'}"
         )
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

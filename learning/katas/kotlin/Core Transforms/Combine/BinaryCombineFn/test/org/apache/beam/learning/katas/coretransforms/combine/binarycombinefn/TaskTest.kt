@@ -26,6 +26,7 @@ import org.junit.Test
 import java.math.BigInteger
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -37,9 +38,12 @@ class TaskTest {
                 BigInteger.valueOf(40), BigInteger.valueOf(50)
         )
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(BigInteger.valueOf(150))
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

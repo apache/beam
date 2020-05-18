@@ -28,6 +28,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -36,6 +37,7 @@ class TaskTest {
     fun `Core Transforms - GroupByKey - GroupByKey`() {
         val values = Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).satisfies(
@@ -45,6 +47,8 @@ class TaskTest {
                     KV.of("c", ImmutableList.of("car", "cheetah"))
                 )
         )
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

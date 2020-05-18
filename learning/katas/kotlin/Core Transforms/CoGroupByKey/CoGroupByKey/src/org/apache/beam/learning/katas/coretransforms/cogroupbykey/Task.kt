@@ -30,18 +30,24 @@ import org.apache.beam.sdk.values.TupleTag
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val fruits = pipeline.apply("Fruits",
                 Create.of("apple", "banana", "cherry")
         )
+
         val countries = pipeline.apply("Countries",
                 Create.of("australia", "brazil", "canada")
         )
+
         val output = applyTransform(fruits, countries)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -62,6 +68,7 @@ object Task {
                 .and(countriesTag, countriesPColl)
                 .apply(CoGroupByKey.create())
                 .apply(ParDo.of(object : DoFn<KV<String, CoGbkResult>, String>() {
+
                     @ProcessElement
                     fun processElement(@Element element: KV<String, CoGbkResult>, out: OutputReceiver<String>) {
                         val alphabet = element.key
@@ -70,6 +77,8 @@ object Task {
                         val country = coGbkResult.getOnly(countriesTag)
                         out.output(WordsAlphabet(alphabet, fruit, country).toString())
                     }
+
                 }))
     }
+    
 }

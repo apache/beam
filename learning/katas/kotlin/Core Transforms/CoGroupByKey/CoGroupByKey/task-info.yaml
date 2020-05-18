@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/Task.kt
   visible: true
   placeholders:
-  - offset: 2214
-    length: 1131
+  - offset: 2220
+    length: 1133
     placeholder_text: TODO()
 - name: src/org/apache/beam/learning/katas/coretransforms/cogroupbykey/WordsAlphabet.kt
   visible: true

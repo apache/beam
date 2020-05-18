@@ -29,15 +29,20 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val words = pipeline.apply(
                 Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
         )
+
         val output = applyTransform(words)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -51,4 +56,5 @@ object Task {
                 )
                 .apply(GroupByKey.create())
     }
+    
 }

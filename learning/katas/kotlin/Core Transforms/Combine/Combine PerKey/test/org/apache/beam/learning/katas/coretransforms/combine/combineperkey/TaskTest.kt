@@ -26,6 +26,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
+
     @Rule
     @Transient
     private val testPipeline = TestPipeline.create()
@@ -37,11 +38,14 @@ class TaskTest {
                 KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
         )
         val numbers = testPipeline.apply(values)
+
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(
                 KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
         )
+
         testPipeline.run().waitUntilFinish()
     }
+
 }

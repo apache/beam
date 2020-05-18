@@ -27,6 +27,7 @@ import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
+
     const val PLAYER_1 = "Player 1"
     const val PLAYER_2 = "Player 2"
     const val PLAYER_3 = "Player 3"
@@ -35,13 +36,17 @@ object Task {
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val scores = pipeline.apply(
                 Create.of(
                         KV.of(PLAYER_1, 15), KV.of(PLAYER_2, 10), KV.of(PLAYER_1, 100),
                         KV.of(PLAYER_3, 25), KV.of(PLAYER_2, 75)
                 ))
+
         val output = applyTransform(scores)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -51,8 +56,11 @@ object Task {
     }
 
     internal class SumIntBinaryCombineFn : BinaryCombineFn<Int>() {
+
         override fun apply(left: Int, right: Int): Int {
             return left + right
         }
+
     }
+
 }

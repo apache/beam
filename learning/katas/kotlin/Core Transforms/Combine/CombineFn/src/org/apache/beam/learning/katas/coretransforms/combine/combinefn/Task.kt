@@ -29,13 +29,18 @@ import java.io.Serializable
 import java.util.*
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
+
         val numbers = pipeline.apply(Create.of(10, 20, 50, 70, 90))
+
         val output = applyTransform(numbers)
+
         output.apply(Log.ofElements())
+
         pipeline.run()
     }
 
@@ -45,9 +50,11 @@ object Task {
     }
 
     internal class AverageFn : CombineFn<Int, Accum, Double>() {
+
         internal inner class Accum : Serializable {
             var sum = 0
             var count = 0
+
             override fun equals(o: Any?): Boolean {
                 if (this === o) {
                     return true
@@ -71,20 +78,25 @@ object Task {
         override fun addInput(accumulator: Accum, input: Int): Accum {
             accumulator.sum += input
             accumulator.count++
+
             return accumulator
         }
 
         override fun mergeAccumulators(accumulators: Iterable<Accum>): Accum {
             val merged = createAccumulator()
+
             for (accumulator in accumulators) {
                 merged.sum += accumulator.sum
                 merged.count += accumulator.count
             }
+
             return merged
         }
 
         override fun extractOutput(accumulator: Accum): Double {
             return accumulator.sum.toDouble() / accumulator.count
         }
+
     }
+
 }

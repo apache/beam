@@ -18,7 +18,9 @@
 package org.apache.beam.learning.katas.coretransforms.cogroupbykey
 
 class WordsAlphabet(private val alphabet: String?, private val fruit: String, private val country: String) {
+
     override fun toString(): String {
         return "WordsAlphabet{alphabet='$alphabet', fruit='$fruit', country='$country'}"
     }
+
 }
