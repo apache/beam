@@ -488,11 +488,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       // The stepContext is the thing that know if it is batch or streaming, hence
       // whether state needs to be cleaned up or will simply be discarded so the
       // timer can be ignored
+
+      Instant cleanupTime = earliestAllowableCleanupTime(window, windowingStrategy);
+      // if DoFn has OnWindowExpiration then set holds for system timer.
+      Instant cleanupOutputTimestamp =
+          fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
       stepContext.setStateCleanupTimer(
-          CLEANUP_TIMER_ID,
-          window,
-          windowCoder,
-          earliestAllowableCleanupTime(window, windowingStrategy));
+          CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
     }
   }
 

@@ -363,6 +363,7 @@ public class UserParDoFnFactoryTest {
             SimpleParDoFn.CLEANUP_TIMER_ID,
             firstWindow,
             IntervalWindow.getCoder(),
+            firstWindow.maxTimestamp().plus(1L),
             firstWindow.maxTimestamp().plus(1L));
   }
 

@@ -553,9 +553,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
         return null;
       }
       TimerData nextTimer = cachedFiredTimers.next();
-      // system timers ( GC timer) must be explicitly deleted when delivered, to release the implied
-      // hold.
-      systemTimerInternals.deleteTimer(nextTimer);
+      // system timers ( GC timer) must be explicitly deleted if only there is a hold.
+      // if timestamp is not equals to outputTimestamp then there should be a hold
+      if (!nextTimer.getTimestamp().equals(nextTimer.getOutputTimestamp())) {
+        systemTimerInternals.deleteTimer(nextTimer);
+      }
       return nextTimer;
     }
 
@@ -588,14 +590,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       timerInternals()
           .setTimer(
               StateNamespaces.window(windowCoder, window),
               timerId,
               "",
               cleanupTime,
-              cleanupTime.minus(1L),
+              cleanupOutputTimestamp,
               TimeDomain.EVENT_TIME);
     }
 
@@ -759,7 +765,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       throw new UnsupportedOperationException(
           String.format(
               "setStateCleanupTimer should not be called on %s, only on a system %s",

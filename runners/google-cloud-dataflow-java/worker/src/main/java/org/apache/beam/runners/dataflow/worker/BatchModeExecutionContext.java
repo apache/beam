@@ -400,14 +400,18 @@ public class BatchModeExecutionContext
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       timerInternals()
           .setTimer(
               StateNamespaces.window(windowCoder, window),
               timerId,
               "",
               cleanupTime,
-              cleanupTime.minus(1L),
+              cleanupOutputTimestamp,
               TimeDomain.EVENT_TIME);
     }
 
@@ -459,7 +463,11 @@ public class BatchModeExecutionContext
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       throw new UnsupportedOperationException(
           String.format(
               "setStateCleanupTimer should not be called on %s, only on a system %s",
