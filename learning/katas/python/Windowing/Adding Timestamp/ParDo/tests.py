@@ -43,11 +43,11 @@ def test_output():
     output = get_file_output()
 
     answers = [
-        "Event(1, book-order, 2020-03-04), timestamp='2020-03-03T16:00:00Z'",
-        "Event(2, pencil-order, 2020-03-05), timestamp='2020-03-04T16:00:00Z'",
-        "Event(3, paper-order, 2020-03-06), timestamp='2020-03-05T16:00:00Z'",
-        "Event(4, pencil-order, 2020-03-07), timestamp='2020-03-06T16:00:00Z'",
-        "Event(5, book-order, 2020-03-08), timestamp='2020-03-07T16:00:00Z'"
+        "Event(1, book-order, 2020-03-04 00:00:00+00:00), timestamp='2020-03-04T00:00:00Z'",
+        "Event(2, pencil-order, 2020-03-05 00:00:00+00:00), timestamp='2020-03-05T00:00:00Z'",
+        "Event(3, paper-order, 2020-03-06 00:00:00+00:00), timestamp='2020-03-06T00:00:00Z'",
+        "Event(4, pencil-order, 2020-03-07 00:00:00+00:00), timestamp='2020-03-07T00:00:00Z'",
+        "Event(5, book-order, 2020-03-08 00:00:00+00:00), timestamp='2020-03-08T00:00:00Z'"
     ]
 
     if all(line in output for line in answers):
