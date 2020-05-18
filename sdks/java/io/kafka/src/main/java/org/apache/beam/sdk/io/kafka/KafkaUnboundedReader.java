@@ -23,13 +23,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -123,7 +121,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     consumerPollThread.submit(this::consumerPollLoop);
 
     // offsetConsumer setup :
-    Map<String, Object> offsetConsumerConfig = getOffsetConsumerConfig();
+    Map<String, Object> offsetConsumerConfig =
+        KafkaIOUtils.getOffsetConsumerConfig(
+            name, spec.getOffsetConsumerConfig(), spec.getConsumerConfig());
 
     offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
     consumerSpEL.evaluateAssign(offsetConsumer, spec.getTopicPartitions());
@@ -364,23 +364,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     return name;
   }
 
-  // Maintains approximate average over last 1000 elements
-  private static class MovingAvg {
-    private static final int MOVING_AVG_WINDOW = 1000;
-    private double avg = 0;
-    private long numUpdates = 0;
-
-    void update(double quantity) {
-      numUpdates++;
-      avg += (quantity - avg) / Math.min(MOVING_AVG_WINDOW, numUpdates);
-    }
-
-    double get() {
-      return avg;
-    }
-  }
-
-  private static class TimestampPolicyContext extends TimestampPolicy.PartitionContext {
+  static class TimestampPolicyContext extends TimestampPolicy.PartitionContext {
 
     private final long messageBacklog;
     private final Instant backlogCheckTime;
@@ -412,8 +396,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
     private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
-    private MovingAvg avgRecordSize = new MovingAvg();
-    private MovingAvg avgOffsetGap = new MovingAvg(); // > 0 only when log compaction is enabled.
+    private KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
+    private KafkaIOUtils.MovingAvg avgOffsetGap =
+        new KafkaIOUtils.MovingAvg(); // > 0 only when log compaction is enabled.
 
     PartitionState(
         TopicPartition partition, long nextOffset, TimestampPolicy<K, V> timestampPolicy) {
@@ -685,39 +670,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     return backlogCount;
-  }
-
-  @VisibleForTesting
-  Map<String, Object> getOffsetConsumerConfig() {
-    Map<String, Object> offsetConsumerConfig = new HashMap<>(source.getSpec().getConsumerConfig());
-    offsetConsumerConfig.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
-
-    Object groupId = source.getSpec().getConsumerConfig().get(ConsumerConfig.GROUP_ID_CONFIG);
-    // override group_id and disable auto_commit so that it does not interfere with main consumer
-    String offsetGroupId =
-        String.format(
-            "%s_offset_consumer_%d_%s",
-            name, (new Random()).nextInt(Integer.MAX_VALUE), (groupId == null ? "none" : groupId));
-    offsetConsumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, offsetGroupId);
-
-    if (source.getSpec().getOffsetConsumerConfig() != null) {
-      offsetConsumerConfig.putAll(source.getSpec().getOffsetConsumerConfig());
-    }
-
-    // Force read isolation level to 'read_uncommitted' for offset consumer. This consumer
-    // fetches latest offset for two reasons : (a) to calculate backlog (number of records
-    // yet to be consumed) (b) to advance watermark if the backlog is zero. The right thing to do
-    // for (a) is to leave this config unchanged from the main config (i.e. if there are records
-    // that can't be read because of uncommitted records before them, they shouldn't
-    // ideally count towards backlog when "read_committed" is enabled. But (b)
-    // requires finding out if there are any records left to be read (committed or uncommitted).
-    // Rather than using two separate consumers we will go with better support for (b). If we do
-    // hit a case where a lot of records are not readable (due to some stuck transactions), the
-    // pipeline would report more backlog, but would not be able to consume it. It might be ok
-    // since CPU consumed on the workers would be low and will likely avoid unnecessary upscale.
-    offsetConsumerConfig.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_uncommitted");
-
-    return offsetConsumerConfig;
   }
 
   @Override
