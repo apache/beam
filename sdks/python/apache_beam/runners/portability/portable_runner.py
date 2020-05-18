@@ -40,6 +40,7 @@ from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.value_provider import ValueProvider
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
@@ -163,10 +164,19 @@ class JobServiceHandle(object):
     all_options = self.options.get_all_options(
         add_extra_args_fn=add_runner_options,
         retain_unknown_options=self._retain_unknown_options)
+
+    def convert_pipeline_option_value(v):
+      # convert int values: BEAM-5509
+      if type(v) == int:
+        return str(v)
+      elif isinstance(v, ValueProvider):
+        return convert_pipeline_option_value(
+            v.get()) if v.is_accessible() else None
+      return v
+
     # TODO: Define URNs for options.
-    # convert int values: https://issues.apache.org/jira/browse/BEAM-5509
     p_options = {
-        'beam:option:' + k + ':v1': (str(v) if type(v) == int else v)
+        'beam:option:' + k + ':v1': convert_pipeline_option_value(v)
         for k,
         v in all_options.items() if v is not None
     }
