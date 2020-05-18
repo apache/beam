@@ -62,6 +62,7 @@
 
 * --direct_num_workers=0 is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline ([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
 * Python SDK now has experimental support for SqlTransform ([BEAM-8603](https://issues.apache.org/jira/browse/BEAM-8603)).
+* Support for setting `--workerCacheMB` in Dataflow Streaming pipelines ([BEAM-9964](https://issues.apache.org/jira/browse/BEAM-9964))
 
 ## Breaking Changes
 
