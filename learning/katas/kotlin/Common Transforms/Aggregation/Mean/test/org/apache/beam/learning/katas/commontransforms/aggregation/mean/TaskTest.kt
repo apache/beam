@@ -15,32 +15,31 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
+package org.apache.beam.learning.katas.commontransforms.aggregation.mean
 
-package org.apache.beam.learning.katas.commontransforms.aggregation.max;
+import org.apache.beam.learning.katas.commontransforms.aggregation.mean.Task.applyTransform
+import org.apache.beam.sdk.testing.PAssert
+import org.apache.beam.sdk.testing.TestPipeline
+import org.apache.beam.sdk.transforms.Create
+import org.junit.Rule
+import org.junit.Test
 
-import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.PCollection;
-import org.junit.Rule;
-import org.junit.Test;
+class TaskTest {
 
-public class TaskTest {
+    @Rule
+    @Transient
+    private val testPipeline = TestPipeline.create()
 
-  @Rule
-  public final transient TestPipeline testPipeline = TestPipeline.create();
+    @Test
+    fun `Common Transforms - Aggregation - Mean`() {
+        val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        val numbers = testPipeline.apply(values)
 
-  @Test
-  public void max() {
-    Create.Values<Integer> values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-    PCollection<Integer> numbers = testPipeline.apply(values);
+        val results = applyTransform(numbers)
 
-    PCollection<Integer> results = Task.applyTransform(numbers);
+        PAssert.that(results).containsInAnyOrder(5.5)
 
-    PAssert.that(results)
-        .containsInAnyOrder(10);
-
-    testPipeline.run().waitUntilFinish();
-  }
+        testPipeline.run().waitUntilFinish()
+    }
 
 }
