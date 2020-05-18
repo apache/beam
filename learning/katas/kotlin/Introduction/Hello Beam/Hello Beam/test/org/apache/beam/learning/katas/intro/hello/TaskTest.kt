@@ -30,10 +30,10 @@ class TaskTest : Serializable {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun helloWorld() {
+    fun `Introduction - Hello Beam`() {
         val results = setupPipeline(testPipeline)
-        PAssert.that(results)
-                .containsInAnyOrder("Hello Beam")
+
+        PAssert.that(results).containsInAnyOrder("Hello Beam")
         testPipeline.run().waitUntilFinish()
     }
 }

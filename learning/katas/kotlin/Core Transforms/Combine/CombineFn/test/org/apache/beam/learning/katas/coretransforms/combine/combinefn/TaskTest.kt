@@ -30,12 +30,12 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun `Map - Combine - CombineFn`() {
+    fun `Core Transforms - Combine - CombineFn`() {
         val values = Create.of(10, 20, 50, 70, 90)
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder(48.0)
+
+        PAssert.that(results).containsInAnyOrder(48.0)
         testPipeline.run().waitUntilFinish()
     }
 }

@@ -30,12 +30,12 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun parDo() {
+    fun `Core Transforms - Map - ParDo`() {
         val values = Create.of(1, 2, 3, 4, 5)
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder(10, 20, 30, 40, 50)
+
+        PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50)
         testPipeline.run().waitUntilFinish()
     }
 }

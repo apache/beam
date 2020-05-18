@@ -30,12 +30,12 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun parDo_oneToMany() {
+    fun `Core Transforms - Map - ParDo OneToMany`() {
         val values = Create.of("Hello Beam", "It is awesome")
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder("Hello", "Beam", "It", "is", "awesome")
+
+        PAssert.that(results).containsInAnyOrder("Hello", "Beam", "It", "is", "awesome")
         testPipeline.run().waitUntilFinish()
     }
 }

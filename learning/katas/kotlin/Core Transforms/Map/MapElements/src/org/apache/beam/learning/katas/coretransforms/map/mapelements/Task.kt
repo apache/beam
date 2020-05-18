@@ -40,8 +40,9 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollection<Int> {
         return input.apply(
-                MapElements.into(TypeDescriptors.integers())
-                        .via(SerializableFunction { number: Int -> number * 5 })
+            MapElements
+                .into(TypeDescriptors.integers())
+                .via(SerializableFunction { number: Int -> number * 5 })
         )
     }
 }

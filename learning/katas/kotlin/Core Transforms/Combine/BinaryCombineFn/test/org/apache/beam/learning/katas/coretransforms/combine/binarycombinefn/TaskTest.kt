@@ -38,8 +38,8 @@ class TaskTest {
         )
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder(BigInteger.valueOf(150))
+
+        PAssert.that(results).containsInAnyOrder(BigInteger.valueOf(150))
         testPipeline.run().waitUntilFinish()
     }
 }

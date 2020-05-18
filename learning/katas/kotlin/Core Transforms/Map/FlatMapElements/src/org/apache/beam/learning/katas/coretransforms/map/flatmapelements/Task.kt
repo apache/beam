@@ -41,8 +41,11 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
         return input.apply(
-                FlatMapElements.into(TypeDescriptors.strings())
-                        .via(SerializableFunction<String, Iterable<String>> { sentence: String -> listOf(*sentence.split(" ").toTypedArray()) })
+            FlatMapElements
+                .into(TypeDescriptors.strings())
+                .via(SerializableFunction<String, Iterable<String>> {
+                    sentence: String -> listOf(*sentence.split(" ").toTypedArray())
+                })
         )
     }
 }

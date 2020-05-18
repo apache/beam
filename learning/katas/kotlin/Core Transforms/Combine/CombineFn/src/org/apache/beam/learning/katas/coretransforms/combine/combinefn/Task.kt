@@ -56,8 +56,7 @@ object Task {
                     return false
                 }
                 val accum = o as Accum
-                return sum == accum.sum &&
-                        count == accum.count
+                return sum == accum.sum && count == accum.count
             }
 
             override fun hashCode(): Int {

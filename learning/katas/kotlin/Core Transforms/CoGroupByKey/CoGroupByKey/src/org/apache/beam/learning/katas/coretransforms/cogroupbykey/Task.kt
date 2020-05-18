@@ -49,12 +49,14 @@ object Task {
     fun applyTransform(fruits: PCollection<String>, countries: PCollection<String>): PCollection<String> {
         val fruitsTag = TupleTag<String>()
         val countriesTag = TupleTag<String>()
+
         val mapToAlphabetKv = MapElements
                 .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
                 .via(SerializableFunction { word: String -> KV.of(word.substring(0, 1), word) })
+
         val fruitsPColl = fruits.apply("Fruit to KV", mapToAlphabetKv)
-        val countriesPColl = countries
-                .apply("Country to KV", mapToAlphabetKv)
+        val countriesPColl = countries.apply("Country to KV", mapToAlphabetKv)
+
         return KeyedPCollectionTuple
                 .of(fruitsTag, fruitsPColl)
                 .and(countriesTag, countriesPColl)

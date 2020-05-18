@@ -30,12 +30,14 @@ class TaskTest {
     private val testPipeline = TestPipeline.create()
 
     @Test
-    fun flatMapElements() {
+    fun `Core Transforms - Map - FlatMapElements`() {
         val values = Create.of("Apache Beam", "Unified Batch and Streaming")
         val numbers = testPipeline.apply(values)
         val results = applyTransform(numbers)
-        PAssert.that(results)
-                .containsInAnyOrder("Apache", "Beam", "Unified", "Batch", "and", "Streaming")
+
+        PAssert.that(results).containsInAnyOrder(
+                "Apache", "Beam", "Unified", "Batch", "and", "Streaming"
+        )
         testPipeline.run().waitUntilFinish()
     }
 }
