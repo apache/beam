@@ -28,23 +28,27 @@ collection, you use GroupByKey to collect all of the values associated with each
 **Kata:** Implement a 
 <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#GroupByKey">
 beam.GroupByKey</a> transform that groups words by its first letter.
+
 <div class="hint">
   Refer to <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#GroupByKey">
   beam.GroupByKey</a> to solve this problem.
 </div>
-<div class="hint">
-  Providing your ParDo a func with two return values, such as below, will transform a PCollection&lt;B&gt; 
-  into a PCollection&lt;KV&lt;A,B&gt;&gt;.
-  
-```
-func someFunc(element string) (uint8, string) {
-    c := // assign c the first character rune of element
-    return c, element 
-}
-``` 
-</div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#groupbykey">
     "GroupByKey"</a> section for more information.
+</div>
+
+<div class="hint">
+  To return as a KV, you can return two values from your DoFn. The first return value represents the Key, and 
+  the second return value represents the Value.  An example is shown below.
+  
+```
+func doFn(element string) (string, string) {
+    key := string(element[0])
+    value := element
+    return key, value
+}
+``` 
 </div>

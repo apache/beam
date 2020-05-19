@@ -27,27 +27,27 @@ func TestApplyTransform(t *testing.T) {
 	p, s := beam.NewPipelineWithRoot()
 	tests := []struct {
 		input beam.PCollection
-		want map[uint8][]string
+		want map[string][]string
 	}{
 		{
 			input: beam.Create(s, "apple", "ball", "car", "bear", "cheetah", "ant"),
-			want: map[uint8][]string{
-				97: []string{"apple", "ant"},
-				98: []string{"ball", "bear"},
-				99: []string{"car", "cheetah"},
+			want: map[string][]string{
+				"a": {"apple", "ant"},
+				"b": {"ball", "bear"},
+				"c": {"car", "cheetah"},
 			},
 		},
 	}
 	for _, tt := range tests {
 		got := task.ApplyTransform(s, tt.input)
-		beam.ParDo0(s, func(key uint8, values func(*string) bool) {
+		beam.ParDo0(s, func(key string, values func(*string) bool) {
 			var got []string
 			var v string
 			for values(&v) {
 				got = append(got, v)
 			}
 			if !reflect.DeepEqual(got, tt.want[key]) {
-				t.Errorf("ApplyTransform() = %v , want %v", got, tt.want[key])
+				t.Errorf("ApplyTransform() key = %s, got %v , want %v", key, got, tt.want[key])
 			}
 		}, got)
 		if err := ptest.Run(p); err != nil {
