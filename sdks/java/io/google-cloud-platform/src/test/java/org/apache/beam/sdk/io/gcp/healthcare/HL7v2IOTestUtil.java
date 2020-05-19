@@ -38,11 +38,8 @@ import org.joda.time.Instant;
 class HL7v2IOTestUtil {
   public static final long HL7V2_INDEXING_TIMEOUT_MINUTES = 10L;
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
-  // TODO(jaketf) switch back to official dataset
   public static final String HEALTHCARE_DATASET_TEMPLATE =
-      "projects/%s/locations/us-central1/datasets/jferriero-integration-testing";
-  // public static final String HEALTHCARE_DATASET_TEMPLATE =
-  //     "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
+      "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
 
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
