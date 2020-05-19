@@ -95,6 +95,7 @@ task validatesRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'

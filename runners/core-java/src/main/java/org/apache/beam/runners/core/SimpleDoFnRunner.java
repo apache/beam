@@ -241,6 +241,12 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
   }
 
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    invoker.invokeOnWindowExpiration(
+        new OnWindowExpirationArgumentProvider<>(window, timestamp, key));
+  }
+
   private RuntimeException wrapUserCodeException(Throwable t) {
     throw UserCodeException.wrapIf(!isSystemDoFn(), t);
   }
@@ -823,6 +829,210 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
       }
+    }
+
+    @Override
+    public PipelineOptions getPipelineOptions() {
+      return options;
+    }
+
+    @Override
+    public void output(OutputT output) {
+      output(mainOutputTag, output);
+    }
+
+    @Override
+    public void outputWithTimestamp(OutputT output, Instant timestamp) {
+      outputWithTimestamp(mainOutputTag, output, timestamp);
+    }
+
+    @Override
+    public <T> void output(TupleTag<T> tag, T output) {
+      outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
+      outputWindowedValue(tag, WindowedValue.of(output, timestamp, window(), PaneInfo.NO_FIRING));
+    }
+
+    @Override
+    public BundleFinalizer bundleFinalizer() {
+      throw new UnsupportedOperationException(
+          "Bundle finalization is not supported in non-portable pipelines.");
+    }
+  }
+
+  /**
+   * A concrete implementation of {@link DoFnInvoker.ArgumentProvider} used for running a {@link
+   * DoFn} on window expiration.
+   */
+  private class OnWindowExpirationArgumentProvider<KeyT>
+      extends DoFn<InputT, OutputT>.OnWindowExpirationContext
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+    private final BoundedWindow window;
+    private final Instant timestamp;
+    private final KeyT key;
+    /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
+    private @Nullable StateNamespace namespace;
+
+    /**
+     * The state namespace for this context.
+     *
+     * <p>Any call to this method when more than one window is present will crash; this represents a
+     * bug in the runner or the {@link DoFnSignature}, since values must be in exactly one window
+     * when state or timers are relevant.
+     */
+    private StateNamespace getNamespace() {
+      if (namespace == null) {
+        namespace = StateNamespaces.window(windowCoder, window);
+      }
+      return namespace;
+    }
+
+    private OnWindowExpirationArgumentProvider(BoundedWindow window, Instant timestamp, KeyT key) {
+      fn.super();
+      this.window = window;
+      this.timestamp = timestamp;
+      this.key = key;
+    }
+
+    @Override
+    public BoundedWindow window() {
+      return window;
+    }
+
+    @Override
+    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access paneInfo outside of @ProcessElement methods.");
+    }
+
+    @Override
+    public PipelineOptions pipelineOptions() {
+      return getPipelineOptions();
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("StartBundleContext parameters are not supported.");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("FinishBundleContext parameters are not supported.");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.ProcessContext processContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("ProcessContext parameters are not supported.");
+    }
+
+    @Override
+    public InputT element(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public Object sideInput(String tagId) {
+      throw new UnsupportedOperationException("SideInput parameters are not supported.");
+    }
+
+    @Override
+    public Object schemaElement(int index) {
+      throw new UnsupportedOperationException("Element parameters are not supported.");
+    }
+
+    @Override
+    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+      return timestamp;
+    }
+
+    @Override
+    public String timerId(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("Timer parameters are not supported.");
+    }
+
+    @Override
+    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access time domain outside of @ProcessTimer method.");
+    }
+
+    @Override
+    public KeyT key() {
+      return key;
+    }
+
+    @Override
+    public OutputReceiver<OutputT> outputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedReceiver(this, mainOutputTag);
+    }
+
+    @Override
+    public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.rowReceiver(this, mainOutputTag, mainOutputSchemaCoder);
+    }
+
+    @Override
+    public MultiOutputReceiver taggedOutputReceiver(DoFn<InputT, OutputT> doFn) {
+      return DoFnOutputReceivers.windowedMultiReceiver(this, outputCoders);
+    }
+
+    @Override
+    public Object restriction() {
+      throw new UnsupportedOperationException("@Restriction parameters are not supported.");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException("OnTimerContext parameters are not supported.");
+    }
+
+    @Override
+    public RestrictionTracker<?, ?> restrictionTracker() {
+      throw new UnsupportedOperationException("RestrictionTracker parameters are not supported.");
+    }
+
+    @Override
+    public Object watermarkEstimatorState() {
+      throw new UnsupportedOperationException(
+          "@WatermarkEstimatorState parameters are not supported.");
+    }
+
+    @Override
+    public WatermarkEstimator<?> watermarkEstimator() {
+      throw new UnsupportedOperationException("WatermarkEstimator parameters are not supported.");
+    }
+
+    @Override
+    public State state(String stateId, boolean alwaysFetched) {
+      try {
+        StateSpec<?> spec =
+            (StateSpec<?>) signature.stateDeclarations().get(stateId).field().get(fn);
+        State state =
+            stepContext
+                .stateInternals()
+                .state(getNamespace(), StateTags.tagForSpec(stateId, (StateSpec) spec));
+        if (alwaysFetched) {
+          return (State) ((ReadableState) state).readLater();
+        } else {
+          return state;
+        }
+      } catch (IllegalAccessException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    @Override
+    public Timer timer(String timerId) {
+      throw new UnsupportedOperationException("Timer parameters are not supported.");
+    }
+
+    @Override
+    public TimerMap timerFamily(String timerFamilyId) {
+      throw new UnsupportedOperationException("TimerFamily parameters are not supported.");
     }
 
     @Override

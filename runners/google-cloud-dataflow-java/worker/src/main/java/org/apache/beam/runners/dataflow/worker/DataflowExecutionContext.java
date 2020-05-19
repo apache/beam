@@ -190,7 +190,11 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     public abstract <W extends BoundedWindow> TimerData getNextFiredTimer(Coder<W> windowCoder);
 
     public abstract <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime);
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp);
 
     public abstract DataflowStepContext namespacedToUser();
   }
