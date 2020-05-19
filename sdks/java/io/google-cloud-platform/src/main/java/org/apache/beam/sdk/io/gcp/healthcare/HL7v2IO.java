@@ -436,7 +436,7 @@ public class HL7v2IO {
    * (default daily) to achieve parallelization in separate messages.list calls.
    *
    * <p>This will make more queries than necessary when used with very small data sets. (or very
-   * sparse data sets in the sendTime dimension).
+   * sparse data sets in the {@code sendTime} dimension).
    *
    * <p>If you have large but sparse data (e.g. hours between consecutive message sendTimes) and
    * know something about the time ranges where you have no data, consider using multiple instances
