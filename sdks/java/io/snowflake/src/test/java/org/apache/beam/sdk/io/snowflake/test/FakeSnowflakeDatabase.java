@@ -46,6 +46,14 @@ public class FakeSnowflakeDatabase implements Serializable {
     return FakeSnowflakeDatabase.tables.get(table);
   }
 
+  public static List<String> runQuery(String query) throws SnowflakeSQLException {
+    if (query.startsWith("SELECT * FROM ")) {
+      String tableName = query.replace("SELECT * FROM ", "");
+      return getElements(tableName);
+    }
+    throw new SnowflakeSQLException(null, "SQL compilation error: Invalid query", query, 0);
+  }
+
   public static List<Long> getElementsAsLong(String table) throws SnowflakeSQLException {
     List<String> elements = getElements(table);
     return elements.stream().map(Long::parseLong).collect(Collectors.toList());

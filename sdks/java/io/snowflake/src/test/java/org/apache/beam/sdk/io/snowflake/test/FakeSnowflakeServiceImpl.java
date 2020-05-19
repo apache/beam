@@ -41,7 +41,12 @@ public class FakeSnowflakeServiceImpl implements SnowflakeService {
       String stagingBucketName)
       throws SQLException {
 
-    writeToFile(stagingBucketName, FakeSnowflakeDatabase.getElements(table));
+    if (table != null) {
+      writeToFile(stagingBucketName, FakeSnowflakeDatabase.getElements(table));
+    }
+    if (query != null) {
+      writeToFile(stagingBucketName, FakeSnowflakeDatabase.runQuery(query));
+    }
 
     return String.format("./%s/*", stagingBucketName);
   }
