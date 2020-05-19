@@ -29,7 +29,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.joda.time.Duration
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -47,14 +46,11 @@ object Task {
     @JvmStatic
     fun applyTransform(events: PCollection<String>): PCollection<Long> {
         return events
-                .apply(
-                        Window
-                                .into<String>(FixedWindows.of(Duration.standardSeconds(5)))
-                                .triggering(AfterWatermark.pastEndOfWindow())
-                                .withAllowedLateness(Duration.ZERO)
-                                .discardingFiredPanes()
+                .apply(Window.into<String>(FixedWindows.of(Duration.standardSeconds(5)))
+                        .triggering(AfterWatermark.pastEndOfWindow())
+                        .withAllowedLateness(Duration.ZERO)
+                        .discardingFiredPanes()
                 )
                 .apply(Combine.globally(Count.combineFn<String>()).withoutDefaults())
     }
-
 }

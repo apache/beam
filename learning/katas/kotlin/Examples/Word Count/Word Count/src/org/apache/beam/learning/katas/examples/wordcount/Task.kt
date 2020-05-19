@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.TypeDescriptors
 import java.util.*
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val lines = arrayOf(
@@ -58,13 +57,10 @@ object Task {
                 )
                 .apply(Count.perElement())
                 .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
-
                     @ProcessElement
-                    fun processElement(
-                            @Element element: KV<String, Long>, out: OutputReceiver<String>) {
+                    fun processElement(@Element element: KV<String, Long>, out: OutputReceiver<String>) {
                         out.output(element.key.toString() + ":" + element.value)
                     }
-
                 }))
     }
 }

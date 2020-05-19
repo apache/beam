@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.TypeDescriptors
 import org.joda.time.Duration
 
 class GenerateEvent : PTransform<PBegin, PCollection<String>>() {
-
     companion object {
         fun everySecond(): GenerateEvent {
             return GenerateEvent()
@@ -39,5 +38,4 @@ class GenerateEvent : PTransform<PBegin, PCollection<String>>() {
                 .apply(GenerateSequence.from(1).withRate(1, Duration.standardSeconds(1)))
                 .apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction { "event" }))
     }
-
 }

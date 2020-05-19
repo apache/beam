@@ -29,13 +29,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Triggers - Event Time Triggers - Event Time Triggers`() {
+    fun triggers_event_time_triggers_event_time_triggers() {
         val testStream = TestStream.create(SerializableCoder.of(String::class.java))
                 .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")))
                 .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:01+00:00")))
@@ -65,5 +64,4 @@ class TaskTest {
     private fun createIntervalWindow(startStr: String, endStr: String): IntervalWindow {
         return IntervalWindow(Instant.parse(startStr), Instant.parse(endStr))
     }
-
 }

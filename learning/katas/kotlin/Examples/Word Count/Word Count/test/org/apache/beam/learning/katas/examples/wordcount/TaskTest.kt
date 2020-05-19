@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Examples - Word Count - Word Count`() {
+    fun examples_word_count_word_count() {
         val lines = Create.of(
                 "apple orange grape banana apple banana",
                 "banana orange banana papaya"
@@ -51,5 +50,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

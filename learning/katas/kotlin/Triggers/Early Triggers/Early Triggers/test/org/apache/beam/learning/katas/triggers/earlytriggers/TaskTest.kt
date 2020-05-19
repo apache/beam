@@ -31,13 +31,12 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Triggers - Early Triggers - Early Triggers`() {
+    fun triggers_early_triggers_early_triggers() {
         val testStream = TestStream.create(SerializableCoder.of(String::class.java))
                 .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(0)))
                 .advanceProcessingTime(Duration.standardSeconds(1))
@@ -62,5 +61,4 @@ class TaskTest : Serializable {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }
