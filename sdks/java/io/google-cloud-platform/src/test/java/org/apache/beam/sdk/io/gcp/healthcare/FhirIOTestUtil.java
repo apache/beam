@@ -21,7 +21,6 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.util.Preconditions;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -50,7 +49,6 @@ class FhirIOTestUtil {
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
-    Preconditions.checkNotNull(fhirJsons);
     return Arrays.stream(fhirJsons)
         .map(File::toPath)
         .map(
