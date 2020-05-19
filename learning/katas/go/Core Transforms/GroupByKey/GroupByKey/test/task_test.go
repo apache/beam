@@ -18,8 +18,8 @@ package test
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
+	"github.com/google/go-cmp/cmp"
 	"groupbykey/pkg/task"
-	"reflect"
 	"testing"
 )
 
@@ -46,7 +46,7 @@ func TestApplyTransform(t *testing.T) {
 			for values(&v) {
 				got = append(got, v)
 			}
-			if !reflect.DeepEqual(got, tt.want[key]) {
+			if !cmp.Equal(got, tt.want[key]) {
 				t.Errorf("ApplyTransform() key = %s, got %v , want %v", key, got, tt.want[key])
 			}
 		}, got)

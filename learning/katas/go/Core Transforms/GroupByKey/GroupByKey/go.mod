@@ -20,7 +20,7 @@ go 1.14
 require (
 	github.com/apache/beam v2.20.0+incompatible
 	github.com/golang/protobuf v1.4.2 // indirect
-	github.com/googleapis/gax-go v1.0.3 // indirect
+	github.com/google/go-cmp v0.4.1
 	google.golang.org/api v0.24.0 // indirect
 	google.golang.org/grpc v1.29.1 // indirect
 )
