@@ -953,9 +953,23 @@ public class SpannerIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      populateDisplayDataWithParamaters(builder);
+    }
+
+    private void populateDisplayDataWithParamaters(DisplayData.Builder builder) {
       getSpannerConfig().populateDisplayData(builder);
       builder.add(
-          DisplayData.item("batchSizeBytes", getBatchSizeBytes()).withLabel("Batch Size in Bytes"));
+          DisplayData.item("batchSizeBytes", getBatchSizeBytes())
+              .withLabel("Max batch size in bytes"));
+      builder.add(
+          DisplayData.item("maxNumMutations", getMaxNumMutations())
+              .withLabel("Max number of mutated cells in each batch"));
+      builder.add(
+          DisplayData.item("maxNumRows", getMaxNumRows())
+              .withLabel("Max number of rows in each batch"));
+      builder.add(
+          DisplayData.item("groupingFactor", getGroupingFactor())
+              .withLabel("Number of batches to sort over"));
     }
   }
 
@@ -990,6 +1004,12 @@ public class SpannerIO {
 
     public WriteGrouped(Write spec) {
       this.spec = spec;
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      spec.populateDisplayDataWithParamaters(builder);
     }
 
     @Override

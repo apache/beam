@@ -589,20 +589,50 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  public void displayData() throws Exception {
+  public void displayDataWrite() throws Exception {
     SpannerIO.Write write =
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withBatchSizeBytes(123);
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100);
 
     DisplayData data = DisplayData.from(write);
-    assertThat(data.items(), hasSize(4));
+    assertThat(data.items(), hasSize(7));
     assertThat(data, hasDisplayItem("projectId", "test-project"));
     assertThat(data, hasDisplayItem("instanceId", "test-instance"));
     assertThat(data, hasDisplayItem("databaseId", "test-database"));
     assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", 100));
+  }
+
+  @Test
+  public void displayDataWriteGrouped() throws Exception {
+    SpannerIO.WriteGrouped writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100)
+            .grouped();
+
+    DisplayData data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("projectId", "test-project"));
+    assertThat(data, hasDisplayItem("instanceId", "test-instance"));
+    assertThat(data, hasDisplayItem("databaseId", "test-database"));
+    assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", 100));
   }
 
   @Test
