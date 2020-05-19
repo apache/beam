@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -55,7 +54,7 @@ object Task {
                             } else {
                                 1
                             }
-                        } as PartitionFn<Int>))
+                        } as PartitionFn<Int>)
+                )
     }
-
 }

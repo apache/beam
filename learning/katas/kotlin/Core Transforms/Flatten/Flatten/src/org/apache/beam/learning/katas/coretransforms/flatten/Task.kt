@@ -26,7 +26,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -49,11 +48,9 @@ object Task {
 
     @JvmStatic
     fun applyTransform(words1: PCollection<String>?, words2: PCollection<String>?): PCollection<String> {
-
         return PCollectionList
                 .of(words1)
                 .and(words2)
                 .apply(Flatten.pCollections())
     }
-    
 }

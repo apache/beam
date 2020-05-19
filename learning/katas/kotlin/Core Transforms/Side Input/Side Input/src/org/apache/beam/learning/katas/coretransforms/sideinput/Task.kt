@@ -71,7 +71,6 @@ object Task {
                        citiesToCountriesView: PCollectionView<Map<String, String>>): PCollection<Person> {
 
         return persons.apply(ParDo.of(object : DoFn<Person, Person>() {
-
             @ProcessElement
             fun processElement(@Element person: Person, out: OutputReceiver<Person>, context: ProcessContext) {
                 val citiesToCountries: Map<String, String> = context.sideInput(citiesToCountriesView)
@@ -80,8 +79,6 @@ object Task {
 
                 out.output(Person(person.name, city, country))
             }
-
         }).withSideInputs(citiesToCountriesView))
     }
-
 }

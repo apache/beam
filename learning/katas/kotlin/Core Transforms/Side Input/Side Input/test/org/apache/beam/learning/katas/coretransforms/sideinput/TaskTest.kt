@@ -27,13 +27,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Side Input - Side Input`() {
+    fun core_transforms_side_input_side_input() {
         val citiesToCountries = testPipeline.apply("Cities and Countries",
                 Create.of(
                         KV.of("Beijing", "China"),
@@ -66,5 +65,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

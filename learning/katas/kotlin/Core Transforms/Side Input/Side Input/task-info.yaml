@@ -9,7 +9,7 @@ files:
     length: 24
     placeholder_text: TODO()
   - offset: 2897
-    length: 472
+    length: 470
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/sideinput/TaskTest.kt
   visible: false

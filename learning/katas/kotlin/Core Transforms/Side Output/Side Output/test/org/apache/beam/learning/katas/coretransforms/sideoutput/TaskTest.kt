@@ -27,13 +27,12 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Side Output - Side Output`() {
+    fun core_transforms_side_output_side_output() {
         val numbers = testPipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
 
         val numBelow100Tag = object: TupleTag<Int>() {}
@@ -47,5 +46,4 @@ class TaskTest : Serializable {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

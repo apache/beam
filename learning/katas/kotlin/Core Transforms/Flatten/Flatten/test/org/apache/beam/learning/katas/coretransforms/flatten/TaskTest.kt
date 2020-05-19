@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Flatten - Flatten`() {
+    fun core_transforms_flatten_flatten() {
         val wordsStartingWithA = testPipeline.apply("Words starting with A",
                 Create.of("apple", "ant", "arrow"))
         val wordsStartingWithB = testPipeline.apply("Words starting with B",

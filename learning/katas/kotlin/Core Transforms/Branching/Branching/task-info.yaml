@@ -3,11 +3,11 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/branching/Task.kt
   visible: true
   placeholders:
-  - offset: 2096
+  - offset: 2063
     length: 93
     placeholder_text: TODO()
-  - offset: 2333
-    length: 105
+  - offset: 2275
+    length: 97
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/branching/TaskTest.kt
   visible: false

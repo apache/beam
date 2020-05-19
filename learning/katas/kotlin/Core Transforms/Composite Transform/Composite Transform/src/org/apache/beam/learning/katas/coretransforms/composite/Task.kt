@@ -26,7 +26,6 @@ import org.apache.beam.sdk.values.TypeDescriptors
 import java.util.*
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -41,26 +40,21 @@ object Task {
     }
 
     internal class ExtractAndMultiplyNumbers : PTransform<PCollection<String>, PCollection<Int>>() {
-
         override fun expand(input: PCollection<String>): PCollection<Int> {
             return input
                     .apply(ParDo.of(object : DoFn<String, Int>() {
-
                         @ProcessElement
                         fun processElement(@Element numbers: String, out: OutputReceiver<Int>) {
-                            Arrays
-                                    .stream(numbers.split(",")
+                            Arrays.stream(numbers.split(",")
                                     .toTypedArray())
                                     .forEach { numStr: String -> out.output(numStr.toInt()) }
                         }
                     }))
-                    .apply(
-                            MapElements
-                                    .into(TypeDescriptors.integers())
-                                    .via(SerializableFunction { number: Int -> number * 10 })
+                    .apply(MapElements
+                            .into(TypeDescriptors.integers())
+                            .via(SerializableFunction { number: Int -> number * 10 })
                     )
         }
-
     }
 
 }

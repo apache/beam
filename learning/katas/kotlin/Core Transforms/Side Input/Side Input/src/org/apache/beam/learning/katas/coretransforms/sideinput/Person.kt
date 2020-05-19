@@ -20,8 +20,7 @@ package org.apache.beam.learning.katas.coretransforms.sideinput
 import java.io.Serializable
 import java.util.*
 
-class Person(val name: String?, val city: String?, val country: String? = null) : Serializable {
-
+class Person(val name: String?, val city: String?, private val country: String? = null) : Serializable {
     override fun equals(o: Any?): Boolean {
         if (this === o) return true
         if (o == null || javaClass != o.javaClass) return false
@@ -38,5 +37,4 @@ class Person(val name: String?, val city: String?, val country: String? = null) 
     override fun toString(): String {
         return "Person{name='$name', city='$city', country='$country'}"
     }
-
 }

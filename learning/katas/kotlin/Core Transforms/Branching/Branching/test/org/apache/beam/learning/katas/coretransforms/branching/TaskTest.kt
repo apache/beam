@@ -26,13 +26,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Branching - Branching`() {
+    fun core_transforms_branching_branching() {
         val values = Create.of(1, 2, 3, 4, 5)
         val numbers = testPipeline.apply(values)
 
@@ -45,5 +44,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }
