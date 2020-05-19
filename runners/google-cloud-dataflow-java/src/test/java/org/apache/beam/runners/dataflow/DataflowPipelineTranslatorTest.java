@@ -39,6 +39,7 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.Step;
 import com.google.api.services.dataflow.model.WorkerPool;
+import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -50,6 +51,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ArtifactInformation;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
@@ -915,7 +917,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   @Test
-  public void testPortablePipelineContainsExpectedCapabilities() throws Exception {
+  public void testPortablePipelineContainsExpectedDependenciesAndCapabilities() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setExperiments(Arrays.asList("beam_fn_api"));
     DataflowRunner runner = DataflowRunner.fromOptions(options);
@@ -938,13 +940,37 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
     runner.replaceTransforms(pipeline);
 
-    JobSpecification result = translator.translate(pipeline, runner, Collections.emptyList());
+    File file1 = File.createTempFile("file1-", ".txt");
+    file1.deleteOnExit();
+    File file2 = File.createTempFile("file2-", ".txt");
+    file2.deleteOnExit();
+    SdkComponents sdkComponents = SdkComponents.create();
+    sdkComponents.registerEnvironment(
+        Environments.createDockerEnvironment(DataflowRunner.getContainerImageForJob(options))
+            .toBuilder()
+            .addAllDependencies(
+                Environments.getArtifacts(
+                    ImmutableList.of("file1.txt=" + file1, "file2.txt=" + file2)))
+            .addAllCapabilities(Environments.getJavaCapabilities())
+            .build());
+
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);
+
+    JobSpecification result =
+        translator.translate(
+            pipeline, pipelineProto, sdkComponents, runner, Collections.emptyList());
 
     Components componentsProto = result.getPipelineProto().getComponents();
     assertThat(
         Iterables.getOnlyElement(componentsProto.getEnvironmentsMap().values())
             .getCapabilitiesList(),
         containsInAnyOrder(Environments.getJavaCapabilities().toArray(new String[0])));
+    assertThat(
+        Iterables.getOnlyElement(componentsProto.getEnvironmentsMap().values())
+            .getDependenciesList(),
+        containsInAnyOrder(
+            Environments.getArtifacts(ImmutableList.of("file1.txt=" + file1, "file2.txt=" + file2))
+                .toArray(new ArtifactInformation[0])));
   }
 
   @Test
