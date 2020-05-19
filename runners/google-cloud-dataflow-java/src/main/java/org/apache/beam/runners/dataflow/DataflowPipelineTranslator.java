@@ -183,7 +183,10 @@ public class DataflowPipelineTranslator {
     String workerHarnessContainerImageURL =
         DataflowRunner.getContainerImageForJob(options.as(DataflowPipelineOptions.class));
     RunnerApi.Environment defaultEnvironmentForDataflow =
-        Environments.createDockerEnvironment(workerHarnessContainerImageURL);
+        Environments.createDockerEnvironment(workerHarnessContainerImageURL)
+            .toBuilder()
+            .addAllCapabilities(Environments.getJavaCapabilities())
+            .build();
     sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
 
     RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(pipeline, sdkComponents, true);

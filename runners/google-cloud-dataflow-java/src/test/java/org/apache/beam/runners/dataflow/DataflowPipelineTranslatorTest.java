@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.instanceOf;
@@ -53,6 +54,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.DockerPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Environment;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -787,6 +789,39 @@ public class DataflowPipelineTranslatorTest implements Serializable {
                 Structs.getObject(
                     splittableParDo.getProperties(), PropertyNames.RESTRICTION_ENCODING));
     assertEquals(expectedRestrictionAndStateCoder, restrictionCoder);
+  }
+
+  @Test
+  public void testPortablePipelineContainsExpectedCapabilities() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setExperiments(Arrays.asList("beam_fn_api"));
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<String> windowedInput =
+        pipeline
+            .apply(Impulse.create())
+            .apply(
+                MapElements.via(
+                    new SimpleFunction<byte[], String>() {
+                      @Override
+                      public String apply(byte[] input) {
+                        return "";
+                      }
+                    }))
+            .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
+
+    runner.replaceTransforms(pipeline);
+
+    JobSpecification result = translator.translate(pipeline, runner, Collections.emptyList());
+
+    Components componentsProto = result.getPipelineProto().getComponents();
+    assertThat(
+        Iterables.getOnlyElement(componentsProto.getEnvironmentsMap().values())
+            .getCapabilitiesList(),
+        containsInAnyOrder(Environments.getJavaCapabilities().toArray(new String[0])));
   }
 
   @Test
