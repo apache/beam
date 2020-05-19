@@ -23,6 +23,7 @@ import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedTVFScan;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalTableFunctionScan;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
@@ -74,10 +75,10 @@ class TVFScanConverter extends RelConverter<ResolvedTVFScan> {
     RelDataType timestampType = getCluster().getTypeFactory().createSqlType(SqlTypeName.TIMESTAMP);
 
     RelDataTypeField windowStartField =
-        new RelDataTypeFieldImpl("window_start", newFields.size(), timestampType);
+        new RelDataTypeFieldImpl(TVFStreamingUtils.WINDOW_START, newFields.size(), timestampType);
     newFields.add(windowStartField);
     RelDataTypeField windowEndField =
-        new RelDataTypeFieldImpl("window_end", newFields.size(), timestampType);
+        new RelDataTypeFieldImpl(TVFStreamingUtils.WINDOW_END, newFields.size(), timestampType);
     newFields.add(windowEndField);
 
     return new RelRecordType(inputRowType.getStructKind(), newFields);

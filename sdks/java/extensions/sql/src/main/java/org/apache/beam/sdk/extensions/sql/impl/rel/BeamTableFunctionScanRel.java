@@ -73,7 +73,7 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
       RelDataType relDataType,
       Set<RelColumnMapping> set) {
     return new BeamTableFunctionScanRel(
-        getCluster(), traitSet, list, rexNode, type, relDataType, columnMappings);
+        getCluster(), traitSet, list, rexNode, type, relDataType, set);
   }
 
   @Override
@@ -123,9 +123,9 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
   }
 
   private static class FixedWindowDoFn extends DoFn<Row, Row> {
-    private int windowFieldIndex;
-    private FixedWindows windowFn;
-    private Schema outputSchema;
+    private final int windowFieldIndex;
+    private final FixedWindows windowFn;
+    private final Schema outputSchema;
 
     public FixedWindowDoFn(FixedWindows windowFn, int windowFieldIndex, Schema schema) {
       this.windowFn = windowFn;
