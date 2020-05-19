@@ -3117,7 +3117,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("BeamSQL does not support ANY_VALUE")
   public void testAnyValue() {
     String sql = "SELECT ANY_VALUE(double_val) FROM all_null_table";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -4817,6 +4816,23 @@ public class ZetaSQLDialectSpecTest {
             Row.withSchema(schema).addValues(true, false, false, true, false, true).build(),
             Row.withSchema(schema).addValues(false, true, true, false, false, true).build(),
             Row.withSchema(schema).addValues(false, true, false, true, true, false).build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testZetaSQLBitOr() {
+    String sql = "SELECT BIT_OR(row_id) FROM table_all_types GROUP BY bool_col";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema = Schema.builder().addInt64Field("field1").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema).addValues(3L).build(),
+            Row.withSchema(schema).addValue(7L).build());
 
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
