@@ -15,16 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.state;
+package org.apache.beam.sdk.transforms.reflect;
 
-import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.joda.time.Instant;
+import com.google.auto.value.AutoValue;
+import org.apache.beam.sdk.transforms.DoFn;
 
-@Experimental(Kind.TIMERS)
-public interface TimerMap {
+/**
+ * Used by {@link ByteBuddyOnTimerInvokerFactory} to Dynamically generate {@link OnTimerInvoker}
+ * instances for invoking a particular {@link DoFn.TimerFamily} with the dynamic timer tag on a
+ * particular {@link DoFn}.
+ */
+@AutoValue
+abstract class OnTimerFamilyMethodSpecifier {
+  public abstract Class<? extends DoFn<?, ?>> fnClass();
 
-  void set(String dynamicTimerTag, Instant absoluteTime);
+  public abstract String dynamicTimerTag();
 
-  Timer get(String dynamicTimerTag);
+  public static OnTimerFamilyMethodSpecifier forClassAndDynamicTimerTag(
+      Class<? extends DoFn<?, ?>> fnClass, String dynamicTimerTag) {
+    return new AutoValue_OnTimerFamilyMethodSpecifier(fnClass, dynamicTimerTag);
+  }
 }

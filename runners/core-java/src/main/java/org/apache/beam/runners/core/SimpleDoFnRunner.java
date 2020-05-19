@@ -507,9 +507,9 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public String timerId(DoFn<InputT, OutputT> doFn) {
+    public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          "Cannot access timerId as parameter outside of @OnTimer method.");
+          "Cannot access dynamicTimerTag as parameter outside of @OnTimer method.");
     }
 
     @Override
@@ -734,7 +734,8 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public String timerId(DoFn<InputT, OutputT> doFn) {
+    public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
+      // The dynamicTimerTag is aliased to the timerId field for a specific Timer in the TimerMap.
       return timerId;
     }
 
@@ -950,7 +951,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public String timerId(DoFn<InputT, OutputT> doFn) {
+    public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException("Timer parameters are not supported.");
     }
 
@@ -1287,35 +1288,35 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     }
 
     @Override
-    public void set(String timerId, Instant absoluteTime) {
+    public void set(String dynamicTimerTag, Instant absoluteTime) {
       Timer timer =
           new TimerInternalsTimer(
               window,
               namespace,
-              timerId,
+              dynamicTimerTag,
               timerFamilyId,
               spec,
               elementInputTimestamp,
               timerInternals);
       timer.set(absoluteTime);
-      timers.put(timerId, timer);
+      timers.put(dynamicTimerTag, timer);
     }
 
     @Override
-    public Timer get(String timerId) {
-      if (timers.get(timerId) == null) {
+    public Timer get(String dynamicTimerTag) {
+      if (timers.get(dynamicTimerTag) == null) {
         Timer timer =
             new TimerInternalsTimer(
                 window,
                 namespace,
-                timerId,
+                dynamicTimerTag,
                 timerFamilyId,
                 spec,
                 elementInputTimestamp,
                 timerInternals);
-        timers.put(timerId, timer);
+        timers.put(dynamicTimerTag, timer);
       }
-      return timers.get(timerId);
+      return timers.get(dynamicTimerTag);
     }
   }
 }

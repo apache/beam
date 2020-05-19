@@ -270,9 +270,9 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
             }
 
             @Override
-            public String timerId(DoFn<InputT, OutputT> doFn) {
+            public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
               throw new UnsupportedOperationException(
-                  "Cannot access timerId as parameter outside of @OnTimer method.");
+                  "Cannot access dynamicTimerTag as parameter outside of @OnTimer method.");
             }
 
             @Override

@@ -431,7 +431,7 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public TimerMap timerFamily(String tagId) {
+      public TimerMap timerFamily(String timerFamilyId) {
         throw new UnsupportedOperationException();
       }
 
@@ -446,7 +446,7 @@ public class SplittableParDoNaiveBounded {
       }
 
       @Override
-      public String timerId(DoFn<InputT, OutputT> doFn) {
+      public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
         throw new UnsupportedOperationException();
       }
 

@@ -82,14 +82,14 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
   }
 
   public <InputT, OutputT> OnTimerInvoker<InputT, OutputT> forTimerFamily(
-      DoFn<InputT, OutputT> fn, String timerId) {
+      DoFn<InputT, OutputT> fn, String dynamicTimerTag) {
 
     @SuppressWarnings("unchecked")
     Class<? extends DoFn<?, ?>> fnClass = (Class<? extends DoFn<?, ?>>) fn.getClass();
     try {
-      OnTimerMethodSpecifier onTimerMethodSpecifier =
-          OnTimerMethodSpecifier.forClassAndTimerId(fnClass, timerId);
-      Constructor<?> constructor = constructorTimerFamilyCache.get(onTimerMethodSpecifier);
+      OnTimerFamilyMethodSpecifier onTimerFamilyMethodSpecifier =
+          OnTimerFamilyMethodSpecifier.forClassAndDynamicTimerTag(fnClass, dynamicTimerTag);
+      Constructor<?> constructor = constructorTimerFamilyCache.get(onTimerFamilyMethodSpecifier);
 
       return (OnTimerInvoker<InputT, OutputT>) constructor.newInstance(fn);
     } catch (InstantiationException
@@ -148,30 +148,34 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
 
   /**
    * A cache of constructors of generated {@link OnTimerInvoker} classes, keyed by {@link
-   * OnTimerMethodSpecifier}.
+   * OnTimerFamilyMethodSpecifier}.
    *
    * <p>Needed because generating an invoker class is expensive, and to avoid generating an
    * excessive number of classes consuming PermGen memory in Java's that still have PermGen.
    */
-  private final LoadingCache<OnTimerMethodSpecifier, Constructor<?>> constructorTimerFamilyCache =
-      CacheBuilder.newBuilder()
-          .build(
-              new CacheLoader<OnTimerMethodSpecifier, Constructor<?>>() {
-                @Override
-                public Constructor<?> load(final OnTimerMethodSpecifier onTimerMethodSpecifier)
-                    throws Exception {
-                  DoFnSignature signature =
-                      DoFnSignatures.getSignature(onTimerMethodSpecifier.fnClass());
-                  Class<? extends OnTimerInvoker<?, ?>> invokerClass =
-                      generateOnTimerFamilyInvokerClass(
-                          signature, onTimerMethodSpecifier.timerId());
-                  try {
-                    return invokerClass.getConstructor(signature.fnClass());
-                  } catch (IllegalArgumentException | NoSuchMethodException | SecurityException e) {
-                    throw new RuntimeException(e);
-                  }
-                }
-              });
+  private final LoadingCache<OnTimerFamilyMethodSpecifier, Constructor<?>>
+      constructorTimerFamilyCache =
+          CacheBuilder.newBuilder()
+              .build(
+                  new CacheLoader<OnTimerFamilyMethodSpecifier, Constructor<?>>() {
+                    @Override
+                    public Constructor<?> load(
+                        final OnTimerFamilyMethodSpecifier onTimerFamilyMethodSpecifier)
+                        throws Exception {
+                      DoFnSignature signature =
+                          DoFnSignatures.getSignature(onTimerFamilyMethodSpecifier.fnClass());
+                      Class<? extends OnTimerInvoker<?, ?>> invokerClass =
+                          generateOnTimerFamilyInvokerClass(
+                              signature, onTimerFamilyMethodSpecifier.dynamicTimerTag());
+                      try {
+                        return invokerClass.getConstructor(signature.fnClass());
+                      } catch (IllegalArgumentException
+                          | NoSuchMethodException
+                          | SecurityException e) {
+                        throw new RuntimeException(e);
+                      }
+                    }
+                  });
 
   /**
    * Generates a {@link OnTimerInvoker} class for the given {@link DoFnSignature} and {@link
@@ -230,7 +234,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
   }
 
   private static Class<? extends OnTimerInvoker<?, ?>> generateOnTimerFamilyInvokerClass(
-      DoFnSignature signature, String timerId) {
+      DoFnSignature signature, String dynamicTimerTag) {
     Class<? extends DoFn<?, ?>> fnClass = signature.fnClass();
 
     final TypeDescription clazzDescription = new TypeDescription.ForLoadedType(fnClass);
@@ -239,8 +243,8 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
         String.format(
             "%s$%s$%s",
             OnTimerInvoker.class.getSimpleName(),
-            CharMatcher.javaLetterOrDigit().retainFrom(timerId),
-            BaseEncoding.base64().omitPadding().encode(timerId.getBytes(Charsets.UTF_8)));
+            CharMatcher.javaLetterOrDigit().retainFrom(dynamicTimerTag),
+            BaseEncoding.base64().omitPadding().encode(dynamicTimerTag.getBytes(Charsets.UTF_8)));
 
     DynamicType.Builder<?> builder =
         new ByteBuddy()
@@ -266,7 +270,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
             .method(ElementMatchers.named("invokeOnTimer"))
             .intercept(
                 new InvokeOnTimerFamilyDelegation(
-                    clazzDescription, signature.onTimerFamilyMethods().get(timerId)));
+                    clazzDescription, signature.onTimerFamilyMethods().get(dynamicTimerTag)));
 
     DynamicType.Unloaded<?> unloaded = builder.make();
 

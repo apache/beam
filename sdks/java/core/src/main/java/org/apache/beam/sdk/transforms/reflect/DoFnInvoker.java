@@ -239,9 +239,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     /**
      * Returns the timerMap for the given {@link org.apache.beam.sdk.transforms.DoFn.TimerFamily}.
      */
-    TimerMap timerFamily(String tagId);
+    TimerMap timerFamily(String timerFamilyId);
 
-    String timerId(DoFn<InputT, OutputT> doFn);
+    /**
+     * Returns the dynamicTimerTag for the timer of given {@link
+     * org.apache.beam.sdk.transforms.DoFn.TimerFamily}.
+     */
+    String dynamicTimerTag(DoFn<InputT, OutputT> doFn);
   }
 
   /**
@@ -275,7 +279,7 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public TimerMap timerFamily(String tagId) {
+    public TimerMap timerFamily(String timerFamilyId) {
       throw new UnsupportedOperationException(
           String.format("TimerFamily unsupported in %s", getErrorContext()));
     }
@@ -293,9 +297,9 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public String timerId(DoFn<InputT, OutputT> doFn) {
+    public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
-          String.format("TimerId unsupported in %s", getErrorContext()));
+          String.format("DynamicTimerTag unsupported in %s", getErrorContext()));
     }
 
     @Override
@@ -532,13 +536,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public TimerMap timerFamily(String tagId) {
-      return delegate.timerFamily(tagId);
+    public TimerMap timerFamily(String timerFamilyId) {
+      return delegate.timerFamily(timerFamilyId);
     }
 
     @Override
-    public String timerId(DoFn<InputT, OutputT> doFn) {
-      return delegate.timerId(doFn);
+    public String dynamicTimerTag(DoFn<InputT, OutputT> doFn) {
+      return delegate.dynamicTimerTag(doFn);
     }
 
     @Override
