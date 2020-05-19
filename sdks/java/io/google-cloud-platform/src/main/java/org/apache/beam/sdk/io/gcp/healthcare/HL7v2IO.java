@@ -440,8 +440,8 @@ public class HL7v2IO {
    * of this transform specifying sendTime filters to omit the ranges where there is no data.
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
-    private final List<String> hl7v2Stores;
-    private String filter;
+    private final ValueProvider<List<String>> hl7v2Stores;
+    private ValueProvider<String> filter;
     private Duration initialSplitDuration;
 
     /**
@@ -451,8 +451,8 @@ public class HL7v2IO {
      * @param filter the filter
      */
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
-      this.hl7v2Stores = hl7v2Stores.get();
-      this.filter = filter.get();
+      this.hl7v2Stores = hl7v2Stores;
+      this.filter = filter;
     }
 
     /**
@@ -466,8 +466,8 @@ public class HL7v2IO {
         ValueProvider<List<String>> hl7v2Stores,
         ValueProvider<String> filter,
         Duration initialSplitDuration) {
-      this.hl7v2Stores = hl7v2Stores.get();
-      this.filter = filter.get();
+      this.hl7v2Stores = hl7v2Stores;
+      this.filter = filter;
       this.initialSplitDuration = initialSplitDuration;
     }
 
@@ -477,7 +477,7 @@ public class HL7v2IO {
      * @param hl7v2Stores the hl7v2 stores
      */
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores) {
-      this.hl7v2Stores = hl7v2Stores.get();
+      this.hl7v2Stores = hl7v2Stores;
       this.filter = null;
     }
 
@@ -488,15 +488,15 @@ public class HL7v2IO {
      * @param initialSplitDuration the initial split duration
      */
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, Duration initialSplitDuration) {
-      this.hl7v2Stores = hl7v2Stores.get();
+      this.hl7v2Stores = hl7v2Stores;
       this.initialSplitDuration = initialSplitDuration;
     }
 
     @Override
     public PCollection<HL7v2Message> expand(PBegin input) {
       return input
-          .apply(Create.of(this.hl7v2Stores))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter, initialSplitDuration)))
+          .apply(Create.of(this.hl7v2Stores.get()))
+          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter.get(), initialSplitDuration)))
           .setCoder(new HL7v2MessageCoder())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
