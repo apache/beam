@@ -176,7 +176,7 @@ public final class ZipFiles {
    * @param zipFile the zip-file to write to.
    * @throws IOException the zipping failed, e.g. because the input was not readable.
    */
-  static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
+  public static void zipDirectory(File sourceDirectory, File zipFile) throws IOException {
     checkNotNull(sourceDirectory);
     checkNotNull(zipFile);
     checkArgument(

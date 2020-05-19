@@ -32,7 +32,6 @@ import os
 import pkg_resources
 import re
 import sys
-import tempfile
 import time
 import warnings
 from copy import copy
@@ -574,19 +573,32 @@ class DataflowApplicationClient(object):
     with open(from_path, 'rb') as f:
       self.stage_file(to_folder, to_name, f, total_size=total_size)
 
-  def _stage_resources(self, options):
+  def _stage_resources(self, pipeline, options):
     google_cloud_options = options.view_as(GoogleCloudOptions)
     if google_cloud_options.staging_location is None:
       raise RuntimeError('The --staging_location option must be specified.')
     if google_cloud_options.temp_location is None:
       raise RuntimeError('The --temp_location option must be specified.')
 
+    resources = []
+    for _, env in sorted(pipeline.components.environments.items(),
+                         key=lambda kv: kv[0]):
+      for dep in env.dependencies:
+        if dep.type_urn != common_urns.artifact_types.FILE.urn:
+          raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
+        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
+          raise RuntimeError('unsupported role type %s' % dep.role_urn)
+        type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
+            dep.type_payload)
+        role_payload = (
+            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
+                dep.role_payload))
+        resources.append((type_payload.path, role_payload.staged_name))
+
     resource_stager = _LegacyDataflowStager(self)
-    _, resources = resource_stager.create_and_stage_job_resources(
-        options,
-        temp_dir=tempfile.mkdtemp(),
-        staging_location=google_cloud_options.staging_location)
-    return resources
+    staged_resources = resource_stager.stage_job_resources(
+        resources, staging_location=google_cloud_options.staging_location)
+    return staged_resources
 
   def stage_file(
       self,
@@ -688,7 +700,7 @@ class DataflowApplicationClient(object):
         io.BytesIO(job.proto_pipeline.SerializeToString()))
 
     # Stage other resources for the SDK harness
-    resources = self._stage_resources(job.options)
+    resources = self._stage_resources(job.proto_pipeline, job.options)
 
     job.proto.environment = Environment(
         proto_pipeline_staged_url=FileSystems.join(
