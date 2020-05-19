@@ -299,6 +299,8 @@ class Environment(object):
       container_image.useSingleCorePerContainer = True  # True for Python SDK.
       pool.sdkHarnessContainerImages.append(container_image)
 
+      already_added_containers = [pipeline_sdk_container_image]
+
       # Adding container images for other SDKs that may be needed for
       # cross-language pipelines.
       for environment in environments_to_use:
@@ -309,15 +311,15 @@ class Environment(object):
         environment_payload = proto_utils.parse_Bytes(
             environment.payload, beam_runner_api_pb2.DockerPayload)
         container_image_url = environment_payload.container_image
-        if container_image_url == pipeline_sdk_container_image:
-          # This was already added
-          continue
-        container_image = dataflow.SdkHarnessContainerImage()
+        if container_image_url in already_added_containers:
+          # Do not add the pipeline environment again.
 
-        # Not updating here if the image was already overriden by the user.
-        if container_image_url not in list(self._sdk_image_overrides.values()):
-          container_image_url = get_container_image_from_options(
-              options, container_image_url)
+          # TODO(BEAM-9455): loosen this restriction to support multiple
+          # environments with the same container name.
+          continue
+        already_added_containers.append(container_image_url)
+
+        container_image = dataflow.SdkHarnessContainerImage()
         container_image.containerImage = container_image_url
         # Currently we only set following to True for Python SDK.
         # TODO: set this correctly for remote environments that might be Python.
@@ -1050,13 +1052,11 @@ def _get_container_image_tag():
   return base_version
 
 
-def get_container_image_from_options(
-    pipeline_options, external_image_to_override=None):
+def get_container_image_from_options(pipeline_options):
   """For internal use only; no backwards-compatibility guarantees.
 
     Args:
       pipeline_options (PipelineOptions): A container for pipeline options.
-      external_image_to_override: container image for an external SDK
 
     Returns:
       str: Container image for remote execution.
@@ -1064,11 +1064,6 @@ def get_container_image_from_options(
   worker_options = pipeline_options.view_as(WorkerOptions)
   if worker_options.worker_harness_container_image:
     return worker_options.worker_harness_container_image
-  elif external_image_to_override:
-    _LOGGER.warning(
-        'Add support for determining container images for external SDKs '
-        'without user overrides')
-    return external_image_to_override
 
   if sys.version_info[0] == 2:
     version_suffix = ''
