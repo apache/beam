@@ -56,11 +56,13 @@ dependencies {
   compile library.java.google_http_client
   compile library.java.google_http_client_jackson2
   compile library.java.grpc_all
+  compile library.java.grpc_alts
   compile library.java.grpc_auth
   compile library.java.grpc_core
   compile library.java.grpc_context
   compile library.java.grpc_grpclb
   compile library.java.grpc_netty
+  compile library.java.grpc_netty_shaded
   compile library.java.grpc_stub
   compile library.java.grpc_google_cloud_pubsub_v1
   compile library.java.guava
