@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-
     private const val FILE_PATH = "IO/TextIO/TextIO Read/countries.txt"
 
     @JvmStatic
@@ -46,6 +45,8 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction(String::toUpperCase)))
+        return input.apply(MapElements
+                .into(TypeDescriptors.strings())
+                .via(SerializableFunction(String::toUpperCase)))
     }
 }

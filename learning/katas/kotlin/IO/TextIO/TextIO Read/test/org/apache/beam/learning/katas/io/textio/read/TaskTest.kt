@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `IO - TextIO - TextIO Read`() {
+    fun io_textio_textio_read() {
         val countries = testPipeline.apply(TextIO.read().from("countries.txt"))
 
         val results = applyTransform(countries)
@@ -51,5 +50,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

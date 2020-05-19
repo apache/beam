@@ -5,11 +5,11 @@ files:
 - name: src/org/apache/beam/learning/katas/io/textio/read/Task.kt
   visible: true
   placeholders:
-  - offset: 1611
+  - offset: 1610
     length: 28
     placeholder_text: TODO()
-  - offset: 1868
-    length: 49
+  - offset: 1884
+    length: 66
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/io/textio/read/TaskTest.kt
   visible: false
