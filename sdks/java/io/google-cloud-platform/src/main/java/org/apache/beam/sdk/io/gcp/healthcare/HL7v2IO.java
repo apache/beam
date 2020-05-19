@@ -444,8 +444,8 @@ public class HL7v2IO {
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
     private final ValueProvider<List<String>> hl7v2Stores;
-    private ValueProvider<String> filter;
-    private Duration initialSplitDuration;
+    private final ValueProvider<String> filter;
+    private final Duration initialSplitDuration;
 
     /**
      * Instantiates a new List HL7v2 message IDs with filter.
