@@ -27,16 +27,14 @@ func TestSourceConfig_NumElements(t *testing.T) {
 		elms int
 		want int
 	}{
-		{elms: 0, want: 0},
-		{elms: -1, want: 0},
+		{elms: 1, want: 1},
 		{elms: 42, want: 42},
 	}
 	for _, test := range tests {
 		test := test
 		t.Run(fmt.Sprintf("(elm = %v)", test.elms), func(t *testing.T) {
 			dfn := sourceFn{}
-			cfg := DefaultSourceConfig()
-			cfg.NumElements = test.elms
+			cfg := DefaultSourceConfig().NumElements(test.elms).Build()
 
 			keys, _, err := simulateSourceFn(t, &dfn, cfg)
 			if err != nil {
@@ -62,15 +60,12 @@ func TestSourceConfig_InitialSplits(t *testing.T) {
 		}{
 			{elms: 42, splits: 10, want: 10},
 			{elms: 4, splits: 10, want: 4},
-			{elms: 42, splits: 0, want: 1},
 		}
 		for _, test := range tests {
 			test := test
 			t.Run(fmt.Sprintf("(elm = %v, splits = %v)", test.elms, test.splits), func(t *testing.T) {
 				dfn := sourceFn{}
-				cfg := DefaultSourceConfig()
-				cfg.NumElements = test.elms
-				cfg.InitialSplits = test.splits
+				cfg := DefaultSourceConfig().NumElements(test.elms).InitialSplits(test.splits).Build()
 
 				rest := dfn.CreateInitialRestriction(cfg)
 				splits := dfn.SplitRestriction(cfg, rest)
@@ -92,15 +87,12 @@ func TestSourceConfig_InitialSplits(t *testing.T) {
 		}{
 			{elms: 42, want: 42, splits: 10},
 			{elms: 4, want: 4, splits: 10},
-			{elms: -1, want: 0, splits: 10},
 		}
 		for _, test := range tests {
 			test := test
 			t.Run(fmt.Sprintf("(elm = %v)", test.elms), func(t *testing.T) {
 				dfn := sourceFn{}
-				cfg := DefaultSourceConfig()
-				cfg.NumElements = test.elms
-				cfg.InitialSplits = test.splits
+				cfg := DefaultSourceConfig().NumElements(test.elms).InitialSplits(test.splits).Build()
 
 				keys, _, err := simulateSourceFn(t, &dfn, cfg)
 				if err != nil {
