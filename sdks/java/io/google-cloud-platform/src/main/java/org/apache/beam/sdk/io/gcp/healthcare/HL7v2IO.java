@@ -426,7 +426,7 @@ public class HL7v2IO {
   /**
    * List HL7v2 messages in HL7v2 Stores with optional filter.
    *
-   * <p>This transform is optimized for dynamic splitting of message.list calls for large batches of
+   * <p>This transform is optimized for dynamic splitting of {@code message.list} calls for large batches of
    * historical data and assumes rather continuous stream of sendTimes. It will dynamically
    * rebalance resources to handle "peak traffic times" but will waste resources if there are large
    * durations (days) of the sendTime dimension without data.
