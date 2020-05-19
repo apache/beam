@@ -598,7 +598,7 @@ public class HL7v2IO {
     @ProcessElement
     public void listMessages(
         @Element String hl7v2Store,
-        RestrictionTracker tracker,
+        RestrictionTracker<OffsetRange, Long> tracker,
         OutputReceiver<HL7v2Message> outputReceiver)
         throws IOException {
       OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
