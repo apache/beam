@@ -46,6 +46,7 @@ public class FhirIOWriteIT {
 
   @Parameters(name = "{0}")
   public static Collection<String> versions() {
+    // TODO(jaketf) uncomment other two versions
     return Arrays.asList("DSTU2", "STU3", "R4");
   }
 
