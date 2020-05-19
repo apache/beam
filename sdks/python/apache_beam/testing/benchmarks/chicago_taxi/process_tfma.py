@@ -88,6 +88,7 @@ def process_tfma(
         project_name=project,
         bq_table=metrics_table,
         bq_dataset=metrics_dataset,
+        namespace=metrics_namespace,
         filters=MetricsFilter().with_namespace(metrics_namespace))
 
   pipeline = beam.Pipeline(argv=pipeline_args)
