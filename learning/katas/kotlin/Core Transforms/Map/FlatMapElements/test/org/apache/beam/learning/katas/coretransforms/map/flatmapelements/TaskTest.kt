@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Map - FlatMapElements`() {
+    fun core_transforms_map_flatmapelements() {
         val values = Create.of("Apache Beam", "Unified Batch and Streaming")
         val numbers = testPipeline.apply(values)
 
@@ -42,5 +41,4 @@ class TaskTest {
         )
         testPipeline.run().waitUntilFinish()
     }
-
 }

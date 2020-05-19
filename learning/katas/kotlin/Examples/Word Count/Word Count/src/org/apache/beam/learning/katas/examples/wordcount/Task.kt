@@ -15,34 +15,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.learning.katas.windowing.addingtimestamp.pardo
+package org.apache.beam.learning.katas.examples.wordcount
 
 import org.apache.beam.learning.katas.util.Log
 import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.options.PipelineOptionsFactory
-import org.apache.beam.sdk.transforms.Create
-import org.apache.beam.sdk.transforms.DoFn
-import org.apache.beam.sdk.transforms.ParDo
+import org.apache.beam.sdk.transforms.*
+import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
-import org.joda.time.DateTime
+import org.apache.beam.sdk.values.TypeDescriptors
+import java.util.*
 
 object Task {
+
     @JvmStatic
     fun main(args: Array<String>) {
+        val lines = arrayOf(
+                "apple orange grape banana apple banana",
+                "banana orange banana papaya"
+        )
+
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
 
-        val events = pipeline.apply(
-                Create.of(
-                        Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
-                        Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
-                        Event("3", "paper-order", DateTime.parse("2019-06-03T00:00:00+00:00")),
-                        Event("4", "pencil-order", DateTime.parse("2019-06-04T00:00:00+00:00")),
-                        Event("5", "book-order", DateTime.parse("2019-06-05T00:00:00+00:00"))
-                )
-        )
+        val wordCounts = pipeline.apply(Create.of(listOf(*lines)))
 
-        val output = applyTransform(events)
+        val output = applyTransform(wordCounts)
 
         output.apply(Log.ofElements())
 
@@ -50,14 +48,23 @@ object Task {
     }
 
     @JvmStatic
-    fun applyTransform(events: PCollection<Event>): PCollection<Event> {
-        return events.apply(ParDo.of(object : DoFn<Event, Event>() {
+    fun applyTransform(input: PCollection<String>): PCollection<String> {
+        return input
+                .apply(FlatMapElements
+                        .into(TypeDescriptors.strings())
+                        .via(SerializableFunction<String, Iterable<String>> { line: String ->
+                            line.split(" ") }
+                        )
+                )
+                .apply(Count.perElement())
+                .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
 
-            @ProcessElement
-            fun processElement(@Element event: Event, out: OutputReceiver<Event>) {
-                out.outputWithTimestamp(event, event.date.toInstant())
-            }
+                    @ProcessElement
+                    fun processElement(
+                            @Element element: KV<String, Long>, out: OutputReceiver<String>) {
+                        out.output(element.key.toString() + ":" + element.value)
+                    }
 
-        }))
+                }))
     }
 }

@@ -28,16 +28,16 @@ import java.io.Serializable
 
 class TaskTest : Serializable {
 
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline = TestPipeline.create()
 
     @Test
     fun `Core Transforms - Side Output - Side Output`() {
         val numbers = testPipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
 
-        val numBelow100Tag = TupleTag<Int>()
-        val numAbove100Tag = TupleTag<Int>()
+        val numBelow100Tag = object: TupleTag<Int>() {}
+        val numAbove100Tag = object: TupleTag<Int>() {}
 
         val resultsTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
 

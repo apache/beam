@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Map - MapElements`() {
+    fun core_transforms_map_mapelements() {
         val values = Create.of(10, 20, 30, 40, 50)
         val numbers = testPipeline.apply(values)
 
@@ -41,5 +40,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

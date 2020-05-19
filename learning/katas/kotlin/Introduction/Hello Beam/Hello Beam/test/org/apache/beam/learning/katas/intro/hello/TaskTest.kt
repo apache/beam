@@ -25,18 +25,16 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Introduction - Hello Beam - Hello Beam`() {
+    fun introduction_hello_beam_hello_beam() {
         val results = setupPipeline(testPipeline)
 
         PAssert.that(results).containsInAnyOrder("Hello Beam")
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

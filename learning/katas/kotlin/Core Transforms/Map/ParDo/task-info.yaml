@@ -4,7 +4,7 @@ files:
   visible: true
   placeholders:
   - offset: 1684
-    length: 212
+    length: 262
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/map/pardo/TaskTest.kt
   visible: false

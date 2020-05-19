@@ -27,9 +27,9 @@ import org.junit.Test
 
 class TaskTest {
 
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline = TestPipeline.create()
 
     @Test
     fun `Common Transforms - WithKeys - WithKeys`() {

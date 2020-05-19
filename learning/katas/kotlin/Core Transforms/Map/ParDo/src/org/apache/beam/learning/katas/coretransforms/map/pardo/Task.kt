@@ -46,11 +46,11 @@ object Task {
         return input.apply(ParDo.of(object : DoFn<Int, Int>() {
 
             @ProcessElement
-            fun processElement(@Element number: Int, out: OutputReceiver<Int>) {
+            fun processElement(context: ProcessContext, out: OutputReceiver<Int>) {
+                val number = context.element()
                 out.output(number * 10)
             }
 
         }))
     }
-
 }

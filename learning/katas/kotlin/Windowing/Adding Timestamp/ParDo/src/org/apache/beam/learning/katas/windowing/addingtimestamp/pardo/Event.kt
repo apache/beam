@@ -21,8 +21,7 @@ import org.joda.time.DateTime
 import java.io.Serializable
 import java.util.*
 
-class Event(var id: String, var event: String, var date: DateTime) : Serializable {
-
+class Event(private var id: String, private var event: String, var date: DateTime) : Serializable {
     override fun equals(o: Any?): Boolean {
         if (this === o) {
             return true
@@ -44,5 +43,4 @@ class Event(var id: String, var event: String, var date: DateTime) : Serializabl
     override fun toString(): String {
         return "Event{id='$id', event='$event', date=$date}"
     }
-
 }

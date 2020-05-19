@@ -26,9 +26,9 @@ import org.junit.Test
 
 class TaskTest {
 
-    @Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    @get:Rule
+    val testPipeline = TestPipeline.create()
 
     @Test
     fun `Common Transforms - Aggregation - Count`() {

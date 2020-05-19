@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.Window
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TimestampedValue
+import org.apache.beam.sdk.values.TypeDescriptors
 import org.joda.time.Duration
 import org.joda.time.Instant
 
@@ -59,10 +60,9 @@ object Task {
         pipeline.run()
     }
 
-    @JvmStatic
     fun applyTransform(events: PCollection<String>): PCollection<KV<String, Long>> {
         return events
-                .apply(Window.into(FixedWindows.of(Duration.standardDays(1))))
+                .apply(Window.into<String>(FixedWindows.of(Duration.standardDays(1))))
                 .apply(Count.perElement())
     }
 

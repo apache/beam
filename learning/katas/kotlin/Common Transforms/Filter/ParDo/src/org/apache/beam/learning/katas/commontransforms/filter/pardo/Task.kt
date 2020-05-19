@@ -32,7 +32,7 @@ object Task {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
 
-        val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+        val numbers= pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 
         val output = applyTransform(numbers)
 
@@ -43,16 +43,18 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply(ParDo.of(
-                object : DoFn<Int, Int>() {
+        return input.apply(ParDo.of(object : DoFn<Int, Int>() {
+
                     @ProcessElement
-                    fun processElement(@Element number: Int, out: OutputReceiver<Int>) {
+                    fun processElement(context: ProcessContext, out: OutputReceiver<Int>) {
+                        val number = context.element()
                         if (number % 2 == 1) {
                             out.output(number)
                         }
                     }
+
                 })
         )
     }
-    
+
 }

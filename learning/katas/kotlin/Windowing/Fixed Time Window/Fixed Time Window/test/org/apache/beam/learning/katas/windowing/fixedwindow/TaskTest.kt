@@ -33,9 +33,9 @@ import java.io.Serializable
 
 class TaskTest : Serializable {
 
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline = TestPipeline.create()
 
     @Test
     fun `Windowing - Fixed Time Window - Fixed Time Window`() {

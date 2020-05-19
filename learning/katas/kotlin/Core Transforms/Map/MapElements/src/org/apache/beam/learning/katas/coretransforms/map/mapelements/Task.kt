@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -44,11 +43,9 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply(
-            MapElements
+        return input.apply(MapElements
                 .into(TypeDescriptors.integers())
                 .via(SerializableFunction { number: Int -> number * 5 })
         )
     }
-
 }

@@ -37,8 +37,8 @@ object Task {
 
         val numbers = pipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
 
-        val numBelow100Tag = TupleTag<Int>()
-        val numAbove100Tag = TupleTag<Int>()
+        val numBelow100Tag = object: TupleTag<Int>() {}
+        val numAbove100Tag = object: TupleTag<Int>() {}
         val outputTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
 
         outputTuple.get(numBelow100Tag).apply(Log.ofElements("Number <= 100: "))
@@ -55,7 +55,8 @@ object Task {
         return numbers.apply(ParDo.of(object : DoFn<Int, Int>() {
 
             @ProcessElement
-            fun processElement(@Element number: Int, out: MultiOutputReceiver) {
+            fun processElement(context: ProcessContext, out: MultiOutputReceiver) {
+                val number = context.element()
                 if (number <= 100) {
                     out.get(numBelow100Tag).output(number)
                 } else {

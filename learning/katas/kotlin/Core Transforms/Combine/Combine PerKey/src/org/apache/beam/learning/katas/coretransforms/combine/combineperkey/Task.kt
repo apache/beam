@@ -52,7 +52,7 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<KV<String, Int>>): PCollection<KV<String, Int>> {
-        return input.apply(Combine.perKey(SumIntBinaryCombineFn()))
+        return input.apply<PCollection<KV<String, Int>>>(Combine.perKey(SumIntBinaryCombineFn()))
     }
 
     internal class SumIntBinaryCombineFn : BinaryCombineFn<Int>() {

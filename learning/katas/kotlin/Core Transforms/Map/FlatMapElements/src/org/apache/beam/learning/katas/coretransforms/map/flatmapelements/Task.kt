@@ -28,7 +28,6 @@ import org.apache.beam.sdk.values.TypeDescriptors
 import java.util.*
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -45,13 +44,11 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(
-            FlatMapElements
+        return input.apply(FlatMapElements
                 .into(TypeDescriptors.strings())
                 .via(SerializableFunction<String, Iterable<String>> {
                     sentence: String -> sentence.split(" ")
                 })
         )
     }
-
 }

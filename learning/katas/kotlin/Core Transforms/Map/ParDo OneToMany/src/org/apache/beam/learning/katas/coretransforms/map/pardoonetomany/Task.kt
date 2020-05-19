@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -44,7 +43,6 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
         return input.apply(ParDo.of(object : DoFn<String, String>() {
-
             @ProcessElement
             fun processElement(@Element sentence: String, out: OutputReceiver<String?>) {
                 val words = sentence.split(" ").toTypedArray()
@@ -53,8 +51,6 @@ object Task {
                     out.output(word)
                 }
             }
-
         }))
     }
-
 }

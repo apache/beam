@@ -29,16 +29,14 @@ import org.joda.time.Instant
 import org.junit.Rule
 import org.junit.Test
 import java.io.Serializable
-import java.util.*
 
 class TaskTest : Serializable {
-
-    @Rule
+    @get:Rule
     @Transient
-    private val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Windowing - Adding Timestamp - ParDo`() {
+    fun windowing_adding_timestamp_adding_timestamp() {
         val events = listOf(
                 Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
                 Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
@@ -55,9 +53,8 @@ class TaskTest : Serializable {
                 ParDo.of(object : DoFn<Event, KV<Event, Instant>>() {
 
                     @ProcessElement
-                    fun processElement(@Element event: Event, context: ProcessContext,
-                                       out: OutputReceiver<KV<Event, Instant>>) {
-
+                    fun processElement(context: ProcessContext, out: OutputReceiver<KV<Event, Instant>>) {
+                        val event = context.element()
                         out.output(KV.of(event, context.timestamp()))
                     }
 
@@ -76,5 +73,4 @@ class TaskTest : Serializable {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

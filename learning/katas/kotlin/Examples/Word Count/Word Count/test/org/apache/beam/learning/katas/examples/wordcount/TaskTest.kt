@@ -15,9 +15,9 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.apache.beam.learning.katas.commontransforms.filter.filter
+package org.apache.beam.learning.katas.examples.wordcount
 
-import org.apache.beam.learning.katas.commontransforms.filter.filter.Task.applyTransform
+import org.apache.beam.learning.katas.examples.wordcount.Task.applyTransform
 import org.apache.beam.sdk.testing.PAssert
 import org.apache.beam.sdk.testing.TestPipeline
 import org.apache.beam.sdk.transforms.Create
@@ -31,13 +31,23 @@ class TaskTest {
     val testPipeline = TestPipeline.create()
 
     @Test
-    fun `Common Transforms - Filter - Filter`() {
-        val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        val numbers = testPipeline.apply(values)
+    fun `Examples - Word Count - Word Count`() {
+        val lines = Create.of(
+                "apple orange grape banana apple banana",
+                "banana orange banana papaya"
+        )
 
-        val results = applyTransform(numbers)
+        val linesPColl = testPipeline.apply(lines)
 
-        PAssert.that(results).containsInAnyOrder(2, 4, 6, 8, 10)
+        val results = applyTransform(linesPColl)
+
+        PAssert.that(results).containsInAnyOrder(
+                "apple:2",
+                "banana:4",
+                "grape:1",
+                "orange:2",
+                "papaya:1"
+        )
 
         testPipeline.run().waitUntilFinish()
     }
