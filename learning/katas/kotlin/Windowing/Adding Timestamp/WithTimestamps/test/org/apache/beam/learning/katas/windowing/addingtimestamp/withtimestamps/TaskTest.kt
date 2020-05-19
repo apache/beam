@@ -32,13 +32,12 @@ import java.io.Serializable
 import java.util.*
 
 class TaskTest : Serializable {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Windowing - Adding Timestamp - WithTimestamps`() {
+    fun windowing_adding_timestamp_withtimestamps() {
         val events = listOf(
                 Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
                 Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
@@ -53,14 +52,11 @@ class TaskTest : Serializable {
         
         val timestampedResults = results.apply("KV<Event, Instant>",
                 ParDo.of(object : DoFn<Event, KV<Event, Instant>>() {
-
                     @ProcessElement
-                    fun processElement(@Element event: Event, context: ProcessContext,
-                                       out: OutputReceiver<KV<Event, Instant>>) {
-
+                    fun processElement(context: ProcessContext, out: OutputReceiver<KV<Event, Instant>>) {
+                        val event = context.element()
                         out.output(KV.of(event, context.timestamp()))
                     }
-
                 })
         )
 
@@ -76,5 +72,4 @@ class TaskTest : Serializable {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

@@ -52,12 +52,10 @@ object Task {
     @JvmStatic
     fun applyTransform(events: PCollection<Event>): PCollection<Event> {
         return events.apply(ParDo.of(object : DoFn<Event, Event>() {
-
             @ProcessElement
             fun processElement(@Element event: Event, out: OutputReceiver<Event>) {
                 out.outputWithTimestamp(event, event.date.toInstant())
             }
-
         }))
     }
 }

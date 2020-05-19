@@ -26,7 +26,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.joda.time.DateTime
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -53,5 +52,4 @@ object Task {
     fun applyTransform(events: PCollection<Event>): PCollection<Event> {
         return events.apply(WithTimestamps.of { event: Event -> event.date.toInstant() })
     }
-
 }

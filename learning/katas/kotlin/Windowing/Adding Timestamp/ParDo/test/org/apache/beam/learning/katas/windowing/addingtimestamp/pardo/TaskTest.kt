@@ -36,7 +36,7 @@ class TaskTest : Serializable {
     val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun windowing_adding_timestamp_adding_timestamp() {
+    fun windowing_adding_timestamp_pardo() {
         val events = listOf(
                 Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
                 Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),

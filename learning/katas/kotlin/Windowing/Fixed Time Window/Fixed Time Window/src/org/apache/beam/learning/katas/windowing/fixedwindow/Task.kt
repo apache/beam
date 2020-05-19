@@ -32,7 +32,6 @@ import org.joda.time.Duration
 import org.joda.time.Instant
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -65,5 +64,4 @@ object Task {
                 .apply(Window.into<String>(FixedWindows.of(Duration.standardDays(1))))
                 .apply(Count.perElement())
     }
-
 }

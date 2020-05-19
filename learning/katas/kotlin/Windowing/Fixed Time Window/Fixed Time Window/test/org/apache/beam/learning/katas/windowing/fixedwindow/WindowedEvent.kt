@@ -42,5 +42,4 @@ class WindowedEvent(private val event: String?, private val count: Long, private
     override fun toString(): String {
         return "WindowedEvent{event='$event', count=$count, window='$window'}"
     }
-
 }

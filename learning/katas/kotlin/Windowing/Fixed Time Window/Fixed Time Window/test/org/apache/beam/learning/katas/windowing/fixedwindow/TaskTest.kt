@@ -32,13 +32,12 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Windowing - Fixed Time Window - Fixed Time Window`() {
+    fun windowing_fixed_window_time_fixed_window_time() {
         val eventsPColl = testPipeline.apply(
                 Create.timestamped(
                         TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
@@ -58,14 +57,12 @@ class TaskTest : Serializable {
 
         val windowedResults = results.apply("WindowedEvent",
                 ParDo.of(object : DoFn<KV<String, Long>, WindowedEvent>() {
-
                     @ProcessElement
                     fun processElement(@Element element: KV<String, Long>,
                                        window: BoundedWindow, out: OutputReceiver<WindowedEvent>) {
 
                         out.output(WindowedEvent(element.key, element.value, window.toString()))
                     }
-
                 })
         )
 
@@ -78,5 +75,4 @@ class TaskTest : Serializable {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }
