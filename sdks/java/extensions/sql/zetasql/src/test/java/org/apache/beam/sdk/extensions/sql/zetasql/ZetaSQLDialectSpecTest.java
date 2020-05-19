@@ -4742,6 +4742,46 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testTumbleAsTVF() {
+    String sql =
+        "select Key, Value, ts, window_start, window_end from "
+            + "TUMBLE((select * from KeyValue), descriptor(ts), 'INTERVAL 1 SECOND')";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    ImmutableMap<String, Value> params = ImmutableMap.of();
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql, params);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder()
+            .addInt64Field("Key")
+            .addStringField("Value")
+            .addDateTimeField("ts")
+            .addDateTimeField("window_start")
+            .addDateTimeField("window_end")
+            .build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(
+                    14L,
+                    "KeyValue234",
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:06"),
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"))
+                .build(),
+            Row.withSchema(schema)
+                .addValues(
+                    15L,
+                    "KeyValue235",
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
+                    DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01T21:26:08"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testIsNullTrueFalse() {
     String sql =
         "WITH Src AS (\n"
