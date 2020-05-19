@@ -283,6 +283,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     public abstract TimeDomain timeDomain();
   }
 
+  public abstract class OnWindowExpirationContext extends WindowedContext {
+
+    /** Returns the window in which the window expiration is firing. */
+    public abstract BoundedWindow window();
+  }
+
   /**
    * Returns the allowed timestamp skew duration, which is the maximum duration that timestamps can
    * be shifted backward in {@link WindowedContext#outputWithTimestamp}.

@@ -198,8 +198,9 @@ class WindmillTimerInternals implements TimerInternals {
 
       if (cell.getValue()) {
         // Setting the timer. If it is a user timer, set a hold.
-        if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
-          // Setting a user timer, clear any prior hold and set to the new value
+
+        if (needsWatermarkHold(timerData)) {
+          // Setting a timer, clear any prior hold and set to the new value
           outputBuilder
               .addWatermarkHoldsBuilder()
               .setTag(timerHoldTag(prefix, timerData))
@@ -211,8 +212,8 @@ class WindmillTimerInternals implements TimerInternals {
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
         timer.clearTimestamp();
-        if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
-          // We are deleting a user timer; clear the hold
+        if (needsWatermarkHold(timerData)) {
+          // We are deleting timer; clear the hold
           outputBuilder
               .addWatermarkHoldsBuilder()
               .setTag(timerHoldTag(prefix, timerData))
@@ -224,6 +225,12 @@ class WindmillTimerInternals implements TimerInternals {
 
     // Wipe the unpersisted state
     timers.clear();
+  }
+
+  private boolean needsWatermarkHold(TimerData timerData) {
+    // If it is a user timer or a system timer with outputTimestamp different than timestamp
+    return WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)
+        || !timerData.getTimestamp().isEqual(timerData.getOutputTimestamp());
   }
 
   public static boolean isSystemTimer(Windmill.Timer timer) {

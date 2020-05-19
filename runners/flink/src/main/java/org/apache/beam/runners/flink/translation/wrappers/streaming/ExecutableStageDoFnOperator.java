@@ -790,6 +790,9 @@ public class ExecutableStageDoFnOperator<InputT, OutputT> extends DoFnOperator<I
       }
     }
 
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
+
     boolean isBundleInProgress() {
       return remoteBundle != null;
     }
