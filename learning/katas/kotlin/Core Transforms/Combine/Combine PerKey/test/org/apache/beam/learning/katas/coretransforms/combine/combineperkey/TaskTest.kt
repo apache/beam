@@ -26,13 +26,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Combine - Combine PerKey`() {
+    fun core_transforms_combine_combine_perkey() {
         val values = Create.of(
                 KV.of(Task.PLAYER_1, 15), KV.of(Task.PLAYER_2, 10), KV.of(Task.PLAYER_1, 100),
                 KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
@@ -47,5 +46,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

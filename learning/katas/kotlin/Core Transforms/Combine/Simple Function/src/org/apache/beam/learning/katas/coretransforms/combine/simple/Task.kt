@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.SerializableFunction
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -47,7 +46,6 @@ object Task {
     }
 
     internal class SumIntegerFn : SerializableFunction<Iterable<Int>, Int> {
-
         override fun apply(input: Iterable<Int>): Int {
             var sum = 0
 
@@ -57,7 +55,5 @@ object Task {
 
             return sum
         }
-
     }
-
 }

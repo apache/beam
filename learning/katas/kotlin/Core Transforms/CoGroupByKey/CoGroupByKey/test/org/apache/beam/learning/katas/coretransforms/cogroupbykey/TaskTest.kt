@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - CoGroupByKey - CoGroupByKey`() {
+    fun core_transforms_cogroupbykey_cogroupbykey() {
         val fruits = testPipeline.apply("Fruits",
                 Create.of("apple", "banana", "cherry")
         )
@@ -50,5 +49,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

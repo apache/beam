@@ -26,13 +26,12 @@ import org.junit.Test
 import java.math.BigInteger
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Combine - BinaryCombineFn`() {
+    fun core_transforms_combine_binarycombinefn() {
         val values = Create.of(
                 BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
                 BigInteger.valueOf(40), BigInteger.valueOf(50)
@@ -45,5 +44,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

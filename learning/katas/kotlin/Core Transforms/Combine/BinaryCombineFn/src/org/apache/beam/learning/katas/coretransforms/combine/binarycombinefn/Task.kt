@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection
 import java.math.BigInteger
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -52,11 +51,8 @@ object Task {
     }
 
     internal class SumBigIntegerFn : BinaryCombineFn<BigInteger>() {
-
         override fun apply(left: BigInteger, right: BigInteger): BigInteger {
             return left.add(right)
         }
-
     }
-
 }

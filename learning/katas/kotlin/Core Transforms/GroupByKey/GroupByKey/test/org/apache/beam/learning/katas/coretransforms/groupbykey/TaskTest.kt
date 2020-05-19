@@ -28,13 +28,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - GroupByKey - GroupByKey`() {
+    fun core_transforms_groupbykey_groupbykey() {
         val values = Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
         val numbers = testPipeline.apply(values)
 
@@ -50,5 +49,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

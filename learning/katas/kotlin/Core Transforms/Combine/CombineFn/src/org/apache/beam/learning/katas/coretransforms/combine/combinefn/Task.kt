@@ -29,7 +29,6 @@ import java.io.Serializable
 import java.util.*
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -96,7 +95,5 @@ object Task {
         override fun extractOutput(accumulator: Accum): Double {
             return accumulator.sum.toDouble() / accumulator.count
         }
-
     }
-
 }

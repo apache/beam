@@ -3,10 +3,10 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/Task.kt
   visible: true
   placeholders:
-  - offset: 2030
+  - offset: 2029
     length: 86
     placeholder_text: TODO()
-  - offset: 2201
+  - offset: 2199
     length: 99
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/combine/combineperkey/TaskTest.kt

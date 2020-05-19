@@ -30,7 +30,6 @@ import org.apache.beam.sdk.values.TupleTag
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -73,11 +72,12 @@ object Task {
                     fun processElement(@Element element: KV<String, CoGbkResult>, out: OutputReceiver<String>) {
                         val alphabet = element.key
                         val coGbkResult = element.value
+
                         val fruit = coGbkResult.getOnly(fruitsTag)
                         val country = coGbkResult.getOnly(countriesTag)
+
                         out.output(WordsAlphabet(alphabet, fruit, country).toString())
                     }
-
                 }))
     }
     

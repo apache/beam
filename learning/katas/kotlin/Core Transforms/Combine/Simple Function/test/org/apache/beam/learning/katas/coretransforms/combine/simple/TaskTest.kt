@@ -25,13 +25,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Core Transforms - Combine - Simple Function`() {
+    fun core_transforms_combine_simple_function() {
         val values = Create.of(10, 30, 50, 70, 90)
         val numbers = testPipeline.apply(values)
 
@@ -41,5 +40,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

@@ -29,7 +29,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -49,12 +48,10 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<KV<String, Iterable<String>>> {
         return input
-                .apply(
-                    MapElements
+                .apply(MapElements
                         .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
                         .via(SerializableFunction { word: String -> KV.of(word.substring(0, 1), word) })
                 )
                 .apply(GroupByKey.create())
     }
-    
 }
