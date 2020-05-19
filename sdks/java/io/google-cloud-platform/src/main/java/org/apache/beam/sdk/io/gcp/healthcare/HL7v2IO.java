@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
+import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
@@ -153,12 +156,12 @@ public class HL7v2IO {
 
   /** Write HL7v2 Messages to a store. */
   private static Write.Builder write(String hl7v2Store) {
-    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
+    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(StaticValueProvider.of(hl7v2Store));
   }
 
   /** Write HL7v2 Messages to a store. */
   private static Write.Builder write(ValueProvider<String> hl7v2Store) {
-    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store.get());
+    return new AutoValue_HL7v2IO_Write.Builder().setHL7v2Store(hl7v2Store);
   }
 
   /**
@@ -495,8 +498,9 @@ public class HL7v2IO {
     @Override
     public PCollection<HL7v2Message> expand(PBegin input) {
       return input
-          .apply(Create.of(this.hl7v2Stores.get()))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter.get(), initialSplitDuration)))
+          .apply(Create.ofProvider(this.hl7v2Stores, ListCoder.of(StringUtf8Coder.of())))
+          .apply(FlatMapElements.into(TypeDescriptors.strings()).via((x) -> x))
+          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter, initialSplitDuration)))
           .setCoder(new HL7v2MessageCoder())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
@@ -511,7 +515,7 @@ public class HL7v2IO {
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
-    private String filter;
+    private ValueProvider<String> filter;
     // These control the initial restriction split which means that the list of integer pairs
     // must comfortably fit in memory.
     private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
@@ -528,10 +532,10 @@ public class HL7v2IO {
      * @param filter the filter
      */
     ListHL7v2MessagesFn(String filter) {
-      new ListHL7v2MessagesFn(filter, null);
+      new ListHL7v2MessagesFn(StaticValueProvider.of(filter), null);
     }
 
-    ListHL7v2MessagesFn(String filter, @Nullable Duration initialSplitDuration) {
+    ListHL7v2MessagesFn(ValueProvider<String> filter, @Nullable Duration initialSplitDuration) {
       this.filter = filter;
       this.initialSplitDuration =
           (initialSplitDuration == null) ? DEFAULT_DESIRED_SPLIT_DURATION : initialSplitDuration;
@@ -550,10 +554,10 @@ public class HL7v2IO {
     @GetInitialRestriction
     public OffsetRange getEarliestToLatestRestriction(@Element String hl7v2Store)
         throws IOException {
-      from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter);
+      from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
-      to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter).plus(1);
+      to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
@@ -606,7 +610,7 @@ public class HL7v2IO {
       Instant endRestriction = Instant.ofEpochMilli(currentRestriction.getTo());
       HttpHealthcareApiClient.HL7v2MessagePages pages =
           new HttpHealthcareApiClient.HL7v2MessagePages(
-              client, hl7v2Store, startRestriction, endRestriction, filter, "sendTime");
+              client, hl7v2Store, startRestriction, endRestriction, filter.get(), "sendTime");
       long reqestTime = Instant.now().getMillis();
       long lastClaimedMilliSecond;
       Instant cursor;
@@ -678,7 +682,7 @@ public class HL7v2IO {
      *
      * @return the HL7v2 store
      */
-    abstract String getHL7v2Store();
+    abstract ValueProvider<String> getHL7v2Store();
 
     /**
      * Gets write method.
@@ -716,7 +720,7 @@ public class HL7v2IO {
        * @param hl7v2Store the HL7v2 store
        * @return the HL7v2 store
        */
-      abstract Builder setHL7v2Store(String hl7v2Store);
+      abstract Builder setHL7v2Store(ValueProvider<String> hl7v2Store);
 
       /**
        * Sets write method.
@@ -773,7 +777,7 @@ public class HL7v2IO {
 
   /** The type Write hl 7 v 2. */
   static class WriteHL7v2 extends PTransform<PCollection<HL7v2Message>, Write.Result> {
-    private final String hl7v2Store;
+    private final ValueProvider<String> hl7v2Store;
     private final Write.WriteMethod writeMethod;
 
     /**
@@ -782,7 +786,7 @@ public class HL7v2IO {
      * @param hl7v2Store the hl 7 v 2 store
      * @param writeMethod the write method
      */
-    WriteHL7v2(String hl7v2Store, Write.WriteMethod writeMethod) {
+    WriteHL7v2(ValueProvider<String> hl7v2Store, Write.WriteMethod writeMethod) {
       this.hl7v2Store = hl7v2Store;
       this.writeMethod = writeMethod;
     }
@@ -805,7 +809,7 @@ public class HL7v2IO {
           Metrics.distribution(WriteHL7v2Fn.class, "message-ingest-latency-ms");
       private Counter failedMessageWrites =
           Metrics.counter(WriteHL7v2Fn.class, "failed-hl7v2-message-writes");
-      private final String hl7v2Store;
+      private final ValueProvider<String> hl7v2Store;
       private final Counter successfulHL7v2MessageWrites =
           Metrics.counter(WriteHL7v2.class, "successful-hl7v2-message-writes");
       private final Write.WriteMethod writeMethod;
@@ -819,7 +823,7 @@ public class HL7v2IO {
        * @param hl7v2Store the HL7v2 store
        * @param writeMethod the write method
        */
-      WriteHL7v2Fn(String hl7v2Store, Write.WriteMethod writeMethod) {
+      WriteHL7v2Fn(ValueProvider<String> hl7v2Store, Write.WriteMethod writeMethod) {
         this.hl7v2Store = hl7v2Store;
         this.writeMethod = writeMethod;
       }
@@ -855,7 +859,7 @@ public class HL7v2IO {
           default:
             try {
               long requestTimestamp = Instant.now().getMillis();
-              client.ingestHL7v2Message(hl7v2Store, model);
+              client.ingestHL7v2Message(hl7v2Store.get(), model);
               messageIngestLatencyMs.update(Instant.now().getMillis() - requestTimestamp);
             } catch (Exception e) {
               failedMessageWrites.inc();
