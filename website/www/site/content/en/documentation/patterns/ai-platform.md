@@ -162,7 +162,7 @@ The output is below. For better readability, indexes are replaced by text which 
 
 This section shows how to use [Google Cloud AI Platform Prediction](https://cloud.google.com/ai-platform/prediction/docs/overview) to make predictions about new data from a cloud-hosted machine learning model.
  
-[tfx_bsl](https://github.com/tensorflow/tfx-bsl) is a library with a Beam PTransform called `RunInference`. `RunInference` is able to perform an inference that can use an external service endpoint for receiving data. When using a service endpoint, the transform takes a PCollection of type `tf.train.Example` and, for every batch of elements, sends a request to AI Platform Prediction. The size of a batch may vary. For more details on how Beam finds the best batch size, refer to a docstring for [BatchElements](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=batchelements#apache_beam.transforms.util.BatchElements).
+[tfx_bsl](https://github.com/tensorflow/tfx-bsl) is a library with a Beam PTransform called `RunInference`. `RunInference` is able to perform an inference that can use an external service endpoint for receiving data. When using a service endpoint, the transform takes a PCollection of type `tf.train.Example` and, for every batch of elements, sends a request to AI Platform Prediction. The size of a batch is automatically computed. For more details on how Beam finds the best batch size, refer to a docstring for [BatchElements](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=batchelements#apache_beam.transforms.util.BatchElements).
  
  The transform produces a PCollection of type `PredictionLog`, which contains predictions.
 
@@ -196,8 +196,8 @@ from tfx_bsl.beam.run_inference import RunInference
 from tfx_bsl.proto import model_spec_pb2
 
 def convert_json_to_tf_example(json_obj):
-  dict_ = json.loads(json_obj)
-  for name, text in dict_.items():
+  samples = json.loads(json_obj)
+  for name, text in samples.items():
       value = tf.train.Feature(bytes_list=tf.train.BytesList(
         value=[text.encode('utf-8')]))
       feature = {name: value}
