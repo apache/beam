@@ -461,22 +461,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       // Extract out relevant TimerFamilySpec information in preparation for execution.
       for (Map.Entry<String, TimerFamilySpec> entry :
           parDoPayload.getTimerFamilySpecsMap().entrySet()) {
-        String timerFamilyId = entry.getKey();
+        String timerIdOrTimerFamilyId = entry.getKey();
         TimeDomain timeDomain;
-        if (timerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)) {
+        if (timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)) {
           timeDomain =
               DoFnSignatures.getTimerFamilySpecOrThrow(
-                      doFnSignature.timerFamilyDeclarations().get(timerFamilyId), doFn)
+                      doFnSignature.timerFamilyDeclarations().get(timerIdOrTimerFamilyId), doFn)
                   .getTimeDomain();
         } else {
           timeDomain =
               DoFnSignatures.getTimerSpecOrThrow(
-                      doFnSignature.timerDeclarations().get(timerFamilyId), doFn)
+                      doFnSignature.timerDeclarations().get(timerIdOrTimerFamilyId), doFn)
                   .getTimeDomain();
         }
         Coder<Timer<Object>> timerCoder =
             (Coder) rehydratedComponents.getCoder(entry.getValue().getTimerFamilyCoderId());
-        timerFamilyInfosBuilder.put(timerFamilyId, KV.of(timeDomain, timerCoder));
+        timerFamilyInfosBuilder.put(timerIdOrTimerFamilyId, KV.of(timeDomain, timerCoder));
       }
       timerFamilyInfos = timerFamilyInfosBuilder.build();
 
