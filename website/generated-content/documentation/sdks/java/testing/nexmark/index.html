@@ -792,7 +792,7 @@ configure logging.</p>
 <h3 id="running-smoke-suite-on-the-flinkrunner-local">Running SMOKE suite on the FlinkRunner (local)</h3>
 <p>Batch Mode:</p>
 <pre><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=&quot;:runners:flink:1.9&quot; \
+    -Pnexmark.runner=&quot;:runners:flink:1.10&quot; \
     -Pnexmark.args=&quot;
         --runner=FlinkRunner
         --suite=SMOKE
@@ -804,7 +804,7 @@ configure logging.</p>
 </code></pre>
 <p>Streaming Mode:</p>
 <pre><code>./gradlew :sdks:java:testing:nexmark:run \
-    -Pnexmark.runner=&quot;:runners:flink:1.9&quot; \
+    -Pnexmark.runner=&quot;:runners:flink:1.10&quot; \
     -Pnexmark.args=&quot;
         --runner=FlinkRunner
         --suite=SMOKE
