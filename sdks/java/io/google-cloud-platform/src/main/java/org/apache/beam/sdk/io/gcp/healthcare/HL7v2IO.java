@@ -562,11 +562,6 @@ public class HL7v2IO {
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
-    @NewTracker
-    public OffsetRangeTracker newTracker(@Restriction OffsetRange timeRange) {
-      return timeRange.newTracker();
-    }
-
     @SplitRestriction
     public void split(@Restriction OffsetRange timeRange, OutputReceiver<OffsetRange> out) {
       List<OffsetRange> splits =
