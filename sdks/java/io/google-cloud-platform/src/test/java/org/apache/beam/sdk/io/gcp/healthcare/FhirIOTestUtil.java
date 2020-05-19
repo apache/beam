@@ -21,6 +21,7 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.Preconditions;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -39,13 +40,13 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
   private static Stream<String> readPrettyBundles(String version) {
-    Path resourceDir = Paths.get("src", "test", "resources", version);
+    ClassLoader classLoader = FhirIOTestUtil.class.getClassLoader();
+    Path resourceDir = Paths.get("build", "resources", "test", version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();

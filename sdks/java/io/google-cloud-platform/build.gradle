@@ -92,10 +92,11 @@ dependencies {
   testRuntimeOnly library.java.slf4j_jdk14
 }
 
+
 /**
  * These are integration tests with the real Pubsub service and the DirectRunner.
  */
-task integrationTest(type: Test) {
+task integrationTest(type: Test, dependsOn: processTestResources) {
   group = "Verification"
   def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
   def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
@@ -117,6 +118,7 @@ task integrationTest(type: Test) {
   maxParallelForks 4
   classpath = sourceSets.test.runtimeClasspath
   testClassesDirs = sourceSets.test.output.classesDirs
+
   useJUnit {
     excludeCategories "org.apache.beam.sdk.testing.UsesKms"
   }
