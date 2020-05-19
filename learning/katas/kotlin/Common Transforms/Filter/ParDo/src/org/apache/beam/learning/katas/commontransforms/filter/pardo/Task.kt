@@ -26,7 +26,6 @@ import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -44,7 +43,6 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollection<Int> {
         return input.apply(ParDo.of(object : DoFn<Int, Int>() {
-
                     @ProcessElement
                     fun processElement(context: ProcessContext, out: OutputReceiver<Int>) {
                         val number = context.element()
@@ -52,9 +50,7 @@ object Task {
                             out.output(number)
                         }
                     }
-
                 })
         )
     }
-
 }

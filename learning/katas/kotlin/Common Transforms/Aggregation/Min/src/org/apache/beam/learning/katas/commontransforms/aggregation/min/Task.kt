@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.Min
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()

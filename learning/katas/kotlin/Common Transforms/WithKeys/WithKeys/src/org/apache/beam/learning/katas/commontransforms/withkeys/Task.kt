@@ -27,7 +27,6 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -46,12 +45,9 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<KV<String, String>> {
-        return input
-                .apply(
-                        WithKeys
-                                .of { fruit: String -> fruit.substring(0, 1) }
-                                .withKeyType(TypeDescriptors.strings())
+        return input.apply(WithKeys
+                        .of { fruit: String -> fruit.substring(0, 1) }
+                        .withKeyType(TypeDescriptors.strings())
                 )
     }
-
 }

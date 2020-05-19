@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.Mean
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-
     @JvmStatic
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -44,5 +43,4 @@ object Task {
     fun applyTransform(input: PCollection<Int>): PCollection<Double> {
         return input.apply(Mean.globally())
     }
-
 }

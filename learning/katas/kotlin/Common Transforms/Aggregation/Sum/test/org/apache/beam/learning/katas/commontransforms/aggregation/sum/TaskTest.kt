@@ -24,13 +24,12 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
-    fun `Common Transforms - Aggregation - Sum`() {
+    fun common_transforms_aggregation_sum() {
         val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
         val numbers = testPipeline.apply(values)
 
@@ -40,5 +39,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }

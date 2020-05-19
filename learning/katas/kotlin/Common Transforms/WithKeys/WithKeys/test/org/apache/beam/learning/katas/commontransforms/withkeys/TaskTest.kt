@@ -26,10 +26,9 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-
     @get:Rule
     @Transient
-    val testPipeline = TestPipeline.create()
+    val testPipeline: TestPipeline = TestPipeline.create()
 
     @Test
     fun `Common Transforms - WithKeys - WithKeys`() {
@@ -49,5 +48,4 @@ class TaskTest {
 
         testPipeline.run().waitUntilFinish()
     }
-
 }
