@@ -533,7 +533,7 @@ public class HL7v2IO {
      * @param filter the filter
      */
     ListHL7v2MessagesFn(String filter) {
-      new ListHL7v2MessagesFn(StaticValueProvider.of(filter), null);
+      this(StaticValueProvider.of(filter), null);
     }
 
     ListHL7v2MessagesFn(ValueProvider<String> filter, @Nullable Duration initialSplitDuration) {
