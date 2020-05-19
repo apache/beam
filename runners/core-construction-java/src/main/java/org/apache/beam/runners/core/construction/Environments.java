@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -50,7 +51,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
@@ -210,11 +210,20 @@ public class Environments {
     }
   }
 
-  private static List<ArtifactInformation> getArtifacts(List<String> stagingFiles) {
-    Set<String> pathsToStage = Sets.newHashSet(stagingFiles);
+  public static List<ArtifactInformation> getArtifacts(List<String> stagingFiles) {
     ImmutableList.Builder<ArtifactInformation> artifactsBuilder = ImmutableList.builder();
-    for (String path : pathsToStage) {
-      File file = new File(path);
+    Set<String> deduplicatedStagingFiles = new LinkedHashSet<>(stagingFiles);
+    for (String path : deduplicatedStagingFiles) {
+      File file;
+      String stagedName;
+      if (path.contains("=")) {
+        String[] components = path.split("=", 2);
+        file = new File(components[1]);
+        stagedName = components[0];
+      } else {
+        file = new File(path);
+        stagedName = createStagingFileName(file);
+      }
       // Spurious items get added to the classpath. Filter by just those that exist.
       if (file.exists()) {
         ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
@@ -222,44 +231,40 @@ public class Environments {
         artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
         artifactBuilder.setRolePayload(
             RunnerApi.ArtifactStagingToRolePayload.newBuilder()
-                .setStagedName(createStagingFileName(file))
+                .setStagedName(stagedName)
                 .build()
                 .toByteString());
+        HashCode hashCode;
         if (file.isDirectory()) {
           File zippedFile;
-          HashCode hashCode;
           try {
             zippedFile = zipDirectory(file);
             hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-          artifactsBuilder.add(
-              artifactBuilder
-                  .setTypePayload(
-                      RunnerApi.ArtifactFilePayload.newBuilder()
-                          .setPath(zippedFile.getPath())
-                          .setSha256(hashCode.toString())
-                          .build()
-                          .toByteString())
-                  .build());
+
+          artifactBuilder.setTypePayload(
+              RunnerApi.ArtifactFilePayload.newBuilder()
+                  .setPath(zippedFile.getPath())
+                  .setSha256(hashCode.toString())
+                  .build()
+                  .toByteString());
+
         } else {
-          HashCode hashCode;
           try {
             hashCode = Files.asByteSource(file).hash(Hashing.sha256());
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
-          artifactsBuilder.add(
-              artifactBuilder
-                  .setTypePayload(
-                      RunnerApi.ArtifactFilePayload.newBuilder()
-                          .setPath(file.getPath())
-                          .setSha256(hashCode.toString())
-                          .build()
-                          .toByteString())
-                  .build());
+          artifactBuilder.setTypePayload(
+              RunnerApi.ArtifactFilePayload.newBuilder()
+                  .setPath(file.getPath())
+                  .setSha256(hashCode.toString())
+                  .build()
+                  .toByteString());
         }
+        artifactsBuilder.add(artifactBuilder.build());
       }
     }
     return artifactsBuilder.build();
@@ -309,15 +314,10 @@ public class Environments {
     return capabilities.build();
   }
 
-  private static String createStagingFileName(File file) {
-    // TODO: https://issues.apache.org/jira/browse/BEAM-4109 Support arbitrary names in the staging
-    // service itself.
-    // HACK: Encode the path name ourselves because the local artifact staging service currently
-    // assumes artifact names correspond to a flat directory. Artifact staging services should
-    // generally accept arbitrary artifact names.
-    // NOTE: Base64 url encoding does not work here because the stage artifact names tend to be long
-    // and exceed file length limits on the artifact stager.
-    return UUID.randomUUID().toString();
+  public static String createStagingFileName(File path) {
+    String ext = path.isDirectory() ? "jar" : Files.getFileExtension(path.getAbsolutePath());
+    String suffix = Strings.isNullOrEmpty(ext) ? "" : "." + ext;
+    return UUID.randomUUID().toString() + suffix;
   }
 
   private static File zipDirectory(File directory) throws IOException {
