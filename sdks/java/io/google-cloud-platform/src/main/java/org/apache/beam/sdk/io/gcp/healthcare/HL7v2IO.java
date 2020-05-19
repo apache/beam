@@ -512,6 +512,7 @@ public class HL7v2IO {
    * Message.sendTime dimension.
    */
   @BoundedPerElement
+  @VisibleForTesting
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
