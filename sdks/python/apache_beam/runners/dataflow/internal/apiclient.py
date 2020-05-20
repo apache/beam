@@ -316,10 +316,10 @@ class Environment(object):
 
           # Currently, Dataflow uses Docker container images to uniquely
           # identify execution environments. Hence Dataflow executes all
-          # transforms that specify the same Docker container image in the
-          # same container. Dependencies of all environments that specify a
-          # given container image will be staged in the container for that
-          # particular container image.
+          # transforms that specify the the same Docker container image in a
+          # single container instance. Dependencies of all environments that
+          # specify a given container image will be staged in the container
+          # instance for that particular container image.
           # TODO(BEAM-9455): loosen this restriction to support multiple
           # environments with the same container image when Dataflow supports
           # environment specific artifact provisioning.
