@@ -430,10 +430,10 @@ public class HL7v2IO {
    * <p>This transform is optimized for splitting of message.list calls for large batches of
    * historical data and assumes rather continuous stream of sendTimes.
    *
-   * <p>Note on Benchmarking By default, this will make more queries than necessary when used with
-   * very small data sets (or very sparse data sets in the sendTime dimension). If you are looking
-   * to get an accurate benchmark be sure to use sufficient volume of data with messages that span
-   * sendTimes over a realistic time range (days)
+   * <p>Note on Benchmarking: The default initial splitting on day will make more queries than
+   * necessary when used with very small data sets (or very sparse data sets in the sendTime
+   * dimension). If you are looking to get an accurate benchmark be sure to use sufficient volume of
+   * data with messages that span sendTimes over a realistic time range (days)
    *
    * <p>Implementation includes overhead for:
    *
@@ -495,8 +495,6 @@ public class HL7v2IO {
     private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
     private ValueProvider<String> filter;
     private Duration initialSplitDuration;
-    private Instant from;
-    private Instant to;
     private transient HealthcareApiClient client;
     /**
      * Instantiates a new List HL7v2 fn.
@@ -526,10 +524,10 @@ public class HL7v2IO {
     @GetInitialRestriction
     public OffsetRange getEarliestToLatestRestriction(@Element String hl7v2Store)
         throws IOException {
-      from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
+      Instant from = this.client.getEarliestHL7v2SendTime(hl7v2Store, this.filter.get());
       // filters are [from, to) to match logic of OffsetRangeTracker but need latest element to be
       // included in results set to add an extra ms to the upper bound.
-      to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
+      Instant to = this.client.getLatestHL7v2SendTime(hl7v2Store, this.filter.get()).plus(1);
       return new OffsetRange(from.getMillis(), to.getMillis());
     }
 
