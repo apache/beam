@@ -27,38 +27,38 @@ import re
 import requests
 from datetime import datetime
 
-
-COMMENTS_TO_ADD=[
-  "Run Release Gradle Build",
-  "Run Go PostCommit",
-  "Run Java PostCommit",
-  "Run Java Flink PortableValidatesRunner Batch",
-  "Run Java Flink PortableValidatesRunner Streaming",
-  "Run Apex ValidatesRunner",
-  "Run Dataflow ValidatesRunner",
-  "Run Flink ValidatesRunner",
-  "Run Gearpump ValidatesRunner",
-  "Run Samza ValidatesRunner",
-  "Run Spark ValidatesRunner",
-  "Run Java Spark PortableValidatesRunner Batch",
-  "Run Python Spark ValidatesRunner",
-  "Run Python Dataflow ValidatesContainer",
-  "Run Python Dataflow ValidatesRunner",
-  "Run Python 3.5 Flink ValidatesRunner",
-  "Run Python 2 PostCommit",
-  "Run Python 3.5 PostCommit",
-  "Run Python 3.6 PostCommit",
-  "Run Python 3.7 PostCommit",
-  "Run SQL PostCommit",
-  "Run Go PreCommit",
-  "Run Java PreCommit",
-  "Run Java_Examples_Dataflow PreCommit",
-  "Run JavaPortabilityApi PreCommit",
-  "Run Portable_Python PreCommit",
-  "Run PythonLint PreCommit",
-  "Run Python PreCommit",
-  "Run Python DockerBuild PreCommit"
+COMMENTS_TO_ADD = [
+    "Run Release Gradle Build",
+    "Run Go PostCommit",
+    "Run Java PostCommit",
+    "Run Java Flink PortableValidatesRunner Batch",
+    "Run Java Flink PortableValidatesRunner Streaming",
+    "Run Apex ValidatesRunner",
+    "Run Dataflow ValidatesRunner",
+    "Run Flink ValidatesRunner",
+    "Run Gearpump ValidatesRunner",
+    "Run Samza ValidatesRunner",
+    "Run Spark ValidatesRunner",
+    "Run Java Spark PortableValidatesRunner Batch",
+    "Run Python Spark ValidatesRunner",
+    "Run Python Dataflow ValidatesContainer",
+    "Run Python Dataflow ValidatesRunner",
+    "Run Python 3.5 Flink ValidatesRunner",
+    "Run Python 2 PostCommit",
+    "Run Python 3.5 PostCommit",
+    "Run Python 3.6 PostCommit",
+    "Run Python 3.7 PostCommit",
+    "Run SQL PostCommit",
+    "Run Go PreCommit",
+    "Run Java PreCommit",
+    "Run Java_Examples_Dataflow PreCommit",
+    "Run JavaPortabilityApi PreCommit",
+    "Run Portable_Python PreCommit",
+    "Run PythonLint PreCommit",
+    "Run Python PreCommit",
+    "Run Python DockerBuild PreCommit"
 ]
+
 
 def executeGHGraphqlQuery(accessToken, query):
   '''Runs graphql query on GitHub.'''
@@ -66,6 +66,7 @@ def executeGHGraphqlQuery(accessToken, query):
   headers = {'Authorization': 'Bearer %s' % accessToken}
   r = requests.post(url=url, json={'query': query}, headers=headers)
   return r.json()
+
 
 def getSubjectId(accessToken, prNumber):
   query = '''
@@ -79,6 +80,7 @@ query FindPullRequestID {
 ''' % prNumber
   response = executeGHGraphqlQuery(accessToken, query)
   return response['data']['repository']['pullRequest']['id']
+
 
 def fetchGHData(accessToken, subjectId, commentBody):
   '''Fetches GitHub data required for reporting Beam metrics'''
@@ -99,6 +101,7 @@ mutation AddPullRequestComment {
 ''' % (subjectId, commentBody)
   return executeGHGraphqlQuery(accessToken, query)
 
+
 def postComments(accessToken, subjectId):
   '''
   Main workhorse method. Fetches data from GitHub and puts it in metrics table.
@@ -107,6 +110,7 @@ def postComments(accessToken, subjectId):
   for commentBody in COMMENTS_TO_ADD:
     jsonData = fetchGHData(accessToken, subjectId, commentBody)
   print(jsonData)
+
 
 def probeGitHubIsUp():
   '''
@@ -126,10 +130,9 @@ if __name__ == '__main__':
   '''
   print("Started.")
 
-
   if not probeGitHubIsUp():
     print("GitHub is unavailable, skipping fetching data.")
-    exit();
+    exit()
 
   print("GitHub is available start fetching data.")
 
