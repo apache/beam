@@ -488,13 +488,13 @@ public class HL7v2IO {
   @BoundedPerElement
   @VisibleForTesting
   static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
-    private ValueProvider<String> filter;
     // These control the initial restriction split which means that the list of integer pairs
     // must comfortably fit in memory.
     private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
     private static final Duration DEFAULT_MIN_SPLIT_DURATION = Duration.standardHours(1);
+
+    private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
+    private ValueProvider<String> filter;
     private Duration initialSplitDuration;
     private Instant from;
     private Instant to;
