@@ -85,7 +85,8 @@ public class StateBackedIterable<T> implements Iterable<T> {
         prefix.iterator(),
         new DataStreams.DataStreamDecoder(
             elemCoder,
-            DataStreams.inbound(StateFetchingIterators.forFirstChunk(beamFnStateClient, request))));
+            DataStreams.inbound(
+                StateFetchingIterators.readAllStartingFrom(beamFnStateClient, request))));
   }
 
   /**

@@ -77,7 +77,7 @@ public class StateBackedIterableTest {
     public List<String> expected;
 
     @Test
-    public void testIteration() throws Exception {
+    public void testReiteration() throws Exception {
       FakeBeamFnStateClient fakeBeamFnStateClient =
           new FakeBeamFnStateClient(
               ImmutableMap.of(
@@ -98,7 +98,7 @@ public class StateBackedIterableTest {
     }
 
     @Test
-    public void testUsingMultipleInterleavedIterators() throws Exception {
+    public void testUsingInterleavedReiteration() throws Exception {
       FakeBeamFnStateClient fakeBeamFnStateClient =
           new FakeBeamFnStateClient(
               ImmutableMap.of(
