@@ -252,7 +252,11 @@ public class BeamFnMapTaskExecutorTest {
 
           @Override
           public <W extends BoundedWindow> void setStateCleanupTimer(
-              String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {}
+              String timerId,
+              W window,
+              Coder<W> windowCoder,
+              Instant cleanupTime,
+              Instant cleanupOutputTimestamp) {}
 
           @Override
           public DataflowStepContext namespacedToUser() {

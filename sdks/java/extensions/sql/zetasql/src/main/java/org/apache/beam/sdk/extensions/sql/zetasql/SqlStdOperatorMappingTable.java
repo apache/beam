@@ -33,6 +33,7 @@ public class SqlStdOperatorMappingTable {
       ImmutableList.of(
           FunctionSignatureId.FN_AND,
           FunctionSignatureId.FN_ANY_VALUE,
+          FunctionSignatureId.FN_BIT_OR_INT64,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
           FunctionSignatureId.FN_MULTIPLY_DOUBLE,
@@ -92,13 +93,28 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_IFNULL,
           FunctionSignatureId.FN_NULLIF,
 
+          // Date functions
+          FunctionSignatureId.FN_CURRENT_DATE, // current_date
+          FunctionSignatureId.FN_EXTRACT_FROM_DATE, // $extract
+          FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY, // date
+          FunctionSignatureId.FN_DATE_FROM_TIMESTAMP, // date
+          // FunctionSignatureId.FN_DATE_FROM_DATETIME, // date
+          FunctionSignatureId.FN_DATE_ADD_DATE, // date_add
+          FunctionSignatureId.FN_DATE_SUB_DATE, // date_sub
+          FunctionSignatureId.FN_DATE_DIFF_DATE, // date_diff
+          FunctionSignatureId.FN_DATE_TRUNC_DATE, // date_trunc
+          FunctionSignatureId.FN_FORMAT_DATE, // format_date
+          FunctionSignatureId.FN_PARSE_DATE, // parse_date
+          FunctionSignatureId.FN_UNIX_DATE, // unix_date
+          FunctionSignatureId.FN_DATE_FROM_UNIX_DATE, // date_from_unix_date
+
           // Timestamp functions
           FunctionSignatureId.FN_CURRENT_TIMESTAMP, // current_timestamp
           FunctionSignatureId.FN_EXTRACT_FROM_TIMESTAMP, // $extract
           FunctionSignatureId.FN_STRING_FROM_TIMESTAMP, // string
           FunctionSignatureId.FN_TIMESTAMP_FROM_STRING, // timestamp
           FunctionSignatureId.FN_TIMESTAMP_FROM_DATE, // timestamp
-          // FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME // timestamp
+          // FunctionSignatureId.FN_TIMESTAMP_FROM_DATETIME, // timestamp
           FunctionSignatureId.FN_TIMESTAMP_ADD, // timestamp_add
           FunctionSignatureId.FN_TIMESTAMP_SUB, // timestamp_sub
           FunctionSignatureId.FN_TIMESTAMP_DIFF, // timestamp_diff
@@ -115,13 +131,9 @@ public class SqlStdOperatorMappingTable {
           FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MILLIS_INT64, // timestamp_from_unix_millis
           // FunctionSignatureId.FN_TIMESTAMP_FROM_UNIX_MICROS_INT64, // timestamp_from_unix_micros
 
-          // Date/Time/Datetime functions
-          FunctionSignatureId.FN_EXTRACT_FROM_DATE,
+          // Time/Datetime functions
           FunctionSignatureId.FN_EXTRACT_FROM_DATETIME,
-          FunctionSignatureId.FN_EXTRACT_FROM_TIME,
-          FunctionSignatureId.FN_DATE_FROM_YEAR_MONTH_DAY
-          // TODO: FunctionSignatureId.FN_DATE_FROM_TIMESTAMP
-          );
+          FunctionSignatureId.FN_EXTRACT_FROM_TIME);
 
   // todo: Some of operators defined here are later overridden in ZetaSQLPlannerImpl.
   // We should remove them from this table and add generic way to provide custom
@@ -213,11 +225,10 @@ public class SqlStdOperatorMappingTable {
           // .put("array_concat_agg")
           // .put("string_agg")
           // .put("bit_and")
-          // .put("bit_or")
           // .put("bit_xor")
           // .put("logical_and")
           // .put("logical_or")
-
+          .put("bit_or", SqlStdOperatorTable.BIT_OR)
           // built-in statistical aggregate function
           // .put("covar_pop", SqlStdOperatorTable.COVAR_POP)
           // .put("covar_samp", SqlStdOperatorTable.COVAR_SAMP)
@@ -313,11 +324,6 @@ public class SqlStdOperatorMappingTable {
           // .put("sha1")
           // .put("sha256")
           // .put("sha512")
-
-          // date functions
-          // .put("date_add", SqlStdOperatorTable.DATETIME_PLUS)
-          // .put("date_sub", SqlStdOperatorTable.MINUS_DATE)
-          .put("date", SqlOperators.DATE_OP)
 
           // time functions
           // .put("time_add", SqlStdOperatorTable.DATETIME_PLUS)

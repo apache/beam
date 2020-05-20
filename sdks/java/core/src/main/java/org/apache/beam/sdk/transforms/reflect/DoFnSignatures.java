@@ -190,7 +190,9 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
-              Parameter.StateParameter.class);
+              Parameter.StateParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
@@ -1019,6 +1021,19 @@ public class DoFnSignatures {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.Context} given {@code
+   * InputT} and {@code OutputT}.
+   */
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.OnWindowExpirationContext>
+          doFnOnWindowExpirationContextTypeOf(
+              TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.OnWindowExpirationContext>() {}.where(
+            new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
   @VisibleForTesting
   static DoFnSignature.OnTimerMethod analyzeOnTimerMethod(
       ErrorReporter errors,
@@ -1264,6 +1279,8 @@ public class DoFnSignatures {
     TypeDescriptor<?> expectedStartBundleContextT = doFnStartBundleContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedFinishBundleContextT = doFnFinishBundleContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedOnWindowExpirationContextT =
+        doFnOnWindowExpirationContextTypeOf(inputT, outputT);
 
     TypeDescriptor<?> paramT = param.getType();
     Class<?> rawType = paramT.getRawType();
@@ -1333,6 +1350,12 @@ public class DoFnSignatures {
           "OnTimerContext argument must have type %s",
           format(expectedOnTimerContextT));
       return Parameter.onTimerContext();
+    } else if (rawType.equals(DoFn.OnWindowExpirationContext.class)) {
+      paramErrors.checkArgument(
+          paramT.equals(expectedOnWindowExpirationContextT),
+          "OnWindowExpirationContext argument must have type %s",
+          format(expectedOnWindowExpirationContextT));
+      return Parameter.onWindowExpirationContext();
     } else if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasParameter(WindowParameter.class),

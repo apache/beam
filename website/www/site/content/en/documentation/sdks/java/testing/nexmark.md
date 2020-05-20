@@ -555,7 +555,7 @@ Streaming Mode:
 Batch Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.9" \
+        -Pnexmark.runner=":runners:flink:1.10" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
@@ -568,7 +568,7 @@ Batch Mode:
 Streaming Mode:
 
     ./gradlew :sdks:java:testing:nexmark:run \
-        -Pnexmark.runner=":runners:flink:1.9" \
+        -Pnexmark.runner=":runners:flink:1.10" \
         -Pnexmark.args="
             --runner=FlinkRunner
             --suite=SMOKE
