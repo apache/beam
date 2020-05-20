@@ -134,10 +134,11 @@ class RowCoderImpl(StreamCoderImpl):
   def encode_to_stream(self, value, out, nested):
     nvals = len(self.schema.fields)
     self.SIZE_CODER.encode_to_stream(nvals, out, True)
+    attrs = [getattr(value, f.name) for f in self.schema.fields]
 
     words = array('B')
     if self.has_nullable_fields:
-      nulls = list(attr is None for attr in value)
+      nulls = list(attr is None for attr in attrs)
       if any(nulls):
         words = array('B', itertools.repeat(0, (nvals + 7) // 8))
         for i, is_null in enumerate(nulls):
@@ -145,7 +146,7 @@ class RowCoderImpl(StreamCoderImpl):
 
     self.NULL_MARKER_CODER.encode_to_stream(words.tostring(), out, True)
 
-    for c, field, attr in zip(self.components, self.schema.fields, value):
+    for c, field, attr in zip(self.components, self.schema.fields, attrs):
       if attr is None:
         if not field.type.nullable:
           raise ValueError(
