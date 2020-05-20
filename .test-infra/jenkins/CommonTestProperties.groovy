@@ -26,7 +26,7 @@ class CommonTestProperties {
     }
 
     enum Runner {
-        DATAFLOW("DataflowRunner"),
+        DATAFLOW("TestDataflowRunner"),
         SPARK("SparkRunner"),
         SPARK_STRUCTURED_STREAMING("SparkStructuredStreamingRunner"),
         FLINK("FlinkRunner"),

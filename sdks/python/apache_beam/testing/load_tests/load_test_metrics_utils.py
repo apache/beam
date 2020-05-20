@@ -184,6 +184,7 @@ class MetricsReader(object):
       bq_dataset=None,
       publish_to_bq=False,
       influxdb_options=None,  # type: Optional[InfluxDBMetricsPublisherOptions]
+      namespace=None,
       filters=None):
     """Initializes :class:`MetricsReader` .
 
@@ -191,9 +192,10 @@ class MetricsReader(object):
       project_name (str): project with BigQuery where metrics will be saved
       bq_table (str): BigQuery table where metrics will be saved
       bq_dataset (str): BigQuery dataset where metrics will be saved
+      namespace (str): Namespace of the metrics
       filters: MetricFilter to query only filtered metrics
     """
-    self._namespace = bq_table
+    self._namespace = namespace
     self.publishers.append(ConsoleMetricsPublisher())
 
     check = project_name and bq_table and bq_dataset and publish_to_bq
