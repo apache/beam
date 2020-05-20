@@ -582,13 +582,16 @@ public class HL7v2IO {
       long lastClaimedMilliSecond = startRestriction.getMillis() - 1;
       for (HL7v2Message msg : FluentIterable.concat(pages)) {
         cursor = Instant.parse(msg.getSendTime());
-        if (cursor.getMillis() > lastClaimedMilliSecond && tracker.tryClaim(cursor.getMillis())) {
+        if (cursor.getMillis() > lastClaimedMilliSecond) {
+          // Return early after the first claim failure preventing us from iterating
+          // through the remaining messages.
+          if (!tracker.tryClaim(cursor.getMillis())) {
+            return;
+          }
           lastClaimedMilliSecond = cursor.getMillis();
         }
 
-        if (cursor.getMillis() == lastClaimedMilliSecond) { // loop over messages in millisecond.
-          outputReceiver.output(msg);
-        }
+        outputReceiver.output(msg);
       }
 
       // We've paginated through all messages for this restriction but the last message may be
