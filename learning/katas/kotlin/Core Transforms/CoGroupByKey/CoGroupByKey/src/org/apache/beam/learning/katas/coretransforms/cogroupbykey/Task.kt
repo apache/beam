@@ -67,7 +67,6 @@ object Task {
                 .and(countriesTag, countriesPColl)
                 .apply(CoGroupByKey.create())
                 .apply(ParDo.of(object : DoFn<KV<String, CoGbkResult>, String>() {
-
                     @ProcessElement
                     fun processElement(@Element element: KV<String, CoGbkResult>, out: OutputReceiver<String>) {
                         val alphabet = element.key
@@ -80,5 +79,4 @@ object Task {
                     }
                 }))
     }
-    
 }
