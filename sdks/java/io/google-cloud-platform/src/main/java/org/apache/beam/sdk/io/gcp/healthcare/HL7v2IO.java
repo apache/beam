@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import avro.shaded.com.google.common.annotations.VisibleForTesting;
 import com.google.api.services.healthcare.v1beta1.model.Message;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
@@ -44,7 +43,6 @@ import org.apache.beam.sdk.transforms.FlatMapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -55,6 +53,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -431,17 +430,17 @@ public class HL7v2IO {
    * <p>This transform is optimized for splitting of message.list calls for large batches of
    * historical data and assumes rather continuous stream of sendTimes.
    *
-   * <p> Note on Benchmarking
-   * By default, this will make more queries than necessary when used with very small data sets
-   * (or very sparse data sets in the sendTime dimension). If you are looking to get an accurate
-   * benchmark be sure to use sufficient volume of data with messages that span sendTimes over a
-   * realistic time range (days)
+   * <p>Note on Benchmarking By default, this will make more queries than necessary when used with
+   * very small data sets (or very sparse data sets in the sendTime dimension). If you are looking
+   * to get an accurate benchmark be sure to use sufficient volume of data with messages that span
+   * sendTimes over a realistic time range (days)
    *
-   * Implementation includes overhead for:
+   * <p>Implementation includes overhead for:
+   *
    * <ol>
-   *   <li>two api calls to determine the min/max sendTime of the HL7v2 store at invocation time.</li>
+   *   <li>two api calls to determine the min/max sendTime of the HL7v2 store at invocation time.
    *   <li>initial splitting into non-overlapping time ranges (default daily) to achieve
-   *       parallelization in separate messages.list calls.</li>
+   *       parallelization in separate messages.list calls.
    * </ol>
    *
    * If your use case doesn't lend itself to daily splitting, you can can control initial splitting
@@ -464,7 +463,7 @@ public class HL7v2IO {
       this.initialSplitDuration = null;
     }
 
-    public ListHL7v2Messages withInitialSplitDuration(Duration initialSplitDuration){
+    public ListHL7v2Messages withInitialSplitDuration(Duration initialSplitDuration) {
       this.initialSplitDuration = initialSplitDuration;
       return this;
     }
@@ -583,15 +582,15 @@ public class HL7v2IO {
               client, hl7v2Store, startRestriction, endRestriction, filter.get(), "sendTime");
       Instant cursor;
       long lastClaimedMilliSecond = startRestriction.getMillis() - 1;
-      for (HL7v2Message msg: FluentIterable.concat(pages)){
-          cursor = Instant.parse(msg.getSendTime());
-          if (cursor.getMillis() > lastClaimedMilliSecond && tracker.tryClaim(cursor.getMillis())) {
-              lastClaimedMilliSecond = cursor.getMillis();
-          }
+      for (HL7v2Message msg : FluentIterable.concat(pages)) {
+        cursor = Instant.parse(msg.getSendTime());
+        if (cursor.getMillis() > lastClaimedMilliSecond && tracker.tryClaim(cursor.getMillis())) {
+          lastClaimedMilliSecond = cursor.getMillis();
+        }
 
-          if (cursor.getMillis() == lastClaimedMilliSecond) { // loop over messages in millisecond.
-            outputReceiver.output(msg);
-          }
+        if (cursor.getMillis() == lastClaimedMilliSecond) { // loop over messages in millisecond.
+          outputReceiver.output(msg);
+        }
       }
 
       // We've paginated through all messages for this restriction but the last message may be
