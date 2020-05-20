@@ -849,8 +849,15 @@ class DataflowRunner(PipelineRunner):
     #
     # TODO(ccy): make Coder inference and checking less specialized and more
     # comprehensive.
+
     parent = pcoll.producer
     if parent:
+      # Skip the check because we can assume that any x-lang transform is
+      # properly formed (the onus is on the expansion service to construct
+      # transforms correctly).
+      if isinstance(parent.transform, RunnerAPIPTransformHolder):
+        return
+
       coder = parent.transform._infer_output_coder()  # pylint: disable=protected-access
     if not coder:
       coder = self._get_coder(pcoll.element_type or typehints.Any, None)
