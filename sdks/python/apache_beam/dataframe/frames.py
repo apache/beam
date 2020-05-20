@@ -109,6 +109,19 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def loc(self):
     return _DeferredLoc(self)
 
+  def aggregate(self, func, axis=0, *args, **kwargs):
+    if axis != 0:
+      raise NotImplementedError()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'aggregate',
+            lambda df: df.agg(func, axis, *args, **kwargs),
+            [self._expr],
+            # TODO(robertwb): Sub-aggregate when possible.
+            requires_partition_by=partitionings.Singleton()))
+
+  agg = aggregate
+
 
 for meth in ('filter', ):
   setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))

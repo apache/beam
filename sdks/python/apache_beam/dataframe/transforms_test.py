@@ -82,6 +82,11 @@ class TransformTest(unittest.TestCase):
     self.run_scenario(
         df, lambda df: df.set_index('Animal').filter(regex='F.*', axis='index'))
 
+  def test_aggregate(self):
+    a = pd.DataFrame({'col': [1, 2, 3]})
+    self.run_scenario(a, lambda a: a.agg(sum))
+    self.run_scenario(a, lambda a: a.agg(['mean', 'min', 'max']))
+
   def test_input_output_polymorphism(self):
     one_series = pd.Series([1])
     two_series = pd.Series([2])
