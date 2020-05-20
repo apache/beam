@@ -310,8 +310,8 @@ public class SnowflakeIO {
           (getDataSourceProviderFn() != null),
           "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
 
-      String gcpTmpDirName = makeTmpDirName();
-      String stagingBucketDir = String.format("%s/%s/", getStagingBucketName(), gcpTmpDirName);
+      String tmpDirName = makeTmpDirName();
+      String stagingBucketDir = String.format("%s/%s", getStagingBucketName(), tmpDirName);
 
       PCollection<Void> emptyCollection = input.apply(Create.of((Void) null));
 
@@ -368,7 +368,9 @@ public class SnowflakeIO {
         this.query = query;
         this.table = table;
         this.integrationName = integrationName;
-        this.stagingBucketDir = stagingBucketDir;
+        this.stagingBucketDir =
+            String.format(
+                "%s/run_%s/", stagingBucketDir, UUID.randomUUID().toString().subSequence(0, 8));
         this.snowflakeService = snowflakeService;
       }
 
@@ -414,7 +416,7 @@ public class SnowflakeIO {
 
       @ProcessElement
       public void processElement(ProcessContext c) throws IOException {
-        String combinedPath = stagingBucketDir + "*";
+        String combinedPath = stagingBucketDir + "/**";
         List<ResourceId> paths =
             FileSystems.match(combinedPath).metadata().stream()
                 .map(metadata -> metadata.resourceId())
