@@ -675,30 +675,14 @@ class Pipeline(object):
           current.add_output(result, result._main_tag)
           continue
 
-        # TODO(BEAM-9322): Remove the experiment check and have this
-        # conditional be the default.
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'passthrough_pcollection_output_ids', default=False):
-          # Passthrough the PCollection output_ids from the PCollection tag.
-          # Only generate a tag if there are multiple PCollections that have a
-          # None tag. This happens when returning multiple PCollections from a
-          # composite.
-          if result.tag is None and None in current.outputs:
-            tag = len(current.outputs)
-          else:
-            tag = result.tag
-          current.add_output(result, tag)
-          continue
-
-        if self._options.view_as(DebugOptions).lookup_experiment(
-            'force_generated_pcollection_output_ids', default=False):
-          tag = len(current.outputs) if None in current.outputs else None
-        else:
-          base = tag
-          counter = 0
-          while tag in current.outputs:
-            counter += 1
-            tag = '%s_%d' % (base, counter)
+        # If there is already a tag with the same name, increase a counter for
+        # the name. This can happen, for example, when a composite outputs a
+        # list of PCollections where all the tags are None.
+        base = tag
+        counter = 0
+        while tag in current.outputs:
+          counter += 1
+          tag = '%s_%d' % (base, counter)
 
         current.add_output(result, tag)
 

@@ -348,10 +348,7 @@ class SideInputsTest(unittest.TestCase):
     # This flag is only necessary when using the multi-output TestStream b/c
     # it relies on using the PCollection output tags as the PCollection output
     # ids.
-    p = TestPipeline(
-        additional_pipeline_args=[
-            '--experiments=' + 'passthrough_pcollection_output_ids'
-        ])
+    p = TestPipeline()
 
     test_stream = (
         p
