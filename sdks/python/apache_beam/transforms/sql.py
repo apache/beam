@@ -31,15 +31,9 @@ from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
 
 __all__ = ['SqlTransform']
 
-_SQL_PLANNERS = {
-    'zetasql': 'org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLQueryPlanner',
-    'calcite': 'org.apache.beam.sdk.extensions.sql.impl.CalciteQueryPlanner',
-}
-
 SqlTransformSchema = typing.NamedTuple(
-    'SqlTransformSchema',
-    [('query', unicode),
-     ('query_planner_class_name', typing.Optional[unicode])])
+    'SqlTransformSchema', [('query', unicode),
+                           ('dialect', typing.Optional[unicode])])
 
 
 class SqlTransform(ExternalTransform):
@@ -74,17 +68,9 @@ class SqlTransform(ExternalTransform):
   URN = 'beam:external:java:sql:v1'
 
   def __init__(self, query, dialect=None):
-    try:
-      query_planner = _SQL_PLANNERS[
-          dialect.lower()] if dialect is not None else None
-    except KeyError:
-      raise ValueError(
-          "Received unsupported SQL dialect \"{0}\". Supported dialects: {1}".
-          format(dialect, list(_SQL_PLANNERS.keys())))
     super(SqlTransform, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(
-            SqlTransformSchema(
-                query=query, query_planner_class_name=query_planner)),
+            SqlTransformSchema(query=query, dialect=dialect)),
         BeamJarExpansionService(
             ':sdks:java:extensions:sql:expansion-service:shadowJar'))
