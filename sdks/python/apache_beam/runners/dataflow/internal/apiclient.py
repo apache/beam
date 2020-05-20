@@ -314,8 +314,15 @@ class Environment(object):
         if container_image_url in already_added_containers:
           # Do not add the pipeline environment again.
 
+          # Currently, Dataflow uses Docker container images to uniquely
+          # identify execution environments. Hence Dataflow executes all
+          # transforms that specifies the same Docker contaienr image in the
+          # same container. Dependencies of all environments that specifies a
+          # given container image will be staged in the container for that
+          # particular container image.
           # TODO(BEAM-9455): loosen this restriction to support multiple
-          # environments with the same container name.
+          # environments with the same container image when Dataflow supports
+          # environment specific artifact provisioning.
           continue
         already_added_containers.append(container_image_url)
 
