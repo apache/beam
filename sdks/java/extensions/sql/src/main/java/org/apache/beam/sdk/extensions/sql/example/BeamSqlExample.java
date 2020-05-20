@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.example;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -45,6 +46,7 @@ import org.apache.beam.sdk.values.TupleTag;
  * Beam documentation on how to run pipelines.
  */
 class BeamSqlExample {
+
   public static void main(String[] args) {
     PipelineOptions options = PipelineOptionsFactory.fromArgs(args).create();
     Pipeline p = Pipeline.create(options);
@@ -66,19 +68,21 @@ class BeamSqlExample {
         inputTable.apply(SqlTransform.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
 
     // print the output record of case 1;
-    outputStream.apply(
-        "log_result",
-        MapElements.via(
-            new SimpleFunction<Row, Row>() {
-              @Override
-              public Row apply(Row input) {
-                // expect output:
-                //  PCOLLECTION: [3, row, 3.0]
-                //  PCOLLECTION: [2, row, 2.0]
-                System.out.println("PCOLLECTION: " + input.getValues());
-                return input;
-              }
-            }));
+    outputStream
+        .apply(
+            "log_result",
+            MapElements.via(
+                new SimpleFunction<Row, Row>() {
+                  @Override
+                  public Row apply(Row input) {
+                    // expect output:
+                    //  PCOLLECTION: [3, row, 3.0]
+                    //  PCOLLECTION: [2, row, 2.0]
+                    System.out.println("PCOLLECTION: " + input.getValues());
+                    return input;
+                  }
+                }))
+        .setCoder(RowCoder.of(type));
 
     // Case 2. run the query with SqlTransform.query over result PCollection of case 1.
     PCollection<Row> outputStream2 =
@@ -86,18 +90,25 @@ class BeamSqlExample {
             .apply(SqlTransform.query("select c2, sum(c3) from CASE1_RESULT group by c2"));
 
     // print the output record of case 2;
-    outputStream2.apply(
-        "log_result",
-        MapElements.via(
-            new SimpleFunction<Row, Row>() {
-              @Override
-              public Row apply(Row input) {
-                // expect output:
-                //  CASE1_RESULT: [row, 5.0]
-                System.out.println("CASE1_RESULT: " + input.getValues());
-                return input;
-              }
-            }));
+    outputStream2
+        .apply(
+            "log_result",
+            MapElements.via(
+                new SimpleFunction<Row, Row>() {
+                  @Override
+                  public Row apply(Row input) {
+                    // expect output:
+                    //  CASE1_RESULT: [row, 5.0]
+                    System.out.println("CASE1_RESULT: " + input.getValues());
+                    return input;
+                  }
+                }))
+        .setCoder(
+            RowCoder.of(
+                Schema.builder()
+                    .addStringField("stringField")
+                    .addDoubleField("doubleField")
+                    .build()));
 
     p.run().waitUntilFinish();
   }
