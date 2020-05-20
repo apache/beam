@@ -280,14 +280,14 @@ public class SpannerIOWriteTest implements Serializable {
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory)
+            .withServiceFactory(fakeServiceFactory)
             .withBatchSizeBytes(1)
             .grouped());
     pipeline.run();
 
-    verify(serviceFactory.mockDatabaseClient(), times(1))
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
         .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
         .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
     // If no batching then the DB schema is never read.
     verify(tx, never()).executeQuery(any());
