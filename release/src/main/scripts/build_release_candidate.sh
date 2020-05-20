@@ -113,7 +113,7 @@ if [[ $confirmation = "y" ]]; then
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
   ./gradlew publish -Psigning.gnupg.keyName=${SIGNING_KEY} -PisRelease --no-daemon
-  echo "Please review all artifacts in staging URL. e.g. https://repository.apache.org/content/repositories/orgapachebeam-NNNN/"
+  echo "You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
   rm -rf ~/${LOCAL_CLONE_DIR}
 fi
 
@@ -205,7 +205,7 @@ if [[ $confirmation = "y" ]]; then
   rm -rf ~/${PYTHON_ARTIFACTS_DIR}
 fi
 
-echo "[Current Step]: Stage SDK docker images"
+echo "[Current Step]: Stage docker images"
 echo "Do you want to proceed? [y|N]"
 read confirmation
 if [[ $confirmation = "y" ]]; then
@@ -330,18 +330,6 @@ if [[ $confirmation = "y" ]]; then
 fi
 
 echo "===========Please Review All Items in the Checklist=========="
-echo "1. Maven artifacts deployed to https://repository.apache.org/content/repositories/"
+echo "1. You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
 echo "2. Source distribution deployed to https://dist.apache.org/repos/dist/dev/beam/${RELEASE}"
 echo "3. Website pull request published the Java API reference manual the Python API reference manual."
-
-echo "==============Things Needed To Be Done Manually=============="
-echo "1.Make sure a pull request is created to update the javadoc and pydoc to the beam-site: "
-echo "  - cd ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_WEBSITE_REPO}/${WEBSITE_ROOT_DIR}"
-echo "  - git checkout updates_release_${RELEASE}"
-echo "  - Check if both javadoc/ and pydoc/ exist."
-echo "  - commit your changes"
-echo "2.Create a pull request to update the release in the beam/website:"
-echo "  - An example pull request：https://github.com/apache/beam/pull/9341"
-echo "  - You can find the release note in JIRA: https://issues.apache.org/jira/projects/BEAM?selectedItem=com.atlassian.jira.jira-projects-plugin%3Arelease-page&status=unreleased"
-echo "3.You need to build Python Wheels."
-echo "4.Start the review-and-vote thread on the dev@ mailing list."
