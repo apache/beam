@@ -33,7 +33,6 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubGrpcClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
@@ -101,6 +100,11 @@ public class FhirIOReadIT {
     pubsub.createSubscription(topicPath, subscriptionPath, 60);
     client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
 
+    // Execute bundles to trigger FHIR notificiations to input topic
+    FhirIOTestUtil.executeFhirBundles(
+        client,
+        healthcareDataset + "/fhirStores/" + fhirStoreName,
+        FhirIOTestUtil.BUNDLES.get(version));
   }
 
   @After
@@ -119,7 +123,7 @@ public class FhirIOReadIT {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
 
     FhirIO.Read.Result result =
-        pipeline.apply(PubsubIO.readStrings().fromTopic(pubsubTopic)).apply(FhirIO.readResources());
+        pipeline.apply(PubsubIO.readStrings().fromSubscription(pubsubSubscription)).apply(FhirIO.readResources());
 
     PCollection<String> resources = result.getResources();
     resources.apply(
@@ -129,16 +133,9 @@ public class FhirIOReadIT {
     Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
-    // Execute bundles to trigger FHIR notificiations to input topic
-    FhirIOTestUtil.executeFhirBundles(
-        client,
-        healthcareDataset + "/fhirStores/" + fhirStoreName,
-        FhirIOTestUtil.BUNDLES.get(version));
-
     start.get();
+    signal.waitForSuccess(Duration.standardSeconds(30));
 
-
-    signal.waitForSuccess(Duration.standardSeconds(60));
     // A runner may not support cancel
     try {
       job.cancel();
