@@ -406,7 +406,6 @@ You can use [mass_comment.py](https://github.com/apache/beam/blob/master/release
   1. Check the build result.
   2. If build failed, scan log will contain all failures.
   3. You should stabilize the release branch until release build succeeded.
-  4. The script will output a set of Jenkins phrases to enter in the created PR.
   
 There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to
 ignore failures there.
