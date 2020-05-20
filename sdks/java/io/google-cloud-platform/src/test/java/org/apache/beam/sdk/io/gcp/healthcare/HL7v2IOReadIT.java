@@ -45,7 +45,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HL7v2IOReadIT {
   private transient HealthcareApiClient client;
-  // TODO(jaketf) replace with real project id.
   private static String healthcareDataset;
   private static final String HL7V2_STORE_NAME =
       "hl7v2_store_"
