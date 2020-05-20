@@ -16,14 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Sum</h2>
-<p>
-  <b>Kata:</b> Compute the sum of all elements from an input.
-</p>
-<br>
+Aggregation - Mean
+------------------
+
+**Kata:** Compute the mean/average of all elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sum.html">
-  Sum</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Mean.html">
+  Mean</a>.
 </div>
-</html>

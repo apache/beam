@@ -16,14 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Min</h2>
-<p>
-  <b>Kata:</b> Compute the minimum of the elements from an input.
-</p>
-<br>
+Aggregation - Count
+-------------------
+
+**Kata:** Count the number of elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Min.html">
-  Min</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html">
+  Count</a>.
 </div>
-</html>

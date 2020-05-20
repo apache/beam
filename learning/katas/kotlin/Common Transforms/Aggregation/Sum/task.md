@@ -16,14 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Max</h2>
-<p>
-  <b>Kata:</b> Compute the maximum of the elements from an input.
-</p>
-<br>
+Aggregation - Sum
+-----------------
+
+**Kata:** Compute the sum of all elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Max.html">
-  Max</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Sum.html">
+  Sum</a>.
 </div>
-</html>

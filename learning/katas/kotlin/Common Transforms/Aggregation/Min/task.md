@@ -16,14 +16,12 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Aggregation - Mean</h2>
-<p>
-  <b>Kata:</b> Compute the mean/average of all elements from an input.
-</p>
-<br>
+Aggregation - Min
+-----------------
+
+**Kata:** Compute the minimum of the elements from an input.
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Mean.html">
-  Mean</a>.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Min.html">
+  Min</a>.
 </div>
-</html>
