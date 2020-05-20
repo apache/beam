@@ -40,6 +40,7 @@ from __future__ import absolute_import
 
 import copy
 import itertools
+import logging
 import operator
 import os
 import sys
@@ -95,6 +96,8 @@ __all__ = [
     'ptransform_fn',
     'label_from_callable',
 ]
+
+_LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
 PTransformT = TypeVar('PTransformT', bound='PTransform')
@@ -994,6 +997,8 @@ def ptransform_fn(fn):
     # function.
     type_hints = get_type_hints(callable_ptransform_factory)
     res._set_type_hints(type_hints.with_defaults(res.get_type_hints()))
+    _LOGGER.debug(
+        'type hints for %s: %s', res.default_label(), res.get_type_hints())
     return res
 
   return callable_ptransform_factory
