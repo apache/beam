@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/windowing/fixedwindow/Task.kt
   visible: true
   placeholders:
-  - offset: 3054
-    length: 19
+  - offset: 2938
+    length: 136
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/windowing/fixedwindow/TaskTest.kt
   visible: false
