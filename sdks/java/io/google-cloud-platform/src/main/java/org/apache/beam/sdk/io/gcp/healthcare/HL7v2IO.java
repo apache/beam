@@ -498,8 +498,6 @@ public class HL7v2IO {
     private Instant from;
     private Instant to;
     private transient HealthcareApiClient client;
-    private Distribution messageListingLatencyMs =
-        Metrics.distribution(ListHL7v2MessagesFn.class, "message-list-pagination-latency-ms");
     /**
      * Instantiates a new List HL7v2 fn.
      *
