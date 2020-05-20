@@ -16,19 +16,18 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>WithKeys</h2>
-<p>
-  <b>Kata:</b> Convert each fruit name into a KV of its first letter and itself, e.g.
-  <code>apple => KV.of("a", "apple")</code>
-</p>
-<br>
+WithKeys
+--------
+
+**Kata:** Convert each fruit name into a KV of its first letter and itself, e.g. 
+`apple => KV.of("a", "apple")`
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/WithKeys.html">
   WithKeys</a>.
 </div>
+
 <div class="hint">
   If using a lambda in Java 8, <code>withKeyType(TypeDescriptor)</code> must be called on the
   result PTransform.
 </div>
-</html>
