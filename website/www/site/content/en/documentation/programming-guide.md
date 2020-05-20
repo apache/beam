@@ -2362,7 +2362,7 @@ This logical type allows creating an enumeration type consisting of a set of nam
 {{< highlight java >}}
 Schema schema = Schema.builder()
                …
-     .addLogicalTypeField(“color”, EnumerationType.create(“RED”, “GREEN”, “BLUE”))
+     .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
      .build();
 {{< /highlight >}}
 
@@ -2370,15 +2370,15 @@ The value of this field is stored in the row as an INT32 type, however the logic
 you access the enumeration either as a string or a value. For example:
 
 {{< highlight java >}}
-EnumerationType.Value enumValue = enumType.valueOf(“RED”);
+EnumerationType.Value enumValue = enumType.valueOf("RED");
 enumValue.getValue();  // Returns 0, the integer value of the constant.
-enumValue.toString();  // Returns “RED”, the string value of the constant
+enumValue.toString();  // Returns "RED", the string value of the constant
 {{< /highlight >}}
 
 Given a row object with an enumeration field, you can also extract the field as the enumeration value.
 
 {{< highlight java >}}
-EnumerationType.Value enumValue = row.getLogicalTypeValue(“color”, EnumerationType.Value.class);
+EnumerationType.Value enumValue = row.getLogicalTypeValue("color", EnumerationType.Value.class);
 {{< /highlight >}}
 
 Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical 
@@ -2391,10 +2391,10 @@ OneOfType allows creating a disjoint union type over a set of schema fields. For
 {{< highlight java >}}
 Schema schema = Schema.builder()
                …
-     .addLogicalTypeField(“oneOfField”, 
-        OneOfType.create(Field.of(“intField”, FieldType.INT32),
-                         Field.of(“stringField”, FieldType.STRING),
-                         Field.of(“bytesField”, FieldType.BYTES)))
+     .addLogicalTypeField("oneOfField", 
+        OneOfType.create(Field.of("intField", FieldType.INT32),
+                         Field.of("stringField", FieldType.STRING),
+                         Field.of("bytesField", FieldType.BYTES)))
       .build();
 {{< /highlight >}}
 
@@ -2405,19 +2405,19 @@ logical type however defines a Value object that contains an enumeration value i
 {{< highlight java >}}
 // Returns an enumeration indicating all possible case values for the enum.
 // For the above example, this will be 
-// EnumerationType.create(“intField”, “stringField”, “bytesField”);
+// EnumerationType.create("intField", "stringField", "bytesField");
 EnumerationType oneOfEnum = onOfType.getCaseEnumType();
 
 // Creates an instance of the union with the string field set.
-OneOfType.Value oneOfValue = oneOfType.createValue(“stringField”, “foobar”);
+OneOfType.Value oneOfValue = oneOfType.createValue("stringField", "foobar");
 
 // Handle the oneof
 switch (oneOfValue.getCaseEnumType().toString()) {
-  case “intField”:  
+  case "intField":  
     return processInt(oneOfValue.getValue(Integer.class));
-  case “stringField”:
+  case "stringField":
     return processString(oneOfValue.getValue(String.class));
-  case “bytesField”:
+  case "bytesField":
     return processBytes(oneOfValue.getValue(bytes[].class));
 }
 {{< /highlight >}}
@@ -2565,7 +2565,7 @@ In order to select a field at the top level of a schema, the name of the field i
 the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”));
+purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
 ##### **Nested fields**
@@ -2574,7 +2574,7 @@ Individual nested fields can be specified using the dot operator. For example, t
  shipping address one would write
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“shippingAddress.postCode”));
+purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
 ##### **Wildcards**
@@ -2583,7 +2583,7 @@ The * operator can be specified at any nesting level to represent all fields at 
 shipping-address fields one would write
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“shippingAddress.*”));
+purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
 ##### **Arrays**
@@ -2592,7 +2592,7 @@ An array field, where the array element type is a row, can also have subfields o
 selected, the result is an array of the selected subfield type. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“transactions[].bank”));
+purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
 Will result in a row containing an array field with element-type string, containing the list of banks for each 
@@ -2631,7 +2631,7 @@ specific keys from the map. For example, given the following schema:
 The following 
 
 {{< highlight java >}}
-purchasesByType.apply(Select.fieldNames(“purchases{}.userId”));
+purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
 Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
@@ -2655,7 +2655,7 @@ field as a top-level field. Both top-level and nested fields can be selected. Fo
 could select only the userId and streetAddress fields as follows
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”, shippingAddress.streetAddress”));
+purchases.apply(Select.fieldNames("userId", shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The resulting `PCollection` will have the following schema
@@ -2683,7 +2683,7 @@ The resulting `PCollection` will have the following schema
 The same is true for wildcard selections. The following
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”, shippingAddress.*”));
+purchases.apply(Select.fieldNames("userId", shippingAddress.*"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2729,7 +2729,7 @@ top-level field in the resulting row. This means that if multiple fields are sel
 selected field will appear as its own array field. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames( “transactions.bank”, transactions.purchaseAmount”));
+purchases.apply(Select.fieldNames( "transactions.bank", transactions.purchaseAmount"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2832,7 +2832,7 @@ The simplest usage of `Group` specifies no aggregations, in which case all input
 are grouped together into an `ITERABLE` field. For example
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”));
+purchases.apply(Group.byFieldNames("userId", shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The output schema of this is:
@@ -2863,9 +2863,9 @@ The names of the key and values fields in the output schema can be controlled us
 builders, as follows:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”)
-    .withKeyField(“userAndStreet”)
-    .withValueField(“matchingPurchases”));
+purchases.apply(Group.byFieldNames("userId", shippingAddress.streetAddress")
+    .withKeyField("userAndStreet")
+    .withValueField("matchingPurchases"));
 {{< /highlight >}}
 
 It is quite common to apply one or more aggregations to the grouped result. Each aggregation can  specify one or more fields 
@@ -2874,10 +2874,10 @@ following application computes three aggregations grouped by userId, with all ag
 output schema:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”)
-    .aggregateField(“itemId”, Count.combineFn(), “numPurchases”)
-    .aggregateField(“costCents”, Sum.ofLongs(), “totalSpendCents”)
-    .aggregateField(“costCents”, Top.<Long>largestLongsFn(10), “topPurchases”));
+purchases.apply(Group.byFieldNames("userId")
+    .aggregateField("itemId", Count.combineFn(), "numPurchases")
+    .aggregateField("costCents", Sum.ofLongs(), "totalSpendCents")
+    .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
 The result of this aggregation will have the following schema:
@@ -2915,7 +2915,7 @@ and is specified with the `using` keyword:
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
 PCollection<Row> joined = transactions.apply(
-    Join.innerJoin(reviews).using(“userId”, “productId”));
+    Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
 The resulting schema is the following:
@@ -2948,8 +2948,8 @@ Review schema named those fields differently than the Transaction schema, then w
 PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).on(
       FieldsEqual
-         .left(“userId”, “productId”)
-         .right(“reviewUserId”, “reviewProductId”)));
+         .left("userId", "productId")
+         .right("reviewUserId", "reviewProductId")));
 {{< /highlight >}}
 
 In addition to inner joins, the Join transform supports full outer joins, left outer joins, and right outer joins.
@@ -2971,8 +2971,8 @@ which all predicates return true will pass the filter. For example the following
 
 {{< highlight java >}}
 purchases.apply(Filter
-    .whereFieldName(“costCents”, c -> c > 100 * 20)
-    .whereFieldName(“shippingAddress.country”, c -> c.equals(“de”));
+    .whereFieldName("costCents", c -> c > 100 * 20)
+    .whereFieldName("shippingAddress.country", c -> c.equals("de"));
 {{< /highlight >}}
 
 Will produce all purchases made from Germany with a purchase price of greater than twenty cents.
@@ -2989,9 +2989,9 @@ For example, the following application
 
 {{< highlight java >}}
 purchases.apply(AddFields.<PurchasePojo>create()
-    .field(“timeOfDaySeconds”, FieldType.INT32)
-    .field(“shippingAddress.deliveryNotes”, FieldType.STRING)
-    .field(“transactions.isFlagged, FieldType.BOOLEAN, false));
+    .field("timeOfDaySeconds", FieldType.INT32)
+    .field("shippingAddress.deliveryNotes", FieldType.STRING)
+    .field("transactions.isFlagged, FieldType.BOOLEAN, false));
 {{< /highlight >}}
 
 Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified 
@@ -3007,7 +3007,7 @@ syntax.
 For example, the following snippet
 
 {{< highlight java >}}
-purchases.apply(DropFields.fields(“userId”, “shippingAddress.streetAddress”));
+purchases.apply(DropFields.fields("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 Results in a copy of the input with those two fields and their corresponding values removed.
@@ -3024,8 +3024,8 @@ For example, the following snippet
 
 {{< highlight java >}}
 purchases.apply(RenameFields.<PurchasePojo>create()
-  .rename(“userId”, “userIdentifier”)
-  .rename(“shippingAddress.streetAddress”, “shippingAddress.street”));
+  .rename("userId", "userIdentifier")
+  .rename("shippingAddress.streetAddress", "shippingAddress.street"));
 {{< /highlight >}}
 
 Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename 
@@ -3113,7 +3113,7 @@ using the above-described selection expressions, as follows:
 {{< highlight java >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(
-     @FieldAccess(“userId”) String userId, @FieldAccess(“itemId”) long itemId) {
+     @FieldAccess("userId") String userId, @FieldAccess("itemId") long itemId) {
       ...
   }
 }));
@@ -3124,7 +3124,7 @@ You can also select nested fields, as follows.
 {{< highlight java >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(
-    @FieldAccess(“shippingAddress.street”) String street) {
+    @FieldAccess("shippingAddress.street") String street) {
       ...
   }
 }));
@@ -3953,8 +3953,8 @@ It is important to note that if, for example, you specify
 <span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using [composite triggers](#composite-triggers) to combine multiple
-conditions. This allows you to specify multiple firing conditions such as “fire
-either when I receive 50 elements, or every 1 second”.
+conditions. This allows you to specify multiple firing conditions such as "fire
+either when I receive 50 elements, or every 1 second".
 
 ### 9.4. Setting a trigger {#setting-a-trigger}
 
