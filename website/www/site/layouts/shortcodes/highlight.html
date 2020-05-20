@@ -10,8 +10,25 @@
  limitations under the License. See accompanying LICENSE file.
 */}}
 
-{{ $content := (trim .Inner "\n\r") | htmlUnescape | safeHTML }}
+{{ $scratch := newScratch }}
+
+{{ $scratch.Set "content" ((trim .Inner "\n\r") | htmlUnescape | safeHTML) }}
+{{ if eq (len ($scratch.Get "content")) 0 }}
+    {{ with (.Get 0) }}
+        {{ if or (eq . "py") (eq . "python") }}
+            {{ $scratch.Set "content" "# No sample available for the Beam Python SDK yet." }}
+        {{ else if eq . "go" }}
+            {{ $scratch.Set "content" "// No sample available for the Beam Go SDK yet."}}
+        {{ else if eq . "java" }}
+            {{ $scratch.Set "content" "// No sample available for the Beam Java SDK yet."}}
+        {{ else }}
+            {{ $scratch.Set "content" "No sample available yet."}}
+        {{ end }}
+    {{ end }}
+{{ end }}
+
 {{ $ctx := . }}
+{{ $content := $scratch.Get "content" }}
 {{ with (.Get "class") }}
     <div class={{ . }}>
         {{ with ($ctx.Get "lang") }}

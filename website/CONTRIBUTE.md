@@ -188,7 +188,7 @@ The purpose is to switch languages of codeblocks.
 
 To be consistent, please prefer to use `{{< highlight >}}` syntax instead of ` ``` `, for code-blocks or syntax-highlighters.
 
-1. To apply code highlighting to java, python or go. Use:
+1. To apply code highlighting to Java, Python or Go, use:
 
 ```
 {{< highlight java >}}
@@ -196,7 +196,18 @@ To be consistent, please prefer to use `{{< highlight >}}` syntax instead of ` `
 {{< /highlight >}}
 ```
 
-2. To apply code highlighting to a wrapper class
+1. When adding a sample for one language, but when there could be samples for other languages added in the future, add empty blocks for the other languages, so that placeholder text is rendered. Otherwise, the entire tab view could disappear when the user selects another language. For example:
+
+```
+{{< highlight java >}}
+// This is java
+{{< /highlight >}}
+{{< highlight py />}}
+{{< highlight go />}}
+```
+
+
+1. To apply code highlighting to a wrapper class:
 
 Usage:
 
