@@ -50,6 +50,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -326,6 +327,7 @@ public class SnowflakeIO {
                           getIntegrationName(),
                           stagingBucketDir,
                           getSnowflakeService())))
+              .apply(Reshuffle.viaRandomKey())
               .apply(FileIO.matchAll())
               .apply(FileIO.readMatches())
               .apply(readFiles())
