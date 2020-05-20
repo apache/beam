@@ -92,7 +92,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvoker.DelegatingArgumentProv
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
-import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerFamilyDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
@@ -461,19 +460,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       // Extract out relevant TimerFamilySpec information in preparation for execution.
       for (Map.Entry<String, TimerFamilySpec> entry :
           parDoPayload.getTimerFamilySpecsMap().entrySet()) {
+        // The timer family spec map key is either from timerId of timer declaration or
+        // timerFamilyId from timer family declaration.
         String timerIdOrTimerFamilyId = entry.getKey();
-        TimeDomain timeDomain;
-        if (timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)) {
-          timeDomain =
-              DoFnSignatures.getTimerFamilySpecOrThrow(
-                      doFnSignature.timerFamilyDeclarations().get(timerIdOrTimerFamilyId), doFn)
-                  .getTimeDomain();
-        } else {
-          timeDomain =
-              DoFnSignatures.getTimerSpecOrThrow(
-                      doFnSignature.timerDeclarations().get(timerIdOrTimerFamilyId), doFn)
-                  .getTimeDomain();
-        }
+        TimeDomain timeDomain = translateTimeDomain(entry.getValue().getTimeDomain());
         Coder<Timer<Object>> timerCoder =
             (Coder) rehydratedComponents.getCoder(entry.getValue().getTimerFamilyCoderId());
         timerFamilyInfosBuilder.put(timerIdOrTimerFamilyId, KV.of(timeDomain, timerCoder));
@@ -976,6 +966,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     currentTimer = timer;
     currentTimeDomain = timeDomain;
     onTimerContext = new OnTimerContext<>(timer.getUserKey());
+    // The timerIdOrTimerFamilyId contains either a timerId from timer declaration or timerFamilyId
+    // from timer family declaration.
     String timerId =
         timerIdOrTimerFamilyId.startsWith(TimerFamilyDeclaration.PREFIX)
             ? ""
@@ -1057,6 +1049,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant elementTimestampOrTimerFireTimestamp,
         PaneInfo paneInfo,
         TimeDomain timeDomain) {
+      if (timerId.equals("ts-event") && timeDomain.equals(TimeDomain.PROCESSING_TIME)) {
+        throw new IllegalStateException("illegal");
+      }
       this.timerId = timerId;
       this.userKey = userKey;
       this.dynamicTimerTag = dynamicTimerTag;
@@ -1246,11 +1241,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       this.elementTimestampOrTimerFireTimestamp = elementTimestampOrTimerFireTimestamp;
       this.boundedWindow = boundedWindow;
       this.paneInfo = paneInfo;
-
-      TimerFamilyDeclaration timerFamilyDeclaration =
-          doFnSignature.timerFamilyDeclarations().get(timerFamilyId);
       this.timeDomain =
-          DoFnSignatures.getTimerFamilySpecOrThrow(timerFamilyDeclaration, doFn).getTimeDomain();
+          translateTimeDomain(
+              parDoPayload.getTimerFamilySpecsMap().get(timerFamilyId).getTimeDomain());
     }
 
     @Override
@@ -1500,9 +1493,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       // For the initial timestamps we pass in the current elements timestamp for the hold timestamp
       // and the current element's timestamp which will be used for the fire timestamp if this
       // timer is in the EVENT time domain.
-      TimerDeclaration timerDeclaration = doFnSignature.timerDeclarations().get(timerId);
       TimeDomain timeDomain =
-          DoFnSignatures.getTimerSpecOrThrow(timerDeclaration, doFn).getTimeDomain();
+          translateTimeDomain(parDoPayload.getTimerFamilySpecsMap().get(timerId).getTimeDomain());
       return new FnApiTimer(
           timerId,
           ((KV) currentElement.getValue()).getKey(),
@@ -1744,15 +1736,17 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     @Override
     public org.apache.beam.sdk.state.Timer timer(String timerId) {
+      TimeDomain timeDomain =
+          translateTimeDomain(parDoPayload.getTimerFamilySpecsMap().get(timerId).getTimeDomain());
       return new FnApiTimer(
           timerId,
           currentTimer.getUserKey(),
-          currentTimer.getDynamicTimerTag(),
+          "",
           currentWindow,
           currentTimer.getHoldTimestamp(),
           currentTimer.getFireTimestamp(),
           currentTimer.getPane(),
-          currentTimeDomain);
+          timeDomain);
     }
 
     @Override
@@ -1780,6 +1774,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public String getErrorContext() {
       return "FnApiDoFnRunner/OnTimer";
+    }
+  }
+
+  private TimeDomain translateTimeDomain(
+      org.apache.beam.model.pipeline.v1.RunnerApi.TimeDomain.Enum domain) {
+    switch (domain) {
+      case EVENT_TIME:
+        return TimeDomain.EVENT_TIME;
+      case PROCESSING_TIME:
+        return TimeDomain.PROCESSING_TIME;
+      case SYNCHRONIZED_PROCESSING_TIME:
+        return TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
+      default:
+        throw new IllegalArgumentException("Unknown time domain");
     }
   }
 }
