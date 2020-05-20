@@ -113,7 +113,7 @@ $(document).ready(function() {
                }
 
                 // Swapping visibility of code blocks.
-                $(this.selector).not("." + this.wrapper).hide();
+                $(this.selector).hide();
                 $("nav"+this.selector).show();
                 $("." + pref).show();
             },
