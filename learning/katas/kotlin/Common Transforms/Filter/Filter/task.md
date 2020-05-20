@@ -16,18 +16,15 @@
   ~  limitations under the License.
   -->
 
-<html>
-<h2>Filter using ParDo</h2>
-<p>
-  <b>Kata:</b> Implement a filter function that filters out the even numbers by using
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html">
-    DoFn</a>.
-</p>
-<br>
+Filter
+------
+
+The Beam SDKs provide language-specific ways to simplify how you provide your DoFn implementation.
+
+**Kata:** Implement a filter function that filters out the odd numbers by using 
+[Filter](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html).
+
 <div class="hint">
-  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/ParDo.html">
-  ParDo</a> with
-  <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/DoFn.html">
-    DoFn</a> and only output the intended element.
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Filter.html">
+  Filter.by(...)</a>.
 </div>
-</html>
