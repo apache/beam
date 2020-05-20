@@ -47,7 +47,7 @@ object Task {
     }
 
     @JvmStatic
-    fun applyTransform(words1: PCollection<String>?, words2: PCollection<String>?): PCollection<String> {
+    fun applyTransform(words1: PCollection<String>, words2: PCollection<String>): PCollection<String> {
         return PCollectionList
                 .of(words1)
                 .and(words2)

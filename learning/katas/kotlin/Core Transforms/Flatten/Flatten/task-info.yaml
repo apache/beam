@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/flatten/Task.kt
   visible: true
   placeholders:
-  - offset: 1994
-    length: 111
+  - offset: 1984
+    length: 119
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/flatten/TaskTest.kt
   visible: false
