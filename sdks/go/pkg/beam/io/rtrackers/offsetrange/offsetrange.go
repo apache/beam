@@ -21,6 +21,7 @@ package offsetrange
 
 import (
 	"errors"
+	"math"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
@@ -31,8 +32,43 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*Restriction)(nil)))
 }
 
+// Restriction is an offset range restriction, which represents a range of
+// integers as a half-closed interval with boundaries [start, end).
 type Restriction struct {
-	Start, End int64 // Half-closed interval with boundaries [start, end).
+	Start, End int64
+}
+
+// EvenSplits splits a restriction into a number of evenly sized restrictions.
+// Each split restriction is guaranteed to not be empty, and each unit from the
+// original restriction is guaranteed to be contained in one split restriction.
+//
+// Num should be greater than 0. Otherwise there is no way to split the
+// restriction and this function will return the original restriction.
+func (r *Restriction) EvenSplits(num int64) (splits []Restriction) {
+	if num <= 1 {
+		// Don't split, just return original restriction.
+		return append(splits, *r)
+	}
+
+	offset := r.Start
+	size := r.End - r.Start
+	for i := int64(0); i < num; i++ {
+		split := Restriction{
+			Start: offset + (i * size / num),
+			End:   offset + ((i + 1) * size / num),
+		}
+		// Skip restrictions that end up empty.
+		if split.End-split.Start <= 0 {
+			continue
+		}
+		splits = append(splits, split)
+	}
+	return splits
+}
+
+// Size returns the restriction's size as the difference between Start and End.
+func (r *Restriction) Size() float64 {
+	return float64(r.End - r.Start)
 }
 
 // Tracker tracks a restriction  that can be represented as a range of integer values,
@@ -42,9 +78,8 @@ type Restriction struct {
 type Tracker struct {
 	Rest    Restriction
 	Claimed int64 // Tracks the last claimed position.
-	Stopped bool  // Tracks whether TryClaim has already indicated to stop processing elements for
-	// any reason.
-	Err error
+	Stopped bool  // Tracks whether TryClaim has indicated to stop processing elements.
+	Err     error
 }
 
 // NewTracker is a constructor for an Tracker given a start and end range.
@@ -57,10 +92,15 @@ func NewTracker(rest Restriction) *Tracker {
 	}
 }
 
-// TryClaim accepts an int64 position and successfully claims it if that position is greater than
-// the previously claimed position and less than the end of the restriction. Note that the
-// Tracker is not considered done until a position >= tracker.end tries to be claimed,
-// at which point this method signals to end processing.
+// TryClaim accepts an int64 position representing the starting position of a block of work. It
+// successfully claims it if the position is greater than the previously claimed position and within
+// the restriction. Claiming a position at or beyond the end of the restriction signals that the
+// entire restriction has been processed and is now done, at which point this method signals to end
+// processing.
+//
+// The tracker stops with an error if a claim is attempted after the tracker has signalled to stop,
+// if a position is claimed before the start of the restriction, or if a position is claimed before
+// the latest successfully claimed.
 func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
 	if tracker.Stopped == true {
 		tracker.Err = errors.New("cannot claim work after restriction tracker returns false")
@@ -88,7 +128,7 @@ func (tracker *Tracker) TryClaim(rawPos interface{}) bool {
 	return true
 }
 
-// IsDone returns true if the most recent claimed element is past the end of the restriction.
+// GetError returns the error that caused the tracker to stop, if there is one.
 func (tracker *Tracker) GetError() error {
 	return tracker.Err
 }
@@ -105,7 +145,8 @@ func (tracker *Tracker) TrySplit(fraction float64) (primary, residual interface{
 		fraction = 1
 	}
 
-	splitPt := tracker.Claimed + int64(fraction*float64(tracker.Rest.End-tracker.Claimed))
+	// Use Ceil to always round up from float split point.
+	splitPt := tracker.Claimed + int64(math.Ceil(fraction*float64(tracker.Rest.End-tracker.Claimed)))
 	if splitPt >= tracker.Rest.End {
 		return tracker.Rest, nil, nil
 	}
@@ -123,5 +164,5 @@ func (tracker *Tracker) GetProgress() (done, remaining float64) {
 
 // IsDone returns true if the most recent claimed element is past the end of the restriction.
 func (tracker *Tracker) IsDone() bool {
-	return tracker.Claimed >= tracker.Rest.End
+	return tracker.Err == nil && tracker.Claimed >= tracker.Rest.End
 }
