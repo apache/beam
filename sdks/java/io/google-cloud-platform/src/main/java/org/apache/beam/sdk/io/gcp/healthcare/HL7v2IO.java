@@ -55,6 +55,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -426,25 +427,29 @@ public class HL7v2IO {
   /**
    * List HL7v2 messages in HL7v2 Stores with optional filter.
    *
-   * <p>This transform is optimized for dynamic splitting of message.list calls for large batches of
-   * historical data and assumes rather continuous stream of sendTimes. It will dynamically
-   * rebalance resources to handle "peak traffic times" but will waste resources if there are large
-   * durations (days) of the sendTime dimension without data.
+   * <p>This transform is optimized for splitting of message.list calls for large batches of
+   * historical data and assumes rather continuous stream of sendTimes.
    *
-   * <p>Implementation includes overhead for: 1. two api calls to determine the min/max sendTime of
-   * the HL7v2 store at invocation time. 2. initial splitting into non-overlapping time ranges
-   * (default daily) to achieve parallelization in separate messages.list calls.
+   * <p> Note on Benchmarking
+   * By default, this will make more queries than necessary when used with very small data sets
+   * (or very sparse data sets in the sendTime dimension). If you are looking to get an accurate
+   * benchmark be sure to use sufficient volume of data with messages that span sendTimes over a
+   * realistic time range (days)
    *
-   * <p>This will make more queries than necessary when used with very small data sets. (or very
-   * sparse data sets in the sendTime dimension).
+   * Implementation includes overhead for:
+   * <ol>
+   *   <li>two api calls to determine the min/max sendTime of the HL7v2 store at invocation time.</li>
+   *   <li>initial splitting into non-overlapping time ranges (default daily) to achieve
+   *       parallelization in separate messages.list calls.</li>
+   * </ol>
    *
-   * <p>If you have large but sparse data (e.g. hours between consecutive message sendTimes) and
-   * know something about the time ranges where you have no data, consider using multiple instances
-   * of this transform specifying sendTime filters to omit the ranges where there is no data.
+   * If your use case doesn't lend itself to daily splitting, you can can control
+   * {@code initialSplitDuration} by instantiating this transform with a constructor with this
+   * parameter.
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
     private final ValueProvider<List<String>> hl7v2Stores;
-    private ValueProvider<String> filter;
+    private final ValueProvider<String> filter;
     private Duration initialSplitDuration;
 
     /**
@@ -456,6 +461,7 @@ public class HL7v2IO {
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
       this.hl7v2Stores = hl7v2Stores;
       this.filter = filter;
+      this.initialSplitDuration = null;
     }
 
     /**
@@ -481,7 +487,8 @@ public class HL7v2IO {
      */
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores) {
       this.hl7v2Stores = hl7v2Stores;
-      this.filter = null;
+      this.filter = StaticValueProvider.of(null);
+      this.initialSplitDuration = null;
     }
 
     /**
@@ -492,7 +499,13 @@ public class HL7v2IO {
      */
     ListHL7v2Messages(ValueProvider<List<String>> hl7v2Stores, Duration initialSplitDuration) {
       this.hl7v2Stores = hl7v2Stores;
+      this.filter = StaticValueProvider.of(null);
       this.initialSplitDuration = initialSplitDuration;
+    }
+
+    public ListHL7v2Messages withInitialSplitDuration(Duration initialSplitDuration){
+      this.initialSplitDuration = initialSplitDuration;
+      return this;
     }
 
     @Override
@@ -500,7 +513,7 @@ public class HL7v2IO {
       return input
           .apply(Create.ofProvider(this.hl7v2Stores, ListCoder.of(StringUtf8Coder.of())))
           .apply(FlatMapElements.into(TypeDescriptors.strings()).via((x) -> x))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(this.filter, initialSplitDuration)))
+          .apply(ParDo.of(new ListHL7v2MessagesFn(filter, initialSplitDuration)))
           .setCoder(new HL7v2MessageCoder())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
@@ -611,53 +624,17 @@ public class HL7v2IO {
       HttpHealthcareApiClient.HL7v2MessagePages pages =
           new HttpHealthcareApiClient.HL7v2MessagePages(
               client, hl7v2Store, startRestriction, endRestriction, filter.get(), "sendTime");
-      long reqestTime = Instant.now().getMillis();
-      long lastClaimedMilliSecond;
       Instant cursor;
-      boolean hangingClaim = false; // flag if the claimed ms spans spills over to the next page.
-      for (List<HL7v2Message> page : pages) { // loop over pages.
-        int i = 0;
-        HL7v2Message msg = page.get(i);
-        while (i < page.size()) { // loop over messages in page
+      long lastClaimedMilliSecond = startRestriction.getMillis() - 1;
+      for (HL7v2Message msg: FluentIterable.concat(pages)){
           cursor = Instant.parse(msg.getSendTime());
-          lastClaimedMilliSecond = cursor.getMillis();
-          LOG.info(
-              String.format(
-                  "initial claim for page %s lastClaimedMilliSecond = %s",
-                  i, lastClaimedMilliSecond));
-          if (hangingClaim || tracker.tryClaim(lastClaimedMilliSecond)) {
-            // This means we have claimed an entire millisecond we need to make sure that we
-            // process all messages for this millisecond because sendTime is allegedly nano second
-            // resolution.
-            // https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages#Message
-            while (cursor.getMillis() == lastClaimedMilliSecond
-                && i < page.size()) { // loop over messages in millisecond.
-              outputReceiver.output(msg);
-              msg = page.get(i++);
-              cursor = Instant.parse(msg.getSendTime());
-            }
-
-            if (i == page.size() && cursor.getMillis() == lastClaimedMilliSecond) {
-              // reached the end of the page and timestamp still in the claimed ms.
-              hangingClaim = true;
-              continue;
-            }
-
-            // If reached this point, msg.sendTime is outside the current claim.
-            // Need to claim time range up to (and including) the cursor to properly advance the
-            // tracker.
-            tracker.tryClaim(cursor.getMillis());
-            lastClaimedMilliSecond = cursor.getMillis();
-            LOG.info(
-                String.format(
-                    "After claiming between messages lastClaimedMilliSecond = %s",
-                    lastClaimedMilliSecond));
+          if (cursor.getMillis() > lastClaimedMilliSecond && tracker.tryClaim(cursor.getMillis())) {
+              lastClaimedMilliSecond = cursor.getMillis();
           }
-        }
-        messageListingLatencyMs.update(Instant.now().getMillis() - reqestTime);
-        reqestTime =
-            Instant.now()
-                .getMillis(); // this is for updating listing latency metric in next iteration.
+
+          if (cursor.getMillis() == lastClaimedMilliSecond) { // loop over messages in millisecond.
+            outputReceiver.output(msg);
+          }
       }
 
       // We've paginated through all messages for this restriction but the last message may be
