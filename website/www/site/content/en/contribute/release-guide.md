@@ -398,7 +398,7 @@ There are 2 ways to perform this verification, either running automation script(
 Jenkins job `beam_Release_Gradle_Build` basically run `./gradlew build -PisRelease`.
 This only verifies that everything builds with unit tests passing.
 
-You can refer to [this script](https://gist.github.com/Ardagan/13e6031e8d1c9ebbd3029bf365c1a517) to mass-comment on PR.
+You can use [mass_comment.py](https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py) to mass-comment on PR.
 
 #### Verify the build succeeds
 
@@ -406,7 +406,6 @@ You can refer to [this script](https://gist.github.com/Ardagan/13e6031e8d1c9ebbd
   1. Check the build result.
   2. If build failed, scan log will contain all failures.
   3. You should stabilize the release branch until release build succeeded.
-  4. The script will output a set of Jenkins phrases to enter in the created PR.
   
 There are some projects that don't produce the artifacts, e.g. `beam-test-tools`, you may be able to
 ignore failures there.
