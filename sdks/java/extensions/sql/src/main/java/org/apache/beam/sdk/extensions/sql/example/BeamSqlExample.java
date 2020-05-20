@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.example;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -65,7 +64,7 @@ class BeamSqlExample {
 
     // Case 1. run a simple SQL query over input PCollection with BeamSql.simpleQuery;
     PCollection<Row> outputStream =
-        inputTable.apply(SqlTransform.query("select c1, c2, c3 from PCOLLECTION where c1 > 1"));
+        inputTable.apply(SqlTransform.query("select c1, c2, c3 from PCOLLECTION where c3 > 1"));
 
     // print the output record of case 1;
     outputStream
@@ -82,7 +81,7 @@ class BeamSqlExample {
                     return input;
                   }
                 }))
-        .setCoder(RowCoder.of(type));
+        .setRowSchema(type);
 
     // Case 2. run the query with SqlTransform.query over result PCollection of case 1.
     PCollection<Row> outputStream2 =
@@ -103,12 +102,8 @@ class BeamSqlExample {
                     return input;
                   }
                 }))
-        .setCoder(
-            RowCoder.of(
-                Schema.builder()
-                    .addStringField("stringField")
-                    .addDoubleField("doubleField")
-                    .build()));
+        .setRowSchema(
+            Schema.builder().addStringField("stringField").addDoubleField("doubleField").build());
 
     p.run().waitUntilFinish();
   }
