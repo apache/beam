@@ -16,18 +16,14 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Built-in I/Os</h2>
-<p>
-  Beam SDKs provide many out of the box I/O transforms that can be used to read from many
-  different sources and write to many different sinks.
-</p>
-<p>
-  See the <a href="https://beam.apache.org/documentation/io/built-in/">Beam-provided I/O
-  Transforms</a> page for a list of the currently available I/O transforms.
-</p>
-<p>
-  <b>Note:</b> There is no kata for this task. Please click the "Check" button and
-  proceed to the next task.
-</p>
-</html>
+Built-in I/Os
+-------------
+
+Beam SDKs provide many out of the box I/O transforms that can be used to read from many different 
+sources and write to many different sinks.
+
+See the [Beam-provided I/O Transforms](https://beam.apache.org/documentation/io/built-in/) page for 
+a list of the currently available I/O transforms.
+
+**Note:** There is no kata for this task. Please click the "Check" button and proceed to the next 
+task.
