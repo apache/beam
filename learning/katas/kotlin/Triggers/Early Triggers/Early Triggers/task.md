@@ -16,63 +16,45 @@
   ~ limitations under the License.
   -->
 
-<html>
-<h2>Event Time Triggers</h2>
-<p>
-  When collecting and grouping data into windows, Beam uses triggers to determine when to emit the
-  aggregated results of each window (referred to as a pane). If you use Beam’s default windowing
-  configuration and default trigger, Beam outputs the aggregated result when it estimates all data
-  has arrived, and discards all subsequent data for that window.
-</p>
-<p>
-  You can set triggers for your PCollections to change this default behavior. Beam provides a
-  number of pre-built triggers that you can set:
-</p>
-<div>
-  <ul>
-    <li>Event time triggers</li>
-    <li>Processing time triggers</li>
-    <li>Data-driven triggers</li>
-    <li>Composite triggers</li>
-  </ul>
+Early Triggers
+--------------
+
+Triggers allow Beam to emit early results, before all the data in a given window has arrived. For 
+example, emitting after a certain amount of time elapses, or after a certain number of elements 
+arrives.
+
+**Kata:** Given that events are being generated every second and a fixed window of 1-day duration, 
+please implement an early trigger that emits the number of events count immediately after new 
+element is processed.
+
+<div class="hint">
+  Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.AfterWatermarkEarlyAndLate.html#withEarlyFirings-org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger-">
+  withEarlyFirings</a> to set early firing triggers.
 </div>
-<p>
-  Event time triggers operate on the event time, as indicated by the timestamp on each data
-  element. Beam’s default trigger is event time-based.
-</p>
-<p>
-  The AfterWatermark trigger operates on event time. The AfterWatermark trigger emits the contents
-  of a window after the watermark passes the end of the window, based on the timestamps attached
-  to the data elements. The watermark is a global progress metric, and is Beam’s notion of input
-  completeness within your pipeline at any given point. AfterWatermark.pastEndOfWindow() only fires
-  when the watermark passes the end of the window.
-</p>
-<p>
-  <b>Kata:</b> Given that events are being generated every second, please implement a trigger that
-  emits the number of events count within a fixed window of 5-second duration.
-</p>
-<br>
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/FixedWindows.html">
-  FixedWindows</a> with 5-second duration using
+  FixedWindows</a> with 1-day duration using
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/AfterWatermark.html#pastEndOfWindow--">
-  AfterWatermark.pastEndOfWindow()</a> trigger.
+    AfterWatermark.pastEndOfWindow()</a> trigger.
 </div>
+
 <div class="hint">
   Set the <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#withAllowedLateness-org.joda.time.Duration-">
   allowed lateness</a> to 0 with
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/windowing/Window.html#discardingFiredPanes--">
     discarding accumulation mode</a>.
 </div>
+
 <div class="hint">
   Use <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Combine.html#globally-org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn-">
   Combine.globally</a> and
   <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/Count.html#combineFn--">
     Count.combineFn</a> to calculate the count of events.
 </div>
+
 <div class="hint">
   Refer to the Beam Programming Guide
   <a href="https://beam.apache.org/documentation/programming-guide/#event-time-triggers">
     "Event time triggers"</a> section for more information.
 </div>
-</html>
