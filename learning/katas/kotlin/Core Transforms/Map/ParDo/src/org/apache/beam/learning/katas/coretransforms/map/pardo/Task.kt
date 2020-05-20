@@ -44,13 +44,11 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollection<Int> {
         return input.apply(ParDo.of(object : DoFn<Int, Int>() {
-
             @ProcessElement
             fun processElement(context: ProcessContext, out: OutputReceiver<Int>) {
                 val number = context.element()
                 out.output(number * 10)
             }
-
         }))
     }
 }

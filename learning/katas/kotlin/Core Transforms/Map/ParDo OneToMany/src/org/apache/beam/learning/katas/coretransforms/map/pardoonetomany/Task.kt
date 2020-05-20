@@ -45,8 +45,7 @@ object Task {
         return input.apply(ParDo.of(object : DoFn<String, String>() {
             @ProcessElement
             fun processElement(@Element sentence: String, out: OutputReceiver<String?>) {
-                val words = sentence.split(" ").toTypedArray()
-
+                val words = sentence.split(" ")
                 for (word in words) {
                     out.output(word)
                 }
