@@ -189,6 +189,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
+  private final boolean finishBundleBeforeCheckpointing;
+
   protected transient InternalTimerService<TimerData> timerService;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
@@ -294,6 +296,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
           flinkOptions.getCheckpointingInterval()
               + Math.max(0, flinkOptions.getMinPauseBetweenCheckpoints()));
     }
+
+    this.finishBundleBeforeCheckpointing = flinkOptions.getFinishBundleBeforeCheckpointing();
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -844,6 +848,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   @Override
+  public void prepareSnapshotPreBarrier(long checkpointId) {
+    if (finishBundleBeforeCheckpointing) {
+      // We finish the bundle and flush any pending data.
+      // This avoids buffering any data as part of snapshotState() below.
+      while (bundleStarted) {
+        invokeFinishBundle();
+      }
+    }
+  }
+
+  @Override
   public final void snapshotState(StateSnapshotContext context) throws Exception {
     if (checkpointStats != null) {
       checkpointStats.snapshotStart(context.getCheckpointId());
@@ -855,8 +870,6 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       bufferingDoFnRunner.checkpoint(context.getCheckpointId());
     }
 
-    // We can't output here anymore because the checkpoint barrier has already been
-    // sent downstream. This is going to change with 1.6/1.7's prepareSnapshotBarrier.
     try {
       outputManager.openBuffer();
       // Ensure that no new bundle gets started as part of finishing a bundle
@@ -946,8 +959,15 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /**
    * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Uses {@link
    * PushedBackElementsHandler} to buffer the data. Buffering data is necessary because no elements
-   * can be emitted during {@code snapshotState}. This can be removed once we upgrade Flink to >=
-   * 1.6 which allows us to finish the bundle before the checkpoint barriers have been emitted.
+   * can be emitted during {@code snapshotState} which is called when the checkpoint barrier already
+   * has been sent downstream. Emitting elements would break the flow of checkpoint barrier and
+   * violate exactly-once semantics.
+   *
+   * <p>This buffering can be deactived using {@code
+   * FlinkPipelineOptions#setFinishBundleBeforeCheckpointing(true)}. If activated, we flush out
+   * bundle data before the barrier is sent downstream. This is done via {@code
+   * prepareSnapshotPreBarrier}. When Flink supports unaligned checkpoints, this should become the
+   * default and this class should be removed as in https://github.com/apache/beam/pull/9652.
    */
   public static class BufferedOutputManager<OutputT> implements DoFnRunners.OutputManager {
 

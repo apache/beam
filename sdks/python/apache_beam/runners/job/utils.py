@@ -23,6 +23,7 @@
 from __future__ import absolute_import
 
 import json
+import logging
 
 from google.protobuf import json_format
 from google.protobuf import struct_pb2
@@ -30,7 +31,11 @@ from google.protobuf import struct_pb2
 
 def dict_to_struct(dict_obj):
   # type: (dict) -> struct_pb2.Struct
-  return json_format.ParseDict(dict_obj, struct_pb2.Struct())
+  try:
+    return json_format.ParseDict(dict_obj, struct_pb2.Struct())
+  except json_format.ParseError:
+    logging.error('Failed to parse dict %s', dict_obj)
+    raise
 
 
 def struct_to_dict(struct_obj):

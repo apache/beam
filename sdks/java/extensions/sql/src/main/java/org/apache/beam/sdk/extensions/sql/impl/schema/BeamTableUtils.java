@@ -22,7 +22,10 @@ import static org.apache.beam.sdk.values.Row.toRow;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -114,8 +117,17 @@ public final class BeamTableUtils {
       } else {
         return rawObj;
       }
+    } else if (CalciteUtils.DATE.typesEqual(type) || CalciteUtils.NULLABLE_DATE.typesEqual(type)) {
+      if (rawObj instanceof GregorianCalendar) { // used by the SQL CLI
+        GregorianCalendar calendar = (GregorianCalendar) rawObj;
+        return Instant.ofEpochMilli(calendar.getTimeInMillis())
+            .atZone(calendar.getTimeZone().toZoneId())
+            .toLocalDate();
+      } else {
+        return LocalDate.ofEpochDay((Integer) rawObj);
+      }
     } else if (CalciteUtils.isDateTimeType(type)) {
-      // Internal representation of DateType in Calcite is convertible to Joda's Datetime.
+      // Internal representation of Date in Calcite is convertible to Joda's Datetime.
       return new DateTime(rawObj);
     } else if (type.getTypeName().isNumericType()
         && ((rawObj instanceof String)

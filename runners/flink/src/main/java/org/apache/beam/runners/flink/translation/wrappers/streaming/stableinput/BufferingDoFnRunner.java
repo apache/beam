@@ -167,6 +167,9 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   }
 
   @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
+
+  @Override
   public DoFn<InputT, OutputT> getFn() {
     return underlying.getFn();
   }

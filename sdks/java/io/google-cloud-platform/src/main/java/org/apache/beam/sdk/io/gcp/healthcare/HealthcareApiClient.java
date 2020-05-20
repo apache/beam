@@ -29,6 +29,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.joda.time.Instant;
 
 /** Defines a client that talks to the Cloud Healthcare API. */
 public interface HealthcareApiClient {
@@ -43,6 +44,13 @@ public interface HealthcareApiClient {
    */
   Message getHL7v2Message(String msgName) throws IOException, ParseException;
 
+  /**
+   * Delete hl 7 v 2 message empty.
+   *
+   * @param msgName the msg name
+   * @return the empty
+   * @throws IOException the io exception
+   */
   Empty deleteHL7v2Message(String msgName) throws IOException;
 
   /**
@@ -55,19 +63,54 @@ public interface HealthcareApiClient {
   Hl7V2Store getHL7v2Store(String storeName) throws IOException;
 
   /**
-   * Operation pollOperation(Operation operation, Long sleepMs) throws InterruptedException,
-   * IOException;
-   *
-   * <p>/** Make hl 7 v 2 list request list messages response.
+   * Gets earliest hl 7 v 2 send time.
    *
    * @param hl7v2Store the hl 7 v 2 store
    * @param filter the filter
+   * @return the earliest hl 7 v 2 send time
+   * @throws IOException the io exception
+   */
+  Instant getEarliestHL7v2SendTime(String hl7v2Store, @Nullable String filter) throws IOException;
+
+  Instant getLatestHL7v2SendTime(String hl7v2Store, @Nullable String filter) throws IOException;
+
+  /**
+   * Make send time bound hl 7 v 2 list request.
+   *
+   * @param hl7v2Store the hl 7 v 2 store
+   * @param start the start
+   * @param end the end
+   * @param otherFilter the other filter
+   * @param orderBy the order by
+   * @param pageToken the page token
+   * @return the list messages response
+   * @throws IOException the io exception
+   */
+  ListMessagesResponse makeSendTimeBoundHL7v2ListRequest(
+      String hl7v2Store,
+      Instant start,
+      @Nullable Instant end,
+      @Nullable String otherFilter,
+      @Nullable String orderBy,
+      @Nullable String pageToken)
+      throws IOException;
+
+  /**
+   * Make hl 7 v 2 list request list messages response.
+   *
+   * @param hl7v2Store the hl 7 v 2 store
+   * @param filter the filter
+   * @param orderBy the order by
    * @param pageToken the page token
    * @return the list messages response
    * @throws IOException the io exception
    */
   ListMessagesResponse makeHL7v2ListRequest(
-      String hl7v2Store, @Nullable String filter, @Nullable String pageToken) throws IOException;
+      String hl7v2Store,
+      @Nullable String filter,
+      @Nullable String orderBy,
+      @Nullable String pageToken)
+      throws IOException;
 
   /**
    * Ingest hl 7 v 2 message ingest message response.
@@ -115,6 +158,14 @@ public interface HealthcareApiClient {
    */
   HttpBody readFhirResource(String resourceId) throws IOException;
 
+  /**
+   * Create hl 7 v 2 store hl 7 v 2 store.
+   *
+   * @param dataset the dataset
+   * @param name the name
+   * @return the hl 7 v 2 store
+   * @throws IOException the io exception
+   */
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 
   FhirStore createFhirStore(String dataset, String name, String version, String pubsubTopic)
@@ -122,6 +173,13 @@ public interface HealthcareApiClient {
 
   FhirStore createFhirStore(String dataset, String name, String version) throws IOException;
 
+  /**
+   * Delete hl 7 v 2 store empty.
+   *
+   * @param store the store
+   * @return the empty
+   * @throws IOException the io exception
+   */
   Empty deleteHL7v2Store(String store) throws IOException;
 
   Empty deleteFhirStore(String store) throws IOException;

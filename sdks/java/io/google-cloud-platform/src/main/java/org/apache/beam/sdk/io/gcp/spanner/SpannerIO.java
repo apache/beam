@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -64,6 +65,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -73,6 +75,7 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -352,7 +355,6 @@ public class SpannerIO {
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
         .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setMaxNumRows(DEFAULT_MAX_NUM_ROWS)
-        .setGroupingFactor(DEFAULT_GROUPING_FACTOR)
         .setFailureMode(FailureMode.FAIL_FAST)
         .build();
   }
@@ -783,7 +785,7 @@ public class SpannerIO {
     @Nullable
     abstract PCollection getSchemaReadySignal();
 
-    abstract int getGroupingFactor();
+    abstract OptionalInt getGroupingFactor();
 
     abstract Builder toBuilder();
 
@@ -953,9 +955,29 @@ public class SpannerIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      populateDisplayDataWithParamaters(builder);
+    }
+
+    private void populateDisplayDataWithParamaters(DisplayData.Builder builder) {
       getSpannerConfig().populateDisplayData(builder);
       builder.add(
-          DisplayData.item("batchSizeBytes", getBatchSizeBytes()).withLabel("Batch Size in Bytes"));
+          DisplayData.item("batchSizeBytes", getBatchSizeBytes())
+              .withLabel("Max batch size in bytes"));
+      builder.add(
+          DisplayData.item("maxNumMutations", getMaxNumMutations())
+              .withLabel("Max number of mutated cells in each batch"));
+      builder.add(
+          DisplayData.item("maxNumRows", getMaxNumRows())
+              .withLabel("Max number of rows in each batch"));
+      // Grouping factor default value depends on whether it is a batch or streaming pipeline.
+      // This function is not aware of that state, so use 'DEFAULT' if unset.
+      builder.add(
+          DisplayData.item(
+                  "groupingFactor",
+                  (getGroupingFactor().isPresent()
+                      ? Integer.toString(getGroupingFactor().getAsInt())
+                      : "DEFAULT"))
+              .withLabel("Number of batches to sort over"));
     }
   }
 
@@ -993,6 +1015,12 @@ public class SpannerIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      spec.populateDisplayDataWithParamaters(builder);
+    }
+
+    @Override
     public SpannerWriteResult expand(PCollection<MutationGroup> input) {
 
       // First, read the Cloud Spanner schema.
@@ -1013,7 +1041,11 @@ public class SpannerIO {
       // Filter out mutation groups too big to be batched.
       PCollectionTuple filteredMutations =
           input
-              .apply("To Global Window", Window.into(new GlobalWindows()))
+              .apply(
+                  "RewindowIntoGlobal",
+                  Window.<MutationGroup>into(new GlobalWindows())
+                      .triggering(DefaultTrigger.of())
+                      .discardingFiredPanes())
               .apply(
                   "Filter Unbatchable Mutations",
                   ParDo.of(
@@ -1039,7 +1071,12 @@ public class SpannerIO {
                               spec.getBatchSizeBytes(),
                               spec.getMaxNumMutations(),
                               spec.getMaxNumRows(),
-                              spec.getGroupingFactor(),
+                              // Do not group on streaming unless explicitly set.
+                              spec.getGroupingFactor()
+                                  .orElse(
+                                      input.isBounded() == IsBounded.BOUNDED
+                                          ? DEFAULT_GROUPING_FACTOR
+                                          : 1),
                               schemaView))
                       .withSideInputs(schemaView))
               .apply(

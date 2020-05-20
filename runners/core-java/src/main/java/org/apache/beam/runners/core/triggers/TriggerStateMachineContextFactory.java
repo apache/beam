@@ -189,6 +189,11 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
+    public void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain) {
+      timers.setTimer(timestamp, outputTimestamp, timeDomain);
+    }
+
+    @Override
     public void deleteTimer(Instant timestamp, TimeDomain timeDomain) {
       if (timeDomain == TimeDomain.EVENT_TIME && timestamp.equals(window.maxTimestamp())) {
         // Don't allow triggers to unset the at-max-timestamp timer. This is necessary for on-time

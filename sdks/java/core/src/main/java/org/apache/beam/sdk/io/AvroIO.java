@@ -697,7 +697,8 @@ public class AvroIO {
                         getFilepattern(),
                         getMatchConfiguration().getEmptyMatchTreatment(),
                         getRecordClass(),
-                        getSchema())));
+                        getSchema(),
+                        null)));
         return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
       }
 
@@ -734,9 +735,14 @@ public class AvroIO {
         ValueProvider<String> filepattern,
         EmptyMatchTreatment emptyMatchTreatment,
         Class<T> recordClass,
-        Schema schema) {
+        Schema schema,
+        @Nullable AvroSource.DatumReaderFactory<T> readerFactory) {
       AvroSource<?> source =
           AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
+
+      if (readerFactory != null) {
+        source = source.withDatumReaderFactory(readerFactory);
+      }
       return recordClass == GenericRecord.class
           ? (AvroSource<T>) source.withSchema(schema)
           : source.withSchema(recordClass);
@@ -759,6 +765,9 @@ public class AvroIO {
 
     abstract boolean getInferBeamSchema();
 
+    @Nullable
+    abstract AvroSource.DatumReaderFactory<T> getDatumReaderFactory();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -770,6 +779,8 @@ public class AvroIO {
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract Builder<T> setInferBeamSchema(boolean infer);
+
+      abstract Builder<T> setDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory);
 
       abstract ReadFiles<T> build();
     }
@@ -788,6 +799,10 @@ public class AvroIO {
       return toBuilder().setInferBeamSchema(withBeamSchemas).build();
     }
 
+    public ReadFiles<T> withDatumReaderFactory(AvroSource.DatumReaderFactory<T> factory) {
+      return toBuilder().setDatumReaderFactory(factory).build();
+    }
+
     @Override
     public PCollection<T> expand(PCollection<FileIO.ReadableFile> input) {
       checkNotNull(getSchema(), "schema");
@@ -796,7 +811,8 @@ public class AvroIO {
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
                   getDesiredBundleSizeBytes(),
-                  new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
+                  new CreateSourceFn<>(
+                      getRecordClass(), getSchema().toString(), getDatumReaderFactory()),
                   AvroCoder.of(getRecordClass(), getSchema())));
       return getInferBeamSchema() ? setBeamSchema(read, getRecordClass(), getSchema()) : read;
     }
@@ -913,12 +929,15 @@ public class AvroIO {
       implements SerializableFunction<String, FileBasedSource<T>> {
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
+    private final AvroSource.DatumReaderFactory<T> readerFactory;
 
-    CreateSourceFn(Class<T> recordClass, String jsonSchema) {
+    CreateSourceFn(
+        Class<T> recordClass, String jsonSchema, AvroSource.DatumReaderFactory<T> readerFactory) {
       this.recordClass = recordClass;
       this.schemaSupplier =
           Suppliers.memoize(
               Suppliers.compose(new JsonToSchema(), Suppliers.ofInstance(jsonSchema)));
+      this.readerFactory = readerFactory;
     }
 
     @Override
@@ -927,7 +946,8 @@ public class AvroIO {
           StaticValueProvider.of(input),
           EmptyMatchTreatment.DISALLOW,
           recordClass,
-          schemaSupplier.get());
+          schemaSupplier.get(),
+          readerFactory);
     }
 
     private static class JsonToSchema implements Function<String, Schema>, Serializable {

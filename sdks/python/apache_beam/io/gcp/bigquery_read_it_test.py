@@ -277,7 +277,7 @@ class ReadNewTypesTests(BigQueryReadIntegrationTests):
               query=self.query,
               use_standard_sql=True,
               project=self.project,
-              bigquery_job_labels={'owner': 'apache_beam_tests'}))
+              bigquery_job_labels={'launcher': 'apache_beam_tests'}))
       assert_that(result, equal_to(self.get_expected_data()))
 
 

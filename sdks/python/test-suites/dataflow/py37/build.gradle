@@ -24,18 +24,11 @@ dependencies {
   distTarBall project(path: ":sdks:python", configuration: "distTarBall")
 }
 
-// Required to setup a Python 3 virtualenv.
+// Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.7'
-
+apply from: "../common.gradle"
 
 def runScriptsDir = "${rootDir}/sdks/python/scripts"
-
-// Basic test options for ITs running on Jenkins.
-def basicTestOpts = [
-    "--nocapture",  // print stdout instantly
-    "--processes=8",  // run tests in parallel
-    "--process-timeout=4500", // timeout of whole command execution
-]
 
 def preCommitIT(String runScriptsDir, String envdir, Boolean streaming, Boolean runnerV2) {
   def suffix = runnerV2 ? '_V2' : ''
@@ -99,84 +92,4 @@ task preCommitIT{
 task preCommitIT_V2{
   dependsOn preCommitIT_batch_V2
   dependsOn preCommitIT_streaming_V2
-}
-
-task postCommitIT {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-
-  doLast {
-    def testOpts = basicTestOpts + ["--attr=IT"]
-
-     def cmdArgs = mapToArgString([
-        "test_opts": testOpts,
-        "sdk_location": files(configurations.distTarBall.files).singleFile,
-        "worker_jar": dataflowWorkerJar,
-        "suite": "postCommitIT-df-py37"
-    ])
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
-  }
-}
-
-task validatesRunnerBatchTests {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-batch"]
-  def argMap = [
-          "test_opts"   : testOpts,
-          "worker_jar"  : dataflowWorkerJar,
-          "sdk_location": files(configurations.distTarBall.files).singleFile,
-          "suite"       : "validatesRunnerBatchTests-df-py37"]
-
-  if (project.hasProperty('useRunnerV2')) {
-    argMap.put("runner_v2", "true")
-    // KMS is not supported for streaming engine.
-    argMap.put("kms_key_name", "\"\"")
-  }
-
-  doLast {
-    def cmdArgs = mapToArgString(argMap)
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
-  }
-}
-
-task validatesRunnerStreamingTests {
-  dependsOn 'installGcpTest'
-  dependsOn ':sdks:python:sdist'
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-
-  def dataflowWorkerJar = project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
-
-  // TODO(BEAM-3544,BEAM-5025): Disable tests with 'sickbay-streaming' tag.
-  def testOpts = basicTestOpts + ["--attr=ValidatesRunner,!sickbay-streaming"]
-  def argMap = ["test_opts": testOpts,
-                "streaming": "true",
-                "sdk_location": files(configurations.distTarBall.files).singleFile,
-                "worker_jar": dataflowWorkerJar,
-                "suite": "validatesRunnerStreamingTests-df-py37"]
-  if (project.hasProperty('useRunnerV2')) {
-    argMap.put("runner_v2", "true")
-    // KMS is not supported for streaming engine.
-    argMap.put("kms_key_name", "\"\"")
-  }
-
-  doLast {
-    def cmdArgs = mapToArgString(argMap)
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
-  }
 }

@@ -160,7 +160,7 @@ public class KeyedTimerData<K> implements Comparable<KeyedTimerData<K>> {
       final StateNamespace namespace =
           StateNamespaces.fromString(STRING_CODER.decode(inStream), windowCoder);
       final TimeDomain domain = TimeDomain.valueOf(STRING_CODER.decode(inStream));
-      final TimerData timer = TimerData.of(timerId, namespace, timestamp, domain);
+      final TimerData timer = TimerData.of(timerId, namespace, timestamp, timestamp, domain);
 
       byte[] keyBytes = null;
       K key = null;

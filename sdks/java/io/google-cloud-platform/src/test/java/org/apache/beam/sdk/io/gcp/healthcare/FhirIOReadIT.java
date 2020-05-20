@@ -50,8 +50,7 @@ public class FhirIOReadIT {
 
   @Parameters(name = "{0}")
   public static Collection<String> versions() {
-    // TODO(jaketf) uncoment other two versions
-    return Arrays.asList(/*"DSTU2", "STU3", */ "R4");
+    return Arrays.asList("DSTU2", "STU3", "R4");
   }
 
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();

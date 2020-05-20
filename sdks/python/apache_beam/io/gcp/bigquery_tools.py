@@ -218,6 +218,20 @@ def parse_table_reference(table, dataset=None, project=None):
 # BigQueryWrapper.
 
 
+def _build_job_labels(input_labels):
+  """Builds job label protobuf structure."""
+  input_labels = input_labels or {}
+  result = bigquery.JobConfiguration.LabelsValue()
+
+  for k, v in input_labels.items():
+    result.additionalProperties.append(
+        bigquery.JobConfiguration.LabelsValue.AdditionalProperty(
+            key=k,
+            value=v,
+        ))
+  return result
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -335,7 +349,7 @@ class BigQueryWrapper(object):
                     createDisposition=create_disposition,
                     writeDisposition=write_disposition,
                 ),
-                labels=job_labels or {},
+                labels=_build_job_labels(job_labels),
             ),
             jobReference=reference,
         ))
@@ -377,7 +391,7 @@ class BigQueryWrapper(object):
                     useAvroLogicalTypes=True,
                     autodetect=schema == 'SCHEMA_AUTODETECT',
                     **additional_load_parameters),
-                labels=job_labels or {},
+                labels=_build_job_labels(job_labels),
             ),
             jobReference=reference,
         ))
@@ -412,7 +426,7 @@ class BigQueryWrapper(object):
                     flattenResults=flatten_results,
                     destinationEncryptionConfiguration=bigquery.
                     EncryptionConfiguration(kmsKeyName=kms_key)),
-                labels=job_labels or {},
+                labels=_build_job_labels(job_labels),
             ),
             jobReference=reference))
 
@@ -725,7 +739,7 @@ class BigQueryWrapper(object):
                     destinationFormat=destination_format,
                     compression=compression,
                 ),
-                labels=job_labels or {},
+                labels=_build_job_labels(job_labels),
             ),
             jobReference=job_reference,
         ))
