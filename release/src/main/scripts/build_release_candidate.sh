@@ -328,8 +328,3 @@ if [[ $confirmation = "y" ]]; then
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_JAVA_DOC}
   rm -rf ~/${LOCAL_WEBSITE_UPDATE_DIR}/${LOCAL_PYTHON_DOC}
 fi
-
-echo "===========Please Review All Items in the Checklist=========="
-echo "1. You need to close the staging repository manually on Apache Nexus. See the release guide for instructions."
-echo "2. Source distribution deployed to https://dist.apache.org/repos/dist/dev/beam/${RELEASE}"
-echo "3. Website pull request published the Java API reference manual the Python API reference manual."
