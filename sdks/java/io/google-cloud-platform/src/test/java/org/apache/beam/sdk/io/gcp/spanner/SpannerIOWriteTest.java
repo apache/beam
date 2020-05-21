@@ -263,18 +263,34 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void noBatching() throws Exception {
+
+    // This test uses a different mock/fake because it explicitly does not want to populate the
+    // Spanner schema.
+    FakeServiceFactory fakeServiceFactory = new FakeServiceFactory();
+    ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
+    when(fakeServiceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
+
+    // Capture batches sent to writeAtLeastOnce.
+    when(fakeServiceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+        .thenReturn(null);
+
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
     mutations.apply(
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory)
+            .withServiceFactory(fakeServiceFactory)
             .withBatchSizeBytes(1)
             .grouped());
     pipeline.run();
 
-    verifyBatches(batch(m(1L)), batch(m(2L)));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
+    // If no batching then the DB schema is never read.
+    verify(tx, never()).executeQuery(any());
   }
 
   @Test
