@@ -62,6 +62,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.Environments;
@@ -1531,7 +1532,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               (Coder)
                   CoderTranslation.fromProto(
                       coderSpec.getCoder(),
-                      RehydratedComponents.forComponents(coderSpec.getComponents()));
+                      RehydratedComponents.forComponents(coderSpec.getComponents()),
+                      TranslationContext.DEFAULT);
         }
         return coder;
       }

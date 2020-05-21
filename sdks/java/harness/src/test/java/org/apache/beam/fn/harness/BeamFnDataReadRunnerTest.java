@@ -235,6 +235,7 @@ public class BeamFnDataReadRunnerTest {
               bundleId::get,
               COMPONENTS.getCodersMap(),
               mockBeamFnDataClient,
+              null /* beamFnStateClient */,
               (PTransformRunnerFactory.ProgressRequestCallback callback) -> {
                 progressCallbacks.add(callback);
               },

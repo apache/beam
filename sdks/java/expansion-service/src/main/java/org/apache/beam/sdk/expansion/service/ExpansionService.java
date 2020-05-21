@@ -39,6 +39,7 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
@@ -203,7 +204,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(componentsBuilder.build());
-      return CoderTranslation.fromProto(coder, rehydratedComponents);
+      return CoderTranslation.fromProto(coder, rehydratedComponents, TranslationContext.DEFAULT);
     }
 
     private static RunnerApi.Coder buildProto(
