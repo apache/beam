@@ -5,8 +5,8 @@ files:
 - name: src/org/apache/beam/learning/katas/triggers/eventtimetriggers/Task.kt
   visible: true
   placeholders:
-  - offset: 1878
-    length: 327
+  - offset: 1821
+    length: 384
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/triggers/eventtimetriggers/TaskTest.kt
   visible: false

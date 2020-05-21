@@ -5,6 +5,6 @@ files:
 - name: src/org/apache/beam/learning/katas/commontransforms/aggregation/sum/Task.kt
   visible: true
   placeholders:
-  - offset: 1617
-    length: 35
+  - offset: 1610
+    length: 42
     placeholder_text: TODO()
