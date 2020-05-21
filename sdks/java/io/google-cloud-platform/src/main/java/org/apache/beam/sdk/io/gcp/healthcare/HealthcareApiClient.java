@@ -18,15 +18,17 @@
 package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.google.api.services.healthcare.v1beta1.model.Empty;
+import com.google.api.services.healthcare.v1beta1.model.FhirStore;
 import com.google.api.services.healthcare.v1beta1.model.Hl7V2Store;
 import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.healthcare.v1beta1.model.IngestMessageResponse;
 import com.google.api.services.healthcare.v1beta1.model.ListMessagesResponse;
 import com.google.api.services.healthcare.v1beta1.model.Message;
-import com.google.api.services.healthcare.v1beta1.model.SearchResourcesRequest;
+import com.google.api.services.healthcare.v1beta1.model.Operation;
 import java.io.IOException;
 import java.text.ParseException;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.joda.time.Instant;
 
 /** Defines a client that talks to the Cloud Healthcare API. */
@@ -130,26 +132,11 @@ public interface HealthcareApiClient {
    */
   Message createHL7v2Message(String hl7v2Store, Message msg) throws IOException;
 
-  /**
-   * Create fhir resource http body.
-   *
-   * @param fhirStore the fhir store
-   * @param type the type
-   * @param body the body
-   * @return the http body
-   * @throws IOException the io exception
-   */
-  HttpBody createFhirResource(String fhirStore, String type, HttpBody body) throws IOException;
+  Operation importFhirResource(
+      String fhirStore, String gcsSourcePath, @Nullable String contentStructure) throws IOException;
 
-  /**
-   * Fhir search http body.
-   *
-   * @param fhirStore the fhir store
-   * @param query the query
-   * @return the http body
-   * @throws IOException the io exception
-   */
-  HttpBody fhirSearch(String fhirStore, SearchResourcesRequest query) throws IOException;
+  Operation pollOperation(Operation operation, Long sleepMs)
+      throws InterruptedException, IOException;
 
   /**
    * Execute fhir bundle http body.
@@ -159,27 +146,17 @@ public interface HealthcareApiClient {
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody executeFhirBundle(String fhirStore, HttpBody bundle) throws IOException;
-
-  /**
-   * List fhir resource for patient http body.
-   *
-   * @param fhirStore the fhir store
-   * @param patient the patient
-   * @return the http body
-   * @throws IOException the io exception
-   */
-  HttpBody listFHIRResourceForPatient(String fhirStore, String patient) throws IOException;
+  HttpBody executeFhirBundle(String fhirStore, String bundle)
+      throws IOException, HealthcareHttpException;
 
   /**
    * Read fhir resource http body.
    *
-   * @param fhirStore the fhir store
-   * @param resource the resource
+   * @param resourceId the resource
    * @return the http body
    * @throws IOException the io exception
    */
-  HttpBody readFHIRResource(String fhirStore, String resource) throws IOException;
+  HttpBody readFhirResource(String resourceId) throws IOException;
 
   /**
    * Create hl 7 v 2 store hl 7 v 2 store.
@@ -191,6 +168,11 @@ public interface HealthcareApiClient {
    */
   Hl7V2Store createHL7v2Store(String dataset, String name) throws IOException;
 
+  FhirStore createFhirStore(String dataset, String name, String version, String pubsubTopic)
+      throws IOException;
+
+  FhirStore createFhirStore(String dataset, String name, String version) throws IOException;
+
   /**
    * Delete hl 7 v 2 store empty.
    *
@@ -199,4 +181,6 @@ public interface HealthcareApiClient {
    * @throws IOException the io exception
    */
   Empty deleteHL7v2Store(String store) throws IOException;
+
+  Empty deleteFhirStore(String store) throws IOException;
 }

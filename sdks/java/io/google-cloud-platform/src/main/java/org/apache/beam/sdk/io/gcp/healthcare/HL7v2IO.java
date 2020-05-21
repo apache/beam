@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
@@ -323,6 +324,8 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<String> input) {
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input.apply("Fetch HL7v2 messages", new FetchHL7v2Message());
     }
 
@@ -352,6 +355,8 @@ public class HL7v2IO {
 
       @Override
       public Result expand(PCollection<String> msgIds) {
+        CoderRegistry coderRegistry = msgIds.getPipeline().getCoderRegistry();
+        coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
         return new Result(
             msgIds.apply(
                 ParDo.of(new FetchHL7v2Message.HL7v2MessageGetFn())
@@ -470,6 +475,8 @@ public class HL7v2IO {
 
     @Override
     public PCollection<HL7v2Message> expand(PBegin input) {
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return input
           .apply(Create.ofProvider(this.hl7v2Stores, ListCoder.of(StringUtf8Coder.of())))
           .apply(FlatMapElements.into(TypeDescriptors.strings()).via((x) -> x))
@@ -625,6 +632,8 @@ public class HL7v2IO {
 
     @Override
     public Result expand(PCollection<HL7v2Message> messages) {
+      CoderRegistry coderRegistry = messages.getPipeline().getCoderRegistry();
+      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
       return messages.apply(new WriteHL7v2(this.getHL7v2Store(), this.getWriteMethod()));
     }
 
@@ -728,7 +737,7 @@ public class HL7v2IO {
       PCollection<HealthcareIOError<HL7v2Message>> failedInserts =
           input
               .apply(ParDo.of(new WriteHL7v2Fn(hl7v2Store, writeMethod)))
-              .setCoder(new HealthcareIOErrorCoder<>(new HL7v2MessageCoder()));
+              .setCoder(HealthcareIOErrorCoder.of(HL7v2MessageCoder.of()));
       return Write.Result.in(input.getPipeline(), failedInserts);
     }
 
