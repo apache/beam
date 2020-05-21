@@ -617,8 +617,8 @@ For this step, we recommend you using automation script to create a RC, but you 
       - There is a wrapper repo [beam-wheels](https://github.com/apache/beam-wheels) to help build python wheels.
       - If you are interested in how it works, please refer to the [structure section](https://github.com/apache/beam-wheels#structure).
       - Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
-      - Once all python wheels have been staged [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/),
-      please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh) to sign and hash python wheels.
+      - Once all python wheels have been staged to GCS,
+      please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh), which copies the wheels along with signatures and hashes to [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/).
   1. Update Beam website ([example](https://github.com/apache/beam/pull/11727))
       1. Update release version in `website/www/site/config.toml`.
       1. Add new release in `website/www/site/content/en/get-started/downloads.md`.
