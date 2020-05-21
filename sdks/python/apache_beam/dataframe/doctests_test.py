@@ -16,6 +16,7 @@
 
 from __future__ import absolute_import
 
+import doctest
 import os
 import sys
 import tempfile
@@ -46,6 +47,14 @@ CHECK_USES_DEFERRED_DATAFRAMES = '''
 'FakePandas'
 >>> type(pd.DataFrame([]))
 <class 'apache_beam.dataframe.frames.DeferredDataFrame'>
+'''
+
+ERROR_RAISING_TESTS = '''
+>>> import apache_beam
+>>> raise apache_beam.dataframe.frame_base.WontImplementError('anything')
+ignored exception
+>>> pd.Series(range(10)).__array__()
+ignored result
 '''
 
 
@@ -84,6 +93,11 @@ class DoctestTest(unittest.TestCase):
       result = doctests.testfile(filename, module_relative=False, report=False)
     self.assertNotEqual(result.attempted, 0)
     self.assertEqual(result.failed, 0)
+
+  def test_wont_implement(self):
+    doctests.teststring(ERROR_RAISING_TESTS, optionflags=doctest.ELLIPSIS)
+    doctests.teststring(
+        ERROR_RAISING_TESTS, optionflags=doctest.IGNORE_EXCEPTION_DETAIL)
 
 
 if __name__ == '__main__':

@@ -24,7 +24,8 @@ from apache_beam.dataframe import frame_base
 
 @frame_base.DeferredFrame._register_for(pd.Series)
 class DeferredSeries(frame_base.DeferredFrame):
-  pass
+  def __array__(self, dtype=None):
+    raise frame_base.WontImplementError('non-deferred')
 
 
 for base in ['add', 'sub', 'mul', 'div', 'truediv', 'floordiv', 'mod', 'pow']:
