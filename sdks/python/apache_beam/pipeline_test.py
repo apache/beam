@@ -27,7 +27,6 @@ import unittest
 from builtins import object
 from builtins import range
 
-import mock
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -370,9 +369,7 @@ class PipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
 
-  @mock.patch(
-      'apache_beam.runners.direct.direct_runner._get_transform_overrides')
-  def test_ptransform_overrides(self, file_system_override_mock):
+  def test_ptransform_overrides(self):
     class MyParDoOverride(PTransformOverride):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
@@ -382,15 +379,12 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r' % ptransform)
 
-    def get_overrides(unused_pipeline_options):
-      return [MyParDoOverride()]
+    p = Pipeline()
+    pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
+    assert_that(pcoll, equal_to([3, 6, 9]))
 
-    file_system_override_mock.side_effect = get_overrides
-
-    # Specify DirectRunner as it's the one patched above.
-    with Pipeline(runner='BundleBasedDirectRunner') as p:
-      pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
-      assert_that(pcoll, equal_to([3, 6, 9]))
+    p.replace_all([MyParDoOverride()])
+    p.run()
 
   def test_ptransform_override_type_hints(self):
     class NoTypeHintOverride(PTransformOverride):

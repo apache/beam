@@ -278,7 +278,7 @@ class DataflowRunner(PipelineRunner):
 
     class GroupByKeyInputVisitor(PipelineVisitor):
       """A visitor that replaces `Any` element type for input `PCollection` of
-      a `GroupByKey` or `_GroupByKeyOnly` with a `KV` type.
+      a `GroupByKey` with a `KV` type.
 
       TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
       we could directly replace the coder instead of mutating the element type.
@@ -289,8 +289,8 @@ class DataflowRunner(PipelineRunner):
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam.transforms.core import GroupByKey, _GroupByKeyOnly
-        if isinstance(transform_node.transform, (GroupByKey, _GroupByKeyOnly)):
+        from apache_beam.transforms.core import GroupByKey
+        if isinstance(transform_node.transform, GroupByKey):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
@@ -841,13 +841,24 @@ class DataflowRunner(PipelineRunner):
               transform.write_disposition,
               kms_key=transform.kms_key))
 
+  # TODO(srohde): Remove this after internal usages have been removed.
   def apply_GroupByKey(self, transform, pcoll, options):
+    return transform.expand(pcoll)
+
+  def _verify_gbk_coders(self, transform, pcoll):
     # Infer coder of parent.
     #
     # TODO(ccy): make Coder inference and checking less specialized and more
     # comprehensive.
+
     parent = pcoll.producer
     if parent:
+      # Skip the check because we can assume that any x-lang transform is
+      # properly formed (the onus is on the expansion service to construct
+      # transforms correctly).
+      if isinstance(parent.transform, RunnerAPIPTransformHolder):
+        return
+
       coder = parent.transform._infer_output_coder()  # pylint: disable=protected-access
     if not coder:
       coder = self._get_coder(pcoll.element_type or typehints.Any, None)
@@ -859,11 +870,13 @@ class DataflowRunner(PipelineRunner):
     coders.registry.verify_deterministic(
         coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
 
-    return pvalue.PCollection.from_(pcoll)
-
   def run_GroupByKey(self, transform_node, options):
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
+
+    # Verify that the GBK's parent has a KV coder.
+    self._verify_gbk_coders(transform_node.transform, transform_node.inputs[0])
+
     step = self._add_step(
         TransformNames.GROUP, transform_node.full_label, transform_node)
     step.add_property(
