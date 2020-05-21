@@ -388,7 +388,7 @@ class Always(TriggerFn):
     pass
 
   def has_ontime_pane(self):
-    False
+    return False
 
   def reset(self, window, context):
     pass
@@ -1290,8 +1290,7 @@ class GeneralTriggerDriver(TriggerDriver):
                                      window,
                                      context):
         finished = self.trigger_fn.on_fire(input_watermark, window, context)
-        yield self._output(
-            window, finished, state, input_watermark, output_watermark, False)
+        yield self._output(window, finished, state, output_watermark, False)
 
   def process_timer(
       self,
@@ -1319,20 +1318,12 @@ class GeneralTriggerDriver(TriggerDriver):
               window,
               finished,
               state,
-              input_watermark,
               timestamp,
               time_domain == TimeDomain.WATERMARK)
     else:
       raise Exception('Unexpected time domain: %s' % time_domain)
 
-  def _output(
-      self,
-      window,
-      finished,
-      state,
-      input_watermark,
-      output_watermark,
-      maybe_ontime):
+  def _output(self, window, finished, state, output_watermark, maybe_ontime):
     """Output window and clean up if appropriate."""
     index = state.get_state(window, self.INDEX)
     state.add_state(window, self.INDEX, 1)
@@ -1367,7 +1358,7 @@ class GeneralTriggerDriver(TriggerDriver):
     if timestamp is None:
       # If no watermark hold was set, output at end of window.
       timestamp = window.max_timestamp()
-    elif input_watermark < window.end and self.trigger_fn.has_ontime_pane():
+    elif output_watermark < window.end and self.trigger_fn.has_ontime_pane():
       # Hold the watermark in case there is an empty pane that needs to be fired
       # at the end of the window.
       pass
