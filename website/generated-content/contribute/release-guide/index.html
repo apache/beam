@@ -817,7 +817,7 @@ for full list of phrases.</li>
 </ul>
 <p>Jenkins job <code>beam_Release_Gradle_Build</code> basically run <code>./gradlew build -PisRelease</code>.
 This only verifies that everything builds with unit tests passing.</p>
-<p>You can refer to <a href="https://gist.github.com/Ardagan/13e6031e8d1c9ebbd3029bf365c1a517">this script</a> to mass-comment on PR.</p>
+<p>You can use <a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/mass_comment.py">mass_comment.py</a> to mass-comment on PR.</p>
 <h4 id="verify-the-build-succeeds">Verify the build succeeds</h4>
 <ul>
 <li>Tasks you need to do manually to <strong>verify the build succeed</strong>:
@@ -825,7 +825,6 @@ This only verifies that everything builds with unit tests passing.</p>
 <li>Check the build result.</li>
 <li>If build failed, scan log will contain all failures.</li>
 <li>You should stabilize the release branch until release build succeeded.</li>
-<li>The script will output a set of Jenkins phrases to enter in the created PR.</li>
 </ol>
 </li>
 </ul>

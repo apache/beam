@@ -3861,7 +3861,7 @@ The argument is represented by a schema type, so can itself be a complex type.</
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">Schema</span> <span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
                <span class="err">…</span>
-     <span class="o">.</span><span class="na">addLogicalTypeField</span><span class="o">(</span><span class="err">“</span><span class="n">color</span><span class="err">”</span><span class="o">,</span> <span class="n">EnumerationType</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="err">“</span><span class="n">RED</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">GREEN</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">BLUE</span><span class="err">”</span><span class="o">))</span>
+     <span class="o">.</span><span class="na">addLogicalTypeField</span><span class="o">(</span><span class="s">&#34;color&#34;</span><span class="o">,</span> <span class="n">EnumerationType</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">&#34;RED&#34;</span><span class="o">,</span> <span class="s">&#34;GREEN&#34;</span><span class="o">,</span> <span class="s">&#34;BLUE&#34;</span><span class="o">))</span>
      <span class="o">.</span><span class="na">build</span><span class="o">();</span></code></pre></div>
         </div>
     
@@ -3876,9 +3876,9 @@ you access the enumeration either as a string or a value. For example:</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span> <span class="n">enumValue</span> <span class="o">=</span> <span class="n">enumType</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="err">“</span><span class="n">RED</span><span class="err">”</span><span class="o">);</span>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span> <span class="n">enumValue</span> <span class="o">=</span> <span class="n">enumType</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="s">&#34;RED&#34;</span><span class="o">);</span>
 <span class="n">enumValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">();</span>  <span class="c1">// Returns 0, the integer value of the constant.
-</span><span class="c1"></span><span class="n">enumValue</span><span class="o">.</span><span class="na">toString</span><span class="o">();</span>  <span class="o">//</span> <span class="n">Returns</span> <span class="err">“</span><span class="n">RED</span><span class="err">”</span><span class="o">,</span> <span class="n">the</span> <span class="n">string</span> <span class="n">value</span> <span class="n">of</span> <span class="n">the</span> <span class="n">constant</span></code></pre></div>
+</span><span class="c1"></span><span class="n">enumValue</span><span class="o">.</span><span class="na">toString</span><span class="o">();</span>  <span class="o">//</span> <span class="n">Returns</span> <span class="s">&#34;RED&#34;</span><span class="o">,</span> <span class="n">the</span> <span class="n">string</span> <span class="n">value</span> <span class="n">of</span> <span class="n">the</span> <span class="n">constant</span></code></pre></div>
         </div>
     
 
@@ -3891,7 +3891,7 @@ you access the enumeration either as a string or a value. For example:</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span> <span class="n">enumValue</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="na">getLogicalTypeValue</span><span class="o">(</span><span class="err">“</span><span class="n">color</span><span class="err">”</span><span class="o">,</span> <span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span><span class="o">.</span><span class="na">class</span><span class="o">);</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span> <span class="n">enumValue</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="na">getLogicalTypeValue</span><span class="o">(</span><span class="s">&#34;color&#34;</span><span class="o">,</span> <span class="n">EnumerationType</span><span class="o">.</span><span class="na">Value</span><span class="o">.</span><span class="na">class</span><span class="o">);</span></code></pre></div>
         </div>
     
 
@@ -3909,10 +3909,10 @@ types.</p>
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">Schema</span> <span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="na">builder</span><span class="o">()</span>
                <span class="err">…</span>
-     <span class="o">.</span><span class="na">addLogicalTypeField</span><span class="o">(</span><span class="err">“</span><span class="n">oneOfField</span><span class="err">”</span><span class="o">,</span> 
-        <span class="n">OneOfType</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="err">“</span><span class="n">intField</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT32</span><span class="o">),</span>
-                         <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="err">“</span><span class="n">stringField</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">),</span>
-                         <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="err">“</span><span class="n">bytesField</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">BYTES</span><span class="o">)))</span>
+     <span class="o">.</span><span class="na">addLogicalTypeField</span><span class="o">(</span><span class="s">&#34;oneOfField&#34;</span><span class="o">,</span> 
+        <span class="n">OneOfType</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">&#34;intField&#34;</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT32</span><span class="o">),</span>
+                         <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">&#34;stringField&#34;</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">),</span>
+                         <span class="n">Field</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="s">&#34;bytesField&#34;</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">BYTES</span><span class="o">)))</span>
       <span class="o">.</span><span class="na">build</span><span class="o">();</span></code></pre></div>
         </div>
     
@@ -3930,19 +3930,19 @@ getting just that field:</p>
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="c1">// Returns an enumeration indicating all possible case values for the enum.
 </span><span class="c1">// For the above example, this will be 
-</span><span class="c1">// EnumerationType.create(“intField”, “stringField”, “bytesField”);
+</span><span class="c1">// EnumerationType.create(&#34;intField&#34;, &#34;stringField&#34;, &#34;bytesField&#34;);
 </span><span class="c1"></span><span class="n">EnumerationType</span> <span class="n">oneOfEnum</span> <span class="o">=</span> <span class="n">onOfType</span><span class="o">.</span><span class="na">getCaseEnumType</span><span class="o">();</span>
 
 <span class="c1">// Creates an instance of the union with the string field set.
-</span><span class="c1"></span><span class="n">OneOfType</span><span class="o">.</span><span class="na">Value</span> <span class="n">oneOfValue</span> <span class="o">=</span> <span class="n">oneOfType</span><span class="o">.</span><span class="na">createValue</span><span class="o">(</span><span class="err">“</span><span class="n">stringField</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">foobar</span><span class="err">”</span><span class="o">);</span>
+</span><span class="c1"></span><span class="n">OneOfType</span><span class="o">.</span><span class="na">Value</span> <span class="n">oneOfValue</span> <span class="o">=</span> <span class="n">oneOfType</span><span class="o">.</span><span class="na">createValue</span><span class="o">(</span><span class="s">&#34;stringField&#34;</span><span class="o">,</span> <span class="s">&#34;foobar&#34;</span><span class="o">);</span>
 
 <span class="c1">// Handle the oneof
 </span><span class="c1"></span><span class="k">switch</span> <span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getCaseEnumType</span><span class="o">().</span><span class="na">toString</span><span class="o">())</span> <span class="o">{</span>
-  <span class="k">case</span> <span class="err">“</span><span class="n">intField</span><span class="err">”</span><span class="o">:</span>  
+  <span class="k">case</span> <span class="s">&#34;intField&#34;</span><span class="o">:</span>  
     <span class="k">return</span> <span class="n">processInt</span><span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">(</span><span class="n">Integer</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
-  <span class="k">case</span> <span class="err">“</span><span class="n">stringField</span><span class="err">”</span><span class="o">:</span>
+  <span class="k">case</span> <span class="s">&#34;stringField&#34;</span><span class="o">:</span>
     <span class="k">return</span> <span class="n">processString</span><span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">(</span><span class="n">String</span><span class="o">.</span><span class="na">class</span><span class="o">));</span>
-  <span class="k">case</span> <span class="err">“</span><span class="n">bytesField</span><span class="err">”</span><span class="o">:</span>
+  <span class="k">case</span> <span class="s">&#34;bytesField&#34;</span><span class="o">:</span>
     <span class="k">return</span> <span class="n">processBytes</span><span class="o">(</span><span class="n">oneOfValue</span><span class="o">.</span><span class="na">getValue</span><span class="o">(</span><span class="n">bytes</span><span class="o">[].</span><span class="na">class</span><span class="o">));</span>
 <span class="o">}</span></code></pre></div>
         </div>
@@ -4111,7 +4111,7 @@ the user ids from a <code>PCollection</code> of purchases one would write (using
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4126,7 +4126,7 @@ shipping address one would write</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">postCode</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;shippingAddress.postCode&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4141,7 +4141,7 @@ shipping-address fields one would write</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.*</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;shippingAddress.*&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4156,7 +4156,7 @@ selected, the result is an array of the selected subfield type. For example</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">transactions</span><span class="o">[].</span><span class="na">bank</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;transactions[].bank&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4196,7 +4196,7 @@ specific keys from the map. For example, given the following schema:</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchasesByType</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">purchases</span><span class="o">{}.</span><span class="na">userId</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchasesByType</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;purchases{}.userId&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4222,7 +4222,7 @@ could select only the userId and streetAddress fields as follows</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4255,7 +4255,7 @@ could select only the userId and streetAddress fields as follows</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.*</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.*</span><span class="err">&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4306,7 +4306,7 @@ selected field will appear as its own array field. For example</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span> <span class="err">“</span><span class="n">transactions</span><span class="o">.</span><span class="na">bank</span><span class="err">”</span><span class="o">,</span> <span class="n">transactions</span><span class="o">.</span><span class="na">purchaseAmount</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Select</span><span class="o">.</span><span class="na">fieldNames</span><span class="o">(</span> <span class="s">&#34;transactions.bank&#34;</span><span class="o">,</span> <span class="n">transactions</span><span class="o">.</span><span class="na">purchaseAmount</span><span class="err">&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4416,7 +4416,7 @@ are grouped together into an <code>ITERABLE</code> field. For example</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4451,9 +4451,9 @@ builders, as follows:</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">withKeyField</span><span class="o">(</span><span class="err">“</span><span class="n">userAndStreet</span><span class="err">”</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">withValueField</span><span class="o">(</span><span class="err">“</span><span class="n">matchingPurchases</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="s">&#34;)
+</span><span class="s">    .withKeyField(&#34;</span><span class="n">userAndStreet</span><span class="s">&#34;)
+</span><span class="s">    .withValueField(&#34;</span><span class="n">matchingPurchases</span><span class="err">&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4469,10 +4469,10 @@ output schema:</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="err">“</span><span class="n">itemId</span><span class="err">”</span><span class="o">,</span> <span class="n">Count</span><span class="o">.</span><span class="na">combineFn</span><span class="o">(),</span> <span class="err">“</span><span class="n">numPurchases</span><span class="err">”</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="err">“</span><span class="n">costCents</span><span class="err">”</span><span class="o">,</span> <span class="n">Sum</span><span class="o">.</span><span class="na">ofLongs</span><span class="o">(),</span> <span class="err">“</span><span class="n">totalSpendCents</span><span class="err">”</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="err">“</span><span class="n">costCents</span><span class="err">”</span><span class="o">,</span> <span class="n">Top</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">largestLongsFn</span><span class="o">(</span><span class="n">10</span><span class="o">),</span> <span class="err">“</span><span class="n">topPurchases</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Group</span><span class="o">.</span><span class="na">byFieldNames</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="s">&#34;itemId&#34;</span><span class="o">,</span> <span class="n">Count</span><span class="o">.</span><span class="na">combineFn</span><span class="o">(),</span> <span class="s">&#34;numPurchases&#34;</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="s">&#34;costCents&#34;</span><span class="o">,</span> <span class="n">Sum</span><span class="o">.</span><span class="na">ofLongs</span><span class="o">(),</span> <span class="s">&#34;totalSpendCents&#34;</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">aggregateField</span><span class="o">(</span><span class="s">&#34;costCents&#34;</span><span class="o">,</span> <span class="n">Top</span><span class="o">.&lt;</span><span class="n">Long</span><span class="o">&gt;</span><span class="n">largestLongsFn</span><span class="o">(</span><span class="n">10</span><span class="o">),</span> <span class="s">&#34;topPurchases&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4514,7 +4514,7 @@ and is specified with the <code>using</code> keyword:</p>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Transaction</span><span class="o">&gt;</span> <span class="n">transactions</span> <span class="o">=</span> <span class="n">readTransactions</span><span class="o">();</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Review</span><span class="o">&gt;</span> <span class="n">reviews</span> <span class="o">=</span> <span class="n">readReviews</span><span class="o">();</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">joined</span> <span class="o">=</span> <span class="n">transactions</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
-    <span class="n">Join</span><span class="o">.</span><span class="na">innerJoin</span><span class="o">(</span><span class="n">reviews</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">productId</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+    <span class="n">Join</span><span class="o">.</span><span class="na">innerJoin</span><span class="o">(</span><span class="n">reviews</span><span class="o">).</span><span class="na">using</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="s">&#34;productId&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4552,8 +4552,8 @@ Review schema named those fields differently than the Transaction schema, then w
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">joined</span> <span class="o">=</span> <span class="n">transactions</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span>
     <span class="n">Join</span><span class="o">.</span><span class="na">innerJoin</span><span class="o">(</span><span class="n">reviews</span><span class="o">).</span><span class="na">on</span><span class="o">(</span>
       <span class="n">FieldsEqual</span>
-         <span class="o">.</span><span class="na">left</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">productId</span><span class="err">”</span><span class="o">)</span>
-         <span class="o">.</span><span class="na">right</span><span class="o">(</span><span class="err">“</span><span class="n">reviewUserId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">reviewProductId</span><span class="err">”</span><span class="o">)));</span></code></pre></div>
+         <span class="o">.</span><span class="na">left</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="s">&#34;productId&#34;</span><span class="o">)</span>
+         <span class="o">.</span><span class="na">right</span><span class="o">(</span><span class="s">&#34;reviewUserId&#34;</span><span class="o">,</span> <span class="s">&#34;reviewProductId&#34;</span><span class="o">)));</span></code></pre></div>
         </div>
     
 
@@ -4578,8 +4578,8 @@ which all predicates return true will pass the filter. For example the following
     
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Filter</span>
-    <span class="o">.</span><span class="na">whereFieldName</span><span class="o">(</span><span class="err">“</span><span class="n">costCents</span><span class="err">”</span><span class="o">,</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="n">100</span> <span class="o">*</span> <span class="n">20</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">whereFieldName</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">country</span><span class="err">”</span><span class="o">,</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="err">“</span><span class="n">de</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+    <span class="o">.</span><span class="na">whereFieldName</span><span class="o">(</span><span class="s">&#34;costCents&#34;</span><span class="o">,</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span> <span class="o">&gt;</span> <span class="n">100</span> <span class="o">*</span> <span class="n">20</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">whereFieldName</span><span class="o">(</span><span class="s">&#34;shippingAddress.country&#34;</span><span class="o">,</span> <span class="n">c</span> <span class="o">-&gt;</span> <span class="n">c</span><span class="o">.</span><span class="na">equals</span><span class="o">(</span><span class="s">&#34;de&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4599,9 +4599,9 @@ syntax, including nested fields inside arrays or map values.</p>
     
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">AddFields</span><span class="o">.&lt;</span><span class="n">PurchasePojo</span><span class="o">&gt;</span><span class="n">create</span><span class="o">()</span>
-    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">“</span><span class="n">timeOfDaySeconds</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT32</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">deliveryNotes</span><span class="err">”</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">)</span>
-    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">“</span><span class="n">transactions</span><span class="o">.</span><span class="na">isFlagged</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">BOOLEAN</span><span class="o">,</span> <span class="kc">false</span><span class="o">));</span></code></pre></div>
+    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="s">&#34;timeOfDaySeconds&#34;</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">INT32</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="s">&#34;shippingAddress.deliveryNotes&#34;</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">STRING</span><span class="o">)</span>
+    <span class="o">.</span><span class="na">field</span><span class="o">(</span><span class="err">&#34;</span><span class="n">transactions</span><span class="o">.</span><span class="na">isFlagged</span><span class="o">,</span> <span class="n">FieldType</span><span class="o">.</span><span class="na">BOOLEAN</span><span class="o">,</span> <span class="kc">false</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4621,7 +4621,7 @@ syntax.</p>
 
     
         <div class=language-java>
-            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">DropFields</span><span class="o">.</span><span class="na">fields</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">DropFields</span><span class="o">.</span><span class="na">fields</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="s">&#34;shippingAddress.streetAddress&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4642,8 +4642,8 @@ renamed using the field-selection syntax.</p>
     
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">RenameFields</span><span class="o">.&lt;</span><span class="n">PurchasePojo</span><span class="o">&gt;</span><span class="n">create</span><span class="o">()</span>
-  <span class="o">.</span><span class="na">rename</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">userIdentifier</span><span class="err">”</span><span class="o">)</span>
-  <span class="o">.</span><span class="na">rename</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">streetAddress</span><span class="err">”</span><span class="o">,</span> <span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">street</span><span class="err">”</span><span class="o">));</span></code></pre></div>
+  <span class="o">.</span><span class="na">rename</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">,</span> <span class="s">&#34;userIdentifier&#34;</span><span class="o">)</span>
+  <span class="o">.</span><span class="na">rename</span><span class="o">(</span><span class="s">&#34;shippingAddress.streetAddress&#34;</span><span class="o">,</span> <span class="s">&#34;shippingAddress.street&#34;</span><span class="o">));</span></code></pre></div>
         </div>
     
 
@@ -4770,7 +4770,7 @@ using the above-described selection expressions, as follows:</p>
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">appy</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">,</span> <span class="n">PurchasePojo</span><span class="o">&gt;()</span> <span class="o">{</span>
   <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
-     <span class="nd">@FieldAccess</span><span class="o">(</span><span class="err">“</span><span class="n">userId</span><span class="err">”</span><span class="o">)</span> <span class="n">String</span> <span class="n">userId</span><span class="o">,</span> <span class="nd">@FieldAccess</span><span class="o">(</span><span class="err">“</span><span class="n">itemId</span><span class="err">”</span><span class="o">)</span> <span class="kt">long</span> <span class="n">itemId</span><span class="o">)</span> <span class="o">{</span>
+     <span class="nd">@FieldAccess</span><span class="o">(</span><span class="s">&#34;userId&#34;</span><span class="o">)</span> <span class="n">String</span> <span class="n">userId</span><span class="o">,</span> <span class="nd">@FieldAccess</span><span class="o">(</span><span class="s">&#34;itemId&#34;</span><span class="o">)</span> <span class="kt">long</span> <span class="n">itemId</span><span class="o">)</span> <span class="o">{</span>
       <span class="o">...</span>
   <span class="o">}</span>
 <span class="o">}));</span></code></pre></div>
@@ -4788,7 +4788,7 @@ using the above-described selection expressions, as follows:</p>
         <div class=language-java>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="n">purchases</span><span class="o">.</span><span class="na">appy</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">PurchasePojo</span><span class="o">,</span> <span class="n">PurchasePojo</span><span class="o">&gt;()</span> <span class="o">{</span>
   <span class="nd">@ProcessElement</span> <span class="kd">public</span> <span class="kt">void</span> <span class="nf">process</span><span class="o">(</span>
-    <span class="nd">@FieldAccess</span><span class="o">(</span><span class="err">“</span><span class="n">shippingAddress</span><span class="o">.</span><span class="na">street</span><span class="err">”</span><span class="o">)</span> <span class="n">String</span> <span class="n">street</span><span class="o">)</span> <span class="o">{</span>
+    <span class="nd">@FieldAccess</span><span class="o">(</span><span class="s">&#34;shippingAddress.street&#34;</span><span class="o">)</span> <span class="n">String</span> <span class="n">street</span><span class="o">)</span> <span class="o">{</span>
       <span class="o">...</span>
   <span class="o">}</span>
 <span class="o">}));</span></code></pre></div>
@@ -5696,8 +5696,8 @@ which can be particularly useful if you are using a single global window.</p>
 <span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using <a href="#composite-triggers">composite triggers</a> to combine multiple
-conditions. This allows you to specify multiple firing conditions such as “fire
-either when I receive 50 elements, or every 1 second”.</p>
+conditions. This allows you to specify multiple firing conditions such as &ldquo;fire
+either when I receive 50 elements, or every 1 second&rdquo;.</p>
 <h3 id="setting-a-trigger">9.4. Setting a trigger</h3>
 <p>When you set a windowing function for a <code>PCollection</code> by using the
 <span class="language-java"><code>Window</code></span><span class="language-py"><code>WindowInto</code></span>
