@@ -52,7 +52,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import WindowInto
 from apache_beam.transforms import window
-from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
@@ -680,7 +679,7 @@ class PTransformTest(unittest.TestCase):
     with self.assertRaises(typehints.TypeCheckError) as cm:
       with TestPipeline() as pipeline:
         pcolls = pipeline | 'A' >> beam.Create(['a', 'b', 'f'])
-        pcolls | 'D' >> _GroupByKeyOnly()
+        pcolls | 'D' >> beam.GroupByKey()
 
     expected_error_prefix = (
         'Input type hint violation at D: expected '
@@ -1233,7 +1232,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
         | (
             'Pair' >> beam.Map(lambda x: (x, ord(x))).with_output_types(
                 typing.Tuple[str, str]))
-        | _GroupByKeyOnly())
+        | beam.GroupByKey())
 
     # Output type should correctly be deduced.
     # GBK-only should deduce that Tuple[A, B] is turned into
@@ -1261,7 +1260,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
       (
           self.p
           | beam.Create([1, 2, 3]).with_output_types(int)
-          | 'F' >> _GroupByKeyOnly())
+          | 'F' >> beam.GroupByKey())
 
     self.assertStartswith(
         e.exception.args[0],
@@ -1309,7 +1308,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
           self.p
           | 'Nums' >> beam.Create(range(5)).with_output_types(int)
           | 'ModDup' >> beam.Map(lambda x: (x % 2, x))
-          | _GroupByKeyOnly())
+          | beam.GroupByKey())
 
     self.assertEqual(
         'Pipeline type checking is enabled, however no output '
@@ -2244,7 +2243,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
   def test_gbk_type_inference(self):
     self.assertEqual(
         typehints.Tuple[str, typehints.Iterable[int]],
-        _GroupByKeyOnly().infer_output_type(typehints.KV[str, int]))
+        beam.GroupByKey().infer_output_type(typehints.KV[str, int]))
 
   def test_pipeline_inference(self):
     created = self.p | beam.Create(['a', 'b', 'c'])
