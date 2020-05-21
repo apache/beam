@@ -73,7 +73,7 @@ public class VideoIntelligenceIT {
 
     private boolean entityWithDescriptionFoundInSegmentLabels(
         String toMatch, VideoAnnotationResults result) {
-      return result.getSegmentLabelAnnotationsList().stream()
+      return result.getSegmentPresenceLabelAnnotationsList().stream()
           .anyMatch(
               labelAnnotation -> labelAnnotation.getEntity().getDescription().equals(toMatch));
     }
