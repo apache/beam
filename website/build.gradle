@@ -119,7 +119,7 @@ task setupDockerContainer(type: Exec) {
   }
 
   // Create the config to point to a GitHub or Colab blob in the repo, e.g. apache/beam/blob/master
-  commandLine 'docker', 'exec', '-u', 'root',
+  commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
     """echo '[params]\n  branch_repo = "${getBranchRepo()}"' > /tmp/_config_branch_repo.toml"""
 }
