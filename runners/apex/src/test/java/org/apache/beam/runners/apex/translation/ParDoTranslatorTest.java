@@ -220,7 +220,7 @@ public class ParDoTranslatorTest {
     operator.beginWindow(0);
     WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Iterable<?>> sideInput =
-        WindowedValue.valueInGlobalWindow(materializeValuesFor(View.asSingleton(), 22));
+        WindowedValue.valueInGlobalWindow(materializeValuesFor(options, View.asSingleton(), 22));
     operator.input.process(ApexStreamTuple.DataTuple.of(wv1)); // pushed back input
 
     final List<Object> results = Lists.newArrayList();

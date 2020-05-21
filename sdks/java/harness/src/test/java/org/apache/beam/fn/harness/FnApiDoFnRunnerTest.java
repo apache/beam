@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness;
 
+import static org.apache.beam.sdk.options.ExperimentalOptions.addExperiment;
 import static org.apache.beam.sdk.util.WindowedValue.timestampedValueInGlobalWindow;
 import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.contains;
@@ -88,6 +89,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -363,6 +365,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
   @Test
   public void testBasicWithSideInputsAndOutputs() throws Exception {
     Pipeline p = Pipeline.create();
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
     PCollectionView<String> defaultSingletonSideInputView =
         valuePCollection.apply(
@@ -398,9 +403,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
-            multimapSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
+            iterableSideInputKey(singletonSideInputView.getTagInternal().getId()),
             encode("singletonValue"),
-            multimapSideInputKey(iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY),
+            iterableSideInputKey(iterableSideInputView.getTagInternal().getId()),
             encode("iterableValue1", "iterableValue2", "iterableValue3"));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
@@ -519,6 +524,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
         ByteString.copyFrom(CoderUtils.encodeToByteArray(windowFn.windowCoder(), windowB));
 
     Pipeline p = Pipeline.create();
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
     PCollection<String> valuePCollection =
         p.apply(Create.of("unused")).apply(Window.into(windowFn));
     PCollectionView<Iterable<String>> iterableSideInputView =
@@ -542,11 +550,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
-            multimapSideInputKey(
-                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowA),
+            iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowA),
             encode("iterableValue1A", "iterableValue2A", "iterableValue3A"),
-            multimapSideInputKey(
-                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowB),
+            iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowB),
             encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
@@ -660,11 +666,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
-            multimapSideInputKey(
-                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowA),
+            iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowA),
             encode("iterableValue1A", "iterableValue2A", "iterableValue3A"),
-            multimapSideInputKey(
-                iterableSideInputView.getTagInternal().getId(), ByteString.EMPTY, encodedWindowB),
+            iterableSideInputKey(iterableSideInputView.getTagInternal().getId(), encodedWindowB),
             encode("iterableValue1B", "iterableValue2B", "iterableValue3B"));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);
@@ -1139,28 +1143,26 @@ public class FnApiDoFnRunnerTest implements Serializable {
   }
 
   /**
-   * Produces a multimap side input {@link StateKey} for the test PTransform id in the global
+   * Produces an iterable side input {@link StateKey} for the test PTransform id in the global
    * window.
    */
-  private StateKey multimapSideInputKey(String sideInputId, ByteString key) throws IOException {
-    return multimapSideInputKey(
+  private StateKey iterableSideInputKey(String sideInputId) throws IOException {
+    return iterableSideInputKey(
         sideInputId,
-        key,
         ByteString.copyFrom(
             CoderUtils.encodeToByteArray(GlobalWindow.Coder.INSTANCE, GlobalWindow.INSTANCE)));
   }
 
   /**
-   * Produces a multimap side input {@link StateKey} for the test PTransform id in the supplied
+   * Produces an iterable side input {@link StateKey} for the test PTransform id in the supplied
    * window.
    */
-  private StateKey multimapSideInputKey(String sideInputId, ByteString key, ByteString windowKey) {
+  private StateKey iterableSideInputKey(String sideInputId, ByteString windowKey) {
     return StateKey.newBuilder()
-        .setMultimapSideInput(
-            StateKey.MultimapSideInput.newBuilder()
+        .setIterableSideInput(
+            StateKey.IterableSideInput.newBuilder()
                 .setTransformId(TEST_TRANSFORM_ID)
                 .setSideInputId(sideInputId)
-                .setKey(key)
                 .setWindow(windowKey))
         .build();
   }
@@ -1300,6 +1302,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
   @Test
   public void testProcessElementForSizedElementAndRestriction() throws Exception {
     Pipeline p = Pipeline.create();
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    // TODO(BEAM-10097): Remove experiment once all portable runners support this view type
+    addExperiment(p.getOptions().as(ExperimentalOptions.class), "use_runner_v2");
     PCollection<String> valuePCollection = p.apply(Create.of("unused"));
     PCollectionView<String> singletonSideInputView = valuePCollection.apply(View.asSingleton());
     TestSplittableDoFn doFn = new TestSplittableDoFn(singletonSideInputView);
@@ -1354,7 +1359,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
     ImmutableMap<StateKey, ByteString> stateData =
         ImmutableMap.of(
-            multimapSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
+            iterableSideInputKey(singletonSideInputView.getTagInternal().getId(), ByteString.EMPTY),
             encode("8"));
 
     FakeBeamFnStateClient fakeClient = new FakeBeamFnStateClient(stateData);

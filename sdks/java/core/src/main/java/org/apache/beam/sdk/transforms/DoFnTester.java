@@ -525,29 +525,33 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
       }
       // Fallback to returning the default materialization if no data was supplied.
       // This is really to support singleton views with default values.
+      switch (view.getViewFn().getMaterialization().getUrn()) {
+        case Materializations.ITERABLE_MATERIALIZATION_URN:
+          return ((ViewFn<Materializations.IterableView, T>) view.getViewFn())
+              .apply(() -> Collections.emptyList());
+        case Materializations.MULTIMAP_MATERIALIZATION_URN:
+          return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
+              .apply(
+                  new MultimapView() {
+                    @Override
+                    public Iterable get() {
+                      return Collections.emptyList();
+                    }
 
-      // TODO: Update this to supply a materialization dependent on actual URN of materialization.
-      // Currently the SDK only supports the multimap materialization and it expects a
-      // mapping function.
-      checkState(
-          Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
-              view.getViewFn().getMaterialization().getUrn()),
-          "Only materializations of type %s supported, received %s",
-          Materializations.MULTIMAP_MATERIALIZATION_URN,
-          view.getViewFn().getMaterialization().getUrn());
-      return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn())
-          .apply(
-              new MultimapView() {
-                @Override
-                public Iterable get() {
-                  return Collections.emptyList();
-                }
-
-                @Override
-                public Iterable get(@Nullable Object o) {
-                  return Collections.emptyList();
-                }
-              });
+                    @Override
+                    public Iterable get(@Nullable Object o) {
+                      return Collections.emptyList();
+                    }
+                  });
+        default:
+          throw new IllegalStateException(
+              String.format(
+                  "Only materializations of type %s supported, received %s",
+                  Arrays.asList(
+                      Materializations.ITERABLE_MATERIALIZATION_URN,
+                      Materializations.MULTIMAP_MATERIALIZATION_URN),
+                  view.getViewFn().getMaterialization().getUrn()));
+      }
     }
 
     @Override
