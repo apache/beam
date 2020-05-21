@@ -47,14 +47,12 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollectionList<Int> {
         return input
-                .apply(Partition.of(2,
-                        PartitionFn { number: Int, numPartitions: Int ->
-                            if (number > 100) {
-                                0
-                            } else {
-                                1
-                            }
-                        } as PartitionFn<Int>)
-                )
+                .apply(Partition.of(2) { number: Int, numPartitions: Int ->
+                    if (number > 100) {
+                        0
+                    } else {
+                        1
+                    }
+                })
     }
 }
