@@ -37,17 +37,14 @@ import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * DoFn batching the input PCollection into bigger requests in order to better utilize the Cloud DLP
- * service.
- */
+/** Batches input rows to reduce number of requests sent to Cloud DLP service. */
 @Experimental
 class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable<Table.Row>>> {
   public static final Logger LOG = LoggerFactory.getLogger(BatchRequestForDLP.class);
 
   private final Counter numberOfRowsBagged =
       Metrics.counter(BatchRequestForDLP.class, "numberOfRowsBagged");
-  private final Integer batchSize;
+  private final Integer batchSizeBytes;
 
   @StateId("elementsBag")
   private final StateSpec<BagState<KV<String, Table.Row>>> elementsBag = StateSpecs.bag();
@@ -56,7 +53,7 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
   private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
   public BatchRequestForDLP(Integer batchSize) {
-    this.batchSize = batchSize;
+    this.batchSizeBytes = batchSize;
   }
 
   @ProcessElement
@@ -73,29 +70,32 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
   public void onTimer(
       @StateId("elementsBag") BagState<KV<String, Table.Row>> elementsBag,
       OutputReceiver<KV<String, Iterable<Table.Row>>> output) {
-    String key = elementsBag.read().iterator().next().getKey();
-    AtomicInteger bufferSize = new AtomicInteger();
-    List<Table.Row> rows = new ArrayList<>();
-    elementsBag
-        .read()
-        .forEach(
-            element -> {
-              int elementSize = element.getValue().getSerializedSize();
-              boolean clearBuffer = bufferSize.intValue() + elementSize > batchSize;
-              if (clearBuffer) {
-                numberOfRowsBagged.inc(rows.size());
-                LOG.debug("Clear Buffer {} , Key {}", bufferSize.intValue(), element.getKey());
-                output.output(KV.of(element.getKey(), rows));
-                rows.clear();
-                bufferSize.set(0);
-              }
-              rows.add(element.getValue());
-              bufferSize.getAndAdd(element.getValue().getSerializedSize());
-            });
-    if (!rows.isEmpty()) {
-      LOG.debug("Remaining rows {}", rows.size());
-      numberOfRowsBagged.inc(rows.size());
-      output.output(KV.of(key, rows));
+    if (elementsBag.read().iterator().hasNext()) {
+      String key = elementsBag.read().iterator().next().getKey();
+      AtomicInteger bufferSize = new AtomicInteger();
+      List<Table.Row> rows = new ArrayList<>();
+      elementsBag
+          .read()
+          .forEach(
+              element -> {
+                int elementSize = element.getValue().getSerializedSize();
+                boolean clearBuffer = bufferSize.intValue() + elementSize > batchSizeBytes;
+                if (clearBuffer) {
+                  LOG.debug(
+                      "Clear Buffer {} bytes, Key {}", bufferSize.intValue(), element.getKey());
+                  numberOfRowsBagged.inc(rows.size());
+                  output.output(KV.of(element.getKey(), rows));
+                  rows.clear();
+                  bufferSize.set(0);
+                }
+                rows.add(element.getValue());
+                bufferSize.getAndAdd(element.getValue().getSerializedSize());
+              });
+      if (!rows.isEmpty()) {
+        LOG.debug("Outputting remaining {} rows.", rows.size());
+        numberOfRowsBagged.inc(rows.size());
+        output.output(KV.of(key, rows));
+      }
     }
   }
 }

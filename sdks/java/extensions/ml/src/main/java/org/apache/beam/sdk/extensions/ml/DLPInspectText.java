@@ -38,12 +38,20 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PTransform} connecting to Cloud DLP and inspecting text for identifying data according
- * to provided settings.
+ * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
+ * inspecting text for identifying data according to provided settings. The transform supports both
+ * CSV formatted input data and unstructured input.
+ *
+ * <p>If the csvHeader property is set, csvDelimiter also should be, else the results will be
+ * incorrect. If csvHeader is not set, input is assumed to be unstructured.
+ *
+ * <p>Batch size defines how big are batches sent to DLP at once in bytes.
+ *
+ * <p>The transform consumes {@link KV} of {@link String}s (assumed to be filename as key and
+ * contents as value) and outputs {@link KV} of {@link String} (eg. filename) and {@link
+ * InspectContentResponse}, which will contain {@link Table} of results for the user to consume.
  *
  * <p>Either inspectTemplateName (String) or inspectConfig {@link InspectConfig} need to be set.
  *
@@ -54,9 +62,8 @@ import org.slf4j.LoggerFactory;
 public abstract class DLPInspectText
     extends PTransform<
         PCollection<KV<String, String>>, PCollection<KV<String, InspectContentResponse>>> {
-  public static final Logger LOG = LoggerFactory.getLogger(DLPInspectText.class);
 
-  public static final Integer DLP_PAYLOAD_LIMIT = 52400;
+  public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
   @Nullable
   public abstract String inspectTemplateName();
@@ -69,7 +76,7 @@ public abstract class DLPInspectText
   public abstract String projectId();
 
   @Nullable
-  public abstract String csvDelimiter();
+  public abstract String csvColumnDelimiter();
 
   @Nullable
   public abstract PCollectionView<List<String>> csvHeader();
@@ -84,11 +91,26 @@ public abstract class DLPInspectText
 
     public abstract Builder setProjectId(String projectId);
 
-    public abstract Builder setCsvDelimiter(String csvDelimiter);
+    public abstract Builder setCsvColumnDelimiter(String csvDelimiter);
 
     public abstract Builder setCsvHeader(PCollectionView<List<String>> csvHeader);
 
-    public abstract DLPInspectText build();
+    abstract DLPInspectText autoBuild();
+
+    public DLPInspectText build() {
+      DLPInspectText inspectText = autoBuild();
+      if (inspectText.inspectTemplateName() == null && inspectText.inspectConfig() == null) {
+        throw new IllegalArgumentException(
+            "Either inspectTemplateName or inspectConfig must be supplied!");
+      }
+      if (inspectText.batchSize() > DLP_PAYLOAD_LIMIT_BYTES) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Batch size is too large! It should be smaller or equal than %d.",
+                DLP_PAYLOAD_LIMIT_BYTES));
+      }
+      return inspectText;
+    }
   }
 
   public static Builder newBuilder() {
@@ -99,7 +121,7 @@ public abstract class DLPInspectText
   public PCollection<KV<String, InspectContentResponse>> expand(
       PCollection<KV<String, String>> input) {
     return input
-        .apply(ParDo.of(new MapStringToDlpRow(csvDelimiter())))
+        .apply(ParDo.of(new MapStringToDlpRow(csvColumnDelimiter())))
         .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSize())))
         .apply(
             "DLPInspect",
@@ -135,9 +157,6 @@ public abstract class DLPInspectText
       }
       if (inspectConfig != null) {
         requestBuilder.setInspectConfig(inspectConfig);
-      }
-      if (inspectTemplateName == null && inspectConfig == null) {
-        throw new IllegalArgumentException("");
       }
     }
 

@@ -39,15 +39,27 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * A {@link PTransform} connecting to Cloud DLP and inspecting text for identifying data according
- * to provided settings.
+ * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
+ * inspecting text for identifying data according to provided settings.
  *
- * <p>Either inspectTemplateName (String) or inspectConfig {@link InspectConfig} need to be set, the
- * same goes for reidentifyTemplateName or reidentifyConfig.
+ * <p>The transform supports both CSV formatted input data and unstructured input.
+ *
+ * <p>If the csvHeader property is set, csvDelimiter also should be, else the results will be
+ * incorrect. If csvHeader is not set, input is assumed to be unstructured.
+ *
+ * <p>Batch size defines how big are batches sent to DLP at once in bytes.
+ *
+ * <p>The transform consumes {@link KV} of {@link String}s (assumed to be filename as key and
+ * contents as value) and outputs {@link KV} of {@link String} (eg. filename) and {@link
+ * ReidentifyContentResponse}, which will contain {@link Table} of results for the user to consume.
+ *
+ * <p>Batch size defines how big are batches sent to DLP at once in bytes.
+ *
+ * <p>Either reidentifyTemplateName {@link String} or reidentifyConfig {@link DeidentifyConfig} need
+ * to be set. inspectConfig {@link InspectConfig} and inspectTemplateName {@link String} are
+ * optional.
  *
  * <p>Batch size defines how big are batches sent to DLP at once in bytes.
  */
@@ -57,9 +69,7 @@ public abstract class DLPReidentifyText
     extends PTransform<
         PCollection<KV<String, String>>, PCollection<KV<String, ReidentifyContentResponse>>> {
 
-  public static final Logger LOG = LoggerFactory.getLogger(DLPInspectText.class);
-
-  public static final Integer DLP_PAYLOAD_LIMIT = 52400;
+  public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
   @Nullable
   public abstract String inspectTemplateName();
@@ -74,7 +84,7 @@ public abstract class DLPReidentifyText
   public abstract DeidentifyConfig reidentifyConfig();
 
   @Nullable
-  public abstract String csvDelimiter();
+  public abstract String csvColumnDelimiter();
 
   @Nullable
   public abstract PCollectionView<List<String>> csvHeaders();
@@ -97,11 +107,27 @@ public abstract class DLPReidentifyText
 
     public abstract Builder setCsvHeaders(PCollectionView<List<String>> csvHeaders);
 
-    public abstract Builder setCsvDelimiter(String delimiter);
+    public abstract Builder setCsvColumnDelimiter(String delimiter);
 
     public abstract Builder setProjectId(String projectId);
 
-    public abstract DLPReidentifyText build();
+    abstract DLPReidentifyText autoBuild();
+
+    public DLPReidentifyText build() {
+      DLPReidentifyText dlpReidentifyText = autoBuild();
+      if (dlpReidentifyText.reidentifyConfig() == null
+          && dlpReidentifyText.reidentifyTemplateName() == null) {
+        throw new IllegalArgumentException(
+            "Either reidentifyConfig or reidentifyTemplateName need to be set!");
+      }
+      if (dlpReidentifyText.batchSize() > DLP_PAYLOAD_LIMIT_BYTES) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Batch size is too large! It should be smaller or equal than %d.",
+                DLP_PAYLOAD_LIMIT_BYTES));
+      }
+      return dlpReidentifyText;
+    }
   }
 
   public static DLPReidentifyText.Builder newBuilder() {
@@ -112,10 +138,10 @@ public abstract class DLPReidentifyText
   public PCollection<KV<String, ReidentifyContentResponse>> expand(
       PCollection<KV<String, String>> input) {
     return input
-        .apply(ParDo.of(new MapStringToDlpRow(csvDelimiter())))
+        .apply(ParDo.of(new MapStringToDlpRow(csvColumnDelimiter())))
         .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSize())))
         .apply(
-            "DLPDeidentify",
+            "DLPReidentify",
             ParDo.of(
                 new ReidentifyText(
                     projectId(),
@@ -146,19 +172,11 @@ public abstract class DLPReidentifyText
       if (inspectConfig != null) {
         requestBuilder.setInspectConfig(inspectConfig);
       }
-      if (inspectConfig == null && inspectTemplateName == null) {
-        throw new IllegalArgumentException(
-            "Either inspectConfig or inspectTemplateName need to be set!");
-      }
       if (reidentifyConfig != null) {
         requestBuilder.setReidentifyConfig(reidentifyConfig);
       }
       if (reidentifyTemplateName != null) {
         requestBuilder.setReidentifyTemplateName(reidentifyTemplateName);
-      }
-      if (reidentifyConfig == null && reidentifyTemplateName == null) {
-        throw new IllegalArgumentException(
-            "Either reidentifyConfig or reidentifyTemplateName need to be set!");
       }
     }
 
@@ -178,12 +196,12 @@ public abstract class DLPReidentifyText
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws IOException {
+    public void processElement(ProcessContext context) throws IOException {
       try (DlpServiceClient dlpServiceClient = DlpServiceClient.create()) {
         List<FieldId> tableHeaders;
         if (csvHeader != null) {
           tableHeaders =
-              c.sideInput(csvHeader).stream()
+              context.sideInput(csvHeader).stream()
                   .map(header -> FieldId.newBuilder().setName(header).build())
                   .collect(Collectors.toList());
         } else {
@@ -193,13 +211,13 @@ public abstract class DLPReidentifyText
         Table table =
             Table.newBuilder()
                 .addAllHeaders(tableHeaders)
-                .addAllRows(c.element().getValue())
+                .addAllRows(context.element().getValue())
                 .build();
         ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
         this.requestBuilder.setItem(contentItem);
         ReidentifyContentResponse response =
             dlpServiceClient.reidentifyContent(requestBuilder.build());
-        c.output(KV.of(c.element().getKey(), response));
+        context.output(KV.of(context.element().getKey(), response));
       }
     }
   }

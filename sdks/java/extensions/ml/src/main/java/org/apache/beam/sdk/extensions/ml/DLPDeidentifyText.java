@@ -41,18 +41,20 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /**
- * A {@link PTransform} connecting to Cloud DLP and deidentifying text according to provided
- * settings. The transform supports both CSV formatted input data and unstructured input.
+ * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
+ * deidentifying text according to provided settings. The transform supports both CSV formatted
+ * input data and unstructured input.
  *
  * <p>If the csvHeader property is set, csvDelimiter also should be, else the results will be
  * incorrect. If csvHeader is not set, input is assumed to be unstructured.
  *
- * <p>Either inspectTemplateName (String) or inspectConfig {@link InspectConfig} need to be set. The
- * situation is the same with deidentifyTemplateName and deidentifyConfig ({@link DeidentifyConfig}.
+ * <p>Either deidentifyTemplateName (String) or deidentifyConfig {@link DeidentifyConfig} need to be
+ * set. inspectTemplateName and inspectConfig ({@link InspectConfig} are optional.
  *
  * <p>Batch size defines how big are batches sent to DLP at once in bytes.
  *
- * <p>The transform outputs {@link KV} of {@link String} (eg. filename) and {@link
+ * <p>The transform consumes {@link KV} of {@link String}s (assumed to be filename as key and
+ * contents as value) and outputs {@link KV} of {@link String} (eg. filename) and {@link
  * DeidentifyContentResponse}, which will contain {@link Table} of results for the user to consume.
  */
 @Experimental
@@ -60,6 +62,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 public abstract class DLPDeidentifyText
     extends PTransform<
         PCollection<KV<String, String>>, PCollection<KV<String, DeidentifyContentResponse>>> {
+
+  public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
   @Nullable
   public abstract String inspectTemplateName();
@@ -77,7 +81,7 @@ public abstract class DLPDeidentifyText
   public abstract PCollectionView<List<String>> csvHeader();
 
   @Nullable
-  public abstract String csvDelimiter();
+  public abstract String csvColumnDelimiter();
 
   public abstract Integer batchSize();
 
@@ -89,7 +93,7 @@ public abstract class DLPDeidentifyText
 
     public abstract Builder setCsvHeader(PCollectionView<List<String>> csvHeader);
 
-    public abstract Builder setCsvDelimiter(String delimiter);
+    public abstract Builder setCsvColumnDelimiter(String delimiter);
 
     public abstract Builder setBatchSize(Integer batchSize);
 
@@ -101,7 +105,23 @@ public abstract class DLPDeidentifyText
 
     public abstract Builder setDeidentifyConfig(DeidentifyConfig deidentifyConfig);
 
-    public abstract DLPDeidentifyText build();
+    abstract DLPDeidentifyText autoBuild();
+
+    public DLPDeidentifyText build() {
+      DLPDeidentifyText dlpDeidentifyText = autoBuild();
+      if (dlpDeidentifyText.deidentifyConfig() == null
+          && dlpDeidentifyText.deidentifyTemplateName() == null) {
+        throw new IllegalArgumentException(
+            "Either deidentifyConfig or deidentifyTemplateName need to be set!");
+      }
+      if (dlpDeidentifyText.batchSize() > DLP_PAYLOAD_LIMIT_BYTES) {
+        throw new IllegalArgumentException(
+            String.format(
+                "Batch size is too large! It should be smaller or equal than %d.",
+                DLP_PAYLOAD_LIMIT_BYTES));
+      }
+      return dlpDeidentifyText;
+    }
   }
 
   public static DLPDeidentifyText.Builder newBuilder() {
@@ -119,7 +139,7 @@ public abstract class DLPDeidentifyText
   public PCollection<KV<String, DeidentifyContentResponse>> expand(
       PCollection<KV<String, String>> input) {
     return input
-        .apply(ParDo.of(new MapStringToDlpRow(csvDelimiter())))
+        .apply(ParDo.of(new MapStringToDlpRow(csvColumnDelimiter())))
         .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSize())))
         .apply(
             "DLPDeidentify",
@@ -153,19 +173,11 @@ public abstract class DLPDeidentifyText
       if (inspectConfig != null) {
         requestBuilder.setInspectConfig(inspectConfig);
       }
-      if (inspectConfig == null && inspectTemplateName == null) {
-        throw new IllegalArgumentException(
-            "Either inspectConfig or inspectTemplateName need to be set!");
-      }
       if (deidentifyConfig != null) {
         requestBuilder.setDeidentifyConfig(deidentifyConfig);
       }
       if (deidentifyTemplateName != null) {
         requestBuilder.setDeidentifyTemplateName(deidentifyTemplateName);
-      }
-      if (deidentifyConfig == null && deidentifyTemplateName == null) {
-        throw new IllegalArgumentException(
-            "Either deidentifyConfig or deidentifyTemplateName need to be set!");
       }
     }
 

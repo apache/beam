@@ -63,7 +63,7 @@ public class DLPTextOperationsIT {
             .apply(Create.of(KV.of("", IDENTIFYING_TEXT)))
             .apply(
                 DLPInspectText.newBuilder()
-                    .setBatchSize(52400)
+                    .setBatchSize(524000)
                     .setProjectId(projectId)
                     .setInspectConfig(inspectConfig)
                     .build());
@@ -81,9 +81,8 @@ public class DLPTextOperationsIT {
             .apply(Create.of(KV.of("", IDENTIFYING_TEXT)))
             .apply(
                 DLPDeidentifyText.newBuilder()
-                    .setBatchSize(52400)
+                    .setBatchSize(524000)
                     .setProjectId(projectId)
-                    .setInspectConfig(inspectConfig)
                     .setDeidentifyConfig(getDeidentifyConfig())
                     .build());
     PAssert.that(deidentificationResult)
