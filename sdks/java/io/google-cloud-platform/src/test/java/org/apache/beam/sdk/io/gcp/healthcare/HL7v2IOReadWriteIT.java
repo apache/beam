@@ -101,7 +101,7 @@ public class HL7v2IOReadWriteIT {
             .apply(HL7v2IO.getAll());
 
     PCollection<Long> numReadMessages =
-        readResult.getMessages().setCoder(new HL7v2MessageCoder()).apply(Count.globally());
+        readResult.getMessages().setCoder(HL7v2MessageCoder.of()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
     PAssert.that(readResult.getFailedReads()).empty();
 
