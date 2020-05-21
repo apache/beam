@@ -3,8 +3,14 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/combine/combinefn/Task.kt
   visible: true
   placeholders:
-  - offset: 1951
-    length: 1318
+  - offset: 2708
+    length: 88
+    placeholder_text: TODO()
+  - offset: 2899
+    length: 218
+    placeholder_text: TODO()
+  - offset: 3213
+    length: 46
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/combine/combinefn/TaskTest.kt
   visible: false
