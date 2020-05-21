@@ -53,6 +53,8 @@ import org.apache.beam.sdk.values.TupleTagList;
  * <pre>{@code
  * PCollection<Student> students = ...;
  * // Split students up into 2 partitions, by percentile based on sideView
+ * PCollectionView<Integer> gradesView =
+ *         pipeline.apply("grades", Create.of(50)).apply(View.asSingleton());
  * PCollectionList<Integer> studentsByGrades =
  *         pipeline.apply(studentsPercentage)
  *             .apply(Partition.of(2, ((elem, numPartitions, ctx) -> {
@@ -128,8 +130,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
             (T element, Contextful.Fn.Context c) ->
                 partitionFn.partitionFor(element, numPartitions, c),
             requirements);
-    Object aClass = partitionFn;
-    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, aClass));
+    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, partitionFn.getClass()));
   }
 
   /**
@@ -147,8 +148,8 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
             (T element, Contextful.Fn.Context c) ->
                 partitionFn.partitionFor(element, numPartitions),
             Requirements.empty());
-    Object aClass = partitionFn;
-    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, aClass));
+
+    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, partitionFn.getClass()));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -191,20 +192,20 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
   private static class PartitionDoFn<X> extends DoFn<X, Void> {
     private final int numPartitions;
     private final TupleTagList outputTags;
-    private Contextful<Contextful.Fn<X, Integer>> ctxFn;
-    private Object originalFnForDisplayData;
+    private final Contextful<Contextful.Fn<X, Integer>> ctxFn;
+    private final Class<?> originalFnClassForDisplayData;
 
     /**
      * Constructs a PartitionDoFn.
      *
      * @throws IllegalArgumentException if {@code numPartitions <= 0}
      */
-    public PartitionDoFn(
+    private PartitionDoFn(
         int numPartitions,
         Contextful<Contextful.Fn<X, Integer>> ctxFn,
-        Object originalFnForDisplayData) {
+        Class<?> originalFnClassForDisplayData) {
       this.ctxFn = ctxFn;
-      this.originalFnForDisplayData = originalFnForDisplayData;
+      this.originalFnClassForDisplayData = originalFnClassForDisplayData;
       if (numPartitions <= 0) {
         throw new IllegalArgumentException("numPartitions must be > 0");
       }
@@ -246,7 +247,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       builder
           .add(DisplayData.item("numPartitions", numPartitions).withLabel("Partition Count"))
           .add(
-              DisplayData.item("partitionFn", originalFnForDisplayData.getClass())
+              DisplayData.item("partitionFn", originalFnClassForDisplayData)
                   .withLabel("Partition Function"));
     }
 
