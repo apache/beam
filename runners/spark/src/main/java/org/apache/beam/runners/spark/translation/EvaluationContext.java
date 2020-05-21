@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 
 /**
@@ -63,12 +64,14 @@ public class EvaluationContext {
   private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
   private final PipelineOptions options;
   private final SerializablePipelineOptions serializableOptions;
+  private final SparkSession sparkSession;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options) {
     this.jsc = jsc;
     this.pipeline = pipeline;
     this.options = options;
     this.serializableOptions = new SerializablePipelineOptions(options);
+    this.sparkSession = SparkSession.builder().sparkContext(jsc.sc()).getOrCreate();
   }
 
   public EvaluationContext(
@@ -83,6 +86,10 @@ public class EvaluationContext {
 
   public JavaStreamingContext getStreamingContext() {
     return jssc;
+  }
+
+  public SparkSession getSparkSession() {
+    return sparkSession;
   }
 
   public Pipeline getPipeline() {
