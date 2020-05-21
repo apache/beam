@@ -864,10 +864,11 @@ public class FnApiDoFnRunnerTest implements Serializable {
         processingTimer, timerInGlobalWindow("B", new Instant(1900L), new Instant(2900L)));
     fakeTimerClient.sendTimer(
         eventFamilyTimer,
-        timerInGlobalWindow("B", "event-timer2", new Instant(2000L), new Instant(3000L)));
+        dynamicTimerInGlobalWindow("B", "event-timer2", new Instant(2000L), new Instant(3000L)));
     fakeTimerClient.sendTimer(
         processingFamilyTimer,
-        timerInGlobalWindow("Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
+        dynamicTimerInGlobalWindow(
+            "Y", "processing-timer2", new Instant(2100L), new Instant(3100L)));
     assertThat(
         mainOutputValues,
         contains(
@@ -916,33 +917,45 @@ public class FnApiDoFnRunnerTest implements Serializable {
     assertThat(
         fakeTimerClient.getTimers(eventFamilyTimer),
         contains(
-            timerInGlobalWindow("X", "event-timer1", new Instant(1000L), new Instant(1003L)),
-            timerInGlobalWindow("Y", "event-timer1", new Instant(1100L), new Instant(1103L)),
-            timerInGlobalWindow("X", "event-timer1", new Instant(1200L), new Instant(1203L)),
-            timerInGlobalWindow("Y", "event-timer1", new Instant(1300L), new Instant(1303L)),
-            timerInGlobalWindow("A", "event-timer1", new Instant(1400L), new Instant(2413L)),
-            timerInGlobalWindow("B", "event-timer1", new Instant(1500L), new Instant(2513L)),
-            timerInGlobalWindow("A", "event-timer1", new Instant(1600L), new Instant(2613L)),
-            timerInGlobalWindow("X", "event-timer1", new Instant(1700L), new Instant(1723L)),
-            timerInGlobalWindow("C", "event-timer1", new Instant(1800L), new Instant(1823L)),
-            timerInGlobalWindow("B", "event-timer1", new Instant(1900L), new Instant(1923L)),
-            timerInGlobalWindow("B", "event-timer1", new Instant(2000L), new Instant(2033L)),
-            timerInGlobalWindow("Y", "event-timer1", new Instant(2100L), new Instant(2143L))));
+            dynamicTimerInGlobalWindow("X", "event-timer1", new Instant(1000L), new Instant(1003L)),
+            dynamicTimerInGlobalWindow("Y", "event-timer1", new Instant(1100L), new Instant(1103L)),
+            dynamicTimerInGlobalWindow("X", "event-timer1", new Instant(1200L), new Instant(1203L)),
+            dynamicTimerInGlobalWindow("Y", "event-timer1", new Instant(1300L), new Instant(1303L)),
+            dynamicTimerInGlobalWindow("A", "event-timer1", new Instant(1400L), new Instant(2413L)),
+            dynamicTimerInGlobalWindow("B", "event-timer1", new Instant(1500L), new Instant(2513L)),
+            dynamicTimerInGlobalWindow("A", "event-timer1", new Instant(1600L), new Instant(2613L)),
+            dynamicTimerInGlobalWindow("X", "event-timer1", new Instant(1700L), new Instant(1723L)),
+            dynamicTimerInGlobalWindow("C", "event-timer1", new Instant(1800L), new Instant(1823L)),
+            dynamicTimerInGlobalWindow("B", "event-timer1", new Instant(1900L), new Instant(1923L)),
+            dynamicTimerInGlobalWindow("B", "event-timer1", new Instant(2000L), new Instant(2033L)),
+            dynamicTimerInGlobalWindow(
+                "Y", "event-timer1", new Instant(2100L), new Instant(2143L))));
     assertThat(
         fakeTimerClient.getTimers(processingFamilyTimer),
         contains(
-            timerInGlobalWindow("X", "processing-timer1", new Instant(1000L), new Instant(10004L)),
-            timerInGlobalWindow("Y", "processing-timer1", new Instant(1100L), new Instant(10004L)),
-            timerInGlobalWindow("X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
-            timerInGlobalWindow("Y", "processing-timer1", new Instant(1300L), new Instant(10004L)),
-            timerInGlobalWindow("A", "processing-timer1", new Instant(1400L), new Instant(10014L)),
-            timerInGlobalWindow("B", "processing-timer1", new Instant(1500L), new Instant(10014L)),
-            timerInGlobalWindow("A", "processing-timer1", new Instant(1600L), new Instant(10014L)),
-            timerInGlobalWindow("X", "processing-timer1", new Instant(1700L), new Instant(10024L)),
-            timerInGlobalWindow("C", "processing-timer1", new Instant(1800L), new Instant(10024L)),
-            timerInGlobalWindow("B", "processing-timer1", new Instant(1900L), new Instant(10024L)),
-            timerInGlobalWindow("B", "processing-timer1", new Instant(2000L), new Instant(10034L)),
-            timerInGlobalWindow(
+            dynamicTimerInGlobalWindow(
+                "X", "processing-timer1", new Instant(1000L), new Instant(10004L)),
+            dynamicTimerInGlobalWindow(
+                "Y", "processing-timer1", new Instant(1100L), new Instant(10004L)),
+            dynamicTimerInGlobalWindow(
+                "X", "processing-timer1", new Instant(1200L), new Instant(10004L)),
+            dynamicTimerInGlobalWindow(
+                "Y", "processing-timer1", new Instant(1300L), new Instant(10004L)),
+            dynamicTimerInGlobalWindow(
+                "A", "processing-timer1", new Instant(1400L), new Instant(10014L)),
+            dynamicTimerInGlobalWindow(
+                "B", "processing-timer1", new Instant(1500L), new Instant(10014L)),
+            dynamicTimerInGlobalWindow(
+                "A", "processing-timer1", new Instant(1600L), new Instant(10014L)),
+            dynamicTimerInGlobalWindow(
+                "X", "processing-timer1", new Instant(1700L), new Instant(10024L)),
+            dynamicTimerInGlobalWindow(
+                "C", "processing-timer1", new Instant(1800L), new Instant(10024L)),
+            dynamicTimerInGlobalWindow(
+                "B", "processing-timer1", new Instant(1900L), new Instant(10024L)),
+            dynamicTimerInGlobalWindow(
+                "B", "processing-timer1", new Instant(2000L), new Instant(10034L)),
+            dynamicTimerInGlobalWindow(
                 "Y", "processing-timer1", new Instant(2100L), new Instant(10044L))));
     mainOutputValues.clear();
 
@@ -979,14 +992,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
 
   private <K> org.apache.beam.runners.core.construction.Timer<K> timerInGlobalWindow(
       K userKey, Instant holdTimestamp, Instant fireTimestamp) {
-    return timerInGlobalWindow(userKey, "", holdTimestamp, fireTimestamp);
+    return dynamicTimerInGlobalWindow(userKey, "", holdTimestamp, fireTimestamp);
   }
 
-  private <T> WindowedValue<T> valueInWindow(T value, BoundedWindow window) {
-    return WindowedValue.of(value, window.maxTimestamp(), window, PaneInfo.NO_FIRING);
-  }
-
-  private <K> org.apache.beam.runners.core.construction.Timer<K> timerInGlobalWindow(
+  private <K> org.apache.beam.runners.core.construction.Timer<K> dynamicTimerInGlobalWindow(
       K userKey, String dynamicTimerTag, Instant holdTimestamp, Instant fireTimestamp) {
     return org.apache.beam.runners.core.construction.Timer.of(
         userKey,
@@ -995,6 +1004,10 @@ public class FnApiDoFnRunnerTest implements Serializable {
         fireTimestamp,
         holdTimestamp,
         PaneInfo.NO_FIRING);
+  }
+
+  private <T> WindowedValue<T> valueInWindow(T value, BoundedWindow window) {
+    return WindowedValue.of(value, window.maxTimestamp(), window, PaneInfo.NO_FIRING);
   }
 
   private static class TestTimerfulDoFn extends DoFn<KV<String, String>, String> {
