@@ -47,13 +47,7 @@ object Task {
 
     internal class SumIntegerFn : SerializableFunction<Iterable<Int>, Int> {
         override fun apply(input: Iterable<Int>): Int {
-            var sum = 0
-
-            for (item in input) {
-                sum += item
-            }
-
-            return sum
+            return input.sum()
         }
     }
 }
