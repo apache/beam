@@ -583,6 +583,7 @@ class DataflowApplicationClient(object):
       raise RuntimeError('The --temp_location option must be specified.')
 
     resources = []
+    hashs = {}
     for _, env in sorted(pipeline.components.environments.items(),
                          key=lambda kv: kv[0]):
       for dep in env.dependencies:
@@ -595,7 +596,16 @@ class DataflowApplicationClient(object):
         role_payload = (
             beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
                 dep.role_payload))
-        resources.append((type_payload.path, role_payload.staged_name))
+        if type_payload.sha256 and type_payload.sha256 in hashs:
+          _LOGGER.info(
+              'Found duplicated artifact: %s (%s)',
+              type_payload.path,
+              type_payload.sha256)
+          dep.role_payload = beam_runner_api_pb2.ArtifactStagingToRolePayload(
+              staged_name=hashs[type_payload.sha256]).SerializeToString()
+        else:
+          resources.append((type_payload.path, role_payload.staged_name))
+          hashs[type_payload.sha256] = role_payload.staged_name
 
     resource_stager = _LegacyDataflowStager(self)
     staged_resources = resource_stager.stage_job_resources(
