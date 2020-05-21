@@ -382,7 +382,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.9"
-    def google_cloud_bigdataoss_version = "2.1.2"
+    def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.92.2"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
@@ -481,6 +481,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
+        grpc_alts                                   : "io.grpc:grpc-alts:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
         grpc_context                                : "io.grpc:grpc-context:$grpc_version",
@@ -489,6 +490,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty:$grpc_version",
+        grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded:$grpc_version",
         grpc_stub                                   : "io.grpc:grpc-stub:$grpc_version",
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
