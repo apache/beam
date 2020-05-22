@@ -1,12 +1,14 @@
 ---
+layout: post
 title:  "Python SDK Typing Changes"
-date:   2020-05-26 00:00:01 -0800
-categories: blog python typing
+date:   2020-05-21 00:00:01 -0800
+categories:
+  - blog 
+  - python 
+  - typing
 authors:
   - chadrik
   - udim
-aliases:
-  - /blog/2020/05/26/python-typing.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +33,7 @@ Read on to find out what's new.
 Python supports type annotations on functions (PEP 484). Static type checkers,
 such as mypy, are used to verify adherence to these types.
 For example:
-```py
+```
 def f(v: int) -> int:
   return v[0]
 ```
@@ -77,13 +79,13 @@ Coming in Beam 2.21 (BEAM-8280), you will be able to use Python annotation
 syntax to specify input and output types.
 
 For example, this new form:
-```py
+```
 class MyDoFn(beam.DoFn):
   def process(self, element: int) -> typing.Text:
     yield str(element)
 ```
 is equivalent to this:
-```py
+```
 @apache_beam.typehints.with_input_types(int)
 @apache_beam.typehints.with_output_types(typing.Text)
 class MyDoFn(beam.DoFn):
@@ -105,19 +107,19 @@ tell Beam to ignore annotations for it.
 Uses of Beam's `with_input_type`, `with_output_type` methods and decorators will 
 still work and take precedence over annotations.
 
-Sidebar:
+### Sidebar
 
-> You might ask: couldn't we use mypy to type check Beam pipelines?
+You might ask: couldn't we use mypy to type check Beam pipelines?
 There are several reasons why this is not the case.
-> - Pipelines are constructed at runtime and may depend on information that is
-> only known at that time, such as a config file or database table schema.
-> - PCollections don't have the necessary type information, so mypy sees them as
-> effectively containing any element type.
-> This may change in in the future.
-> - Transforms using lambdas (ex: `beam.Map(lambda x: (1, x)`) cannot be
-> annotated properly using PEP 484.
-> However, Beam does a best-effort attempt to analyze the output type
-> from the bytecode.
+- Pipelines are constructed at runtime and may depend on information that is
+only known at that time, such as a config file or database table schema.
+- PCollections don't have the necessary type information, so mypy sees them as
+effectively containing any element type.
+This may change in in the future.
+- Transforms using lambdas (ex: `beam.Map(lambda x: (1, x)`) cannot be
+annotated properly using PEP 484.
+However, Beam does a best-effort attempt to analyze the output type
+from the bytecode.
 
 ## Typing Module Support
 
