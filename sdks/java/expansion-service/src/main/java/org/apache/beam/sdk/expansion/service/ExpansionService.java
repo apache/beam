@@ -352,7 +352,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
         rehydratedComponents.getSdkComponents(null).withNewIdPrefix(request.getNamespace());
-    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+    sdkComponents.registerEnvironment(Environments.createEmbeddedEnvironment(""));
     Map<String, String> outputMap =
         outputs.entrySet().stream()
             .collect(

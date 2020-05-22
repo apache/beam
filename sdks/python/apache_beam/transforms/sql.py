@@ -73,8 +73,6 @@ class SqlTransform(ExternalTransform):
     :param query: The SQL query.
     :param expansion_service: (optional) The URL of the expansion service to use
     """
-    expansion_service = expansion_service or BeamJarExpansionService(
-        ':sdks:java:extensions:sql:expansion-service:shadowJar')
     super(SqlTransform, self).__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(SqlTransformSchema(query=query)),

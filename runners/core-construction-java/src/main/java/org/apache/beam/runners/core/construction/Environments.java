@@ -156,7 +156,7 @@ public class Environments {
     }
   }
 
-  private static Environment createEmbeddedEnvironment(String config) {
+  public static Environment createEmbeddedEnvironment(String config) {
     return Environment.newBuilder()
         .setUrn(ENVIRONMENT_EMBEDDED)
         .setPayload(ByteString.copyFromUtf8(MoreObjects.firstNonNull(config, "")))
