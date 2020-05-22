@@ -26,6 +26,7 @@ from apache_beam.dataframe.partitionings import Singleton
 
 
 class PartitioningsTest(unittest.TestCase):
+  # pylint: disable=range-builtin-not-iterating
 
   multi_index_df = pd.DataFrame({
       'shape': ['dodecahedron', 'icosahedron'] * 12,
@@ -79,3 +80,7 @@ class PartitioningsTest(unittest.TestCase):
   def test_singleton_partition(self):
     parts = list(Singleton().partition_fn(pd.Series(range(10))))
     self.assertEqual(1, len(parts))
+
+
+if __name__ == '__main__':
+  unittest.main()
