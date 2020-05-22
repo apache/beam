@@ -109,7 +109,7 @@ sets as `PCollection`s and its operations as `Transform`s.
 To use Beam, your driver program must first create an instance of the Beam SDK
 class `Pipeline` (typically in the `main()` function). When you create your
 `Pipeline`, you'll also need to set some **configuration options**. You can set
-your pipeline's configuration options programatically, but it's often easier to
+your pipeline's configuration options programmatically, but it's often easier to
 set the options ahead of time (or read them from the command line) and pass them
 to the `Pipeline` object when you create the object.
 
@@ -375,9 +375,9 @@ public static void main(String[] args) {
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
 
 A `PCollection` is owned by the specific `Pipeline` object for which it is
-created; multiple pipelines cannot share a `PCollection`. In some respects, a
-`PCollection` functions like a collection class. However, a `PCollection` can
-differ in a few key ways:
+created; multiple pipelines cannot share a `PCollection`. <span language="java">
+In some respects, a `PCollection` functions like a `Collection` class. However,
+a `PCollection` can differ in a few key ways:</span>
 
 #### 3.2.1. Element type {#element-type}
 
@@ -505,7 +505,10 @@ nested within (called [composite transforms](#composite-transforms) in the Beam
 SDKs).
 
 How you apply your pipeline's transforms determines the structure of your
-pipeline. The best way to think of your pipeline is as a directed acyclic graph, where `PTransform` nodes are subroutines that accept `PCollection` nodes as inputs and emit `PCollection` nodes as outputs. For example, you can chain together transforms to create a pipeline that successively modifies input data:
+pipeline. The best way to think of your pipeline is as a directed acyclic graph,
+where `PTransform` nodes are subroutines that accept `PCollection` nodes as
+inputs and emit `PCollection` nodes as outputs. For example, you can chain
+together transforms to create a pipeline that successively modifies input data:
 
 {{< highlight java >}}
 [Final Output PCollection] = [Initial Input PCollection].apply([First Transform])
@@ -527,7 +530,7 @@ The graph of this pipeline looks like the following:
 *Figure 1: A linear pipeline with three sequential transforms.*
 
 However, note that a transform *does not consume or otherwise alter* the input
-collection--remember that a `PCollection` is immutable by definition. This means
+collection - remember that a `PCollection` is immutable by definition. This means
 that you can apply multiple transforms to the same input `PCollection` to create
 a branching pipeline, like so:
 
@@ -552,7 +555,7 @@ The graph of this branching pipeline looks like the following:
 PCollection of database table rows.*
 
 You can also build your own [composite transforms](#composite-transforms) that
-nest multiple sub-steps inside a single, larger transform. Composite transforms
+nest multiple transforms inside a single, larger transform. Composite transforms
 are particularly useful for building a reusable sequence of simple steps that
 get used in a lot of different places.
 
@@ -571,7 +574,8 @@ processing paradigm:
 #### 4.2.1. ParDo {#pardo}
 
 `ParDo` is a Beam transform for generic parallel processing. The `ParDo`
-processing paradigm is similar to the "Map" phase of a Map/Shuffle/Reduce-style
+processing paradigm is similar to the "Map" phase of a
+[Map/Shuffle/Reduce](https://en.wikipedia.org/wiki/MapReduce)-style
 algorithm: a `ParDo` transform considers each element in the input
 `PCollection`, performs some processing function (your user code) on that
 element, and emits zero, one, or multiple elements to an output `PCollection`.
@@ -579,7 +583,7 @@ element, and emits zero, one, or multiple elements to an output `PCollection`.
 `ParDo` is useful for a variety of common data processing operations, including:
 
 * **Filtering a data set.** You can use `ParDo` to consider each element in a
-  `PCollection` and either output that element to a new collection, or discard
+  `PCollection` and either output that element to a new collection or discard
   it.
 * **Formatting or type-converting each element in a data set.** If your input
   `PCollection` contains elements that are of a different type or format than
@@ -655,7 +659,7 @@ the length of each string, and outputs the result to a new `PCollection` of
 
 The `DoFn` object that you pass to `ParDo` contains the processing logic that
 gets applied to the elements in the input collection. When you use Beam, often
-the most important pieces of code you'll write are these `DoFn`s--they're what
+the most important pieces of code you'll write are these `DoFn`s - they're what
 define your pipeline's exact data processing tasks.
 
 > **Note:** When you create your `DoFn`, be mindful of the [Requirements
@@ -683,18 +687,18 @@ that for you. Your `@ProcessElement` method should accept a parameter tagged wit
 `@Element`, which will be populated with the input element. In order to output
 elements, the method can also take a parameter of type `OutputReceiver` which
 provides a method for emitting elements. The parameter types must match the input
-and output types of your `DoFn` or the framework will raise an error. Note: @Element and
-OutputReceiver were introduced in Beam 2.5.0; if using an earlier release of Beam, a
-ProcessContext parameter should be used instead.
+and output types of your `DoFn` or the framework will raise an error. Note: `@Element` and
+`OutputReceiver` were introduced in Beam 2.5.0; if using an earlier release of Beam, a
+`ProcessContext` parameter should be used instead.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
 Inside your `DoFn` subclass, you'll write a method `process` where you provide
 the actual processing logic. You don't need to manually extract the elements
 from the input collection; the Beam SDKs handle that for you. Your `process`
-method should accept an object of type `element`. This is the input element and
-output is emitted by using `yield` or `return` statement inside `process`
-method.
+method should accept an argument `element`, which is the input element, emit
+output value(s) by using `yield` statements. You can also use a `return`
+statement if you are sure the method will return only a single output value.
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -734,6 +738,13 @@ following requirements:
   the `@Element` annotation or `ProcessContext.sideInput()` (the incoming
   elements from the input collection).
 * Once you output a value using `OutputReceiver.output()` you should not modify
+  that value in any way.
+{{< /paragraph >}}
+
+{{< paragraph class="language-python" >}}
+* You should not in any way modify the `element` argument provided to the
+  `process` method, or any side inputs.
+* Once you output a value using `yield` or `return`, you should not modify
   that value in any way.
 {{< /paragraph >}}
 
