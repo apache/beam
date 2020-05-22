@@ -351,15 +351,6 @@ limitations under the License.
             &lt;li&gt;&lt;a href=&#34;#tasks-you-need-to-do-manually&#34;&gt;Tasks you need to do manually&lt;/a&gt;&lt;/li&gt;
           &lt;/ul&gt;
         &lt;/li&gt;
-        &lt;li&gt;&lt;a href=&#34;#alternative-run-all-steps-manually-1&#34;&gt;(Alternative) Run all steps manually&lt;/a&gt;
-          &lt;ul&gt;
-            &lt;li&gt;&lt;a href=&#34;#build-and-stage-java-artifacts-with-gradle&#34;&gt;Build and stage Java artifacts with Gradle&lt;/a&gt;&lt;/li&gt;
-            &lt;li&gt;&lt;a href=&#34;#stage-source-release-on-distapacheorg&#34;&gt;Stage source release on dist.apache.org&lt;/a&gt;&lt;/li&gt;
-            &lt;li&gt;&lt;a href=&#34;#stage-python-binaries-on-distapacheorg&#34;&gt;Stage python binaries on dist.apache.org&lt;/a&gt;&lt;/li&gt;
-            &lt;li&gt;&lt;a href=&#34;#stage-sdk-images-on-hubdockercom&#34;&gt;Stage SDK images on hub.docker.com&lt;/a&gt;&lt;/li&gt;
-          &lt;/ul&gt;
-        &lt;/li&gt;
-        &lt;li&gt;&lt;a href=&#34;#build-and-stage-python-wheels&#34;&gt;Build and stage python wheels&lt;/a&gt;&lt;/li&gt;
       &lt;/ul&gt;
     &lt;/li&gt;
     &lt;li&gt;&lt;a href=&#34;#6-prepare-documents&#34;&gt;6. Prepare documents&lt;/a&gt;
@@ -560,7 +551,6 @@ export GPG_AGENT_INFO
 &lt;/code&gt;&lt;/pre&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
-&lt;p&gt;&lt;strong&gt;NOTE&lt;/strong&gt;: make sure the XML you end up with matches the structure above.&lt;/p&gt;
 &lt;h4 id=&#34;submit-your-gpg-public-key-into-mit-pgp-public-key-server&#34;&gt;Submit your GPG public key into MIT PGP Public Key Server&lt;/h4&gt;
 &lt;p&gt;In order to make yourself have right permission to stage java artifacts in Apache Nexus staging repository,
 please submit your GPG public key into &lt;a href=&#34;http://pgp.mit.edu:11371/&#34;&gt;MIT PGP Public Key Server&lt;/a&gt;.&lt;/p&gt;
@@ -954,11 +944,10 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
 &lt;li&gt;Stage source release into dist.apache.org dev &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam/&#34;&gt;repo&lt;/a&gt;.&lt;/li&gt;
 &lt;li&gt;Stage,sign and hash python binaries into dist.apache.ord dev repo python dir&lt;/li&gt;
 &lt;li&gt;Stage SDK docker images to &lt;a href=&#34;https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image&#34;&gt;docker hub Apache organization&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;Create a PR to update beam and beam-site, changes includes:
+&lt;li&gt;Create a PR to update beam-site, changes includes:
 &lt;ul&gt;
 &lt;li&gt;Copy python doc into beam-site&lt;/li&gt;
 &lt;li&gt;Copy java doc into beam-site&lt;/li&gt;
-&lt;li&gt;Update release version into &lt;a href=&#34;https://github.com/apache/beam/blob/master/website/_config.yml&#34;&gt;_config.yml&lt;/a&gt;.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
@@ -966,148 +955,59 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
 &lt;/ul&gt;
 &lt;h4 id=&#34;tasks-you-need-to-do-manually&#34;&gt;Tasks you need to do manually&lt;/h4&gt;
 &lt;ol&gt;
-&lt;li&gt;Add new release into &lt;code&gt;website/src/get-started/downloads.md&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;Update last release download links in &lt;code&gt;website/src/get-started/downloads.md&lt;/code&gt;.&lt;/li&gt;
-&lt;li&gt;Update &lt;code&gt;website/src/.htaccess&lt;/code&gt; to redirect to the new version.&lt;/li&gt;
-&lt;li&gt;Build and stage python wheels.&lt;/li&gt;
-&lt;li&gt;Publish staging artifacts
+&lt;li&gt;Verify the script worked.
 &lt;ol&gt;
-&lt;li&gt;Go to the staging repo to close the staging repository on &lt;a href=&#34;https://repository.apache.org/#stagingRepositories&#34;&gt;Apache Nexus&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;When prompted for a description, enter “Apache Beam, version X, release candidate Y”.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h3 id=&#34;alternative-run-all-steps-manually-1&#34;&gt;(Alternative) Run all steps manually&lt;/h3&gt;
-&lt;h4 id=&#34;build-and-stage-java-artifacts-with-gradle&#34;&gt;Build and stage Java artifacts with Gradle&lt;/h4&gt;
-&lt;p&gt;Set up a few environment variables to simplify the commands that follow. These identify the release candidate being built, and the branch where you will stage files. Start with &lt;code&gt;RC_NUM&lt;/code&gt; equal to &lt;code&gt;1&lt;/code&gt; and increment it for each candidate.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;RC_NUM=1
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Make sure your git config will maintain your account:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;git config credential.helper store
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Use Gradle release plugin to build the release artifacts, and push code and
-release tag to the origin repository (this would be the Apache Beam repo):&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;./gradlew release -Prelease.newVersion=${RELEASE}-SNAPSHOT \
-              -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
-              -Prelease.useAutomaticVersion=true --info --no-daemon
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Use Gradle publish plugin to stage these artifacts on the Apache Nexus repository, as follows:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;./gradlew publish -PisRelease --no-parallel --no-daemon
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Review all staged artifacts. They should contain all relevant parts for each module, including &lt;code&gt;pom.xml&lt;/code&gt;, jar, test jar, javadoc, etc. Artifact names should follow &lt;a href=&#34;https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22&#34;&gt;the existing format&lt;/a&gt; in which artifact name mirrors directory structure, e.g., &lt;code&gt;beam-sdks-java-io-kafka&lt;/code&gt;. Carefully review any new artifacts.&lt;/p&gt;
-&lt;p&gt;Close the staging repository on Apache Nexus. When prompted for a description, enter “Apache Beam, version X, release candidate Y”.&lt;/p&gt;
-&lt;h4 id=&#34;stage-source-release-on-distapacheorg&#34;&gt;Stage source release on dist.apache.org&lt;/h4&gt;
-&lt;p&gt;Attention: Only committer has permissions to perform following steps.&lt;/p&gt;
-&lt;p&gt;Copy the source release to the dev repository of &lt;code&gt;dist.apache.org&lt;/code&gt;.&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;
-&lt;p&gt;If you have not already, check out the Beam section of the &lt;code&gt;dev&lt;/code&gt; repository on &lt;code&gt;dist.apache.org&lt;/code&gt; via Subversion. In a fresh directory:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt; svn co https://dist.apache.org/repos/dist/dev/beam
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Make a directory for the new release:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt; mkdir beam/${RELEASE}
- cd beam/${RELEASE}
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Download source zip from GitHub:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt; wget https://github.com/apache/beam/archive/release-${RELEASE}.zip \
-     -O apache-beam-${RELEASE}-source-release.zip
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Create hashes and sign the source distribution:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt; gpg --armor --detach-sig apache-beam-${RELEASE}-source-release.zip
- sha512sum apache-beam-${RELEASE}-source-release.zip &amp;gt; apache-beam-${RELEASE}-source-release.zip.sha512
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Add and commit all the files.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt; svn add beam/${RELEASE}
- svn commit
-&lt;/code&gt;&lt;/pre&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;Verify that files are &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam&#34;&gt;present&lt;/a&gt;.&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;h4 id=&#34;stage-python-binaries-on-distapacheorg&#34;&gt;Stage python binaries on dist.apache.org&lt;/h4&gt;
-&lt;p&gt;Build python binaries in release branch in sdks/python dir.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;pip install -r build-requirements.txt
-python setup.py sdist --format=zip
-cd dist
-cp apache-beam-${RELEASE}.zip staging/apache-beam-${RELEASE}-python.zip
-cd staging
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Create hashes and sign the binaries&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;gpg --armor --detach-sig apache-beam-${RELEASE}-python.zip
-sha512sum apache-beam-${RELEASE}-python.zip &amp;gt; apache-beam-${RELEASE}-python.zip.sha512
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Staging binaries&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;svn co https://dist.apache.org/repos/dist/dev/beam
-cd beam/${RELEASE}
-svn add *
-svn commit
-&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Verify that files are &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam&#34;&gt;present&lt;/a&gt;.&lt;/p&gt;
-&lt;h4 id=&#34;stage-sdk-images-on-hubdockercom&#34;&gt;Stage SDK images on hub.docker.com&lt;/h4&gt;
-&lt;ul&gt;
-&lt;li&gt;Build Python images and push to DockerHub.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;pre&gt;&lt;code&gt;./gradlew :sdks:python:container:buildAll -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Verify that third party licenses are included by logging in to the images. For Python SDK images, there should be around 80 ~ 100 dependencies.
-Please note that dependencies for the SDKs with different Python versions vary.
-Need to verify all Python images by replacing &lt;code&gt;${ver}&lt;/code&gt; in the following command to &lt;code&gt;python2.7, python3.5, python3.6, python3.7&lt;/code&gt;.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;docker run -it --entrypoint=/bin/bash apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
-ls -al /opt/apache/beam/third_party_licenses/ | wc -l
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;After verifying the third party licenses are included correctly, push the images to DockerHub.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;PYTHON_VER=(&amp;quot;python2.7&amp;quot; &amp;quot;python3.5&amp;quot; &amp;quot;python3.6&amp;quot; &amp;quot;python3.7&amp;quot;)
-for ver in &amp;quot;${PYTHON_VER[@]}&amp;quot;; do
-   docker push apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM} &amp;amp;
-done
-&lt;/code&gt;&lt;/pre&gt;&lt;ul&gt;
-&lt;li&gt;Build Java images and push to DockerHub.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;pre&gt;&lt;code&gt;./gradlew :sdks:java:container:docker -Pdocker-pull-licenses -Pdocker-tag=${RELEASE}_rc{RC_NUM}
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Verify that third party licenses are included by logging in to the images. For Java SDK images, there should be around 1400 dependencies.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;docker run -it --entrypoint=/bin/bash apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
-ls -al /opt/apache/beam/third_party_licenses/ | wc -l
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;After verifying the third party licenses are included correctly, push the images to DockerHub.&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;docker push apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
-&lt;/code&gt;&lt;/pre&gt;&lt;ul&gt;
-&lt;li&gt;Build Flink job server images and push to DockerHub.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;pre&gt;&lt;code&gt;FLINK_VER=(&amp;quot;1.8&amp;quot; &amp;quot;1.9&amp;quot; &amp;quot;1.10&amp;quot;)
-for ver in &amp;quot;${FLINK_VER[@]}&amp;quot;; do
-  ./gradlew &amp;quot;:runners:flink:${ver}:job-server-container:dockerPush&amp;quot; -Pdocker-tag=&amp;quot;${RELEASE}_rc${RC_NUM}&amp;quot;
-done
-&lt;/code&gt;&lt;/pre&gt;&lt;ul&gt;
-&lt;li&gt;Build Spark job server image and push to DockerHub.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;pre&gt;&lt;code&gt;./gradlew &amp;quot;:runners:spark:job-server:container:dockerPush&amp;quot; -Pdocker-tag=&amp;quot;${RELEASE}_rc${RC_NUM}&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Clean up images from local&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;for ver in &amp;quot;${PYTHON_VER[@]}&amp;quot;; do
-   docker rmi -f apache/beam_${ver}_sdk:${RELEASE}_rc{RC_NUM}
-done
-docker rmi -f apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
-for ver in &amp;quot;${FLINK_VER[@]}&amp;quot;; do
-   docker rmi -f &amp;quot;apache/beam_flink${ver}_job_server:${RELEASE}_rc${RC_NUM}&amp;quot;
-done
-docker rmi -f &amp;quot;apache/beam_spark_job_server:${RELEASE}_rc${RC_NUM}&amp;quot;
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;How to find images:&lt;/p&gt;
+&lt;li&gt;Verify that the source and Python binaries are present in &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam&#34;&gt;dist.apache.org&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Verify Docker images are published. How to find images:
 &lt;ol&gt;
 &lt;li&gt;Visit &lt;a href=&#34;https://hub.docker.com/search?q=apache%2Fbeam&amp;amp;type=image&#34;&gt;https://hub.docker.com/u/apache&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Visit each repository and navigate to &lt;em&gt;tags&lt;/em&gt; tab.&lt;/li&gt;
 &lt;li&gt;Verify images are pushed with tags: ${RELEASE}_rc{RC_NUM}&lt;/li&gt;
 &lt;/ol&gt;
-&lt;h3 id=&#34;build-and-stage-python-wheels&#34;&gt;Build and stage python wheels&lt;/h3&gt;
-&lt;p&gt;There is a wrapper repo &lt;a href=&#34;https://github.com/apache/beam-wheels&#34;&gt;beam-wheels&lt;/a&gt; to help build python wheels.&lt;/p&gt;
-&lt;p&gt;If you are interested in how it works, please refer to the &lt;a href=&#34;https://github.com/apache/beam-wheels#structure&#34;&gt;structure section&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;Please follow the &lt;a href=&#34;https://github.com/apache/beam-wheels#user-guide&#34;&gt;user guide&lt;/a&gt; to build python wheels.&lt;/p&gt;
-&lt;p&gt;Once all python wheels have been staged &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam/&#34;&gt;dist.apache.org&lt;/a&gt;,
-please run &lt;a href=&#34;https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh&#34;&gt;./sign_hash_python_wheels.sh&lt;/a&gt; to sign and hash python wheels.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;Verify that third party licenses are included in Docker containers by logging in to the images.
+&lt;ul&gt;
+&lt;li&gt;For Python SDK images, there should be around 80 ~ 100 dependencies.
+Please note that dependencies for the SDKs with different Python versions vary.
+Need to verify all Python images by replacing &lt;code&gt;${ver}&lt;/code&gt; with each supported Python version &lt;code&gt;X.Y&lt;/code&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre&gt;&lt;code&gt;docker run -it --entrypoint=/bin/bash apache/beam_python${ver}_sdk:${RELEASE}_rc{RC_NUM}
+ls -al /opt/apache/beam/third_party_licenses/ | wc -l
+&lt;/code&gt;&lt;/pre&gt;&lt;ul&gt;
+&lt;li&gt;For Java SDK images, there should be around 1400 dependencies.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;pre&gt;&lt;code&gt;docker run -it --entrypoint=/bin/bash apache/beam_java_sdk:${RELEASE}_rc{RC_NUM}
+ls -al /opt/apache/beam/third_party_licenses/ | wc -l
+&lt;/code&gt;&lt;/pre&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Publish staging artifacts
+&lt;ol&gt;
+&lt;li&gt;Log in to the &lt;a href=&#34;https://repository.apache.org/#stagingRepositories&#34;&gt;Apache Nexus&lt;/a&gt; website.&lt;/li&gt;
+&lt;li&gt;Navigate to Build Promotion -&amp;gt; Staging Repositories (in the left sidebar).&lt;/li&gt;
+&lt;li&gt;Select repository &lt;code&gt;orgapachebeam-NNNN&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Click the Close button.&lt;/li&gt;
+&lt;li&gt;When prompted for a description, enter “Apache Beam, version X, release candidate Y”.&lt;/li&gt;
+&lt;li&gt;Review all staged artifacts on &lt;a href=&#34;https://repository.apache.org/content/repositories/orgapachebeam-NNNN/&#34;&gt;https://repository.apache.org/content/repositories/orgapachebeam-NNNN/&lt;/a&gt;. They should contain all relevant parts for each module, including &lt;code&gt;pom.xml&lt;/code&gt;, jar, test jar, javadoc, etc. Artifact names should follow &lt;a href=&#34;https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22&#34;&gt;the existing format&lt;/a&gt; in which artifact name mirrors directory structure, e.g., &lt;code&gt;beam-sdks-java-io-kafka&lt;/code&gt;. Carefully review any new artifacts.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;li&gt;Build and stage python wheels.
+&lt;ul&gt;
+&lt;li&gt;There is a wrapper repo &lt;a href=&#34;https://github.com/apache/beam-wheels&#34;&gt;beam-wheels&lt;/a&gt; to help build python wheels.&lt;/li&gt;
+&lt;li&gt;If you are interested in how it works, please refer to the &lt;a href=&#34;https://github.com/apache/beam-wheels#structure&#34;&gt;structure section&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;Please follow the &lt;a href=&#34;https://github.com/apache/beam-wheels#user-guide&#34;&gt;user guide&lt;/a&gt; to build python wheels.&lt;/li&gt;
+&lt;li&gt;Once all python wheels have been staged to GCS,
+please run &lt;a href=&#34;https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh&#34;&gt;./sign_hash_python_wheels.sh&lt;/a&gt;, which copies the wheels along with signatures and hashes to &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam/&#34;&gt;dist.apache.org&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;Update Beam website (&lt;a href=&#34;https://github.com/apache/beam/pull/11727&#34;&gt;example&lt;/a&gt;)
+&lt;ol&gt;
+&lt;li&gt;Update release version in &lt;code&gt;website/www/site/config.toml&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Add new release in &lt;code&gt;website/www/site/content/en/get-started/downloads.md&lt;/code&gt;.&lt;/li&gt;
+&lt;li&gt;Update &lt;code&gt;website/www/site/static/.htaccess&lt;/code&gt; to redirect to the new version.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
 &lt;hr&gt;
 &lt;h2 id=&#34;6-prepare-documents&#34;&gt;6. Prepare documents&lt;/h2&gt;
 &lt;h3 id=&#34;update-and-verify-javadoc&#34;&gt;Update and Verify Javadoc&lt;/h3&gt;
@@ -1173,7 +1073,7 @@ source code download and the Release Notes in JIRA.&lt;/li&gt;
 to point to the new release. See file history for examples.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h3 id=&#34;blog-post&#34;&gt;Blog post&lt;/h3&gt;
-&lt;p&gt;Write a blog post similar to &lt;a href=&#34;https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html&#34;&gt;https://beam.apache.org/blog/2019/08/22/beam-2.15.0.html&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Write a blog post similar to &lt;a href=&#34;https://github.com/apache/beam/blob/master/website/www/site/content/en/blog/beam-2.20.0.md&#34;&gt;beam-2.20.0.md&lt;/a&gt;.&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Update &lt;code&gt;CHANGES.md&lt;/code&gt; by adding a new section for the next release.&lt;/li&gt;
 &lt;li&gt;Copy the changes for the current release from &lt;code&gt;CHANGES.md&lt;/code&gt; to the blog post and edit as necessary.&lt;/li&gt;
