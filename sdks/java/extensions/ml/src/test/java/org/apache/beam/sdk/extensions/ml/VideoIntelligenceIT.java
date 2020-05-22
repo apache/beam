@@ -75,7 +75,7 @@ public class VideoIntelligenceIT {
         String toMatch, VideoAnnotationResults result) {
       return result.getSegmentPresenceLabelAnnotationsList().stream()
           .anyMatch(
-              labelAnnotation -> labelAnnotation.getEntity().getDescription().equals(toMatch));
+              labelAnnotation -> labelAnnotation.getEntity().getDescription().contains(toMatch));
     }
   }
 }
