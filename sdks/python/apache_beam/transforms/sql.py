@@ -83,8 +83,6 @@ class SqlTransform(ExternalTransform):
     :param dialect: (optional) The dialect, e.g. use 'zetasql' for ZetaSQL.
     :param expansion_service: (optional) The URL of the expansion service to use
     """
-    expansion_service = expansion_service or BeamJarExpansionService(
-        ':sdks:java:extensions:sql:expansion-service:shadowJar')
     super().__init__(
         self.URN,
         NamedTupleBasedPayloadBuilder(

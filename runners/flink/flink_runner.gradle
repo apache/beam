@@ -214,6 +214,8 @@ dependencies {
   examplesJavaIntegrationTest project(":examples:java")
   examplesJavaIntegrationTest project(path: ":examples:java", configuration: "testRuntimeMigration")
   //LYFT CUSTOM
+  // Required for embedded fn execution
+  runtimeOnly project(":sdks:java:harness")
   implementation "org.apache.flink:flink-connector-kafka:1.17-lyft202310191697699075"
   implementation "com.lyft:streamingplatform-kinesis:2.4.0-20231106.192652-1"
   implementation ("com.lyft:streamingplatform-kafka:2.4.0-20231106.192652-1") {

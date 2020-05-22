@@ -268,6 +268,13 @@ public class Environments {
     }
   }
 
+  public static Environment createEmbeddedEnvironment(String config) {
+    return Environment.newBuilder()
+        .setUrn(ENVIRONMENT_EMBEDDED)
+        .setPayload(ByteString.copyFromUtf8(MoreObjects.firstNonNull(config, "")))
+        .build();
+  }
+
   public static Environment createProcessEnvironment(
       String os, String arch, String command, Map<String, String> env) {
     ProcessPayload.Builder builder = ProcessPayload.newBuilder();

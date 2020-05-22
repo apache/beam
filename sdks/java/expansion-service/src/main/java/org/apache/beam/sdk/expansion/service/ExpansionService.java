@@ -563,9 +563,10 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
         rehydratedComponents
             .getSdkComponents(Collections.emptyList())
             .withNewIdPrefix(request.getNamespace());
-    sdkComponents.registerEnvironment(
-        Environments.createOrGetDefaultEnvironment(
-            pipeline.getOptions().as(PortablePipelineOptions.class)));
+    // sdkComponents.registerEnvironment(
+    //    Environments.createOrGetDefaultEnvironment(
+    //        pipeline.getOptions().as(PortablePipelineOptions.class)));
+    sdkComponents.registerEnvironment(Environments.createEmbeddedEnvironment(""));
     Map<String, String> outputMap =
         outputs.entrySet().stream()
             .collect(
