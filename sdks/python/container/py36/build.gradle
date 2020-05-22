@@ -43,7 +43,7 @@ task copyDockerfileDependencies(type: Copy) {
   }
 }
 
-task copyLicenseScrips(type: Copy){
+task copyLicenseScripts(type: Copy){
   from ("../license_scripts")
   into "build/target/license_scripts"
 }
@@ -72,4 +72,4 @@ docker {
 
 dockerPrepare.dependsOn copyLauncherDependencies
 dockerPrepare.dependsOn copyDockerfileDependencies
-dockerPrepare.dependsOn copyLicenseScrips
+dockerPrepare.dependsOn copyLicenseScripts
