@@ -38,14 +38,20 @@ SAMPLE_DOCTEST = '''
 Animal
 Falcon      375.0
 Parrot       25.0
->>>
 '''
 
 CHECK_USES_DEFERRED_DATAFRAMES = '''
 >>> type(pd).__name__
-'FakePandas'
+'FakePandasObject'
+
 >>> type(pd.DataFrame([]))
 <class 'apache_beam.dataframe.frames.DeferredDataFrame'>
+
+>>> type(pd.DataFrame.from_dict({'a': [1, 2], 'b': [3, 4]}))
+<class 'apache_beam.dataframe.frames.DeferredDataFrame'>
+
+>>> pd.Index(range(10))
+RangeIndex(start=0, stop=10, step=1)
 '''
 
 
