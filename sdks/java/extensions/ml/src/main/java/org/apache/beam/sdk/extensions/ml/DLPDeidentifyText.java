@@ -45,8 +45,9 @@ import org.apache.beam.sdk.values.PCollectionView;
  * deidentifying text according to provided settings. The transform supports both CSV formatted
  * input data and unstructured input.
  *
- * <p>If the csvHeader property is set, csvDelimiter also should be, else the results will be
- * incorrect. If csvHeader is not set, input is assumed to be unstructured.
+ * <p>If the csvHeader property is set and a sideinput with CSV headers is added to the PTransform,
+ * csvDelimiter also should be set, else the results will be incorrect. If csvHeader is neither set
+ * nor passed as sideinput, input is assumed to be unstructured.
  *
  * <p>Either deidentifyTemplateName (String) or deidentifyConfig {@link DeidentifyConfig} need to be
  * set. inspectTemplateName and inspectConfig ({@link InspectConfig} are optional.
@@ -65,44 +66,72 @@ public abstract class DLPDeidentifyText
 
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
 
+  /** @return Template name for data inspection. */
   @Nullable
   public abstract String inspectTemplateName();
 
+  /** @return Template name for data deidentification. */
   @Nullable
   public abstract String deidentifyTemplateName();
 
+  /**
+   * @return Configuration object for data inspection. If present, supersedes the template settings.
+   */
   @Nullable
   public abstract InspectConfig inspectConfig();
 
+  /** @return Configuration object for deidentification. If present, supersedes the template. */
   @Nullable
   public abstract DeidentifyConfig deidentifyConfig();
 
+  /** @return List of column names if the input KV value is a CSV formatted row. */
   @Nullable
   public abstract PCollectionView<List<String>> csvHeader();
 
+  /** @return Delimiter to be used when splitting values from input strings into columns. */
   @Nullable
   public abstract String csvColumnDelimiter();
 
-  public abstract Integer batchSize();
+  /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
+  public abstract Integer batchSizeBytes();
 
+  /** @return ID of Google Cloud project to be used when deidentifying data. */
   public abstract String projectId();
 
   @AutoValue.Builder
   public abstract static class Builder {
+    /** @param inspectTemplateName Template name for data inspection. */
     public abstract Builder setInspectTemplateName(String inspectTemplateName);
 
+    /** @param csvHeader List of column names if the input KV value is a CSV formatted row. */
     public abstract Builder setCsvHeader(PCollectionView<List<String>> csvHeader);
 
+    /**
+     * @param delimiter Delimiter to be used when splitting values from input strings into columns.
+     */
     public abstract Builder setCsvColumnDelimiter(String delimiter);
 
-    public abstract Builder setBatchSize(Integer batchSize);
+    /**
+     * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
+     */
+    public abstract Builder setBatchSizeBytes(Integer batchSize);
 
+    /** @param projectId ID of Google Cloud project to be used when deidentifying data. */
     public abstract Builder setProjectId(String projectId);
 
+    /** @param deidentifyTemplateName Template name for data deidentification. */
     public abstract Builder setDeidentifyTemplateName(String deidentifyTemplateName);
 
+    /**
+     * @param inspectConfig Configuration object for data inspection. If present, supersedes the
+     *     template settings.
+     */
     public abstract Builder setInspectConfig(InspectConfig inspectConfig);
 
+    /**
+     * @param deidentifyConfig Configuration object for data deidentification. If present,
+     *     supersedes the template settings.
+     */
     public abstract Builder setDeidentifyConfig(DeidentifyConfig deidentifyConfig);
 
     abstract DLPDeidentifyText autoBuild();
@@ -114,7 +143,7 @@ public abstract class DLPDeidentifyText
         throw new IllegalArgumentException(
             "Either deidentifyConfig or deidentifyTemplateName need to be set!");
       }
-      if (dlpDeidentifyText.batchSize() > DLP_PAYLOAD_LIMIT_BYTES) {
+      if (dlpDeidentifyText.batchSizeBytes() > DLP_PAYLOAD_LIMIT_BYTES) {
         throw new IllegalArgumentException(
             String.format(
                 "Batch size is too large! It should be smaller or equal than %d.",
@@ -129,8 +158,8 @@ public abstract class DLPDeidentifyText
   }
 
   /**
-   * The transform batches the contents of input PCollection and then calls Cloud DLP service to
-   * perform the deidentification.
+   * The transform converts the contents of input PCollection into {@link Table.Row}s and then calls
+   * Cloud DLP service to perform the deidentification according to provided settings.
    *
    * @param input input PCollection
    * @return PCollection after transformations
@@ -140,7 +169,7 @@ public abstract class DLPDeidentifyText
       PCollection<KV<String, String>> input) {
     return input
         .apply(ParDo.of(new MapStringToDlpRow(csvColumnDelimiter())))
-        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSize())))
+        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSizeBytes())))
         .apply(
             "DLPDeidentify",
             ParDo.of(
@@ -153,6 +182,7 @@ public abstract class DLPDeidentifyText
                     csvHeader())));
   }
 
+  /** DoFn performing calls to Cloud DLP service on GCP. */
   static class DeidentifyText
       extends DoFn<KV<String, Iterable<Table.Row>>, KV<String, DeidentifyContentResponse>> {
     private final String projectId;
@@ -181,6 +211,16 @@ public abstract class DLPDeidentifyText
       }
     }
 
+    /**
+     * @param projectId ID of GCP project that should be used for deidentification.
+     * @param inspectTemplateName Template name for inspection. Optional.
+     * @param deidentifyTemplateName Template name for deidentification. Either this or
+     *     deidentifyConfig is required.
+     * @param inspectConfig Configuration object for inspection. Optional.
+     * @param deidentifyConfig Deidentification config containing data transformations. Either this
+     *     or deidentifyTemplateName is required.
+     * @param csvHeaders Header row of CSV table if applicable.
+     */
     public DeidentifyText(
         String projectId,
         String inspectTemplateName,

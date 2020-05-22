@@ -63,7 +63,7 @@ public class DLPTextOperationsIT {
             .apply(Create.of(KV.of("", IDENTIFYING_TEXT)))
             .apply(
                 DLPInspectText.newBuilder()
-                    .setBatchSize(524000)
+                    .setBatchSizeBytes(524000)
                     .setProjectId(projectId)
                     .setInspectConfig(inspectConfig)
                     .build());
@@ -81,7 +81,7 @@ public class DLPTextOperationsIT {
             .apply(Create.of(KV.of("", IDENTIFYING_TEXT)))
             .apply(
                 DLPDeidentifyText.newBuilder()
-                    .setBatchSize(524000)
+                    .setBatchSizeBytes(524000)
                     .setProjectId(projectId)
                     .setDeidentifyConfig(getDeidentifyConfig())
                     .build());

@@ -44,6 +44,7 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
 
   private final Counter numberOfRowsBagged =
       Metrics.counter(BatchRequestForDLP.class, "numberOfRowsBagged");
+
   private final Integer batchSizeBytes;
 
   @StateId("elementsBag")
@@ -52,6 +53,11 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
   @TimerId("eventTimer")
   private final TimerSpec eventTimer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
 
+  /**
+   * Constructs the batching DoFn.
+   *
+   * @param batchSize Desired batch size in bytes.
+   */
   public BatchRequestForDLP(Integer batchSize) {
     this.batchSizeBytes = batchSize;
   }
@@ -66,6 +72,12 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
     eventTimer.set(w.maxTimestamp());
   }
 
+  /**
+   * Outputs the elements buffered in the elementsBag in batches of desired size.
+   *
+   * @param elementsBag element buffer.
+   * @param output Batched input elements.
+   */
   @OnTimer("eventTimer")
   public void onTimer(
       @StateId("elementsBag") BagState<KV<String, Table.Row>> elementsBag,
@@ -82,7 +94,7 @@ class BatchRequestForDLP extends DoFn<KV<String, Table.Row>, KV<String, Iterable
                 boolean clearBuffer = bufferSize.intValue() + elementSize > batchSizeBytes;
                 if (clearBuffer) {
                   LOG.debug(
-                      "Clear Buffer {} bytes, Key {}", bufferSize.intValue(), element.getKey());
+                      "Clear buffer of {} bytes, Key {}", bufferSize.intValue(), element.getKey());
                   numberOfRowsBagged.inc(rows.size());
                   output.output(KV.of(element.getKey(), rows));
                   rows.clear();

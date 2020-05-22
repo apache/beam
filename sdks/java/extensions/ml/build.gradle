@@ -44,7 +44,7 @@ dependencies {
 }
 
 project.test {
-    def gcpProject = project.findProperty("gcpProject") ?: 'apache-beam-io-testing'
+    def gcpProject = project.findProperty("gcpProject") ?: 'apache-beam-testing'
     include "**/**IT.class"
     def pipelineOptions = [
             "--project=${gcpProject}"
