@@ -130,7 +130,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
             (T element, Contextful.Fn.Context c) ->
                 partitionFn.partitionFor(element, numPartitions, c),
             requirements);
-    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, partitionFn.getClass()));
+    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, partitionFn));
   }
 
   /**
@@ -149,7 +149,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
                 partitionFn.partitionFor(element, numPartitions),
             Requirements.empty());
 
-    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, partitionFn.getClass()));
+    return new Partition<>(new PartitionDoFn<T>(numPartitions, ctfFn, partitionFn));
   }
 
   /////////////////////////////////////////////////////////////////////////////
@@ -193,7 +193,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     private final int numPartitions;
     private final TupleTagList outputTags;
     private final Contextful<Contextful.Fn<X, Integer>> ctxFn;
-    private final Class<?> originalFnClassForDisplayData;
+    private final Object originalFnClassForDisplayData;
 
     /**
      * Constructs a PartitionDoFn.
@@ -203,7 +203,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     private PartitionDoFn(
         int numPartitions,
         Contextful<Contextful.Fn<X, Integer>> ctxFn,
-        Class<?> originalFnClassForDisplayData) {
+        Object originalFnClassForDisplayData) {
       this.ctxFn = ctxFn;
       this.originalFnClassForDisplayData = originalFnClassForDisplayData;
       if (numPartitions <= 0) {
@@ -247,7 +247,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
       builder
           .add(DisplayData.item("numPartitions", numPartitions).withLabel("Partition Count"))
           .add(
-              DisplayData.item("partitionFn", originalFnClassForDisplayData)
+              DisplayData.item("partitionFn", originalFnClassForDisplayData.getClass())
                   .withLabel("Partition Function"));
     }
 
