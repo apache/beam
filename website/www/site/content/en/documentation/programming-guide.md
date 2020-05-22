@@ -1674,7 +1674,7 @@ import apache_beam as beam
 class ProcessRecord(beam.DoFn):
 
   def process(self, element, window=beam.DoFn.WindowParam):
-     # access window e.g window.end.micros
+     # access window e.g. window.end.micros
      pass  
   
 {{< /highlight >}}
@@ -1689,7 +1689,7 @@ you can determine whether this is an early or a late firing, and how many times 
 **PaneInfo:**
 When triggers are used, Beam provides a `DoFn.PaneInfoParam` object that contains information about the current firing. Using `DoFn.PaneInfoParam`
 you can determine whether this is an early or a late firing, and how many times this window has already fired for this key. 
-This feature implementation in python sdk is not fully completed, see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
+This feature implementation in Python SDK is not fully completed; see more at [BEAM-3759](https://issues.apache.org/jira/browse/BEAM-3759).
 {{< /paragraph >}}
 
 {{< highlight java >}}
@@ -1704,7 +1704,7 @@ import apache_beam as beam
 class ProcessRecord(beam.DoFn):
 
   def process(self, element, pane_info=beam.DoFn.PaneInfoParam):
-     # access pane info e.g pane_info.is_first, pane_info.is_last, pane_info.timing
+     # access pane info, e.g. pane_info.is_first, pane_info.is_last, pane_info.timing
      pass  
   
 {{< /highlight >}}
@@ -1731,7 +1731,7 @@ Timers are explained in more detail in the
 
 {{< paragraph class="language-py" >}}
 **Timer and State:**
-In addition to aforementioned parameters, user defined Timer and State parameters can be used in a Stateful DoFn.
+In addition to aforementioned parameters, user defined Timer and State parameters can be used in a stateful DoFn.
 Timers and States are explained in more detail in the
 [Timely (and Stateful) Processing with Apache Beam](/blog/2017/08/28/timely-processing.html) blog post.
 {{< /paragraph >}}
@@ -1753,7 +1753,7 @@ class StatefulDoFn(beam.DoFn):
               buffer_2=beam.DoFn.StateParam(BUFFER_STATE_2),
               watermark_timer=beam.DoFn.TimerParam(WATERMARK_TIMER)):
 
-    # Do you processing here
+    # Do your processing here
     key, value = element
     # Read all the data from buffer1
     all_values_in_buffer_1 = [x for x in buffer_1.read()]
@@ -1823,13 +1823,6 @@ transform operations:
      word in the text, and each value represents the number of times that word
      appeared in the original data.
 
-Note that this is also an example of nested composite transforms, as `Count`
-is, by itself, a composite transform.
-
-Your composite transform's parameters and return value must match the initial
-input type and final return type for the entire transform, even if the
-transform's intermediate data changes type multiple times.
-
 {{< highlight java >}}
   public static class CountWords extends PTransform<PCollection<String>,
       PCollection<KV<String, Long>>> {
@@ -1852,6 +1845,9 @@ transform's intermediate data changes type multiple times.
 {{< highlight py >}}
 {{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
 {{< /highlight >}}
+
+Note that because `Count` is itself a composite transform,
+`CountWords` is also a nested composite transform.
 
 #### 4.6.2. Creating a composite transform {#composite-transform-creation}
 
@@ -1910,6 +1906,10 @@ accept the appropriate input `PCollection`(s) and return the corresponding
 output `PCollection`(s), you can include as many transforms as you want. These
 transforms can include core transforms, composite transforms, or the transforms
 included in the Beam SDK libraries.
+
+Your composite transform's parameters and return value must match the initial
+input type and final return type for the entire transform, even if the
+transform's intermediate data changes type multiple times.
 
 **Note:** The `expand` method of a `PTransform` is not meant to be invoked
 directly by the user of a transform. Instead, you should call the `apply` method
@@ -1971,7 +1971,7 @@ output | beam.io.WriteToText('gs://some/outputData')
 Many read transforms support reading from multiple input files matching a glob
 operator you provide. Note that glob operators are filesystem-specific and obey
 filesystem-specific consistency models. The following TextIO example uses a glob
-operator (\*) to read all matching input files that have prefix "input-" and the
+operator (`*`) to read all matching input files that have prefix "input-" and the
 suffix ".csv" in the given location:
 
 {{< highlight java >}}
@@ -2022,7 +2022,7 @@ structures that can often be determined by examining the type. Even within a SDK
  clear structure that can be inferred by inspecting the class. By understanding the structure of a pipeline’s 
  records, we can provide much more concise APIs for data processing.
  
-### 6.1. What is a schema {#what-is-a-schema}
+### 6.1. What is a schema? {#what-is-a-schema}
 
 Most structured records share some common characteristics: 
 * They can be subdivided into separate named fields. Fields usually have string names, but sometimes - as in the case of indexed
@@ -2031,8 +2031,8 @@ Most structured records share some common characteristics:
  languages: int, long, string, etc.
 * Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
-Oten records have a nested structure. A nested structure occurs when a field itself has subfields so the 
-type of the field itself has a schema. Fields that are  array or map types is also a common feature of these structured 
+Often records have a nested structure. A nested structure occurs when a field itself has subfields so the 
+type of the field itself has a schema. Fields that are array or map types are also common features of structured 
 records.
 
 For example, consider the following schema, representing actions in a fictitious e-commerce company:
