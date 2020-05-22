@@ -1,13 +1,12 @@
 ---
-layout: post
 title:  "Python SDK Typing Changes"
 date:   2020-05-26 00:00:01 -0800
-excerpt_separator: <!--more-->
 categories: blog python typing
 authors:
   - chadrik
   - udim
-
+aliases:
+  - /blog/2020/05/26/python-typing.html
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -133,7 +132,3 @@ fixed issues with native type support. There may still be bugs and unsupported
 native types. Please 
 [let us know](https://beam.apache.org/community/contact-us/) if you encounter
 issues. 
-
-What's changing:
-For example: if you pass a function with annotations to Map() its argument and return types will be used in the resulting Map transform type.
-Annotations from a DoFn's process() method will be used to determine the enclosing ParDo's input and output types, if no other type hints are available. 
