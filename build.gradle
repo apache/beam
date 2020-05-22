@@ -268,6 +268,13 @@ task python37PostCommit() {
   dependsOn ":sdks:python:test-suites:portable:py37:postCommitPy37"
 }
 
+task python38PostCommit() {
+  dependsOn ":sdks:python:test-suites:dataflow:py38:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py38:postCommitIT"
+  dependsOn ":sdks:python:test-suites:direct:py38:hdfsIntegrationTest"
+  dependsOn ":sdks:python:test-suites:portable:py38:postCommitPy38"
+}
+
 task portablePythonPreCommit() {
   dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
