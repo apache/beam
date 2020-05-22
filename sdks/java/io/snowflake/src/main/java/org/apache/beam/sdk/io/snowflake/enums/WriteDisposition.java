@@ -15,18 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.snowflake;
+package org.apache.beam.sdk.io.snowflake.enums;
 
-public enum CloudProvider {
-  GCS("gs://");
-
-  private final String prefix;
-
-  private CloudProvider(String prefix) {
-    this.prefix = prefix;
-  }
-
-  public String getPrefix() {
-    return prefix;
-  }
+/** Enum containing all supported dispositions during writing to table phase. */
+public enum WriteDisposition {
+  TRUNCATE,
+  APPEND,
+  EMPTY
 }

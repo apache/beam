@@ -29,6 +29,7 @@ import java.security.PrivateKey;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -38,14 +39,22 @@ import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.snowflake.credentials.KeyPairSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.OAuthTokenSnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.SnowflakeCredentials;
 import org.apache.beam.sdk.io.snowflake.credentials.UsernamePasswordSnowflakeCredentials;
+import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceConfig;
+import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceImpl;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -55,8 +64,11 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,12 +120,12 @@ import org.slf4j.LoggerFactory;
  * <p>For example
  *
  * <pre>{@code
+ * Location location = Location.of(storageIntegrationName, stagingBucketName);
  * PCollection<GenericRecord> items = pipeline.apply(
  *  SnowflakeIO.<GenericRecord>read()
  *    .withDataSourceConfiguration(dataSourceConfiguration)
  *    .fromQuery(QUERY)
- *    .withStagingBucketName(stagingBucketName)
- *    .withIntegrationName(integrationName)
+ *    .via(location)
  *    .withCsvMapper(...)
  *    .withCoder(...));
  * }</pre>
@@ -122,11 +134,34 @@ import org.slf4j.LoggerFactory;
  * specified stagingBucketName in directory named `sf_copy_csv_[RANDOM CHARS]_[TIMESTAMP]`. This
  * directory and all the files are cleaned up automatically by default, but in case of failed
  * pipeline they may remain and will have to be cleaned up manually.
+ *
+ * <h3>Writing to Snowflake</h3>
+ *
+ * <p>SnowflakeIO.Write supports writing records into a database. It writes a {@link PCollection<T>}
+ * to the database by converting each T into a {@link Object[]} via a user-provided {@link
+ * UserDataMapper}.
+ *
+ * <p>For example
+ *
+ * <pre>{@code
+ * Location location = Location.of(storageIntegrationName, stagingBucketName);
+ * items.apply(
+ *     SnowflakeIO.<KV<Integer, String>>write()
+ *         .withDataSourceConfiguration(dataSourceConfiguration)
+ *         .to(table)
+ *         .via(location)
+ *         .withUserDataMapper(maper);
+ * }</pre>
+ *
+ * <p><b>Important</b> When writing data to Snowflake, firstly data will be saved as CSV files on
+ * specified stagingBucketName in directory named 'data' and then into Snowflake.
  */
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
 
   private static final String CSV_QUOTE_CHAR = "'";
+  private static final String WRITE_TMP_PATH = "data";
+
   /**
    * Read data from Snowflake.
    *
@@ -159,6 +194,29 @@ public class SnowflakeIO {
     T mapRow(String[] parts) throws Exception;
   }
 
+  /**
+   * Interface for user-defined function mapping T into array of Objects. Used for
+   * SnowflakeIO.Write.
+   *
+   * @param <T> Type of data to be written.
+   */
+  @FunctionalInterface
+  public interface UserDataMapper<T> extends Serializable {
+    Object[] mapRow(T element);
+  }
+
+  /**
+   * Write data to Snowflake via COPY statement.
+   *
+   * @param <T> Type of data to be written.
+   */
+  public static <T> Write<T> write() {
+    return new AutoValue_SnowflakeIO_Write.Builder<T>()
+        .setFileNameTemplate("output*")
+        .setWriteDisposition(WriteDisposition.APPEND)
+        .build();
+  }
+
   /** Implementation of {@link #read()}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
@@ -172,10 +230,7 @@ public class SnowflakeIO {
     abstract String getTable();
 
     @Nullable
-    abstract String getIntegrationName();
-
-    @Nullable
-    abstract String getStagingBucketName();
+    abstract Location getLocation();
 
     @Nullable
     abstract CsvMapper<T> getCsvMapper();
@@ -197,9 +252,7 @@ public class SnowflakeIO {
 
       abstract Builder<T> setTable(String table);
 
-      abstract Builder<T> setIntegrationName(String integrationName);
-
-      abstract Builder<T> setStagingBucketName(String stagingBucketName);
+      abstract Builder<T> setLocation(Location location);
 
       abstract Builder<T> setCsvMapper(CsvMapper<T> csvMapper);
 
@@ -216,15 +269,6 @@ public class SnowflakeIO {
      * @param config - An instance of {@link DataSourceConfiguration}.
      */
     public Read<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
-      if (config.getValidate()) {
-        try {
-          Connection connection = config.buildDatasource().getConnection();
-          connection.close();
-        } catch (SQLException e) {
-          throw new IllegalArgumentException(
-              "Invalid DataSourceConfiguration. Underlying cause: " + e);
-        }
-      }
       return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
     }
 
@@ -257,23 +301,12 @@ public class SnowflakeIO {
     }
 
     /**
-     * Name of the cloud bucket (GCS by now) to use as tmp location of CSVs during COPY statement.
+     * A location object which contains connection config between Snowflake and GCP.
      *
-     * @param stagingBucketName - String with the name of the bucket.
+     * @param location - an instance of {@link Location}.
      */
-    public Read<T> withStagingBucketName(String stagingBucketName) {
-      return toBuilder().setStagingBucketName(stagingBucketName).build();
-    }
-
-    /**
-     * Name of the Storage Integration in Snowflake to be used. See
-     * https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html for
-     * reference.
-     *
-     * @param integrationName - String with the name of the Storage Integration.
-     */
-    public Read<T> withIntegrationName(String integrationName) {
-      return toBuilder().setIntegrationName(integrationName).build();
+    public Read<T> via(Location location) {
+      return toBuilder().setLocation(location).build();
     }
 
     /**
@@ -296,23 +329,11 @@ public class SnowflakeIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
-      // Either table or query is required. If query is present, it's being used, table is used
-      // otherwise
-      checkArgument(
-          getQuery() != null || getTable() != null, "fromTable() or fromQuery() is required");
-      checkArgument(
-          !(getQuery() != null && getTable() != null),
-          "fromTable() and fromQuery() are not allowed together");
-      checkArgument(getCsvMapper() != null, "withCsvMapper() is required");
-      checkArgument(getCoder() != null, "withCoder() is required");
-      checkArgument(getIntegrationName() != null, "withIntegrationName() is required");
-      checkArgument(getStagingBucketName() != null, "withStagingBucketName() is required");
-      checkArgument(
-          (getDataSourceProviderFn() != null),
-          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+      Location loc = getLocation();
+      checkArguments(loc);
 
       String tmpDirName = makeTmpDirName();
-      String stagingBucketDir = String.format("%s/%s", getStagingBucketName(), tmpDirName);
+      String stagingBucketDir = String.format("%s/%s/", loc.getStagingBucketName(), tmpDirName);
 
       PCollection<Void> emptyCollection = input.apply(Create.of((Void) null));
 
@@ -324,7 +345,7 @@ public class SnowflakeIO {
                           getDataSourceProviderFn(),
                           getQuery(),
                           getTable(),
-                          getIntegrationName(),
+                          loc.getStorageIntegrationName(),
                           stagingBucketDir,
                           getSnowflakeService())))
               .apply(Reshuffle.viaRandomKey())
@@ -339,8 +360,29 @@ public class SnowflakeIO {
       emptyCollection
           .apply(Wait.on(output))
           .apply(ParDo.of(new CleanTmpFilesFromGcsFn(stagingBucketDir)));
-
       return output;
+    }
+
+    private void checkArguments(Location loc) {
+      // Either table or query is required. If query is present, it's being used, table is used
+      // otherwise
+      checkArgument(loc != null, "via() is required");
+      checkArgument(
+          loc.getStorageIntegrationName() != null,
+          "location with storageIntegrationName is required");
+      checkArgument(
+          loc.getStagingBucketName() != null, "location with stagingBucketName is required");
+
+      checkArgument(
+          getQuery() != null || getTable() != null, "fromTable() or fromQuery() is required");
+      checkArgument(
+          !(getQuery() != null && getTable() != null),
+          "fromTable() and fromQuery() are not allowed together");
+      checkArgument(getCsvMapper() != null, "withCsvMapper() is required");
+      checkArgument(getCoder() != null, "withCoder() is required");
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
     }
 
     private String makeTmpDirName() {
@@ -355,7 +397,7 @@ public class SnowflakeIO {
       private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
       private final String query;
       private final String table;
-      private final String integrationName;
+      private final String storageIntegrationName;
       private final String stagingBucketDir;
       private final SnowflakeService snowflakeService;
 
@@ -363,13 +405,13 @@ public class SnowflakeIO {
           SerializableFunction<Void, DataSource> dataSourceProviderFn,
           String query,
           String table,
-          String integrationName,
+          String storageIntegrationName,
           String stagingBucketDir,
           SnowflakeService snowflakeService) {
         this.dataSourceProviderFn = dataSourceProviderFn;
         this.query = query;
         this.table = table;
-        this.integrationName = integrationName;
+        this.storageIntegrationName = storageIntegrationName;
         this.stagingBucketDir =
             String.format(
                 "%s/run_%s/", stagingBucketDir, UUID.randomUUID().toString().subSequence(0, 8));
@@ -378,9 +420,12 @@ public class SnowflakeIO {
 
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
-        String output =
-            snowflakeService.copyIntoStage(
-                dataSourceProviderFn, query, table, integrationName, stagingBucketDir);
+
+        SnowflakeServiceConfig config =
+            new SnowflakeServiceConfig(
+                dataSourceProviderFn, table, query, storageIntegrationName, stagingBucketDir);
+
+        String output = snowflakeService.read(config);
 
         context.output(output);
       }
@@ -430,6 +475,8 @@ public class SnowflakeIO {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
+      Location loc = getLocation();
+
       super.populateDisplayData(builder);
       if (getQuery() != null) {
         builder.add(DisplayData.item("query", getQuery()));
@@ -437,13 +484,353 @@ public class SnowflakeIO {
       if (getTable() != null) {
         builder.add(DisplayData.item("table", getTable()));
       }
-      builder.add(DisplayData.item("integrationName", getIntegrationName()));
-      builder.add(DisplayData.item("stagingBucketName", getStagingBucketName()));
+      builder.add(DisplayData.item("storageIntegrationName", loc.getStagingBucketName()));
+      builder.add(DisplayData.item("stagingBucketName", loc.getStagingBucketName()));
       builder.add(DisplayData.item("csvMapper", getCsvMapper().getClass().getName()));
       builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
         ((HasDisplayData) getDataSourceProviderFn()).populateDisplayData(builder);
       }
+    }
+  }
+
+  /** Implementation of {@link #write()}. */
+  @AutoValue
+  public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+    @Nullable
+    abstract SerializableFunction<Void, DataSource> getDataSourceProviderFn();
+
+    @Nullable
+    abstract String getTable();
+
+    @Nullable
+    abstract String getQuery();
+
+    @Nullable
+    abstract Location getLocation();
+
+    @Nullable
+    abstract String getFileNameTemplate();
+
+    @Nullable
+    abstract WriteDisposition getWriteDisposition();
+
+    @Nullable
+    abstract UserDataMapper getUserDataMapper();
+
+    @Nullable
+    abstract SnowflakeService getSnowflakeService();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setDataSourceProviderFn(
+          SerializableFunction<Void, DataSource> dataSourceProviderFn);
+
+      abstract Builder<T> setTable(String table);
+
+      abstract Builder<T> setQuery(String query);
+
+      abstract Builder<T> setLocation(Location location);
+
+      abstract Builder<T> setFileNameTemplate(String fileNameTemplate);
+
+      abstract Builder<T> setUserDataMapper(UserDataMapper userDataMapper);
+
+      abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+
+      abstract Builder<T> setSnowflakeService(SnowflakeService snowflakeService);
+
+      abstract Write<T> build();
+    }
+
+    /**
+     * Setting information about Snowflake server.
+     *
+     * @param config - An instance of {@link DataSourceConfiguration}.
+     */
+    public Write<T> withDataSourceConfiguration(final DataSourceConfiguration config) {
+      return withDataSourceProviderFn(new DataSourceProviderFromDataSourceConfiguration(config));
+    }
+
+    /**
+     * Setting function that will provide {@link DataSourceConfiguration} in runtime.
+     *
+     * @param dataSourceProviderFn a {@link SerializableFunction}.
+     */
+    public Write<T> withDataSourceProviderFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn) {
+      return toBuilder().setDataSourceProviderFn(dataSourceProviderFn).build();
+    }
+
+    /**
+     * A table name to be written in Snowflake.
+     *
+     * @param table - String with the name of the table.
+     */
+    public Write<T> to(String table) {
+      return toBuilder().setTable(table).build();
+    }
+
+    /**
+     * A query to be executed in Snowflake.
+     *
+     * @param query - String with query.
+     */
+    public Write<T> withQueryTransformation(String query) {
+      return toBuilder().setQuery(query).build();
+    }
+
+    /**
+     * A location object which contains connection config between Snowflake and GCP.
+     *
+     * @param location - an instance of {@link Location}.
+     */
+    public Write<T> via(Location location) {
+      return toBuilder().setLocation(location).build();
+    }
+
+    /**
+     * A template name for files saved to GCP.
+     *
+     * @param fileNameTemplate - String with template name for files.
+     */
+    public Write<T> withFileNameTemplate(String fileNameTemplate) {
+      return toBuilder().setFileNameTemplate(fileNameTemplate).build();
+    }
+
+    /**
+     * User-defined function mapping user data into CSV lines.
+     *
+     * @param userDataMapper - an instance of {@link UserDataMapper}.
+     */
+    public Write<T> withUserDataMapper(UserDataMapper userDataMapper) {
+      return toBuilder().setUserDataMapper(userDataMapper).build();
+    }
+
+    /**
+     * A disposition to be used during writing to table phase.
+     *
+     * @param writeDisposition - an instance of {@link WriteDisposition}.
+     */
+    public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
+      return toBuilder().setWriteDisposition(writeDisposition).build();
+    }
+
+    /**
+     * A snowflake service which is supposed to be used. Note: Currently we have {@link
+     * SnowflakeServiceImpl} with corresponding {@link FakeSnowflakeServiceImpl} used for testing.
+     *
+     * @param snowflakeService - an instance of {@link SnowflakeService}.
+     */
+    public Write<T> withSnowflakeService(SnowflakeService snowflakeService) {
+      return toBuilder().setSnowflakeService(snowflakeService).build();
+    }
+
+    @Override
+    public PDone expand(PCollection<T> input) {
+      Location loc = getLocation();
+      checkArguments(loc);
+
+      String stagingBucketDir = String.format("%s/%s/", loc.getStagingBucketName(), WRITE_TMP_PATH);
+
+      PCollection out = write(input, stagingBucketDir);
+      out.setCoder(StringUtf8Coder.of());
+
+      return PDone.in(out.getPipeline());
+    }
+
+    private void checkArguments(Location loc) {
+      checkArgument(loc != null, "via() is required");
+      checkArgument(
+          loc.getStorageIntegrationName() != null,
+          "location with storageIntegrationName is required");
+      checkArgument(
+          loc.getStagingBucketName() != null, "location with stagingBucketName is required");
+
+      checkArgument(getUserDataMapper() != null, "withUserDataMapper() is required");
+
+      checkArgument(
+          (getDataSourceProviderFn() != null),
+          "withDataSourceConfiguration() or withDataSourceProviderFn() is required");
+
+      checkArgument(getTable() != null, "withTable() is required");
+    }
+
+    private PCollection write(PCollection input, String stagingBucketDir) {
+      SnowflakeService snowflakeService =
+          getSnowflakeService() != null ? getSnowflakeService() : new SnowflakeServiceImpl();
+
+      PCollection files = writeFiles(input, stagingBucketDir);
+
+      files =
+          (PCollection)
+              files.apply("Create list of files to copy", Combine.globally(new Concatenate()));
+
+      return (PCollection)
+          files.apply("Copy files to table", copyToTable(snowflakeService, stagingBucketDir));
+    }
+
+    private PCollection writeFiles(PCollection<T> input, String stagingBucketDir) {
+      class Parse extends DoFn<KV<T, String>, String> {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          c.output(c.element().getValue());
+        }
+      }
+
+      PCollection mappedUserData =
+          input
+              .apply(
+                  "Map user data to Objects array",
+                  ParDo.of(new MapUserDataObjectsArrayFn<T>(getUserDataMapper())))
+              .apply("Map Objects array to CSV lines", ParDo.of(new MapObjectsArrayToCsvFn()))
+              .setCoder(StringUtf8Coder.of());
+
+      WriteFilesResult filesResult =
+          (WriteFilesResult)
+              mappedUserData.apply(
+                  "Write files to specified location",
+                  FileIO.write()
+                      .via((FileIO.Sink) new CSVSink())
+                      .to(stagingBucketDir)
+                      .withPrefix(getFileNameTemplate())
+                      .withSuffix(".csv")
+                      .withPrefix(UUID.randomUUID().toString().subSequence(0, 8).toString())
+                      .withCompression(Compression.GZIP));
+
+      return (PCollection)
+          filesResult
+              .getPerDestinationOutputFilenames()
+              .apply("Parse KV filenames to Strings", ParDo.of(new Parse()));
+    }
+
+    private ParDo.SingleOutput<Object, Object> copyToTable(
+        SnowflakeService snowflakeService, String stagingBucketDir) {
+      return ParDo.of(
+          new CopyToTableFn<>(
+              getDataSourceProviderFn(),
+              getTable(),
+              getQuery(),
+              stagingBucketDir,
+              getLocation(),
+              getWriteDisposition(),
+              snowflakeService));
+    }
+  }
+
+  public static class Concatenate extends Combine.CombineFn<String, List<String>, List<String>> {
+    @Override
+    public List<String> createAccumulator() {
+      return new ArrayList<>();
+    }
+
+    @Override
+    public List<String> addInput(List<String> mutableAccumulator, String input) {
+      mutableAccumulator.add(String.format("'%s'", input));
+      return mutableAccumulator;
+    }
+
+    @Override
+    public List<String> mergeAccumulators(Iterable<List<String>> accumulators) {
+      List<String> result = createAccumulator();
+      for (List<String> accumulator : accumulators) {
+        result.addAll(accumulator);
+      }
+      return result;
+    }
+
+    @Override
+    public List<String> extractOutput(List<String> accumulator) {
+      return accumulator;
+    }
+  }
+
+  private static class MapUserDataObjectsArrayFn<T> extends DoFn<T, Object[]> {
+    private final UserDataMapper<T> csvMapper;
+
+    public MapUserDataObjectsArrayFn(UserDataMapper<T> csvMapper) {
+      this.csvMapper = csvMapper;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      context.output(csvMapper.mapRow(context.element()));
+    }
+  }
+
+  /**
+   * Custom DoFn that maps {@link Object[]} into CSV line to be saved to Snowflake.
+   *
+   * <p>Adds Snowflake-specific quotations around strings.
+   */
+  private static class MapObjectsArrayToCsvFn extends DoFn<Object[], String> {
+
+    @ProcessElement
+    public void processElement(ProcessContext context) {
+      List<Object> csvItems = new ArrayList<>();
+      for (Object o : context.element()) {
+        if (o instanceof String) {
+          String field = (String) o;
+          field = field.replace("'", "''");
+          field = quoteField(field);
+
+          csvItems.add(field);
+        } else {
+          csvItems.add(o);
+        }
+      }
+      context.output(Joiner.on(",").useForNull("").join(csvItems));
+    }
+
+    private String quoteField(String field) {
+      return quoteField(field, CSV_QUOTE_CHAR);
+    }
+
+    private String quoteField(String field, String quotation) {
+      return String.format("%s%s%s", quotation, field, quotation);
+    }
+  }
+
+  private static class CopyToTableFn<ParameterT, OutputT> extends DoFn<ParameterT, OutputT> {
+    private final SerializableFunction<Void, DataSource> dataSourceProviderFn;
+    private final String table;
+    private final String query;
+    private final String stagingBucketDir;
+    private final Location location;
+    private final WriteDisposition writeDisposition;
+    private final SnowflakeService snowflakeService;
+
+    CopyToTableFn(
+        SerializableFunction<Void, DataSource> dataSourceProviderFn,
+        String table,
+        String query,
+        String stagingBucketDir,
+        Location location,
+        WriteDisposition writeDisposition,
+        SnowflakeService snowflakeService) {
+      this.dataSourceProviderFn = dataSourceProviderFn;
+      this.table = table;
+      this.query = query;
+      this.stagingBucketDir = stagingBucketDir;
+      this.location = location;
+      this.writeDisposition = writeDisposition;
+      this.snowflakeService = snowflakeService;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext context) throws Exception {
+      SnowflakeServiceConfig config =
+          new SnowflakeServiceConfig(
+              dataSourceProviderFn,
+              (List<String>) context.element(),
+              table,
+              query,
+              writeDisposition,
+              location,
+              stagingBucketDir);
+      snowflakeService.write(config);
     }
   }
 
@@ -739,6 +1126,15 @@ public class SnowflakeIO {
     private final DataSourceConfiguration config;
 
     private DataSourceProviderFromDataSourceConfiguration(DataSourceConfiguration config) {
+      if (config.getValidate()) {
+        try {
+          Connection connection = config.buildDatasource().getConnection();
+          connection.close();
+        } catch (SQLException e) {
+          throw new IllegalArgumentException(
+              "Invalid DataSourceConfiguration. Underlying cause: " + e);
+        }
+      }
       this.config = config;
     }
 
