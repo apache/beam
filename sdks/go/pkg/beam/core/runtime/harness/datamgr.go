@@ -266,24 +266,28 @@ func (c *DataChannel) read(ctx context.Context) {
 				cache[id] = r
 			}
 
-			if r.completed {
-				// The local reader has closed but the remote is still sending data.
-				// Just ignore it. We keep the reader config in the cache so we don't
-				// treat it as a new reader. Eventually the stream will finish and go
-				// through normal teardown.
-				continue
-			}
 			// TODO(BEAM-9558): Cleanup once dataflow is updated.
 			if len(elm.GetData()) == 0 || elm.GetIsLast() {
-				// Sentinel EOF segment for stream. Close buffer to signal EOF.
-				r.completed = true
-				close(r.buf)
+				// If this reader hasn't closed yet, do so now.
+				if !r.completed {
+					// Sentinel EOF segment for stream. Close buffer to signal EOF.
+					r.completed = true
+					close(r.buf)
+				}
 
 				// Clean up local bookkeeping. We'll never see another message
 				// for it again. We have to be careful not to remove the real
 				// one, because readers may be initialized after we've seen
 				// the full stream.
 				delete(cache, id)
+				continue
+			}
+
+			if r.completed {
+				// The local reader has closed but the remote is still sending data.
+				// Just ignore it. We keep the reader config in the cache so we don't
+				// treat it as a new reader. Eventually the stream will finish and go
+				// through normal teardown.
 				continue
 			}
 
