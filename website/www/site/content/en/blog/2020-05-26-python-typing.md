@@ -23,7 +23,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-TODO excerpt
+Beam Python has recently increased its support and integration of Python 3 type
+annotations for improved code clarity and type correctness checks.
+Read on to find out what's new.
 
 <!--more-->
 
@@ -83,8 +85,8 @@ class MyDoFn(beam.DoFn):
 ```
 is equivalent to this:
 ```py
-@beam.typehints.with_input_types(int)
-@beam.typehints.with_output_types(typing.Text)
+@apache_beam.typehints.with_input_types(int)
+@apache_beam.typehints.with_output_types(typing.Text)
 class MyDoFn(beam.DoFn):
   def process(self, element):
     yield str(element)
@@ -106,19 +108,23 @@ still work and take precedence over annotations.
 
 Sidebar:
 
-> You might ask: couldn't we use mypy to type check Beam pipelines? The main issue
-is that such a tool would have to understand type relations between
-pipeline graph nodes, e.g., that the type of element passed to a transform
-should be consistent with its annotated input type.
-Another issue is that pipelines are constructed during runtime, so that would 
-need to be simulated in the tool as well.
+> You might ask: couldn't we use mypy to type check Beam pipelines?
+There are several reasons why this is not the case.
+> - Pipelines are constructed at runtime and may depend on information that is
+> only known at that time, such as a config file or database table schema.
+> - PCollections don't have the necessary type information, so mypy sees them as
+> effectively containing any element type.
+> This may change in in the future.
+> - Transforms using lambdas (ex: `beam.Map(lambda x: (1, x)`) cannot be
+> annotated properly using PEP 484.
+> However, Beam does a best-effort attempt to analyze the output type
+> from the bytecode.
 
 ## Typing Module Support
 
 Python's [typing](https://docs.python.org/3/library/typing.html) module defines
 types used in type annotations. This is what we call "native" types.
-While Beam has its own typing types, it has also supported native types
-since version TODO.
+While Beam has its own typing types, it also supports native types.
 While both Beam and native types are supported, for new code we encourage using
 native typing types. Native types have  as these are supported by additional tools.
 
