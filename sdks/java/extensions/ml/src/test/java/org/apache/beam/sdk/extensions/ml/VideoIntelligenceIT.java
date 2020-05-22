@@ -58,7 +58,7 @@ public class VideoIntelligenceIT {
     @Override
     public Void apply(Iterable<List<VideoAnnotationResults>> input) {
       List<Boolean> labelEvaluations = new ArrayList<>();
-      input.forEach(findStringMatchesInVideoAnnotationResultList(labelEvaluations, "dinosaur"));
+      input.forEach(findStringMatchesInVideoAnnotationResultList(labelEvaluations, "bicycle"));
       assertEquals(Boolean.TRUE, labelEvaluations.contains(Boolean.TRUE));
       return null;
     }
