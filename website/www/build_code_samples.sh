@@ -30,7 +30,6 @@ echo "Dist directory: ${DIST_DIR}"
 
 CONTENT_DIR=${2:-"./site/content"}
 
-
 mapfile -t code_sample_uris < <(grep -rh "{{< code_sample" "${CONTENT_DIR}" | sed -e 's/^.*"\(.*\)".*$/\1/g' | sort | uniq | xargs -n 1 echo)
 
 mkdir -pv "${DIST_DIR}"
