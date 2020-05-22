@@ -198,6 +198,10 @@ type SplitPoints struct {
 	// Splits is a list of desired split indices.
 	Splits []int64
 	Frac   float64
+
+	// Estimated total number of elements (including unsent) for the source.
+	// A zero value indicates unknown, instead use locally known size.
+	BufSize int64
 }
 
 // Split takes a set of potential split indexes, and if successful returns
@@ -206,7 +210,7 @@ type SplitPoints struct {
 // Returns an error when unable to split.
 func (p *Plan) Split(s SplitPoints) (int64, error) {
 	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac)
+		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
 	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }
