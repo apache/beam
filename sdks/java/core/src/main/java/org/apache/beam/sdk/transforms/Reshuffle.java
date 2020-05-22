@@ -140,7 +140,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
         // and ensures that data to be shuffled can be generated in parallel, while reshuffling
         // provides perfect parallelism.
         // In most cases where a "fusion break" is needed, a simple reshuffle would be sufficient.
-        // The current approach is necessary only to support the particular case of JdbcIO where
+        // The current approach is necessary to support use cases such as JdbcIO where
         // a single query may produce many gigabytes of query results.
         PCollectionView<Iterable<T>> empty =
             input
