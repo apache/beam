@@ -113,7 +113,7 @@ $(document).ready(function() {
                }
 
                 // Swapping visibility of code blocks.
-                $(this.selector).hide();
+                $(this.selector).not(".language-md").hide();
                 $("nav"+this.selector).show();
                 $("." + pref).show();
             },
