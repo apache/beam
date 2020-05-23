@@ -15,9 +15,12 @@
 {{ define "language-row" }}
   {{ if len (where .row.implementations "language" .language) }}
   <tr class="language-{{ .language }}">
-    <td>{{ .row.transform | markdownify }}</td>
-    <td>{{ .row.description | markdownify }}</td>
     <td>
+      {{ .row.transform | markdownify }}
+      {{ if .row.docs }}<a href="{{ .row.docs }}"> (guide)</a>{{ else }}{{ end }}
+    </td>
+    <td>{{ .row.description | markdownify }}</td>
+    <td style="word-break: break-all;">
       {{ range where .row.implementations "language" .language }}
         <div><a target="_blank" href="{{ .url }}">{{ .name }}</a></div>
       {{ else }}
@@ -37,7 +40,11 @@
   <tr>
     <th>Name</th>
     <th>Description</th>
-    <th>Implementation(s)</th>
+    <th>
+      <span class="language-java">Javadoc</span>
+      <span class="language-py">pydoc</span>
+      <span class="language-go">Godoc</span>
+    </th>
   </tr>
   {{ range .rows }}
     {{ block "language-row" (dict "row" . "language" "java") }}{{ end }}
