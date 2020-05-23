@@ -242,7 +242,7 @@ categories:
             name: org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO
             url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hadoop/format/HadoopFormatIO.html
       - transform: HBaseIO
-        description: A bounded source and sink for [HBase])https://hbase.apache.org/.
+        description: A bounded source and sink for [HBase](https://hbase.apache.org/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.hbase.HBaseIO
