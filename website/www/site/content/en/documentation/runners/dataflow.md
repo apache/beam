@@ -117,7 +117,7 @@ java -jar target/beam-examples-bundled-1.0.0.jar \
   --runner=DataflowRunner \
   --project=<YOUR_GCP_PROJECT_ID> \
   --region=<GCP_REGION> \
-  --tempLocation=gs://<YOUR_GCS_BUCKET>/temp/
+  --gcpTempLocation=gs://<YOUR_GCS_BUCKET>/temp/
 {{< /highlight >}}
 
 ## Pipeline options for the Cloud Dataflow Runner {#pipeline-options}
