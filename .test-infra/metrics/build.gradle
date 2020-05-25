@@ -50,9 +50,37 @@ dockerCompose {
 
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task preCommit { dependsOn testMetricsStack }
+task validateConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+}
 
-task checkProber(type:Test) {
+task preCommit {
+  dependsOn validateConfiguration
+  dependsOn testMetricsStack
+}
+
+task buildAndPublishContainers(type: Exec) {
+  commandLine './build_and_publish_containers.sh', 'true'
+}
+
+// Applies new configuration to all resources labeled with `app=beammetrics`
+// and forces Kubernetes to re-pull images.
+task applyConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --selector=app=beammetrics --prune=true -Rf kubernetes && \
+    kubectl wait --selector=app=beammetrics --for=condition=available deployment && \
+    kubectl get --selector=app=beammetrics -o name deployments | xargs -r kubectl rollout restart'
+}
+
+task deploy {
+  dependsOn buildAndPublishContainers
+  dependsOn applyConfiguration
+}
+
+task postCommit {
+  dependsOn deploy
+}
+
+task checkProber(type: Test) {
   include "**/ProberTests.class"
 }
 

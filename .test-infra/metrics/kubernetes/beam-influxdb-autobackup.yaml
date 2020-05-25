@@ -16,13 +16,35 @@
 # limitations under the License.
 ################################################################################
 
-apiVersion: v1
-kind: PersistentVolumeClaim
+# A Cron Job that makes a full InfluxDB backup every week.
+apiVersion: batch/v1beta1
+kind: CronJob
 metadata:
-  name: influxdb-backups
+  labels:
+    app: beammetrics
+  name: influxdb-autobackup
 spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 10Gi
+  schedule: "@weekly"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - image: influxdb:1.8.0
+              name: influxdb-autobackup
+              args:
+                - influxd
+                - backup
+                - -portable
+                - -host
+                - influxdb-rpc:8088
+                - /backups
+              volumeMounts:
+                - mountPath: /backups
+                  name: influxdb-backups
+          restartPolicy: Never
+          volumes:
+            - name: influxdb-backups
+              persistentVolumeClaim:
+                claimName: influxdb-backups
