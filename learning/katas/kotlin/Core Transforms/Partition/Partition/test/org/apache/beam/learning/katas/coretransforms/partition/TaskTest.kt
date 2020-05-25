@@ -31,7 +31,7 @@ class TaskTest {
 
     @Test
     fun core_transforms_partition_partition() {
-        val numbers = testPipeline.apply( Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250))
+        val numbers = testPipeline.apply(Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250))
 
         val results = applyTransform(numbers)
 

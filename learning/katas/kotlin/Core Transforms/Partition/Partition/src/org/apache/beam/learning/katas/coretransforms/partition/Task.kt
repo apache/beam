@@ -22,7 +22,6 @@ import org.apache.beam.sdk.Pipeline
 import org.apache.beam.sdk.options.PipelineOptionsFactory
 import org.apache.beam.sdk.transforms.Create
 import org.apache.beam.sdk.transforms.Partition
-import org.apache.beam.sdk.transforms.Partition.PartitionFn
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
 
@@ -33,7 +32,7 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val numbers = pipeline.apply(
-                Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
+            Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
         )
 
         val partition = applyTransform(numbers)
@@ -47,12 +46,12 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<Int>): PCollectionList<Int> {
         return input
-                .apply(Partition.of(2) { number: Int, numPartitions: Int ->
-                    if (number > 100) {
-                        0
-                    } else {
-                        1
-                    }
-                })
+            .apply(Partition.of(2) { number: Int, numPartitions: Int ->
+                if (number > 100) {
+                    0
+                } else {
+                    1
+                }
+            })
     }
 }

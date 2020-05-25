@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/map/pardo/Task.kt
   visible: true
   placeholders:
-  - offset: 1664
-    length: 280
+  - offset: 1667
+    length: 273
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/map/pardo/TaskTest.kt
   visible: false

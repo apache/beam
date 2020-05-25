@@ -33,17 +33,17 @@ class TaskTest {
     @Test
     fun `Common Transforms - WithKeys - WithKeys`() {
         val numbers = testPipeline.apply(
-                Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
+            Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
         )
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(
-                KV.of("a", "apple"),
-                KV.of("b", "banana"),
-                KV.of("c", "cherry"),
-                KV.of("d", "durian"),
-                KV.of("g", "guava"),
-                KV.of("m", "melon")
+            KV.of("a", "apple"),
+            KV.of("b", "banana"),
+            KV.of("c", "cherry"),
+            KV.of("d", "durian"),
+            KV.of("g", "guava"),
+            KV.of("m", "melon")
         )
 
         testPipeline.run().waitUntilFinish()

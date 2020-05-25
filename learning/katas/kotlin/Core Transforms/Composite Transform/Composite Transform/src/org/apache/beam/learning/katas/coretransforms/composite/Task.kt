@@ -32,9 +32,9 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         pipeline
-                .apply(Create.of("1,2,3,4,5", "6,7,8,9,10"))
-                .apply(ExtractAndMultiplyNumbers())
-                .apply(Log.ofElements())
+            .apply(Create.of("1,2,3,4,5", "6,7,8,9,10"))
+            .apply(ExtractAndMultiplyNumbers())
+            .apply(Log.ofElements())
 
         pipeline.run()
     }
@@ -42,18 +42,21 @@ object Task {
     internal class ExtractAndMultiplyNumbers : PTransform<PCollection<String>, PCollection<Int>>() {
         override fun expand(input: PCollection<String>): PCollection<Int> {
             return input
-                    .apply(ParDo.of(object : DoFn<String, Int>() {
-                        @ProcessElement
-                        fun processElement(@Element numbers: String, out: OutputReceiver<Int>) {
-                            Arrays.stream(numbers.split(",")
-                                    .toTypedArray())
-                                    .forEach { numStr: String -> out.output(numStr.toInt()) }
-                        }
-                    }))
-                    .apply(MapElements
-                            .into(TypeDescriptors.integers())
-                            .via(SerializableFunction { number: Int -> number * 10 })
-                    )
+                .apply(ParDo.of(object : DoFn<String, Int>() {
+                    @ProcessElement
+                    fun processElement(@Element numbers: String, out: OutputReceiver<Int>) {
+                        Arrays.stream(
+                            numbers.split(",")
+                                .toTypedArray()
+                        )
+                            .forEach { numStr: String -> out.output(numStr.toInt()) }
+                    }
+                }))
+                .apply(
+                    MapElements
+                        .into(TypeDescriptors.integers())
+                        .via(SerializableFunction { number: Int -> number * 10 })
+                )
         }
     }
 }

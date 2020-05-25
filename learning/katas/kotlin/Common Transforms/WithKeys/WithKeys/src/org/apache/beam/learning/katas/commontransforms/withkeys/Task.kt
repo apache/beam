@@ -33,7 +33,7 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val words = pipeline.apply(
-                Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
+            Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
         )
 
         val output = applyTransform(words)
@@ -46,8 +46,8 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<KV<String, String>> {
         return input.apply(WithKeys
-                        .of { fruit: String -> fruit.substring(0, 1) }
-                        .withKeyType(TypeDescriptors.strings())
-                )
+            .of { fruit: String -> fruit.substring(0, 1) }
+            .withKeyType(TypeDescriptors.strings())
+        )
     }
 }

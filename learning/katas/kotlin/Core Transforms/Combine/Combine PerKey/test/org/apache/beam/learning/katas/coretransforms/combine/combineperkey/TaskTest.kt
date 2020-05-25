@@ -33,15 +33,15 @@ class TaskTest {
     @Test
     fun core_transforms_combine_combine_perkey() {
         val values = Create.of(
-                KV.of(Task.PLAYER_1, 15), KV.of(Task.PLAYER_2, 10), KV.of(Task.PLAYER_1, 100),
-                KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
+            KV.of(Task.PLAYER_1, 15), KV.of(Task.PLAYER_2, 10), KV.of(Task.PLAYER_1, 100),
+            KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
         )
         val numbers = testPipeline.apply(values)
 
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(
-                KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
+            KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
         )
 
         testPipeline.run().waitUntilFinish()

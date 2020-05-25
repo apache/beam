@@ -27,7 +27,8 @@ import org.hamcrest.collection.IsIterableContainingInAnyOrder
 import org.junit.Assert
 import java.util.*
 
-class ContainsKvs private constructor(private val expectedKvs: List<KV<String, Iterable<String>>>) : SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void?> {
+class ContainsKvs private constructor(private val expectedKvs: List<KV<String, Iterable<String>>>) :
+    SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void?> {
 
     companion object {
         @SafeVarargs
@@ -41,7 +42,12 @@ class ContainsKvs private constructor(private val expectedKvs: List<KV<String, I
 
         for (expected in expectedKvs) {
             val values = Iterables.toArray(expected.value, String::class.java)
-            matchers.add(KvMatcher.Companion.isKv(CoreMatchers.equalTo(expected.key), IsIterableContainingInAnyOrder.containsInAnyOrder(*values)))
+            matchers.add(
+                KvMatcher.Companion.isKv(
+                    CoreMatchers.equalTo(expected.key),
+                    IsIterableContainingInAnyOrder.containsInAnyOrder(*values)
+                )
+            )
         }
 
         Assert.assertThat(input, IsIterableContainingInAnyOrder.containsInAnyOrder(matchers))

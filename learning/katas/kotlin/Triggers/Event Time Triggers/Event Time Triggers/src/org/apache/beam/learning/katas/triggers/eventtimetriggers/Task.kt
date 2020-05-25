@@ -46,11 +46,12 @@ object Task {
     @JvmStatic
     fun applyTransform(events: PCollection<String>): PCollection<Long> {
         return events
-                .apply(Window.into<String>(FixedWindows.of(Duration.standardSeconds(5)))
-                        .triggering(AfterWatermark.pastEndOfWindow())
-                        .withAllowedLateness(Duration.ZERO)
-                        .discardingFiredPanes()
-                )
-                .apply(Combine.globally(Count.combineFn<String>()).withoutDefaults())
+            .apply(
+                Window.into<String>(FixedWindows.of(Duration.standardSeconds(5)))
+                    .triggering(AfterWatermark.pastEndOfWindow())
+                    .withAllowedLateness(Duration.ZERO)
+                    .discardingFiredPanes()
+            )
+            .apply(Combine.globally(Count.combineFn<String>()).withoutDefaults())
     }
 }

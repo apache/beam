@@ -45,8 +45,10 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(MapElements
+        return input.apply(
+            MapElements
                 .into(TypeDescriptors.strings())
-                .via(SerializableFunction(String::toUpperCase)))
+                .via(SerializableFunction(String::toUpperCase))
+        )
     }
 }

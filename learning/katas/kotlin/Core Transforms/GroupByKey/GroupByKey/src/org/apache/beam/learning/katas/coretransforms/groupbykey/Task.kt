@@ -35,7 +35,7 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val words = pipeline.apply(
-                Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
+            Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
         )
 
         val output = applyTransform(words)
@@ -48,10 +48,11 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<KV<String, Iterable<String>>> {
         return input
-                .apply(MapElements
-                        .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
-                        .via(SerializableFunction { word: String -> KV.of(word.substring(0, 1), word) })
-                )
-                .apply(GroupByKey.create())
+            .apply(
+                MapElements
+                    .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
+                    .via(SerializableFunction { word: String -> KV.of(word.substring(0, 1), word) })
+            )
+            .apply(GroupByKey.create())
     }
 }

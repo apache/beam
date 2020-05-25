@@ -24,14 +24,13 @@ import org.apache.beam.sdk.transforms.*
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
-import java.util.*
 
 object Task {
     @JvmStatic
     fun main(args: Array<String>) {
         val lines = arrayOf(
-                "apple orange grape banana apple banana",
-                "banana orange banana papaya"
+            "apple orange grape banana apple banana",
+            "banana orange banana papaya"
         )
 
         val options = PipelineOptionsFactory.fromArgs(*args).create()
@@ -49,18 +48,19 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
         return input
-                .apply(FlatMapElements
-                        .into(TypeDescriptors.strings())
-                        .via(SerializableFunction<String, Iterable<String>> { line: String ->
-                            line.split(" ") }
-                        )
+            .apply(FlatMapElements
+                .into(TypeDescriptors.strings())
+                .via(SerializableFunction<String, Iterable<String>> { line: String ->
+                    line.split(" ")
+                }
                 )
-                .apply(Count.perElement())
-                .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
-                    @ProcessElement
-                    fun processElement(@Element element: KV<String, Long>, out: OutputReceiver<String>) {
-                        out.output(element.key.toString() + ":" + element.value)
-                    }
-                }))
+            )
+            .apply(Count.perElement())
+            .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
+                @ProcessElement
+                fun processElement(@Element element: KV<String, Long>, out: OutputReceiver<String>) {
+                    out.output(element.key.toString() + ":" + element.value)
+                }
+            }))
     }
 }

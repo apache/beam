@@ -32,10 +32,11 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val numbers = pipeline.apply(
-                Create.of(
-                        BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
-                        BigInteger.valueOf(40), BigInteger.valueOf(50)
-                ))
+            Create.of(
+                BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
+                BigInteger.valueOf(40), BigInteger.valueOf(50)
+            )
+        )
 
         val output = applyTransform(numbers)
 

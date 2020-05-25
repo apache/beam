@@ -33,8 +33,8 @@ class TaskTest {
     @Test
     fun core_transforms_combine_binarycombinefn_lambda() {
         val values = Create.of(
-                BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
-                BigInteger.valueOf(40), BigInteger.valueOf(50)
+            BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
+            BigInteger.valueOf(40), BigInteger.valueOf(50)
         )
         val numbers = testPipeline.apply(values)
 

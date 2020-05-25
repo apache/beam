@@ -35,8 +35,8 @@ class TaskTest : Serializable {
     fun core_transforms_side_output_side_output() {
         val numbers = testPipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
 
-        val numBelow100Tag = object: TupleTag<Int>() {}
-        val numAbove100Tag = object: TupleTag<Int>() {}
+        val numBelow100Tag = object : TupleTag<Int>() {}
+        val numAbove100Tag = object : TupleTag<Int>() {}
 
         val resultsTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
 

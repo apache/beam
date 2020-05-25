@@ -33,13 +33,13 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val events = pipeline.apply(
-                Create.of(
-                        Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
-                        Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
-                        Event("3", "paper-order", DateTime.parse("2019-06-03T00:00:00+00:00")),
-                        Event("4", "pencil-order", DateTime.parse("2019-06-04T00:00:00+00:00")),
-                        Event("5", "book-order", DateTime.parse("2019-06-05T00:00:00+00:00"))
-                )
+            Create.of(
+                Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
+                Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
+                Event("3", "paper-order", DateTime.parse("2019-06-03T00:00:00+00:00")),
+                Event("4", "pencil-order", DateTime.parse("2019-06-04T00:00:00+00:00")),
+                Event("5", "book-order", DateTime.parse("2019-06-05T00:00:00+00:00"))
+            )
         )
 
         val output = applyTransform(events)

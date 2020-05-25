@@ -6,7 +6,7 @@ files:
   visible: true
   placeholders:
   - offset: 1885
-    length: 535
+    length: 541
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/triggers/earlytriggers/TaskTest.kt
   visible: false

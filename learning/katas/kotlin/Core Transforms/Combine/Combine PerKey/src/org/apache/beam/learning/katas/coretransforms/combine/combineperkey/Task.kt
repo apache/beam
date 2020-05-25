@@ -37,10 +37,11 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val scores = pipeline.apply(
-                Create.of(
-                        KV.of(PLAYER_1, 15), KV.of(PLAYER_2, 10), KV.of(PLAYER_1, 100),
-                        KV.of(PLAYER_3, 25), KV.of(PLAYER_2, 75)
-                ))
+            Create.of(
+                KV.of(PLAYER_1, 15), KV.of(PLAYER_2, 10), KV.of(PLAYER_1, 100),
+                KV.of(PLAYER_3, 25), KV.of(PLAYER_2, 75)
+            )
+        )
 
         val output = applyTransform(scores)
 

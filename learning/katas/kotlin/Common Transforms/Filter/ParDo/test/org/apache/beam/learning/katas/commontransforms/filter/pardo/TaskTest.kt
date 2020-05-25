@@ -21,7 +21,6 @@ import org.apache.beam.learning.katas.commontransforms.filter.pardo.Task.applyTr
 import org.apache.beam.sdk.testing.PAssert
 import org.apache.beam.sdk.testing.TestPipeline
 import org.apache.beam.sdk.transforms.Create
-import org.apache.beam.sdk.values.PCollection
 import org.junit.Rule
 import org.junit.Test
 
@@ -32,8 +31,8 @@ class TaskTest {
 
     @Test
     fun common_transforms_filter_pardo() {
-        val values= Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        val numbers= testPipeline.apply(values)
+        val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+        val numbers = testPipeline.apply(values)
 
         val results = applyTransform(numbers)
 

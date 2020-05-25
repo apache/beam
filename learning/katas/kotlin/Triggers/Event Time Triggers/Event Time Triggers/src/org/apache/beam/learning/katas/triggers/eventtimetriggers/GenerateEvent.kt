@@ -35,7 +35,7 @@ class GenerateEvent : PTransform<PBegin, PCollection<String>>() {
 
     override fun expand(input: PBegin): PCollection<String> {
         return input
-                .apply(GenerateSequence.from(1).withRate(1, Duration.standardSeconds(1)))
-                .apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction { "event" }))
+            .apply(GenerateSequence.from(1).withRate(1, Duration.standardSeconds(1)))
+            .apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction { "event" }))
     }
 }

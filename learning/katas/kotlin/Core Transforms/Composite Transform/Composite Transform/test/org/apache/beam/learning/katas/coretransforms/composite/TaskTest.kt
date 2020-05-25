@@ -34,8 +34,8 @@ class TaskTest {
         val values = Create.of("1,2,3,4,5", "6,7,8,9,10")
 
         val results = testPipeline
-                .apply(values)
-                .apply(ExtractAndMultiplyNumbers())
+            .apply(values)
+            .apply(ExtractAndMultiplyNumbers())
 
         PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
 

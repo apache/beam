@@ -36,16 +36,16 @@ class TaskTest {
         val results = applyTransform(countries)
 
         PAssert.that(results).containsInAnyOrder(
-                "AUSTRALIA",
-                "CHINA",
-                "ENGLAND",
-                "FRANCE",
-                "GERMANY",
-                "INDONESIA",
-                "JAPAN",
-                "MEXICO",
-                "SINGAPORE",
-                "UNITED STATES"
+            "AUSTRALIA",
+            "CHINA",
+            "ENGLAND",
+            "FRANCE",
+            "GERMANY",
+            "INDONESIA",
+            "JAPAN",
+            "MEXICO",
+            "SINGAPORE",
+            "UNITED STATES"
         )
 
         testPipeline.run().waitUntilFinish()

@@ -37,7 +37,7 @@ class TaskTest {
         val results = applyTransform(numbers)
 
         PAssert.that(results).containsInAnyOrder(
-                "Apache", "Beam", "Unified", "Batch", "and", "Streaming"
+            "Apache", "Beam", "Unified", "Batch", "and", "Streaming"
         )
         testPipeline.run().waitUntilFinish()
     }

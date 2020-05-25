@@ -31,20 +31,22 @@ class TaskTest {
 
     @Test
     fun core_transforms_cogroupbykey_cogroupbykey() {
-        val fruits = testPipeline.apply("Fruits",
-                Create.of("apple", "banana", "cherry")
+        val fruits = testPipeline.apply(
+            "Fruits",
+            Create.of("apple", "banana", "cherry")
         )
 
-        val countries = testPipeline.apply("Countries",
-                Create.of("australia", "brazil", "canada")
+        val countries = testPipeline.apply(
+            "Countries",
+            Create.of("australia", "brazil", "canada")
         )
 
         val results = applyTransform(fruits, countries)
 
         PAssert.that(results).containsInAnyOrder(
-                "WordsAlphabet{alphabet='a', fruit='apple', country='australia'}",
-                "WordsAlphabet{alphabet='b', fruit='banana', country='brazil'}",
-                "WordsAlphabet{alphabet='c', fruit='cherry', country='canada'}"
+            "WordsAlphabet{alphabet='a', fruit='apple', country='australia'}",
+            "WordsAlphabet{alphabet='b', fruit='banana', country='brazil'}",
+            "WordsAlphabet{alphabet='c', fruit='cherry', country='canada'}"
         )
 
         testPipeline.run().waitUntilFinish()

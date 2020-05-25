@@ -25,7 +25,6 @@ import org.apache.beam.sdk.transforms.FlatMapElements
 import org.apache.beam.sdk.transforms.SerializableFunction
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
-import java.util.*
 
 object Task {
     @JvmStatic
@@ -44,10 +43,11 @@ object Task {
 
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(FlatMapElements
+        return input.apply(
+            FlatMapElements
                 .into(TypeDescriptors.strings())
-                .via(SerializableFunction<String, Iterable<String>> {
-                    sentence: String -> sentence.split(" ")
+                .via(SerializableFunction<String, Iterable<String>> { sentence: String ->
+                    sentence.split(" ")
                 })
         )
     }

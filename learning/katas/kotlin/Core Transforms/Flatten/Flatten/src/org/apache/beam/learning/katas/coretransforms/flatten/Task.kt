@@ -30,27 +30,29 @@ object Task {
     fun main(args: Array<String>) {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
-        
-        val wordsStartingWithA = pipeline.apply("Words starting with A",
-                Create.of("apple", "ant", "arrow")
+
+        val wordsStartingWithA = pipeline.apply(
+            "Words starting with A",
+            Create.of("apple", "ant", "arrow")
         )
-        
-        val wordsStartingWithB = pipeline.apply("Words starting with B",
-                Create.of("ball", "book", "bow")
+
+        val wordsStartingWithB = pipeline.apply(
+            "Words starting with B",
+            Create.of("ball", "book", "bow")
         )
-        
+
         val output = applyTransform(wordsStartingWithA, wordsStartingWithB)
-        
+
         output.apply(Log.ofElements())
-        
+
         pipeline.run()
     }
 
     @JvmStatic
     fun applyTransform(words1: PCollection<String>, words2: PCollection<String>): PCollection<String> {
         return PCollectionList
-                .of(words1)
-                .and(words2)
-                .apply(Flatten.pCollections())
+            .of(words1)
+            .and(words2)
+            .apply(Flatten.pCollections())
     }
 }

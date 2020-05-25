@@ -40,11 +40,11 @@ class TaskTest {
         val results = applyTransform(numbers)
 
         PAssert.that(results).satisfies(
-                ContainsKvs.containsKvs(
-                    KV.of("a", ImmutableList.of("apple", "ant")),
-                    KV.of("b", ImmutableList.of("ball", "bear")),
-                    KV.of("c", ImmutableList.of("car", "cheetah"))
-                )
+            ContainsKvs.containsKvs(
+                KV.of("a", ImmutableList.of("apple", "ant")),
+                KV.of("b", ImmutableList.of("ball", "bear")),
+                KV.of("c", ImmutableList.of("car", "cheetah"))
+            )
         )
 
         testPipeline.run().waitUntilFinish()

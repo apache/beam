@@ -46,14 +46,16 @@ object Task {
     @JvmStatic
     fun applyMultiply5Transform(input: PCollection<Int>): PCollection<Int> {
         return input.apply("Multiply by 5", MapElements
-                .into(TypeDescriptors.integers())
-                .via(SerializableFunction { num: Int -> num * 5 }))
+            .into(TypeDescriptors.integers())
+            .via(SerializableFunction { num: Int -> num * 5 })
+        )
     }
 
     @JvmStatic
     fun applyMultiply10Transform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply("Multiply by 10",MapElements
-                .into(TypeDescriptors.integers())
-                .via(SerializableFunction { num: Int -> num * 10 }))
+        return input.apply("Multiply by 10", MapElements
+            .into(TypeDescriptors.integers())
+            .via(SerializableFunction { num: Int -> num * 10 })
+        )
     }
 }

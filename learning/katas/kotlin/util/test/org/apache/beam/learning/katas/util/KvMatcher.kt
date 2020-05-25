@@ -22,8 +22,10 @@ import org.hamcrest.Description
 import org.hamcrest.Matcher
 import org.hamcrest.TypeSafeMatcher
 
-class KvMatcher<K, V>(private val keyMatcher: Matcher<in K>,
-                      private val valueMatcher: Matcher<in V>) : TypeSafeMatcher<KV<out K, out V>>() {
+class KvMatcher<K, V>(
+    private val keyMatcher: Matcher<in K>,
+    private val valueMatcher: Matcher<in V>
+) : TypeSafeMatcher<KV<out K, out V>>() {
 
     companion object {
         fun <K, V> isKv(keyMatcher: Matcher<K>, valueMatcher: Matcher<V>): KvMatcher<K, V> {
@@ -37,9 +39,9 @@ class KvMatcher<K, V>(private val keyMatcher: Matcher<in K>,
 
     override fun describeTo(description: Description) {
         description
-                .appendText("a KV(").appendValue(keyMatcher)
-                .appendText(", ").appendValue(valueMatcher)
-                .appendText(")")
+            .appendText("a KV(").appendValue(keyMatcher)
+            .appendText(", ").appendValue(valueMatcher)
+            .appendText(")")
     }
 
 }

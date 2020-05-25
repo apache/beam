@@ -31,10 +31,14 @@ class TaskTest {
 
     @Test
     fun core_transforms_flatten_flatten() {
-        val wordsStartingWithA = testPipeline.apply("Words starting with A",
-                Create.of("apple", "ant", "arrow"))
-        val wordsStartingWithB = testPipeline.apply("Words starting with B",
-                Create.of("ball", "book", "bow"))
+        val wordsStartingWithA = testPipeline.apply(
+            "Words starting with A",
+            Create.of("apple", "ant", "arrow")
+        )
+        val wordsStartingWithB = testPipeline.apply(
+            "Words starting with B",
+            Create.of("ball", "book", "bow")
+        )
 
         val results = applyTransform(wordsStartingWithA, wordsStartingWithB)
 

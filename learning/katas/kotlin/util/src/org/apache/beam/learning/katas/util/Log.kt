@@ -39,22 +39,22 @@ object Log {
 
         override fun expand(input: PCollection<T>): PCollection<T> {
             return input.apply(
-                    ParDo.of(
-                            object : DoFn<T, T>() {
+                ParDo.of(
+                    object : DoFn<T, T>() {
 
-                                @ProcessElement
-                                fun processElement(@Element element: T, out: OutputReceiver<T>, window: BoundedWindow) {
-                                    var message = prefix + element.toString()
-                                    if (window !is GlobalWindow) {
-                                        message = "$message  Window:$window"
-                                    }
-
-                                    LOG.info(message)
-
-                                    out.output(element)
-                                }
+                        @ProcessElement
+                        fun processElement(@Element element: T, out: OutputReceiver<T>, window: BoundedWindow) {
+                            var message = prefix + element.toString()
+                            if (window !is GlobalWindow) {
+                                message = "$message  Window:$window"
                             }
-                    )
+
+                            LOG.info(message)
+
+                            out.output(element)
+                        }
+                    }
+                )
             )
         }
 

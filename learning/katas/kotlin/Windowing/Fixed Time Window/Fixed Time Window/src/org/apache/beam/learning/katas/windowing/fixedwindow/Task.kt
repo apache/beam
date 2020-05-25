@@ -27,7 +27,6 @@ import org.apache.beam.sdk.transforms.windowing.Window
 import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TimestampedValue
-import org.apache.beam.sdk.values.TypeDescriptors
 import org.joda.time.Duration
 import org.joda.time.Instant
 
@@ -38,18 +37,18 @@ object Task {
         val pipeline = Pipeline.create(options)
 
         val events = pipeline.apply(
-                Create.timestamped(
-                        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
-                        TimestampedValue.of("event", Instant.parse("2019-06-10T00:00:00+00:00"))
-                )
+            Create.timestamped(
+                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
+                TimestampedValue.of("event", Instant.parse("2019-06-10T00:00:00+00:00"))
+            )
         )
 
         val output = applyTransform(events)
@@ -61,7 +60,7 @@ object Task {
 
     fun applyTransform(events: PCollection<String>): PCollection<KV<String, Long>> {
         return events
-                .apply(Window.into<String>(FixedWindows.of(Duration.standardDays(1))))
-                .apply(Count.perElement())
+            .apply(Window.into<String>(FixedWindows.of(Duration.standardDays(1))))
+            .apply(Count.perElement())
     }
 }

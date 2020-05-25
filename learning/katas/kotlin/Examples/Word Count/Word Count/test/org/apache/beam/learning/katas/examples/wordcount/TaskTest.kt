@@ -32,8 +32,8 @@ class TaskTest {
     @Test
     fun examples_word_count_word_count() {
         val lines = Create.of(
-                "apple orange grape banana apple banana",
-                "banana orange banana papaya"
+            "apple orange grape banana apple banana",
+            "banana orange banana papaya"
         )
 
         val linesPColl = testPipeline.apply(lines)
@@ -41,11 +41,11 @@ class TaskTest {
         val results = applyTransform(linesPColl)
 
         PAssert.that(results).containsInAnyOrder(
-                "apple:2",
-                "banana:4",
-                "grape:1",
-                "orange:2",
-                "papaya:1"
+            "apple:2",
+            "banana:4",
+            "grape:1",
+            "orange:2",
+            "papaya:1"
         )
 
         testPipeline.run().waitUntilFinish()

@@ -34,25 +34,29 @@ object Task {
         val options = PipelineOptionsFactory.fromArgs(*args).create()
         val pipeline = Pipeline.create(options)
 
-        val citiesToCountries = pipeline.apply("Cities and Countries",
-                Create.of(
-                        KV.of("Beijing", "China"),
-                        KV.of("London", "United Kingdom"),
-                        KV.of("San Francisco", "United States"),
-                        KV.of("Singapore", "Singapore"),
-                        KV.of("Sydney", "Australia")
-                ))
+        val citiesToCountries = pipeline.apply(
+            "Cities and Countries",
+            Create.of(
+                KV.of("Beijing", "China"),
+                KV.of("London", "United Kingdom"),
+                KV.of("San Francisco", "United States"),
+                KV.of("Singapore", "Singapore"),
+                KV.of("Sydney", "Australia")
+            )
+        )
 
         val citiesToCountriesView = createView(citiesToCountries)
 
-        val persons = pipeline.apply("Persons",
-                Create.of(
-                        Person("Henry", "Singapore"),
-                        Person("Jane", "San Francisco"),
-                        Person("Lee", "Beijing"),
-                        Person("John", "Sydney"),
-                        Person("Alfred", "London")
-                ))
+        val persons = pipeline.apply(
+            "Persons",
+            Create.of(
+                Person("Henry", "Singapore"),
+                Person("Jane", "San Francisco"),
+                Person("Lee", "Beijing"),
+                Person("John", "Sydney"),
+                Person("Alfred", "London")
+            )
+        )
 
         val output = applyTransform(persons, citiesToCountriesView)
 
@@ -67,8 +71,10 @@ object Task {
     }
 
     @JvmStatic
-    fun applyTransform(persons: PCollection<Person>,
-                       citiesToCountriesView: PCollectionView<Map<String, String>>): PCollection<Person> {
+    fun applyTransform(
+        persons: PCollection<Person>,
+        citiesToCountriesView: PCollectionView<Map<String, String>>
+    ): PCollection<Person> {
 
         return persons.apply(ParDo.of(object : DoFn<Person, Person>() {
             @ProcessElement
