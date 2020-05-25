@@ -30,7 +30,10 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.WithTimestamps;
-import org.apache.beam.sdk.transforms.windowing.*;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -82,6 +85,7 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
   }
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
+
     @Override
     public PCollection<Row> expand(PCollectionList<Row> input) {
       checkArgument(
