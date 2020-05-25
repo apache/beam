@@ -29,8 +29,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.windowing.FixedWindows;
-import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.WithTimestamps;
+import org.apache.beam.sdk.transforms.windowing.*;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.Row;
@@ -82,7 +82,6 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
   }
 
   private class Transform extends PTransform<PCollectionList<Row>, PCollection<Row>> {
-
     @Override
     public PCollection<Row> expand(PCollectionList<Row> input) {
       checkArgument(
@@ -99,14 +98,32 @@ public class BeamTableFunctionScanRel extends TableFunctionScan implements BeamR
       RexInputRef wmCol = (RexInputRef) call.getOperands().get(1);
       PCollection<Row> upstream = input.get(0);
       Schema outputSchema = CalciteUtils.toSchema(getRowType());
-      return upstream
-          .apply(
-              ParDo.of(
-                  new FixedWindowDoFn(
-                      FixedWindows.of(durationParameter(call.getOperands().get(2))),
-                      wmCol.getIndex(),
-                      outputSchema)))
-          .setRowSchema(outputSchema);
+      FixedWindows windowFn = FixedWindows.of(durationParameter(call.getOperands().get(2)));
+      PCollection<Row> streamWithWindowMetadata =
+          upstream
+              .apply(ParDo.of(new FixedWindowDoFn(windowFn, wmCol.getIndex(), outputSchema)))
+              .setRowSchema(outputSchema);
+
+      PCollection<Row> windowedStream =
+          assignTimestampsAndWindow(
+              streamWithWindowMetadata, wmCol.getIndex(), (WindowFn) windowFn);
+
+      return windowedStream;
+    }
+
+    /** Extract timestamps from the windowFieldIndex, then window into windowFns. */
+    private PCollection<Row> assignTimestampsAndWindow(
+        PCollection<Row> upstream, int windowFieldIndex, WindowFn<Row, IntervalWindow> windowFn) {
+      PCollection<Row> windowedStream;
+      windowedStream =
+          upstream
+              .apply(
+                  "assignEventTimestamp",
+                  WithTimestamps.<Row>of(row -> row.getDateTime(windowFieldIndex).toInstant())
+                      .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
+              .setCoder(upstream.getCoder())
+              .apply(Window.into(windowFn));
+      return windowedStream;
     }
   }
 

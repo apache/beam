@@ -4781,6 +4781,31 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testTVFTumbleAggregation() {
+    String sql =
+        "SELECT COUNT(*) as field_count, "
+            + "window_start "
+            + "FROM TUMBLE((select * from KeyValue), descriptor(ts), 'INTERVAL 1 SECOND') "
+            + "GROUP BY window_start";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder().addInt64Field("count_start").addDateTimeField("window_start").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                .build(),
+            Row.withSchema(schema)
+                .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testIsNullTrueFalse() {
     String sql =
         "WITH Src AS (\n"
