@@ -28,7 +28,8 @@ PrecommitJobBuilder builder = new PrecommitJobBuilder(
             '-Pdockerfile=Dockerfile-java11',
             '-PdisableSpotlessCheck=true',
             '-PcompileAndRunTestsWithJava11',
-            "-Pjava11Home=${properties.JAVA_11_HOME}"
+            "-Pjava11Home=${properties.JAVA_11_HOME}",
+            '--info' // for debug purposes
     ], // spotless checked in separate pre-commit
     triggerPathPatterns: [
       '^model/.*$',
