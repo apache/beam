@@ -146,7 +146,7 @@ public abstract class DoFnSignature {
   /** @deprecated use {@link #usesState()}, it's cleaner */
   @Deprecated
   public boolean isStateful() {
-    return stateDeclarations().size() > 0;
+    return usesState();
   }
 
   /** Whether the {@link DoFn} described by this signature uses state. */

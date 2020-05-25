@@ -96,7 +96,7 @@ class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
               windowingStrategy,
               doFnSchemaInformation,
               sideInputMapping);
-      if (DoFnSignatures.signatureForDoFn(fn).usesState()) {
+      if (DoFnSignatures.isStateful(fn)) {
         // the coder specified on the input PCollection doesn't match type
         // of elements processed by the StatefulDoFnRunner
         // that is internal detail of how DirectRunner processes stateful DoFns

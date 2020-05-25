@@ -2430,7 +2430,7 @@ public class DoFnSignatures {
   }
 
   public static boolean isStateful(DoFn<?, ?> doFn) {
-    return usesState(doFn) || usesTimers(doFn);
+    return usesState(doFn) || usesTimers(doFn) || requiresTimeSortedInput(doFn);
   }
 
   public static boolean usesMapState(DoFn<?, ?> doFn) {
@@ -2442,23 +2442,23 @@ public class DoFnSignatures {
   }
 
   public static boolean usesValueState(DoFn<?, ?> doFn) {
-    return usesGivenStateClass(doFn, ValueState.class) || requiresTimeSortedInput(doFn);
+    return usesGivenStateClass(doFn, ValueState.class);
   }
 
   public static boolean usesBagState(DoFn<?, ?> doFn) {
-    return usesGivenStateClass(doFn, BagState.class) || requiresTimeSortedInput(doFn);
+    return usesGivenStateClass(doFn, BagState.class);
   }
 
   public static boolean usesWatermarkHold(DoFn<?, ?> doFn) {
-    return usesGivenStateClass(doFn, WatermarkHoldState.class) || requiresTimeSortedInput(doFn);
+    return usesGivenStateClass(doFn, WatermarkHoldState.class);
   }
 
   public static boolean usesTimers(DoFn<?, ?> doFn) {
-    return signatureForDoFn(doFn).usesTimers() || requiresTimeSortedInput(doFn);
+    return signatureForDoFn(doFn).usesTimers();
   }
 
   public static boolean usesState(DoFn<?, ?> doFn) {
-    return signatureForDoFn(doFn).usesState() || requiresTimeSortedInput(doFn);
+    return signatureForDoFn(doFn).usesState();
   }
 
   public static boolean requiresTimeSortedInput(DoFn<?, ?> doFn) {

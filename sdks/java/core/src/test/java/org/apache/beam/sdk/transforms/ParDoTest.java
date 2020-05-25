@@ -2554,7 +2554,7 @@ public class ParDoTest implements Serializable {
       PCollection<Long> first =
           pipeline
               .apply(input.advanceWatermarkToInfinity())
-              .apply(WithTimestamps.of(e -> Instant.ofEpochMilli(e)))
+              .apply(WithTimestamps.of(Instant::ofEpochMilli))
               .apply(
                   "first.MapElements",
                   MapElements.into(
@@ -2572,6 +2572,49 @@ public class ParDoTest implements Serializable {
           false);
     }
 
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class,
+      UsesTestStream.class
+    })
+    public void testRequiresTimeSortedInputWithStatelessDoFn() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      List<Long> eventStamps =
+          LongStream.range(0, numElements)
+              .mapToObj(i -> numElements - i)
+              .collect(Collectors.toList());
+      TestStream.Builder<Long> stream = TestStream.create(VarLongCoder.of());
+      for (Long stamp : eventStamps) {
+        stream = stream.addElements(TimestampedValue.of(stamp, Instant.ofEpochMilli(stamp)));
+      }
+      testTimeSortedInputStateless(
+          numElements, pipeline.apply(stream.advanceWatermarkToInfinity()));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesRequiresTimeSortedInput.class,
+      UsesStrictTimerOrdering.class
+    })
+    public void testRequiresTimeSortedInputWithStatelessDoFnWithCreate() {
+      // generate list long enough to rule out random shuffle in sorted order
+      int numElements = 1000;
+      PCollection<Long> input =
+          pipeline.apply(
+              Create.timestamped(
+                  LongStream.range(0, numElements)
+                      .mapToObj(i -> numElements - i)
+                      .map(i -> TimestampedValue.of(i, Instant.ofEpochMilli(i)))
+                      .collect(Collectors.toList())));
+      testTimeSortedInputStateless(numElements, input);
+    }
+
     private static void testTimeSortedInput(int exactNumExpectedElements, PCollection<Long> input) {
       testTimeSortedInput(exactNumExpectedElements, exactNumExpectedElements, input, true);
     }
@@ -2581,6 +2624,7 @@ public class ParDoTest implements Serializable {
         int maxNumExpectedElements,
         PCollection<Long> input,
         boolean validateContents) {
+
       testTimeSortedInputAlreadyHavingStamps(
           minNumExpectedElements,
           maxNumExpectedElements,
@@ -2623,6 +2667,40 @@ public class ParDoTest implements Serializable {
       input.getPipeline().run();
     }
 
+    private void testTimeSortedInputStateless(int numExpectedElements, PCollection<Long> input) {
+      PCollection<KV<String, KV<Long, Long>>> result =
+          input
+              .apply(
+                  "sorted.MapElements",
+                  MapElements.into(
+                          TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.longs()))
+                      .via(e -> KV.of("", e)))
+              .apply("sorted.ParDo", ParDo.of(timeSortedDoFnWithoutState()));
+
+      PAssert.that(result)
+          .satisfies(
+              values -> {
+                // validate that all elements have been processed in increasing timestamp
+                // order
+                List<Long> processedNanos =
+                    StreamSupport.stream(values.spliterator(), false)
+                        .map(KV::getValue)
+                        .sorted(Comparator.comparing(KV::getKey))
+                        .map(KV::getValue)
+                        .collect(Collectors.toList());
+                assertEquals(numExpectedElements, processedNanos.size());
+                long last = Long.MIN_VALUE;
+                for (long next : processedNanos) {
+                  assertTrue(
+                      String.format("Expected sorted sequence, got %s", processedNanos),
+                      last < next);
+                  last = next;
+                }
+                return null;
+              });
+      input.getPipeline().run();
+    }
+
     private static DoFn<KV<String, Long>, Integer> timeSortedDoFn() {
       return new DoFn<KV<String, Long>, Integer>() {
 
@@ -2638,6 +2716,21 @@ public class ParDoTest implements Serializable {
           long lastVal = MoreObjects.firstNonNull(last.read(), element.getValue() - 1);
           last.write(element.getValue());
           output.output((int) (element.getValue() - lastVal));
+        }
+      };
+    }
+
+    private static DoFn<KV<String, Long>, KV<String, KV<Long, Long>>> timeSortedDoFnWithoutState() {
+      return new DoFn<KV<String, Long>, KV<String, KV<Long, Long>>>() {
+        @RequiresTimeSortedInput
+        @ProcessElement
+        public void process(
+            @Element KV<String, Long> element, OutputReceiver<KV<String, KV<Long, Long>>> output) {
+
+          // assign nano time to each element, because that is going to be increasing sequence
+          // different keys might be processed on different machines, so we must compare
+          // elements only per key
+          output.output(KV.of(element.getKey(), KV.of(element.getValue(), System.nanoTime())));
         }
       };
     }

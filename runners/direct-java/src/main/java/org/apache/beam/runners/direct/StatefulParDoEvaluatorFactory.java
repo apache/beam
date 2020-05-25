@@ -131,7 +131,7 @@ final class StatefulParDoEvaluatorFactory<K, InputT, OutputT> implements Transfo
     // If the DoFn is stateful, schedule state clearing.
     // It is semantically correct to schedule any number of redundant clear tasks; the
     // cache is used to limit the number of tasks to avoid performance degradation.
-    if (signature.stateDeclarations().size() > 0) {
+    if (DoFnSignatures.isStateful(doFn)) {
       for (final WindowedValue<?> element : inputBundle.getElements()) {
         for (final BoundedWindow window : element.getWindows()) {
           cleanupRegistry.get(

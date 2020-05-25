@@ -309,9 +309,7 @@ public class ParDoTranslation {
 
           @Override
           public boolean isStateful() {
-            return !signature.stateDeclarations().isEmpty()
-                || !signature.timerDeclarations().isEmpty()
-                || !signature.timerFamilyDeclarations().isEmpty();
+            return DoFnSignatures.isStateful(doFn);
           }
 
           @Override
@@ -739,7 +737,9 @@ public class ParDoTranslation {
 
   public static boolean usesStateOrTimers(AppliedPTransform<?, ?, ?> transform) throws IOException {
     ParDoPayload payload = getParDoPayload(transform);
-    return payload.getStateSpecsCount() > 0 || payload.getTimerFamilySpecsCount() > 0;
+    return payload.getStateSpecsCount() > 0
+        || payload.getTimerFamilySpecsCount() > 0
+        || payload.getRequiresTimeSortedInput();
   }
 
   public static boolean isSplittable(AppliedPTransform<?, ?, ?> transform) throws IOException {

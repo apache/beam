@@ -1483,13 +1483,13 @@ public class DoFnSignaturesTest {
     public void test() {
       assertThat(DoFnSignatures.isSplittable(this), SerializableMatchers.equalTo(false));
       assertThat(DoFnSignatures.isStateful(this), SerializableMatchers.equalTo(true));
-      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(true));
-      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(true));
-      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesTimers(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesBagState(this), SerializableMatchers.equalTo(false));
       assertThat(DoFnSignatures.usesMapState(this), SerializableMatchers.equalTo(false));
       assertThat(DoFnSignatures.usesSetState(this), SerializableMatchers.equalTo(false));
-      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(true));
-      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(true));
+      assertThat(DoFnSignatures.usesValueState(this), SerializableMatchers.equalTo(false));
+      assertThat(DoFnSignatures.usesWatermarkHold(this), SerializableMatchers.equalTo(false));
       assertThat(DoFnSignatures.requiresTimeSortedInput(this), SerializableMatchers.equalTo(true));
     }
   }
