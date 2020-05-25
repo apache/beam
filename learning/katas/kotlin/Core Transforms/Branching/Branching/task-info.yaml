@@ -4,10 +4,10 @@ files:
   visible: true
   placeholders:
   - offset: 1939
-    length: 159
+    length: 180
     placeholder_text: TODO()
-  - offset: 2214
-    length: 161
+  - offset: 2235
+    length: 182
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/branching/TaskTest.kt
   visible: false

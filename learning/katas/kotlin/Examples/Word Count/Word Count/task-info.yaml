@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/examples/wordcount/Task.kt
   visible: true
   placeholders:
-  - offset: 1784
-    length: 624
+  - offset: 1791
+    length: 633
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/examples/wordcount/TaskTest.kt
   visible: false

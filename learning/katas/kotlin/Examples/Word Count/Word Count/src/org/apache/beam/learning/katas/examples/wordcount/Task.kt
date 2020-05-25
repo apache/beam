@@ -48,12 +48,12 @@ object Task {
     @JvmStatic
     fun applyTransform(input: PCollection<String>): PCollection<String> {
         return input
-            .apply(FlatMapElements
-                .into(TypeDescriptors.strings())
-                .via(SerializableFunction<String, Iterable<String>> { line: String ->
-                    line.split(" ")
-                }
-                )
+            .apply(
+                FlatMapElements
+                    .into(TypeDescriptors.strings())
+                    .via(SerializableFunction<String, Iterable<String>> { line: String ->
+                        line.split(" ")
+                    })
             )
             .apply(Count.perElement())
             .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
