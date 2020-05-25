@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Beam Digital Summit Is Coming. Register Now!"
+title:  "Beam Summit Digital Is Coming - Register Now!"
 date:   2020-05-08 00:00:01 -0800
 aliases:
   - /blog/2020/05/08/beam-summit-digital-2020.html
@@ -43,7 +43,7 @@ So, what we want to say with this is: We will have a great event! And if you hav
 
 As all things Beam, this is a community effort. The door is open for participation:
 
-1. Submit a proposal to talk. Please check out the **[Call for Papers](https://sessionize.com/beam-digital-summit-2020/)** and submit a talk. The deadline for submissions is _May 20th_!
+1. Submit a proposal to talk. Please check out the **[Call for Papers](https://sessionize.com/beam-digital-summit-2020/)** and submit a talk. The deadline for submissions is _June 15th_!
 2. Register to join as an attendee. Registration is now open at the **[registration page](https://crowdcast.io/e/beamsummit)**. Registration is free!
 3. Consider sponsoring the event. If your company is interested in engaging with members of the community please check out our [sponsoring prospectus](https://drive.google.com/open?id=1EbijvZKpkWwWyMryLY9sJfyZzZk1k44v).
 4. Help us get the word out. Please make sure to let your colleagues and friends in the data engineering field (and beyond!) know about the Beam Summit.
