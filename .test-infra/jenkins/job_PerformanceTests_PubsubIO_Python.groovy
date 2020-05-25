@@ -39,7 +39,7 @@ def psio_test = [
                 temp_location             : 'gs://temp-storage-for-perf-tests/loadtests',
                 publish_to_big_query      : true,
                 metrics_dataset           : 'beam_performance',
-                metrics_table             : 'psio_io_2GB_msg_results',
+                metrics_table             : 'psio_io_2GB_results',
                 input_options             : '\'{' +
                         '"num_records": 2097152,' +
                         '"key_size": 1,' +
