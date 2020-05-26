@@ -397,10 +397,21 @@ public class PackageUtil implements Closeable {
             String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
       }
       checkState(!file.isDirectory(), "Source file must not be a directory.");
+      String target;
+      switch (dest) {
+        case "dataflow-worker.jar":
+        case "windmill_main":
+          target =
+              Environments.createStagingFileName(
+                  file, Files.asByteSource(file).hash(Hashing.sha256()));
+          break;
+        default:
+          target = dest;
+      }
       DataflowPackage destination = new DataflowPackage();
       String resourcePath =
           FileSystems.matchNewResource(stagingPath, true)
-              .resolve(dest, StandardResolveOptions.RESOLVE_FILE)
+              .resolve(target, StandardResolveOptions.RESOLVE_FILE)
               .toString();
       destination.setLocation(resourcePath);
       destination.setName(dest);
