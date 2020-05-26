@@ -291,14 +291,16 @@ def testmod(*args, **kwargs):
 
 def _run_patched(func, *args, **kwargs):
   try:
-    # See https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
+    # See
+    # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
     np.random.seed(123456)
     np.set_printoptions(precision=4, suppress=True)
     pd.options.display.max_rows = 15
 
     # https://github.com/pandas-dev/pandas/blob/1.0.x/setup.cfg#L63
     optionflags = kwargs.pop('optionflags', 0)
-    optionflags |= doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL
+    optionflags |= (
+        doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
 
     env = TestEnvironment()
     use_beam = kwargs.pop('use_beam', True)
