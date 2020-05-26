@@ -19,8 +19,7 @@
 
 title: Beam Katas - Kotlin
 language: English
-summary: "This course provides a series of katas to get familiar with Apache Beam.\
-  \ \n\nApache Beam website – https://beam.apache.org/"
+summary: "This course provides a series of katas to get familiar with Apache Beam using Kotlin"
 programming_language: Kotlin
 programming_language_version: 1.3
 content:
