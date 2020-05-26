@@ -16,25 +16,21 @@
 
 from __future__ import absolute_import
 
-import typing
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Tuple
 from typing import TypeVar
+from typing import Union
 
 import pandas as pd
 
 import apache_beam as beam
+from apache_beam.pvalue import PCollection
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
-
-if typing.TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import Any
-  from typing import Dict
-  from typing import List
-  from typing import Mapping
-  from typing import Tuple
-  from typing import Union
-  from apache_beam.pvalue import PCollection
 
 T = TypeVar('T')
 

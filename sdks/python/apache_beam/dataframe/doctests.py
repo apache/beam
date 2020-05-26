@@ -43,7 +43,9 @@ import collections
 import contextlib
 import doctest
 import re
-import typing
+from typing import Any
+from typing import Dict
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -53,12 +55,6 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import transforms
 from apache_beam.dataframe.frame_base import DeferredFrame
-
-if typing.TYPE_CHECKING:
-  # pylint: disable=ungrouped-imports
-  from typing import Any
-  from typing import Dict
-  from typing import List
 
 
 class TestEnvironment(object):
