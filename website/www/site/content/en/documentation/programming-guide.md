@@ -695,10 +695,11 @@ and output types of your `DoFn` or the framework will raise an error. Note: `@El
 {{< paragraph class="language-py" >}}
 Inside your `DoFn` subclass, you'll write a method `process` where you provide
 the actual processing logic. You don't need to manually extract the elements
-from the input collection; the Beam SDKs handle that for you. Your `process`
-method should accept an argument `element`, which is the input element, emit
-output value(s) by using `yield` statements. You can also use a `return`
-statement if you are sure the method will return only a single output value.
+from the input collection; the Beam SDKs handle that for you. Your `process` method
+should accept an argument `element`, which is the input element, and return an
+iterable with its output values. You can accomplish this by emitting individual 
+elements with `yield` statements. You can also use a `return` statement
+with an iterable, like a list or a generator.
 {{< /paragraph >}}
 
 {{< highlight java >}}
