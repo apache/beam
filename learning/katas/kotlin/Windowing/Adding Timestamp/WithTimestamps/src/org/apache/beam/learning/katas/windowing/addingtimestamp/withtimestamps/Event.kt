@@ -19,28 +19,5 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.withtimestamps
 
 import org.joda.time.DateTime
 import java.io.Serializable
-import java.util.*
 
-class Event(private var id: String, private var event: String, var date: DateTime) : Serializable {
-    override fun equals(o: Any?): Boolean {
-        if (this === o) {
-            return true
-        }
-
-        if (o == null || javaClass != o.javaClass) {
-            return false
-        }
-
-        val event1 = o as Event
-
-        return id == event1.id && event == event1.event && date == event1.date
-    }
-
-    override fun hashCode(): Int {
-        return Objects.hash(id, event, date)
-    }
-
-    override fun toString(): String {
-        return "Event{id='$id', event='$event', date=$date}"
-    }
-}
+data class Event(private var id: String, private var event: String, var date: DateTime) : Serializable
