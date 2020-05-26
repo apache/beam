@@ -22,6 +22,11 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery1;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery2;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery3;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery5;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery7;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -38,7 +43,7 @@ import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(JUnit4.class)
-public class QueryTest {
+public class SqlQueryTest {
   private static final NexmarkConfiguration CONFIG = NexmarkConfiguration.DEFAULT.copy();
 
   static {
@@ -72,123 +77,68 @@ public class QueryTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void query0MatchesModelBatch() {
-    queryMatchesModel("Query0TestBatch", new Query0(), new Query0Model(CONFIG), false);
+  public void sqlQuery1MatchesModelBatch() {
+    queryMatchesModel("SqlQuery1TestBatch", new SqlQuery1(), new Query1Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query0MatchesModelStreaming() {
-    queryMatchesModel("Query0TestStreaming", new Query0(), new Query0Model(CONFIG), true);
+  public void sqlQuery1MatchesModelStreaming() {
+    queryMatchesModel("SqlQuery1TestStreaming", new SqlQuery1(), new Query1Model(CONFIG), true);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query1MatchesModelBatch() {
-    queryMatchesModel("Query1TestBatch", new Query1(CONFIG), new Query1Model(CONFIG), false);
+  public void sqlQuery2MatchesModelBatch() {
+    queryMatchesModel(
+        "SqlQuery2TestBatch", new SqlQuery2(CONFIG.auctionSkip), new Query2Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query1MatchesModelStreaming() {
-    queryMatchesModel("Query1TestStreaming", new Query1(CONFIG), new Query1Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query2MatchesModelBatch() {
-    queryMatchesModel("Query2TestBatch", new Query2(CONFIG), new Query2Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query2MatchesModelStreaming() {
-    queryMatchesModel("Query2TestStreaming", new Query2(CONFIG), new Query2Model(CONFIG), true);
+  public void sqlQuery2MatchesModelStreaming() {
+    queryMatchesModel(
+        "SqlQuery2TestStreaming", new SqlQuery2(CONFIG.auctionSkip), new Query2Model(CONFIG), true);
   }
 
   @Test
   @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
-  public void query3MatchesModelBatch() {
-    queryMatchesModel("Query3TestBatch", new Query3(CONFIG), new Query3Model(CONFIG), false);
+  public void sqlQuery3MatchesModelBatch() {
+    queryMatchesModel("SqlQuery3TestBatch", new SqlQuery3(CONFIG), new Query3Model(CONFIG), false);
   }
 
   @Test
   @Category({NeedsRunner.class, UsesStatefulParDo.class, UsesTimersInParDo.class})
-  public void query3MatchesModelStreaming() {
-    queryMatchesModel("Query3TestStreaming", new Query3(CONFIG), new Query3Model(CONFIG), true);
+  public void sqlQuery3MatchesModelStreaming() {
+    queryMatchesModel(
+        "SqlQuery3TestStreaming", new SqlQuery3(CONFIG), new Query3Model(CONFIG), true);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query4MatchesModelBatch() {
-    queryMatchesModel("Query4TestBatch", new Query4(CONFIG), new Query4Model(CONFIG), false);
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
+  public void sqlQuery5MatchesModelBatch() {
+    queryMatchesModel("SqlQuery5TestBatch", new SqlQuery5(CONFIG), new Query5Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query4MatchesModelStreaming() {
-    queryMatchesModel("Query4TestStreaming", new Query4(CONFIG), new Query4Model(CONFIG), true);
+  @Ignore("https://jira.apache.org/jira/browse/BEAM-7072")
+  public void sqlQuery5MatchesModelStreaming() {
+    queryMatchesModel(
+        "SqlQuery5TestStreaming", new SqlQuery5(CONFIG), new Query5Model(CONFIG), true);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query5MatchesModelBatch() {
-    queryMatchesModel("Query5TestBatch", new Query5(CONFIG), new Query5Model(CONFIG), false);
+  public void sqlQuery7MatchesModelBatch() {
+    queryMatchesModel("SqlQuery7TestBatch", new SqlQuery7(CONFIG), new Query7Model(CONFIG), false);
   }
 
   @Test
   @Category(NeedsRunner.class)
-  public void query5MatchesModelStreaming() {
-    queryMatchesModel("Query5TestStreaming", new Query5(CONFIG), new Query5Model(CONFIG), true);
-  }
-
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3816")
-  @Test
-  @Category(NeedsRunner.class)
-  public void query6MatchesModelBatch() {
-    queryMatchesModel("Query6TestBatch", new Query6(CONFIG), new Query6Model(CONFIG), false);
-  }
-
-  @Ignore("https://issues.apache.org/jira/browse/BEAM-3816")
-  @Test
-  @Category(NeedsRunner.class)
-  public void query6MatchesModelStreaming() {
-    queryMatchesModel("Query6TestStreaming", new Query6(CONFIG), new Query6Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query7MatchesModelBatch() {
-    queryMatchesModel("Query7TestBatch", new Query7(CONFIG), new Query7Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query7MatchesModelStreaming() {
-    queryMatchesModel("Query7TestStreaming", new Query7(CONFIG), new Query7Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query8MatchesModelBatch() {
-    queryMatchesModel("Query8TestBatch", new Query8(CONFIG), new Query8Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query8MatchesModelStreaming() {
-    queryMatchesModel("Query8TestStreaming", new Query8(CONFIG), new Query8Model(CONFIG), true);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query9MatchesModelBatch() {
-    queryMatchesModel("Query9TestBatch", new Query9(CONFIG), new Query9Model(CONFIG), false);
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void query9MatchesModelStreaming() {
-    queryMatchesModel("Query9TestStreaming", new Query9(CONFIG), new Query9Model(CONFIG), true);
+  public void sqlQuery7MatchesModelStreaming() {
+    queryMatchesModel(
+        "SqlQuery7TestStreaming", new SqlQuery7(CONFIG), new Query7Model(CONFIG), true);
   }
 }
