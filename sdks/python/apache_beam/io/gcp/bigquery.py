@@ -1794,7 +1794,8 @@ class _ExtractBQData(DoFn):
       project=None,
       coder=None,
       schema=None,
-      kms_key=None):
+      kms_key=None,
+      bq_client=None):
 
     self.gcs_location_pattern = gcs_location_pattern
     self.project = project
@@ -1803,6 +1804,7 @@ class _ExtractBQData(DoFn):
     self.split_result = None
     self.schema = schema
     self.target_schema = None
+    self.bq_client = bq_client
 
   def process(self, element):
     '''
@@ -1820,7 +1822,7 @@ class _ExtractBQData(DoFn):
 
     flatten_results = element.flatten_results
 
-    bq = bigquery_tools.BigQueryWrapper()
+    bq = bigquery_tools.BigQueryWrapper(self.bq_client)
 
     try:
       if element.query is not None:
