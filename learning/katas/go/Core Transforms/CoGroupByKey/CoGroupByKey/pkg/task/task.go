@@ -21,22 +21,22 @@ import (
 )
 
 func ApplyTransform(s beam.Scope, fruits beam.PCollection, countries beam.PCollection) beam.PCollection {
-	fruitsKV := beam.ParDo(s, func(e string) (string, string) {
-		return string(e[0]), e
+	fruitsKV := beam.ParDo(s, func(word string) (string, string) {
+		return string(word[0]), word
 	}, fruits)
 
-	countriesKV := beam.ParDo(s, func(e string) (string, string) {
-		return string(e[0]), e
+	countriesKV := beam.ParDo(s, func(word string) (string, string) {
+		return string(word[0]), word
 	}, countries)
 
 	grouped := beam.CoGroupByKey(s, fruitsKV, countriesKV)
-	return beam.ParDo(s, func(key string, f func(*string) bool, c func(*string) bool, emit func(string)) {
-		v := &WordsAlphabet{
+	return beam.ParDo(s, func(key string, fruitsIter func(*string) bool, countriesIter func(*string) bool, emit func(string)) {
+		wa := &WordsAlphabet{
 			Alphabet: key,
 		}
-		f(&v.Fruit)
-		c(&v.Country)
-		emit(v.String())
+		fruitsIter(&wa.Fruit)
+		countriesIter(&wa.Country)
+		emit(wa.String())
 	}, grouped)
 }
 

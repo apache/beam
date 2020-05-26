@@ -29,7 +29,7 @@ files:
   visible: true
   placeholders:
   - offset: 978
-    length: 469
+    length: 533
     placeholder_text: TODO()
 - name: go.sum
   visible: false

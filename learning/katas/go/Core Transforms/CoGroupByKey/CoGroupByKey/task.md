@@ -76,7 +76,7 @@ func doFn(element string) (string, string) {
   like the following. 
   
   ```
-  func doFn(key string, aKV func(*string) bool, anotherKV func(*string) bool, emit func(string)){
+  func doFn(key string, iterA func(*string) bool, iterB func(*string) bool, emit func(string)){
         ...
   }
   ```
@@ -90,14 +90,14 @@ func doFn(element string) (string, string) {
   
 ```
     var v string
-    aKV(&v)
+    iterA(&v)
     // do something with v
 ```
 
   Not necessary for this task, though if you expected multiple values per key, you would do something like this.
 ```
     var v string
-    for aKV(&v) {
+    for iterA(&v) {
         // do something with v
     }
 ```
