@@ -289,7 +289,7 @@ limitations under the License.
 --&gt;
 &lt;h1 id=&#34;go-sdk-roadmap&#34;&gt;Go SDK Roadmap&lt;/h1&gt;
 &lt;p&gt;The Go SDK is currently experimental. As the first purely portable Beam SDK, the Go SDK is constrained
-by the status of the &lt;a href=&#34;https://beam.apache.org/roadmap/portability/&#34;&gt;Beam Portabillity Framework&lt;/a&gt; and the existence of
+by the status of the &lt;a href=&#34;https://beam.apache.org/roadmap/portability/&#34;&gt;Beam Portability Framework&lt;/a&gt; and the existence of
 portable runners.&lt;/p&gt;
 &lt;p&gt;&lt;strong&gt;April 2020 Update&lt;/strong&gt;
 This year we hope to move the SDK out of experimental at least for Batch usage.&lt;/p&gt;

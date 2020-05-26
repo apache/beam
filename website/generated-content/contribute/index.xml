@@ -1083,7 +1083,53 @@ Make sure to clean it up, as there may be duplicate or incorrect user names.&lt;
 &lt;p&gt;&lt;strong&gt;NOTE&lt;/strong&gt;: Make sure to include any breaking changes, even to &lt;code&gt;@Experimental&lt;/code&gt; features,
 all major features and bug fixes, and all known issues.&lt;/p&gt;
 &lt;p&gt;Template:&lt;/p&gt;
-e&gt;&lt;h4 id=&#34;checklist-to-proceed-to-the-next-step-1&#34;&gt;Checklist to proceed to the next step&lt;/h4&gt;
+&lt;pre&gt;&lt;code&gt;We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
+See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+For more information on changes in {$RELEASE_VERSION}, check out the
+[detailed release notes]({$JIRA_RELEASE_NOTES}).
+
+## Highlights
+
+  * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+  * New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+{$TOPICS e.g.:}
+### I/Os
+* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+{$TOPICS}
+
+### New Features / Improvements
+
+* X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
+
+### Breaking Changes
+
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+### Deprecations
+
+* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+
+### Bugfixes
+
+* Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+
+### Known Issues
+
+* {$KNOWN_ISSUE_1}
+* {$KNOWN_ISSUE_2}
+* See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
+
+
+## List of Contributors
+
+According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
+
+${CONTRIBUTORS}
+&lt;/code&gt;&lt;/pre&gt;&lt;h4 id=&#34;checklist-to-proceed-to-the-next-step-1&#34;&gt;Checklist to proceed to the next step&lt;/h4&gt;
 &lt;ol&gt;
 &lt;li&gt;Maven artifacts deployed to the staging repository of &lt;a href=&#34;https://repository.apache.org/content/repositories/&#34;&gt;repository.apache.org&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;Source distribution deployed to the dev repository of &lt;a href=&#34;https://dist.apache.org/repos/dist/dev/beam/&#34;&gt;dist.apache.org&lt;/a&gt;&lt;/li&gt;
@@ -1513,6 +1559,7 @@ git push github &amp;quot;$VERSION_TAG&amp;quot;
 &lt;h2 id=&#34;improve-the-process&#34;&gt;Improve the process&lt;/h2&gt;
 &lt;p&gt;It is important that we improve the release processes over time. Once you’ve finished the release, please take a step back and look what areas of this process and be improved. Perhaps some part of the process can be simplified. Perhaps parts of this guide can be clarified.&lt;/p&gt;
 &lt;p&gt;If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide. Thanks!&lt;/p&gt;
+
       </description>
     </item>
     
