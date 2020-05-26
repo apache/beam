@@ -31,7 +31,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_Python_MongoDBIO_IT',
   steps {
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':sdks:python:test-suites:direct:py2:mongodbioIT')
       tasks(':sdks:python:test-suites:direct:py35:mongodbioIT')
       commonJobProperties.setGradleSwitches(delegate)
     }

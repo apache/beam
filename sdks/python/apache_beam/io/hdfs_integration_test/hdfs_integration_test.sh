@@ -23,7 +23,7 @@
 if [[ $# != 1 ]]; then
   printf "Usage: \n$> ./apache_beam/io/hdfs_integration_test/hdfs_integration_test.sh <python_version>"
   printf "\n\tpython_version: [required] Python version used for container build and run tests."
-  printf " Use 'python:2' for Python2, 'python:3.7' for Python3.7."
+  printf " Use 'python:3.5' for Python3.5, 'python:3.7' for Python3.7."
   exit 1
 fi
 

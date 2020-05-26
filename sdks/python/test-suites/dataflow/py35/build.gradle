@@ -40,3 +40,32 @@ task mongodbioIT {
     }
   }
 }
+
+task installChicagoTaxiExampleRequirements {
+  dependsOn 'installGcpTest'
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+    }
+  }
+}
+
+task chicagoTaxiExample {
+  dependsOn 'installChicagoTaxiExampleRequirements'
+  dependsOn ':sdks:python:sdist'
+
+  def gcsRoot = findProperty('gcsRoot')
+  def pipelineOptions = findProperty('pipelineOptions') ?: ""
+  pipelineOptions += " --sdk_location=\"${files(configurations.distTarBall.files).singleFile}\""
+
+  doLast {
+    exec {
+      workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/chicago_taxi/"
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ./run_chicago.sh ${gcsRoot} DataflowRunner ${pipelineOptions}"
+    }
+  }
+}

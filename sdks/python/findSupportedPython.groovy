@@ -18,7 +18,7 @@
 
 /* This (groovy-maven-plugin) script finds the supported python interpreter and pip
  * binary in the path. As there is no strict naming convention exists amongst OSes
- * for Python & pip (some call it python2.7, others name it python-2.7),
+ * for Python & pip (some call it python3.5, others name it python-3.5),
  * the script tries to execute the candidates and query their version.
  * The first matching interpreter & pip is assigned to "python.interpreter.bin"
  * and "python.pip.bin" (maven) properties respectively.

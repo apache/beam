@@ -118,7 +118,6 @@ To examine the containers that you built, run `docker images` from anywhere in t
 ```
 REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
 apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
-apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
 apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
 apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
 apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB

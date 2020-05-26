@@ -284,7 +284,6 @@ JobService:
 [Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
 
 Beam SDK:
-[Python 2.7](https://hub.docker.com/r/apache/beam_python2.7_sdk),
 [Python 3.5](https://hub.docker.com/r/apache/beam_python3.5_sdk),
 [Python 3.6](https://hub.docker.com/r/apache/beam_python3.6_sdk),
 [Python 3.7](https://hub.docker.com/r/apache/beam_python3.7_sdk).

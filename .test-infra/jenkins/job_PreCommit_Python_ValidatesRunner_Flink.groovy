@@ -18,11 +18,11 @@
 
 import PrecommitJobBuilder
 
-// This job runs the suite of Python ValidatesRunner tests against the Flink runner on Python 2.
+// This job runs the suite of Python ValidatesRunner tests against the Flink runner on Python 3.5.
 PrecommitJobBuilder builder = new PrecommitJobBuilder(
     scope: this,
-    nameBase: 'Python2_PVR_Flink',
-    gradleTask: ':sdks:python:test-suites:portable:py2:flinkValidatesRunner',
+    nameBase: 'Python35_PVR_Flink',
+    gradleTask: ':sdks:python:test-suites:portable:py35:flinkValidatesRunner',
     triggerPathPatterns: [
       '^model/.*$',
       '^runners/core-construction-java/.*$',

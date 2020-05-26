@@ -37,7 +37,7 @@ PostcommitJobBuilder.postCommitJob(
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
+            tasks(':sdks:python:test-suites:dataflow:py35:chicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
         }
     }
@@ -57,7 +57,7 @@ CronJobBuilder.cronJob(
     steps {
         gradle {
             rootBuildScriptDir(commonJobProperties.checkoutDir)
-            tasks(':sdks:python:test-suites:dataflow:py2:chicagoTaxiExample')
+            tasks(':sdks:python:test-suites:dataflow:py35:chicagoTaxiExample')
             switches('-PgcsRoot=gs://temp-storage-for-perf-tests/chicago-taxi')
         }
     }

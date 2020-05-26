@@ -211,12 +211,9 @@ task goIntegrationTests() {
 
 task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:pycommon:preCommitPyCommon"
-  dependsOn ":sdks:python:test-suites:tox:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT_V2"
   dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
   dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT_V2"
   // We don't include Py35, Py36 precommit ITs to reduce quota footprint.
@@ -225,28 +222,17 @@ task pythonPreCommit() {
 }
 
 task pythonDockerBuildPreCommit() {
-  dependsOn ":sdks:python:container:py2:docker"
   dependsOn ":sdks:python:container:py35:docker"
   dependsOn ":sdks:python:container:py36:docker"
   dependsOn ":sdks:python:container:py37:docker"
 }
 
 task pythonLintPreCommit() {
-  dependsOn ":sdks:python:test-suites:tox:py2:lint"
   dependsOn ":sdks:python:test-suites:tox:py37:lint"
 }
 
 task pythonFormatterPreCommit() {
   dependsOn 'sdks:python:test-suites:tox:py37:formatter'
-}
-
-task python2PostCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:crossLanguageTests"
-  dependsOn ":sdks:python:test-suites:dataflow:py2:postCommitIT"
-  dependsOn ":sdks:python:test-suites:direct:py2:directRunnerIT"
-  dependsOn ":sdks:python:test-suites:direct:py2:hdfsIntegrationTest"
-  dependsOn ":sdks:python:test-suites:direct:py2:mongodbioIT"
-  dependsOn ":sdks:python:test-suites:portable:py2:postCommitPy2"
 }
 
 task python35PostCommit() {
@@ -269,7 +255,6 @@ task python37PostCommit() {
 }
 
 task portablePythonPreCommit() {
-  dependsOn ":sdks:python:test-suites:portable:py2:preCommitPy2"
   dependsOn ":sdks:python:test-suites:portable:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:portable:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:portable:py37:preCommitPy37"

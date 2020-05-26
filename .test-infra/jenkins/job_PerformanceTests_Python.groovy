@@ -62,21 +62,6 @@ def dataflowPipelineArgs = [
 // Configurations of each Jenkins job.
 def testConfigurations = [
     new PerformanceTestConfigurations(
-        jobName           : 'beam_PerformanceTests_WordCountIT_Py27',
-        jobDescription    : 'Python SDK Performance Test - Run WordCountIT in Py27 with 1Gb files',
-        jobTriggerPhrase  : 'Run Python27 WordCountIT Performance Test',
-        resultTable       : 'beam_performance.wordcount_py27_pkb_results',
-        test              : 'apache_beam.examples.wordcount_it_test:WordCountIT.test_wordcount_it',
-        itModule          : ':sdks:python:test-suites:dataflow:py2',
-        extraPipelineArgs : dataflowPipelineArgs + [
-            input: 'gs://apache-beam-samples/input_small_files/ascii_sort_1MB_input.0000*', // 1Gb
-            output: 'gs://temp-storage-for-end-to-end-tests/py-it-cloud/output',
-            expect_checksum: 'ea0ca2e5ee4ea5f218790f28d0b9fe7d09d8d710',
-            num_workers: '10',
-            autoscaling_algorithm: 'NONE',  // Disable autoscale the worker pool.
-        ],
-    ),
-    new PerformanceTestConfigurations(
         jobName           : 'beam_PerformanceTests_WordCountIT_Py35',
         jobDescription    : 'Python SDK Performance Test - Run WordCountIT in Py35 with 1Gb files',
         jobTriggerPhrase  : 'Run Python35 WordCountIT Performance Test',

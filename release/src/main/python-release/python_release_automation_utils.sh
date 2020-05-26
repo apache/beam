@@ -78,12 +78,10 @@ function get_version() {
 #   BEAM_PYTHON_SDK*
 # Arguments:
 #   $1 - SDK type: tar, wheel
-#   $2 - python interpreter version: python2.7, python3.5, ...
+#   $2 - python interpreter version: python3.5, python3.6, ...
 #######################################
 function download_files() {
   if [[ $1 = *"wheel"* ]]; then
-    if [[ $2 == "python2.7" ]]; then
-      BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp27-cp27mu-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.5" ]]; then
       BEAM_PYTHON_SDK_WHL="apache_beam-$VERSION*-cp35-cp35m-manylinux1_x86_64.whl"
     elif [[ $2 == "python3.6" ]]; then
@@ -157,7 +155,7 @@ function get_asc_name() {
 #   BEAM_PYTHON_SDK
 # Arguments:
 #   $1 - SDK type: tar, wheel
-#   $2 - python interpreter version: [python2.7, python3.5, ...]
+#   $2 - python interpreter version: [python3.5, python3.6, ...]
 #######################################
 function install_sdk() {
   sdk_file=$(get_sdk_name $1)
