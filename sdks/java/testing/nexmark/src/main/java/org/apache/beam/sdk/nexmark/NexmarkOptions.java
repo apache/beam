@@ -338,8 +338,8 @@ public interface NexmarkOptions
   void setFanout(Integer fanout);
 
   @Description(
-      "Maximum waiting time to clean personState in query3 "
-          + "(ie maximum waiting of the auctions related to person in state in seconds in event time).")
+      "Maximum waiting time to clean personState in query3 (ie maximum waiting of the auctions"
+          + " related to person in state in seconds in event time).")
   @Nullable
   Integer getMaxAuctionsWaitingTime();
 
@@ -423,7 +423,10 @@ public interface NexmarkOptions
 
   void setWatermarkValidationDelaySeconds(Long value);
 
-  @Description("Specify 'sql' to use Beam SQL queries. Otherwise Java transforms will be used")
+  @Description(
+      "Specify 'sql' to use Calcite SQL queries "
+          + "or 'zetasql' to use ZetaSQL queries."
+          + "Otherwise Java transforms will be used")
   @Nullable
   String getQueryLanguage();
 
