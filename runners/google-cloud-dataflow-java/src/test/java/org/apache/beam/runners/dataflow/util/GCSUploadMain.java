@@ -21,9 +21,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 
@@ -39,9 +41,12 @@ public class GCSUploadMain {
             .map(
                 (String source) -> {
                   try {
+                    File file = new File(source);
+                    HashCode hashCode = Files.asByteSource(file).hash(Hashing.sha256());
                     return PackageUtil.StagedFile.of(
                         source,
-                        Files.asByteSource(new File(source)).hash(Hashing.sha256()).toString());
+                        hashCode.toString(),
+                        Environments.createStagingFileName(file, hashCode));
                   } catch (IOException e) {
                     throw new UncheckedIOException(e);
                   }

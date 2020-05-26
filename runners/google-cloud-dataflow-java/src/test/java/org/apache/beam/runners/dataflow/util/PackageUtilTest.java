@@ -66,6 +66,7 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.dataflow.util.PackageUtil.PackageAttributes;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -85,6 +86,7 @@ import org.apache.beam.sdk.util.ZipFiles;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.LineReader;
@@ -140,12 +142,12 @@ public class PackageUtilTest {
 
   private static PackageAttributes makePackageAttributes(
       File file, @Nullable String overridePackageName) throws IOException {
-    File sourceFile = file.isDirectory() ? zipDirectory(file) : file;
+    StagedFile stagedFile = makeStagedFile(file.getPath());
     PackageAttributes attributes =
         PackageUtil.PackageAttributes.forFileToStage(
-            sourceFile.getPath(),
-            Files.asByteSource(sourceFile).hash(Hashing.sha256()).toString(),
-            null,
+            stagedFile.getSource(),
+            stagedFile.getSha256(),
+            stagedFile.getDestination(),
             STAGING_PATH);
     if (overridePackageName != null) {
       attributes = attributes.withPackageName(overridePackageName);
@@ -160,15 +162,17 @@ public class PackageUtilTest {
   private static StagedFile makeStagedFile(String source, String destName) throws IOException {
     File file = new File(source);
     File sourceFile;
-    String sha256;
+    HashCode hashCode;
     if (file.exists()) {
       sourceFile = file.isDirectory() ? zipDirectory(file) : file;
-      sha256 = Files.asByteSource(sourceFile).hash(Hashing.sha256()).toString();
+      hashCode = Files.asByteSource(sourceFile).hash(Hashing.sha256());
     } else {
       sourceFile = file;
-      sha256 = "";
+      hashCode = Hashing.sha256().hashBytes(new byte[] {});
     }
-    return StagedFile.of(sourceFile.getPath(), sha256, destName);
+    String destination =
+        destName == null ? Environments.createStagingFileName(file, hashCode) : destName;
+    return StagedFile.of(sourceFile.getPath(), hashCode.toString(), destination);
   }
 
   private static File zipDirectory(File directory) throws IOException {
@@ -218,8 +222,8 @@ public class PackageUtilTest {
     makeFileWithContents("folder2/folderA/sameName", "This is a test!");
     DataflowPackage target2 = makePackageAttributes(tmpDirectory2, null).getDestination();
 
-    assertNotEquals(target1.getName(), target2.getName());
-    assertNotEquals(target1.getLocation(), target2.getLocation());
+    assertEquals(target1.getName(), target2.getName());
+    assertEquals(target1.getLocation(), target2.getLocation());
   }
 
   @Test
