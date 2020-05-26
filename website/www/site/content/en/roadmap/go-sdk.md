@@ -18,7 +18,7 @@ limitations under the License.
 # Go SDK Roadmap
 
 The Go SDK is currently experimental. As the first purely portable Beam SDK, the Go SDK is constrained
-by the status of the [Beam Portabillity Framework](https://beam.apache.org/roadmap/portability/) and the existence of
+by the status of the [Beam Portability Framework](https://beam.apache.org/roadmap/portability/) and the existence of
 portable runners.
 
 **April 2020 Update**
