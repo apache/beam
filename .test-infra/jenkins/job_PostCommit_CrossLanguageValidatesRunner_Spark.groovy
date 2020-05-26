@@ -34,13 +34,6 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_XVR_Spark',
 
   // Gradle goals for this job.
   steps {
-    shell('echo "*** RUN CROSS-LANGUAGE SPARK USING PYTHON 2.7 ***"')
-    gradle {
-      rootBuildScriptDir(commonJobProperties.checkoutDir)
-      tasks(':runners:spark:job-server:validatesCrossLanguageRunner')
-      commonJobProperties.setGradleSwitches(delegate)
-      switches('-PpythonVersion=2.7')
-    }
     shell('echo "*** RUN CROSS-LANGUAGE SPARK USING PYTHON 3.5 ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)

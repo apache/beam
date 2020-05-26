@@ -58,7 +58,6 @@ RUN pip install -v /opt/apache/beam/tars/apache-beam.tar.gz[gcp]
 COPY target/license_scripts /tmp/license_scripts/
 RUN if [ "$pull_licenses" = "true" ] ; then \
     pip install 'pip-licenses<3.0.0;python_version>="3.5"' && \
-    pip install 'pip-licenses==1.18.0;python_version<="2.7"' && \
     python /tmp/license_scripts/pull_licenses_py.py && \
     pip uninstall -y pip-licenses && \
     # Remove pip cache.

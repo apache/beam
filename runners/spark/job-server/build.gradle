@@ -177,7 +177,7 @@ def addTestJavaJarCreator(String pyVersion) {
   }
 }
 
-["2.7", "3.5", "3.6", "3.7"].each { pyVersion ->
+["3.5", "3.6", "3.7"].each { pyVersion ->
   addTestJavaJarCreator(pyVersion)
 }
 

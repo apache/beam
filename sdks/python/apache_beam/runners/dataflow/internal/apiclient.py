@@ -1164,7 +1164,7 @@ def _verify_interpreter_version_is_supported(pipeline_options):
 
   raise Exception(
       'Dataflow runner currently supports Python versions '
-      '2.7, 3.5, 3.6, and 3.7. To ignore this requirement and start a job '
+      '3.5, 3.6, and 3.7. To ignore this requirement and start a job '
       'using a different version of Python 3 interpreter, pass '
       '--experiment ignore_py3_minor_version pipeline option.')
 
