@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""AWS S3 client
+"""HTTP client
 """
 
 # pytype: skip-file
@@ -36,10 +36,14 @@ from apache_beam.io.filesystemio import Uploader
 from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.internal.http_client import get_new_http
 from apache_beam.utils import retry
+import sys
 
 class HttpIO(object):
   """HTTP I/O."""
-  def __init__(self):
+  def __init__(self, client = None):
+    if sys.version_info[0] != 3:
+      raise RuntimeError("HttpIO only supports Python 3.")
+    self._client = client or get_new_http()
     pass
   
   def open(
@@ -47,43 +51,35 @@ class HttpIO(object):
       uri,
       mode='r',
       read_buffer_size=16 * 1024 * 1024):
-    downloader = HttpDownloader(uri)
+    downloader = HttpDownloader(uri, self._client)
     if mode != 'r':
       raise Exception("only r mode is supported.")
     return io.BufferedReader(
       DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
 
-
+  def size(self, uri):
+    try:
+      # Pass in "" for "Accept-Encoding" because we want the non-gzipped content-length.
+      resp, content = self._client.request(uri, method='HEAD', headers={"Accept-Encoding": ""})
+      return int(resp["content-length"])
+    except Exception as e:
+      # Server doesn't support HEAD method;
+      # use GET method instead to prefetch the result.
+      resp, content = self._client.request(uri, method='GET')
+      return len(content)
 
 class HttpDownloader(Downloader):
-  def __init__(self, uri):
+  def __init__(self, uri, client):
     self._uri = uri
-    self._client = get_new_http()
-    self._content = None
-    self._size = None
+    self._client = client
 
-    try:
-      resp, content = self._client.request(self._uri, method='HEAD')
-      self._size = resp["content-length"]
-    except Exception as e:
-      # Server doesn't support HEAD method; use GET method instead.
-      resp, content = self._client.request(self._uri, method='GET')
-      self._size = resp["content-length"]
-      self._content = content
+    resp, content = self._client.request(self._uri, method='GET')
+    self._size = int(resp["content-length"])
+    self._content = content
 
   @property
   def size(self):
     return self._size
 
   def get_range(self, start, end):
-    # If we've already fetched the content at the beginning (for servers that
-    # don't support HEAD requests), just use that data.
-    if self._content:
-      return self._content[start:end]
-    
-    try:
-      headers = {"Range": "bytes=%d-%d" % (start, end)}
-      resp, content = self._client.request(self._uri, method='GET', headers=headers)
-      self._size = resp["content-length"]
-    except Exception as e:
-      raise e
+    return self._content[start:end]
