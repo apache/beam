@@ -711,7 +711,6 @@ all major features and bug fixes, and all known issues.
 
 Template:
 
-```md
 We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
 See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
 For more information on changes in {$RELEASE_VERSION}, check out the
