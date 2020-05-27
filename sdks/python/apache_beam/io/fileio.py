@@ -153,12 +153,14 @@ class EmptyMatchTreatment(object):
 
 
 class _MatchAllFn(beam.DoFn):
-  def __init__(self, empty_match_treatment):
+  def __init__(self, empty_match_treatment, archive_path=None, archivesystem=None):
     self._empty_match_treatment = empty_match_treatment
+    self.archive_path = archive_path
+    self.archivesystem = archivesystem
 
   def process(self, file_pattern):
     # TODO: Should we batch the lookups?
-    match_results = filesystems.FileSystems.match([file_pattern])
+    match_results = filesystems.FileSystems.match([file_pattern], archive_path=self.archive_path, archivesystem=self.archivesystem)
     match_result = match_results[0]
 
     if (not match_result.metadata_list and
@@ -179,12 +181,16 @@ class MatchFiles(beam.PTransform):
   def __init__(
       self,
       file_pattern,
-      empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
+      empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD,
+      archive_path=None,
+      archivesystem=None):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
+    self.archive_path = archive_path
+    self.archivesystem = archivesystem
 
   def expand(self, pcoll):
-    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll()
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(self._empty_match_treatment, self.archive_path, self.archivesystem)
 
 
 @experimental()
@@ -193,11 +199,17 @@ class MatchAll(beam.PTransform):
 
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
-  def __init__(self, empty_match_treatment=EmptyMatchTreatment.ALLOW):
+  def __init__(self,
+    empty_match_treatment=EmptyMatchTreatment.ALLOW,
+    archive_path=None,
+    archivesystem=None
+  ):
     self._empty_match_treatment = empty_match_treatment
+    self.archive_path = archive_path
+    self.archivesystem = archivesystem
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
+    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment, self.archive_path, self.archivesystem))
 
 
 class _ReadMatchesFn(beam.DoFn):

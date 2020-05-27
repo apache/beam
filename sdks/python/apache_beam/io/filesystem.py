@@ -434,20 +434,26 @@ class CompressedFile(object):
 
 class FileMetadata(object):
   """Metadata about a file path that is the output of FileSystem.match."""
-  def __init__(self, path, size_in_bytes):
+  def __init__(self, path, size_in_bytes, _parent_archive_paths = None):
     assert isinstance(path, (str, unicode)) and path, "Path should be a string"
     assert isinstance(size_in_bytes, (int, long)) and size_in_bytes >= 0, \
         "Invalid value for size_in_bytes should %s (of type %s)" % (
             size_in_bytes, type(size_in_bytes))
+    _parent_archive_paths = _parent_archive_paths or []
+    assert isinstance(_parent_archive_paths, list), "_parent_archive_paths should be a list"
     self.path = path
     self.size_in_bytes = size_in_bytes
+    # _parent_archive_paths is set only when this file is within an existing archive directory.
+    # It is equal to a list of archives that the file is in, starting with the nearest parent
+    # archive and going upwards.
+    self._parent_archive_paths = _parent_archive_paths or []
 
   def __eq__(self, other):
     """Note: This is only used in tests where we verify that mock objects match.
     """
     return (
         isinstance(other, FileMetadata) and self.path == other.path and
-        self.size_in_bytes == other.size_in_bytes)
+        self.size_in_bytes == other.size_in_bytes and self._parent_archive_paths == other._parent_archive_paths)
 
   def __hash__(self):
     return hash((self.path, self.size_in_bytes))
@@ -457,7 +463,7 @@ class FileMetadata(object):
     return not self == other
 
   def __repr__(self):
-    return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes)
+    return 'FileMetadata(%s, %s)' % (self.path, self.size_in_bytes) if self._parent_archive_paths else 'FileMetadata(%s, %s, %s)' % (self.path, self.size_in_bytes, self._parent_archive_paths)
 
 
 class MatchResult(object):

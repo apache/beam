@@ -30,6 +30,7 @@ from past.builtins import unicode
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.io.filesystem import FileMetadata
 from apache_beam.options.value_provider import RuntimeValueProvider
 
 # All filesystem implements should be added here as
@@ -58,6 +59,11 @@ try:
 except ImportError:
   pass
 
+try:
+  from apache_beam.io.zipfilesystemmixin import ZipFileSystemMixin
+except ImportError:
+  pass
+
 # pylint: enable=wrong-import-position, unused-import
 
 __all__ = ['FileSystems']
@@ -68,6 +74,7 @@ class FileSystems(object):
   All methods are static and access the underlying registered filesystems.
   """
   URI_SCHEMA_PATTERN = re.compile('(?P<scheme>[a-zA-Z][-a-zA-Z0-9+.]*)://.*')
+  URI_EXTENSION_PATTERN = re.compile('^.*\.(?P<extension>[a-zA-Z][-a-zA-Z0-9+.]*)$')
 
   _pipeline_options = None
 
@@ -88,17 +95,26 @@ class FileSystems(object):
     return match_result.groupdict()['scheme']
 
   @staticmethod
-  def get_filesystem(path):
+  def get_extension(path):
+    match_result = FileSystems.URI_EXTENSION_PATTERN.match(path.strip())
+    if match_result is None:
+      return None
+    return match_result.groupdict()['extension']
+
+  @staticmethod
+  def get_filesystem(path, archive_path=None, archivesystem=None):
     # type: (str) -> FileSystems
 
     """Get the correct filesystem for the specified path
     """
     try:
-      path_scheme = FileSystems.get_scheme(path)
+      path_scheme = FileSystems.get_scheme(archive_path if archive_path else path)
       systems = [
           fs for fs in FileSystem.get_all_subclasses()
           if fs.scheme() == path_scheme
       ]
+      system = None
+      archivesystem = None
       if len(systems) == 0:
         raise ValueError(
             'Unable to get filesystem from specified path, please use the '
@@ -110,9 +126,31 @@ class FileSystems(object):
         options = (
             FileSystems._pipeline_options or
             RuntimeValueProvider.runtime_options)
-        return systems[0](pipeline_options=options)
+        system = systems[0]
       else:
         raise ValueError('Found more than one filesystem for path %s' % path)
+      if archive_path:
+        if not archivesystem:
+          path_extension = FileSystems.get_extension(archive_path)
+          archivesystems = [
+            fs for fs in FileSystem.get_all_subclasses()
+            if hasattr(fs, "extension") and fs.extension() == path_extension
+          ]
+          if len(archivesystems) == 0:
+            raise ValueError(
+                'Unable to get archivesystem from specified archive_path, please use the '
+                'correct path or ensure the required dependency is installed, '
+                'e.g., pip install apache-beam[gcp]. Path specified: %s' % archive_path)
+          elif len(archivesystems) == 1:
+            archivesystem = archivesystems[0]
+          else:
+            raise ValueError('Found more than one archivesystem for archive_path %s' % archive_path)
+      if archivesystem:
+        class CustomSystem(archivesystem, system):
+          pass
+        return CustomSystem(pipeline_options=options, archive_path=archive_path)
+      else:
+        return system(pipeline_options=options)
     except ValueError:
       raise
     except Exception as e:
@@ -165,7 +203,7 @@ class FileSystems(object):
     return filesystem.mkdirs(path)
 
   @staticmethod
-  def match(patterns, limits=None):
+  def match(patterns, limits=None, archive_path=None, archivesystem=None):
     """Find all matching paths to the patterns provided.
 
     Pattern matching is done using each filesystem's ``match`` method (e.g.
@@ -175,7 +213,7 @@ class FileSystems(object):
       - Depending on the :class:`.FileSystem` implementation, file listings
         (the ``.FileSystem._list`` method) may not be recursive.
       - If the file listing is not recursive, a pattern like
-        ``scheme://path/*/foo`` will not be able to mach any files.
+        ``scheme://path/*/foo`` will not be able to match any files.
 
     See Also:
       :meth:`.filesystem.FileSystem.match`
@@ -192,6 +230,8 @@ class FileSystems(object):
     Args:
       patterns: list of string for the file path pattern to match against
       limits: list of maximum number of responses that need to be fetched
+      archive_path: (optional) Path of the archive within which 
+      archivesystem: (optional) ArchiveSystemMixin, if archive_path is specified and a particular archive system should be specified rather than inferring from the archive_path extension.
 
     Returns: list of ``MatchResult`` objects.
 
@@ -200,7 +240,11 @@ class FileSystems(object):
     """
     if len(patterns) == 0:
       return []
-    filesystem = FileSystems.get_filesystem(patterns[0])
+    pattern = patterns[0]
+    # if isintance(pattern, FileMetadata):
+    #   pattern = 
+    #   archive_path = 
+    filesystem = FileSystems.get_filesystem(pattern, archive_path, archivesystem)
     return filesystem.match(patterns, limits)
 
   @staticmethod
