@@ -43,6 +43,7 @@ import collections
 import contextlib
 import doctest
 import re
+import traceback
 from typing import Any
 from typing import Dict
 from typing import List
@@ -209,15 +210,20 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
 
   def fix(self, want, got):
     if 'DeferredFrame' in got:
-      to_compute = {
-          m.group(0): self._env._all_frames[int(m.group(1))]
-          for m in re.finditer(r'DeferredFrame\[(\d+)\]', got)
-      }
-      computed = self.compute(to_compute)
-      for name, frame in computed.items():
-        got = got.replace(name, repr(frame))
-      got = '\n'.join(sorted(line.rstrip() for line in got.split('\n')))
-      want = '\n'.join(sorted(line.rstrip() for line in want.split('\n')))
+      try:
+        to_compute = {
+            m.group(0): self._env._all_frames[int(m.group(1))]
+            for m in re.finditer(r'DeferredFrame\[(\d+)\]', got)
+        }
+        computed = self.compute(to_compute)
+        for name, frame in computed.items():
+          got = got.replace(name, repr(frame))
+        def sort_and_normalize(text):
+          return '\n'.join(sorted(line.rstrip() for line in text.split('\n') if line.strip())) + '\n'
+        got = sort_and_normalize(got)
+        want = sort_and_normalize(want)
+      except Exception:
+        got = traceback.format_exc()
     return want, got
 
   def check_output(self, want, got, optionflags):
@@ -239,7 +245,6 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
 
   def output_difference(self, example, got, optionflags):
     want, got = self.fix(example.want, got)
-    want = example.want
     if want != example.want:
       example = doctest.Example(
           example.source,
@@ -294,8 +299,12 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
 
 
 def teststring(text, report=True, **runner_kwargs):
+  optionflags = runner_kwargs.pop('optionflags', 0)
+  optionflags |= (
+      doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
+
   parser = doctest.DocTestParser()
-  runner = BeamDataframeDoctestRunner(TestEnvironment(), **runner_kwargs)
+  runner = BeamDataframeDoctestRunner(TestEnvironment(), optionflags=optionflags, **runner_kwargs)
   test = parser.get_doctest(
       text, {
           'pd': runner.fake_pandas_module(), 'np': np
