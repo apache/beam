@@ -45,6 +45,8 @@ type CustomCoder struct {
 	// Dec is the decoding function: []byte -> T. It may optionally take a
 	// reflect.Type parameter and return an error as well.
 	Dec *funcx.Fn
+
+	ID string // (optional) This coder's ID if translated from a pipeline proto.
 }
 
 // TODO(herohde) 5/16/2017: do we want/need to allow user coders that follow the
@@ -187,6 +189,8 @@ type Coder struct {
 	Components []*Coder     // WindowedValue, KV, CoGBK
 	Custom     *CustomCoder // Custom
 	Window     *WindowCoder // WindowedValue
+
+	ID string // (optional) This coder's ID if translated from a pipeline proto.
 }
 
 // Equals returns true iff the two coders are equal. It assumes that
