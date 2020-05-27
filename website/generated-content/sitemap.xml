@@ -668,8 +668,13 @@
   </url>
   
   <url>
+    <loc>/documentation/patterns/bigqueryio/</loc>
+    <lastmod>2020-05-26T17:23:44+08:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/documentation/io/built-in/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-22T22:16:32-04:00</lastmod>
   </url>
   
   <url>
@@ -1049,7 +1054,7 @@
   
   <url>
     <loc>/documentation/patterns/overview/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-26T17:23:44+08:00</lastmod>
   </url>
   
   <url>

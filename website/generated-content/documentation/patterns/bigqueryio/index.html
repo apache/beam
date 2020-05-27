@@ -9,7 +9,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Container environments</title>
+<title>BigQuery patterns</title>
 <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
  
 <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -34,7 +34,7 @@
 <script src="/js/page-nav.js"></script>
 
 <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
-<link rel="canonical" href="/documentation/runtime/environments/" data-proofer-ignore>
+<link rel="canonical" href="/documentation/patterns/bigqueryio/" data-proofer-ignore>
 <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
 <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
  
@@ -121,7 +121,7 @@
         </li>
         <li>
           
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/runtime/environments.md" data-proofer-ignore>
+          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/patterns/bigqueryio.md" data-proofer-ignore>
             <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
           </a>
         </li>
@@ -452,19 +452,7 @@
     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
       <nav id="TableOfContents">
   <ul>
-    <li><a href="#customizing-container-images">Customizing container images</a>
-      <ul>
-        <li><a href="#writing-new-dockerfiles">Writing new Dockerfiles on top of the original</a></li>
-        <li><a href="#modifying-dockerfiles">Modifying the original Dockerfile</a></li>
-        <li><a href="#testing-customized-images">Testing customized images</a></li>
-      </ul>
-    </li>
-    <li><a href="#building-container-images">Building container images</a>
-      <ul>
-        <li><a href="#overriding-default-docker-targets">Overriding default Docker targets</a></li>
-      </ul>
-    </li>
-    <li><a href="#pushing-container-images">Pushing container images</a></li>
+    <li><a href="#bigqueryio-deadletter-pattern">BigQueryIO deadletter pattern</a></li>
   </ul>
 </nav>
     </nav>
@@ -483,74 +471,99 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-<h1 id="container-environments">Container environments</h1>
-<p>The Beam SDK runtime environment is isolated from other runtime systems because the SDK runtime environment is <a href="https://s.apache.org/beam-fn-api-container-contract">containerized</a> with <a href="https://www.docker.com/">Docker</a>. This means that any execution engine can run the Beam SDK.</p>
-<p>This page describes how to customize, build, and push Beam SDK container images.</p>
-<p>Before you begin, install <a href="https://www.docker.com/">Docker</a> on your workstation.</p>
-<h2 id="customizing-container-images">Customizing container images</h2>
-<p>You can add extra dependencies to container images so that you don&rsquo;t have to supply the dependencies to execution engines.</p>
-<p>To customize a container image, either:</p>
-<ul>
-<li><a href="#writing-new-dockerfiles">Write a new</a> <a href="https://docs.docker.com/engine/reference/builder/">Dockerfile</a> on top of the original.</li>
-<li><a href="#modifying-dockerfiles">Modify</a> the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">original Dockerfile</a> and reimage the container.</li>
-</ul>
-<p>It&rsquo;s often easier to write a new Dockerfile. However, by modifying the original Dockerfile, you can customize anything (including the base OS).</p>
-<h3 id="writing-new-dockerfiles">Writing new Dockerfiles on top of the original</h3>
-<ol>
-<li>Pull a <a href="https://hub.docker.com/search?q=apache%2Fbeam&amp;type=image">prebuilt SDK container image</a> for your <a href="https://docs.docker.com/docker-hub/repos/#searching-for-repositories">target</a> language and version. The following example pulls the latest Python SDK:</li>
-</ol>
-<pre><code>docker pull apache/beam_python3.7_sdk
-</code></pre><ol start="2">
-<li><a href="https://docs.docker.com/develop/develop-images/dockerfile_best-practices/">Write a new Dockerfile</a> that <a href="https://docs.docker.com/engine/reference/builder/#from">designates</a> the original as its <a href="https://docs.docker.com/glossary/?term=parent%20image">parent</a>.</li>
-<li><a href="#building-container-images">Build</a> a child image.</li>
-</ol>
-<h3 id="modifying-dockerfiles">Modifying the original Dockerfile</h3>
-<ol>
-<li>Clone the <code>beam</code> repository:</li>
-</ol>
-<pre><code>git clone https://github.com/apache/beam.git
-</code></pre><ol start="2">
-<li>Customize the <a href="https://github.com/apache/beam/blob/master/sdks/python/container/Dockerfile">Dockerfile</a>. If you&rsquo;re adding dependencies from <a href="https://pypi.org/">PyPI</a>, use <a href="https://github.com/apache/beam/blob/master/sdks/python/container/base_image_requirements.txt"><code>base_image_requirements.txt</code></a> instead.</li>
-<li><a href="#building-container-images">Reimage</a> the container.</li>
-</ol>
-<h3 id="testing-customized-images">Testing customized images</h3>
-<p>To test a customized image locally, run a pipeline with PortableRunner and set the <code>--environment_config</code> flag to the image path:</p>
+<h1 id="google-bigquery-patterns">Google BigQuery patterns</h1>
+<p>The samples on this page show you common patterns for use with BigQueryIO.</p>
+
+
+<nav class="language-switcher">
+  <strong>Adapt for:</strong>
+  <ul>
+    
+      
+        <li data-type="language-java" class="active">Java SDK</li>
+      
+      
+      
+    
+      
+      
+        <li data-type="language-py">Python SDK</li>
+      
+      
+    
+  </ul>
+</nav>
+<h2 id="bigqueryio-deadletter-pattern">BigQueryIO deadletter pattern</h2>
+<p>In production systems, it is useful to implement the deadletter pattern with BigQueryIO outputting any elements which had errors during processing by BigQueryIO into another PCollection for further processing.
+The samples below print the errors, but in a production system they can be sent to a deadletter table for later correction.</p>
+
+
+
+  <p class="language-java">When using <code>STREAMING_INSERTS</code>  you can use the <code>WriteResult</code> object to access a <code>PCollection</code> with the <code>TableRows</code> that failed to be inserted into BigQuery.
+If you also set the <code>withExtendedErrorInfo</code> property , you will be able to access a <code>PCollection&lt;BigQueryInsertError&gt;</code> from the <code>WriteResult</code>. The <code>PCollection</code> will then include a reference to the table, the data row and the <code>InsertErrors</code>. Which errors are added to the deadletter queue is determined via the <code>InsertRetryPolicy</code>.</p>
 
 
 
 
-
-    <div class=runner-direct>
-        
-            <pre><code>python -m apache_beam.examples.wordcount \
---input=/path/to/inputfile \
---output /path/to/write/counts \
---runner=PortableRunner \
---job_endpoint=embed \
---environment_config=path/to/container/image</code></pre>
-        
-    </div>
+  <p class="language-py">In the result tuple you can access <code>FailedRows</code> to access the failed inserts.</p>
 
 
 
 
 
 
+    
+        <div class=language-java>
+            <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java">      <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span>
+          <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">fromArgs</span><span class="o">(</span><span class="n">args</span><span class="o">).</span><span class="na">withValidation</span><span class="o">().</span><span class="na">as</span><span class="o">(</span><span class="n">BigQueryOptions</span><span class="o">.</span><span class="na">class</span><span class="o">);</span>
 
-    <div class=runner-flink-local>
-        
-            <pre><code># Start a Flink job server on localhost:8099
-./gradlew :runners:flink:1.8:job-server:runShadow
+      <span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 
-# Run a pipeline on the Flink job server
-python -m apache_beam.examples.wordcount \
---input=/path/to/inputfile \
---output=/path/to/write/counts \
---runner=PortableRunner \
---job_endpoint=localhost:8099 \
---environment_config=path/to/container/image</code></pre>
-        
-    </div>
+      <span class="c1">// Create a bug by writing the 2nd value as null. The API will correctly
+</span><span class="c1"></span>      <span class="c1">// throw an error when trying to insert a null value into a REQUIRED field.
+</span><span class="c1"></span>      <span class="n">WriteResult</span> <span class="n">result</span> <span class="o">=</span>
+          <span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Create</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">1</span><span class="o">,</span> <span class="n">2</span><span class="o">))</span>
+              <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+                  <span class="n">BigQueryIO</span><span class="o">.&lt;</span><span class="n">Integer</span><span class="o">&gt;</span><span class="n">write</span><span class="o">()</span>
+                      <span class="o">.</span><span class="na">withSchema</span><span class="o">(</span>
+                          <span class="k">new</span> <span class="n">TableSchema</span><span class="o">()</span>
+                              <span class="o">.</span><span class="na">setFields</span><span class="o">(</span>
+                                  <span class="n">ImmutableList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span>
+                                      <span class="k">new</span> <span class="n">TableFieldSchema</span><span class="o">()</span>
+                                          <span class="o">.</span><span class="na">setName</span><span class="o">(</span><span class="s">&#34;num&#34;</span><span class="o">)</span>
+                                          <span class="o">.</span><span class="na">setType</span><span class="o">(</span><span class="s">&#34;INTEGER&#34;</span><span class="o">)</span>
+                                          <span class="o">.</span><span class="na">setMode</span><span class="o">(</span><span class="s">&#34;REQUIRED&#34;</span><span class="o">))))</span>
+                      <span class="o">.</span><span class="na">to</span><span class="o">(</span><span class="s">&#34;Test.dummyTable&#34;</span><span class="o">)</span>
+                      <span class="o">.</span><span class="na">withFormatFunction</span><span class="o">(</span><span class="n">x</span> <span class="o">-&gt;</span> <span class="k">new</span> <span class="n">TableRow</span><span class="o">().</span><span class="na">set</span><span class="o">(</span><span class="s">&#34;num&#34;</span><span class="o">,</span> <span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="n">2</span><span class="o">)</span> <span class="o">?</span> <span class="kc">null</span> <span class="o">:</span> <span class="n">x</span><span class="o">))</span>
+                      <span class="o">.</span><span class="na">withFailedInsertRetryPolicy</span><span class="o">(</span><span class="n">InsertRetryPolicy</span><span class="o">.</span><span class="na">retryTransientErrors</span><span class="o">())</span>
+                      <span class="c1">// Forcing the bounded pipeline to use streaming inserts
+</span><span class="c1"></span>                      <span class="o">.</span><span class="na">withMethod</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">Method</span><span class="o">.</span><span class="na">STREAMING_INSERTS</span><span class="o">)</span>
+                      <span class="c1">// set the withExtendedErrorInfo property.
+</span><span class="c1"></span>                      <span class="o">.</span><span class="na">withExtendedErrorInfo</span><span class="o">()</span>
+                      <span class="o">.</span><span class="na">withCreateDisposition</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">CreateDisposition</span><span class="o">.</span><span class="na">CREATE_IF_NEEDED</span><span class="o">)</span>
+                      <span class="o">.</span><span class="na">withWriteDisposition</span><span class="o">(</span><span class="n">BigQueryIO</span><span class="o">.</span><span class="na">Write</span><span class="o">.</span><span class="na">WriteDisposition</span><span class="o">.</span><span class="na">WRITE_APPEND</span><span class="o">));</span>
+
+      <span class="n">result</span>
+          <span class="o">.</span><span class="na">getFailedInsertsWithErr</span><span class="o">()</span>
+          <span class="o">.</span><span class="na">apply</span><span class="o">(</span>
+              <span class="n">MapElements</span><span class="o">.</span><span class="na">into</span><span class="o">(</span><span class="n">TypeDescriptors</span><span class="o">.</span><span class="na">strings</span><span class="o">())</span>
+                  <span class="o">.</span><span class="na">via</span><span class="o">(</span>
+                      <span class="n">x</span> <span class="o">-&gt;</span> <span class="o">{</span>
+                        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&#34; The table was &#34;</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="na">getTable</span><span class="o">());</span>
+                        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&#34; The row was &#34;</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="na">getRow</span><span class="o">());</span>
+                        <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">&#34; The error was &#34;</span> <span class="o">+</span> <span class="n">x</span><span class="o">.</span><span class="na">getError</span><span class="o">());</span>
+                        <span class="k">return</span> <span class="s">&#34;&#34;</span><span class="o">;</span>
+                      <span class="o">}));</span>
+      <span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">();</span>
+
+      <span class="cm">/*  Sample Output From the pipeline:
+</span><span class="cm">       &lt;p&gt;The table was GenericData{classInfo=[datasetId, projectId, tableId], {datasetId=Test,projectId=&lt;&gt;, tableId=dummyTable}}
+</span><span class="cm">       &lt;p&gt;The row was GenericData{classInfo=[f], {num=null}}
+</span><span class="cm">       &lt;p&gt;The error was GenericData{classInfo=[errors, index],{errors=[GenericData{classInfo=[debugInfo, location, message, reason], {debugInfo=,location=, message=Missing required field: Msg_0_CLOUD_QUERY_TABLE.num., reason=invalid}}],index=0}}
+</span><span class="cm">      */</span>
+    <span class="o">}</span></code></pre></div>
+        </div>
+    
 
 
 
@@ -558,69 +571,32 @@ python -m apache_beam.examples.wordcount \
 
 
 
-    <div class=runner-spark-local>
-        
-            <pre><code># Start a Spark job server on localhost:8099
-./gradlew :runners:spark:job-server:runShadow
+    
+        <div class=language-py>
+            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py">  <span class="c1"># Create pipeline.</span>
+  <span class="n">schema</span> <span class="o">=</span> <span class="p">({</span><span class="s1">&#39;fields&#39;</span><span class="p">:</span> <span class="p">[{</span><span class="s1">&#39;name&#39;</span><span class="p">:</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="s1">&#39;mode&#39;</span><span class="p">:</span> <span class="s1">&#39;REQUIRED&#39;</span><span class="p">}]})</span>
 
-# Run a pipeline on the Spark job server
-python -m apache_beam.examples.wordcount \
---input=/path/to/inputfile \
---output=path/to/write/counts \
---runner=PortableRunner \
---job_endpoint=localhost:8099 \
---environment_config=path/to/container/image</code></pre>
-        
-    </div>
+  <span class="n">p</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span>
+
+  <span class="n">errors</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">p</span> <span class="o">|</span> <span class="s1">&#39;Data&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
+      <span class="o">|</span> <span class="s1">&#39;CreateBrokenData&#39;</span> <span class="o">&gt;&gt;</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">src</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="n">src</span><span class="p">}</span> <span class="k">if</span> <span class="n">src</span> <span class="o">==</span> <span class="mi">2</span> <span class="k">else</span> <span class="p">{</span><span class="s1">&#39;a&#39;</span><span class="p">:</span> <span class="bp">None</span><span class="p">})</span>
+      <span class="o">|</span> <span class="s1">&#39;WriteToBigQuery&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToBigQuery</span><span class="p">(</span>
+          <span class="s2">&#34;&lt;Your Project:Test.dummy_a_table&#34;</span><span class="p">,</span>
+          <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+          <span class="n">insert_retry_strategy</span><span class="o">=</span><span class="s1">&#39;RETRY_ON_TRANSIENT_ERROR&#39;</span><span class="p">,</span>
+          <span class="n">create_disposition</span><span class="o">=</span><span class="s1">&#39;CREATE_IF_NEEDED&#39;</span><span class="p">,</span>
+          <span class="n">write_disposition</span><span class="o">=</span><span class="s1">&#39;WRITE_APPEND&#39;</span><span class="p">))</span>
+  <span class="n">result</span> <span class="o">=</span> <span class="p">(</span>
+      <span class="n">errors</span><span class="p">[</span><span class="s1">&#39;FailedRows&#39;</span><span class="p">]</span>
+      <span class="o">|</span> <span class="s1">&#39;PrintErrors&#39;</span> <span class="o">&gt;&gt;</span>
+      <span class="n">beam</span><span class="o">.</span><span class="n">FlatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">err</span><span class="p">:</span> <span class="k">print</span><span class="p">(</span><span class="s2">&#34;Error Found {}&#34;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">err</span><span class="p">))))</span></code></pre></div>
+        </div>
+    
 
 
-<h2 id="building-container-images">Building container images</h2>
-<p>To build Beam SDK container images:</p>
-<ol>
-<li>Navigate to the root directory of the local copy of your Apache Beam.</li>
-<li>Run Gradle with the <code>docker</code> target. If you&rsquo;re <a href="#writing-new-dockerfiles">building a child image</a>, set the optional <code>--file</code> flag to the new Dockerfile. If you&rsquo;re <a href="#modifying-dockerfiles">building an image from an original Dockerfile</a>, ignore the <code>--file</code> flag:</li>
-</ol>
-<pre><code># The default repository of each SDK
-./gradlew [--file=path/to/new/Dockerfile] :sdks:java:container:docker
-./gradlew [--file=path/to/new/Dockerfile] :sdks:go:container:docker
-./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py2:docker
-./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py35:docker
-./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py36:docker
-./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container:py37:docker
 
-# Shortcut for building all four Python SDKs
-./gradlew [--file=path/to/new/Dockerfile] :sdks:python:container buildAll
-</code></pre><p>From 2.21.0, <code>docker-pull-licenses</code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when <code>docker-pull-licenses</code> was set.
-For example, <code>./gradlew :sdks:java:container:docker -Pdocker-pull-licenses</code>. The files are added to <code>/opt/apache/beam/third_party_licenses/</code>.
-By default, no licenses/notices are added to the docker images.</p>
-<p>To examine the containers that you built, run <code>docker images</code> from anywhere in the command line. If you successfully built all of the container images, the command prints a table like the following:</p>
-<pre><code>REPOSITORY                          TAG                 IMAGE ID            CREATED           SIZE
-apache/beam_java_sdk               latest              16ca619d489e        2 weeks ago        550MB
-apache/beam_python2.7_sdk          latest              b6fb40539c29        2 weeks ago       1.78GB
-apache/beam_python3.5_sdk          latest              bae309000d09        2 weeks ago       1.85GB
-apache/beam_python3.6_sdk          latest              42faad307d1a        2 weeks ago       1.86GB
-apache/beam_python3.7_sdk          latest              18267df54139        2 weeks ago       1.86GB
-apache/beam_go_sdk                 latest              30cf602e9763        2 weeks ago        124MB
-</code></pre><h3 id="overriding-default-docker-targets">Overriding default Docker targets</h3>
-<p>The default <a href="https://docs.docker.com/engine/reference/commandline/tag/">tag</a> is sdk_version defined at <a href="https://github.com/apache/beam/blob/master/gradle.properties">gradle.properties</a> and the default repositories are in the Docker Hub <code>apache</code> namespace.
-The <code>docker</code> command-line tool implicitly <a href="#pushing-container-images">pushes container images</a> to this location.</p>
-<p>To tag a local image, set the <code>docker-tag</code> option when building the container. The following command tags a Python SDK image with a date.</p>
-<pre><code>./gradlew :sdks:python:container:py36:docker -Pdocker-tag=2019-10-04
-</code></pre><p>To change the repository, set the <code>docker-repository-root</code> option to a new location. The following command sets the <code>docker-repository-root</code>
-to a repository named <code>example-repo</code> on Docker Hub.</p>
-<pre><code>./gradlew :sdks:python:container:py36:docker -Pdocker-repository-root=example-repo
-</code></pre><h2 id="pushing-container-images">Pushing container images</h2>
-<p>After <a href="#building-container-images">building a container image</a>, you can store it in a remote Docker repository.</p>
-<p>The following steps push a Python3.6 SDK image to the <a href="#overriding-default-docker-targets"><code>docker-root-repository</code> value</a>.
-Please log in to the destination repository as needed.</p>
-<pre><code>Upload it to the remote repository:
-</code></pre><p>docker push example-repo/beam_python3.6_sdk</p>
-<pre><code>
-To download the image again, run `docker pull`:
-</code></pre><p>docker pull example-repo/beam_python3.6_sdk</p>
-<pre><code>
-&gt; **Note**: After pushing a container image, the remote image ID and digest match the local image ID and digest.
-</code></pre>
     </div>
   </div>
 

@@ -8168,6 +8168,157 @@ we want to batch ten seconds worth of events together in order to reduce the num
     </item>
     
     <item>
+      <title>Documentation: BigQuery patterns</title>
+      <link>/documentation/patterns/bigqueryio/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/documentation/patterns/bigqueryio/</guid>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;h1 id=&#34;google-bigquery-patterns&#34;&gt;Google BigQuery patterns&lt;/h1&gt;
+&lt;p&gt;The samples on this page show you common patterns for use with BigQueryIO.&lt;/p&gt;
+
+
+&lt;nav class=&#34;language-switcher&#34;&gt;
+  &lt;strong&gt;Adapt for:&lt;/strong&gt;
+  &lt;ul&gt;
+    
+      
+        &lt;li data-type=&#34;language-java&#34; class=&#34;active&#34;&gt;Java SDK&lt;/li&gt;
+      
+      
+      
+    
+      
+      
+        &lt;li data-type=&#34;language-py&#34;&gt;Python SDK&lt;/li&gt;
+      
+      
+    
+  &lt;/ul&gt;
+&lt;/nav&gt;
+&lt;h2 id=&#34;bigqueryio-deadletter-pattern&#34;&gt;BigQueryIO deadletter pattern&lt;/h2&gt;
+&lt;p&gt;In production systems, it is useful to implement the deadletter pattern with BigQueryIO outputting any elements which had errors during processing by BigQueryIO into another PCollection for further processing.
+The samples below print the errors, but in a production system they can be sent to a deadletter table for later correction.&lt;/p&gt;
+
+
+
+  &lt;p class=&#34;language-java&#34;&gt;When using &lt;code&gt;STREAMING_INSERTS&lt;/code&gt;  you can use the &lt;code&gt;WriteResult&lt;/code&gt; object to access a &lt;code&gt;PCollection&lt;/code&gt; with the &lt;code&gt;TableRows&lt;/code&gt; that failed to be inserted into BigQuery.
+If you also set the &lt;code&gt;withExtendedErrorInfo&lt;/code&gt; property , you will be able to access a &lt;code&gt;PCollection&amp;lt;BigQueryInsertError&amp;gt;&lt;/code&gt; from the &lt;code&gt;WriteResult&lt;/code&gt;. The &lt;code&gt;PCollection&lt;/code&gt; will then include a reference to the table, the data row and the &lt;code&gt;InsertErrors&lt;/code&gt;. Which errors are added to the deadletter queue is determined via the &lt;code&gt;InsertRetryPolicy&lt;/code&gt;.&lt;/p&gt;
+
+
+
+
+  &lt;p class=&#34;language-py&#34;&gt;In the result tuple you can access &lt;code&gt;FailedRows&lt;/code&gt; to access the failed inserts.&lt;/p&gt;
+
+
+
+
+
+
+    
+        &lt;div class=language-java&gt;
+            &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;      &lt;span class=&#34;n&#34;&gt;PipelineOptions&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;options&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;
+          &lt;span class=&#34;n&#34;&gt;PipelineOptionsFactory&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;fromArgs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;args&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;).&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withValidation&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;as&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BigQueryOptions&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;class&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;);&lt;/span&gt;
+
+      &lt;span class=&#34;n&#34;&gt;Pipeline&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;p&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Pipeline&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;create&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;options&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;);&lt;/span&gt;
+
+      &lt;span class=&#34;c1&#34;&gt;// Create a bug by writing the 2nd value as null. The API will correctly
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;      &lt;span class=&#34;c1&#34;&gt;// throw an error when trying to insert a null value into a REQUIRED field.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;      &lt;span class=&#34;n&#34;&gt;WriteResult&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;result&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;
+          &lt;span class=&#34;n&#34;&gt;p&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Create&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))&lt;/span&gt;
+              &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
+                  &lt;span class=&#34;n&#34;&gt;BigQueryIO&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withSchema&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
+                          &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TableSchema&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()&lt;/span&gt;
+                              &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;setFields&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
+                                  &lt;span class=&#34;n&#34;&gt;ImmutableList&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
+                                      &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TableFieldSchema&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()&lt;/span&gt;
+                                          &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;setName&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;num&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+                                          &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;setType&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;INTEGER&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+                                          &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;setMode&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;REQUIRED&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))))&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;to&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Test.dummyTable&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withFormatFunction&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TableRow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;set&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;num&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;?&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;null&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withFailedInsertRetryPolicy&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;InsertRetryPolicy&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;retryTransientErrors&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;())&lt;/span&gt;
+                      &lt;span class=&#34;c1&#34;&gt;// Forcing the bounded pipeline to use streaming inserts
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withMethod&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BigQueryIO&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;Write&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;Method&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;STREAMING_INSERTS&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+                      &lt;span class=&#34;c1&#34;&gt;// set the withExtendedErrorInfo property.
+&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withExtendedErrorInfo&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withCreateDisposition&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BigQueryIO&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;Write&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;CreateDisposition&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;CREATE_IF_NEEDED&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;withWriteDisposition&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BigQueryIO&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;Write&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;WriteDisposition&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;WRITE_APPEND&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;));&lt;/span&gt;
+
+      &lt;span class=&#34;n&#34;&gt;result&lt;/span&gt;
+          &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getFailedInsertsWithErr&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()&lt;/span&gt;
+          &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
+              &lt;span class=&#34;n&#34;&gt;MapElements&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;into&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TypeDescriptors&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;strings&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;())&lt;/span&gt;
+                  &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;via&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
+                      &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
+                        &lt;span class=&#34;n&#34;&gt;System&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;out&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34; The table was &amp;#34;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getTable&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
+                        &lt;span class=&#34;n&#34;&gt;System&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;out&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34; The row was &amp;#34;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getRow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
+                        &lt;span class=&#34;n&#34;&gt;System&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;out&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;println&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34; The error was &amp;#34;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getError&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
+                        &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;&amp;#34;&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;;&lt;/span&gt;
+                      &lt;span class=&#34;o&#34;&gt;}));&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;p&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;run&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;();&lt;/span&gt;
+
+      &lt;span class=&#34;cm&#34;&gt;/*  Sample Output From the pipeline:
+&lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;       &amp;lt;p&amp;gt;The table was GenericData{classInfo=[datasetId, projectId, tableId], {datasetId=Test,projectId=&amp;lt;&amp;gt;, tableId=dummyTable}}
+&lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;       &amp;lt;p&amp;gt;The row was GenericData{classInfo=[f], {num=null}}
+&lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;       &amp;lt;p&amp;gt;The error was GenericData{classInfo=[errors, index],{errors=[GenericData{classInfo=[debugInfo, location, message, reason], {debugInfo=,location=, message=Missing required field: Msg_0_CLOUD_QUERY_TABLE.num., reason=invalid}}],index=0}}
+&lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;      */&lt;/span&gt;
+    &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+        &lt;/div&gt;
+    
+
+
+
+
+
+
+
+    
+        &lt;div class=language-py&gt;
+            &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-py&#34; data-lang=&#34;py&#34;&gt;  &lt;span class=&#34;c1&#34;&gt;# Create pipeline.&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;schema&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;({&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;fields&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;name&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;a&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;type&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;STRING&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;mode&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;REQUIRED&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}]})&lt;/span&gt;
+
+  &lt;span class=&#34;n&#34;&gt;p&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Pipeline&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;()&lt;/span&gt;
+
+  &lt;span class=&#34;n&#34;&gt;errors&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;p&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;|&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;Data&amp;#39;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Create&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;([&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;])&lt;/span&gt;
+      &lt;span class=&#34;o&#34;&gt;|&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;CreateBrokenData&amp;#39;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Map&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;lambda&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;a&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;src&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;a&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;bp&#34;&gt;None&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;})&lt;/span&gt;
+      &lt;span class=&#34;o&#34;&gt;|&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;WriteToBigQuery&amp;#39;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;io&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;WriteToBigQuery&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+          &lt;span class=&#34;s2&#34;&gt;&amp;#34;&amp;lt;Your Project:Test.dummy_a_table&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+          &lt;span class=&#34;n&#34;&gt;schema&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;schema&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+          &lt;span class=&#34;n&#34;&gt;insert_retry_strategy&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;RETRY_ON_TRANSIENT_ERROR&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+          &lt;span class=&#34;n&#34;&gt;create_disposition&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;CREATE_IF_NEEDED&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+          &lt;span class=&#34;n&#34;&gt;write_disposition&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;WRITE_APPEND&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;
+  &lt;span class=&#34;n&#34;&gt;result&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;errors&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;s1&#34;&gt;&amp;#39;FailedRows&amp;#39;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+      &lt;span class=&#34;o&#34;&gt;|&lt;/span&gt; &lt;span class=&#34;s1&#34;&gt;&amp;#39;PrintErrors&amp;#39;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt;
+      &lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FlatMap&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;lambda&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;print&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s2&#34;&gt;&amp;#34;Error Found {}&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;format&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;err&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))))&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+        &lt;/div&gt;
+    
+
+
+
+      </description>
+    </item>
+    
+    <item>
       <title>Documentation: Built-in I/O Transforms</title>
       <link>/documentation/io/built-in/</link>
       <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
@@ -8191,85 +8342,1501 @@ limitations under the License.
 --&gt;
 &lt;h1 id=&#34;built-in-io-transforms&#34;&gt;Built-in I/O Transforms&lt;/h1&gt;
 &lt;p&gt;This table contains the currently available I/O transforms.&lt;/p&gt;
-&lt;p&gt;Consult the &lt;a href=&#34;/documentation/programming-guide#pipeline-io&#34;&gt;Programming Guide I/O section&lt;/a&gt; for general usage instructions, and see the javadoc/pydoc for the particular I/O transforms.&lt;/p&gt;
+&lt;p&gt;Consult the &lt;a href=&#34;/documentation/programming-guide#pipeline-io&#34;&gt;Programming Guide I/O section&lt;/a&gt; for general usage instructions.&lt;/p&gt;
+
+
+&lt;nav class=&#34;language-switcher&#34;&gt;
+  &lt;strong&gt;Adapt for:&lt;/strong&gt;
+  &lt;ul&gt;
+    
+      
+        &lt;li data-type=&#34;language-java&#34; class=&#34;active&#34;&gt;Java SDK&lt;/li&gt;
+      
+      
+      
+    
+      
+      
+        &lt;li data-type=&#34;language-py&#34;&gt;Python SDK&lt;/li&gt;
+      
+      
+    
+      
+      
+      
+        &lt;li data-type=&#34;language-go&#34;&gt;Go SDK&lt;/li&gt;
+      
+    
+  &lt;/ul&gt;
+&lt;/nav&gt;
+
+ 
+
+
+
+
+
+
+&lt;h3&gt;File-based&lt;/h3&gt;
+&lt;p&gt;These I/O connectors involve working with files.&lt;/p&gt;
 &lt;table class=&#34;table table-bordered&#34;&gt;
-&lt;tr&gt;
-  &lt;th&gt;Language&lt;/th&gt;
-  &lt;th&gt;File-based&lt;/th&gt;
-  &lt;th&gt;Messaging&lt;/th&gt;
-  &lt;th&gt;Database&lt;/th&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-  &lt;td&gt;Java&lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;Beam Java supports Apache HDFS, Amazon S3, Google Cloud Storage, and local filesystems.&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/FileIO.java&#34;&gt;FileIO&lt;/a&gt; (general-purpose reading, writing, and matching of files)&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/AvroIO.java&#34;&gt;AvroIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java&#34;&gt;TextIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TFRecordIO.java&#34;&gt;TFRecordIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/xml/src/main/java/org/apache/beam/sdk/io/xml/XmlIO.java&#34;&gt;XmlIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/tika/src/main/java/org/apache/beam/sdk/io/tika/TikaIO.java&#34;&gt;TikaIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;/documentation/io/built-in/parquet&#34;&gt;ParquetIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/thrift/src/main/java/org/apache/beam/sdk/io/thrift/ThriftIO.java&#34;&gt;ThriftIO&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/kinesis&#34;&gt;Amazon Kinesis&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/amqp&#34;&gt;AMQP&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/kafka&#34;&gt;Apache Kafka&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/pubsub&#34;&gt;Google Cloud Pub/Sub&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/jms&#34;&gt;JMS&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/mqtt&#34;&gt;MQTT&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java&#34;&gt;RabbitMqIO&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/amazon-web-services/src/main/java/org/apache/beam/sdk/io/aws/sqs/SqsIO.java&#34;&gt;SqsIO&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/cassandra&#34;&gt;Apache Cassandra&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;/documentation/io/built-in/hadoop/&#34;&gt;Apache Hadoop Input/Output Format&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/hbase&#34;&gt;Apache HBase&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;/documentation/io/built-in/hcatalog&#34;&gt;Apache Hive (HCatalog)&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/kudu&#34;&gt;Apache Kudu&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/solr&#34;&gt;Apache Solr&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/elasticsearch&#34;&gt;Elasticsearch (v2.x, v5.x, v6.x)&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;/documentation/io/built-in/google-bigquery/&#34;&gt;Google BigQuery&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable&#34;&gt;Google Cloud Bigtable&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore&#34;&gt;Google Cloud Datastore&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/spanner&#34;&gt;Google Cloud Spanner&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/jdbc&#34;&gt;JDBC&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/mongodb&#34;&gt;MongoDB&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/redis&#34;&gt;Redis&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-  &lt;td&gt;Python/Batch&lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;Beam Python supports Apache HDFS, Amazon S3, Google Cloud Storage, and local filesystems.&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py&#34;&gt;avroio&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;/documentation/io/built-in/parquet&#34;&gt;parquetio.py&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/textio.py&#34;&gt;textio&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/tfrecordio.py&#34;&gt;tfrecordio&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/vcfio.py&#34;&gt;vcfio&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-  &lt;td&gt;
-  &lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;&lt;a href=&#34;/documentation/io/built-in/google-bigquery/&#34;&gt;Google BigQuery&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/python/apache_beam/io/gcp/datastore&#34;&gt;Google Cloud Datastore&lt;/a&gt;&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigtableio.py&#34;&gt;Google Cloud Bigtable&lt;/a&gt; (Write)&lt;/p&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/mongodbio.py&#34;&gt;MongoDB&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-  &lt;td&gt;Python/Streaming&lt;/td&gt;
-  &lt;td&gt;
-  &lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/pubsub.py&#34;&gt;Google Cloud Pub/Sub&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-  &lt;td&gt;
-    &lt;p&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py&#34;&gt;Google BigQuery (sink only)&lt;/a&gt;&lt;/p&gt;
-  &lt;/td&gt;
-&lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Description&lt;/th&gt;
+    &lt;th&gt;
+      &lt;span class=&#34;language-java&#34;&gt;Javadoc&lt;/span&gt;
+      &lt;span class=&#34;language-py&#34;&gt;pydoc&lt;/span&gt;
+      &lt;span class=&#34;language-go&#34;&gt;Godoc&lt;/span&gt;
+    &lt;/th&gt;
+  &lt;/tr&gt;
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      FileIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;General-purpose transforms for working with files: listing files (matching), reading and writing.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/FileIO.html&#34;&gt;org.apache.beam.sdk.io.FileIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      FileIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;General-purpose transforms for working with files: listing files (matching), reading and writing.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.fileio.html&#34;&gt;apache_beam.io.FileIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      AvroIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading from and writing to &lt;a href=&#34;https://avro.apache.org/&#34;&gt;Avro&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/AvroIO.html&#34;&gt;org.apache.beam.sdk.io.AvroIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      AvroIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading from and writing to &lt;a href=&#34;https://avro.apache.org/&#34;&gt;Avro&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.avroio.html&#34;&gt;apache_beam.io.avroio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      AvroIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading from and writing to &lt;a href=&#34;https://avro.apache.org/&#34;&gt;Avro&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/avroio&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/avroio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      TextIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading and writing text files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TextIO.html&#34;&gt;org.apache.beam.sdk.io.TextIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      TextIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading and writing text files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html&#34;&gt;apache_beam.io.textio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      TextIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading and writing text files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/textio&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/textio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      TFRecordIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading and writing &lt;a href=&#34;https://www.tensorflow.org/tutorials/load_data/tfrecord&#34;&gt;TensorFlow TFRecord&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/TFRecordIO.html&#34;&gt;org.apache.beam.sdk.io.TFRecordIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      TFRecordIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading and writing &lt;a href=&#34;https://www.tensorflow.org/tutorials/load_data/tfrecord&#34;&gt;TensorFlow TFRecord&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.tfrecordio.html&#34;&gt;apache_beam.io.tfrecordio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      XmlIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Transforms for reading and writing XML files using &lt;a href=&#34;https://www.oracle.com/technical-resources/articles/javase/jaxb.html&#34;&gt;JAXB&lt;/a&gt; mappers.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/io/xml/XmlIO.html&#34;&gt;org.apache.beam.sdk.io.xml.XmlIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      TikaIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Transforms for parsing arbitrary files using &lt;a href=&#34;https://tika.apache.org/&#34;&gt;Apache Tika&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/io/tika/TikaIO.html&#34;&gt;org.apache.beam.sdk.io.tika.TikaIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      ParquetIO
+      &lt;a href=&#34;/documentation/io/built-in/parquet/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;IO for reading from and writing to &lt;a href=&#34;https://parquet.apache.org/&#34;&gt;Parquet&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/parquet/ParquetIO.html&#34;&gt;org.apache.beam.sdk.io.parquet.ParquetIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      ParquetIO
+      &lt;a href=&#34;/documentation/io/built-in/parquet/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;IO for reading from and writing to &lt;a href=&#34;https://parquet.apache.org/&#34;&gt;Parquet&lt;/a&gt; files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.parquetio.html&#34;&gt;apache_beam.io.parquetio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      ThriftIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading and writing files containing &lt;a href=&#34;https://thrift.apache.org/&#34;&gt;Thrift&lt;/a&gt;-encoded data.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/thrift/ThriftIO.html&#34;&gt;org.apache.beam.sdk.io.thrift.ThriftIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      VcfIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;A source for reading from &lt;a href=&#34;https://samtools.github.io/hts-specs/VCFv4.2.pdf&#34;&gt;VCF files&lt;/a&gt; (version 4.x).&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.vcfio.html&#34;&gt;apache_beam.io.vcfio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      S3IO
+      
+    &lt;/td&gt;
+    &lt;td&gt;A source for reading from and writing to &lt;a href=&#34;https://aws.amazon.com/s3/&#34;&gt;Amazon S3&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.aws.s3io.html&#34;&gt;apache_beam.io.aws.s3io&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      GcsIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;A source for reading from and writing to &lt;a href=&#34;https://cloud.google.com/storage&#34;&gt;Google Cloud Storage&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsio.html&#34;&gt;apache_beam.io.gcp.gcsio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
 &lt;/table&gt;
+
+&lt;h3&gt;FileSystem&lt;/h3&gt;
+&lt;p&gt;Beam provides a File system interface that defines APIs for writing file systems agnostic code. Several I/O connectors are implemented as a FileSystem implementation.&lt;/p&gt;
+&lt;table class=&#34;table table-bordered&#34;&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Description&lt;/th&gt;
+    &lt;th&gt;
+      &lt;span class=&#34;language-java&#34;&gt;Javadoc&lt;/span&gt;
+      &lt;span class=&#34;language-py&#34;&gt;pydoc&lt;/span&gt;
+      &lt;span class=&#34;language-go&#34;&gt;Godoc&lt;/span&gt;
+    &lt;/th&gt;
+  &lt;/tr&gt;
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      HadoopFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for accessing &lt;a href=&#34;https://hadoop.apache.org/&#34;&gt;Hadoop&lt;/a&gt; Distributed File System files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/HadoopFileSystemRegistrar.html&#34;&gt;org.apache.beam.sdk.io.hdfs.HadoopFileSystemRegistrar&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      HadoopFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for accessing &lt;a href=&#34;https://hadoop.apache.org/&#34;&gt;Hadoop&lt;/a&gt; Distributed File System files.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.hadoopfilesystem.html&#34;&gt;apache_beam.io.hadoopfilesystem&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      GcsFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for &lt;a href=&#34;https://cloud.google.com/storage&#34;&gt;Google Cloud Storage&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/extensions/gcp/storage/GcsFileSystemRegistrar.html&#34;&gt;org.apache.beam.sdk.extensions.gcp.storage.GcsFileSystemRegistrar&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      GcsFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for &lt;a href=&#34;https://cloud.google.com/storage&#34;&gt;Google Cloud Storage&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsfilesystem.html&#34;&gt;apache_beam.io.gcp.gcsfilesystem&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      GcsFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for &lt;a href=&#34;https://cloud.google.com/storage&#34;&gt;Google Cloud Storage&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/gcs&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      LocalFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for accessing files on disk.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/LocalFileSystemRegistrar.html&#34;&gt;org.apache.beam.sdk.io.LocalFileSystemRegistrar&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      LocalFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for accessing files on disk.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.localfilesystem.html&#34;&gt;apache_beam.io.localfilesystem&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      LocalFileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for accessing files on disk.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/local&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      S3FileSystem
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation for &lt;a href=&#34;https://aws.amazon.com/s3/&#34;&gt;Amazon S3&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hdfs/package-summary.html&#34;&gt;org.apache.beam.sdk.io.aws.s3.S3FileSystemRegistrar&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  
+
+    
+  
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      In-memory
+      
+    &lt;/td&gt;
+    &lt;td&gt;&lt;code&gt;FileSystem&lt;/code&gt; implementation in memory; useful for testing.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+&lt;/table&gt;
+
+&lt;h3&gt;Messaging&lt;/h3&gt;
+&lt;p&gt;These I/O connectors typically involve working with unbounded sources that come from messaging sources.&lt;/p&gt;
+&lt;table class=&#34;table table-bordered&#34;&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Description&lt;/th&gt;
+    &lt;th&gt;
+      &lt;span class=&#34;language-java&#34;&gt;Javadoc&lt;/span&gt;
+      &lt;span class=&#34;language-py&#34;&gt;pydoc&lt;/span&gt;
+      &lt;span class=&#34;language-go&#34;&gt;Godoc&lt;/span&gt;
+    &lt;/th&gt;
+  &lt;/tr&gt;
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      KinesisIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for reading from and writing to &lt;a href=&#34;https://aws.amazon.com/kinesis/&#34;&gt;Kinesis&lt;/a&gt; streams.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kinesis/KinesisIO.html&#34;&gt;org.apache.beam.sdk.io.kinesis.KinesisIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      AmqpIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;AMQP 1.0 protocol using the Apache QPid Proton-J library&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/amqp/AmqpIO.html&#34;&gt;org.apache.beam.sdk.io.amqp.AmqpIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      KafkaIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read and Write PTransforms for &lt;a href=&#34;https://kafka.apache.org/&#34;&gt;Apache Kafka&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html&#34;&gt;org.apache.beam.sdk.io.kafka.KafkaIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      KafkaIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read and Write PTransforms for &lt;a href=&#34;https://kafka.apache.org/&#34;&gt;Apache Kafka&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.kafka.html&#34;&gt;apache_beam.io.external.kafka&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      PubSubIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read and Write PTransforms for &lt;a href=&#34;https://cloud.google.com/pubsub&#34;&gt;Google Cloud Pub/Sub&lt;/a&gt; streams.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/pubsub/PubsubIO.html&#34;&gt;org.apache.beam.sdk.io.gcp.pubsub.PubsubIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      PubSubIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read and Write PTransforms for &lt;a href=&#34;https://cloud.google.com/pubsub&#34;&gt;Google Cloud Pub/Sub&lt;/a&gt; streams.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.pubsub.html&#34;&gt;apache_beam.io.gcp.pubsub&lt;/a&gt;&lt;/div&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.gcp.pubsub.html&#34;&gt;apache_beam.io.external.gcp.pubsub&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      PubSubIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read and Write PTransforms for &lt;a href=&#34;https://cloud.google.com/pubsub&#34;&gt;Google Cloud Pub/Sub&lt;/a&gt; streams.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/pubsubio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      JmsIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;An unbounded source for &lt;a href=&#34;https://www.oracle.com/java/technologies/java-message-service.html&#34;&gt;JMS&lt;/a&gt; destinations (queues or topics).&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jms/JmsIO.html&#34;&gt;org.apache.beam.sdk.io.jms.JmsIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      MqttIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;An unbounded source for &lt;a href=&#34;https://mqtt.org/&#34;&gt;MQTT&lt;/a&gt; broker.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mqtt/MqttIO.html&#34;&gt;org.apache.beam.sdk.io.mqtt.MqttIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      RabbitMqIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;A IO to publish or consume messages with a RabbitMQ broker.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/rabbitmq/src/main/java/org/apache/beam/sdk/io/rabbitmq/RabbitMqIO.java&#34;&gt;org.apache.beam.sdk.io.rabbitmq.RabbitMqIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      SqsIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;An unbounded source for &lt;a href=&#34;https://aws.amazon.com/sqs/&#34;&gt;Amazon Simple Queue Service (SQS)&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sqs/SqsIO.html&#34;&gt;org.apache.beam.sdk.io.aws.sqs.SqsIO&lt;/a&gt;&lt;/div&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sqs/SqsIO.html&#34;&gt;org.apache.beam.sdk.io.aws2.sqs.SqsIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      SnsIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;PTransforms for writing to &lt;a href=&#34;https://aws.amazon.com/sns/&#34;&gt;Amazon Simple Notification Service (SNS)&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/sns/SnsIO.html&#34;&gt;org.apache.beam.sdk.io.aws.sns.SnsIO&lt;/a&gt;&lt;/div&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/sns/SnsIO.html&#34;&gt;org.apache.beam.sdk.io.aws2.sns.SnsIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+&lt;/table&gt;
+
+&lt;h3&gt;Database&lt;/h3&gt;
+&lt;p&gt;These I/O connectors are used to connect to database systems.&lt;/p&gt;
+&lt;table class=&#34;table table-bordered&#34;&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Description&lt;/th&gt;
+    &lt;th&gt;
+      &lt;span class=&#34;language-java&#34;&gt;Javadoc&lt;/span&gt;
+      &lt;span class=&#34;language-py&#34;&gt;pydoc&lt;/span&gt;
+      &lt;span class=&#34;language-go&#34;&gt;Godoc&lt;/span&gt;
+    &lt;/th&gt;
+  &lt;/tr&gt;
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      CassandraIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;An IO to read from &lt;a href=&#34;https://cassandra.apache.org/&#34;&gt;Apache Cassandra&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/cassandra/CassandraIO.html&#34;&gt;org.apache.beam.sdk.io.cassandra.CassandraIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      HadoopFormatIO
+      &lt;a href=&#34;/documentation/io/built-in/hadoop/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;Allows for reading data from any source or writing data to any sink which implements &lt;a href=&#34;https://hadoop.apache.org/&#34;&gt;Hadoop&lt;/a&gt; InputFormat or OutputFormat.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hadoop/format/HadoopFormatIO.html&#34;&gt;org.apache.beam.sdk.io.hadoop.format.HadoopFormatIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      HBaseIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;A bounded source and sink for &lt;a href=&#34;https://hbase.apache.org/&#34;&gt;HBase&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hbase/HBaseIO.html&#34;&gt;org.apache.beam.sdk.io.hbase.HBaseIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      HCatalogIO
+      &lt;a href=&#34;/documentation/io/built-in/hcatalog/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;HCatalog source supports reading of HCatRecord from a &lt;a href=&#34;https://cwiki.apache.org/confluence/display/Hive/HCatalog&#34;&gt;HCatalog&lt;/a&gt;-managed source, for example &lt;a href=&#34;https://hive.apache.org/&#34;&gt;Hive&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/hcatalog/HCatalogIO.html&#34;&gt;org.apache.beam.sdk.io.hcatalog.HCatalogIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      KuduIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;A bounded source and sink for (Kudu)[https://kudu.apache.org/].&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/kudu/src/main/java/org/apache/beam/sdk/io/kudu/KuduIO.java&#34;&gt;org.apache.beam.sdk.io.kudu&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      SolrIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Transforms for reading and writing data from/to &lt;a href=&#34;https://lucene.apache.org/solr/&#34;&gt;Solr&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/solr/SolrIO.html&#34;&gt;org.apache.beam.sdk.io.solr.SolrIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      ElasticsearchIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Transforms for reading and writing data from/to &lt;a href=&#34;https://www.elastic.co/elasticsearch/&#34;&gt;Elasticsearch&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/elasticsearch/ElasticsearchIO.html&#34;&gt;org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      BigQueryIO
+      &lt;a href=&#34;/documentation/io/built-in/google-bigquery/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/bigquery&#34;&gt;Google Cloud BigQuery&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html&#34;&gt;org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      BigQueryIO
+      &lt;a href=&#34;/documentation/io/built-in/google-bigquery/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/bigquery&#34;&gt;Google Cloud BigQuery&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigquery.html&#34;&gt;apache_beam.io.gcp.bigquery&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      BigQueryIO
+      &lt;a href=&#34;/documentation/io/built-in/google-bigquery/&#34;&gt; (guide)&lt;/a&gt;
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/bigquery&#34;&gt;Google Cloud BigQuery&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      BigTableIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/bigtable/&#34;&gt;Google Cloud Bigtable&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.html&#34;&gt;org.apache.beam.sdk.io.gcp.bigtable.BigtableIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      BigTableIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/bigtable/&#34;&gt;Google Cloud Bigtable&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.bigtableio.html&#34;&gt;apache_beam.io.gcp.bigtableio module&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      DatastoreIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/datastore&#34;&gt;Google Cloud Datastore&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/datastore/DatastoreIO.html&#34;&gt;org.apache.beam.sdk.io.gcp.datastore.DatastoreIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      DatastoreIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://cloud.google.com/datastore&#34;&gt;Google Cloud Datastore&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html&#34;&gt;apache_beam.io.gcp.datastore.v1new.datastoreio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      SpannerIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Experimental Transforms for reading from and writing to &lt;a href=&#34;https://cloud.google.com/spanner&#34;&gt;Google Cloud Spanner&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/gcp/spanner/SpannerIO.html&#34;&gt;org.apache.beam.sdk.io.gcp.spanner.SpannerIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      JdbcIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;IO to read and write data on &lt;a href=&#34;https://docs.oracle.com/javase/tutorial/jdbc/basics/index.html&#34;&gt;JDBC&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/jdbc/JdbcIO.html&#34;&gt;org.apache.beam.sdk.io.jdbc.JdbcIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      MongoDbIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;IO to read and write data on &lt;a href=&#34;https://www.mongodb.com/&#34;&gt;MongoDB&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mongodb/MongoDbIO.html&#34;&gt;org.apache.beam.sdk.io.mongodb.MongoDbIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      MongoDbIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;IO to read and write data on &lt;a href=&#34;https://www.mongodb.com/&#34;&gt;MongoDB&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.mongodbio.html&#34;&gt;apache_beam.io.mongodbio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      MongoDbGridFSIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;IO to read and write data on &lt;a href=&#34;https://docs.mongodb.com/manual/core/gridfs/&#34;&gt;MongoDB GridFS&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mongodb/MongoDbGridFSIO.html&#34;&gt;org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      RedisIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;An IO to manipulate a &lt;a href=&#34;https://redis.io/&#34;&gt;Redis&lt;/a&gt; key/value database.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/redis/RedisIO.html&#34;&gt;org.apache.beam.sdk.io.redis.RedisIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      DynamoDBIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Read from and write to &lt;a href=&#34;https://aws.amazon.com/dynamodb/&#34;&gt;Amazon DynamoDB&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws/dynamodb/DynamoDBIO.html&#34;&gt;org.apache.beam.sdk.io.aws.dynamodb.DynamoDBIO&lt;/a&gt;&lt;/div&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/aws2/dynamodb/DynamoDBIO.html&#34;&gt;org.apache.beam.sdk.io.aws2.dynamodb.DynamoDBIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      ClickHouseIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Transform for writing to &lt;a href=&#34;https://clickhouse.tech/&#34;&gt;ClickHouse&lt;/a&gt;.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/clickhouse/ClickHouseIO.html&#34;&gt;org.apache.beam.sdk.io.clickhouse.ClickHouseIO&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+    
+  
+  
+
+  
+    
+  
+  
+
+    
+  
+  
+
+    
+  
+  &lt;tr class=&#34;language-go&#34;&gt;
+    &lt;td&gt;
+      DatabaseIO
+      
+    &lt;/td&gt;
+    &lt;td&gt;Package databaseio provides transformations and utilities to interact with a generic database / SQL API.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/databaseio&#34;&gt;github.com/apache/beam/sdks/go/pkg/beam/io/databaseio&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+  
+&lt;/table&gt;
+
+&lt;h3&gt;Miscellaneous&lt;/h3&gt;
+&lt;p&gt;Miscellaneous I/O sources.&lt;/p&gt;
+&lt;table class=&#34;table table-bordered&#34;&gt;
+  &lt;tr&gt;
+    &lt;th&gt;Name&lt;/th&gt;
+    &lt;th&gt;Description&lt;/th&gt;
+    &lt;th&gt;
+      &lt;span class=&#34;language-java&#34;&gt;Javadoc&lt;/span&gt;
+      &lt;span class=&#34;language-py&#34;&gt;pydoc&lt;/span&gt;
+      &lt;span class=&#34;language-go&#34;&gt;Godoc&lt;/span&gt;
+    &lt;/th&gt;
+  &lt;/tr&gt;
+  
+    
+  
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      FlinkStreamingImpulseSource
+      
+    &lt;/td&gt;
+    &lt;td&gt;A PTransform that provides an unbounded, streaming source of empty byte arrays. This can only be used with the Flink runner.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.flink.flink_streaming_impulse_source.html&#34;&gt;apache_beam.io.flink.flink_streaming_impulse_source&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+    
+  
+  &lt;tr class=&#34;language-java&#34;&gt;
+    &lt;td&gt;
+      GenerateSequence
+      
+    &lt;/td&gt;
+    &lt;td&gt;Generates a bounded or unbounded stream of integers.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/GenerateSequence.html&#34;&gt;org.apache.beam.sdk.io.GenerateSequence&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  &lt;tr class=&#34;language-py&#34;&gt;
+    &lt;td&gt;
+      GenerateSequence
+      
+    &lt;/td&gt;
+    &lt;td&gt;Generates a bounded or unbounded stream of integers.&lt;/td&gt;
+    &lt;td style=&#34;word-break: break-all;&#34;&gt;
+      
+        &lt;div&gt;&lt;a target=&#34;_blank&#34; href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.external.generate_sequence.html&#34;&gt;apache_beam.io.external.generate_sequence.GenerateSequence&lt;/a&gt;&lt;/div&gt;
+      
+    &lt;/td&gt;
+  &lt;/tr&gt;
+  
+
+    
+  
+  
+
+  
+&lt;/table&gt;
+
 &lt;h1 id=&#34;in-progress-io-transforms&#34;&gt;In-Progress I/O Transforms&lt;/h1&gt;
 &lt;p&gt;This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).&lt;/p&gt;
 &lt;table class=&#34;table table-bordered&#34;&gt;
@@ -14244,39 +15811,6 @@ latest value for each key, according to the implicit timestamp.&lt;/li&gt;
 converts between explicit and implicit form of various Beam values&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;/documentation/transforms/java/elementwise/withtimestamps&#34;&gt;WithTimestamps&lt;/a&gt;
 assigns timestamps to all the elements of a collection&lt;/li&gt;
-&lt;/ul&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Documentation: Latest</title>
-      <link>/documentation/transforms/python/aggregation/latest/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/documentation/transforms/python/aggregation/latest/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-&lt;h1 id=&#34;latest&#34;&gt;Latest&lt;/h1&gt;
-&lt;h2 id=&#34;examples&#34;&gt;Examples&lt;/h2&gt;
-&lt;p&gt;See &lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-7390&#34;&gt;BEAM-7390&lt;/a&gt; for updates.&lt;/p&gt;
-&lt;h2 id=&#34;related-transforms&#34;&gt;Related transforms&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;/documentation/transforms/python/aggregation/sample&#34;&gt;Sample&lt;/a&gt; to combine elements. takes samples of the elements in a collection.&lt;/li&gt;
 &lt;/ul&gt;
 
       </description>
