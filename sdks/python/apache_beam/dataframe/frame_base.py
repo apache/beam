@@ -172,6 +172,23 @@ def _proxy_function(
   return wrapper
 
 
+def _agg_method(func):
+  def wrapper(self, *args, **kwargs):
+    return self.agg(func, *args, **kwargs)
+  return wrapper
+
+
+def _associative_agg_method(func):
+  # TODO(robertwb): Multi-level agg.
+  return _agg_method(func)
+
+
+def wont_implement_method(msg):
+  def wrapper(self, *args, **kwargs):
+    raise WontImplementError(msg)
+  return wrapper
+
+
 def copy_and_mutate(func):
   def wrapper(self, *args, **kwargs):
     copy = self.copy()
