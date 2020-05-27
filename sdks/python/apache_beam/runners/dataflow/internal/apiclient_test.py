@@ -944,7 +944,8 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp',
         '--staging_location',
-        'gs://test-location/staging'
+        'gs://test-location/staging',
+        '--no_auth'
     ])
     pipeline = beam_runner_api_pb2.Pipeline(
         components=beam_runner_api_pb2.Components(
