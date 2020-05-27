@@ -182,7 +182,7 @@ class TestHttpIOFailure(unittest.TestCase):
   
   def test_file_list_prefix(self):
     with self.assertRaisesRegex(Exception, '500'):
-      self.httpio.list_prefix(TEST_DATA_PATH).items()
+      set(self.httpio.list_prefix(TEST_DATA_PATH).items())
 
 
 if __name__ == '__main__':
