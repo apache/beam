@@ -241,6 +241,10 @@ public interface DoFnInvoker<InputT, OutputT> {
      */
     TimerMap timerFamily(String tagId);
 
+    /**
+     * Returns the timer id for the current timer of a {@link
+     * org.apache.beam.sdk.transforms.DoFn.TimerFamily}.
+     */
     String timerId(DoFn<InputT, OutputT> doFn);
   }
 
@@ -532,8 +536,8 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
-    public TimerMap timerFamily(String tagId) {
-      return delegate.timerFamily(tagId);
+    public TimerMap timerFamily(String timerFamilyId) {
+      return delegate.timerFamily(timerFamilyId);
     }
 
     @Override
