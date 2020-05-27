@@ -345,6 +345,8 @@ class WindmillStateInternals<K> implements StateInternals {
     private boolean modified = false;
     /** Whether the in memory value is the true value. */
     private boolean valueIsKnown = false;
+    /** The size of the encoded value */
+    private long cachedSize = -1;
 
     private T value;
 
@@ -382,6 +384,9 @@ class WindmillStateInternals<K> implements StateInternals {
     @Override
     public T read() {
       try (Closeable scope = scopedReadState()) {
+        if (!valueIsKnown) {
+          cachedSize = -1;
+        }
         value = getFuture().get();
         valueIsKnown = true;
         return value;
@@ -397,6 +402,7 @@ class WindmillStateInternals<K> implements StateInternals {
     public void write(T value) {
       modified = true;
       valueIsKnown = true;
+      cachedSize = -1;
       this.value = value;
     }
 
@@ -410,14 +416,18 @@ class WindmillStateInternals<K> implements StateInternals {
         return WorkItemCommitRequest.newBuilder().buildPartial();
       }
 
-      ByteString.Output stream = ByteString.newOutput();
-      if (value != null) {
-        coder.encode(value, stream, Coder.Context.OUTER);
+      ByteString encoded = null;
+      if (cachedSize == -1 || modified) {
+        ByteString.Output stream = ByteString.newOutput();
+        if (value != null) {
+          coder.encode(value, stream, Coder.Context.OUTER);
+        }
+        encoded = stream.toByteString();
+        cachedSize = encoded.size();
       }
-      ByteString encoded = stream.toByteString();
 
       // Place in cache to avoid a future read.
-      cache.put(namespace, address, this, encoded.size());
+      cache.put(namespace, address, this, cachedSize);
 
       if (!modified) {
         // The value was read, but never written or cleared.
