@@ -67,9 +67,6 @@ class RowCoder(FastCoder):
   def to_type_hint(self):
     return named_tuple_from_schema(self.schema)
 
-  def as_cloud_object(self, coders_context=None):
-    raise NotImplementedError("as_cloud_object not supported for RowCoder")
-
   def __hash__(self):
     return hash(self.schema.SerializeToString())
 
