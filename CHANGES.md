@@ -75,7 +75,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.21.0] - 2020-05-xx
+# [2.21.0] - 2020-05-27
 
 ## Highlights
 
