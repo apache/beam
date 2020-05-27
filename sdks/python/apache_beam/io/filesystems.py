@@ -60,7 +60,7 @@ except ImportError:
   pass
 
 try:
-  from apache_beam.io.zipfilesystemmixin import ZipFileSystemMixin
+  from apache_beam.io.archive.zipfilesystemmixin import ZipFileSystemMixin
 except ImportError:
   pass
 
