@@ -23,6 +23,6 @@ plugins {
 applyDockerNature()
 applyPythonNature()
 
-pythonVersion = '3.6'
+pythonVersion = '3.8'
 
 apply from: "../common.gradle"

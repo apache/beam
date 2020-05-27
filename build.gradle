@@ -229,6 +229,7 @@ task pythonDockerBuildPreCommit() {
   dependsOn ":sdks:python:container:py35:docker"
   dependsOn ":sdks:python:container:py36:docker"
   dependsOn ":sdks:python:container:py37:docker"
+  dependsOn ":sdks:python:container:py38:docker"
 }
 
 task pythonLintPreCommit() {
