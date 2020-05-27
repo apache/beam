@@ -52,9 +52,11 @@ Google (http://www.google.com/).
 """
 TEST_DATA_SIZE = len(TEST_DATA_CONTENTS)
 
+
 class FakeHttpClient:
   def __init__(self, success=True):
     self._success = success
+
   def request(self, uri, method, headers = {}):
     resp = Response({"content-length": TEST_DATA_SIZE})
     if uri != TEST_DATA_PATH:
@@ -67,6 +69,7 @@ class FakeHttpClient:
       resp.status = 500
       resp.reason = "Internal Server Error"
     return resp, TEST_DATA_CONTENTS
+
 
 class TestHttpIOSuccess(unittest.TestCase):
   def setUp(self):
@@ -102,7 +105,6 @@ class TestHttpIOSuccess(unittest.TestCase):
 
       self.assertEqual(f.read(end - start + 1), contents[start:end + 1])
       self.assertEqual(f.tell(), end + 1)
-
 
   def test_file_iterator(self):
     file_name = TEST_DATA_PATH
@@ -165,6 +167,7 @@ class TestHttpIOSuccess(unittest.TestCase):
     self.assertTrue(self.httpio.exists(TEST_DATA_PATH))
     self.assertFalse(self.httpio.exists(TEST_DATA_PATH + "/invalid"))
 
+
 class TestHttpIOFailure(unittest.TestCase):
   def setUp(self):
     self.httpio = httpio.HttpIO(client=FakeHttpClient(success=False))
@@ -180,6 +183,7 @@ class TestHttpIOFailure(unittest.TestCase):
   def test_file_list_prefix(self):
     with self.assertRaisesRegex(Exception, '500'):
       self.httpio.list_prefix(TEST_DATA_PATH).items()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -198,6 +198,7 @@ class HttpFileSystem(FileSystem):
   def delete(self, paths):
     raise NotImplementedError
 
+
 class HttpsFileSystem(HttpFileSystem):
   """A `FileSystem` implementation for accessing files from a https:// URL
   """

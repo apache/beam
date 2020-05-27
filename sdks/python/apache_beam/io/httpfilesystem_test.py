@@ -101,7 +101,6 @@ class HttpFileSystemTest(unittest.TestCase):
     self.assertIn('Match operation failed', str(error.exception))
     httpio_mock.list_prefix.assert_called_once_with('http://example.com/')
 
-
   @mock.patch('apache_beam.io.httpfilesystem.HttpFileSystem')
   def test_open(self, unused_mock_arg):
     # Prepare mocks.
@@ -127,6 +126,7 @@ class HttpsFileSystemTest(unittest.TestCase):
   def test_scheme(self):
     self.assertEqual(self.fs.scheme(), 'https')
     self.assertEqual(httpfilesystem.HttpsFileSystem.scheme(), 'https')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

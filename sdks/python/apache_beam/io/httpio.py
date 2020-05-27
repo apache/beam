@@ -22,24 +22,17 @@
 
 from __future__ import absolute_import
 
-import errno
 import io
-import logging
-import re
-import time
-import traceback
 from builtins import object
 
 from apache_beam.io.filesystemio import Downloader
-from apache_beam.io.filesystemio import DownloaderStream
-from apache_beam.io.filesystemio import Uploader
-from apache_beam.io.filesystemio import UploaderStream
 from apache_beam.internal.http_client import get_new_http
-from apache_beam.utils import retry
 import sys
+
 
 class HttpIO(object):
   """HTTP I/O."""
+
   def __init__(self, client = None):
     if sys.version_info[0] != 3:
       raise RuntimeError("HttpIO only supports Python 3.")
@@ -76,7 +69,7 @@ class HttpIO(object):
       if resp.status != 200:
         raise Exception(resp.status, resp.reason)
       return int(resp["content-length"])
-    except Exception as e:
+    except Exception:
       # Server doesn't support HEAD method;
       # use GET method instead to prefetch the result.
       resp, content = self._client.request(uri, method='GET')
@@ -89,11 +82,12 @@ class HttpIO(object):
       # Pass in "" for "Accept-Encoding" because we want the non-gzipped content-length.
       resp, content = self._client.request(uri, method='HEAD', headers={"Accept-Encoding": ""})
       return resp.status != 404
-    except Exception as e:
+    except Exception:
       # Server doesn't support HEAD method;
       # use GET method instead to prefetch the result.
       resp, content = self._client.request(uri, method='GET')
       return resp.status != 404
+
 
 class HttpDownloader(Downloader):
   def __init__(self, uri, client):
