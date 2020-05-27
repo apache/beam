@@ -78,7 +78,10 @@ func (c *CustomCoder) Equals(o *CustomCoder) bool {
 }
 
 func (c *CustomCoder) String() string {
-	return fmt.Sprintf("%v[%v]", c.Type, c.Name)
+	if c.ID == "" {
+		return fmt.Sprintf("%v[%v]", c.Type, c.Name)
+	}
+	return fmt.Sprintf("%v[%v;%v]", c.Type, c.Name, c.ID)
 }
 
 // Type signatures of encode/decode for verification.
@@ -228,7 +231,10 @@ func (c *Coder) String() string {
 		return "$"
 	}
 	if c.Custom != nil {
-		return c.Custom.String()
+		if c.ID == "" {
+			return c.Custom.String()
+		}
+		return fmt.Sprintf("%v;%v", c.Custom, c.ID)
 	}
 
 	ret := fmt.Sprintf("%v", c.Kind)
