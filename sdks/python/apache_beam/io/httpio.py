@@ -26,6 +26,7 @@ import io
 from builtins import object
 
 from apache_beam.io.filesystemio import Downloader
+from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.internal.http_client import get_new_http
 import sys
 
