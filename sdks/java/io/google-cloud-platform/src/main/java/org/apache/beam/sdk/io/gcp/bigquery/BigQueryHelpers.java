@@ -137,8 +137,8 @@ public class BigQueryHelpers {
               throw e;
             }
           } else {
-            // Job failed, schedule it again.
-            LOG.info("Job {} failed. retrying.", jobInfo.pendingJob.currentJobId);
+            // Job not yet complete, schedule it again.
+            LOG.info("Job {} pending. retrying.", jobInfo.pendingJob.currentJobId);
             retryJobs.add(jobInfo);
           }
         }
