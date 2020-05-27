@@ -104,16 +104,16 @@ task installDependencies(type: Exec) {
                 "${->startDockerContainer.containerId()}", 'yarn', 'install'
 }
 
-// Run build_github_samples.sh to fetch github content
-// which is used by github_sample shortcodes to inject snippets into codeblocks
-task buildGithubSamples(type: Exec) {
+// Run build_code_samples.sh to fetch Beam project content
+// which is used by code_sample shortcodes to inject snippets into codeblocks
+task buildCodeSamples(type: Exec) {
   commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
-              "${->startDockerContainer.containerId()}", 'yarn', 'build_github_samples'
+              "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
 }
 
 task setupDockerContainer(type: Exec) {
   dependsOn startDockerContainer
-  finalizedBy initGitSubmodules, installDependencies, buildGithubSamples
+  finalizedBy initGitSubmodules, installDependencies, buildCodeSamples
   ext.containerId = {
     return startDockerContainer.containerId()
   }
