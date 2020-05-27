@@ -22,6 +22,7 @@ from typing import Dict
 import pandas as pd
 
 from apache_beam.dataframe import expressions
+from apache_beam.dataframe import partitionings
 
 
 class DeferredFrame(object):
@@ -60,14 +61,54 @@ def name_and_func(method):
 
 
 def _elementwise_method(func, name=None, restrictions=None, inplace=False):
+  return _proxy_method(
+      func,
+      name,
+      restrictions,
+      inplace,
+      requires_partition_by=partitionings.Nothing(),
+      preserves_partition_by=partitionings.Singleton())
+
+
+def _proxy_method(
+    func,
+    name=None,
+    restrictions=None,
+    inplace=False,
+    requires_partition_by=partitionings.Singleton(),
+    preserves_partition_by=partitionings.Nothing()):
   if name is None:
     name, func = name_and_func(func)
   if restrictions is None:
     restrictions = {}
-  return _elementwise_function(func, name, restrictions)
+  return _proxy_function(
+      func,
+      name,
+      restrictions,
+      inplace,
+      requires_partition_by,
+      preserves_partition_by)
 
 
 def _elementwise_function(func, name=None, restrictions=None, inplace=False):
+  return _proxy_function(
+      func,
+      name,
+      restrictions,
+      inplace,
+      requires_partition_by=partitionings.Nothing(),
+      preserves_partition_by=partitionings.Singleton())
+
+
+def _proxy_function(
+      func,  # type: Union[callable, str]
+      name=None,  # type: Optional[str]
+      restrictions=None,  # type: Dict[str, Union[Any, List[Any]]
+      inplace=False,  # type: bool
+      requires_partition_by=partitionings.Singleton(),  # type: partition.Partitioning
+      preserves_partition_by=partitionings.Nothing(),  # type: partition.Partitioning
+):
+
   if name is None:
     name = func.__name__
   if restrictions is None:
@@ -116,11 +157,14 @@ def _elementwise_function(func, name=None, restrictions=None, inplace=False):
         full_args[ix] = arg
       return actual_func(*full_args, **kwargs)
 
-    result_expr = expressions.elementwise_expression(
-        name, apply, deferred_arg_exprs)
+    result_expr = expressions.ComputedExpression(
+        name,
+        apply,
+        deferred_arg_exprs,
+        requires_partition_by=requires_partition_by,
+        preserves_partition_by=preserves_partition_by)
     if inplace:
       args[0]._expr = result_expr
-      return args[0]
 
     else:
       return DeferredFrame.wrap(result_expr)
