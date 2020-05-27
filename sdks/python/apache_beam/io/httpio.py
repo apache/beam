@@ -61,12 +61,16 @@ class HttpIO(object):
     try:
       # Pass in "" for "Accept-Encoding" because we want the non-gzipped content-length.
       resp, content = self._client.request(uri, method='HEAD', headers={"Accept-Encoding": ""})
+      if resp.status != 200:
+        raise Exception(resp.status, resp.reason)
       return int(resp["content-length"])
     except Exception as e:
       # Server doesn't support HEAD method;
       # use GET method instead to prefetch the result.
       resp, content = self._client.request(uri, method='GET')
-      return len(content)
+      if resp.status != 200:
+        raise Exception(resp.status, resp.reason)
+      return int(resp["content-length"])
 
 class HttpDownloader(Downloader):
   def __init__(self, uri, client):
@@ -74,6 +78,8 @@ class HttpDownloader(Downloader):
     self._client = client
 
     resp, content = self._client.request(self._uri, method='GET')
+    if resp.status != 200:
+      raise Exception(resp.status, resp.reason)
     self._size = int(resp["content-length"])
     self._content = content
 
