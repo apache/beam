@@ -21,12 +21,12 @@
 set -e
 
 function clean_up(){
-  echo "Do you want to clean local clone repo? [y|N]"
+  echo "Do you want to clean local clone repo ${LOCAL_CLONE_DIR}? [y|N]"
   read confirmation
   if [[ $confirmation = "y" ]]; then
     cd ~
     rm -rf ${LOCAL_CLONE_DIR}
-    echo "Clean up local repo."
+    echo "Cleaned up local repo."
   fi
 }
 
@@ -35,6 +35,7 @@ read RELEASE
 LOCAL_CLONE_DIR="beam_release_${RELEASE}"
 cd ~
 if [[ -d ${LOCAL_CLONE_DIR} ]]; then
+  echo "Deleting existing local clone repo ${LOCAL_CLONE_DIR}."
   rm -rf ${LOCAL_CLONE_DIR}
 fi
 mkdir ${LOCAL_CLONE_DIR}
@@ -48,7 +49,7 @@ ls
 echo "Are the files listed correct? [y|N]"
 read confirmation
 if [[ $confirmation != "y" ]]; then
-  echo "Exit without deploying artifacts to PyPI."
+  echo "Exiting without deploying artifacts to PyPI."
   clean_up
   exit
 fi
