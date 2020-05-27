@@ -238,6 +238,9 @@ func (c *Coder) String() string {
 	}
 
 	ret := fmt.Sprintf("%v", c.Kind)
+	if c.ID != "" {
+		ret = fmt.Sprintf("%v;%v", c.Kind, c.ID)
+	}
 	if len(c.Components) > 0 {
 		var args []string
 		for _, elm := range c.Components {
