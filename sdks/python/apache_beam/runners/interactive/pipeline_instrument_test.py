@@ -338,9 +338,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # a TestStream.
     source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
-    test_stream = (
-        p_expected
-        | TestStream(output_tags=[source_1_cache_key]))
+    test_stream = (p_expected | TestStream(output_tags=[source_1_cache_key]))
     # pylint: disable=expression-not-assigned
     test_stream[source_1_cache_key] | 'square1' >> beam.Map(lambda x: x * x)
 
@@ -636,9 +634,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # a TestStream.
     source_1_cache_key = self.cache_key_of('source_1', source_1)
     p_expected = beam.Pipeline()
-    test_stream = (
-        p_expected
-        | TestStream(output_tags=[source_1_cache_key]))
+    test_stream = (p_expected | TestStream(output_tags=[source_1_cache_key]))
     # pylint: disable=expression-not-assigned
     (
         test_stream[source_1_cache_key]
