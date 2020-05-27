@@ -1049,9 +1049,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         Instant elementTimestampOrTimerFireTimestamp,
         PaneInfo paneInfo,
         TimeDomain timeDomain) {
-      if (timerId.equals("ts-event") && timeDomain.equals(TimeDomain.PROCESSING_TIME)) {
-        throw new IllegalStateException("illegal");
-      }
       this.timerId = timerId;
       this.userKey = userKey;
       this.dynamicTimerTag = dynamicTimerTag;
