@@ -175,12 +175,6 @@ class TextSourceTest(unittest.TestCase):
     assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
     self._run_read_test(file_name, expected_data)
 
-  def test_read_single_file_from_gcs(self):
-    file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
-    assert len(expected_data) == TextSourceTest.DEFAULT_NUM_RECORDS
-    # raise Exception(file_name)
-    self._run_read_test("gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json", expected_data)
-
   def test_read_single_file_smaller_than_default_buffer(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
     self._run_read_test(
