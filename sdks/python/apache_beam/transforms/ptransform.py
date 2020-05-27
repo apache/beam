@@ -242,7 +242,7 @@ class _FinalizeMaterialization(_PValueishTransform):
       return self.visit_nested(node)
 
 
-def get_named_nested_pvalues(pvalueish, first_iteration=True):
+def get_named_nested_pvalues(pvalueish):
   if isinstance(pvalueish, tuple):
     # Check to see if it's a named tuple.
     fields = getattr(pvalueish, '_fields', None)
@@ -256,19 +256,11 @@ def get_named_nested_pvalues(pvalueish, first_iteration=True):
     tagged_values = pvalueish.items()
   else:
     if isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
-      # For transforms that only have a tagged PCollection as an output,
-      # propagate that tag forward.
-      if first_iteration and isinstance(pvalueish, pvalue.PValue):
-        yield pvalueish.tag, pvalueish
-
-      # Otherwise, this PCollection is nested inside a larger structure, so
-      # return the subtag as None to get the tag from the parent structure.
-      else:
-        yield None, pvalueish
+      yield None, pvalueish
     return
 
   for tag, subvalue in tagged_values:
-    for subtag, subsubvalue in get_named_nested_pvalues(subvalue, False):
+    for subtag, subsubvalue in get_named_nested_pvalues(subvalue):
       if subtag is None:
         yield tag, subsubvalue
       else:
