@@ -41,9 +41,12 @@ fi
 mkdir ${LOCAL_CLONE_DIR}
 cd ${LOCAL_CLONE_DIR}
 
+virtualenv deploy_pypi_env
+source ./deploy_pypi_env/bin/activate
+pip install twine
+
 wget -r --no-parent -A zip,whl "https://dist.apache.org/repos/dist/dev/beam/${RELEASE}/python"
 cd "dist.apache.org/repos/dist/dev/beam/${RELEASE}/python/"
-pip install twine
 echo "Will upload the following files to PyPI:"
 ls
 echo "Are the files listed correct? [y|N]"
