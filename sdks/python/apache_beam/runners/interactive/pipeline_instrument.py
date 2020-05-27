@@ -720,6 +720,7 @@ class PipelineInstrument(object):
       # the output tags for the TestStream. This is to remember what cache-key
       # is associated with which PCollection.
       output_tags = v.unbounded_pcolls
+      output_tags.add(self._cache_manager.sentinel_label())
 
       # Take the PCollections that will be read from the TestStream and insert
       # them back into the dictionary of cached PCollections. The next step will
@@ -728,11 +729,8 @@ class PipelineInstrument(object):
       if output_tags:
         output_pcolls = pipeline | test_stream.TestStream(
             output_tags=output_tags, coder=self._cache_manager._default_pcoder)
-        if len(output_tags) == 1:
-          self._cached_pcoll_read[list(output_tags)[0]] = output_pcolls
-        else:
-          for tag, pcoll in output_pcolls.items():
-            self._cached_pcoll_read[tag] = pcoll
+        for tag, pcoll in output_pcolls.items():
+          self._cached_pcoll_read[tag] = pcoll
 
     class ReadCacheWireVisitor(PipelineVisitor):
       """Visitor wires cache read as inputs to replace corresponding original

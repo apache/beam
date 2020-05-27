@@ -250,7 +250,9 @@ class StreamingCacheTest(unittest.TestCase):
     CACHED_RECORDS = repr(CacheKey('records', '', '', ''))
 
     # Units here are in seconds.
-    test_stream = (TestStream()
+    test_stream = (
+        TestStream(output_tags=(CACHED_RECORDS,
+                                StreamingCache.sentinel_label()))
                    .advance_watermark_to(0, tag=CACHED_RECORDS)
                    .advance_processing_time(5)
                    .add_elements(['a', 'b', 'c'], tag=CACHED_RECORDS)
@@ -271,8 +273,10 @@ class StreamingCacheTest(unittest.TestCase):
     options.view_as(DebugOptions).add_experiment(
         'passthrough_pcollection_output_ids')
     with TestPipeline(options=options) as p:
+      records = (p | test_stream)[CACHED_RECORDS]
+
       # pylint: disable=expression-not-assigned
-      p | test_stream | cache.sink([CACHED_RECORDS])
+      records | cache.sink([CACHED_RECORDS])
 
     reader, _ = cache.read(CACHED_RECORDS)
     actual_events = list(reader)

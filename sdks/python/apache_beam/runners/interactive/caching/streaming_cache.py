@@ -304,6 +304,18 @@ class StreamingCache(CacheManager):
       return iter([]), -1
     return StreamingCache.Reader([header], [reader]).read(), 1
 
+  @staticmethod
+  def sentinel_label():
+    """Returns a label that marks an unused PCollection.
+
+    This is used to always use a TestStream with multiple outputs. The reason is
+    that the TestStream does not allow for control over output tags if there is
+    only a single output. This allows for the InteractiveRunner to use the
+    output tags as cache keys.
+    """
+    from apache_beam.runners.interactive.pipeline_instrument import CacheKey
+    return repr(CacheKey('synthetic_sentinel', '0', '0', '0'))
+
   def read_multiple(self, labels):
     """Returns a generator to read all records from file.
 
@@ -315,6 +327,7 @@ class StreamingCache(CacheManager):
         StreamingCacheSource(self._cache_dir, l,
                              self._is_cache_complete).read(tail=True)
         for l in labels
+        if not [sub_l for sub_l in l if self.sentinel_label() in sub_l]
     ]
     headers = [next(r) for r in readers]
     return StreamingCache.Reader(headers, readers).read()
