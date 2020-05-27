@@ -186,6 +186,14 @@ class RowCoderTest(unittest.TestCase):
           | beam.Filter(lambda person: person.name == "Jon Snow"))
       assert_that(res, equal_to([self.JON_SNOW]))
 
+  def test_row_coder_nested_struct(self):
+    Pair = typing.NamedTuple('Pair', [('left', Person), ('right', Person)])
+
+    value = Pair(self.PEOPLE[0], self.PEOPLE[1])
+    coder = RowCoder(typing_to_runner_api(Pair).row_type.schema)
+
+    self.assertEqual(value, coder.decode(coder.encode(value)))
+
 
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
