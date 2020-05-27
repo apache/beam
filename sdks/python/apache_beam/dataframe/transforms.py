@@ -36,7 +36,6 @@ if typing.TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
   from apache_beam.pvalue import PCollection
 
-
 T = TypeVar('T')
 
 

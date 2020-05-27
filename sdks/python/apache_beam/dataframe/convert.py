@@ -22,12 +22,14 @@ from typing import Dict
 from typing import Tuple
 from typing import Union
 
-import pandas
-
 from apache_beam import pvalue
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
 from apache_beam.dataframe import transforms
+
+if typing.TYPE_CHECKING:
+  # pylint: disable=ungrouped-imports
+  import pandas
 
 
 # TODO: Or should this be called as_dataframe?
