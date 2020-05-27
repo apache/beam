@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""S3 file system implementation for accessing files on AWS S3."""
+"""HTTP file system implementation for accessing files from a HTTP URL."""
 
 # pytype: skip-file
 
@@ -29,22 +29,20 @@ from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystem import FileSystem
+from apache_beam.io import httpio
 
-__all__ = ['S3FileSystem']
+__all__ = ['HttpFileSystem', 'HttpsFileSystem']
 
 
-class S3FileSystem(FileSystem):
-  """An S3 `FileSystem` implementation for accessing files on AWS S3
+class HttpFileSystem(FileSystem):
+  """A `FileSystem` implementation for accessing files from a http:// URL
   """
-
-  CHUNK_SIZE = s3io.MAX_BATCH_OPERATION_SIZE
-  S3_PREFIX = 's3://'
 
   @classmethod
   def scheme(cls):
     """URI scheme for the FileSystem
     """
-    return 's3'
+    return 'http'
 
   def join(self, basepath, *paths):
     """Join two or more pathname components for the filesystem
@@ -55,8 +53,8 @@ class S3FileSystem(FileSystem):
 
     Returns: full path after combining all of the return nulled components
     """
-    if not basepath.startswith(S3FileSystem.S3_PREFIX):
-      raise ValueError('Basepath %r must be S3 path.' % basepath)
+    if not basepath.startswith(HttpFileSystem.scheme() + "://"):
+      raise ValueError('Basepath %r must be a valid URL.' % basepath)
 
     path = basepath
     for p in paths:
@@ -69,7 +67,7 @@ class S3FileSystem(FileSystem):
     Splits the path into a pair (head, tail) such that tail contains the last
     component of the path and head contains everything up to that.
 
-    Head will include the S3 prefix ('s3://').
+    Head will include the HTTP prefix ('http://').
 
     Args:
       path: path as a string
@@ -77,10 +75,10 @@ class S3FileSystem(FileSystem):
       a pair of path components as strings.
     """
     path = path.strip()
-    if not path.startswith(S3FileSystem.S3_PREFIX):
-      raise ValueError('Path %r must be S3 path.' % path)
+    if not path.startswith(HttpFileSystem.scheme() + "://"):
+      raise ValueError('Path %r must be a valid URL.' % path)
 
-    prefix_len = len(S3FileSystem.S3_PREFIX)
+    prefix_len = len(HttpFileSystem.scheme() + "://")
     last_sep = path[prefix_len:].rfind('/')
     if last_sep >= 0:
       last_sep += prefix_len
@@ -91,17 +89,6 @@ class S3FileSystem(FileSystem):
       return (path, '')
     else:
       raise ValueError('Invalid path: %s' % path)
-
-  def mkdirs(self, path):
-    """Recursively create directories for the provided path.
-
-    Args:
-      path: string path of the directory structure that should be created
-
-    Raises:
-      IOError: if leaf directory already exists.
-    """
-    pass
 
   def has_dirs(self):
     """Whether this FileSystem supports directories."""
@@ -123,7 +110,7 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if listing fails, but not if no files were found.
     """
     try:
-      for path, size in iteritems(s3io.S3IO().list_prefix(dir_or_prefix)):
+      for path, size in iteritems(httpio.HttpIO().list_prefix(dir_or_prefix)):
         yield FileMetadata(path, size)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
@@ -138,26 +125,11 @@ class S3FileSystem(FileSystem):
     """
     compression_type = FileSystem._get_compression_type(path, compression_type)
     mime_type = CompressionTypes.mime_type(compression_type, mime_type)
-    raw_file = s3io.S3IO().open(path, mode, mime_type=mime_type)
+    # TODO: pass mime_type into .open() once HttpIO supports write operations.
+    raw_file = httpio.HttpIO().open(path, mode)
     if compression_type == CompressionTypes.UNCOMPRESSED:
       return raw_file
     return CompressedFile(raw_file, compression_type=compression_type)
-
-  def create(
-      self,
-      path,
-      mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    """Returns a write channel for the given file path.
-
-    Args:
-      path: string path of the file object to be written to the system
-      mime_type: MIME type to specify the type of content in the file object
-      compression_type: Type of compression to be used for this object
-
-    Returns: file handle with a close function for the user to use
-    """
-    return self._path_open(path, 'wb', mime_type, compression_type)
 
   def open(
       self,
@@ -175,56 +147,6 @@ class S3FileSystem(FileSystem):
     """
     return self._path_open(path, 'rb', mime_type, compression_type)
 
-  def copy(self, source_file_names, destination_file_names):
-    """Recursively copy the file tree from the source to the destination
-
-    Args:
-      source_file_names: list of source file objects that needs to be copied
-      destination_file_names: list of destination of the new object
-
-    Raises:
-      ``BeamIOError``: if any of the copy operations fail
-    """
-    if not len(source_file_names) == len(destination_file_names):
-      message = 'Unable to copy unequal number of sources and destinations'
-      raise BeamIOError(message)
-    src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    return s3io.S3IO().copy_paths(src_dest_pairs)
-
-  def rename(self, source_file_names, destination_file_names):
-    """Rename the files at the source list to the destination list.
-    Source and destination lists should be of the same size.
-
-    Args:
-      source_file_names: List of file paths that need to be moved
-      destination_file_names: List of destination_file_names for the files
-
-    Raises:
-      ``BeamIOError``: if any of the rename operations fail
-    """
-    if not len(source_file_names) == len(destination_file_names):
-      message = 'Unable to rename unequal number of sources and destinations'
-      raise BeamIOError(message)
-    src_dest_pairs = list(zip(source_file_names, destination_file_names))
-    results = s3io.S3IO().rename_files(src_dest_pairs)
-    exceptions = {(src, dest): error
-                  for (src, dest, error) in results if error is not None}
-    if exceptions:
-      raise BeamIOError("Rename operation failed", exceptions)
-
-  def exists(self, path):
-    """Check if the provided path exists on the FileSystem.
-
-    Args:
-      path: string path that needs to be checked.
-
-    Returns: boolean flag indicating if path exists
-    """
-    try:
-      return s3io.S3IO().exists(path)
-    except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("exists() operation failed", {path: e})
-
   def size(self, path):
     """Get size of path on the FileSystem.
 
@@ -237,54 +159,51 @@ class S3FileSystem(FileSystem):
       ``BeamIOError``: if path doesn't exist.
     """
     try:
-      return s3io.S3IO().size(path)
+      return httpio.HttpIO().size(path)
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("size() operation failed", {path: e})
 
+  def exists(self, path):
+    """Check if the provided path exists on the FileSystem.
+
+    Args:
+      path: string path that needs to be checked.
+
+    Returns: boolean flag indicating if path exists
+    """
+    try:
+      return httpio.HttpIO().exists(path)
+    except Exception as e:  # pylint: disable=broad-except
+      raise BeamIOError("exists() operation failed", {path: e})
+
+  def mkdirs(self, path):
+    raise NotImplementedError
+
+  def create(
+      self,
+      path,
+      mime_type='application/octet-stream',
+      compression_type=CompressionTypes.AUTO):
+    raise NotImplementedError
+  
+  def copy(self, source_file_names, destination_file_names):
+    raise NotImplementedError
+
+  def rename(self, source_file_names, destination_file_names):
+    raise NotImplementedError
+
   def last_updated(self, path):
-    """Get UNIX Epoch time in seconds on the FileSystem.
-
-    Args:
-      path: string path of file.
-
-    Returns: float UNIX Epoch time
-
-    Raises:
-      ``BeamIOError``: if path doesn't exist.
-    """
-    try:
-      return s3io.S3IO().last_updated(path)
-    except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("last_updated operation failed", {path: e})
-
-  def checksum(self, path):
-    """Fetch checksum metadata of a file on the
-    :class:`~apache_beam.io.filesystem.FileSystem`.
-
-    Args:
-      path: string path of a file.
-
-    Returns: string containing checksum
-
-    Raises:
-      ``BeamIOError``: if path isn't a file or doesn't exist.
-    """
-    try:
-      return s3io.S3IO().checksum(path)
-    except Exception as e:  # pylint: disable=broad-except
-      raise BeamIOError("Checksum operation failed", {path: e})
-
+    raise NotImplementedError
+  
   def delete(self, paths):
-    """Deletes files or directories at the provided paths.
-    Directories will be deleted recursively.
+    raise NotImplementedError
 
-    Args:
-      paths: list of paths that give the file objects to be deleted
+class HttpsFileSystem(HttpFileSystem):
+  """A `FileSystem` implementation for accessing files from a https:// URL
+  """
+
+  @classmethod
+  def scheme(cls):
+    """URI scheme for the FileSystem
     """
-    results = s3io.S3IO().delete_paths(paths)
-    exceptions = {
-        path: error
-        for (path, error) in results.items() if error is not None
-    }
-    if exceptions:
-      raise BeamIOError("Delete operation failed", exceptions)
+    return 'https'

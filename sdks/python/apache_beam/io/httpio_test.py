@@ -56,8 +56,11 @@ class FakeHttpClient:
   def __init__(self, success=True):
     self._success = success
   def request(self, uri, method, headers = {}):
-    resp = Response({"content-length": TEST_DATA_SIZE, "reason": "bad"})
-    if self._success:
+    resp = Response({"content-length": TEST_DATA_SIZE})
+    if uri != TEST_DATA_PATH:
+      resp.status = 404
+      resp.reason = "Not Found"
+    elif self._success:
       resp.status = 200
       resp.reason = "Ok"
     else:
@@ -150,6 +153,18 @@ class TestHttpIOSuccess(unittest.TestCase):
       f.seek(start)
       self.assertEqual(f.readline(), lines[line_index][chars_left:])
 
+  def test_list_prefix(self):
+    expected_file_names = [
+      (TEST_DATA_PATH, TEST_DATA_SIZE),
+    ]
+    self.assertEqual(
+        set(self.httpio.list_prefix(TEST_DATA_PATH).items()),
+        set(expected_file_names))
+
+  def test_exists(self):
+    self.assertTrue(self.httpio.exists(TEST_DATA_PATH))
+    self.assertFalse(self.httpio.exists(TEST_DATA_PATH + "/invalid"))
+
 class TestHttpIOFailure(unittest.TestCase):
   def setUp(self):
     self.httpio = httpio.HttpIO(client=FakeHttpClient(success=False))
@@ -161,6 +176,10 @@ class TestHttpIOFailure(unittest.TestCase):
   def test_file_read(self):
     with self.assertRaisesRegex(Exception, '500'):
       f = self.httpio.open(TEST_DATA_PATH)
+  
+  def test_file_list_prefix(self):
+    with self.assertRaisesRegex(Exception, '500'):
+      self.httpio.list_prefix(TEST_DATA_PATH).items()
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

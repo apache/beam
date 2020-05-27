@@ -51,11 +51,23 @@ class HttpIO(object):
       uri,
       mode='r',
       read_buffer_size=16 * 1024 * 1024):
-    downloader = HttpDownloader(uri, self._client)
-    if mode != 'r':
-      raise Exception("only r mode is supported.")
-    return io.BufferedReader(
-      DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
+    if mode == 'r' or mode == 'rb':
+      downloader = HttpDownloader(uri, self._client)
+      return io.BufferedReader(
+        DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
+    else:
+      raise ValueError('Invalid file open mode: %s.' % mode)
+
+  def list_prefix(self, path):
+    """Lists files matching the prefix. For now, just returns a single file at the given URL.
+
+    Args:
+      path: S3 file path pattern in the form http://[url] or https://[url].
+
+    Returns:
+      Dictionary of file name -> size.
+    """
+    return {path: self.size(path)}
 
   def size(self, uri):
     try:
@@ -71,6 +83,17 @@ class HttpIO(object):
       if resp.status != 200:
         raise Exception(resp.status, resp.reason)
       return int(resp["content-length"])
+
+  def exists(self, uri):
+    try:
+      # Pass in "" for "Accept-Encoding" because we want the non-gzipped content-length.
+      resp, content = self._client.request(uri, method='HEAD', headers={"Accept-Encoding": ""})
+      return resp.status != 404
+    except Exception as e:
+      # Server doesn't support HEAD method;
+      # use GET method instead to prefetch the result.
+      resp, content = self._client.request(uri, method='GET')
+      return resp.status != 404
 
 class HttpDownloader(Downloader):
   def __init__(self, uri, client):
