@@ -62,6 +62,10 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1857">BEAM-1857</a></td>
   </tr>
   <tr>
+    <td>Pub/Sub Lite</td><td>Java</td>
+    <td><a href="https://issues.apache.org/jira/browse/BEAM-10114">BEAM-10114</a></td>
+  </tr>
+  <tr>
     <td>RestIO</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1946">BEAM-1946</a></td>
   </tr>
