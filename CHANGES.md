@@ -58,6 +58,7 @@
 
 * Support for X source added (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 * Support for reading from Snowflake added (Java) ([BEAM-9722](https://issues.apache.org/jira/browse/BEAM-9722)).
+* Support for reading from HTTP / HTTPS URLs added (Python) ([BEAM-10101](https://issues.apache.org/jira/browse/BEAM-10101)).
 
 ## New Features / Improvements
 
