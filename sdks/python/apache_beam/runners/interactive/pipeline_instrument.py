@@ -720,7 +720,6 @@ class PipelineInstrument(object):
       # the output tags for the TestStream. This is to remember what cache-key
       # is associated with which PCollection.
       output_tags = v.unbounded_pcolls
-      output_tags.add(self._cache_manager.sentinel_label())
 
       # Take the PCollections that will be read from the TestStream and insert
       # them back into the dictionary of cached PCollections. The next step will

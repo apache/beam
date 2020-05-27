@@ -340,8 +340,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     p_expected = beam.Pipeline()
     test_stream = (
         p_expected
-        | TestStream(
-            output_tags=[source_1_cache_key, StreamingCache.sentinel_label()]))
+        | TestStream(output_tags=[source_1_cache_key]))
     # pylint: disable=expression-not-assigned
     test_stream[source_1_cache_key] | 'square1' >> beam.Map(lambda x: x * x)
 
@@ -360,8 +359,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestStreamVisitor()
     actual_pipeline.visit(v)
-    expected_output_tags = set(
-        [source_1_cache_key, StreamingCache.sentinel_label()])
+    expected_output_tags = set([source_1_cache_key])
     actual_output_tags = v.output_tags
     self.assertSetEqual(expected_output_tags, actual_output_tags)
 
@@ -427,11 +425,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     test_stream = (
         p_expected
-        | TestStream(
-            output_tags=[
-                intermediate_source_pcoll_cache_key,
-                StreamingCache.sentinel_label()
-            ]))
+        | TestStream(output_tags=[intermediate_source_pcoll_cache_key]))
     # pylint: disable=expression-not-assigned
     (
         test_stream[intermediate_source_pcoll_cache_key]
@@ -454,8 +448,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestStreamVisitor()
     actual_pipeline.visit(v)
-    expected_output_tags = set(
-        [intermediate_source_pcoll_cache_key, StreamingCache.sentinel_label()])
+    expected_output_tags = set([intermediate_source_pcoll_cache_key])
     actual_output_tags = v.output_tags
     self.assertSetEqual(expected_output_tags, actual_output_tags)
 
@@ -512,12 +505,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     test_stream = (
         p_expected
-        | TestStream(
-            output_tags=[
-                source_1_cache_key,
-                source_2_cache_key,
-                StreamingCache.sentinel_label()
-            ]))
+        | TestStream(output_tags=[source_1_cache_key, source_2_cache_key]))
     # pylint: disable=expression-not-assigned
     ((
         test_stream[self.cache_key_of('source_1', source_1)],
@@ -542,9 +530,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestStreamVisitor()
     actual_pipeline.visit(v)
-    expected_output_tags = set([
-        source_1_cache_key, source_2_cache_key, StreamingCache.sentinel_label()
-    ])
+    expected_output_tags = set([source_1_cache_key, source_2_cache_key])
     actual_output_tags = v.output_tags
     self.assertSetEqual(expected_output_tags, actual_output_tags)
 
@@ -590,11 +576,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     # pylint: disable=unused-variable
     test_stream = (
         p_expected
-        | TestStream(
-            output_tags=[
-                self.cache_key_of('source_1', source_1),
-                StreamingCache.sentinel_label()
-            ]))
+        | TestStream(output_tags=[self.cache_key_of('source_1', source_1)]))
 
     # Test that the TestStream is outputting to the correct PCollection.
     class TestStreamVisitor(PipelineVisitor):
@@ -611,8 +593,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestStreamVisitor()
     actual_pipeline.visit(v)
-    expected_output_tags = set(
-        [source_1_cache_key, StreamingCache.sentinel_label()])
+    expected_output_tags = set([source_1_cache_key])
     actual_output_tags = v.output_tags
     self.assertSetEqual(expected_output_tags, actual_output_tags)
 
@@ -657,8 +638,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     p_expected = beam.Pipeline()
     test_stream = (
         p_expected
-        | TestStream(
-            output_tags=[source_1_cache_key, StreamingCache.sentinel_label()]))
+        | TestStream(output_tags=[source_1_cache_key]))
     # pylint: disable=expression-not-assigned
     (
         test_stream[source_1_cache_key]
@@ -681,8 +661,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestStreamVisitor()
     actual_pipeline.visit(v)
-    expected_output_tags = set(
-        [source_1_cache_key, StreamingCache.sentinel_label()])
+    expected_output_tags = set([source_1_cache_key])
     actual_output_tags = v.output_tags
     self.assertSetEqual(expected_output_tags, actual_output_tags)
 
@@ -735,8 +714,7 @@ class PipelineInstrumentTest(unittest.TestCase):
         | TestStream(
             output_tags=[
                 self.cache_key_of('source_1', source_1),
-                self.cache_key_of('source_2', source_2),
-                StreamingCache.sentinel_label(),
+                self.cache_key_of('source_2', source_2)
             ]))
     # pylint: disable=expression-not-assigned
     test_stream[source_1_cache_key] | 'square1' >> beam.Map(lambda x: x * x)
@@ -758,9 +736,7 @@ class PipelineInstrumentTest(unittest.TestCase):
 
     v = TestStreamVisitor()
     actual_pipeline.visit(v)
-    expected_output_tags = set([
-        source_1_cache_key, source_2_cache_key, StreamingCache.sentinel_label()
-    ])
+    expected_output_tags = set([source_1_cache_key, source_2_cache_key])
     actual_output_tags = v.output_tags
     self.assertSetEqual(expected_output_tags, actual_output_tags)
 

@@ -251,8 +251,7 @@ class StreamingCacheTest(unittest.TestCase):
 
     # Units here are in seconds.
     test_stream = (
-        TestStream(output_tags=(CACHED_RECORDS,
-                                StreamingCache.sentinel_label()))
+        TestStream(output_tags=(CACHED_RECORDS))
                    .advance_watermark_to(0, tag=CACHED_RECORDS)
                    .advance_processing_time(5)
                    .add_elements(['a', 'b', 'c'], tag=CACHED_RECORDS)
