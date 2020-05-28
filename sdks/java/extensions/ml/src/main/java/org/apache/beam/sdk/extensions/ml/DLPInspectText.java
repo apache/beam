@@ -65,21 +65,27 @@ public abstract class DLPInspectText
         PCollection<KV<String, String>>, PCollection<KV<String, InspectContentResponse>>> {
 
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
+
   /** @return Template name for data inspection. */
   @Nullable
   public abstract String getInspectTemplateName();
+
   /**
    * @return Configuration object for data inspection. If present, supersedes the template settings.
    */
   @Nullable
   public abstract InspectConfig getInspectConfig();
+
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
   public abstract Integer getBatchSizeBytes();
+
   /** @return ID of Google Cloud project to be used when deidentifying data. */
   public abstract String getProjectId();
+
   /** @return Delimiter to be used when splitting values from input strings into columns. */
   @Nullable
   public abstract String getColumnDelimiter();
+
   /** @return List of column names if the input KV value is a delimited row. */
   @Nullable
   public abstract PCollectionView<List<String>> getHeaderColumns();
@@ -88,21 +94,26 @@ public abstract class DLPInspectText
   public abstract static class Builder {
     /** @param inspectTemplateName Template name for data inspection. */
     public abstract Builder setInspectTemplateName(String inspectTemplateName);
+
     /**
      * @param inspectConfig Configuration object for data inspection. If present, supersedes the
      *     template settings.
      */
     public abstract Builder setInspectConfig(InspectConfig inspectConfig);
+
     /**
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
      */
     public abstract Builder setBatchSizeBytes(Integer batchSize);
+
     /** @param projectId ID of Google Cloud project to be used when deidentifying data. */
     public abstract Builder setProjectId(String projectId);
+
     /**
      * @param delimiter Delimiter to be used when splitting values from input strings into columns.
      */
     public abstract Builder setColumnDelimiter(String delimiter);
+
     /** @param headerColumns List of column names if the input KV value is a delimited row. */
     public abstract Builder setHeaderColumns(PCollectionView<List<String>> headerColumns);
 
@@ -119,6 +130,10 @@ public abstract class DLPInspectText
             String.format(
                 "Batch size is too large! It should be smaller or equal than %d.",
                 DLP_PAYLOAD_LIMIT_BYTES));
+      }
+      if (inspectText.getColumnDelimiter() == null && inspectText.getHeaderColumns() != null) {
+        throw new IllegalArgumentException(
+            "Column delimiter should be set if headers are present.");
       }
       return inspectText;
     }

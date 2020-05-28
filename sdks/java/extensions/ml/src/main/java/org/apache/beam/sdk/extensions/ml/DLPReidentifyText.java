@@ -154,6 +154,11 @@ public abstract class DLPReidentifyText
                 "Batch size is too large! It should be smaller or equal than %d.",
                 DLP_PAYLOAD_LIMIT_BYTES));
       }
+      if (dlpReidentifyText.getColumnDelimiter() == null
+          && dlpReidentifyText.getHeaderColumns() != null) {
+        throw new IllegalArgumentException(
+            "Column delimiter should be set if headers are present.");
+      }
       return dlpReidentifyText;
     }
   }
