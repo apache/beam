@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Zip file system mixin."""
+"""Tar file system mixin."""
 
 # pytype: skip-file
 
@@ -31,17 +31,17 @@ from apache_beam.io.filesystem import FileSystem
 from apache_beam.io.archive.archivefilesystemmixinbase import ArchiveFileSystemMixinBase
 from six import BytesIO
 
-from zipfile import ZipFile, ZipInfo
+from tarfile import TarFile, TarInfo
 import datetime
 
-__all__ = ['ZipFileSystemMixin']
+__all__ = ['TarFileSystemMixin']
 
-class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
-  """An mixin for `FileSystem` representing the contents of .zip files.
+class TarFileSystemMixin(ArchiveFileSystemMixinBase):
+  """An mixin for `FileSystem` representing the contents of .tar files.
   
   Usage:
 
-  class CustomFileSystem(ZipFileSystemMixin, LocalFileSystem):
+  class CustomFileSystem(TarFileSystemMixin, LocalFileSystem):
     pass
   system = CustomFileSystem(pipeline_options=pipeline_options, archive_path=archive_path)
 
@@ -51,10 +51,11 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
   def extension(cls):
     """File extension
     """
-    return "zip"
+    # TODO: how to deal with .tar.gz's?
+    return "tar"
 
   def _read_archive_file(self):
-    return ZipFile(super(ArchiveFileSystemMixinBase, self).open(self.archive_path), "r")
+    return TarFile(super(ArchiveFileSystemMixinBase, self).open(self.archive_path), "r")
 
   def _list(self, dir_or_prefix):
     """List files in a location.
@@ -73,16 +74,16 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
     """
     try:
       with self._read_archive_file() as f:
-        for info in f.infolist():
-          if info.filename.startswith(dir_or_prefix):
+        for info in f:
+          if info.name.startswith(dir_or_prefix):
             if not dir_or_prefix: # if empty string
               rest_of_path = dir_or_prefix
             else:
-              rest_of_path = info.filename.split(dir_or_prefix)[1]
+              rest_of_path = info.name.split(dir_or_prefix)[1]
             if rest_of_path.strip("/").count("/") == 0:
               # We only want to include items that are a single directory below --
               # infolist() gives us a recursive list by default.
-              yield FileMetadata(info.filename, info.file_size, _parent_archive_paths = [self.archive_path] )
+              yield FileMetadata(info.name, info.size, _parent_archive_paths = [self.archive_path] )
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("List operation failed", {dir_or_prefix: e})
 
@@ -143,7 +144,7 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
     try:
       with self._read_archive_file() as f:
         try:
-          raw_file = f.getinfo(path)
+          raw_file = f.getmember(path)
           return True
         except KeyError:
           return False
@@ -163,8 +164,8 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
     """
     try:
       with self._read_archive_file() as f:
-        info = f.getinfo(path)
-        return info.file_size # Uncompressed size
+        info = f.getmember(path)
+        return info.size
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("size() operation failed", {path: e})
 
@@ -181,8 +182,8 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
     """
     try:
       with self._read_archive_file() as f:
-        info = f.getinfo(path)
-        return datetime.datetime(*info.date_time).timestamp()
+        info = f.getmember(path)
+        return info.mtime
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("last_updated operation failed", {path: e})
 
@@ -193,15 +194,14 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
     Args:
       path: string path of a file.
 
-    Returns: string containing checksum
+    Returns: string containing checksum (in this case, just the file size)
 
     Raises:
       ``BeamIOError``: if path isn't a file or doesn't exist.
     """
     try:
       with self._read_archive_file() as f:
-        info = f.getinfo(path)
-        return str(info.CRC)
+        info = f.getmember(path)
+        return info.size
     except Exception as e:  # pylint: disable=broad-except
       raise BeamIOError("Checksum operation failed", {path: e})
-

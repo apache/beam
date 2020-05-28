@@ -66,50 +66,6 @@ class ArchiveFileSystemMixinBase(FileSystem):
     """Whether this FileSystem supports directories."""
     return False
 
-  @abstractmethod
-  def _path_open_helper(
-      self,
-      path,
-      mode,
-      mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    """Open helper that is used to open a file with a particular mode.
-    Must be implemented by subclasses.
-    """
-    raise NotImplementedError
-  
-  def create(
-      self,
-      path,
-      mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    """Returns a write channel for the given file path.
-
-    Args:
-      path: string path of the file object to be written to the system
-      mime_type: MIME type to specify the type of content in the file object
-      compression_type: Type of compression to be used for this object
-
-    Returns: file handle with a close function for the user to use
-    """
-    return self._path_open_helper(path, 'wb', mime_type, compression_type)
-
-  def open(
-      self,
-      path,
-      mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
-    """Returns a read channel for the given file path.
-
-    Args:
-      path: string path of the file object to be written to the system
-      mime_type: MIME type to specify the type of content in the file object
-      compression_type: Type of compression to be used for this object
-
-    Returns: file handle with a close function for the user to use
-    """
-    return self._path_open_helper(path, 'rb', mime_type, compression_type)
-
   def copy(self, source_file_names, destination_file_names):
     """Recursively copy the file tree from the source to the destination
 
