@@ -193,6 +193,18 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
 
   /**
+   * The size of the worker's in-memory cache, in megabytes.
+   *
+   * <p>Currently, this cache is used for storing read values of side inputs. as well as the state
+   * for streaming jobs.
+   */
+  @Description("The size of the worker's in-memory cache, in megabytes.")
+  @Default.Integer(100)
+  Integer getWorkerCacheMb();
+
+  void setWorkerCacheMb(Integer value);
+
+  /**
    * CAUTION: This option implies dumpHeapOnOOM, and has similar caveats. Specifically, heap dumps
    * can of comparable size to the default boot disk. Consider increasing the boot disk size before
    * setting this flag to true.
