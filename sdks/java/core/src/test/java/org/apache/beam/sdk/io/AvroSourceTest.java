@@ -36,13 +36,16 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
+import java.util.stream.Collectors;
 import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileConstants;
 import org.apache.avro.file.DataFileWriter;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.io.Decoder;
 import org.apache.avro.reflect.AvroDefault;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
@@ -532,6 +535,48 @@ public class AvroSourceTest {
                         (long) input.get("quantity")),
                 AvroCoder.of(Bird.class));
     List<Bird> actual = SourceTestUtils.readFromSource(source, null);
+    assertThat(actual, containsInAnyOrder(expected.toArray()));
+  }
+
+  @Test
+  public void testDatumReaderFactoryWithGenericRecord() throws Exception {
+    List<Bird> inputBirds = createRandomRecords(100);
+
+    String filename =
+        generateTestFile(
+            "tmp.avro",
+            inputBirds,
+            SyncBehavior.SYNC_DEFAULT,
+            0,
+            AvroCoder.of(Bird.class),
+            DataFileConstants.NULL_CODEC);
+
+    AvroSource.DatumReaderFactory<GenericRecord> factory =
+        (writer, reader) ->
+            new GenericDatumReader<GenericRecord>(writer, reader) {
+              @Override
+              protected Object readString(Object old, Decoder in) throws IOException {
+                return super.readString(old, in) + "_custom";
+              }
+            };
+
+    AvroSource<Bird> source =
+        AvroSource.from(filename)
+            .withParseFn(
+                input ->
+                    new Bird(
+                        (long) input.get("number"),
+                        input.get("species").toString(),
+                        input.get("quality").toString(),
+                        (long) input.get("quantity")),
+                AvroCoder.of(Bird.class))
+            .withDatumReaderFactory(factory);
+    List<Bird> actual = SourceTestUtils.readFromSource(source, null);
+    List<Bird> expected =
+        inputBirds.stream()
+            .map(b -> new Bird(b.number, b.species + "_custom", b.quality + "_custom", b.quantity))
+            .collect(Collectors.toList());
+
     assertThat(actual, containsInAnyOrder(expected.toArray()));
   }
 

@@ -43,9 +43,12 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -784,8 +787,64 @@ public class Snippets {
           Window.<TableRow>into(
               DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
-
     }
+  }
+
+  public static class DeadLetterBigQuery {
+
+    public static void main(String[] args) {
+
+      // [START BigQueryIODeadLetter]
+
+      PipelineOptions options =
+          PipelineOptionsFactory.fromArgs(args).withValidation().as(BigQueryOptions.class);
+
+      Pipeline p = Pipeline.create(options);
+
+      // Create a bug by writing the 2nd value as null. The API will correctly
+      // throw an error when trying to insert a null value into a REQUIRED field.
+      WriteResult result =
+          p.apply(Create.of(1, 2))
+              .apply(
+                  BigQueryIO.<Integer>write()
+                      .withSchema(
+                          new TableSchema()
+                              .setFields(
+                                  ImmutableList.of(
+                                      new TableFieldSchema()
+                                          .setName("num")
+                                          .setType("INTEGER")
+                                          .setMode("REQUIRED"))))
+                      .to("Test.dummyTable")
+                      .withFormatFunction(x -> new TableRow().set("num", (x == 2) ? null : x))
+                      .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                      // Forcing the bounded pipeline to use streaming inserts
+                      .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                      // set the withExtendedErrorInfo property.
+                      .withExtendedErrorInfo()
+                      .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                      .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
+
+      result
+          .getFailedInsertsWithErr()
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via(
+                      x -> {
+                        System.out.println(" The table was " + x.getTable());
+                        System.out.println(" The row was " + x.getRow());
+                        System.out.println(" The error was " + x.getError());
+                        return "";
+                      }));
+      p.run();
+
+      /*  Sample Output From the pipeline:
+       <p>The table was GenericData{classInfo=[datasetId, projectId, tableId], {datasetId=Test,projectId=<>, tableId=dummyTable}}
+       <p>The row was GenericData{classInfo=[f], {num=null}}
+       <p>The error was GenericData{classInfo=[errors, index],{errors=[GenericData{classInfo=[debugInfo, location, message, reason], {debugInfo=,location=, message=Missing required field: Msg_0_CLOUD_QUERY_TABLE.num., reason=invalid}}],index=0}}
+      */
+    }
+    // [END BigQueryIODeadLetter]
   }
 
   public static class PeriodicallyUpdatingSideInputs {

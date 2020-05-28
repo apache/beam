@@ -93,6 +93,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -3541,6 +3542,44 @@ public class ParDoTest implements Serializable {
       UsesTimersInParDo.class,
       DataflowPortabilityApiUnsupported.class
     })
+    public void testOutputTimestampDefault() throws Exception {
+      final String timerId = "foo";
+      DoFn<KV<String, Long>, Long> fn1 =
+          new DoFn<KV<String, Long>, Long>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<Long> o) {
+              o.output(timestamp.getMillis());
+            }
+          };
+
+      PCollection<Long> output =
+          pipeline
+              .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 1L), new Instant(3))))
+              .setIsBoundedInternal(IsBounded.UNBOUNDED)
+              .apply("first", ParDo.of(fn1));
+
+      PAssert.that(output).containsInAnyOrder(new Instant(8).getMillis()); // result output
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
     public void testOutOfBoundsEventTimeTimerHold() throws Exception {
       final String timerId = "foo";
 
@@ -5103,6 +5142,100 @@ public class ParDoTest implements Serializable {
           };
 
       pipeline.apply(Create.of("1")).apply(ParDo.of(fn));
+    }
+  }
+
+  /** Tests to validate OnWindowExpiration. */
+  @RunWith(JUnit4.class)
+  public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+    })
+    public void testOnWindowExpirationSimpleBounded() {
+      runOnWindowExpirationSimple(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class,
+    })
+    public void testOnWindowExpirationSimpleUnbounded() {
+      runOnWindowExpirationSimple(true);
+    }
+
+    public void runOnWindowExpirationSimple(boolean useStreaming) {
+      final String stateId = "foo";
+      final String timerId = "bar";
+      IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+      IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @StateId(stateId)
+            private final StateSpec<ValueState<Integer>> intState =
+                StateSpecs.value(VarIntCoder.of());
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, BoundedWindow window) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @Timestamp Instant timestamp,
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
+              // To check if state is persisted until OnWindowExpiration
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              state.write(currentValue + 1);
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                @Key String key,
+                OutputReceiver<Integer> r) {
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              // verify state
+              assertEquals(1, (int) currentValue);
+              // To check output is received from OnWindowExpiration
+              r.output(currentValue);
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      // first window
+                      TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
+
+                      // second window
+                      TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
+              .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+
+      PAssert.that(output)
+          .inWindow(firstWindow)
+          // verify output
+          .containsInAnyOrder(1)
+          .inWindow(secondWindow)
+          // verify output
+          .containsInAnyOrder(1);
+      pipeline.run();
     }
   }
 }

@@ -56,9 +56,11 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -74,6 +76,7 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -558,7 +561,7 @@ public class FhirIO {
      *
      * @return the Fhir store
      */
-    abstract String getFhirStore();
+    abstract ValueProvider<String> getFhirStore();
 
     /**
      * Gets write method.
@@ -579,14 +582,14 @@ public class FhirIO {
      *
      * @return the import gcs temp path
      */
-    abstract Optional<String> getImportGcsTempPath();
+    abstract Optional<ValueProvider<String>> getImportGcsTempPath();
 
     /**
      * Gets import gcs dead letter path.
      *
      * @return the import gcs dead letter path
      */
-    abstract Optional<String> getImportGcsDeadLetterPath();
+    abstract Optional<ValueProvider<String>> getImportGcsDeadLetterPath();
 
     /** The type Builder. */
     @AutoValue.Builder
@@ -598,7 +601,7 @@ public class FhirIO {
        * @param fhirStore the Fhir store
        * @return the Fhir store
        */
-      abstract Builder setFhirStore(String fhirStore);
+      abstract Builder setFhirStore(ValueProvider<String> fhirStore);
 
       /**
        * Sets write method.
@@ -622,7 +625,7 @@ public class FhirIO {
        * @param gcsTempPath the gcs temp path
        * @return the import gcs temp path
        */
-      abstract Builder setImportGcsTempPath(String gcsTempPath);
+      abstract Builder setImportGcsTempPath(ValueProvider<String> gcsTempPath);
 
       /**
        * Sets import gcs dead letter path.
@@ -630,7 +633,7 @@ public class FhirIO {
        * @param gcsDeadLetterPath the gcs dead letter path
        * @return the import gcs dead letter path
        */
-      abstract Builder setImportGcsDeadLetterPath(String gcsDeadLetterPath);
+      abstract Builder setImportGcsDeadLetterPath(ValueProvider<String> gcsDeadLetterPath);
 
       /**
        * Build write.
@@ -641,7 +644,7 @@ public class FhirIO {
     }
 
     private static Write.Builder write(String fhirStore) {
-      return new AutoValue_FhirIO_Write.Builder().setFhirStore(fhirStore);
+      return new AutoValue_FhirIO_Write.Builder().setFhirStore(StaticValueProvider.of(fhirStore));
     }
 
     /**
@@ -660,11 +663,11 @@ public class FhirIO {
         String gcsDeadLetterPath,
         @Nullable FhirIO.Import.ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
-          .setFhirStore(fhirStore)
+          .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(Write.WriteMethod.IMPORT)
           .setContentStructure(contentStructure)
-          .setImportGcsTempPath(gcsTempPath)
-          .setImportGcsDeadLetterPath(gcsDeadLetterPath)
+          .setImportGcsTempPath(StaticValueProvider.of(gcsTempPath))
+          .setImportGcsDeadLetterPath(StaticValueProvider.of(gcsDeadLetterPath))
           .build();
     }
 
@@ -681,10 +684,10 @@ public class FhirIO {
         String gcsDeadLetterPath,
         @Nullable FhirIO.Import.ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
-          .setFhirStore(fhirStore)
+          .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(Write.WriteMethod.IMPORT)
           .setContentStructure(contentStructure)
-          .setImportGcsDeadLetterPath(gcsDeadLetterPath)
+          .setImportGcsDeadLetterPath(StaticValueProvider.of(gcsDeadLetterPath))
           .build();
     }
 
@@ -703,11 +706,11 @@ public class FhirIO {
         ValueProvider<String> gcsDeadLetterPath,
         @Nullable FhirIO.Import.ContentStructure contentStructure) {
       return new AutoValue_FhirIO_Write.Builder()
-          .setFhirStore(fhirStore.get())
+          .setFhirStore(fhirStore)
           .setWriteMethod(Write.WriteMethod.IMPORT)
           .setContentStructure(contentStructure)
-          .setImportGcsTempPath(gcsTempPath.get())
-          .setImportGcsDeadLetterPath(gcsDeadLetterPath.get())
+          .setImportGcsTempPath(gcsTempPath)
+          .setImportGcsDeadLetterPath(gcsDeadLetterPath)
           .build();
     }
 
@@ -720,7 +723,7 @@ public class FhirIO {
      */
     public static Write executeBundles(String fhirStore) {
       return new AutoValue_FhirIO_Write.Builder()
-          .setFhirStore(fhirStore)
+          .setFhirStore(StaticValueProvider.of(fhirStore))
           .setWriteMethod(WriteMethod.EXECUTE_BUNDLE)
           .build();
     }
@@ -733,7 +736,7 @@ public class FhirIO {
      */
     public static Write executeBundles(ValueProvider<String> fhirStore) {
       return new AutoValue_FhirIO_Write.Builder()
-          .setFhirStore(fhirStore.get())
+          .setFhirStore(fhirStore)
           .setWriteMethod(WriteMethod.EXECUTE_BUNDLE)
           .build();
     }
@@ -749,11 +752,14 @@ public class FhirIO {
           LOG.warn(
               "Make sure the Cloud Healthcare Service Agent has permissions when using import:"
                   + " https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions");
-          String deadPath = getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
+          ValueProvider<String> deadPath =
+              getImportGcsDeadLetterPath().orElseThrow(IllegalArgumentException::new);
           FhirIO.Import.ContentStructure contentStructure =
               getContentStructure().orElseThrow(IllegalArgumentException::new);
-          String tempPath =
-              getImportGcsTempPath().orElse(input.getPipeline().getOptions().getTempLocation());
+          ValueProvider<String> tempPath =
+              getImportGcsTempPath()
+                  .orElse(
+                      StaticValueProvider.of(input.getPipeline().getOptions().getTempLocation()));
 
           return input.apply(new Import(getFhirStore(), tempPath, deadPath, contentStructure));
         case EXECUTE_BUNDLE:
@@ -778,14 +784,14 @@ public class FhirIO {
    */
   public static class Import extends Write {
 
-    private final String fhirStore;
-    private final String deadLetterGcsPath;
+    private final ValueProvider<String> fhirStore;
+    private final ValueProvider<String> deadLetterGcsPath;
     private final ContentStructure contentStructure;
     private static final int DEFAULT_FILES_PER_BATCH = 10000;
     private static final Logger LOG = LoggerFactory.getLogger(Import.class);
-    private String tempGcsPath;
+    private ValueProvider<String> tempGcsPath;
 
-    /**
+    /*
      * Instantiates a new Import.
      *
      * @param fhirStore the fhir store
@@ -798,9 +804,9 @@ public class FhirIO {
         ValueProvider<String> tempGcsPath,
         ValueProvider<String> deadLetterGcsPath,
         @Nullable ContentStructure contentStructure) {
-      this.fhirStore = fhirStore.get();
-      this.tempGcsPath = tempGcsPath.get();
-      this.deadLetterGcsPath = deadLetterGcsPath.get();
+      this.fhirStore = fhirStore;
+      this.tempGcsPath = tempGcsPath;
+      this.deadLetterGcsPath = deadLetterGcsPath;
       if (contentStructure == null) {
         this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
       } else {
@@ -819,8 +825,8 @@ public class FhirIO {
         ValueProvider<String> fhirStore,
         ValueProvider<String> deadLetterGcsPath,
         @Nullable ContentStructure contentStructure) {
-      this.fhirStore = fhirStore.get();
-      this.deadLetterGcsPath = deadLetterGcsPath.get();
+      this.fhirStore = fhirStore;
+      this.deadLetterGcsPath = deadLetterGcsPath;
       if (contentStructure == null) {
         this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
       } else {
@@ -841,9 +847,9 @@ public class FhirIO {
         String tempGcsPath,
         String deadLetterGcsPath,
         @Nullable ContentStructure contentStructure) {
-      this.fhirStore = fhirStore;
-      this.tempGcsPath = tempGcsPath;
-      this.deadLetterGcsPath = deadLetterGcsPath;
+      this.fhirStore = StaticValueProvider.of(fhirStore);
+      this.tempGcsPath = StaticValueProvider.of(tempGcsPath);
+      this.deadLetterGcsPath = StaticValueProvider.of(deadLetterGcsPath);
       if (contentStructure == null) {
         this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
       } else {
@@ -852,7 +858,7 @@ public class FhirIO {
     }
 
     @Override
-    String getFhirStore() {
+    ValueProvider<String> getFhirStore() {
       return fhirStore;
     }
 
@@ -867,12 +873,12 @@ public class FhirIO {
     }
 
     @Override
-    Optional<String> getImportGcsTempPath() {
+    Optional<ValueProvider<String>> getImportGcsTempPath() {
       return Optional.of(tempGcsPath);
     }
 
     @Override
-    Optional<String> getImportGcsDeadLetterPath() {
+    Optional<ValueProvider<String>> getImportGcsDeadLetterPath() {
       return Optional.of(deadLetterGcsPath);
     }
 
@@ -884,10 +890,9 @@ public class FhirIO {
               + "intended for batch use only.");
 
       // fall back on pipeline's temp location.
-      String tempPath = tempGcsPath;
-      if (tempPath == null) {
-        tempPath = input.getPipeline().getOptions().getTempLocation();
-      }
+      ValueProvider<String> tempPath =
+          getImportGcsTempPath()
+              .orElse(StaticValueProvider.of(input.getPipeline().getOptions().getTempLocation()));
 
       // Write bundles of String to GCS
       PCollectionTuple writeTmpFileResults =
@@ -908,24 +913,21 @@ public class FhirIO {
                   "Shard files", // to paralelize group into batches
                   WithKeys.of(elm -> ThreadLocalRandom.current().nextInt(0, numShards)))
               .setCoder(KvCoder.of(TextualIntegerCoder.of(), ResourceIdCoder.of()))
-              .apply("File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
+              .apply("Assemble File Batches", GroupIntoBatches.ofSize(DEFAULT_FILES_PER_BATCH))
               .setCoder(
                   KvCoder.of(TextualIntegerCoder.of(), IterableCoder.of(ResourceIdCoder.of())))
               .apply(
+                  "Import Batches",
                   ParDo.of(new ImportFn(fhirStore, tempPath, deadLetterGcsPath, contentStructure)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
 
-      // Wait til window closes for failedBodies and failedFiles to ensure we are done processing
-      // anything under tempGcsPath because it has been successfully imported to FHIR store or
-      // copies have been moved to the dead letter path.
-      // Clean up all of tempGcsPath. This will handle removing phantom temporary objects from
-      // failed / rescheduled ImportFn::importBatch.
-      ResourceId tempDir = FileSystems.matchNewResource(tempPath, true);
-      ResourceId tempSubDirUri = tempDir.resolve("*", StandardResolveOptions.RESOLVE_DIRECTORY);
-
       input
           .getPipeline()
-          .apply(Create.of(Collections.singletonList(tempSubDirUri.toString())))
+          .apply("Instantiate Temp Path", Create.ofProvider(tempPath, StringUtf8Coder.of()))
+          .apply(
+              "Resolve SubDirs",
+              MapElements.into(TypeDescriptors.strings())
+                  .via((String path) -> path.endsWith("/") ? path + "*" : path + "/*"))
           .apply("Wait On File Writing", Wait.on(failedBodies))
           .apply("Wait On FHIR Importing", Wait.on(failedFiles))
           .apply(
@@ -936,7 +938,21 @@ public class FhirIO {
               ParDo.of(
                   new DoFn<Metadata, Void>() {
                     @ProcessElement
-                    public void delete(@Element Metadata path) {
+                    public void delete(@Element Metadata path, ProcessContext context) {
+                      String tempPath =
+                          getImportGcsTempPath()
+                              .orElse(
+                                  StaticValueProvider.of(
+                                      context.getPipelineOptions().getTempLocation()))
+                              .get();
+                      // Wait til window closes for failedBodies and failedFiles to ensure we are
+                      // done processing
+                      // anything under tempGcsPath because it has been successfully imported to
+                      // FHIR store or
+                      // copies have been moved to the dead letter path.
+                      // Clean up all of tempGcsPath. This will handle removing phantom temporary
+                      // objects from
+                      // failed / rescheduled ImportFn::importBatch.
                       try {
                         FileSystems.delete(
                             Collections.singleton(path.resourceId()),
@@ -954,9 +970,9 @@ public class FhirIO {
     /** The Write bundles to new line delimited json files. */
     static class WriteBundlesToFilesFn extends DoFn<String, ResourceId> {
 
-      private final String fhirStore;
-      private final String tempGcsPath;
-      private final String deadLetterGcsPath;
+      private final ValueProvider<String> fhirStore;
+      private final ValueProvider<String> tempGcsPath;
+      private final ValueProvider<String> deadLetterGcsPath;
       private ObjectMapper mapper;
       private ResourceId resourceId;
       private WritableByteChannel ndJsonChannel;
@@ -964,6 +980,15 @@ public class FhirIO {
 
       private transient HealthcareApiClient client;
       private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFilesFn.class);
+
+      WriteBundlesToFilesFn(
+          ValueProvider<String> fhirStore,
+          ValueProvider<String> tempGcsPath,
+          ValueProvider<String> deadLetterGcsPath) {
+        this.fhirStore = fhirStore;
+        this.tempGcsPath = tempGcsPath;
+        this.deadLetterGcsPath = deadLetterGcsPath;
+      }
 
       /**
        * Instantiates a new Import fn.
@@ -973,9 +998,9 @@ public class FhirIO {
        * @param deadLetterGcsPath the dead letter gcs path
        */
       WriteBundlesToFilesFn(String fhirStore, String tempGcsPath, String deadLetterGcsPath) {
-        this.fhirStore = fhirStore;
-        this.tempGcsPath = tempGcsPath;
-        this.deadLetterGcsPath = deadLetterGcsPath;
+        this.fhirStore = StaticValueProvider.of(fhirStore);
+        this.tempGcsPath = StaticValueProvider.of(tempGcsPath);
+        this.deadLetterGcsPath = StaticValueProvider.of(deadLetterGcsPath);
       }
 
       /**
@@ -997,7 +1022,7 @@ public class FhirIO {
       public void initFile() throws IOException {
         // Write each bundle to newline delimited JSON file.
         String filename = String.format("fhirImportBatch-%s.ndjson", UUID.randomUUID().toString());
-        ResourceId tempDir = FileSystems.matchNewResource(this.tempGcsPath, true);
+        ResourceId tempDir = FileSystems.matchNewResource(this.tempGcsPath.get(), true);
         this.resourceId = tempDir.resolve(filename, StandardResolveOptions.RESOLVE_FILE);
         this.ndJsonChannel = FileSystems.create(resourceId, "application/ld+json");
         if (mapper == null) {
@@ -1052,12 +1077,12 @@ public class FhirIO {
         extends DoFn<KV<Integer, Iterable<ResourceId>>, HealthcareIOError<String>> {
 
       private static final Logger LOG = LoggerFactory.getLogger(ImportFn.class);
-      private final String tempGcsPath;
-      private final String deadLetterGcsPath;
+      private final ValueProvider<String> tempGcsPath;
+      private final ValueProvider<String> deadLetterGcsPath;
       private ResourceId tempDir;
       private final ContentStructure contentStructure;
       private HealthcareApiClient client;
-      private final String fhirStore;
+      private final ValueProvider<String> fhirStore;
 
       /**
        * Instantiates a new Import fn.
@@ -1068,9 +1093,9 @@ public class FhirIO {
        * @param contentStructure the content structure
        */
       ImportFn(
-          String fhirStore,
-          String tempGcsPath,
-          String deadLetterGcsPath,
+          ValueProvider<String> fhirStore,
+          ValueProvider<String> tempGcsPath,
+          ValueProvider<String> deadLetterGcsPath,
           @Nullable ContentStructure contentStructure) {
         this.fhirStore = fhirStore;
         this.tempGcsPath = tempGcsPath;
@@ -1090,7 +1115,7 @@ public class FhirIO {
       @Setup
       public void init() throws IOException {
         tempDir =
-            FileSystems.matchNewResource(tempGcsPath, true)
+            FileSystems.matchNewResource(tempGcsPath.get(), true)
                 .resolve(
                     String.format("tmp-%s", UUID.randomUUID().toString()),
                     StandardResolveOptions.RESOLVE_DIRECTORY);
@@ -1118,7 +1143,7 @@ public class FhirIO {
           tempDestinations.add(
               tempDir.resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
           deadLetterDestinations.add(
-              FileSystems.matchNewResource(deadLetterGcsPath, true)
+              FileSystems.matchNewResource(deadLetterGcsPath.get(), true)
                   .resolve(file.getFilename(), StandardResolveOptions.RESOLVE_FILE));
         }
         FileSystems.copy(ImmutableList.copyOf(batch), tempDestinations);
@@ -1127,13 +1152,15 @@ public class FhirIO {
           // Blocking fhirStores.import request.
           assert contentStructure != null;
           Operation operation =
-              client.importFhirResource(fhirStore, importUri.toString(), contentStructure.name());
+              client.importFhirResource(
+                  fhirStore.get(), importUri.toString(), contentStructure.name());
           client.pollOperation(operation, 500L);
           // Clean up temp files on GCS as they we successfully imported to FHIR store and no longer
           // needed.
           FileSystems.delete(tempDestinations);
         } catch (IOException | InterruptedException e) {
-          ResourceId deadLetterResourceId = FileSystems.matchNewResource(deadLetterGcsPath, true);
+          ResourceId deadLetterResourceId =
+              FileSystems.matchNewResource(deadLetterGcsPath.get(), true);
           LOG.warn(
               String.format(
                   "Failed to import %s with error: %s. Moving to deadletter path %s",
@@ -1173,7 +1200,7 @@ public class FhirIO {
 
   /** The type Execute bundles. */
   public static class ExecuteBundles extends PTransform<PCollection<String>, Write.Result> {
-    private final String fhirStore;
+    private final ValueProvider<String> fhirStore;
 
     /**
      * Instantiates a new Execute bundles.
@@ -1181,7 +1208,7 @@ public class FhirIO {
      * @param fhirStore the fhir store
      */
     ExecuteBundles(ValueProvider<String> fhirStore) {
-      this.fhirStore = fhirStore.get();
+      this.fhirStore = fhirStore;
     }
 
     /**
@@ -1190,7 +1217,7 @@ public class FhirIO {
      * @param fhirStore the fhir store
      */
     ExecuteBundles(String fhirStore) {
-      this.fhirStore = fhirStore;
+      this.fhirStore = StaticValueProvider.of(fhirStore);
     }
 
     @Override
@@ -1209,14 +1236,14 @@ public class FhirIO {
       private transient HealthcareApiClient client;
       private final ObjectMapper mapper = new ObjectMapper();
       /** The Fhir store. */
-      private final String fhirStore;
+      private final ValueProvider<String> fhirStore;
 
       /**
        * Instantiates a new Write Fhir fn.
        *
        * @param fhirStore the Fhir store
        */
-      ExecuteBundlesFn(String fhirStore) {
+      ExecuteBundlesFn(ValueProvider<String> fhirStore) {
         this.fhirStore = fhirStore;
       }
 
@@ -1241,7 +1268,7 @@ public class FhirIO {
         try {
           // Validate that data was set to valid JSON.
           mapper.readTree(body);
-          client.executeFhirBundle(fhirStore, body);
+          client.executeFhirBundle(fhirStore.get(), body);
         } catch (IOException | HealthcareHttpException e) {
           failedBundles.inc();
           context.output(HealthcareIOError.of(body, e));

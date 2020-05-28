@@ -166,8 +166,7 @@ class CommonJobProperties {
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
 
-    // Add docker-pull-licenses option to all Jenkins test to add licenses to when build docker images.
-    // as discussed at https://s.apache.org/zt68q
+    // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
     context.switches("-Pdocker-pull-licenses")
   }
 

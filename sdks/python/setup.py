@@ -153,14 +153,14 @@ REQUIRED_PACKAGES = [
     'futures>=3.2.0,<4.0.0; python_version < "3.0"',
     'grpcio>=1.12.1,<2',
     'hdfs>=2.1.0,<3.0.0',
-    'httplib2>=0.8,<0.16.0',
+    'httplib2>=0.8,<0.18.0',
     'mock>=1.0.1,<3.0.0',
     'numpy>=1.14.3,<2',
     'pymongo>=3.8.0,<4.0.0',
     'oauth2client>=2.0.1,<4',
     'protobuf>=3.5.0.post1,<4',
     # [BEAM-6287] pyarrow is not supported on Windows for Python 2
-    ('pyarrow>=0.15.1,<0.17.0; python_version >= "3.0" or '
+    ('pyarrow>=0.15.1,<0.18.0; python_version >= "3.0" or '
      'platform_system != "Windows"'),
     'pydot>=1.2.0,<2',
     'python-dateutil>=2.8.0,<3',
@@ -197,7 +197,7 @@ REQUIRED_TEST_PACKAGES = [
 
 GCP_REQUIREMENTS = [
     'cachetools>=3.1.0,<4',
-    'google-apitools>=0.5.28,<0.5.29',
+    'google-apitools>=0.5.31,<0.5.32',
     'google-cloud-datastore>=1.7.1,<1.8.0',
     'google-cloud-pubsub>=0.39.0,<1.1.0',
     # GCP packages required by tests

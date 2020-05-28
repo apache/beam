@@ -67,6 +67,10 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.Environments;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.metrics.ExecutionStateSampler;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator;
 import org.apache.beam.runners.dataflow.DataflowRunner;
@@ -387,8 +391,16 @@ public class WorkerCustomSourcesTest {
     p.begin().apply(Read.from(io));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.Environment defaultEnvironmentForDataflow =
+        Environments.createDockerEnvironment("dummy-image-url");
+    sdkComponents.registerEnvironment(defaultEnvironmentForDataflow);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
 
-    Job workflow = translator.translate(p, runner, new ArrayList<DataflowPackage>()).getJob();
+    Job workflow =
+        translator
+            .translate(p, pipelineProto, sdkComponents, runner, new ArrayList<DataflowPackage>())
+            .getJob();
     Step step = workflow.getSteps().get(0);
 
     return stepToCloudSource(step);

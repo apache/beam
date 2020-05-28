@@ -471,7 +471,8 @@ class DataflowRunner(PipelineRunner):
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
     default_environment = environments.DockerEnvironment.from_container_image(
-        apiclient.get_container_image_from_options(options))
+        apiclient.get_container_image_from_options(options),
+        artifacts=environments.python_sdk_dependencies(options))
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
@@ -1021,7 +1022,7 @@ class DataflowRunner(PipelineRunner):
     # will be 'None' for main output and '<tag>' for a tagged output.
     outputs = []
 
-    all_output_tags = transform_proto.outputs.keys()
+    all_output_tags = list(transform_proto.outputs.keys())
 
     # Some external transforms require output tags to not be modified.
     # So we randomly select one of the output tags as the main output and

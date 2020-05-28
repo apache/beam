@@ -26,10 +26,12 @@ description = 'Apache Beam :: SDKs :: Java :: Extensions :: ML'
 dependencies {
     compile project(path: ":sdks:java:core", configuration: "shadow")
     compile project(":sdks:java:expansion-service")
-    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     compile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    compile 'com.google.cloud:google-cloud-language:1.99.4'
+    testCompile project(path: ':sdks:java:core', configuration: 'shadowTest')
     testCompile library.java.mockito_core
     testCompile 'com.google.cloud:google-cloud-video-intelligence:1.2.0'
+    testCompile 'com.google.cloud:google-cloud-language:1.99.4'
     testCompile library.java.junit
     testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(":runners:google-cloud-dataflow-java")

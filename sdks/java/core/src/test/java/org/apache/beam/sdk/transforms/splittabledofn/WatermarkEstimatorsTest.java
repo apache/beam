@@ -20,7 +20,7 @@ package org.apache.beam.sdk.transforms.splittabledofn;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.testing.ResetDateTimeProvider;
-import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -34,70 +34,70 @@ public class WatermarkEstimatorsTest {
   public @Rule ResetDateTimeProvider resetDateTimeProvider = new ResetDateTimeProvider();
 
   @Test
-  public void testManualWatermarkEstimator() throws Exception {
+  public void testManualWatermarkEstimator() {
     ManualWatermarkEstimator<Instant> watermarkEstimator =
-        new WatermarkEstimators.Manual(GlobalWindow.TIMESTAMP_MIN_VALUE);
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
-    watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MIN_VALUE);
+        new WatermarkEstimators.Manual(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
+    watermarkEstimator.setWatermark(BoundedWindow.TIMESTAMP_MIN_VALUE);
     watermarkEstimator.setWatermark(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)));
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)));
     assertEquals(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
         watermarkEstimator.currentWatermark());
 
     // Make sure that even if the watermark goes backwards we report the "greatest" value we have
     // reported so far.
     watermarkEstimator.setWatermark(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)));
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)));
     assertEquals(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
         watermarkEstimator.currentWatermark());
 
-    watermarkEstimator.setWatermark(GlobalWindow.TIMESTAMP_MAX_VALUE);
-    assertEquals(GlobalWindow.TIMESTAMP_MAX_VALUE, watermarkEstimator.currentWatermark());
+    watermarkEstimator.setWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, watermarkEstimator.currentWatermark());
   }
 
   @Test
-  public void testWallTimeWatermarkEstimator() throws Exception {
-    DateTimeUtils.setCurrentMillisFixed(GlobalWindow.TIMESTAMP_MIN_VALUE.getMillis());
+  public void testWallTimeWatermarkEstimator() {
+    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis());
     WatermarkEstimator<Instant> watermarkEstimator =
         new WatermarkEstimators.WallTime(new Instant());
-    DateTimeUtils.setCurrentMillisFixed(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1).getMillis());
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1), watermarkEstimator.currentWatermark());
+    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1).getMillis());
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1), watermarkEstimator.currentWatermark());
 
-    DateTimeUtils.setCurrentMillisFixed(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2).getMillis());
+    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(2).getMillis());
     // Make sure that we don't mutate state even if the clock advanced
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1), watermarkEstimator.getState());
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2), watermarkEstimator.currentWatermark());
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2), watermarkEstimator.getState());
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1), watermarkEstimator.getState());
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(2), watermarkEstimator.currentWatermark());
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(2), watermarkEstimator.getState());
 
     // Handle the case if the clock ever goes backwards. Could happen if we resumed processing
     // on a machine that had misconfigured clock or due to clock skew.
-    DateTimeUtils.setCurrentMillisFixed(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1).getMillis());
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2), watermarkEstimator.currentWatermark());
+    DateTimeUtils.setCurrentMillisFixed(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(1).getMillis());
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE.plus(2), watermarkEstimator.currentWatermark());
   }
 
   @Test
-  public void testMonotonicallyIncreasingWatermarkEstimator() throws Exception {
+  public void testMonotonicallyIncreasingWatermarkEstimator() {
     TimestampObservingWatermarkEstimator<Instant> watermarkEstimator =
-        new WatermarkEstimators.MonotonicallyIncreasing(GlobalWindow.TIMESTAMP_MIN_VALUE);
-    assertEquals(GlobalWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
-    watermarkEstimator.observeTimestamp(GlobalWindow.TIMESTAMP_MIN_VALUE);
+        new WatermarkEstimators.MonotonicallyIncreasing(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, watermarkEstimator.currentWatermark());
+    watermarkEstimator.observeTimestamp(BoundedWindow.TIMESTAMP_MIN_VALUE);
     watermarkEstimator.observeTimestamp(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)));
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)));
     assertEquals(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
         watermarkEstimator.currentWatermark());
 
     // Make sure that even if the watermark goes backwards we report the "greatest" value we have
     // reported so far.
     watermarkEstimator.observeTimestamp(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)));
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(1)));
     assertEquals(
-        GlobalWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
+        BoundedWindow.TIMESTAMP_MIN_VALUE.plus(Duration.standardHours(2)),
         watermarkEstimator.currentWatermark());
 
-    watermarkEstimator.observeTimestamp(GlobalWindow.TIMESTAMP_MAX_VALUE);
-    assertEquals(GlobalWindow.TIMESTAMP_MAX_VALUE, watermarkEstimator.currentWatermark());
+    watermarkEstimator.observeTimestamp(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, watermarkEstimator.currentWatermark());
   }
 }

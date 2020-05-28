@@ -18,20 +18,18 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Arrays;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.extensions.sql.meta.provider.test.TestBoundedTable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /** TestInput. */
 class TestInput {
-  public static final FieldType DATE = FieldType.logicalType(new DateType());
-  public static final FieldType TIME = FieldType.logicalType(new TimeType());
 
   public static final TestBoundedTable BASIC_TABLE_ONE =
       TestBoundedTable.of(
@@ -155,20 +153,6 @@ class TestInput {
               DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:13"),
               7L);
 
-  public static final TestBoundedTable TIME_TABLE =
-      TestBoundedTable.of(
-              Schema.builder()
-                  .addNullableField("f_date", DATE)
-                  .addNullableField("f_time", TIME)
-                  .addNullableField("f_timestamp", FieldType.DATETIME)
-                  .addNullableField("f_timestamp_with_time_zone", FieldType.DATETIME)
-                  .build())
-          .addRows(
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-11 00:00:00"),
-              DateTimeUtils.parseTimestampWithUTCTimeZone("1970-01-01 12:33:59.348"),
-              DateTimeUtils.parseTimestampWithUTCTimeZone("2018-12-20 23:59:59.999"),
-              DateTimeUtils.parseTimestampWithTimeZone("2018-12-10 10:38:59-1000"));
-
   public static final TestBoundedTable TABLE_ALL_NULL =
       TestBoundedTable.of(
               Schema.builder()
@@ -248,6 +232,16 @@ class TestInput {
           .addRows(
               ImmutableMap.of("MAP_KEY_1", "MAP_VALUE_1"),
               Row.withSchema(structSchema).addValues(1L, "data1").build());
+
+  private static final Schema TABLE_WTH_DATE_SCHEMA =
+      Schema.builder()
+          .addLogicalTypeField("date_field", SqlTypes.DATE)
+          .addStringField("str_field")
+          .build();
+  public static final TestBoundedTable TABLE_WITH_DATE =
+      TestBoundedTable.of(TABLE_WTH_DATE_SCHEMA)
+          .addRows(LocalDate.of(2008, 12, 25), "str1")
+          .addRows(LocalDate.of(2020, 04, 07), "str2");
 
   public static byte[] stringToBytes(String s) {
     return s.getBytes(StandardCharsets.UTF_8);

@@ -19,46 +19,8 @@
 apply plugin: org.apache.beam.gradle.BeamModulePlugin
 applyPythonNature()
 
-def runScriptsDir = "${rootDir}/sdks/python/scripts"
-
-// Required to setup a Python 3.5 virtualenv.
-pythonVersion = '3.5'
-apply from: "../common.gradle"
-
 addPortableWordCountTasks()
 
-task preCommitPy35() {
-    dependsOn ':sdks:python:container:py35:docker'
-    dependsOn ':runners:flink:1.10:job-server:shadowJar'
-    dependsOn portableWordCountFlinkRunnerBatch
-    dependsOn portableWordCountFlinkRunnerStreaming
-}
-
-task postCommitPy35() {
-    dependsOn 'setupVirtualenv'
-    dependsOn 'postCommitPy35IT'
-    dependsOn ':runners:spark:job-server:shadowJar'
-    dependsOn portableWordCountSparkRunnerBatch
-}
-
-task postCommitPy35IT {
-  dependsOn 'setupVirtualenv'
-  dependsOn 'installGcpTest'
-  dependsOn ':runners:flink:1.10:job-server:shadowJar'
-
-  doLast {
-    def tests = [
-        "apache_beam.io.gcp.bigquery_read_it_test",
-    ]
-    def testOpts = ["--tests=${tests.join(',')}"]
-    def cmdArgs = mapToArgString([
-        "test_opts": testOpts,
-        "suite": "postCommitIT-flink-py35",
-        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
-    ])
-    exec {
-      executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
-    }
-  }
-}
+// Required to setup a Python 3.5 virtualenv and task names.
+pythonVersion = '3.5'
+apply from: "../common.gradle"

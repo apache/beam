@@ -42,6 +42,9 @@ public interface Timers {
    */
   void setTimer(Instant timestamp, TimeDomain timeDomain);
 
+  /** Set a timer with outputTimestamp. */
+  void setTimer(Instant timestamp, Instant outputTimestamp, TimeDomain timeDomain);
+
   /** Removes the timer set in this context for the {@code timestmap} and {@code timeDomain}. */
   void deleteTimer(Instant timestamp, TimeDomain timeDomain);
 

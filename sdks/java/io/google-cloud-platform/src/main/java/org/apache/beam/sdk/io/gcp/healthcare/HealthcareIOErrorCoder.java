@@ -40,7 +40,7 @@ public class HealthcareIOErrorCoder<T> extends CustomCoder<HealthcareIOError<T>>
   }
 
   public static <T> HealthcareIOErrorCoder of(Coder<T> originalCoder) {
-    return new HealthcareIOErrorCoder(originalCoder);
+    return new HealthcareIOErrorCoder<>(originalCoder);
   }
 
   @Override

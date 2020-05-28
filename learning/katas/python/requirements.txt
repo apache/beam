@@ -16,3 +16,5 @@
 
 apache-beam==2.19.0
 apache-beam[test]==2.19.0
+
+pytz~=2019.3

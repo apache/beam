@@ -34,6 +34,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rule.BeamMinusRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSideInputLookupJoinRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamSortRule;
+import org.apache.beam.sdk.extensions.sql.impl.rule.BeamTableFunctionScanRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUncollectRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnionRule;
 import org.apache.beam.sdk.extensions.sql.impl.rule.BeamUnnestRule;
@@ -133,7 +134,7 @@ public class BeamRuleSets {
           // remove unnecessary sort rule
           // https://issues.apache.org/jira/browse/BEAM-5073
           // SortRemoveRule.INSTANCE,
-
+          BeamTableFunctionScanRule.INSTANCE,
           // prune empty results rules
           PruneEmptyRules.AGGREGATE_INSTANCE,
           PruneEmptyRules.FILTER_INSTANCE,

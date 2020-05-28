@@ -27,12 +27,12 @@ import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubGrpcClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
-import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
@@ -53,16 +53,17 @@ public class FhirIOReadIT {
     return Arrays.asList("DSTU2", "STU3", "R4");
   }
 
-  @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient TestPubsubSignal signal = TestPubsubSignal.create();
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   private final String fhirStoreName;
   private final String pubsubTopic;
+  private final String pubsubSubscription;
   private final String project;
   private transient HealthcareApiClient client;
   private String healthcareDataset;
-  PubsubClient pubsub;
-  TestPubsubOptions pipelineOptions;
+  private PubsubClient pubsub;
+  private TestPubsubOptions pipelineOptions;
 
   public String version;
 
@@ -81,6 +82,7 @@ public class FhirIOReadIT {
             + testTime
             + "-"
             + (new SecureRandom().nextInt(32));
+    this.pubsubSubscription = pubsubTopic.replaceAll("topic", "subscription");
     pipelineOptions = TestPipeline.testingPipelineOptions().as(TestPubsubOptions.class);
   }
 
@@ -93,7 +95,15 @@ public class FhirIOReadIT {
     pubsub = PubsubGrpcClient.FACTORY.newClient(null, null, pipelineOptions);
     TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
     pubsub.createTopic(topicPath);
+    SubscriptionPath subscriptionPath = PubsubClient.subscriptionPathFromPath(pubsubSubscription);
+    pubsub.createSubscription(topicPath, subscriptionPath, 60);
     client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
+
+    // Execute bundles to trigger FHIR notificiations to input topic
+    FhirIOTestUtil.executeFhirBundles(
+        client,
+        healthcareDataset + "/fhirStores/" + fhirStoreName,
+        FhirIOTestUtil.BUNDLES.get(version));
   }
 
   @After
@@ -101,6 +111,8 @@ public class FhirIOReadIT {
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.deleteFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     TopicPath topicPath = PubsubClient.topicPathFromPath(pubsubTopic);
+    SubscriptionPath subscriptionPath = PubsubClient.subscriptionPathFromPath(pubsubSubscription);
+    pubsub.deleteSubscription(subscriptionPath);
     pubsub.deleteTopic(topicPath);
     pubsub.close();
   }
@@ -108,27 +120,23 @@ public class FhirIOReadIT {
   @Test
   public void testFhirIORead() throws Exception {
     pipeline.getOptions().as(DirectOptions.class).setBlockOnRun(false);
+
     FhirIO.Read.Result result =
-        pipeline.apply(PubsubIO.readStrings().fromTopic(pubsubTopic)).apply(FhirIO.readResources());
+        pipeline
+            .apply(PubsubIO.readStrings().fromSubscription(pubsubSubscription))
+            .apply(FhirIO.readResources());
 
     PCollection<String> resources = result.getResources();
     resources.apply(
         "waitForAnyMessage", signal.signalSuccessWhen(resources.getCoder(), anyResources -> true));
     // wait for any resource
-    PAssert.that(result.getFailedReads()).empty();
 
     Supplier<Void> start = signal.waitForStart(Duration.standardMinutes(5));
     pipeline.apply(signal.signalStart());
     PipelineResult job = pipeline.run();
     start.get();
-
-    // Execute bundles to trigger FHIR notificiations to input topic
-    FhirIOTestUtil.executeFhirBundles(
-        client,
-        healthcareDataset + "/fhirStores/" + fhirStoreName,
-        FhirIOTestUtil.BUNDLES.get(version));
-
     signal.waitForSuccess(Duration.standardSeconds(30));
+
     // A runner may not support cancel
     try {
       job.cancel();
