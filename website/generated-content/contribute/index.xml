@@ -1377,13 +1377,16 @@ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.complete.game.in
 &lt;strong>NOTE&lt;/strong>: If you are using &lt;a href="https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/">GitHub two-factor authentication&lt;/a> and haven&amp;rsquo;t configure HTTPS access,
 please follow &lt;a href="https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/">the guide&lt;/a> to configure command line access.&lt;/p>
 &lt;h3 id="deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI&lt;/h3>
-&lt;ol>
-&lt;li>Download everything from &lt;a href="https://dist.apache.org/repos/dist/dev/beam/2.14.0/python/">https://dist.apache.org/repos/dist/dev/beam/2.14.0/python/&lt;/a> ;&lt;/li>
-&lt;li>Keep only things that you see in &lt;a href="https://pypi.org/project/apache-beam/#files">https://pypi.org/project/apache-beam/#files&lt;/a> , e.g. &lt;code>.zip&lt;/code>, &lt;code>.whl&lt;/code>,
-delete the &lt;code>.asc&lt;/code>, &lt;code>.sha512&lt;/code>;&lt;/li>
-&lt;li>Upload the new release &lt;code>twine upload *&lt;/code> from the directory with the &lt;code>.zip&lt;/code> and &lt;code>.whl&lt;/code> files;&lt;/li>
-&lt;/ol>
-&lt;p>&lt;a href="https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives">Installing twine&lt;/a>: &lt;code>pip install twine&lt;/code>. You can install twine under &lt;a href="https://virtualenv.pypa.io/en/latest/">virtualenv&lt;/a> if preferred.&lt;/p>
+&lt;ul>
+&lt;li>Script: &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_pypi.sh">deploy_pypi.sh&lt;/a>&lt;/li>
+&lt;li>Usage&lt;/li>
+&lt;/ul>
+&lt;pre>&lt;code>./beam/release/src/main/scripts/deploy_pypi.sh
+&lt;/code>&lt;/pre>&lt;ul>
+&lt;li>Verify that the files at &lt;a href="https://pypi.org/project/apache-beam/#files">https://pypi.org/project/apache-beam/#files&lt;/a> are correct.
+All wheels should be published, in addition to the zip of the release source.
+(Signatures and hashes do &lt;em>not&lt;/em> need to be uploaded.)&lt;/li>
+&lt;/ul>
 &lt;h3 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/h3>
 &lt;p>Copy the source release from the &lt;code>dev&lt;/code> repository to the &lt;code>release&lt;/code> repository at &lt;code>dist.apache.org&lt;/code> using Subversion.&lt;/p>
 &lt;p>Move last release artifacts from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code> using Subversion. Then update download address for last release version, &lt;a href="https://github.com/apache/beam-site/pull/478">example PR&lt;/a>.&lt;/p>
