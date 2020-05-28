@@ -257,6 +257,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
+    // Tests to include/exclude from running, by default all tests are included
+    Closure testFilter = {
+      // Use the following to include / exclude tests:
+      // includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+      // excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+    }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
     // Additional system properties.
@@ -1689,6 +1695,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testClassesDirs = project.files(project.project(":sdks:java:core").sourceSets.test.output.classesDirs, project.project(":runners:core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
+        filter(config.testFilter)
         // increase maxHeapSize as this is directly correlated to direct memory,
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'
