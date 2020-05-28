@@ -351,7 +351,7 @@ public class HL7v2IO {
     public Read() {}
 
     public static class Result implements POutput, PInput {
-      private PCollection<HL7v2Message> messages;
+      private PCollection<TimestampedValue<HL7v2Message>> messages;
 
       private PCollection<HealthcareIOError<String>> failedReads;
       PCollectionTuple pct;
@@ -370,7 +370,7 @@ public class HL7v2IO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.messages = pct.get(OUT).setCoder(HL7v2MessageCoder.of());
+        this.messages = pct.get(OUT).setCoder(TimestampedValueCoder.of(HL7v2MessageCoder.of()));
         this.failedReads =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
@@ -380,6 +380,11 @@ public class HL7v2IO {
       }
 
       public PCollection<HL7v2Message> getMessages() {
+        return messages.apply(MapElements.into(TypeDescriptor.of(HL7v2Message.class))
+            .via(TimestampedValue<HL7v2Message>::getValue));
+      }
+
+      public PCollection<TimestampedValue<HL7v2Message>> getTimestampedMessages() {
         return messages;
       }
 
@@ -399,7 +404,8 @@ public class HL7v2IO {
     }
 
     /** The tag for the main output of HL7v2 Messages. */
-    public static final TupleTag<HL7v2Message> OUT = new TupleTag<HL7v2Message>() {};
+    public static final TupleTag<TimestampedValue<HL7v2Message>> OUT =
+        new TupleTag<TimestampedValue<HL7v2Message>>() {};
     /** The tag for the deadletter output of HL7v2 Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -446,7 +452,7 @@ public class HL7v2IO {
       }
 
       /** DoFn for fetching messages from the HL7v2 store with error handling. */
-      public static class HL7v2MessageGetFn extends DoFn<String, HL7v2Message> {
+      public static class HL7v2MessageGetFn extends DoFn<String, TimestampedValue<HL7v2Message>> {
 
         private Counter failedMessageGets =
             Metrics.counter(FetchHL7v2Message.HL7v2MessageGetFn.class, "failed-message-reads");
@@ -479,7 +485,8 @@ public class HL7v2IO {
         public void processElement(ProcessContext context) {
           String msgId = context.element();
           try {
-            context.output(HL7v2Message.fromModel(fetchMessage(this.client, msgId)));
+            HL7v2Message msg = HL7v2Message.fromModel(fetchMessage(this.client, msgId));
+            context.output(TimestampedValue.of(msg, Instant.parse(msg.getSendTime())));
           } catch (Exception e) {
             failedMessageGets.inc();
             LOG.warn(
