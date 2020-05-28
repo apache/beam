@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Python SDK Typing Changes"
-date:   2020-05-21 00:00:01 -0800
+date:   2020-05-28 00:00:01 -0800
 categories:
   - blog 
   - python 
