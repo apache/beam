@@ -102,6 +102,12 @@ categories:
           - language: py
             name: apache_beam.io.gcp.gcsio
             url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.gcsio.html
+      - transform: HttpIO
+        description: "A source for downloading files from a HTTP / HTTPS URL."
+        implementations:
+          - language: py
+            name: apache_beam.io.httpio
+            url: https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/httpio.py
   - name: FileSystem
     description: Beam provides a File system interface that defines APIs for writing file systems agnostic code. Several I/O connectors are implemented as a FileSystem implementation.
     rows:
@@ -150,6 +156,12 @@ categories:
           - language: go
             name: github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
             url: https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam/io/filesystem/memfs
+      - transform: HttpFileSystem and HttpsFileSystem
+        description: "`FileSystem` implementation that allows downloading files from a HTTP / HTTPS URL."
+        implementations:
+          - language: py
+            name: apache_beam.io.httpfilesystem
+            url: https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/httpfilesystem.py
   - name: Messaging
     description: These I/O connectors typically involve working with unbounded sources that come from messaging sources.
     rows:
