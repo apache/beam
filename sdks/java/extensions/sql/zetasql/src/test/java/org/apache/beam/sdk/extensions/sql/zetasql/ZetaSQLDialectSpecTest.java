@@ -4793,7 +4793,7 @@ public class ZetaSQLDialectSpecTest {
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     final Schema schema =
-        Schema.builder().addInt64Field("count_start").addDateTimeField("window_start").build();
+        Schema.builder().addInt64Field("field_count").addDateTimeField("window_start").build();
     PAssert.that(stream)
         .containsInAnyOrder(
             Row.withSchema(schema)
