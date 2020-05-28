@@ -273,7 +273,7 @@ public class HL7v2IO {
    * @see <a
    *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
    */
-  public static ListTimestampedHL7v2Messages readWithFilterWithTimeStamps(
+  public static ListTimestampedHL7v2Messages readWithFilterWithTimestamps(
       ValueProvider<String> hl7v2Store, ValueProvider<String> filter) {
     return new ListTimestampedHL7v2Messages(
         StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())), filter);
@@ -380,8 +380,9 @@ public class HL7v2IO {
       }
 
       public PCollection<HL7v2Message> getMessages() {
-        return messages.apply(MapElements.into(TypeDescriptor.of(HL7v2Message.class))
-            .via(TimestampedValue<HL7v2Message>::getValue));
+        return messages.apply(
+            MapElements.into(TypeDescriptor.of(HL7v2Message.class))
+                .via(TimestampedValue<HL7v2Message>::getValue));
       }
 
       public PCollection<TimestampedValue<HL7v2Message>> getTimestampedMessages() {
