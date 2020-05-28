@@ -310,13 +310,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-      // The reason for this is https://issues.apache.org/jira/browse/BEAM-1438
-      // and similar behavior in other runners.
-      checkArgument(
-          getComputeNumShards() != null || getNumShardsProvider() != null,
-          "When applying %s to an unbounded PCollection, "
-              + "must specify number of output shards explicitly",
-          WriteFiles.class.getSimpleName());
     }
     this.writeOperation = getSink().createWriteOperation();
     this.writeOperation.setWindowedWrites(getWindowedWrites());
