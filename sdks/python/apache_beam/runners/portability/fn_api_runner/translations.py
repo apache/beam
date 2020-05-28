@@ -159,8 +159,7 @@ class Stage(object):
 
     return (
         not consumer.forced_root and not self in consumer.must_follow and
-        not self.is_runner_urn(context) and
-        not consumer.is_runner_urn(context) and
+        self.is_all_sdk_urns(context) and consumer.is_all_sdk_urns(context) and
         no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
   def fuse(self, other):
@@ -180,6 +179,17 @@ class Stage(object):
     return any(
         transform.spec.urn in context.known_runner_urns
         for transform in self.transforms)
+
+  def is_all_sdk_urns(self, context):
+    def is_sdk_transform(transform):
+      # Execute multi-input flattens in the runner.
+      if transform.spec.urn == common_urns.primitives.FLATTEN.urn and len(
+          transform.inputs) > 1:
+        return False
+      else:
+        return transform.spec.urn not in context.runner_only_urns
+
+    return all(is_sdk_transform(transform) for transform in self.transforms)
 
   def side_inputs(self):
     # type: () -> Iterator[str]
@@ -339,6 +349,8 @@ class TransformContext(object):
               ):
     self.components = components
     self.known_runner_urns = known_runner_urns
+    self.runner_only_urns = known_runner_urns - frozenset(
+        [common_urns.primitives.FLATTEN.urn])
     self.use_state_iterables = use_state_iterables
     # ok to pass None for context because BytesCoder has no components
     coder_proto = coders.BytesCoder().to_runner_api(
@@ -1059,7 +1071,8 @@ def expand_gbk(stages, pipeline_context):
       yield stage
 
 
-def fix_flatten_coders(stages, pipeline_context):
+def fix_flatten_coders(
+    stages, pipeline_context, identity_urn=bundle_processor.IDENTITY_DOFN_URN):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
   """Ensures that the inputs of Flatten have the same coders as the output.
@@ -1088,8 +1101,7 @@ def fix_flatten_coders(stages, pipeline_context):
                       unique_name=transcode_name,
                       inputs={local_in: pcoll_in},
                       outputs={'out': transcoded_pcollection},
-                      spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=bundle_processor.IDENTITY_DOFN_URN),
+                      spec=beam_runner_api_pb2.FunctionSpec(urn=identity_urn),
                       environment_id=transform.environment_id)
               ],
               downstream_side_inputs=frozenset(),
@@ -1112,10 +1124,13 @@ def sink_flattens(stages, pipeline_context):
   same logical sink) followed by a read.
   """
   # TODO(robertwb): Actually attempt to sink rather than always materialize.
-  # TODO(robertwb): Possibly fuse this into one of the stages.
-  for stage in fix_flatten_coders(stages, pipeline_context):
+  # TODO(robertwb): Possibly fuse multi-input flattens into one of the stages.
+  for stage in fix_flatten_coders(stages,
+                                  pipeline_context,
+                                  common_urns.primitives.FLATTEN.urn):
     transform = only_element(stage.transforms)
-    if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
+    if (transform.spec.urn == common_urns.primitives.FLATTEN.urn and
+        len(transform.inputs) > 1):
       # This is used later to correlate the read and writes.
       buffer_id = create_buffer_id(transform.unique_name)
       flatten_writes = []  # type: List[Stage]
