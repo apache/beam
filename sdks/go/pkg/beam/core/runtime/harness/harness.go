@@ -310,7 +310,11 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		if ds == nil {
 			return fail(ctx, instID, "failed to split: desired splits for root of %v was empty.", ref)
 		}
-		split, err := plan.Split(exec.SplitPoints{Splits: ds.GetAllowedSplitPoints(), Frac: ds.GetFractionOfRemainder()})
+		split, err := plan.Split(exec.SplitPoints{
+			Splits:  ds.GetAllowedSplitPoints(),
+			Frac:    ds.GetFractionOfRemainder(),
+			BufSize: ds.GetEstimatedInputElements(),
+		})
 
 		if err != nil {
 			return fail(ctx, instID, "unable to split %v: %v", ref, err)
