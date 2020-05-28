@@ -47,7 +47,7 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
       | MatchFiles("s3://ashwin-bucket123/logs.zip")
       | MatchExtractedFiles("*")
       | ReadMatches()
-      | Map(lambda x: x.open().read_utf8())
+      | Map(lambda x: x.read_utf8())
       | Map(print)
   )
   ```
