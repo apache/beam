@@ -49,4 +49,21 @@ public class MapStringToDlpRowTest {
                     .build()));
     testPipeline.run().waitUntilFinish();
   }
+
+  @Test
+  public void mapsDelimitedStringToRow() {
+    PCollection<KV<String, Table.Row>> rowCollection =
+        testPipeline
+            .apply(Create.of(KV.of("key", "value,secondValue")))
+            .apply(ParDo.of(new MapStringToDlpRow(",")));
+    PAssert.that(rowCollection)
+        .containsInAnyOrder(
+            KV.of(
+                "key",
+                Table.Row.newBuilder()
+                    .addValues(Value.newBuilder().setStringValue("value").build())
+                    .addValues(Value.newBuilder().setStringValue("secondValue").build())
+                    .build()));
+    testPipeline.run().waitUntilFinish();
+  }
 }

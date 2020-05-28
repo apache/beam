@@ -22,6 +22,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.privacy.dlp.v2.CharacterMaskConfig;
 import com.google.privacy.dlp.v2.DeidentifyConfig;
 import com.google.privacy.dlp.v2.DeidentifyContentResponse;
+import com.google.privacy.dlp.v2.FieldId;
 import com.google.privacy.dlp.v2.Finding;
 import com.google.privacy.dlp.v2.InfoType;
 import com.google.privacy.dlp.v2.InfoTypeTransformations;
@@ -73,7 +74,6 @@ public class DLPTextOperationsIT {
 
   @Test
   public void deidentifiesText() {
-    emailAddress = InfoType.newBuilder().setName("EMAIL_ADDRESS").build();
     String projectId = testPipeline.getOptions().as(GcpOptions.class).getProject();
 
     PCollection<KV<String, DeidentifyContentResponse>> deidentificationResult =
@@ -145,6 +145,12 @@ public class DLPTextOperationsIT {
                         matches.add(
                             row.getValuesList().stream()
                                 .anyMatch(value -> value.getStringValue().equals(expectedValue))));
+            assertTrue(
+                item.getValue()
+                    .getItem()
+                    .getTable()
+                    .getHeadersList()
+                    .contains(FieldId.newBuilder().setName("value").build()));
           });
       assertTrue(matches.contains(Boolean.TRUE));
       return null;

@@ -52,7 +52,8 @@ import org.apache.beam.sdk.values.PCollectionView;
  *
  * <p>The transform consumes {@link KV} of {@link String}s (assumed to be filename as key and
  * contents as value) and outputs {@link KV} of {@link String} (eg. filename) and {@link
- * InspectContentResponse}, which will contain {@link Table} of results for the user to consume.
+ * InspectContentResponse}, which will contain a list of {@link
+ * com.google.privacy.dlp.v2.InspectResult} for the user to consume.
  *
  * <p>Either inspectTemplateName (String) or inspectConfig {@link InspectConfig} need to be set.
  *
