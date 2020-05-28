@@ -17,25 +17,19 @@
  */
 
 /**
- * Unit tests for Python 3.7
+ * Unit tests for Python 3.8
  */
 
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
 // Required to setup a Python 3 virtualenv and task names.
-pythonVersion = '3.7'
+pythonVersion = '3.8'
 
-task lint {}
-check.dependsOn lint
-
-toxTask "lintPy37", "py37-lint"
-lint.dependsOn lintPy37
-
-toxTask "mypyPy37", "py37-mypy"
-lint.dependsOn mypyPy37
+toxTask "formatter", "py3-yapf-check"
+check.dependsOn formatter
 
 apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
-testPy37Cython.mustRunAfter testPython37, testPy37Cloud
+testPy38Cython.mustRunAfter testPython38, testPy38Cloud
