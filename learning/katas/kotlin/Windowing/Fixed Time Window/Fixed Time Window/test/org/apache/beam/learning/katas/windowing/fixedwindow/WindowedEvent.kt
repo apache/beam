@@ -20,26 +20,4 @@ package org.apache.beam.learning.katas.windowing.fixedwindow
 import java.io.Serializable
 import java.util.*
 
-class WindowedEvent(private val event: String?, private val count: Long, private val window: String) : Serializable {
-    override fun equals(o: Any?): Boolean {
-        if (this === o) {
-            return true
-        }
-
-        if (o == null || javaClass != o.javaClass) {
-            return false
-        }
-
-        val that = o as WindowedEvent
-
-        return event == that.event && count == that.count && window == that.window
-    }
-
-    override fun hashCode(): Int {
-        return Objects.hash(event, count, window)
-    }
-
-    override fun toString(): String {
-        return "WindowedEvent{event='$event', count=$count, window='$window'}"
-    }
-}
+data class WindowedEvent(private val event: String?, private val count: Long, private val window: String) : Serializable
