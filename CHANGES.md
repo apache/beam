@@ -99,6 +99,8 @@
     * Reidentification of data.
 * Add a more complete I/O support matrix in the documentation site ([BEAM-9916](https://issues.apache.org/jira/browse/BEAM-9916)).
 * Upgrade Sphinx to 3.0.3 for building PyDoc.
+* Added a PTransform for image annotation using Google Cloud AI image processing service
+([BEAM-9646](https://issues.apache.org/jira/browse/BEAM-9646))
 
 ## Breaking Changes
 
@@ -167,8 +169,6 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 * `docker-pull-licenses` tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when `docker-pull-licenses` was set. 
   The files are added to `/opt/apache/beam/third_party_licenses/`. 
   By default, no licenses/notices are added to the docker images. ([BEAM-9136](https://issues.apache.org/jira/browse/BEAM-9136))
-* Added a PTransform for image annotation using Google Cloud AI image processing service
-([BEAM-9646](https://issues.apache.org/jira/browse/BEAM-9646))
 
  
 ## Breaking Changes
