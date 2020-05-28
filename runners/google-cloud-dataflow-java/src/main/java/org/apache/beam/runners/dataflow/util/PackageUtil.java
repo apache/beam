@@ -398,12 +398,18 @@ public class PackageUtil implements Closeable {
       }
       checkState(!file.isDirectory(), "Source file must not be a directory.");
       String target;
+      // Dataflow worker jar and windmill binary can be overridden by providing files with
+      // predefined file names. Normally, we can use the artifact file name as same as
+      // the last component of GCS object resource path. However, we need special handling
+      // for those predefined names since they also need to be unique even in the same
+      // staging directory.
       switch (dest) {
         case "dataflow-worker.jar":
         case "windmill_main":
           target =
               Environments.createStagingFileName(
                   file, Files.asByteSource(file).hash(Hashing.sha256()));
+          LOG.info("Staging custom {} as {}", dest, target);
           break;
         default:
           target = dest;
