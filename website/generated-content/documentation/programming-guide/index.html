@@ -790,7 +790,7 @@ asynchronous &ldquo;job&rdquo; (or equivalent) on that back-end.</p>
 <h2 id="creating-a-pipeline">2. Creating a pipeline</h2>
 <p>The <code>Pipeline</code> abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span>
+<span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/Pipeline.html">Pipeline</a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py">Pipeline</a></span>
 object, and then using that object as the basis for creating the pipeline&rsquo;s data
 sets as <code>PCollection</code>s and its operations as <code>Transform</code>s.</p>
@@ -1064,7 +1064,7 @@ with <code>PipelineOptionsFactory</code>:</p>
 
 <p>Now your pipeline can accept <code>--input=value</code> and <code>--output=value</code> as command-line arguments.</p>
 <h2 id="pcollections">3. PCollections</h2>
-<p>The <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span>
+<p>The <span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/values/PCollection.html">PCollection</a></span>
 <span class="language-py"><code>PCollection</code></span> abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 <code>PCollection</code> as &ldquo;pipeline&rdquo; data; Beam transforms use <code>PCollection</code> objects as
@@ -2105,7 +2105,7 @@ and format data from each collection.</p>
 
 
 <h4 id="combine">4.2.4. Combine</h4>
-<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Combine.html"><code>Combine</code></a></span>
+<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/Combine.html"><code>Combine</code></a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code>Combine</code></a></span>
 is a Beam transform for combining collections of elements or values in your
 data. <code>Combine</code> has variants that work on entire <code>PCollection</code>s, and some that
@@ -2421,7 +2421,7 @@ PerKey must be an associative reduction function or a subclass of <code>CombineF
 
 
 <h4 id="flatten">4.2.5. Flatten</h4>
-<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code>Flatten</code></a></span>
+<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/Flatten.html"><code>Flatten</code></a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code>Flatten</code></a></span>
 is a Beam transform for <code>PCollection</code> objects that store the same data type.
 <code>Flatten</code> merges multiple <code>PCollection</code> objects into a single logical
@@ -2480,7 +2480,7 @@ fixed windows or 4-minute sliding windows starting every 30 seconds.</p>
 incompatible windows, Beam generates an <code>IllegalStateException</code> error when your
 pipeline is constructed.</p>
 <h4 id="partition">4.2.6. Partition</h4>
-<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Partition.html"><code>Partition</code></a></span>
+<p><span class="language-java"><a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/Partition.html"><code>Partition</code></a></span>
 <span class="language-py"><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py"><code>Partition</code></a></span>
 is a Beam transform for <code>PCollection</code> objects that store the same data
 type. <code>Partition</code> splits a single <code>PCollection</code> into a fixed number of smaller
@@ -3178,8 +3178,8 @@ transform can make your code more modular and easier to understand.</p>
 <p>The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:</p>
 <ul>
-<li><a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
-<li><a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
+<li><a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/package-summary.html">Pre-written Beam transforms for Java</a></li>
+<li><a href="https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.transforms.html">Pre-written Beam transforms for Python</a></li>
 </ul>
 <h4 id="composite-transform-example">4.6.1. An example composite transform</h4>
 <p>The <code>CountWords</code> transform in the <a href="/get-started/wordcount-example/">WordCount example program</a>
@@ -5219,7 +5219,7 @@ all the elements are by default part of a single, global window.</p>
 <p>To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a <code>ParDo</code> transform with a
 <code>DoFn</code> that outputs each element with a new timestamp (for example, the
-<a href="https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps</a>
+<a href="https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html">WithTimestamps</a>
 transform in the Beam SDK for Java).</p>
 <p>To illustrate how windowing with a bounded <code>PCollection</code> can affect how your
 pipeline processes data, consider the following pipeline:</p>

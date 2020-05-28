@@ -560,7 +560,7 @@ to <a href="https://cloud.google.com/bigquery">Google BigQuery</a> tables.</p>
             <div class="highlight"><pre class="chroma"><code class="language-java" data-lang="java"><span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">beam</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
     <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">beam</span><span class="o">-</span><span class="n">sdks</span><span class="o">-</span><span class="n">java</span><span class="o">-</span><span class="n">io</span><span class="o">-</span><span class="n">google</span><span class="o">-</span><span class="n">cloud</span><span class="o">-</span><span class="n">platform</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
-    <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="n">2</span><span class="o">.</span><span class="na">20</span><span class="o">.</span><span class="na">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+    <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="n">2</span><span class="o">.</span><span class="na">21</span><span class="o">.</span><span class="na">0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
 <span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span></code></pre></div>
         </div>
     
@@ -576,7 +576,7 @@ to <a href="https://cloud.google.com/bigquery">Google BigQuery</a> tables.</p>
 
   <span class="language-java"><ul>
 <li><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery">BigQueryIO source code</a></li>
-<li><a href="https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc</a></li>
+<li><a href="https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html">BigQueryIO Javadoc</a></li>
 <li><a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation</a></li>
 </ul></span>
 
@@ -597,7 +597,7 @@ running <code>pip install apache-beam[gcp]</code>.</p>
 
   <span class="language-py"><ul>
 <li><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py">BigQueryIO source code</a></li>
-<li><a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc</a></li>
+<li><a href="https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.gcp.bigquery.html">BigQueryIO Pydoc</a></li>
 <li><a href="https://cloud.google.com/bigquery/docs">Google BigQuery documentation</a></li>
 </ul></span>
 
@@ -656,10 +656,10 @@ table name.</p>
 <p>You can also omit <code>project_id</code> and use the <code>[dataset_id].[table_id]</code> format. If
 you omit the project ID, Beam uses the default project ID from your
 <span class="language-java">
-<a href="https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options</a>.
+<a href="https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html">pipeline options</a>.
 </span>
 <span class="language-py">
-<a href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options</a>.
+<a href="https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions">pipeline options</a>.
 </span></p>
 
 
@@ -726,7 +726,7 @@ the three parts of the BigQuery table name.</p>
 
 
 
-  <p class="language-java">The Beam SDK for Java also provides the <a href="https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html"><code>parseTableSpec</code></a>
+  <p class="language-java">The Beam SDK for Java also provides the <a href="https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html"><code>parseTableSpec</code></a>
 helper method, which constructs a <code>TableReference</code> object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
@@ -1496,7 +1496,7 @@ do not set the triggering frequency.</li>
 
 
   <p class="language-java">You can use <code>withMethod</code> to specify the desired insertion method. See
-<a href="https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">Write.Method</a>
+<a href="https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html">Write.Method</a>
 for the list of the available methods and their restrictions.</p>
 
 

@@ -2602,8 +2602,8 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 &lt;p&gt;Do:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;Generally, follow the rules of &lt;a href=&#34;https://semver.org/&#34;&gt;semantic versioning&lt;/a&gt;.&lt;/li&gt;
-&lt;li&gt;If the API of the transform is not yet stable, annotate it as &lt;code&gt;@Experimental&lt;/code&gt; (Java) or &lt;code&gt;@experimental&lt;/code&gt; (&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.utils.annotations.html&#34;&gt;Python&lt;/a&gt;).&lt;/li&gt;
-&lt;li&gt;If the API deprecated, annotate it as &lt;code&gt;@Deprecated&lt;/code&gt; (Java) or &lt;code&gt;@deprecated&lt;/code&gt; (&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.utils.annotations.html&#34;&gt;Python&lt;/a&gt;).&lt;/li&gt;
+&lt;li&gt;If the API of the transform is not yet stable, annotate it as &lt;code&gt;@Experimental&lt;/code&gt; (Java) or &lt;code&gt;@experimental&lt;/code&gt; (&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.utils.annotations.html&#34;&gt;Python&lt;/a&gt;).&lt;/li&gt;
+&lt;li&gt;If the API deprecated, annotate it as &lt;code&gt;@Deprecated&lt;/code&gt; (Java) or &lt;code&gt;@deprecated&lt;/code&gt; (&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.utils.annotations.html&#34;&gt;Python&lt;/a&gt;).&lt;/li&gt;
 &lt;li&gt;Pay attention to the stability and versioning of third-party classes exposed by the transform&amp;rsquo;s API: if they are unstable or improperly versioned (do not obey &lt;a href=&#34;https://semver.org/&#34;&gt;semantic versioning&lt;/a&gt;), it is better to wrap them in your own classes.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Do not:&lt;/p&gt;

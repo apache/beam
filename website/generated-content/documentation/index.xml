@@ -406,7 +406,7 @@ the implementation of your custom I/O depends on your use case. Before you
 start, read the &lt;a href=&#34;/documentation/io/developing-io-overview/&#34;&gt;new I/O connector overview&lt;/a&gt;
 for an overview of developing a new I/O connector, the available implementation
 options, and how to choose the right option for your use case.&lt;/p&gt;
-&lt;p&gt;This guide covers using the &lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.iobase.html&#34;&gt;Source and FileBasedSink interfaces&lt;/a&gt;
+&lt;p&gt;This guide covers using the &lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.iobase.html&#34;&gt;Source and FileBasedSink interfaces&lt;/a&gt;
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See &lt;a href=&#34;/documentation/io/developing-io-java/&#34;&gt;Developing I/O connectors for Java&lt;/a&gt;
 for information specific to the Java SDK.&lt;/p&gt;
@@ -459,7 +459,7 @@ why you should avoid exposing your sources, and walks through how to create
 a wrapper.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;You can find these classes in the
-&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.iobase.html&#34;&gt;apache_beam.io.iobase module&lt;/a&gt;.&lt;/p&gt;
+&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.iobase.html&#34;&gt;apache_beam.io.iobase module&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 id=&#34;implementing-the-boundedsource-subclass&#34;&gt;Implementing the BoundedSource subclass&lt;/h3&gt;
 &lt;p&gt;&lt;code&gt;BoundedSource&lt;/code&gt; represents a finite data set from which the service reads, possibly in parallel. &lt;code&gt;BoundedSource&lt;/code&gt; contains a set of methods that the service uses to split the data set for reading by multiple remote workers.&lt;/p&gt;
 &lt;p&gt;To implement a &lt;code&gt;BoundedSource&lt;/code&gt;, your subclass must override the following methods:&lt;/p&gt;
@@ -616,7 +616,7 @@ demonstrated in the example above. Use a wrapping &lt;code&gt;PTransform&lt;/cod
 &lt;a href=&#34;#ptransform-wrappers&#34;&gt;PTransform wrappers&lt;/a&gt; discusses why you should avoid
 exposing your sources, and walks through how to create a wrapper.&lt;/p&gt;
 &lt;h2 id=&#34;using-the-filebasedsink-abstraction&#34;&gt;Using the FileBasedSink abstraction&lt;/h2&gt;
-&lt;p&gt;If your data source uses files, you can implement the &lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.filebasedsink.html&#34;&gt;FileBasedSink&lt;/a&gt;
+&lt;p&gt;If your data source uses files, you can implement the &lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.filebasedsink.html&#34;&gt;FileBasedSink&lt;/a&gt;
 abstraction to create a file-based sink. For other sinks, use &lt;code&gt;ParDo&lt;/code&gt;,
 &lt;code&gt;GroupByKey&lt;/code&gt;, and other transforms offered by the Beam SDK for Python. See the
 &lt;a href=&#34;/documentation/io/developing-io-overview/&#34;&gt;developing I/O connectors overview&lt;/a&gt;
@@ -1720,7 +1720,7 @@ to &lt;a href=&#34;https://parquet.apache.org&#34;&gt;Apache Parquet&lt;/a&gt; f
             &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dependency&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
     &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;groupId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;org&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apache&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;groupId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
     &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;artifactId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;sdks&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;java&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;io&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;parquet&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;artifactId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;21&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
 &lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dependency&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
         &lt;/div&gt;
     
@@ -1736,14 +1736,14 @@ to &lt;a href=&#34;https://parquet.apache.org&#34;&gt;Apache Parquet&lt;/a&gt; f
 
   &lt;span class=&#34;language-java&#34;&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/java/io/parquet/src/main/java/org/apache/beam/sdk/io/parquet/ParquetIO.java&#34;&gt;ParquetIO source code&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/parquet/ParquetIO.html&#34;&gt;ParquetIO Javadoc&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/parquet/ParquetIO.html&#34;&gt;ParquetIO Javadoc&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;&lt;/span&gt;
 
 &lt;!-- Python specific --&gt;
 
 
 
-  &lt;p class=&#34;language-py&#34;&gt;ParquetIO comes preinstalled with the Apache Beam python sdk..2.20.0&lt;/p&gt;
+  &lt;p class=&#34;language-py&#34;&gt;ParquetIO comes preinstalled with the Apache Beam python sdk..2.21.0&lt;/p&gt;
 
 
 
@@ -1755,7 +1755,7 @@ to &lt;a href=&#34;https://parquet.apache.org&#34;&gt;Apache Parquet&lt;/a&gt; f
 
   &lt;span class=&#34;language-py&#34;&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/parquetio.py&#34;&gt;ParquetIO source code&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.parquetio.html&#34;&gt;ParquetIO Pydoc&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.parquetio.html&#34;&gt;ParquetIO Pydoc&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;&lt;/span&gt;
 
 
@@ -2152,7 +2152,7 @@ asynchronous &amp;ldquo;job&amp;rdquo; (or equivalent) on that back-end.&lt;/p&g
 &lt;h2 id=&#34;creating-a-pipeline&#34;&gt;2. Creating a pipeline&lt;/h2&gt;
 &lt;p&gt;The &lt;code&gt;Pipeline&lt;/code&gt; abstraction encapsulates all the data and steps in your data
 processing task. Your Beam driver program typically starts by constructing a
-&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/Pipeline.html&#34;&gt;Pipeline&lt;/a&gt;&lt;/span&gt;
+&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/Pipeline.html&#34;&gt;Pipeline&lt;/a&gt;&lt;/span&gt;
 &lt;span class=&#34;language-py&#34;&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/pipeline.py&#34;&gt;Pipeline&lt;/a&gt;&lt;/span&gt;
 object, and then using that object as the basis for creating the pipeline&amp;rsquo;s data
 sets as &lt;code&gt;PCollection&lt;/code&gt;s and its operations as &lt;code&gt;Transform&lt;/code&gt;s.&lt;/p&gt;
@@ -2426,7 +2426,7 @@ with &lt;code&gt;PipelineOptionsFactory&lt;/code&gt;:&lt;/p&gt;
 
 &lt;p&gt;Now your pipeline can accept &lt;code&gt;--input=value&lt;/code&gt; and &lt;code&gt;--output=value&lt;/code&gt; as command-line arguments.&lt;/p&gt;
 &lt;h2 id=&#34;pcollections&#34;&gt;3. PCollections&lt;/h2&gt;
-&lt;p&gt;The &lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/values/PCollection.html&#34;&gt;PCollection&lt;/a&gt;&lt;/span&gt;
+&lt;p&gt;The &lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/values/PCollection.html&#34;&gt;PCollection&lt;/a&gt;&lt;/span&gt;
 &lt;span class=&#34;language-py&#34;&gt;&lt;code&gt;PCollection&lt;/code&gt;&lt;/span&gt; abstraction represents a
 potentially distributed, multi-element data set. You can think of a
 &lt;code&gt;PCollection&lt;/code&gt; as &amp;ldquo;pipeline&amp;rdquo; data; Beam transforms use &lt;code&gt;PCollection&lt;/code&gt; objects as
@@ -3467,7 +3467,7 @@ and format data from each collection.&lt;/p&gt;
 
 
 &lt;h4 id=&#34;combine&#34;&gt;4.2.4. Combine&lt;/h4&gt;
-&lt;p&gt;&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Combine.html&#34;&gt;&lt;code&gt;Combine&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;p&gt;&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/Combine.html&#34;&gt;&lt;code&gt;Combine&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
 &lt;span class=&#34;language-py&#34;&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py&#34;&gt;&lt;code&gt;Combine&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
 is a Beam transform for combining collections of elements or values in your
 data. &lt;code&gt;Combine&lt;/code&gt; has variants that work on entire &lt;code&gt;PCollection&lt;/code&gt;s, and some that
@@ -3783,7 +3783,7 @@ PerKey must be an associative reduction function or a subclass of &lt;code&gt;Co
 
 
 &lt;h4 id=&#34;flatten&#34;&gt;4.2.5. Flatten&lt;/h4&gt;
-&lt;p&gt;&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Flatten.html&#34;&gt;&lt;code&gt;Flatten&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;p&gt;&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/Flatten.html&#34;&gt;&lt;code&gt;Flatten&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
 &lt;span class=&#34;language-py&#34;&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py&#34;&gt;&lt;code&gt;Flatten&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
 is a Beam transform for &lt;code&gt;PCollection&lt;/code&gt; objects that store the same data type.
 &lt;code&gt;Flatten&lt;/code&gt; merges multiple &lt;code&gt;PCollection&lt;/code&gt; objects into a single logical
@@ -3842,7 +3842,7 @@ fixed windows or 4-minute sliding windows starting every 30 seconds.&lt;/p&gt;
 incompatible windows, Beam generates an &lt;code&gt;IllegalStateException&lt;/code&gt; error when your
 pipeline is constructed.&lt;/p&gt;
 &lt;h4 id=&#34;partition&#34;&gt;4.2.6. Partition&lt;/h4&gt;
-&lt;p&gt;&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/Partition.html&#34;&gt;&lt;code&gt;Partition&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
+&lt;p&gt;&lt;span class=&#34;language-java&#34;&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/Partition.html&#34;&gt;&lt;code&gt;Partition&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
 &lt;span class=&#34;language-py&#34;&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py&#34;&gt;&lt;code&gt;Partition&lt;/code&gt;&lt;/a&gt;&lt;/span&gt;
 is a Beam transform for &lt;code&gt;PCollection&lt;/code&gt; objects that store the same data
 type. &lt;code&gt;Partition&lt;/code&gt; splits a single &lt;code&gt;PCollection&lt;/code&gt; into a fixed number of smaller
@@ -4540,8 +4540,8 @@ transform can make your code more modular and easier to understand.&lt;/p&gt;
 &lt;p&gt;The Beam SDK comes packed with many useful composite transforms. See the API
 reference pages for a list of transforms:&lt;/p&gt;
 &lt;ul&gt;
-&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/package-summary.html&#34;&gt;Pre-written Beam transforms for Java&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.transforms.html&#34;&gt;Pre-written Beam transforms for Python&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/package-summary.html&#34;&gt;Pre-written Beam transforms for Java&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.transforms.html&#34;&gt;Pre-written Beam transforms for Python&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 &lt;h4 id=&#34;composite-transform-example&#34;&gt;4.6.1. An example composite transform&lt;/h4&gt;
 &lt;p&gt;The &lt;code&gt;CountWords&lt;/code&gt; transform in the &lt;a href=&#34;/get-started/wordcount-example/&#34;&gt;WordCount example program&lt;/a&gt;
@@ -6581,7 +6581,7 @@ all the elements are by default part of a single, global window.&lt;/p&gt;
 &lt;p&gt;To use windowing with fixed data sets, you can assign your own timestamps to
 each element. To assign timestamps to elements, use a &lt;code&gt;ParDo&lt;/code&gt; transform with a
 &lt;code&gt;DoFn&lt;/code&gt; that outputs each element with a new timestamp (for example, the
-&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html&#34;&gt;WithTimestamps&lt;/a&gt;
+&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/index.html?org/apache/beam/sdk/transforms/WithTimestamps.html&#34;&gt;WithTimestamps&lt;/a&gt;
 transform in the Beam SDK for Java).&lt;/p&gt;
 &lt;p&gt;To illustrate how windowing with a bounded &lt;code&gt;PCollection&lt;/code&gt; can affect how your
 pipeline processes data, consider the following pipeline:&lt;/p&gt;
@@ -9870,6 +9870,10 @@ limitations under the License.
   &lt;tr&gt;
     &lt;td&gt;Neo4j&lt;/td&gt;&lt;td&gt;Java&lt;/td&gt;
     &lt;td&gt;&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-1857&#34;&gt;BEAM-1857&lt;/a&gt;&lt;/td&gt;
+  &lt;/tr&gt;
+  &lt;tr&gt;
+    &lt;td&gt;Pub/Sub Lite&lt;/td&gt;&lt;td&gt;Java&lt;/td&gt;
+    &lt;td&gt;&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-10114&#34;&gt;BEAM-10114&lt;/a&gt;&lt;/td&gt;
   &lt;/tr&gt;
   &lt;tr&gt;
     &lt;td&gt;RestIO&lt;/td&gt;&lt;td&gt;Java&lt;/td&gt;
@@ -13369,7 +13373,7 @@ to &lt;a href=&#34;https://cloud.google.com/bigquery&#34;&gt;Google BigQuery&lt;
             &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dependency&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
     &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;groupId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;org&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apache&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;groupId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
     &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;artifactId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;sdks&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;java&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;io&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;google&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cloud&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;platform&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;artifactId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+    &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;21&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
 &lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dependency&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
         &lt;/div&gt;
     
@@ -13385,7 +13389,7 @@ to &lt;a href=&#34;https://cloud.google.com/bigquery&#34;&gt;Google BigQuery&lt;
 
   &lt;span class=&#34;language-java&#34;&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery&#34;&gt;BigQueryIO source code&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html&#34;&gt;BigQueryIO Javadoc&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.html&#34;&gt;BigQueryIO Javadoc&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://cloud.google.com/bigquery/docs&#34;&gt;Google BigQuery documentation&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;&lt;/span&gt;
 
@@ -13406,7 +13410,7 @@ running &lt;code&gt;pip install apache-beam[gcp]&lt;/code&gt;.&lt;/p&gt;
 
   &lt;span class=&#34;language-py&#34;&gt;&lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/gcp/bigquery.py&#34;&gt;BigQueryIO source code&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.gcp.bigquery.html&#34;&gt;BigQueryIO Pydoc&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.gcp.bigquery.html&#34;&gt;BigQueryIO Pydoc&lt;/a&gt;&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://cloud.google.com/bigquery/docs&#34;&gt;Google BigQuery documentation&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;&lt;/span&gt;
 
@@ -13465,10 +13469,10 @@ table name.&lt;/p&gt;
 &lt;p&gt;You can also omit &lt;code&gt;project_id&lt;/code&gt; and use the &lt;code&gt;[dataset_id].[table_id]&lt;/code&gt; format. If
 you omit the project ID, Beam uses the default project ID from your
 &lt;span class=&#34;language-java&#34;&gt;
-&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html&#34;&gt;pipeline options&lt;/a&gt;.
+&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/extensions/gcp/options/GcpOptions.html&#34;&gt;pipeline options&lt;/a&gt;.
 &lt;/span&gt;
 &lt;span class=&#34;language-py&#34;&gt;
-&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions&#34;&gt;pipeline options&lt;/a&gt;.
+&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.options.pipeline_options.html#apache_beam.options.pipeline_options.GoogleCloudOptions&#34;&gt;pipeline options&lt;/a&gt;.
 &lt;/span&gt;&lt;/p&gt;
 
 
@@ -13535,7 +13539,7 @@ the three parts of the BigQuery table name.&lt;/p&gt;
 
 
 
-  &lt;p class=&#34;language-java&#34;&gt;The Beam SDK for Java also provides the &lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html&#34;&gt;&lt;code&gt;parseTableSpec&lt;/code&gt;&lt;/a&gt;
+  &lt;p class=&#34;language-java&#34;&gt;The Beam SDK for Java also provides the &lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryHelpers.html&#34;&gt;&lt;code&gt;parseTableSpec&lt;/code&gt;&lt;/a&gt;
 helper method, which constructs a &lt;code&gt;TableReference&lt;/code&gt; object from a String that
 contains the fully-qualified BigQuery table name. However, the static factory
 methods for BigQueryIO transforms accept the table name as a String and
@@ -14305,7 +14309,7 @@ do not set the triggering frequency.&lt;/li&gt;
 
 
   &lt;p class=&#34;language-java&#34;&gt;You can use &lt;code&gt;withMethod&lt;/code&gt; to specify the desired insertion method. See
-&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html&#34;&gt;Write.Method&lt;/a&gt;
+&lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIO.Write.Method.html&#34;&gt;Write.Method&lt;/a&gt;
 for the list of the available methods and their restrictions.&lt;/p&gt;
 
 
@@ -15257,7 +15261,7 @@ limitations under the License.
             &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dependency&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
   &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;groupId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;org&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apache&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;groupId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
   &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;artifactId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;beam&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;runners&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;jstorm&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;artifactId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
-  &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;20&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
+  &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;21&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;version&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
 &lt;span class=&#34;o&#34;&gt;&amp;lt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;dependency&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
         &lt;/div&gt;
     

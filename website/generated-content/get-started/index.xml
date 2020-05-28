@@ -1436,7 +1436,7 @@ limitations under the License.
             &lt;pre&gt;&lt;code&gt;$ mvn archetype:generate \
       -DarchetypeGroupId=org.apache.beam \
       -DarchetypeArtifactId=beam-sdks-java-maven-archetypes-examples \
-      -DarchetypeVersion=2.20.0 \
+      -DarchetypeVersion=2.21.0 \
       -DgroupId=org.example \
       -DartifactId=word-count-beam \
       -Dversion=&amp;#34;0.1&amp;#34; \
@@ -1456,7 +1456,7 @@ limitations under the License.
             &lt;pre&gt;&lt;code&gt;PS&amp;gt; mvn archetype:generate `
  -D archetypeGroupId=org.apache.beam `
  -D archetypeArtifactId=beam-sdks-java-maven-archetypes-examples `
- -D archetypeVersion=2.20.0 `
+ -D archetypeVersion=2.21.0 `
  -D groupId=org.example `
  -D artifactId=word-count-beam `
  -D version=&amp;#34;0.1&amp;#34; `
@@ -2513,7 +2513,7 @@ limitations under the License.
 --&gt;
 &lt;h1 id=&#34;apache-beam8482-downloads&#34;&gt;Apache Beam™ Downloads&lt;/h1&gt;
 &lt;blockquote&gt;
-&lt;p&gt;Beam SDK 2.20.0 is the latest released version.&lt;/p&gt;
+&lt;p&gt;Beam SDK 2.21.0 is the latest released version.&lt;/p&gt;
 &lt;/blockquote&gt;
 &lt;h2 id=&#34;using-a-central-repository&#34;&gt;Using a central repository&lt;/h2&gt;
 &lt;p&gt;The easiest way to use Apache Beam is via one of the released versions in a
@@ -2524,18 +2524,18 @@ with the &lt;code&gt;DirectRunner&lt;/code&gt;, add the following dependencies t
 &lt;pre&gt;&lt;code&gt;&amp;lt;dependency&amp;gt;
   &amp;lt;groupId&amp;gt;org.apache.beam&amp;lt;/groupId&amp;gt;
   &amp;lt;artifactId&amp;gt;beam-sdks-java-core&amp;lt;/artifactId&amp;gt;
-  &amp;lt;version&amp;gt;2.20.0&amp;lt;/version&amp;gt;
+  &amp;lt;version&amp;gt;2.21.0&amp;lt;/version&amp;gt;
 &amp;lt;/dependency&amp;gt;
 &amp;lt;dependency&amp;gt;
   &amp;lt;groupId&amp;gt;org.apache.beam&amp;lt;/groupId&amp;gt;
   &amp;lt;artifactId&amp;gt;beam-runners-direct-java&amp;lt;/artifactId&amp;gt;
-  &amp;lt;version&amp;gt;2.20.0&amp;lt;/version&amp;gt;
+  &amp;lt;version&amp;gt;2.21.0&amp;lt;/version&amp;gt;
   &amp;lt;scope&amp;gt;runtime&amp;lt;/scope&amp;gt;
 &amp;lt;/dependency&amp;gt;
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;Similarly in Python, if you are using PyPI and want to use the SDK for Python
 with &lt;code&gt;DirectRunner&lt;/code&gt;, add the following requirement to your &lt;code&gt;setup.py&lt;/code&gt; file:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;apache-beam==2.20.0
+&lt;pre&gt;&lt;code&gt;apache-beam==2.21.0
 &lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline
@@ -2560,15 +2560,20 @@ the form &lt;code&gt;major.minor.incremental&lt;/code&gt; and are incremented as
 &lt;li&gt;minor version for new functionality added in a backward-compatible manner&lt;/li&gt;
 &lt;li&gt;incremental version for forward-compatible bug fixes&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;Please note that APIs marked &lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/annotations/Experimental.html&#34;&gt;&lt;code&gt;@Experimental&lt;/code&gt;&lt;/a&gt;
+&lt;p&gt;Please note that APIs marked &lt;a href=&#34;https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/annotations/Experimental.html&#34;&gt;&lt;code&gt;@Experimental&lt;/code&gt;&lt;/a&gt;
 may change at any point and are not guaranteed to remain compatible across versions.&lt;/p&gt;
 &lt;p&gt;Additionally, any API may change before the first stable release, i.e., between
 versions denoted &lt;code&gt;0.x.y&lt;/code&gt;.&lt;/p&gt;
 &lt;h2 id=&#34;releases&#34;&gt;Releases&lt;/h2&gt;
+&lt;h3 id=&#34;2210-2020-05-27&#34;&gt;2.21.0 (2020-05-27)&lt;/h3&gt;
+&lt;p&gt;Official &lt;a href=&#34;http://www.apache.org/dyn/closer.cgi/beam/2.21.0/apache-beam-2.21.0-source-release.zip&#34;&gt;source code download&lt;/a&gt;.
+&lt;a href=&#34;https://downloads.apache.org/beam/2.21.0/apache-beam-2.21.0-source-release.zip.sha512&#34;&gt;SHA-512&lt;/a&gt;.
+&lt;a href=&#34;https://downloads.apache.org/beam/2.21.0/apache-beam-2.21.0-source-release.zip.asc&#34;&gt;signature&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347143&#34;&gt;Release notes&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 id=&#34;2200-2020-04-15&#34;&gt;2.20.0 (2020-04-15)&lt;/h3&gt;
-&lt;p&gt;Official &lt;a href=&#34;http://www.apache.org/dyn/closer.cgi/beam/2.20.0/apache-beam-2.20.0-source-release.zip&#34;&gt;source code download&lt;/a&gt;.
-&lt;a href=&#34;https://downloads.apache.org/beam/2.20.0/apache-beam-2.20.0-source-release.zip.sha512&#34;&gt;SHA-512&lt;/a&gt;.
-&lt;a href=&#34;https://downloads.apache.org/beam/2.20.0/apache-beam-2.20.0-source-release.zip.asc&#34;&gt;signature&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Official &lt;a href=&#34;https://archive.apache.org/dist/beam/2.20.0/apache-beam-2.20.0-source-release.zip&#34;&gt;source code download&lt;/a&gt;.
+&lt;a href=&#34;https://archive.apache.org/dist/beam/2.20.0/apache-beam-2.20.0-source-release.zip.sha512&#34;&gt;SHA-512&lt;/a&gt;.
+&lt;a href=&#34;https://archive.apache.org/dist/beam/2.20.0/apache-beam-2.20.0-source-release.zip.asc&#34;&gt;signature&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;&lt;a href=&#34;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12346780&#34;&gt;Release notes&lt;/a&gt;.&lt;/p&gt;
 &lt;h3 id=&#34;2190-2020-02-04&#34;&gt;2.19.0 (2020-02-04)&lt;/h3&gt;
 &lt;p&gt;Official &lt;a href=&#34;https://archive.apache.org/dist/beam/2.19.0/apache-beam-2.19.0-source-release.zip&#34;&gt;source code download&lt;/a&gt;.
@@ -5395,7 +5400,7 @@ python -m apache_beam.examples.streaming_wordcount \
 &lt;h3 id=&#34;reading-an-unbounded-dataset&#34;&gt;Reading an unbounded dataset&lt;/h3&gt;
 &lt;p&gt;This example uses an unbounded dataset as input. The code reads Pub/Sub
 messages from a Pub/Sub subscription or topic using
-&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub&#34;&gt;&lt;code&gt;beam.io.ReadStringsFromPubSub&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+&lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.ReadStringsFromPubSub&#34;&gt;&lt;code&gt;beam.io.ReadStringsFromPubSub&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
 
 
 
@@ -5444,7 +5449,7 @@ support only bounded output, while others support both bounded and unbounded
 outputs.&lt;/p&gt;
 &lt;p&gt;This example uses an unbounded &lt;code&gt;PCollection&lt;/code&gt; and streams the results to
 Google Pub/Sub. The code formats the results and writes them to a Pub/Sub topic
-using &lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub&#34;&gt;&lt;code&gt;beam.io.WriteStringsToPubSub&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
+using &lt;a href=&#34;https://beam.apache.org/releases/pydoc/2.21.0/apache_beam.io.gcp.pubsub.html#apache_beam.io.gcp.pubsub.WriteStringsToPubSub&#34;&gt;&lt;code&gt;beam.io.WriteStringsToPubSub&lt;/code&gt;&lt;/a&gt;.&lt;/p&gt;
 
 
 

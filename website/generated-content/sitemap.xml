@@ -3,22 +3,27 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   
   <url>
-    <loc>/blog/beam-summit-digital-2020/</loc>
-    <lastmod>2020-05-25T03:48:05-07:00</lastmod>
+    <loc>/blog/beam-2.21.0/</loc>
+    <lastmod>2020-05-27T11:36:29-04:00</lastmod>
   </url>
   
   <url>
     <loc>/categories/blog/</loc>
-    <lastmod>2020-05-25T03:48:05-07:00</lastmod>
+    <lastmod>2020-05-27T11:36:29-04:00</lastmod>
   </url>
   
   <url>
     <loc>/blog/</loc>
-    <lastmod>2020-05-25T03:48:05-07:00</lastmod>
+    <lastmod>2020-05-27T11:36:29-04:00</lastmod>
   </url>
   
   <url>
     <loc>/categories/</loc>
+    <lastmod>2020-05-27T11:36:29-04:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/blog/beam-summit-digital-2020/</loc>
     <lastmod>2020-05-25T03:48:05-07:00</lastmod>
   </url>
   
@@ -339,7 +344,7 @@
   
   <url>
     <loc>/documentation/io/developing-io-python/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -494,7 +499,7 @@
   
   <url>
     <loc>/get-started/mobile-gaming-example/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -509,7 +514,7 @@
   
   <url>
     <loc>/documentation/programming-guide/</loc>
-    <lastmod>2020-05-20T12:05:12-04:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -534,7 +539,7 @@
   
   <url>
     <loc>/get-started/downloads/</loc>
-    <lastmod>2020-05-14T17:20:01-07:00</lastmod>
+    <lastmod>2020-05-27T16:32:14-04:00</lastmod>
   </url>
   
   <url>
@@ -599,7 +604,7 @@
   
   <url>
     <loc>/get-started/wordcount-example/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -669,12 +674,12 @@
   
   <url>
     <loc>/documentation/patterns/bigqueryio/</loc>
-    <lastmod>2020-05-26T17:23:44+08:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
     <loc>/documentation/io/built-in/</loc>
-    <lastmod>2020-05-22T22:16:32-04:00</lastmod>
+    <lastmod>2020-05-27T10:50:11-07:00</lastmod>
   </url>
   
   <url>
@@ -779,7 +784,7 @@
   
   <url>
     <loc>/documentation/patterns/custom-windows/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -814,7 +819,7 @@
   
   <url>
     <loc>/documentation/sdks/python-type-safety/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -834,7 +839,7 @@
   
   <url>
     <loc>/documentation/patterns/file-processing/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -844,12 +849,12 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/filter/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
     <loc>/documentation/transforms/python/elementwise/flatmap/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -889,7 +894,7 @@
   
   <url>
     <loc>/documentation/io/built-in/google-bigquery/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -959,7 +964,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/keys/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -969,7 +974,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/kvswap/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -999,7 +1004,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/map/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1069,7 +1074,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/pardo/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1079,7 +1084,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/partition/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1094,7 +1099,7 @@
   
   <url>
     <loc>/documentation/patterns/pipeline-options/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1164,7 +1169,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/regex/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1224,7 +1229,7 @@
   
   <url>
     <loc>/documentation/patterns/side-inputs/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1273,7 +1278,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/tostring/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1293,7 +1298,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/values/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
   <url>
@@ -1338,7 +1343,7 @@
   
   <url>
     <loc>/documentation/transforms/python/elementwise/withtimestamps/</loc>
-    <lastmod>2020-05-15T00:39:54+02:00</lastmod>
+    <lastmod>2020-05-28T00:11:56+02:00</lastmod>
   </url>
   
 </urlset>

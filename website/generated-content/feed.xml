@@ -13,6 +13,118 @@
     
     
     <item>
+      <title>Apache Beam 2.21.0</title>
+      <description>
+        
+        
+        &lt;!--
+Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+--&gt;
+&lt;p&gt;We are happy to present the new 2.21.0 release of Beam. This release includes both improvements and new functionality.
+See the &lt;a href=&#34;/get-started/downloads/#xxxx-xxxx&#34;&gt;download page&lt;/a&gt; for this release.
+For more information on changes in 2.21.0, check out the
+&lt;a href=&#34;https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12347143&#34;&gt;detailed release notes&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id=&#34;ios&#34;&gt;I/Os&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Python: Deprecated module &lt;code&gt;apache_beam.io.gcp.datastore.v1&lt;/code&gt; has been removed
+as the client it uses is out of date and does not support Python 3
+(&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9529&#34;&gt;BEAM-9529&lt;/a&gt;).
+Please migrate your code to use
+&lt;a href=&#34;https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html&#34;&gt;apache_beam.io.gcp.datastore.&lt;strong&gt;v1new&lt;/strong&gt;&lt;/a&gt;.
+See the updated
+&lt;a href=&#34;https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py&#34;&gt;datastore_wordcount&lt;/a&gt;
+for example usage.&lt;/li&gt;
+&lt;li&gt;Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-8949&#34;&gt;BEAM-8949&lt;/a&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;new-features--improvements&#34;&gt;New Features / Improvements&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;Python SDK will now use Python 3 type annotations as pipeline type hints.
+(&lt;a href=&#34;https://github.com/apache/beam/pull/10717&#34;&gt;#10717&lt;/a&gt;)&lt;/p&gt;
+&lt;p&gt;If you suspect that this feature is causing your pipeline to fail, calling
+&lt;code&gt;apache_beam.typehints.disable_type_annotations()&lt;/code&gt; before pipeline creation
+will disable is completely, and decorating specific functions (such as
+&lt;code&gt;process()&lt;/code&gt;) with &lt;code&gt;@apache_beam.typehints.no_annotations&lt;/code&gt; will disable it
+for that function.&lt;/p&gt;
+&lt;p&gt;More details will be in
+&lt;a href=&#34;https://beam.apache.org/documentation/sdks/python-type-safety/&#34;&gt;Ensuring Python Type Safety&lt;/a&gt;
+and an upcoming
+&lt;a href=&#34;https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html&#34;&gt;blog post&lt;/a&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+context to fields and schemas. This replaces the current Beam metadata that is present
+in a FieldType only, options are available in fields and row schemas. Schema options are
+fully typed and can contain complex rows. &lt;em&gt;Remark: Schema aware is still experimental.&lt;/em&gt;
+(&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9035&#34;&gt;BEAM-9035&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Java SDK: The protobuf extension is fully schema aware and also includes protobuf option
+conversion to beam schema options. &lt;em&gt;Remark: Schema aware is still experimental.&lt;/em&gt;
+(&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9044&#34;&gt;BEAM-9044&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Added ability to write to BigQuery via Avro file loads (Python) (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-8841&#34;&gt;BEAM-8841&lt;/a&gt;)&lt;/p&gt;
+&lt;p&gt;By default, file loads will be done using JSON, but it is possible to
+specify the temp_file_format parameter to perform file exports with AVRO.
+AVRO-based file loads work by exporting Python types into Avro types, so
+to switch to Avro-based loads, you will need to change your data types
+from Json-compatible types (string-type dates and timestamp, long numeric
+values as strings) into Python native types that are written to Avro
+(Python&amp;rsquo;s date, datetime types, decimal, etc). For more information
+see &lt;a href=&#34;https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions&#34;&gt;https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions&lt;/a&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Added integration of Java SDK with Google Cloud AI VideoIntelligence service
+(&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9147&#34;&gt;BEAM-9147&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;Added integration of Java SDK with Google Cloud AI natural language processing API
+(&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9634&#34;&gt;BEAM-9634&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;docker-pull-licenses&lt;/code&gt; tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when &lt;code&gt;docker-pull-licenses&lt;/code&gt; was set.
+The files are added to &lt;code&gt;/opt/apache/beam/third_party_licenses/&lt;/code&gt;.
+By default, no licenses/notices are added to the docker images. (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9136&#34;&gt;BEAM-9136&lt;/a&gt;)&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;breaking-changes&#34;&gt;Breaking Changes&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Dataflow runner now requires the &lt;code&gt;--region&lt;/code&gt; option to be set, unless a default value is set in the environment (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9199&#34;&gt;BEAM-9199&lt;/a&gt;). See &lt;a href=&#34;https://cloud.google.com/dataflow/docs/concepts/regional-endpoints&#34;&gt;here&lt;/a&gt; for more details.&lt;/li&gt;
+&lt;li&gt;HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9279&#34;&gt;BEAM-9279&lt;/a&gt;).&lt;/li&gt;
+&lt;li&gt;ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9430&#34;&gt;BEAM-9430&lt;/a&gt;).&lt;/li&gt;
+&lt;li&gt;Coder inference for PCollection of Row objects has been disabled (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9569&#34;&gt;BEAM-9569&lt;/a&gt;).&lt;/li&gt;
+&lt;li&gt;Go SDK docker images are no longer released until further notice.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;deprecations&#34;&gt;Deprecations&lt;/h2&gt;
+&lt;ul&gt;
+&lt;li&gt;Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
+Schema Options, it will be removed in version &lt;code&gt;2.23.0&lt;/code&gt;. (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9704&#34;&gt;BEAM-9704&lt;/a&gt;)&lt;/li&gt;
+&lt;li&gt;The &lt;code&gt;--zone&lt;/code&gt; option in the Dataflow runner is now deprecated. Please use &lt;code&gt;--worker_zone&lt;/code&gt; instead. (&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM-9716&#34;&gt;BEAM-9716&lt;/a&gt;)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;list-of-contributors&#34;&gt;List of Contributors&lt;/h2&gt;
+&lt;p&gt;According to git shortlog, the following people contributed to the 2.21.0 release. Thank you to all contributors!&lt;/p&gt;
+&lt;p&gt;Aaron Meihm, Adrian Eka, Ahmet Altay, AldairCoronel, Alex Van Boxel, Alexey Romanenko, Andrew Crites, Andrew Pilloud, Ankur Goenka, Badrul (Taki) Chowdhury, Bartok Jozsef, Boyuan Zhang, Brian Hulette, brucearctor, bumblebee-coming, Chad Dombrova, Chamikara Jayalath, Chie Hayashida, Chris Gorgolewski, Chuck Yang, Colm O hEigeartaigh, Curtis &amp;ldquo;Fjord&amp;rdquo; Hawthorne, Daniel Mills, Daniel Oliveira, David Yan, Elias Djurfeldt, Emiliano Capoccia, Etienne Chauchot, Fernando Diaz, Filipe Regadas, Gleb Kanterov, Hai Lu, Hannah Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Hk-tang, Ismaël Mejía, Jacoby, Jan Lukavský, Jeroen Van Goey, jfarr, Jozef Vilcek, Kai Jiang, Kamil Wasilewski, Kenneth Knowles, KevinGG, Kyle Weaver, Kyoungha Min, Luke Cwik, Maximilian Michels, Michal Walenia, Ning Kang, Pablo Estrada, paul fisher, Piotr Szuberski, Reuven Lax, Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Sam Rohde, Sam Whittle, Spoorti Kundargi, Steve Koonce, sunjincheng121, Ted Yun, Tesio, Thomas Weise, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, Yichi Zhang, yoshiki.obata, Yueyang Qiu&lt;/p&gt;
+
+      </description>
+      <link>/blog/beam-2.21.0/</link>
+      <pubDate>Wed, 27 May 2020 00:00:01 -0800</pubDate>
+      
+      <guid>/blog/beam-2.21.0/</guid>
+      
+        <category>blog</category>
+      
+    </item>
+    
+    <item>
       <title>Beam Summit Digital Is Coming - Register Now!</title>
       <description>
         
@@ -816,328 +928,6 @@ Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.&lt;/p&gt;
       <pubDate>Wed, 31 Jul 2019 00:00:01 -0800</pubDate>
       
       <guid>/blog/beam-2.14.0/</guid>
-      
-        <category>blog</category>
-      
-    </item>
-    
-    <item>
-      <title>Looping timers in Apache Beam</title>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
---&gt;
-&lt;p&gt;Apache Beam’s primitives let you build expressive data pipelines, suitable for a
-variety of use cases. One specific use case is the analysis of time series data
-in which continuous sequences across window boundaries are important. A few fun
-challenges arise as you tackle this type of data and in this blog we will
-explore one of those in more detail and make use of the Timer API
-(&lt;a href=&#34;/blog/2017/08/28/timely-processing.html&#34;&gt;blog post&lt;/a&gt;)
-using the &amp;ldquo;looping timer&amp;rdquo; pattern.&lt;/p&gt;
-&lt;p&gt;With Beam in streaming mode, you can take streams of data and build analytical
-transforms to produce results on the data. But for time series data, the absence
-of data is useful information. So how can we produce results in the absence of
-data?&lt;/p&gt;
-&lt;p&gt;Let&amp;rsquo;s use a more concrete example to illustrate the requirement. Imagine you
-have a simple pipeline that sums the number of events coming from an IoT device
-every minute. We would like to produce the value 0 when no data has been seen
-within a specific time interval. So why can this get tricky? Well it is easy to
-build a simple pipeline that counts events as they arrive, but when there is no
-event, there is nothing to count!&lt;/p&gt;
-&lt;p&gt;Let&amp;rsquo;s build a simple pipeline to work with:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;  // We will start our timer at 1 sec from the fixed upper boundary of our
-  // minute window
-  Instant now = Instant.parse(&amp;quot;2000-01-01T00:00:59Z&amp;quot;);
-
-  // ----- Create some dummy data
-
-  // Create 3 elements, incrementing by 1 minute and leaving a time gap between
-  // element 2 and element 3
-  TimestampedValue&amp;lt;KV&amp;lt;String, Integer&amp;gt;&amp;gt; time_1 =
-    TimestampedValue.of(KV.of(&amp;quot;Key_A&amp;quot;, 1), now);
-
-  TimestampedValue&amp;lt;KV&amp;lt;String, Integer&amp;gt;&amp;gt; time_2 =
-    TimestampedValue.of(KV.of(&amp;quot;Key_A&amp;quot;, 2),
-    now.plus(Duration.standardMinutes(1)));
-
-  // No Value for start time + 2 mins
-  TimestampedValue&amp;lt;KV&amp;lt;String, Integer&amp;gt;&amp;gt; time_3 =
-    TimestampedValue.of(KV.of(&amp;quot;Key_A&amp;quot;, 3),
-    now.plus(Duration.standardMinutes(3)));
-
-  // Create pipeline
-  PipelineOptions options = PipelineOptionsFactory.fromArgs(args).withValidation()
-    .as(PipelineOptions.class);
-
-  Pipeline p = Pipeline.create(options);
-
-  // Apply a fixed window of duration 1 min and Sum the results
-  p.apply(Create.timestamped(time_1, time_2, time_3))
-   .apply(
-      Window.&amp;lt;KV&amp;lt;String,Integer&amp;gt;&amp;gt;into(
-FixedWindows.&amp;lt;Integer&amp;gt;of(Duration.standardMinutes(1))))
-        .apply(Sum.integersPerKey())
-        .apply(ParDo.of(new DoFn&amp;lt;KV&amp;lt;String, Integer&amp;gt;, KV&amp;lt;String, Integer&amp;gt;&amp;gt;() {
-
-          @ProcessElement public void process(ProcessContext c) {
-            LOG.info(&amp;quot;Value is {} timestamp is {}&amp;quot;, c.element(), c.timestamp());
-          }
-       }));
-
-  p.run();
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Running that pipeline will result in the following output:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-&lt;/code&gt;&lt;/pre&gt;&lt;blockquote&gt;
-&lt;p&gt;Note: The lack of order in the output should be expected, however the
-key-window tuple is correctly computed.&lt;/p&gt;
-&lt;/blockquote&gt;
-&lt;p&gt;As expected, we see output in each of the interval windows which had a data
-point with a timestamp between the minimum and maximum value of the window.
-There was a data point at timestamps  00:00:59,  00:01:59 and  00:03:59, which
-fell into the following interval windows.&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;[00:00:00, 00:00:59.999)&lt;/li&gt;
-&lt;li&gt;[00:01:00, 00:01:59.999)&lt;/li&gt;
-&lt;li&gt;[00:03:00, 00:03:59.999)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;But as there was no data between  00:02:00 and  00:02:59, no value is produced
-for interval window  [00:02:00,00:02:59.999).&lt;/p&gt;
-&lt;p&gt;How can we get Beam to output values for that missing window? First, let’s walk
-through some options that do not make use of the Timer API.&lt;/p&gt;
-&lt;h2 id=&#34;option-1-external-heartbeat&#34;&gt;Option 1: External heartbeat&lt;/h2&gt;
-&lt;p&gt;We can use an external system to emit a value for each time interval and inject
-it into the stream of data that Beam consumes. This simple option moves any
-complexity out of the Beam pipeline. But using an external system means we need
-to monitor this system and perform other maintenance tasks in tandem with the
-Beam pipeline.&lt;/p&gt;
-&lt;h2 id=&#34;option-2-use-a-generated-source-in-the-beam-pipeline&#34;&gt;Option 2: Use a generated source in the Beam pipeline&lt;/h2&gt;
-&lt;p&gt;We can use a generating source to emit the value using this code snippet:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;pipeline.apply(GenerateSequence.
-            from(0).withRate(1,Duration.standardSeconds(1L)))
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We can then:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;Use a DoFn to convert the value to zero.&lt;/li&gt;
-&lt;li&gt;Flatten this value with the real source.&lt;/li&gt;
-&lt;li&gt;Produce a PCollection which has ticks in every time interval.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;This is also a simple way of producing a value in each time interval.&lt;/p&gt;
-&lt;h2 id=&#34;option-1--2-the-problem-with-multiple-keys&#34;&gt;Option 1 &amp;amp; 2 The problem with multiple keys&lt;/h2&gt;
-&lt;p&gt;Both options 1 and 2 work well for the case where there the pipeline processes a
-single key. Let’s now deal with the case where instead of 1 IoT device, there
-are 1000s or 100,000s of these devices, each with a unique key. To make option 1
-or option 2 work in this scenario, we need to carry out an extra step: creating
-a FanOut DoFn. Each tick needs to be distributed to all the potential keys, so
-we need to create a FanOut DoFn that takes the dummy value and generates a
-key-value pair for every available key.&lt;/p&gt;
-&lt;p&gt;For example, let&amp;rsquo;s assume we have 3 keys for 3 IoT devices, {key1,key2,key3}.
-Using the method we outlined in Option 2 when we get the first element from
-GenerateSequence, we need to create a loop in the DoFn that generates 3
-key-value pairs. These pairs become the heartbeat value for each of the IoT
-devices.&lt;/p&gt;
-&lt;p&gt;And things get a lot more fun when we need to deal with lots of IoT devices,
-with a list of keys that are dynamically changing. We would need to add a
-transform that does a Distinct operation and feed the data produced as a
-side-input into the FanOut DoFn.&lt;/p&gt;
-&lt;h2 id=&#34;option-3-implementing-a-heartbeat-using-beam-timers&#34;&gt;Option 3: Implementing a heartbeat using Beam timers&lt;/h2&gt;
-&lt;p&gt;So how do timers help? Well let&amp;rsquo;s have a look at a new transform:&lt;/p&gt;
-&lt;p&gt;Edit: Looping Timer State changed from Boolean to Long to allow for min value check.&lt;/p&gt;
-
-
-
-
-
-    
-        &lt;div class=language-java&gt;
-            &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;&lt;span class=&#34;kd&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;class&lt;/span&gt; &lt;span class=&#34;nc&#34;&gt;LoopingStatefulTimer&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;extends&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DoFn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;KV&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KV&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-
-    &lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stopTimerTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;;&lt;/span&gt;
-
-    &lt;span class=&#34;n&#34;&gt;LoopingStatefulTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stopTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;){&lt;/span&gt;
-      &lt;span class=&#34;k&#34;&gt;this&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;stopTimerTime&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stopTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;;&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-
-    &lt;span class=&#34;nd&#34;&gt;@StateId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;loopingTimerTime&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    &lt;span class=&#34;kd&#34;&gt;private&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;final&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;StateSpec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ValueState&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Long&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loopingTimerTime&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;StateSpecs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BigEndianLongCoder&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-
-    &lt;span class=&#34;nd&#34;&gt;@StateId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;key&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    &lt;span class=&#34;kd&#34;&gt;private&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;final&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;StateSpec&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ValueState&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;key&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;StateSpecs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;value&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;StringUtf8Coder&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-
-    &lt;span class=&#34;nd&#34;&gt;@TimerId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;loopingTimer&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    &lt;span class=&#34;kd&#34;&gt;private&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;final&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TimerSpec&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loopingTimer&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;TimerSpecs&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;timer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TimeDomain&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;EVENT_TIME&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;);&lt;/span&gt;
-
-    &lt;span class=&#34;nd&#34;&gt;@ProcessElement&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;process&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ProcessContext&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nd&#34;&gt;@StateId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;key&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ValueState&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt;
-        &lt;span class=&#34;nd&#34;&gt;@StateId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;loopingTimerTime&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ValueState&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Long&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loopingTimerTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt;
-        &lt;span class=&#34;nd&#34;&gt;@TimerId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;loopingTimer&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Timer&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loopingTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-
-      &lt;span class=&#34;c1&#34;&gt;// If the timer has been set already, or if the value is smaller than
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;      &lt;span class=&#34;c1&#34;&gt;// the current element + window duration, do not set
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;      &lt;span class=&#34;n&#34;&gt;Long&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;currentTimerValue&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loopingTimerTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;();&lt;/span&gt;
-      &lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;nextTimerTimeBasedOnCurrentElement&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;timestamp&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;plus&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Duration&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;standardMinutes&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;));&lt;/span&gt;
-
-      &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;currentTimerValue&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;null&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;||&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;currentTimerValue&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;
-          &lt;span class=&#34;n&#34;&gt;nextTimerTimeBasedOnCurrentElement&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getMillis&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;())&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;loopingTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;set&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;nextTimerTimeBasedOnCurrentElement&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;);&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;loopingTimerTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;nextTimerTimeBasedOnCurrentElement&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getMillis&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-      &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-
-      &lt;span class=&#34;c1&#34;&gt;// We need this value so that we can output a value for the correct key in OnTimer
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;      &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;kc&#34;&gt;null&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;write&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;element&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;getKey&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-      &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-
-      &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;output&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;element&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-
-    &lt;span class=&#34;nd&#34;&gt;@OnTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;loopingTimer&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt;
-    &lt;span class=&#34;kd&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;onTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;OnTimerContext&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt;
-        &lt;span class=&#34;nd&#34;&gt;@StateId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;key&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ValueState&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt;
-        &lt;span class=&#34;nd&#34;&gt;@TimerId&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;loopingTimer&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Timer&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loopingTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-
-      &lt;span class=&#34;n&#34;&gt;LOG&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;info&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Timer @ {} fired&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;timestamp&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-      &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;output&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;KV&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;key&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;read&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(),&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;));&lt;/span&gt;
-
-      &lt;span class=&#34;c1&#34;&gt;// If we do not put in a “time to live” value, then the timer would loop forever
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;      &lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;nextTimer&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;timestamp&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;().&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;plus&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Duration&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;standardMinutes&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;));&lt;/span&gt;
-      &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;nextTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;isBefore&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stopTimerTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;loopingTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;set&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;nextTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;);&lt;/span&gt;
-      &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;else&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-        &lt;span class=&#34;n&#34;&gt;LOG&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;info&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
-            &lt;span class=&#34;s&#34;&gt;&amp;#34;Timer not being set as exceeded Stop Timer value {} &amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt;
-            &lt;span class=&#34;n&#34;&gt;stopTimerTime&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;);&lt;/span&gt;
-      &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-  &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-        &lt;/div&gt;
-    
-
-
-&lt;p&gt;There are two data values that the state API needs to keep:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;A boolean &lt;code&gt;timeRunning&lt;/code&gt; value used to avoid resetting the timer if it’s
-already running.&lt;/li&gt;
-&lt;li&gt;A &amp;ldquo;&lt;em&gt;key&lt;/em&gt;&amp;rdquo; state object value that allows us to store the key that we are
-working with. This information will be needed in the &lt;code&gt;OnTimer&lt;/code&gt; event later.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;We also have a Timer with the ID &lt;code&gt;**loopingTimer**&lt;/code&gt; that acts as our per
-interval alarm clock. Note that the timer is an &lt;em&gt;event timer&lt;/em&gt;. It fires based on
-the watermark, not on the passage of time as the pipeline runs.&lt;/p&gt;
-&lt;p&gt;Next, let&amp;rsquo;s unpack what&amp;rsquo;s happening in the @ProcessElement block:&lt;/p&gt;
-&lt;p&gt;The first element to come to this block will:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;Set the state of the &lt;code&gt;timerRunner&lt;/code&gt; to True.&lt;/li&gt;
-&lt;li&gt;Write the value of the key from the key-value pair into the key StateValue.&lt;/li&gt;
-&lt;li&gt;The code sets the value of the timer to fire one minute after the elements
-timestamp. Note that the maximum value allowed for this timestamp is
-XX:XX:59.999. This places the maximum alarm value at the upper boundary of
-the next time interval.&lt;/li&gt;
-&lt;li&gt;Finally, we output the data from the &lt;code&gt;@ProcessElement&lt;/code&gt; block using
-&lt;code&gt;c.output&lt;/code&gt;.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;In the @OnTimer block, the following occurs:&lt;/p&gt;
-&lt;ol&gt;
-&lt;li&gt;The code emits a value with the key pulled from our key StateValue and a
-value of 0. The timestamp of the event corresponds to  the event time of the
-timer firing.&lt;/li&gt;
-&lt;li&gt;We set a new timer for one minute from now, unless we are past the
-&lt;code&gt;stopTimerTime&lt;/code&gt; value. Your use case will normally have more complex stopping
-conditions, but we use a simple condition here to allow us to keep the
-illustrated code simple. The topic of stopping conditions is discussed in
-more detail later.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;And that&amp;rsquo;s it, let&amp;rsquo;s add our transform back into the pipeline:&lt;/p&gt;
-
-
-
-
-
-    
-        &lt;div class=language-java&gt;
-            &lt;div class=&#34;highlight&#34;&gt;&lt;pre class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-java&#34; data-lang=&#34;java&#34;&gt;  &lt;span class=&#34;c1&#34;&gt;// Apply a fixed window of duration 1 min and Sum the results
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;  &lt;span class=&#34;n&#34;&gt;p&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Create&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;timestamped&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;time_1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;time_2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;time_3&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)).&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;
-    &lt;span class=&#34;n&#34;&gt;Window&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;KV&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;into&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FixedWindows&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Duration&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;standardMinutes&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))))&lt;/span&gt;
-    &lt;span class=&#34;c1&#34;&gt;// We use a combiner to reduce the number of calls in keyed state
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;c1&#34;&gt;// from all elements to 1 per FixedWindow
-&lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;&lt;/span&gt;    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;integersPerKey&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;())&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Window&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;into&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;GlobalWindows&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;()))&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ParDo&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;LoopingStatefulTimer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Instant&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;parse&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;2000-01-01T00:04:00Z&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))))&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Window&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;into&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FixedWindows&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Duration&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;standardMinutes&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;))))&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Sum&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;integersPerKey&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;())&lt;/span&gt;
-    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;apply&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ParDo&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;of&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;new&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DoFn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;KV&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KV&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;String&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Integer&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;gt;&amp;gt;()&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-
-      &lt;span class=&#34;nd&#34;&gt;@ProcessElement&lt;/span&gt; &lt;span class=&#34;kd&#34;&gt;public&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;process&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ProcessContext&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;{&lt;/span&gt;
-
-        &lt;span class=&#34;n&#34;&gt;LOG&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;info&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;Value is {} timestamp is {}&amp;#34;&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;element&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;(),&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;na&#34;&gt;timestamp&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;());&lt;/span&gt;
-
-     &lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;
-  &lt;span class=&#34;o&#34;&gt;}));&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-        &lt;/div&gt;
-    
-
-
-&lt;ol&gt;
-&lt;li&gt;In the first part of the pipeline we create FixedWindows and reduce the value
-per key down to a single Sum.&lt;/li&gt;
-&lt;li&gt;Next we re-window the output into a GlobalWindow. Since state and timers are
-per window, they must be set within the window boundary. We want the looping
-timer to span all the fixed windows, so we set it up in the global window.&lt;/li&gt;
-&lt;li&gt;We then add our LoopingStatefulTimer DoFn.&lt;/li&gt;
-&lt;li&gt;Finally, we reapply the FixedWindows and Sum our values.&lt;/li&gt;
-&lt;/ol&gt;
-&lt;p&gt;This pipeline ensures that a value of zero exists for each interval window, even
-if the Source of the pipeline emitted a value in the minimum and maximum
-boundaries of the interval window. This means that we can mark the absence of
-data.&lt;/p&gt;
-&lt;p&gt;You might question why we use two reducers with multiple &lt;code&gt;Sum.integersPerKey&lt;/code&gt;.
-Why not just use one? Functionally, using one would also produce the correct
-result. However, putting two &lt;code&gt;Sum.integersPerKey&lt;/code&gt; gives us a nice performance
-advantage. It reduces the number of elements from many to just one per time
-interval. This can reduce the number of reads of the State API during the
-&lt;code&gt;@ProcessElement&lt;/code&gt; calls.&lt;/p&gt;
-&lt;p&gt;Here is the logging output of running our modified pipeline:&lt;/p&gt;
-&lt;pre&gt;&lt;code&gt;INFO  LoopingTimer  - Timer @ 2000-01-01T00:01:59.999Z fired
-INFO  LoopingTimer  - Timer @ 2000-01-01T00:02:59.999Z fired
-INFO  LoopingTimer  - Timer @ 2000-01-01T00:03:59.999Z fired
-INFO  LoopingTimer  - Timer not being set as exceeded Stop Timer value 2000-01-01T00:04:00.000Z
-INFO  LoopingTimer  - Value is KV{Key_A, 1} timestamp is 2000-01-01T00:00:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 0} timestamp is 2000-01-01T00:02:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 2} timestamp is 2000-01-01T00:01:59.999Z
-INFO  LoopingTimer  - Value is KV{Key_A, 3} timestamp is 2000-01-01T00:03:59.999Z
-&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Yay! We now have output from the time interval [00:01:00, 00:01:59.999), even
-though the source dataset has no elements in that interval.&lt;/p&gt;
-&lt;p&gt;In this blog, we covered one of the fun areas around time series use cases and
-worked through several options, including an advanced use case of the Timer API.
-Happy looping everyone!&lt;/p&gt;
-&lt;p&gt;&lt;strong&gt;Note:&lt;/strong&gt; Looping timers is an interesting new use case for the Timer API and
-runners will need to add support for it with all of their more advanced
-feature sets. You can experiment with this pattern today using the
-DirectRunner. For other runners, please look out for their release notes on
-support for dealing with this use case in production.&lt;/p&gt;
-&lt;p&gt;(&lt;a href=&#34;/documentation/runners/capability-matrix/&#34;&gt;Capability Matrix&lt;/a&gt;)&lt;/p&gt;
-&lt;p&gt;Runner specific notes:
-Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)&lt;/p&gt;
-      </description>
-      <link>/blog/looping-timers/</link>
-      <pubDate>Tue, 11 Jun 2019 00:00:01 -0800</pubDate>
-      
-      <guid>/blog/looping-timers/</guid>
       
         <category>blog</category>
       

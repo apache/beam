@@ -174,6 +174,7 @@
     <li><a href="#api-stability">API stability</a></li>
     <li><a href="#releases">Releases</a>
       <ul>
+        <li><a href="#2210-2020-05-27">2.21.0 (2020-05-27)</a></li>
         <li><a href="#2200-2020-04-15">2.20.0 (2020-04-15)</a></li>
         <li><a href="#2190-2020-02-04">2.19.0 (2020-02-04)</a></li>
         <li><a href="#2180-2020-01-23">2.18.0 (2020-01-23)</a></li>
@@ -217,7 +218,7 @@ limitations under the License.
 -->
 <h1 id="apache-beam8482-downloads">Apache Beam™ Downloads</h1>
 <blockquote>
-<p>Beam SDK 2.20.0 is the latest released version.</p>
+<p>Beam SDK 2.21.0 is the latest released version.</p>
 </blockquote>
 <h2 id="using-a-central-repository">Using a central repository</h2>
 <p>The easiest way to use Apache Beam is via one of the released versions in a
@@ -228,18 +229,18 @@ with the <code>DirectRunner</code>, add the following dependencies to your <code
 <pre><code>&lt;dependency&gt;
   &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
   &lt;artifactId&gt;beam-sdks-java-core&lt;/artifactId&gt;
-  &lt;version&gt;2.20.0&lt;/version&gt;
+  &lt;version&gt;2.21.0&lt;/version&gt;
 &lt;/dependency&gt;
 &lt;dependency&gt;
   &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
   &lt;artifactId&gt;beam-runners-direct-java&lt;/artifactId&gt;
-  &lt;version&gt;2.20.0&lt;/version&gt;
+  &lt;version&gt;2.21.0&lt;/version&gt;
   &lt;scope&gt;runtime&lt;/scope&gt;
 &lt;/dependency&gt;
 </code></pre>
 <p>Similarly in Python, if you are using PyPI and want to use the SDK for Python
 with <code>DirectRunner</code>, add the following requirement to your <code>setup.py</code> file:</p>
-<pre><code>apache-beam==2.20.0
+<pre><code>apache-beam==2.21.0
 </code></pre>
 <p>Additionally, you may want to depend on additional SDK modules, such as IO
 connectors or other extensions, and additional runners to execute your pipeline
@@ -264,15 +265,20 @@ the form <code>major.minor.incremental</code> and are incremented as follows:</p
 <li>minor version for new functionality added in a backward-compatible manner</li>
 <li>incremental version for forward-compatible bug fixes</li>
 </ul>
-<p>Please note that APIs marked <a href="https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/annotations/Experimental.html"><code>@Experimental</code></a>
+<p>Please note that APIs marked <a href="https://beam.apache.org/releases/javadoc/2.21.0/org/apache/beam/sdk/annotations/Experimental.html"><code>@Experimental</code></a>
 may change at any point and are not guaranteed to remain compatible across versions.</p>
 <p>Additionally, any API may change before the first stable release, i.e., between
 versions denoted <code>0.x.y</code>.</p>
 <h2 id="releases">Releases</h2>
+<h3 id="2210-2020-05-27">2.21.0 (2020-05-27)</h3>
+<p>Official <a href="http://www.apache.org/dyn/closer.cgi/beam/2.21.0/apache-beam-2.21.0-source-release.zip">source code download</a>.
+<a href="https://downloads.apache.org/beam/2.21.0/apache-beam-2.21.0-source-release.zip.sha512">SHA-512</a>.
+<a href="https://downloads.apache.org/beam/2.21.0/apache-beam-2.21.0-source-release.zip.asc">signature</a>.</p>
+<p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12347143">Release notes</a>.</p>
 <h3 id="2200-2020-04-15">2.20.0 (2020-04-15)</h3>
-<p>Official <a href="http://www.apache.org/dyn/closer.cgi/beam/2.20.0/apache-beam-2.20.0-source-release.zip">source code download</a>.
-<a href="https://downloads.apache.org/beam/2.20.0/apache-beam-2.20.0-source-release.zip.sha512">SHA-512</a>.
-<a href="https://downloads.apache.org/beam/2.20.0/apache-beam-2.20.0-source-release.zip.asc">signature</a>.</p>
+<p>Official <a href="https://archive.apache.org/dist/beam/2.20.0/apache-beam-2.20.0-source-release.zip">source code download</a>.
+<a href="https://archive.apache.org/dist/beam/2.20.0/apache-beam-2.20.0-source-release.zip.sha512">SHA-512</a>.
+<a href="https://archive.apache.org/dist/beam/2.20.0/apache-beam-2.20.0-source-release.zip.asc">signature</a>.</p>
 <p><a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12346780">Release notes</a>.</p>
 <h3 id="2190-2020-02-04">2.19.0 (2020-02-04)</h3>
 <p>Official <a href="https://archive.apache.org/dist/beam/2.19.0/apache-beam-2.19.0-source-release.zip">source code download</a>.
