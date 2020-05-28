@@ -32,9 +32,8 @@ public class BeamWindowRule extends ConverterRule {
 
   @Override
   public RelNode convert(RelNode relNode) {
-    // Never gets executed
-    int foo = 0;
     // transforms relNode (LogicalWindow) to BeamWindowRel
-    return null;
+   assert false;
+   return null;
   }
 }

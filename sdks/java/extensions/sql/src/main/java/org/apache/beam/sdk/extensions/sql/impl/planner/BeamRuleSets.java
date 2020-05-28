@@ -78,7 +78,7 @@ public class BeamRuleSets {
   private static final List<RelOptRule> LOGICAL_OPTIMIZATIONS =
       ImmutableList.of(
           // Rules for window functions
-          ProjectToWindowRule.INSTANCE,
+          ProjectToWindowRule.PROJECT,
           // Rules so we only have to implement Calc
           FilterCalcMergeRule.INSTANCE,
           ProjectCalcMergeRule.INSTANCE,
