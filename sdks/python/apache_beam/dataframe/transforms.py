@@ -16,7 +16,7 @@
 
 from __future__ import absolute_import
 
-import typing
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import List
@@ -32,7 +32,7 @@ from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
   from apache_beam.pvalue import PCollection
 
