@@ -67,22 +67,22 @@ public abstract class DLPInspectText
   public static final Integer DLP_PAYLOAD_LIMIT_BYTES = 524000;
   /** @return Template name for data inspection. */
   @Nullable
-  public abstract String inspectTemplateName();
+  public abstract String getInspectTemplateName();
   /**
    * @return Configuration object for data inspection. If present, supersedes the template settings.
    */
   @Nullable
-  public abstract InspectConfig inspectConfig();
+  public abstract InspectConfig getInspectConfig();
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
-  public abstract Integer batchSizeBytes();
+  public abstract Integer getBatchSizeBytes();
   /** @return ID of Google Cloud project to be used when deidentifying data. */
-  public abstract String projectId();
+  public abstract String getProjectId();
   /** @return Delimiter to be used when splitting values from input strings into columns. */
   @Nullable
-  public abstract String columnDelimiter();
+  public abstract String getColumnDelimiter();
   /** @return List of column names if the input KV value is a delimited row. */
   @Nullable
-  public abstract PCollectionView<List<String>> headerColumns();
+  public abstract PCollectionView<List<String>> getHeaderColumns();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -110,11 +110,11 @@ public abstract class DLPInspectText
 
     public DLPInspectText build() {
       DLPInspectText inspectText = autoBuild();
-      if (inspectText.inspectTemplateName() == null && inspectText.inspectConfig() == null) {
+      if (inspectText.getInspectTemplateName() == null && inspectText.getInspectConfig() == null) {
         throw new IllegalArgumentException(
             "Either inspectTemplateName or inspectConfig must be supplied!");
       }
-      if (inspectText.batchSizeBytes() > DLP_PAYLOAD_LIMIT_BYTES) {
+      if (inspectText.getBatchSizeBytes() > DLP_PAYLOAD_LIMIT_BYTES) {
         throw new IllegalArgumentException(
             String.format(
                 "Batch size is too large! It should be smaller or equal than %d.",
@@ -139,13 +139,16 @@ public abstract class DLPInspectText
   public PCollection<KV<String, InspectContentResponse>> expand(
       PCollection<KV<String, String>> input) {
     return input
-        .apply(ParDo.of(new MapStringToDlpRow(columnDelimiter())))
-        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSizeBytes())))
+        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
+        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
         .apply(
             "DLPInspect",
             ParDo.of(
                 new InspectData(
-                    projectId(), inspectTemplateName(), inspectConfig(), headerColumns())));
+                    getProjectId(),
+                    getInspectTemplateName(),
+                    getInspectConfig(),
+                    getHeaderColumns())));
   }
 
   /** Performs calls to Cloud DLP service on GCP to inspect input data. */

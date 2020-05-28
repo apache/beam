@@ -74,35 +74,35 @@ public abstract class DLPReidentifyText
 
   /** @return Template name for data inspection. */
   @Nullable
-  public abstract String inspectTemplateName();
+  public abstract String getInspectTemplateName();
 
   /** @return Template name for data reidentification. */
   @Nullable
-  public abstract String reidentifyTemplateName();
+  public abstract String getReidentifyTemplateName();
 
   /**
    * @return Configuration object for data inspection. If present, supersedes the template settings.
    */
   @Nullable
-  public abstract InspectConfig inspectConfig();
+  public abstract InspectConfig getInspectConfig();
 
   /** @return Configuration object for reidentification. If present, supersedes the template. */
   @Nullable
-  public abstract DeidentifyConfig reidentifyConfig();
+  public abstract DeidentifyConfig getReidentifyConfig();
 
   /** @return Delimiter to be used when splitting values from input strings into columns. */
   @Nullable
-  public abstract String columnDelimiter();
+  public abstract String getColumnDelimiter();
 
   /** @return List of column names if the input KV value is a delimited row. */
   @Nullable
-  public abstract PCollectionView<List<String>> headerColumns();
+  public abstract PCollectionView<List<String>> getHeaderColumns();
 
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
-  public abstract Integer batchSizeBytes();
+  public abstract Integer getBatchSizeBytes();
 
   /** @return ID of Google Cloud project to be used when deidentifying data. */
-  public abstract String projectId();
+  public abstract String getProjectId();
 
   @AutoValue.Builder
   public abstract static class Builder {
@@ -143,12 +143,12 @@ public abstract class DLPReidentifyText
 
     public DLPReidentifyText build() {
       DLPReidentifyText dlpReidentifyText = autoBuild();
-      if (dlpReidentifyText.reidentifyConfig() == null
-          && dlpReidentifyText.reidentifyTemplateName() == null) {
+      if (dlpReidentifyText.getReidentifyConfig() == null
+          && dlpReidentifyText.getReidentifyTemplateName() == null) {
         throw new IllegalArgumentException(
             "Either reidentifyConfig or reidentifyTemplateName need to be set!");
       }
-      if (dlpReidentifyText.batchSizeBytes() > DLP_PAYLOAD_LIMIT_BYTES) {
+      if (dlpReidentifyText.getBatchSizeBytes() > DLP_PAYLOAD_LIMIT_BYTES) {
         throw new IllegalArgumentException(
             String.format(
                 "Batch size is too large! It should be smaller or equal than %d.",
@@ -173,18 +173,18 @@ public abstract class DLPReidentifyText
   public PCollection<KV<String, ReidentifyContentResponse>> expand(
       PCollection<KV<String, String>> input) {
     return input
-        .apply(ParDo.of(new MapStringToDlpRow(columnDelimiter())))
-        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSizeBytes())))
+        .apply(ParDo.of(new MapStringToDlpRow(getColumnDelimiter())))
+        .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(getBatchSizeBytes())))
         .apply(
             "DLPReidentify",
             ParDo.of(
                 new ReidentifyText(
-                    projectId(),
-                    inspectTemplateName(),
-                    reidentifyTemplateName(),
-                    inspectConfig(),
-                    reidentifyConfig(),
-                    headerColumns())));
+                    getProjectId(),
+                    getInspectTemplateName(),
+                    getReidentifyTemplateName(),
+                    getInspectConfig(),
+                    getReidentifyConfig(),
+                    getHeaderColumns())));
   }
 
   /** Performs the calls to Cloud DLP service on GCP. */
