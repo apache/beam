@@ -76,7 +76,7 @@ Work related to making cross-language transforms available on Direct runner
 
 Ongoing and planned work related to making existing connectors/transforms available to other SDKs through the cross-language transforms framework.
 
-* Java KafkIO - completed - [BEAM-7029](https://issues.apache.org/jira/browse/BEAM-7029)
+* Java KafkaIO - completed - [BEAM-7029](https://issues.apache.org/jira/browse/BEAM-7029)
 * Java PubSubIO - In progress - [BEAM-7738](https://issues.apache.org/jira/browse/BEAM-7738)
 * Java SQL - completed - [BEAM-8603](https://issues.apache.org/jira/browse/BEAM-8603)
 
@@ -96,4 +96,3 @@ Work related to adding documenting on cross-language transforms to Beam Website.
 
 * Document cross-language transforms API for Java/Python - Not started
 * Document API for making existing transforms available as cross-language transforms for Java/Python - Not started
-
