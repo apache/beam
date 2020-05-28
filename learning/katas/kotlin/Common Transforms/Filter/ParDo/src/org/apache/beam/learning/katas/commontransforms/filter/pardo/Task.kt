@@ -45,7 +45,7 @@ object Task {
         return input.apply(
             ParDo.of(object : DoFn<Int, Int>() {
                 @ProcessElement
-                fun processElement(@Element element: Int, context: ProcessContext, out: OutputReceiver<Int>) {
+                fun processElement(context: ProcessContext, out: OutputReceiver<Int>) {
                     val number = context.element()
                     if (number % 2 == 1) {
                         out.output(number)

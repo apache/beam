@@ -43,7 +43,7 @@ class ContainsKvs private constructor(private val expectedKvs: List<KV<String, I
         for (expected in expectedKvs) {
             val values = Iterables.toArray(expected.value, String::class.java)
             matchers.add(
-                KvMatcher.Companion.isKv(
+                KvMatcher.isKv(
                     CoreMatchers.equalTo(expected.key),
                     IsIterableContainingInAnyOrder.containsInAnyOrder(*values)
                 )
