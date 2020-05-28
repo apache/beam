@@ -1128,13 +1128,14 @@ please follow [the guide](https://help.github.com/articles/creating-a-personal-a
 
 ### Deploy Python artifacts to PyPI
 
-1. Download everything from https://dist.apache.org/repos/dist/dev/beam/2.14.0/python/ ;
-2. Keep only things that you see in https://pypi.org/project/apache-beam/#files , e.g. `.zip`, `.whl`,
-   delete the `.asc`, `.sha512`;
-3. Upload the new release `twine upload *` from the directory with the `.zip` and `.whl` files;
-
-[Installing twine](https://packaging.python.org/tutorials/packaging-projects/#uploading-the-distribution-archives): `pip install twine`. You can install twine under [virtualenv](https://virtualenv.pypa.io/en/latest/) if preferred. 
-
+* Script: [deploy_pypi.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/deploy_pypi.sh)
+* Usage
+```
+./beam/release/src/main/scripts/deploy_pypi.sh
+```
+* Verify that the files at https://pypi.org/project/apache-beam/#files are correct.
+All wheels should be published, in addition to the zip of the release source.
+(Signatures and hashes do _not_ need to be uploaded.)
 
 ### Deploy source release to dist.apache.org
 
