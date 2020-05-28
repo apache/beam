@@ -64,6 +64,11 @@ try:
 except ImportError:
   pass
 
+try:
+  from apache_beam.io.archive.tarfilesystemmixin import TarFileSystemMixin
+except ImportError:
+  pass
+
 # pylint: enable=wrong-import-position, unused-import
 
 __all__ = ['FileSystems']
@@ -111,7 +116,7 @@ class FileSystems(object):
       path_scheme = FileSystems.get_scheme(archive_path if archive_path else path)
       systems = [
           fs for fs in FileSystem.get_all_subclasses()
-          if fs.scheme() == path_scheme
+          if fs.scheme() == path_scheme and fs.__name__ != 'CustomSystem'
       ]
       system = None
       archivesystem = None
@@ -134,7 +139,7 @@ class FileSystems(object):
           path_extension = FileSystems.get_extension(archive_path)
           archivesystems = [
             fs for fs in FileSystem.get_all_subclasses()
-            if hasattr(fs, "extension") and fs.extension() == path_extension
+            if hasattr(fs, "extension") and fs.extension() == path_extension and fs.__name__ != 'CustomSystem'
           ]
           if len(archivesystems) == 0:
             raise ValueError(
@@ -271,7 +276,8 @@ class FileSystems(object):
   def open(
       path,
       mime_type='application/octet-stream',
-      compression_type=CompressionTypes.AUTO):
+      compression_type=CompressionTypes.AUTO,
+      metadata=None):
     # type: (...) -> BinaryIO
 
     """Returns a read channel for the given file path.
@@ -281,10 +287,18 @@ class FileSystems(object):
       mime_type: MIME type to specify the type of content in the file object
       compression_type: Type of compression to be used for this object. See
         ``CompressionTypes`` for possible values.
+      metadata: The FileMetadata for this file. This is optional, but required
+        when the file path doesn't have enough data to properly open the file
+        (such as when the file is retrieved from a `.tar` archive through
+        TarFileSystemMixin).
 
     Returns: file handle with a ``close`` function for the user to use.
     """
-    filesystem = FileSystems.get_filesystem(path)
+    if metadata and len(metadata._parent_archive_paths) > 0:
+      # TODO: just pass in the entire metadata to get_filesystem?
+      filesystem = FileSystems.get_filesystem(path, archive_path=metadata._parent_archive_paths[0])
+    else:
+      filesystem = FileSystems.get_filesystem(path)
     return filesystem.open(path, mime_type, compression_type)
 
   @staticmethod

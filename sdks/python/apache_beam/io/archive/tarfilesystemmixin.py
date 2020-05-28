@@ -95,6 +95,7 @@ class TarFileSystemMixin(ArchiveFileSystemMixinBase):
       compression_type=CompressionTypes.AUTO):
     """Helper functions to open a file in the provided mode.
     """
+    compression_type = FileSystem._get_compression_type(path, compression_type)
     with self._read_archive_file() as f:
       raw_file = f.open(path, mode)
       if compression_type == CompressionTypes.UNCOMPRESSED:

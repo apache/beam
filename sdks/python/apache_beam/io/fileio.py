@@ -245,7 +245,7 @@ class ReadableFile(object):
         compression_type or self._compression or
         filesystems.CompressionTypes.AUTO)
     return filesystems.FileSystems.open(
-        self.metadata.path, mime_type=mime_type, compression_type=compression)
+        self.metadata.path, mime_type=mime_type, compression_type=compression, metadata=self.metadata)
 
   def read(self, mime_type='application/octet-stream'):
     return self.open(mime_type).read()

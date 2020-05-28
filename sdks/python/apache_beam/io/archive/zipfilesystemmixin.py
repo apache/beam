@@ -39,9 +39,21 @@ __all__ = ['ZipFileSystemMixin']
 class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
   """An mixin for `FileSystem` representing the contents of .zip files.
   
-  Usage:
+  Usage: You can use this FileSystem with a pipeline as follows:
 
-  class CustomFileSystem(ZipFileSystemMixin, LocalFileSystem):
+  ```python
+  (
+      p
+      | MatchFiles("*.log", archive_path="s3://ashwin-bucket123/logs.zip")
+      | ReadMatches()
+      | Map(lambda x: x.open().read())
+      | Map(print)
+  )
+  ```
+  
+  Behind the scenes, a custom class is created like this:
+
+  class CustomFileSystem(ZipFileSystemMixin, S3FileSystem):
     pass
   system = CustomFileSystem(pipeline_options=pipeline_options, archive_path=archive_path)
 
@@ -94,6 +106,7 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
       compression_type=CompressionTypes.AUTO):
     """Helper functions to open a file in the provided mode.
     """
+    compression_type = FileSystem._get_compression_type(path, compression_type)
     with self._read_archive_file() as f:
       raw_file = f.open(path, mode)
       if compression_type == CompressionTypes.UNCOMPRESSED:
