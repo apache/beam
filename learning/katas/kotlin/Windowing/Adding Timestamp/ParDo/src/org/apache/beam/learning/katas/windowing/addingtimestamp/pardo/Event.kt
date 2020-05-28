@@ -20,4 +20,4 @@ package org.apache.beam.learning.katas.windowing.addingtimestamp.pardo
 import org.joda.time.DateTime
 import java.io.Serializable
 
-class Event(private var id: String, private var event: String, var date: DateTime) : Serializable
+data class Event(private var id: String, private var event: String, var date: DateTime) : Serializable
