@@ -1596,16 +1596,18 @@ def nlp_analyze_text():
     _ = (
         responses
         | beam.Map(extract_sentiments)
+        | 'Parse sentiments to JSON' >> beam.Map(json.dumps)
         | 'Write sentiments' >> beam.io.WriteToText('sentiments.txt'))
 
     _ = (
         responses
         | beam.Map(extract_entities)
+        | 'Parse entities to JSON' >> beam.Map(json.dumps)
         | 'Write entities' >> beam.io.WriteToText('entities.txt'))
 
     _ = (
         responses
         | beam.Map(analyze_dependency_tree)
-        | beam.Map(json.dumps)
-        | 'Write adjacency list' >> beam.io.WriteToText('adjancency_lists.txt'))
+        | 'Parse adjacency list to JSON' >> beam.Map(json.dumps)
+        | 'Write adjacency list' >> beam.io.WriteToText('adjancency_list.txt'))
   # [END nlp_analyze_text]
