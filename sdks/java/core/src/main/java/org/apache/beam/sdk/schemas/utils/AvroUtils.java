@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,10 +95,14 @@ import org.joda.time.ReadableInstant;
 @Experimental(Kind.SCHEMAS)
 public class AvroUtils {
   static {
-    // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
-    // of DateTime types.
-    SpecificData.get().addLogicalTypeConversion(new JodaTimestampConversion());
-    GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
+    // LinkedIn: this needs Avro 1.8
+    if (Arrays.stream(SpecificData.class.getMethods())
+        .anyMatch(m -> m.getName().equals("addLogicalTypeConversion"))) {
+      // This works around a bug in the Avro library (AVRO-1891) around SpecificRecord's handling
+      // of DateTime types.
+      SpecificData.get().addLogicalTypeConversion(new JodaTimestampConversion());
+      GenericData.get().addLogicalTypeConversion(new JodaTimestampConversion());
+    }
   }
 
   // Unwrap an AVRO schema into the base type an whether it is nullable.
