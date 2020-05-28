@@ -4,7 +4,7 @@ files:
   visible: true
   placeholders:
   - offset: 1951
-    length: 1318
+    length: 821
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/combine/combinefn/TaskTest.kt
   visible: false

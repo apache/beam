@@ -50,25 +50,7 @@ object Task {
 
     internal class AverageFn : CombineFn<Int, Accum, Double>() {
 
-        internal inner class Accum : Serializable {
-            var sum = 0
-            var count = 0
-
-            override fun equals(o: Any?): Boolean {
-                if (this === o) {
-                    return true
-                }
-                if (o == null || javaClass != o.javaClass) {
-                    return false
-                }
-                val accum = o as Accum
-                return sum == accum.sum && count == accum.count
-            }
-
-            override fun hashCode(): Int {
-                return Objects.hash(sum, count)
-            }
-        }
+        internal data class Accum(var sum: Int = 0, var count: Int = 0) : Serializable
 
         override fun createAccumulator(): Accum {
             return Accum()
