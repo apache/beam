@@ -51,7 +51,7 @@ class Repositories {
       maven { url "https://oss.sonatype.org/content/repositories/releases/" }
 
       // Apache nightly snapshots
-      maven { url "https://repository.apache.org/snapshots" }
+      // maven { url "https://repository.apache.org/snapshots" }
 
       // Apache release snapshots
       maven { url "https://repository.apache.org/content/repositories/releases" }
