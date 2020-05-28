@@ -21,3 +21,4 @@ content:
 - Map
 - GroupByKey
 - CoGroupByKey
+- Flatten

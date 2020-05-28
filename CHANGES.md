@@ -65,6 +65,8 @@
 * `--direct_num_workers=0` is supported for FnApi runner. It will set the number of threads/subprocesses to number of cores of the machine executing the pipeline ([BEAM-9443](https://issues.apache.org/jira/browse/BEAM-9443)).
 * Python SDK now has experimental support for SqlTransform ([BEAM-8603](https://issues.apache.org/jira/browse/BEAM-8603)).
 * Add OnWindowExpiration method to Stateful DoFn ([BEAM-1589](https://issues.apache.org/jira/browse/BEAM-1589)).
+* Add a more complete I/O support matrix in the documentation site ([BEAM-9916](https://issues.apache.org/jira/browse/BEAM-9916)).
+* Upgrade Sphinx to 3.0.3 for building PyDoc.
 
 ## Breaking Changes
 
@@ -78,7 +80,7 @@
 
 * Fixed X (Java/Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-# [2.21.0] - Unreleased (In Progress)
+# [2.21.0] - 2020-05-27
 
 ## Highlights
 
@@ -106,7 +108,7 @@ for example usage.
     More details will be in 
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
     and an upcoming
-    [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
+    [blog post](https://beam.apache.org/blog/python-typing/index.html).
 
 * Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
 context to fields and schemas. This replaces the current Beam metadata that is present 
@@ -146,6 +148,7 @@ conversion to beam schema options. *Remark: Schema aware is still experimental.*
 ## Deprecations
 * Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
 Schema Options, it will be removed in version `2.23.0`. ([BEAM-9704](https://issues.apache.org/jira/browse/BEAM-9704))
+* The `--zone` option in the Dataflow runner is now deprecated. Please use `--worker_zone` instead. ([BEAM-9716](https://issues.apache.org/jira/browse/BEAM-9716))
 
 ## Known Issues
 
