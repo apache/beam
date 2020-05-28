@@ -29,14 +29,15 @@ import org.apache.beam.sdk.values.KV;
  * Maps {@link KV}s of {@link String}s into KV<{@link String}, {@link Table.Row}> for further
  * processing in the DLP transforms.
  *
- * <p>If a delimiter of CSV values isn't provided, input is assumed to be unstructured and the input
- * KV value is saved in a single column of output {@link Table.Row}.
+ * <p>If a delimiter of values isn't provided, input is assumed to be unstructured and the input KV
+ * value is saved in a single column of output {@link Table.Row}.
  */
 class MapStringToDlpRow extends DoFn<KV<String, String>, KV<String, Table.Row>> {
   private final String delimiter;
 
   /**
-   * @param delimiter Delimiter of values in the CSV value row that may be in the value of input KV.
+   * @param delimiter Delimiter of values in the delimited value row that may be in the value of
+   *     input KV.
    */
   public MapStringToDlpRow(String delimiter) {
     this.delimiter = delimiter;

@@ -42,12 +42,12 @@ import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * A {@link PTransform} connecting to Cloud DLP (https://cloud.google.com/dlp/docs/libraries) and
- * deidentifying text according to provided settings. The transform supports both CSV formatted
- * input data and unstructured input.
+ * deidentifying text according to provided settings. The transform supports both columnar delimited
+ * input data (eg. CSV) and unstructured input.
  *
- * <p>If the csvHeader property is set and a sideinput with CSV headers is added to the PTransform,
- * csvDelimiter also should be set, else the results will be incorrect. If csvHeader is neither set
- * nor passed as sideinput, input is assumed to be unstructured.
+ * <p>If the headerColumns property is set and a sideinput with table headers is added to the
+ * PTransform, delimiter also should be set, else the results will be incorrect. If headerColumns is
+ * neither set nor passed as side input, input is assumed to be unstructured.
  *
  * <p>Either deidentifyTemplateName (String) or deidentifyConfig {@link DeidentifyConfig} need to be
  * set. inspectTemplateName and inspectConfig ({@link InspectConfig} are optional.
@@ -84,13 +84,13 @@ public abstract class DLPDeidentifyText
   @Nullable
   public abstract DeidentifyConfig deidentifyConfig();
 
-  /** @return List of column names if the input KV value is a CSV formatted row. */
+  /** @return List of column names if the input KV value is a delimited row. */
   @Nullable
-  public abstract PCollectionView<List<String>> csvHeader();
+  public abstract PCollectionView<List<String>> headerColumns();
 
   /** @return Delimiter to be used when splitting values from input strings into columns. */
   @Nullable
-  public abstract String csvColumnDelimiter();
+  public abstract String columnDelimiter();
 
   /** @return Size of input elements batch to be sent to Cloud DLP service in one request. */
   public abstract Integer batchSizeBytes();
@@ -103,13 +103,13 @@ public abstract class DLPDeidentifyText
     /** @param inspectTemplateName Template name for data inspection. */
     public abstract Builder setInspectTemplateName(String inspectTemplateName);
 
-    /** @param csvHeader List of column names if the input KV value is a CSV formatted row. */
-    public abstract Builder setCsvHeader(PCollectionView<List<String>> csvHeader);
+    /** @param headerColumns List of column names if the input KV value is a delimited row. */
+    public abstract Builder setHeaderColumns(PCollectionView<List<String>> headerColumns);
 
     /**
      * @param delimiter Delimiter to be used when splitting values from input strings into columns.
      */
-    public abstract Builder setCsvColumnDelimiter(String delimiter);
+    public abstract Builder setColumnDelimiter(String delimiter);
 
     /**
      * @param batchSize Size of input elements batch to be sent to Cloud DLP service in one request.
@@ -168,7 +168,7 @@ public abstract class DLPDeidentifyText
   public PCollection<KV<String, DeidentifyContentResponse>> expand(
       PCollection<KV<String, String>> input) {
     return input
-        .apply(ParDo.of(new MapStringToDlpRow(csvColumnDelimiter())))
+        .apply(ParDo.of(new MapStringToDlpRow(columnDelimiter())))
         .apply("Batch Contents", ParDo.of(new BatchRequestForDLP(batchSizeBytes())))
         .apply(
             "DLPDeidentify",
@@ -179,7 +179,7 @@ public abstract class DLPDeidentifyText
                     deidentifyTemplateName(),
                     inspectConfig(),
                     deidentifyConfig(),
-                    csvHeader())));
+                    headerColumns())));
   }
 
   /** DoFn performing calls to Cloud DLP service on GCP. */
@@ -190,7 +190,7 @@ public abstract class DLPDeidentifyText
     private final String deidentifyTemplateName;
     private final InspectConfig inspectConfig;
     private final DeidentifyConfig deidentifyConfig;
-    private final PCollectionView<List<String>> csvHeaders;
+    private final PCollectionView<List<String>> headerColumns;
     private transient DeidentifyContentRequest.Builder requestBuilder;
 
     @Setup
@@ -219,7 +219,7 @@ public abstract class DLPDeidentifyText
      * @param inspectConfig Configuration object for inspection. Optional.
      * @param deidentifyConfig Deidentification config containing data transformations. Either this
      *     or deidentifyTemplateName is required.
-     * @param csvHeaders Header row of CSV table if applicable.
+     * @param headerColumns Header row of the table if applicable.
      */
     public DeidentifyText(
         String projectId,
@@ -227,13 +227,13 @@ public abstract class DLPDeidentifyText
         String deidentifyTemplateName,
         InspectConfig inspectConfig,
         DeidentifyConfig deidentifyConfig,
-        PCollectionView<List<String>> csvHeaders) {
+        PCollectionView<List<String>> headerColumns) {
       this.projectId = projectId;
       this.inspectTemplateName = inspectTemplateName;
       this.deidentifyTemplateName = deidentifyTemplateName;
       this.inspectConfig = inspectConfig;
       this.deidentifyConfig = deidentifyConfig;
-      this.csvHeaders = csvHeaders;
+      this.headerColumns = headerColumns;
     }
 
     @ProcessElement
@@ -241,9 +241,9 @@ public abstract class DLPDeidentifyText
       try (DlpServiceClient dlpServiceClient = DlpServiceClient.create()) {
         String fileName = c.element().getKey();
         List<FieldId> dlpTableHeaders;
-        if (csvHeaders != null) {
+        if (headerColumns != null) {
           dlpTableHeaders =
-              c.sideInput(csvHeaders).stream()
+              c.sideInput(headerColumns).stream()
                   .map(header -> FieldId.newBuilder().setName(header).build())
                   .collect(Collectors.toList());
         } else {
