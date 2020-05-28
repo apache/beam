@@ -37,11 +37,8 @@ def check_batches_with_keys(actual):
 [('fall', '🥕'), ('fall', '🍅')]
 [('winter', '🍆')]
 [END batches_with_keys]'''.splitlines()[1:-1]
-  # The elements in each batch are non-deterministic, so check the batch sizes.
-  def batch_size(batch):
-    key = batch[0][0]
-    return key, len(batch)
-  assert_matches_stdout(actual, expected, batch_size)
+  assert_matches_stdout(
+      actual, expected, lambda batch: (batch[0][0], len(batch)))
 
 
 @mock.patch('apache_beam.Pipeline', TestPipeline)
