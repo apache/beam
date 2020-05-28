@@ -108,7 +108,7 @@ for example usage.
     More details will be in 
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
     and an upcoming
-    [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
+    [blog post](https://beam.apache.org/blog/python-typing/index.html).
 
 * Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
 context to fields and schemas. This replaces the current Beam metadata that is present 
