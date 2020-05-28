@@ -618,10 +618,6 @@ For this step, we recommend you using automation script to create a RC, but you 
       - Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
       - Once all python wheels have been staged to GCS,
       please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh), which copies the wheels along with signatures and hashes to [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/).
-  1. Update Beam website ([example](https://github.com/apache/beam/pull/11727))
-      1. Update release version in `website/www/site/config.toml`.
-      1. Add new release in `website/www/site/content/en/get-started/downloads.md`.
-      1. Update `website/www/site/static/.htaccess` to redirect to the new version.
 
 **********
 
@@ -686,14 +682,12 @@ branch.
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch.
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/11727)).
 
-* Update the `release_latest` version flag in `/website/_config.yml`, and list
-  the new release in `/website/src/get-started/downloads.md`, linking to the
-  source code download and the Release Notes in JIRA.
-* Update the `RedirectMatch` rule in
-  [/website/src/.htaccess](https://github.com/apache/beam/blob/master/website/src/.htaccess)
-  to point to the new release. See file history for examples.
+* Update release version in `website/www/site/config.toml`.
+* Add new release in `website/www/site/content/en/get-started/downloads.md`.
+  * Download links will not work until the release is finalized.
+* Update `website/www/site/static/.htaccess` to redirect to the new version.
 
 
 ### Blog post
