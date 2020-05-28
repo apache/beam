@@ -44,20 +44,10 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
   ```python
   (
       p
-      | MatchFiles("*.log", archive_path="s3://ashwin-bucket123/logs.zip")
-      | ReadMatches()
-      | Map(lambda x: x.open().read())
-      | Map(print)
-  )
-
-
-    (
-      p
       | MatchFiles("s3://ashwin-bucket123/logs.zip")
-      | ExtractMatches()
-      | MatchAll("*.log")
+      | MatchExtractedFiles("*")
       | ReadMatches()
-      | Map(lambda x: x.open().read())
+      | Map(lambda x: x.open().read_utf8())
       | Map(print)
   )
   ```

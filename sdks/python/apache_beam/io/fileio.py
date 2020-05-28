@@ -158,13 +158,15 @@ class _MatchAllFn(beam.DoFn):
 
   def process(self, file_pattern):
     # TODO: Should we batch the lookups?
-    match_result = filesystems.FileSystems.match([file_pattern])[0]
+    match_results = filesystems.FileSystems.match([file_pattern])
+    match_result = match_results[0]
 
     if (not match_result.metadata_list and
         not EmptyMatchTreatment.allow_empty_match(file_pattern,
                                                   self._empty_match_treatment)):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
+    return match_result.metadata_list
 
 class _MatchExtractedFilesFn(beam.DoFn):
   def __init__(self, archive_file_match=None, archivesystem=None, empty_match_treatment=None):
@@ -174,15 +176,16 @@ class _MatchExtractedFilesFn(beam.DoFn):
 
   def process(self, file_metadata):
     # TODO: Should we batch the lookups?
-    import pdb; pdb.set_trace()
     file_pattern = file_metadata.path
-    match_result = filesystems.FileSystems.match([self.archive_file_match], archive_path=file_pattern, archivesystem=self.archivesystem)[0]
+    match_results = filesystems.FileSystems.match([self.archive_file_match], archive_path=file_pattern, archivesystem=self.archivesystem)
+    match_result = match_results[0]
 
     if (not match_result.metadata_list and
         not EmptyMatchTreatment.allow_empty_match(file_pattern,
                                                   self._empty_match_treatment)):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
+    return match_result.metadata_list
 
 @experimental()
 class MatchFiles(beam.PTransform):
