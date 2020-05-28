@@ -74,12 +74,26 @@ public class DLPInspectTextTest {
     assertThrows(
         String.format(
             "Batch size is too large! It should be smaller or equal than %d.",
-            DLPDeidentifyText.DLP_PAYLOAD_LIMIT_BYTES),
+            DLPInspectText.DLP_PAYLOAD_LIMIT_BYTES),
         IllegalArgumentException.class,
         () ->
             DLPInspectText.newBuilder()
                 .setProjectId(PROJECT_ID)
                 .setBatchSizeBytes(Integer.MAX_VALUE)
+                .setInspectTemplateName(TEMPLATE_NAME)
+                .setColumnDelimiter(DELIMITER)
+                .build());
+  }
+
+  @Test
+  public void throwsExceptionWhenDelimiterIsSetAndHeadersAreNot() {
+    assertThrows(
+        "Column headers should be supplied when delimiter is present.",
+        IllegalArgumentException.class,
+        () ->
+            DLPInspectText.newBuilder()
+                .setProjectId(PROJECT_ID)
+                .setBatchSizeBytes(BATCH_SIZE_SMALL)
                 .setInspectTemplateName(TEMPLATE_NAME)
                 .setColumnDelimiter(DELIMITER)
                 .build());

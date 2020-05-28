@@ -159,6 +159,11 @@ public abstract class DLPReidentifyText
         throw new IllegalArgumentException(
             "Column delimiter should be set if headers are present.");
       }
+      if (dlpReidentifyText.getHeaderColumns() == null
+          && dlpReidentifyText.getColumnDelimiter() != null) {
+        throw new IllegalArgumentException(
+            "Column headers should be supplied when delimiter is present.");
+      }
       return dlpReidentifyText;
     }
   }

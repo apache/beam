@@ -84,4 +84,18 @@ public class DLPReidentifyTextTest {
                 .setColumnDelimiter(DELIMITER)
                 .build());
   }
+
+  @Test
+  public void throwsExceptionWhenDelimiterIsSetAndHeadersAreNot() {
+    assertThrows(
+        "Column headers should be supplied when delimiter is present.",
+        IllegalArgumentException.class,
+        () ->
+            DLPReidentifyText.newBuilder()
+                .setProjectId(PROJECT_ID)
+                .setBatchSizeBytes(BATCH_SIZE_SMALL)
+                .setReidentifyTemplateName(TEMPLATE_NAME)
+                .setColumnDelimiter(DELIMITER)
+                .build());
+  }
 }

@@ -136,6 +136,10 @@ public abstract class DLPInspectText
         throw new IllegalArgumentException(
             "Column delimiter should be set if headers are present.");
       }
+      if (inspectText.getHeaderColumns() == null && inspectText.getColumnDelimiter() != null) {
+        throw new IllegalArgumentException(
+            "Column headers should be supplied when delimiter is present.");
+      }
       return inspectText;
     }
   }
