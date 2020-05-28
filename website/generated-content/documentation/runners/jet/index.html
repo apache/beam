@@ -1,212 +1,11 @@
-
-
-<!DOCTYPE html>
-<html lang="en" class="no-js">
-<head>
-  
- 
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>Hazelcast Jet Runner</title>
-<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
- 
-<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
- 
-
-
-    
-    <link rel="preload" href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" as="style">
-    <link href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" rel="stylesheet" integrity="">
-
-
-<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-
-<style>
-  .body__contained img { max-width: 100% }
-</style>
-
-<script src="/js/bootstrap.min.js"></script>
-<script src="/js/language-switch.js"></script>
-<script src="/js/fix-menu.js"></script>
-<script src="/js/section-nav.js"></script>
-<script src="/js/page-nav.js"></script>
-
-<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
-<link rel="canonical" href="/documentation/runners/jet/" data-proofer-ignore>
-<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
- 
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-  ga('create', 'UA-73650088-1', 'auto');
-  ga('send', 'pageview');
-</script>
-</head>
-<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-  
-
-<nav class="header navbar navbar-fixed-top">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-
-      <a href=/ class="navbar-brand" >
-        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
-      </a>
-    </div>
-
-    <div class="navbar-mask closed"></div>
-
-    <div id="navbar" class="navbar-container closed">
-      <ul class="nav navbar-nav">
-        <li>
-          <a href=/get-started/beam-overview/>Get Started</a>
-        </li>
-        <li>
-          <a href=/documentation/>Documentation</a>
-        </li>
-        <li>
-          <a href=/documentation/sdks/java/>Languages</a>
-        </li>
-        <li>
-          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
-        </li>
-        <li>
-          <a href=/roadmap/>Roadmap</a>
-        </li>
-        <li>
-          <a href=/contribute/>Contribute</a>
-        </li>
-        <li>
-          <a href=/community/contact-us/>Community</a>
-        </li>
-        <li><a href=/blog/>Blog</a></li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li>
-          <div style="width: 300px;">
-            <script>
-              (function() {
-                var cx = '012923275103528129024:4emlchv9wzi';
-                var gcse = document.createElement('script');
-                gcse.type = 'text/javascript';
-                gcse.async = true;
-                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(gcse, s);
-              })();
-            </script>
-            <gcse:search></gcse:search>
-          </div>
-        </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
-            <li><a href="http://www.apache.org/licenses/">License</a></li>
-            <li><a href="http://www.apache.org/security/">Security</a></li>
-            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
-            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
-            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
-          </ul>
-        </li>
-        <li>
-          
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/runners/jet.md" data-proofer-ignore>
-            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
-          </a>
-        </li>
-      </ul>
-    </div>
-</nav>
-
-  <div class="clearfix container-main-content">
-    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-      <nav>
-        <ul class="section-nav-list" data-section-nav>
-          
-
-<li><span class="section-nav-list-main-title">Runners</span></li>
-<li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-<li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-<li><a href="/documentation/runners/apex/">Apache Apex</a></li>
-<li><a href="/documentation/runners/flink/">Apache Flink</a></li>
-<li><a href="/documentation/runners/gearpump/">Apache Gearpump</a></li>
-<li><a href="/documentation/runners/nemo/">Apache Nemo</a></li>
-<li><a href="/documentation/runners/samza/">Apache Samza</a></li>
-<li><a href="/documentation/runners/spark/">Apache Spark</a></li>
-<li><a href="/documentation/runners/dataflow/">Google Cloud Dataflow</a></li>
-<li><a href="/documentation/runners/jet/">Hazelcast Jet</a></li>
-
-        </ul>
-      </nav>
-    </div>
-
-    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-      <nav id="TableOfContents">
-  <ul>
-    <li><a href="#overview">Overview</a></li>
-    <li><a href="#running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</a>
-      <ul>
-        <li><a href="#generating-the-beam-examples-project">Generating the Beam examples project</a></li>
-        <li><a href="#running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</a></li>
-        <li><a href="#running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</a></li>
-      </ul>
-    </li>
-    <li><a href="#pipeline-options-for-the-jet-runner">Pipeline Options for the Jet Runner</a></li>
-  </ul>
-</nav>
-    </nav>
-
-    <div class="body__contained body__section-nav">
-      <!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<h2 id="overview">Overview</h2>
-<p>The Hazelcast Jet Runner can be used to execute Beam pipelines using <a href="https://jet-start.sh/">Hazelcast
-Jet</a>.</p>
-<p>The Jet Runner and Jet are suitable for large scale continuous jobs and provide:</p>
-<ul>
-<li>Support for both batch (bounded) and streaming (unbounded) data sets</li>
-<li>A runtime that supports very high throughput and low event latency at the same time</li>
-<li>Natural back-pressure in streaming programs</li>
-<li>Distributed massively parallel data processing engine with in memory storage</li>
-</ul>
-<p>It&rsquo;s important to note that the Jet Runner is currently in an <em>EXPERIMENTAL</em> state and can not make use of many of
-the capabilities present in Jet:</p>
-<ul>
-<li>Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted</li>
-<li>Internal performance of Jet is extremely high.
-The Runner can&rsquo;t match it as of now because Beam pipeline optimization/surgery has not been fully implemented.</li>
-</ul>
-<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the
-supported capabilities of the Jet Runner.</p>
-<h2 id="running-wordcount-with-the-hazelcast-jet-runner">Running WordCount with the Hazelcast Jet Runner</h2>
-<h3 id="generating-the-beam-examples-project">Generating the Beam examples project</h3>
-<p>Just follow the instruction from the <a href="/get-started/quickstart-java/#get-the-wordcount-code">Java Quickstart page</a></p>
-<h3 id="running-wordcount-on-a-local-jet-cluster">Running WordCount on a Local Jet Cluster</h3>
-<p>Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.</p>
-<pre><code>    $ mvn package exec:java \
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Hazelcast Jet Runner</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/documentation/runners/jet/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body data-spy=scroll data-target=.page-nav data-offset=0><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/runners/jet.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Runners</span></li><li><a href=/documentation/runners/capability-matrix/>Capability Matrix</a></li><li><a href=/documentation/runners/direct/>Direct Runner</a></li><li><a href=/documentation/runners/apex/>Apache Apex</a></li><li><a href=/documentation/runners/flink/>Apache Flink</a></li><li><a href=/documentation/runners/gearpump/>Apache Gearpump</a></li><li><a href=/documentation/runners/nemo/>Apache Nemo</a></li><li><a href=/documentation/runners/samza/>Apache Samza</a></li><li><a href=/documentation/runners/spark/>Apache Spark</a></li><li><a href=/documentation/runners/dataflow/>Google Cloud Dataflow</a></li><li><a href=/documentation/runners/jet/>Hazelcast Jet</a></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents><ul><li><a href=#overview>Overview</a></li><li><a href=#running-wordcount-with-the-hazelcast-jet-runner>Running WordCount with the Hazelcast Jet Runner</a><ul><li><a href=#generating-the-beam-examples-project>Generating the Beam examples project</a></li><li><a href=#running-wordcount-on-a-local-jet-cluster>Running WordCount on a Local Jet Cluster</a></li><li><a href=#running-wordcount-on-a-remote-jet-cluster>Running WordCount on a Remote Jet Cluster</a></li></ul></li><li><a href=#pipeline-options-for-the-jet-runner>Pipeline Options for the Jet Runner</a></li></ul></nav></nav><div class="body__contained body__section-nav"><h2 id=overview>Overview</h2><p>The Hazelcast Jet Runner can be used to execute Beam pipelines using <a href=https://jet-start.sh/>Hazelcast
+Jet</a>.</p><p>The Jet Runner and Jet are suitable for large scale continuous jobs and provide:</p><ul><li>Support for both batch (bounded) and streaming (unbounded) data sets</li><li>A runtime that supports very high throughput and low event latency at the same time</li><li>Natural back-pressure in streaming programs</li><li>Distributed massively parallel data processing engine with in memory storage</li></ul><p>It&rsquo;s important to note that the Jet Runner is currently in an <em>EXPERIMENTAL</em> state and can not make use of many of
+the capabilities present in Jet:</p><ul><li>Jet has full Fault Tolerance support, the Jet Runner does not; if a job fails it must be restarted</li><li>Internal performance of Jet is extremely high.
+The Runner can&rsquo;t match it as of now because Beam pipeline optimization/surgery has not been fully implemented.</li></ul><p>The <a href=/documentation/runners/capability-matrix/>Beam Capability Matrix</a> documents the
+supported capabilities of the Jet Runner.</p><h2 id=running-wordcount-with-the-hazelcast-jet-runner>Running WordCount with the Hazelcast Jet Runner</h2><h3 id=generating-the-beam-examples-project>Generating the Beam examples project</h3><p>Just follow the instruction from the <a href=/get-started/quickstart-java/#get-the-wordcount-code>Java Quickstart page</a></p><h3 id=running-wordcount-on-a-local-jet-cluster>Running WordCount on a Local Jet Cluster</h3><p>Issue following command in the Beam examples project to start new Jet cluster and run the WordCount example on it.</p><pre><code>    $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args=&quot;\
@@ -215,143 +14,35 @@ supported capabilities of the Jet Runner.</p>
             --inputFile=pom.xml \
             --output=counts&quot; \
         -Pjet-runner
-</code></pre><h3 id="running-wordcount-on-a-remote-jet-cluster">Running WordCount on a Remote Jet Cluster</h3>
-<p>The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that&rsquo;s what
+</code></pre><h3 id=running-wordcount-on-a-remote-jet-cluster>Running WordCount on a Remote Jet Cluster</h3><p>The Beam examples project, when generated from an archetype, comes from a particular released Beam version (that&rsquo;s what
 the <code>archetypeVersion</code> property is about). Each Beam version that contains the Jet Runner (ie. from 2.14.0 onwards)
 uses a certain version of Jet. Because of this, when we start a stand-alone Jet cluster and try to run Beam examples on
 it we need to make sure the two are compatible. See following table for which Jet version is recommended for various
-Beam versions.</p>
-<table class="table table-bordered">
-<tr>
-  <th>Beam Version</th>
-  <th>Compatible Jet Versions</th>
-</tr>
-<tr>
-  <td>2.20.0 or newer</td>
-  <td>4.x</td>
-</tr>
-<tr>
-  <td>2.14.0 - 2.19.0</td>
-  <td>3.x</td>
-</tr>
-<tr>
-  <td>2.13.0 or older</td>
-  <td>N/A</td>
-</tr>
-</table>
-<p>Download latest Hazelcast Jet version compatible with the Beam you are using from
-<a href="https://jet-start.sh/download">Hazelcast Jet Website</a>.</p>
-<nav class="version-switcher">
-  <strong>Adapt for:</strong>
-  <ul>
-    <li data-type="version-jet3">Hazelcast Jet 3.x</li>
-    <li data-type="version-jet4">Hazelcast Jet 4.x</li>
-  </ul>
-</nav>
-<p>Once the download has finished you need to start a Jet cluster. The simplest way to do so is to start Jet cluster
+Beam versions.</p><table class="table table-bordered"><tr><th>Beam Version</th><th>Compatible Jet Versions</th></tr><tr><td>2.20.0 or newer</td><td>4.x</td></tr><tr><td>2.14.0 - 2.19.0</td><td>3.x</td></tr><tr><td>2.13.0 or older</td><td>N/A</td></tr></table><p>Download latest Hazelcast Jet version compatible with the Beam you are using from
+<a href=https://jet-start.sh/download>Hazelcast Jet Website</a>.</p><nav class=version-switcher><strong>Adapt for:</strong><ul><li data-type=version-jet3>Hazelcast Jet 3.x</li><li data-type=version-jet4>Hazelcast Jet 4.x</li></ul></nav><p>Once the download has finished you need to start a Jet cluster. The simplest way to do so is to start Jet cluster
 members using the <code>jet-start</code> script that comes with the downloaded Jet distribution. The members use the
-<span class="version-jet3">
-<a href="https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters">auto discovery feature</a>
-</span>
-<span class="version-jet4">
-<a href="https://docs.hazelcast.org/docs/4.0/manual/html-single/#setting-up-clusters">auto discovery feature</a>
-</span>
-to form a cluster. Let&rsquo;s start up a cluster formed by two members:</p>
-
-
-
-
-
-    <div class=version-jet3>
-        
-            <pre><code>$ cd hazelcast-jet
+<span class=version-jet3><a href=https://docs.hazelcast.org/docs/3.12/manual/html-single/index.html#setting-up-clusters>auto discovery feature</a></span>
+<span class=version-jet4><a href=https://docs.hazelcast.org/docs/4.0/manual/html-single/#setting-up-clusters>auto discovery feature</a></span>
+to form a cluster. Let&rsquo;s start up a cluster formed by two members:</p><div class=version-jet3><pre><code>$ cd hazelcast-jet
 $ bin/jet-start.sh &amp;
-$ bin/jet-start.sh &amp;</code></pre>
-        
-    </div>
-
-
-
-
-
-
-
-    <div class=version-jet4>
-        
-            <pre><code>$ cd hazelcast-jet
+$ bin/jet-start.sh &amp;</code></pre></div><div class=version-jet4><pre><code>$ cd hazelcast-jet
 $ bin/jet-start &amp;
-$ bin/jet-start &amp;</code></pre>
-        
-    </div>
-
-
-<p>Check the cluster is up and running:</p>
-
-
-
-
-
-    <div class=version-jet3>
-        
-            <pre><code>$ bin/jet.sh cluster</code></pre>
-        
-    </div>
-
-
-
-
-
-
-
-    <div class=version-jet4>
-        
-            <pre><code>$ bin/jet cluster</code></pre>
-        
-    </div>
-
-
-<p>You should see something like:</p>
-
-
-
-
-
-    <div class=version-jet3>
-        
-            <pre><code>State: ACTIVE
+$ bin/jet-start &amp;</code></pre></div><p>Check the cluster is up and running:</p><div class=version-jet3><pre><code>$ bin/jet.sh cluster</code></pre></div><div class=version-jet4><pre><code>$ bin/jet cluster</code></pre></div><p>You should see something like:</p><div class=version-jet3><pre><code>State: ACTIVE
 Version: 3.0
 Size: 2
 
 ADDRESS                  UUID               
 [192.168.0.117]:5701     76bea7ba-f032-4c25-ad04-bdef6782f481
-[192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86</code></pre>
-        
-    </div>
-
-
-
-
-
-
-
-    <div class=version-jet4>
-        
-            <pre><code>State: ACTIVE
+[192.168.0.117]:5702     03ecfaa2-be16-41b6-b5cf-eea584d7fb86</code></pre></div><div class=version-jet4><pre><code>State: ACTIVE
 Version: 4.0
 Size: 2
 
 ADDRESS                  UUID               
 [192.168.0.117]:5701     b9937bba-32aa-48ba-8e32-423aafed763b
-[192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937</code></pre>
-        
-    </div>
-
-
-<p>Change directory to the Beam Examples project and issue following command to submit and execute your
+[192.168.0.117]:5702     dfeadfb2-3ba5-4d1c-95e7-71a1a3ca4937</code></pre></div><p>Change directory to the Beam Examples project and issue following command to submit and execute your
 Pipeline on the remote Jet cluster.
 Make sure to distribute the input file (file with the words to be counted) to all machines where the
-cluster runs. The word count job won&rsquo;t be able to read the data otherwise.</p>
-<pre><code>    $ mvn package exec:java \
+cluster runs. The word count job won&rsquo;t be able to read the data otherwise.</p><pre><code>    $ mvn package exec:java \
         -DskipTests \
         -Dexec.mainClass=org.apache.beam.examples.WordCount \
         -Dexec.args=&quot;\
@@ -361,118 +52,18 @@ cluster runs. The word count job won&rsquo;t be able to read the data otherwise.
             --inputFile=&lt;INPUT_FILE_AVAILABLE_ON_ALL_CLUSTER_MEMBERS&gt; \
             --output=/tmp/counts&quot; \
         -Pjet-runner
-</code></pre><h2 id="pipeline-options-for-the-jet-runner">Pipeline Options for the Jet Runner</h2>
-<table class="table table-bordered">
-<tr>
-  <th>Field</th>
-  <th>Description</th>
-  <th>Default Value</th>
-</tr>
-<tr>
-  <td><code>runner</code></td>
-  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
-  <td>Set to <code>JetRunner</code> to run using Jet.</td>
-</tr>
-<tr>
-  <td><code><span class="version-jet3">jetGroupName</span><span class="version-jet4">jetClusterName</span></code></td>
-    <td>
-        <span class="version-jet3">The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that
-        will be used by the Runner. With groups it is possible to create multiple clusters where each cluster has its
-        own group and doesn't interfere with other clusters.</span> 
-        <span class="version-jet4">The name of the Hazelcast Cluster that will be used by the Runner.</span> 
-    </td>
-  <td><code>jet</code></td>
-</tr>
-<tr>
-  <td><code>jetServers</code></td>
-  <td>List of the addresses of Jet Cluster members, needed when the Runner doesn't start its own Jet Cluster, 
-  but makes use of an external, independently started one. Takes the form of a comma separated list of ip/hostname-port pairs, 
-  like this: <code>192.168.0.117:5701,192.168.0.117:5702</code></td>
-  <td><code>127.0.0.1:5701</code></td>
-</tr>
-<tr>
-  <td><code>codeJarPathname</code></td>
-  <td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
-  containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value 
-  is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td>
-  <td>Has no default value.</td>
-</tr>
-<tr>
-  <td><code>jetLocalMode</code></td>
-  <td>The number of Jet Cluster members that should be started locally by the Runner. If it's <code>0</code>
-  then the Runner will be using an external cluster. If greater, then the Runner will be using a cluster started by itself.</td>
-  <td><code>0</code></td>
-</tr>
-<tr>
-  <td><code>jetDefaultParallelism</code></td>
-  <td>Local parallelism of Jet members, the number of processors of each vertex of the DAG that will be created on each 
-  Jet Cluster member.</td>
-  <td><code>2</code></td>
-</tr>
-<tr>
-  <td><code>jetProcessorsCooperative</code></td>
-  <td>Boolean flag specifying if Jet Processors for DoFns are allowed to be cooperative (ie. use green threads instead of 
-  dedicated OS ones). If set to true than all such Processors will be cooperative, except when they have no outputs
-  (so they are assumed to be syncs).</td>
-  <td><code>false</code></td>
-</tr>
-</table>
-
-    </div>
-  </div>
-
-
-<footer class="footer">
-  <div class="footer__contained">
-    <div class="footer__cols">
-      <div class="footer__cols__col">
-        <div class="footer__cols__col__logo">
-          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
-        </div>
-        <div class="footer__cols__col__logo">
-          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
-        </div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
-        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
-                                                                                                                                width="14" height="14"
-                                                                                                                                alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
-       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
-        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
-      </div>
-    </div>
-  </div>
-  <div class="footer__bottom">
-    &copy;
-    <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href=/privacy_policy>Privacy Policy</a>
-    | <a href=/feed.xml>RSS Feed</a>
-    <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
-  </div>
-</footer>
-
-</body>
-</html>
+</code></pre><h2 id=pipeline-options-for-the-jet-runner>Pipeline Options for the Jet Runner</h2><table class="table table-bordered"><tr><th>Field</th><th>Description</th><th>Default Value</th></tr><tr><td><code>runner</code></td><td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td><td>Set to <code>JetRunner</code> to run using Jet.</td></tr><tr><td><code><span class=version-jet3>jetGroupName</span><span class=version-jet4>jetClusterName</span></code></td><td><span class=version-jet3>The name of the Hazelcast Group to join, in essence an ID of the Jet Cluster that
+will be used by the Runner. With groups it is possible to create multiple clusters where each cluster has its
+own group and doesn't interfere with other clusters.</span>
+<span class=version-jet4>The name of the Hazelcast Cluster that will be used by the Runner.</span></td><td><code>jet</code></td></tr><tr><td><code>jetServers</code></td><td>List of the addresses of Jet Cluster members, needed when the Runner doesn't start its own Jet Cluster,
+but makes use of an external, independently started one. Takes the form of a comma separated list of ip/hostname-port pairs,
+like this: <code>192.168.0.117:5701,192.168.0.117:5702</code></td><td><code>127.0.0.1:5701</code></td></tr><tr><td><code>codeJarPathname</code></td><td>Also a property needed only when using external Jet Clusters, specifies the location of a fat jar
+containing all the code that needs to run on the cluster (so at least the pipeline and the runner code). The value
+is any string that is acceptad by <code>new java.io.File()</code> as a parameter.</td><td>Has no default value.</td></tr><tr><td><code>jetLocalMode</code></td><td>The number of Jet Cluster members that should be started locally by the Runner. If it's <code>0</code>
+then the Runner will be using an external cluster. If greater, then the Runner will be using a cluster started by itself.</td><td><code>0</code></td></tr><tr><td><code>jetDefaultParallelism</code></td><td>Local parallelism of Jet members, the number of processors of each vertex of the DAG that will be created on each
+Jet Cluster member.</td><td><code>2</code></td></tr><tr><td><code>jetProcessorsCooperative</code></td><td>Boolean flag specifying if Jet Processors for DoFns are allowed to be cooperative (ie. use green threads instead of
+dedicated OS ones). If set to true than all such Processors will be cooperative, except when they have no outputs
+(so they are assumed to be syncs).</td><td><code>false</code></td></tr></table></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>

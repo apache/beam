@@ -1,669 +1,78 @@
-
-
-<!DOCTYPE html>
-<html lang="en" class="no-js">
-<head>
-  
- 
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>ParDo</title>
-<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
- 
-<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
- 
-
-
-    
-    <link rel="preload" href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" as="style">
-    <link href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" rel="stylesheet" integrity="">
-
-
-<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-
-<style>
-  .body__contained img { max-width: 100% }
-</style>
-
-<script src="/js/bootstrap.min.js"></script>
-<script src="/js/language-switch.js"></script>
-<script src="/js/fix-menu.js"></script>
-<script src="/js/section-nav.js"></script>
-<script src="/js/page-nav.js"></script>
-
-<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
-<link rel="canonical" href="/documentation/transforms/python/elementwise/pardo/" data-proofer-ignore>
-<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
- 
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-  ga('create', 'UA-73650088-1', 'auto');
-  ga('send', 'pageview');
-</script>
-</head>
-<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-  
-
-<nav class="header navbar navbar-fixed-top">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-
-      <a href=/ class="navbar-brand" >
-        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
-      </a>
-    </div>
-
-    <div class="navbar-mask closed"></div>
-
-    <div id="navbar" class="navbar-container closed">
-      <ul class="nav navbar-nav">
-        <li>
-          <a href=/get-started/beam-overview/>Get Started</a>
-        </li>
-        <li>
-          <a href=/documentation/>Documentation</a>
-        </li>
-        <li>
-          <a href=/documentation/sdks/java/>Languages</a>
-        </li>
-        <li>
-          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
-        </li>
-        <li>
-          <a href=/roadmap/>Roadmap</a>
-        </li>
-        <li>
-          <a href=/contribute/>Contribute</a>
-        </li>
-        <li>
-          <a href=/community/contact-us/>Community</a>
-        </li>
-        <li><a href=/blog/>Blog</a></li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li>
-          <div style="width: 300px;">
-            <script>
-              (function() {
-                var cx = '012923275103528129024:4emlchv9wzi';
-                var gcse = document.createElement('script');
-                gcse.type = 'text/javascript';
-                gcse.async = true;
-                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(gcse, s);
-              })();
-            </script>
-            <gcse:search></gcse:search>
-          </div>
-        </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
-            <li><a href="http://www.apache.org/licenses/">License</a></li>
-            <li><a href="http://www.apache.org/security/">Security</a></li>
-            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
-            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
-            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
-          </ul>
-        </li>
-        <li>
-          
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/transforms/python/elementwise/pardo.md" data-proofer-ignore>
-            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
-          </a>
-        </li>
-      </ul>
-    </div>
-</nav>
-
-  <div class="clearfix container-main-content">
-    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-      <nav>
-        <ul class="section-nav-list" data-section-nav>
-          
-
-<li><span class="section-nav-list-main-title">Documentation</span></li>
-<li><a href="/documentation">Using the Documentation</a></li>
-<li>
-  <span class="section-nav-list-title">Pipeline development lifecycle</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-    <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-    <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-  </ul>
-</li>
-<li>
-  <span class="section-nav-list-title">Beam programming guide</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/documentation/programming-guide/">Overview</a></li>
-    <li><a href="/documentation/programming-guide/#creating-a-pipeline">Pipelines</a></li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">PCollections</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#pcollections">Creating a PCollection</a></li>
-        <li><a href="/documentation/programming-guide/#pcollection-characteristics">PCollection characteristics</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Transforms</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#applying-transforms">Applying transforms</a></li>
-        <li>
-          <span class="section-nav-list-title">Core Beam transforms</span>
-
-          <ul class="section-nav-list">
-            <li><a href="/documentation/programming-guide/#pardo">ParDo</a></li>
-            <li><a href="/documentation/programming-guide/#groupbykey">GroupByKey</a></li>
-            <li><a href="/documentation/programming-guide/#cogroupbykey">CoGroupByKey</a></li>
-            <li><a href="/documentation/programming-guide/#combine">Combine</a></li>
-            <li><a href="/documentation/programming-guide/#flatten">Flatten</a></li>
-            <li><a href="/documentation/programming-guide/#partition">Partition</a></li>
-          </ul>
-        </li>
-
-        <li><a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for user code</a></li>
-        <li><a href="/documentation/programming-guide/#side-inputs">Side inputs</a></li>
-        <li><a href="/documentation/programming-guide/#additional-outputs">Additional outputs</a></li>
-        <li><a href="/documentation/programming-guide/#composite-transforms">Composite transforms</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Pipeline I/O</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
-        <li><a href="/documentation/io/built-in/">Built-in I/O connectors</a></li>
-
-        <li class="section-nav-item--collapsible">
-          <span class="section-nav-list-title">Built-in I/O connector guides</span>
-          <ul class="section-nav-list">
-            <li><a href="/documentation/io/built-in/parquet/">Apache Parquet I/O connector
-            </a></li>
-            <li><a href="/documentation/io/built-in/hadoop/">Hadoop Input/Output Format IO</a></li>
-            <li><a href="/documentation/io/built-in/hcatalog/">HCatalog IO</a></li>
-            <li><a href="/documentation/io/built-in/google-bigquery/">Google BigQuery I/O connector</a></li>
-          </ul>
-       </li>
-
-
-        <li class="section-nav-item--collapsible">
-           <span class="section-nav-list-title">Developing new I/O connectors</span>
-
-          <ul class="section-nav-list">
-           <li><a href="/documentation/io/developing-io-overview/">Overview: Developing connectors</a></li>
-           <li><a href="/documentation/io/developing-io-java/">Developing connectors (Java)</a></li>
-           <li><a href="/documentation/io/developing-io-python/">Developing connectors (Python)</a></li>
-          </ul>
-        </li>
-
-        <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Schemas</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#what-is-a-schema">What is a schema</a></li>
-        <li><a href="/documentation/programming-guide/#schemas-for-pl-types">Schemas for programming language types</a></li>
-        <li><a href="/documentation/programming-guide/#schema-definition">Schema definition</a></li>
-        <li><a href="/documentation/programming-guide/#logical-types">Logical types</a></li>
-        <li><a href="/documentation/programming-guide/#creating-schemas">Creating schemas</a></li>
-        <li><a href="/documentation/programming-guide/#using-schemas">Using schemas</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Data encoding and type safety</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#data-encoding-and-type-safety">Data encoding basics</a></li>
-        <li><a href="/documentation/programming-guide/#specifying-coders">Specifying coders</a></li>
-        <li><a href="/documentation/programming-guide/#default-coders-and-the-coderregistry">Default coders and the CoderRegistry</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Windowing</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#windowing">Windowing basics</a></li>
-        <li><a href="/documentation/programming-guide/#provided-windowing-functions">Provided windowing functions</a></li>
-        <li><a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Setting your PCollection’s windowing function</a></li>
-        <li><a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data</a></li>
-        <li><a href="/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">Adding timestamps to a PCollection’s elements</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Triggers</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#triggers">Trigger basics</a></li>
-        <li><a href="/documentation/programming-guide/#event-time-triggers">Event time triggers and the default trigger</a></li>
-        <li><a href="/documentation/programming-guide/#processing-time-triggers">Processing time triggers</a></li>
-        <li><a href="/documentation/programming-guide/#data-driven-triggers">Data-driven triggers</a></li>
-        <li><a href="/documentation/programming-guide/#setting-a-trigger">Setting a trigger</a></li>
-        <li><a href="/documentation/programming-guide/#composite-triggers">Composite triggers</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Metrics</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#metrics">Metrics basics</a></li>
-        <li><a href="/documentation/programming-guide/#types-of-metrics">Types of metrics</a></li>
-        <li><a href="/documentation/programming-guide/#querying-metrics">Querying metrics</a></li>
-        <li><a href="/documentation/programming-guide/#using-metrics">Using metrics in pipeline</a></li>
-        <li><a href="/documentation/programming-guide/#export-metrics">Export metrics</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">State and Timers</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/programming-guide/#types-of-state">Types of state</a></li>
-        <li><a href="/documentation/programming-guide/#deferred-state-reads">Deferred state reads</a></li>
-        <li><a href="/documentation/programming-guide/#timers">Timers</a></li>
-        <li><a href="/documentation/programming-guide/#garbage-collecting-state">Garbage collecting state</a></li>
-        <li><a href="/documentation/programming-guide/#state-timers-examples">State and timers examples</a></li>
-      </ul>
-    </li>
-  </ul>
-</li>
-
-<li class="section-nav-item--collapsible">
-  <span class="section-nav-list-title">Transform catalog</span>
-
-  <ul class="section-nav-list">
-  <li class="section-nav-item--collapsible">
-    <span class="section-nav-list-title">Python</span>
-
-    <ul class="section-nav-list">
-      <li><a href="/documentation/transforms/python/overview/">Overview</a></li>
-      <li class="section-nav-item--collapsible">
-        <span class="section-nav-list-title">Element-wise</span>
-
-        <ul class="section-nav-list">
-          <li><a href="/documentation/transforms/python/elementwise/filter/">Filter</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/flatmap/">FlatMap</a></li>  
-          <li><a href="/documentation/transforms/python/elementwise/keys/">Keys</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/kvswap/">KvSwap</a></li> 
-          <li><a href="/documentation/transforms/python/elementwise/map/">Map</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/pardo/">ParDo</a></li>   
-          <li><a href="/documentation/transforms/python/elementwise/partition/">Partition</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/regex/">Regex</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/reify/">Reify</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/tostring/">ToString</a></li>
-          <li><a href="/documentation/transforms/python/elementwise/values/">Values</a></li>          
-          <li><a href="/documentation/transforms/python/elementwise/withtimestamps/">WithTimestamps</a></li>                                              
-        </ul>
-      </li>
-      <li class="section-nav-item--collapsible">
-        <span class="section-nav-list-title">Aggregation</span>
-
-        <ul class="section-nav-list">
-          <li><a href="/documentation/transforms/python/aggregation/cogroupbykey/">CoGroupByKey</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/combineglobally/">CombineGlobally</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/count/">Count</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/distinct/">Distinct</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/groupbykey/">GroupByKey</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/mean/">Mean</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/sample/">Sample</a></li>
-          <li><a href="/documentation/transforms/python/aggregation/top/">Top</a></li>
-        </ul>
-      </li>
-      <li class="section-nav-item--collapsible">
-        <span class="section-nav-list-title">Other</span>
-
-        <ul class="section-nav-list">
-          <li><a href="/documentation/transforms/python/other/create/">Create</a></li>
-          <li><a href="/documentation/transforms/python/other/flatten/">Flatten</a></li>
-          <li><a href="/documentation/transforms/python/other/reshuffle/">Reshuffle</a></li>
-          <li><a href="/documentation/transforms/python/other/windowinto/">WindowInto</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>   
-
-  <li class="section-nav-item--collapsible">
-    <span class="section-nav-list-title">Java</span>
-
-    <ul class="section-nav-list">
-      <li><a href="/documentation/transforms/java/overview/">Overview</a></li>
-      <li class="section-nav-item--collapsible">
-        <span class="section-nav-list-title">Element-wise</span>
-
-        <ul class="section-nav-list">
-          <li><a href="/documentation/transforms/java/elementwise/filter/">Filter</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/flatmapelements/">FlatMapElements</a></li>  
-          <li><a href="/documentation/transforms/java/elementwise/keys/">Keys</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/kvswap/">KvSwap</a></li> 
-          <li><a href="/documentation/transforms/java/elementwise/mapelements/">MapElements</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/pardo/">ParDo</a></li>   
-          <li><a href="/documentation/transforms/java/elementwise/partition/">Partition</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/regex/">Regex</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/reify/">Reify</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/values/">Values</a></li>           
-          <li><a href="/documentation/transforms/java/elementwise/tostring/">ToString</a></li>
-          <li><a href="/documentation/transforms/java/elementwise/withkeys/">WithKeys</a></li> 
-          <li><a href="/documentation/transforms/java/elementwise/withtimestamps/">WithTimestamps</a></li>                                             
-        </ul>
-      </li>
-      <li class="section-nav-item--collapsible">
-        <span class="section-nav-list-title">Aggregation</span>
-
-        <ul class="section-nav-list">
-          <li><a href="/documentation/transforms/java/aggregation/approximatequantiles/">ApproximateQuantiles</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/approximateunique/">ApproximateUnique</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/cogroupbykey/">CoGroupByKey</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/combine/">Combine</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/combinewithcontext/">CombineWithContext</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/count/">Count</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/distinct/">Distinct</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/groupbykey/">GroupByKey</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/groupintobatches/">GroupIntoBatches</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/hllcount/">HllCount</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/latest/">Latest</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/max/">Max</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/mean/">Mean</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/min/">Min</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/sample/">Sample</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/sum/">Sum</a></li>
-          <li><a href="/documentation/transforms/java/aggregation/top/">Top</a></li>
-        </ul>
-      </li>
-      <li class="section-nav-item--collapsible">
-        <span class="section-nav-list-title">Other</span>
-
-        <ul class="section-nav-list">
-          <li><a href="/documentation/transforms/java/other/create/">Create</a></li>
-          <li><a href="/documentation/transforms/java/other/flatten/">Flatten</a></li>
-          <li><a href="/documentation/transforms/java/other/passert/">PAssert</a></li>
-          <li><a href="/documentation/transforms/java/other/view/">View</a></li>
-          <li><a href="/documentation/transforms/java/other/window/">Window</a></li>
-        </ul>
-      </li>
-    </ul>
-  </li>   
-  </ul>
-
-</li>
-
-<li class="section-nav-item--collapsible">
-  <span class="section-nav-list-title">Common pipeline patterns</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/documentation/patterns/overview/">Overview</a></li>
-    <li><a href="/documentation/patterns/file-processing/">File processing</a></li>
-    <li><a href="/documentation/patterns/side-inputs/">Side inputs</a></li>
-    <li><a href="/documentation/patterns/pipeline-options/">Pipeline options</a></li>
-    <li><a href="/documentation/patterns/custom-io/">Custom I/O</a></li>
-    <li><a href="/documentation/patterns/custom-windows/">Custom windows</a></li>
-    <li><a href="/documentation/patterns/bigqueryio/">BigQueryIO</a></li>
-  </ul>
-</li>
-
-<li class="section-nav-item--collapsible">
-  <span class="section-nav-list-title">Runtime systems</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/documentation/runtime/model/">Execution model</a></li>
-    <li><a href="/documentation/runtime/environments/">Container environments</a></li>
-    <li><a href="/documentation/runtime/sdk-harness-config/">SDK Harness Configuration</a></li>
-  </ul>
-</li>
-
-<li class="section-nav-item--collapsible">
-  <span class="section-nav-list-title">Learning resources</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/documentation/resources/learning-resources/#getting-started">Getting Started</a></li>
-    <li><a href="/documentation/resources/learning-resources/#articles">Articles</a></li>
-    <li><a href="/documentation/resources/learning-resources/#interactive-labs">Interactive Labs</a></li>
-    <li><a href="/documentation/resources/learning-resources/#beam-katas">Beam Katas</a></li>
-    <li><a href="/documentation/resources/learning-resources/#code-examples">Code Examples</a></li>
-    <li><a href="/documentation/resources/learning-resources/#api-reference">API Reference</a></li>
-    <li><a href="/documentation/resources/learning-resources/#feedback-and-suggestions">Feedback and Suggestions</a></li>
-    <li><a href="/documentation/resources/learning-resources/#how-to-contribute">How to Contribute</a></li>
-    <li><a href="/documentation/resources/videos-and-podcasts">Videos and Podcasts</a></li>
-  </ul>
-</li>
-<li><a href="https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam">Beam Wiki</a></li>
-
-        </ul>
-      </nav>
-    </div>
-
-    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-      <nav id="TableOfContents">
-  <ul>
-    <li><a href="#examples">Examples</a>
-      <ul>
-        <li><a href="#example-1-pardo-with-a-simple-dofn">Example 1: ParDo with a simple DoFn</a></li>
-        <li><a href="#example-2-pardo-with-timestamp-and-window-information">Example 2: ParDo with timestamp and window information</a></li>
-        <li><a href="#example-3-pardo-with-dofn-methods">Example 3: ParDo with DoFn methods</a></li>
-      </ul>
-    </li>
-    <li><a href="#related-transforms">Related transforms</a></li>
-  </ul>
-</nav>
-    </nav>
-
-    <div class="body__contained body__section-nav">
-      <!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<h1 id="pardo">ParDo</h1>
-
-
-<script type="text/javascript">
-  localStorage.setItem("language", "language-py")
-</script>
-
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a
-      class="button"
-      target="_blank"
-      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Pardo"
-      ><img
-        src="https://beam.apache.org/images/logos/sdks/python.png"
-        width="32px"
-        height="32px"
-        alt="Pydoc"
-      />
-      Pydoc</a
-    >
-  </td>
-</table>
-
-<p><br><br><br></p>
-
-<p>A transform for generic parallel processing.
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>ParDo</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/documentation/transforms/python/elementwise/pardo/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body data-spy=scroll data-target=.page-nav data-offset=0><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/transforms/python/elementwise/pardo.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Documentation</span></li><li><a href=/documentation>Using the Documentation</a></li><li><span class=section-nav-list-title>Pipeline development lifecycle</span><ul class=section-nav-list><li><a href=/documentation/pipelines/design-your-pipeline/>Design Your Pipeline</a></li><li><a href=/documentation/pipelines/create-your-pipeline/>Create Your Pipeline</a></li><li><a href=/documentation/pipelines/test-your-pipeline/>Test Your Pipeline</a></li></ul></li><li><span class=section-nav-list-title>Beam programming guide</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/>Overview</a></li><li><a href=/documentation/programming-guide/#creating-a-pipeline>Pipelines</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>PCollections</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#pcollections>Creating a PCollection</a></li><li><a href=/documentation/programming-guide/#pcollection-characteristics>PCollection characteristics</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Transforms</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#applying-transforms>Applying transforms</a></li><li><span class=section-nav-list-title>Core Beam transforms</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#pardo>ParDo</a></li><li><a href=/documentation/programming-guide/#groupbykey>GroupByKey</a></li><li><a href=/documentation/programming-guide/#cogroupbykey>CoGroupByKey</a></li><li><a href=/documentation/programming-guide/#combine>Combine</a></li><li><a href=/documentation/programming-guide/#flatten>Flatten</a></li><li><a href=/documentation/programming-guide/#partition>Partition</a></li></ul></li><li><a href=/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms>Requirements for user code</a></li><li><a href=/documentation/programming-guide/#side-inputs>Side inputs</a></li><li><a href=/documentation/programming-guide/#additional-outputs>Additional outputs</a></li><li><a href=/documentation/programming-guide/#composite-transforms>Composite transforms</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Pipeline I/O</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#pipeline-io>Using I/O transforms</a></li><li><a href=/documentation/io/built-in/>Built-in I/O connectors</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Built-in I/O connector guides</span><ul class=section-nav-list><li><a href=/documentation/io/built-in/parquet/>Apache Parquet I/O connector</a></li><li><a href=/documentation/io/built-in/hadoop/>Hadoop Input/Output Format IO</a></li><li><a href=/documentation/io/built-in/hcatalog/>HCatalog IO</a></li><li><a href=/documentation/io/built-in/google-bigquery/>Google BigQuery I/O connector</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Developing new I/O connectors</span><ul class=section-nav-list><li><a href=/documentation/io/developing-io-overview/>Overview: Developing connectors</a></li><li><a href=/documentation/io/developing-io-java/>Developing connectors (Java)</a></li><li><a href=/documentation/io/developing-io-python/>Developing connectors (Python)</a></li></ul></li><li><a href=/documentation/io/testing/>Testing I/O transforms</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Schemas</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#what-is-a-schema>What is a schema</a></li><li><a href=/documentation/programming-guide/#schemas-for-pl-types>Schemas for programming language types</a></li><li><a href=/documentation/programming-guide/#schema-definition>Schema definition</a></li><li><a href=/documentation/programming-guide/#logical-types>Logical types</a></li><li><a href=/documentation/programming-guide/#creating-schemas>Creating schemas</a></li><li><a href=/documentation/programming-guide/#using-schemas>Using schemas</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Data encoding and type safety</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#data-encoding-and-type-safety>Data encoding basics</a></li><li><a href=/documentation/programming-guide/#specifying-coders>Specifying coders</a></li><li><a href=/documentation/programming-guide/#default-coders-and-the-coderregistry>Default coders and the CoderRegistry</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Windowing</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#windowing>Windowing basics</a></li><li><a href=/documentation/programming-guide/#provided-windowing-functions>Provided windowing functions</a></li><li><a href=/documentation/programming-guide/#setting-your-pcollections-windowing-function>Setting your PCollection’s windowing function</a></li><li><a href=/documentation/programming-guide/#watermarks-and-late-data>Watermarks and late data</a></li><li><a href=/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements>Adding timestamps to a PCollection’s elements</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Triggers</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#triggers>Trigger basics</a></li><li><a href=/documentation/programming-guide/#event-time-triggers>Event time triggers and the default trigger</a></li><li><a href=/documentation/programming-guide/#processing-time-triggers>Processing time triggers</a></li><li><a href=/documentation/programming-guide/#data-driven-triggers>Data-driven triggers</a></li><li><a href=/documentation/programming-guide/#setting-a-trigger>Setting a trigger</a></li><li><a href=/documentation/programming-guide/#composite-triggers>Composite triggers</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Metrics</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#metrics>Metrics basics</a></li><li><a href=/documentation/programming-guide/#types-of-metrics>Types of metrics</a></li><li><a href=/documentation/programming-guide/#querying-metrics>Querying metrics</a></li><li><a href=/documentation/programming-guide/#using-metrics>Using metrics in pipeline</a></li><li><a href=/documentation/programming-guide/#export-metrics>Export metrics</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>State and Timers</span><ul class=section-nav-list><li><a href=/documentation/programming-guide/#types-of-state>Types of state</a></li><li><a href=/documentation/programming-guide/#deferred-state-reads>Deferred state reads</a></li><li><a href=/documentation/programming-guide/#timers>Timers</a></li><li><a href=/documentation/programming-guide/#garbage-collecting-state>Garbage collecting state</a></li><li><a href=/documentation/programming-guide/#state-timers-examples>State and timers examples</a></li></ul></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Transform catalog</span><ul class=section-nav-list><li class=section-nav-item--collapsible><span class=section-nav-list-title>Python</span><ul class=section-nav-list><li><a href=/documentation/transforms/python/overview/>Overview</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Element-wise</span><ul class=section-nav-list><li><a href=/documentation/transforms/python/elementwise/filter/>Filter</a></li><li><a href=/documentation/transforms/python/elementwise/flatmap/>FlatMap</a></li><li><a href=/documentation/transforms/python/elementwise/keys/>Keys</a></li><li><a href=/documentation/transforms/python/elementwise/kvswap/>KvSwap</a></li><li><a href=/documentation/transforms/python/elementwise/map/>Map</a></li><li><a href=/documentation/transforms/python/elementwise/pardo/>ParDo</a></li><li><a href=/documentation/transforms/python/elementwise/partition/>Partition</a></li><li><a href=/documentation/transforms/python/elementwise/regex/>Regex</a></li><li><a href=/documentation/transforms/python/elementwise/reify/>Reify</a></li><li><a href=/documentation/transforms/python/elementwise/tostring/>ToString</a></li><li><a href=/documentation/transforms/python/elementwise/values/>Values</a></li><li><a href=/documentation/transforms/python/elementwise/withtimestamps/>WithTimestamps</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Aggregation</span><ul class=section-nav-list><li><a href=/documentation/transforms/python/aggregation/cogroupbykey/>CoGroupByKey</a></li><li><a href=/documentation/transforms/python/aggregation/combineglobally/>CombineGlobally</a></li><li><a href=/documentation/transforms/python/aggregation/count/>Count</a></li><li><a href=/documentation/transforms/python/aggregation/distinct/>Distinct</a></li><li><a href=/documentation/transforms/python/aggregation/groupbykey/>GroupByKey</a></li><li><a href=/documentation/transforms/python/aggregation/mean/>Mean</a></li><li><a href=/documentation/transforms/python/aggregation/sample/>Sample</a></li><li><a href=/documentation/transforms/python/aggregation/top/>Top</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Other</span><ul class=section-nav-list><li><a href=/documentation/transforms/python/other/create/>Create</a></li><li><a href=/documentation/transforms/python/other/flatten/>Flatten</a></li><li><a href=/documentation/transforms/python/other/reshuffle/>Reshuffle</a></li><li><a href=/documentation/transforms/python/other/windowinto/>WindowInto</a></li></ul></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Java</span><ul class=section-nav-list><li><a href=/documentation/transforms/java/overview/>Overview</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Element-wise</span><ul class=section-nav-list><li><a href=/documentation/transforms/java/elementwise/filter/>Filter</a></li><li><a href=/documentation/transforms/java/elementwise/flatmapelements/>FlatMapElements</a></li><li><a href=/documentation/transforms/java/elementwise/keys/>Keys</a></li><li><a href=/documentation/transforms/java/elementwise/kvswap/>KvSwap</a></li><li><a href=/documentation/transforms/java/elementwise/mapelements/>MapElements</a></li><li><a href=/documentation/transforms/java/elementwise/pardo/>ParDo</a></li><li><a href=/documentation/transforms/java/elementwise/partition/>Partition</a></li><li><a href=/documentation/transforms/java/elementwise/regex/>Regex</a></li><li><a href=/documentation/transforms/java/elementwise/reify/>Reify</a></li><li><a href=/documentation/transforms/java/elementwise/values/>Values</a></li><li><a href=/documentation/transforms/java/elementwise/tostring/>ToString</a></li><li><a href=/documentation/transforms/java/elementwise/withkeys/>WithKeys</a></li><li><a href=/documentation/transforms/java/elementwise/withtimestamps/>WithTimestamps</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Aggregation</span><ul class=section-nav-list><li><a href=/documentation/transforms/java/aggregation/approximatequantiles/>ApproximateQuantiles</a></li><li><a href=/documentation/transforms/java/aggregation/approximateunique/>ApproximateUnique</a></li><li><a href=/documentation/transforms/java/aggregation/cogroupbykey/>CoGroupByKey</a></li><li><a href=/documentation/transforms/java/aggregation/combine/>Combine</a></li><li><a href=/documentation/transforms/java/aggregation/combinewithcontext/>CombineWithContext</a></li><li><a href=/documentation/transforms/java/aggregation/count/>Count</a></li><li><a href=/documentation/transforms/java/aggregation/distinct/>Distinct</a></li><li><a href=/documentation/transforms/java/aggregation/groupbykey/>GroupByKey</a></li><li><a href=/documentation/transforms/java/aggregation/groupintobatches/>GroupIntoBatches</a></li><li><a href=/documentation/transforms/java/aggregation/hllcount/>HllCount</a></li><li><a href=/documentation/transforms/java/aggregation/latest/>Latest</a></li><li><a href=/documentation/transforms/java/aggregation/max/>Max</a></li><li><a href=/documentation/transforms/java/aggregation/mean/>Mean</a></li><li><a href=/documentation/transforms/java/aggregation/min/>Min</a></li><li><a href=/documentation/transforms/java/aggregation/sample/>Sample</a></li><li><a href=/documentation/transforms/java/aggregation/sum/>Sum</a></li><li><a href=/documentation/transforms/java/aggregation/top/>Top</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Other</span><ul class=section-nav-list><li><a href=/documentation/transforms/java/other/create/>Create</a></li><li><a href=/documentation/transforms/java/other/flatten/>Flatten</a></li><li><a href=/documentation/transforms/java/other/passert/>PAssert</a></li><li><a href=/documentation/transforms/java/other/view/>View</a></li><li><a href=/documentation/transforms/java/other/window/>Window</a></li></ul></li></ul></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Common pipeline patterns</span><ul class=section-nav-list><li><a href=/documentation/patterns/overview/>Overview</a></li><li><a href=/documentation/patterns/file-processing/>File processing</a></li><li><a href=/documentation/patterns/side-inputs/>Side inputs</a></li><li><a href=/documentation/patterns/pipeline-options/>Pipeline options</a></li><li><a href=/documentation/patterns/custom-io/>Custom I/O</a></li><li><a href=/documentation/patterns/custom-windows/>Custom windows</a></li><li><a href=/documentation/patterns/bigqueryio/>BigQueryIO</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Runtime systems</span><ul class=section-nav-list><li><a href=/documentation/runtime/model/>Execution model</a></li><li><a href=/documentation/runtime/environments/>Container environments</a></li><li><a href=/documentation/runtime/sdk-harness-config/>SDK Harness Configuration</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Learning resources</span><ul class=section-nav-list><li><a href=/documentation/resources/learning-resources/#getting-started>Getting Started</a></li><li><a href=/documentation/resources/learning-resources/#articles>Articles</a></li><li><a href=/documentation/resources/learning-resources/#interactive-labs>Interactive Labs</a></li><li><a href=/documentation/resources/learning-resources/#beam-katas>Beam Katas</a></li><li><a href=/documentation/resources/learning-resources/#code-examples>Code Examples</a></li><li><a href=/documentation/resources/learning-resources/#api-reference>API Reference</a></li><li><a href=/documentation/resources/learning-resources/#feedback-and-suggestions>Feedback and Suggestions</a></li><li><a href=/documentation/resources/learning-resources/#how-to-contribute>How to Contribute</a></li><li><a href=/documentation/resources/videos-and-podcasts>Videos and Podcasts</a></li></ul></li><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Apache+Beam>Beam Wiki</a></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents><ul><li><a href=#examples>Examples</a><ul><li><a href=#example-1-pardo-with-a-simple-dofn>Example 1: ParDo with a simple DoFn</a></li><li><a href=#example-2-pardo-with-timestamp-and-window-information>Example 2: ParDo with timestamp and window information</a></li><li><a href=#example-3-pardo-with-dofn-methods>Example 3: ParDo with DoFn methods</a></li></ul></li><li><a href=#related-transforms>Related transforms</a></li></ul></nav></nav><div class="body__contained body__section-nav"><h1 id=pardo>ParDo</h1><script type=text/javascript>localStorage.setItem("language","language-py")</script><table align=left style=margin-right:1em><td><a class=button target=_blank href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Pardo><img src=https://beam.apache.org/images/logos/sdks/python.png width=32px height=32px alt=Pydoc>
+Pydoc</a></td></table><p><br><br><br></p><p>A transform for generic parallel processing.
 A <code>ParDo</code> transform considers each element in the input <code>PCollection</code>,
 performs some processing function (your user code) on that element,
-and emits zero or more elements to an output <code>PCollection</code>.</p>
-<p>See more information in the
-<a href="/documentation/programming-guide/#pardo">Beam Programming Guide</a>.</p>
-<h2 id="examples">Examples</h2>
-<p>In the following examples, we explore how to create custom <code>DoFn</code>s and access
-the timestamp and windowing information.</p>
-<h3 id="example-1-pardo-with-a-simple-dofn">Example 1: ParDo with a simple DoFn</h3>
-<p>The following example defines a simple <code>DoFn</code> class called <code>SplitWords</code>
+and emits zero or more elements to an output <code>PCollection</code>.</p><p>See more information in the
+<a href=/documentation/programming-guide/#pardo>Beam Programming Guide</a>.</p><h2 id=examples>Examples</h2><p>In the following examples, we explore how to create custom <code>DoFn</code>s and access
+the timestamp and windowing information.</p><h3 id=example-1-pardo-with-a-simple-dofn>Example 1: ParDo with a simple DoFn</h3><p>The following example defines a simple <code>DoFn</code> class called <code>SplitWords</code>
 which stores the <code>delimiter</code> as an object field.
 The <code>process</code> method is called once per element,
-and it can yield zero or more output elements.</p>
+and it can yield zero or more output elements.</p><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
+<span class=k>class</span> <span class=nc>SplitWords</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
+  <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>delimiter</span><span class=o>=</span><span class=s1>&#39;,&#39;</span><span class=p>):</span>
+    <span class=bp>self</span><span class=o>.</span><span class=n>delimiter</span> <span class=o>=</span> <span class=n>delimiter</span>
 
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>text</span><span class=p>):</span>
+    <span class=k>for</span> <span class=n>word</span> <span class=ow>in</span> <span class=n>text</span><span class=o>.</span><span class=n>split</span><span class=p>(</span><span class=bp>self</span><span class=o>.</span><span class=n>delimiter</span><span class=p>):</span>
+      <span class=k>yield</span> <span class=n>word</span>
 
-
-
-    
-        <div class=language-py>
-            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
-
-<span class="k">class</span> <span class="nc">SplitWords</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">delimiter</span><span class="o">=</span><span class="s1">&#39;,&#39;</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">delimiter</span> <span class="o">=</span> <span class="n">delimiter</span>
-
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">word</span> <span class="ow">in</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">delimiter</span><span class="p">):</span>
-      <span class="k">yield</span> <span class="n">word</span>
-
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">plants</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s1">&#39;Gardening plants&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span>
-          <span class="s1">&#39;🍓Strawberry,🥕Carrot,🍆Eggplant&#39;</span><span class="p">,</span>
-          <span class="s1">&#39;🍅Tomato,🥔Potato&#39;</span><span class="p">,</span>
-      <span class="p">])</span>
-      <span class="o">|</span> <span class="s1">&#39;Split words&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">SplitWords</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">))</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
-        </div>
-    
-
-
-
-
-
-  <p class="notebook-skip">Output <code>PCollection</code> after <code>ParDo</code>:</p>
-
-
-
-
-
-
-    <div class=notebook-skip>
-        
-            <pre><code>🍓Strawberry
+<span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
+  <span class=n>plants</span> <span class=o>=</span> <span class=p>(</span>
+      <span class=n>pipeline</span>
+      <span class=o>|</span> <span class=s1>&#39;Gardening plants&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span>
+          <span class=s1>&#39;🍓Strawberry,🥕Carrot,🍆Eggplant&#39;</span><span class=p>,</span>
+          <span class=s1>&#39;🍅Tomato,🥔Potato&#39;</span><span class=p>,</span>
+      <span class=p>])</span>
+      <span class=o>|</span> <span class=s1>&#39;Split words&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>SplitWords</span><span class=p>(</span><span class=s1>&#39;,&#39;</span><span class=p>))</span>
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip>Output <code>PCollection</code> after <code>ParDo</code>:</p><div class=notebook-skip><pre><code>🍓Strawberry
 🥕Carrot
 🍆Eggplant
 🍅Tomato
-🥔Potato</code></pre>
-        
-    </div>
-
-
-
-
-
-
-
-
-
-  
-    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
-      <td>
-        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-      </td>
-    </table>
-  
-  <table align="left" style="margin-right:1em" class=".language-py" >
-    <td>
-      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-    </td>
-  </table>
-
-
-<p><br><br><br></p>
-
-<h3 id="example-2-pardo-with-timestamp-and-window-information">Example 2: ParDo with timestamp and window information</h3>
-<p>In this example, we add new parameters to the <code>process</code> method to bind parameter values at runtime.</p>
-<ul>
-<li><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam"><code>beam.DoFn.TimestampParam</code></a>
+🥔Potato</code></pre></div><table align=left style=margin-right:1em class=".language-py .notebook-skip"><td><a class=button target=_blank href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb><img src=https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png width=32px height=32px alt="Run code now"> Run code now</a></td></table><table align=left style=margin-right:1em class=.language-py><td><a class=button target=_blank href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py><img src=https://www.tensorflow.org/images/GitHub-Mark-32px.png width=32px height=32px alt="View source code"> View source code</a></td></table><p><br><br><br></p><h3 id=example-2-pardo-with-timestamp-and-window-information>Example 2: ParDo with timestamp and window information</h3><p>In this example, we add new parameters to the <code>process</code> method to bind parameter values at runtime.</p><ul><li><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.TimestampParam><code>beam.DoFn.TimestampParam</code></a>
 binds the timestamp information as an
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.utils.timestamp.html#apache_beam.utils.timestamp.Timestamp"><code>apache_beam.utils.timestamp.Timestamp</code></a>
-object.</li>
-<li><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.WindowParam"><code>beam.DoFn.WindowParam</code></a>
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.utils.timestamp.html#apache_beam.utils.timestamp.Timestamp><code>apache_beam.utils.timestamp.Timestamp</code></a>
+object.</li><li><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.WindowParam><code>beam.DoFn.WindowParam</code></a>
 binds the window information as the appropriate
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html"><code>apache_beam.transforms.window.*Window</code></a>
-object.</li>
-</ul>
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.window.html><code>apache_beam.transforms.window.*Window</code></a>
+object.</li></ul><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
+<span class=k>class</span> <span class=nc>AnalyzeElement</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span>
+      <span class=bp>self</span><span class=p>,</span>
+      <span class=n>elem</span><span class=p>,</span>
+      <span class=n>timestamp</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>TimestampParam</span><span class=p>,</span>
+      <span class=n>window</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>WindowParam</span><span class=p>):</span>
+    <span class=k>yield</span> <span class=s1>&#39;</span><span class=se>\n</span><span class=s1>&#39;</span><span class=o>.</span><span class=n>join</span><span class=p>([</span>
+        <span class=s1>&#39;# timestamp&#39;</span><span class=p>,</span>
+        <span class=s1>&#39;type(timestamp) -&gt; &#39;</span> <span class=o>+</span> <span class=nb>repr</span><span class=p>(</span><span class=nb>type</span><span class=p>(</span><span class=n>timestamp</span><span class=p>)),</span>
+        <span class=s1>&#39;timestamp.micros -&gt; &#39;</span> <span class=o>+</span> <span class=nb>repr</span><span class=p>(</span><span class=n>timestamp</span><span class=o>.</span><span class=n>micros</span><span class=p>),</span>
+        <span class=s1>&#39;timestamp.to_rfc3339() -&gt; &#39;</span> <span class=o>+</span> <span class=nb>repr</span><span class=p>(</span><span class=n>timestamp</span><span class=o>.</span><span class=n>to_rfc3339</span><span class=p>()),</span>
+        <span class=s1>&#39;timestamp.to_utc_datetime() -&gt; &#39;</span> <span class=o>+</span> <span class=nb>repr</span><span class=p>(</span><span class=n>timestamp</span><span class=o>.</span><span class=n>to_utc_datetime</span><span class=p>()),</span>
+        <span class=s1>&#39;&#39;</span><span class=p>,</span>
+        <span class=s1>&#39;# window&#39;</span><span class=p>,</span>
+        <span class=s1>&#39;type(window) -&gt; &#39;</span> <span class=o>+</span> <span class=nb>repr</span><span class=p>(</span><span class=nb>type</span><span class=p>(</span><span class=n>window</span><span class=p>)),</span>
+        <span class=s1>&#39;window.start -&gt; {} ({})&#39;</span><span class=o>.</span><span class=n>format</span><span class=p>(</span>
+            <span class=n>window</span><span class=o>.</span><span class=n>start</span><span class=p>,</span> <span class=n>window</span><span class=o>.</span><span class=n>start</span><span class=o>.</span><span class=n>to_utc_datetime</span><span class=p>()),</span>
+        <span class=s1>&#39;window.end -&gt; {} ({})&#39;</span><span class=o>.</span><span class=n>format</span><span class=p>(</span>
+            <span class=n>window</span><span class=o>.</span><span class=n>end</span><span class=p>,</span> <span class=n>window</span><span class=o>.</span><span class=n>end</span><span class=o>.</span><span class=n>to_utc_datetime</span><span class=p>()),</span>
+        <span class=s1>&#39;window.max_timestamp() -&gt; {} ({})&#39;</span><span class=o>.</span><span class=n>format</span><span class=p>(</span>
+            <span class=n>window</span><span class=o>.</span><span class=n>max_timestamp</span><span class=p>(),</span> <span class=n>window</span><span class=o>.</span><span class=n>max_timestamp</span><span class=p>()</span><span class=o>.</span><span class=n>to_utc_datetime</span><span class=p>()),</span>
+    <span class=p>])</span>
 
-
-
-
-    
-        <div class=language-py>
-            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
-
-<span class="k">class</span> <span class="nc">AnalyzeElement</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span>
-      <span class="bp">self</span><span class="p">,</span>
-      <span class="n">elem</span><span class="p">,</span>
-      <span class="n">timestamp</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">,</span>
-      <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
-    <span class="k">yield</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
-        <span class="s1">&#39;# timestamp&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;type(timestamp) -&gt; &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)),</span>
-        <span class="s1">&#39;timestamp.micros -&gt; &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">micros</span><span class="p">),</span>
-        <span class="s1">&#39;timestamp.to_rfc3339() -&gt; &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">to_rfc3339</span><span class="p">()),</span>
-        <span class="s1">&#39;timestamp.to_utc_datetime() -&gt; &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="n">timestamp</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s1">&#39;&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;# window&#39;</span><span class="p">,</span>
-        <span class="s1">&#39;type(window) -&gt; &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">window</span><span class="p">)),</span>
-        <span class="s1">&#39;window.start -&gt; {} ({})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">start</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s1">&#39;window.end -&gt; {} ({})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="p">,</span> <span class="n">window</span><span class="o">.</span><span class="n">end</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-        <span class="s1">&#39;window.max_timestamp() -&gt; {} ({})&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
-            <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">(),</span> <span class="n">window</span><span class="o">.</span><span class="n">max_timestamp</span><span class="p">()</span><span class="o">.</span><span class="n">to_utc_datetime</span><span class="p">()),</span>
-    <span class="p">])</span>
-
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">dofn_params</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s1">&#39;Create a single test element&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;:)&#39;</span><span class="p">])</span>
-      <span class="o">|</span> <span class="s1">&#39;Add timestamp (Spring equinox 2020)&#39;</span> <span class="o">&gt;&gt;</span>
-      <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">elem</span><span class="p">:</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">TimestampedValue</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="mi">1584675660</span><span class="p">))</span>
-      <span class="o">|</span>
-      <span class="s1">&#39;Fixed 30sec windows&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">WindowInto</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">FixedWindows</span><span class="p">(</span><span class="mi">30</span><span class="p">))</span>
-      <span class="o">|</span> <span class="s1">&#39;Analyze element&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">AnalyzeElement</span><span class="p">())</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
-        </div>
-    
-
-
-
-
-
-  <p class="notebook-skip"><code>stdout</code> output:</p>
-
-
-
-
-
-
-    <div class=notebook-skip>
-        
-            <pre><code># timestamp
+<span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
+  <span class=n>dofn_params</span> <span class=o>=</span> <span class=p>(</span>
+      <span class=n>pipeline</span>
+      <span class=o>|</span> <span class=s1>&#39;Create a single test element&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span><span class=s1>&#39;:)&#39;</span><span class=p>])</span>
+      <span class=o>|</span> <span class=s1>&#39;Add timestamp (Spring equinox 2020)&#39;</span> <span class=o>&gt;&gt;</span>
+      <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>lambda</span> <span class=n>elem</span><span class=p>:</span> <span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>TimestampedValue</span><span class=p>(</span><span class=n>elem</span><span class=p>,</span> <span class=mi>1584675660</span><span class=p>))</span>
+      <span class=o>|</span>
+      <span class=s1>&#39;Fixed 30sec windows&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>WindowInto</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>FixedWindows</span><span class=p>(</span><span class=mi>30</span><span class=p>))</span>
+      <span class=o>|</span> <span class=s1>&#39;Analyze element&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>AnalyzeElement</span><span class=p>())</span>
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip><code>stdout</code> output:</p><div class=notebook-skip><pre><code># timestamp
 type(timestamp) -&gt; &lt;class &#39;apache_beam.utils.timestamp.Timestamp&#39;&gt;
 timestamp.micros -&gt; 1584675660000000
 timestamp.to_rfc3339() -&gt; &#39;2020-03-20T03:41:00Z&#39;
@@ -673,138 +82,64 @@ timestamp.to_utc_datetime() -&gt; datetime.datetime(2020, 3, 20, 3, 41)
 type(window) -&gt; &lt;class &#39;apache_beam.transforms.window.IntervalWindow&#39;&gt;
 window.start -&gt; Timestamp(1584675660) (2020-03-20 03:41:00)
 window.end -&gt; Timestamp(1584675690) (2020-03-20 03:41:30)
-window.max_timestamp() -&gt; Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)</code></pre>
-        
-    </div>
-
-
-
-
-
-
-
-
-
-  
-    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
-      <td>
-        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-      </td>
-    </table>
-  
-  <table align="left" style="margin-right:1em" class=".language-py" >
-    <td>
-      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-    </td>
-  </table>
-
-
-<p><br><br><br></p>
-
-<h3 id="example-3-pardo-with-dofn-methods">Example 3: ParDo with DoFn methods</h3>
-<p>A <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn"><code>DoFn</code></a>
+window.max_timestamp() -&gt; Timestamp(1584675689.999999) (2020-03-20 03:41:29.999999)</code></pre></div><table align=left style=margin-right:1em class=".language-py .notebook-skip"><td><a class=button target=_blank href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb><img src=https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png width=32px height=32px alt="Run code now"> Run code now</a></td></table><table align=left style=margin-right:1em class=.language-py><td><a class=button target=_blank href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py><img src=https://www.tensorflow.org/images/GitHub-Mark-32px.png width=32px height=32px alt="View source code"> View source code</a></td></table><p><br><br><br></p><h3 id=example-3-pardo-with-dofn-methods>Example 3: ParDo with DoFn methods</h3><p>A <a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn><code>DoFn</code></a>
 can be customized with a number of methods that can help create more complex behaviors.
 You can customize what a worker does when it starts and shuts down with <code>setup</code> and <code>teardown</code>.
 You can also customize what to do when a
-<a href="https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence"><em>bundle of elements</em></a>
-starts and finishes with <code>start_bundle</code> and <code>finish_bundle</code>.</p>
-<ul>
-<li>
-<p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup"><code>DoFn.setup()</code></a>:
+<a href=https://beam.apache.org/documentation/runtime/model/#bundling-and-persistence><em>bundle of elements</em></a>
+starts and finishes with <code>start_bundle</code> and <code>finish_bundle</code>.</p><ul><li><p><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.setup><code>DoFn.setup()</code></a>:
 Called <em>once per <code>DoFn</code> instance</em> when the <code>DoFn</code> instance is initialized.
 <code>setup</code> need not to be cached, so it could be called more than once per worker.
-This is a good place to connect to database instances, open network connections or other resources.</p>
-</li>
-<li>
-<p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle"><code>DoFn.start_bundle()</code></a>:
+This is a good place to connect to database instances, open network connections or other resources.</p></li><li><p><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.start_bundle><code>DoFn.start_bundle()</code></a>:
 Called <em>once per bundle of elements</em> before calling <code>process</code> on the first element of the bundle.
-This is a good place to start keeping track of the bundle elements.</p>
-</li>
-<li>
-<p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process"><strong><code>DoFn.process(element, *args, **kwargs)</code></strong></a>:
+This is a good place to start keeping track of the bundle elements.</p></li><li><p><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.process><strong><code>DoFn.process(element, *args, **kwargs)</code></strong></a>:
 Called <em>once per element</em>, can <em>yield zero or more elements</em>.
 Additional <code>*args</code> or <code>**kwargs</code> can be passed through
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo"><code>beam.ParDo()</code></a>.
-<strong>[required]</strong></p>
-</li>
-<li>
-<p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.finish_bundle"><code>DoFn.finish_bundle()</code></a>:
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.ParDo><code>beam.ParDo()</code></a>.
+<strong>[required]</strong></p></li><li><p><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.finish_bundle><code>DoFn.finish_bundle()</code></a>:
 Called <em>once per bundle of elements</em> after calling <code>process</code> after the last element of the bundle,
 can <em>yield zero or more elements</em>. This is a good place to do batch calls on a bundle of elements,
-such as running a database query.</p>
-<p>For example, you can initialize a batch in <code>start_bundle</code>,
+such as running a database query.</p><p>For example, you can initialize a batch in <code>start_bundle</code>,
 add elements to the batch in <code>process</code> instead of yielding them,
-then running a batch query on those elements on <code>finish_bundle</code>, and yielding all the results.</p>
-<p>Note that yielded elements from <code>finish_bundle</code> must be of the type
-<a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/windowed_value.py"><code>apache_beam.utils.windowed_value.WindowedValue</code></a>.
+then running a batch query on those elements on <code>finish_bundle</code>, and yielding all the results.</p><p>Note that yielded elements from <code>finish_bundle</code> must be of the type
+<a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/utils/windowed_value.py><code>apache_beam.utils.windowed_value.WindowedValue</code></a>.
 You need to provide a timestamp as a unix timestamp, which you can get from the last processed element.
-You also need to provide a window, which you can get from the last processed element like in the example below.</p>
-</li>
-<li>
-<p><a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown"><code>DoFn.teardown()</code></a>:
+You also need to provide a window, which you can get from the last processed element like in the example below.</p></li><li><p><a href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn.teardown><code>DoFn.teardown()</code></a>:
 Called <em>once (as a best effort) per <code>DoFn</code> instance</em> when the <code>DoFn</code> instance is shutting down.
-This is a good place to close database instances, close network connections or other resources.</p>
-<p>Note that <code>teardown</code> is called as a <em>best effort</em> and is <em>not guaranteed</em>.
-For example, if the worker crashes, <code>teardown</code> might not be called.</p>
-</li>
-</ul>
+This is a good place to close database instances, close network connections or other resources.</p><p>Note that <code>teardown</code> is called as a <em>best effort</em> and is <em>not guaranteed</em>.
+For example, if the worker crashes, <code>teardown</code> might not be called.</p></li></ul><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 
+<span class=k>class</span> <span class=nc>DoFnMethods</span><span class=p>(</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=p>):</span>
+  <span class=k>def</span> <span class=fm>__init__</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+    <span class=k>print</span><span class=p>(</span><span class=s1>&#39;__init__&#39;</span><span class=p>)</span>
+    <span class=bp>self</span><span class=o>.</span><span class=n>window</span> <span class=o>=</span> <span class=n>beam</span><span class=o>.</span><span class=n>window</span><span class=o>.</span><span class=n>GlobalWindow</span><span class=p>()</span>
 
+  <span class=k>def</span> <span class=nf>setup</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+    <span class=k>print</span><span class=p>(</span><span class=s1>&#39;setup&#39;</span><span class=p>)</span>
 
+  <span class=k>def</span> <span class=nf>start_bundle</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+    <span class=k>print</span><span class=p>(</span><span class=s1>&#39;start_bundle&#39;</span><span class=p>)</span>
 
+  <span class=k>def</span> <span class=nf>process</span><span class=p>(</span><span class=bp>self</span><span class=p>,</span> <span class=n>element</span><span class=p>,</span> <span class=n>window</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>DoFn</span><span class=o>.</span><span class=n>WindowParam</span><span class=p>):</span>
+    <span class=bp>self</span><span class=o>.</span><span class=n>window</span> <span class=o>=</span> <span class=n>window</span>
+    <span class=k>yield</span> <span class=s1>&#39;* process: &#39;</span> <span class=o>+</span> <span class=n>element</span>
 
-    
-        <div class=language-py>
-            <div class="highlight"><pre class="chroma"><code class="language-py" data-lang="py"><span class="kn">import</span> <span class="nn">apache_beam</span> <span class="kn">as</span> <span class="nn">beam</span>
+  <span class=k>def</span> <span class=nf>finish_bundle</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+    <span class=k>yield</span> <span class=n>beam</span><span class=o>.</span><span class=n>utils</span><span class=o>.</span><span class=n>windowed_value</span><span class=o>.</span><span class=n>WindowedValue</span><span class=p>(</span>
+        <span class=n>value</span><span class=o>=</span><span class=s1>&#39;* finish_bundle: 🌱🌳🌍&#39;</span><span class=p>,</span>
+        <span class=n>timestamp</span><span class=o>=</span><span class=mi>0</span><span class=p>,</span>
+        <span class=n>windows</span><span class=o>=</span><span class=p>[</span><span class=bp>self</span><span class=o>.</span><span class=n>window</span><span class=p>],</span>
+    <span class=p>)</span>
 
-<span class="k">class</span> <span class="nc">DoFnMethods</span><span class="p">(</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="p">):</span>
-  <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;__init__&#39;</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">beam</span><span class="o">.</span><span class="n">window</span><span class="o">.</span><span class="n">GlobalWindow</span><span class="p">()</span>
+  <span class=k>def</span> <span class=nf>teardown</span><span class=p>(</span><span class=bp>self</span><span class=p>):</span>
+    <span class=k>print</span><span class=p>(</span><span class=s1>&#39;teardown&#39;</span><span class=p>)</span>
 
-  <span class="k">def</span> <span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;setup&#39;</span><span class="p">)</span>
-
-  <span class="k">def</span> <span class="nf">start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;start_bundle&#39;</span><span class="p">)</span>
-
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">element</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="n">beam</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">):</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">window</span> <span class="o">=</span> <span class="n">window</span>
-    <span class="k">yield</span> <span class="s1">&#39;* process: &#39;</span> <span class="o">+</span> <span class="n">element</span>
-
-  <span class="k">def</span> <span class="nf">finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">yield</span> <span class="n">beam</span><span class="o">.</span><span class="n">utils</span><span class="o">.</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">WindowedValue</span><span class="p">(</span>
-        <span class="n">value</span><span class="o">=</span><span class="s1">&#39;* finish_bundle: 🌱🌳🌍&#39;</span><span class="p">,</span>
-        <span class="n">timestamp</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-        <span class="n">windows</span><span class="o">=</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">window</span><span class="p">],</span>
-    <span class="p">)</span>
-
-  <span class="k">def</span> <span class="nf">teardown</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">print</span><span class="p">(</span><span class="s1">&#39;teardown&#39;</span><span class="p">)</span>
-
-<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">()</span> <span class="k">as</span> <span class="n">pipeline</span><span class="p">:</span>
-  <span class="n">results</span> <span class="o">=</span> <span class="p">(</span>
-      <span class="n">pipeline</span>
-      <span class="o">|</span> <span class="s1">&#39;Create inputs&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Create</span><span class="p">([</span><span class="s1">&#39;🍓&#39;</span><span class="p">,</span> <span class="s1">&#39;🥕&#39;</span><span class="p">,</span> <span class="s1">&#39;🍆&#39;</span><span class="p">,</span> <span class="s1">&#39;🍅&#39;</span><span class="p">,</span> <span class="s1">&#39;🥔&#39;</span><span class="p">])</span>
-      <span class="o">|</span> <span class="s1">&#39;DoFn methods&#39;</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">ParDo</span><span class="p">(</span><span class="n">DoFnMethods</span><span class="p">())</span>
-      <span class="o">|</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="k">print</span><span class="p">))</span></code></pre></div>
-        </div>
-    
-
-
-
-
-
-  <p class="notebook-skip"><code>stdout</code> output:</p>
-
-
-
-
-
-
-    <div class=notebook-skip>
-        
-            <pre><code>__init__
+<span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span> <span class=k>as</span> <span class=n>pipeline</span><span class=p>:</span>
+  <span class=n>results</span> <span class=o>=</span> <span class=p>(</span>
+      <span class=n>pipeline</span>
+      <span class=o>|</span> <span class=s1>&#39;Create inputs&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Create</span><span class=p>([</span><span class=s1>&#39;🍓&#39;</span><span class=p>,</span> <span class=s1>&#39;🥕&#39;</span><span class=p>,</span> <span class=s1>&#39;🍆&#39;</span><span class=p>,</span> <span class=s1>&#39;🍅&#39;</span><span class=p>,</span> <span class=s1>&#39;🥔&#39;</span><span class=p>])</span>
+      <span class=o>|</span> <span class=s1>&#39;DoFn methods&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>ParDo</span><span class=p>(</span><span class=n>DoFnMethods</span><span class=p>())</span>
+      <span class=o>|</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=k>print</span><span class=p>))</span></code></pre></div></div><p class=notebook-skip><code>stdout</code> output:</p><div class=notebook-skip><pre><code>__init__
 setup
 start_bundle
 * process: 🍓
@@ -813,128 +148,12 @@ start_bundle
 * process: 🍅
 * process: 🥔
 * finish_bundle: 🌱🌳🌍
-teardown</code></pre>
-        
-    </div>
-
-
-
-
-
-
-
-
-
-  
-    <table align="left" style="margin-right:1em" class=".language-py .notebook-skip" >
-      <td>
-        <a class="button" target="_blank" href="https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb"><img src="https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png" width="32px" height="32px" alt="Run code now" /> Run code now</a>
-      </td>
-    </table>
-  
-  <table align="left" style="margin-right:1em" class=".language-py" >
-    <td>
-      <a class="button" target="_blank" href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" width="32px" height="32px" alt="View source code" /> View source code</a>
-    </td>
-  </table>
-
-
-<p><br><br><br></p>
-
-<blockquote>
-<p><em>Known issues:</em></p>
-<ul>
-<li><a href="https://issues.apache.org/jira/browse/BEAM-7885">[BEAM-7885]</a>
-<code>DoFn.setup()</code> doesn&rsquo;t run for streaming jobs running in the <code>DirectRunner</code>.</li>
-<li><a href="https://issues.apache.org/jira/browse/BEAM-7340">[BEAM-7340]</a>
-<code>DoFn.teardown()</code> metrics are lost.</li>
-</ul>
-</blockquote>
-<h2 id="related-transforms">Related transforms</h2>
-<ul>
-<li><a href="/documentation/transforms/python/elementwise/map">Map</a> behaves the same, but produces exactly one output for each input.</li>
-<li><a href="/documentation/transforms/python/elementwise/flatmap">FlatMap</a> behaves the same as <code>Map</code>,
-but for each input it may produce zero or more outputs.</li>
-<li><a href="/documentation/transforms/python/elementwise/filter">Filter</a> is useful if the function is just
-deciding whether to output an element or not.</li>
-</ul>
-
-
-<table align="left" style="margin-right:1em">
-  <td>
-    <a
-      class="button"
-      target="_blank"
-      href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Pardo"
-      ><img
-        src="https://beam.apache.org/images/logos/sdks/python.png"
-        width="32px"
-        height="32px"
-        alt="Pydoc"
-      />
-      Pydoc</a
-    >
-  </td>
-</table>
-
-<p><br><br><br></p>
-
-
-    </div>
-  </div>
-
-
-<footer class="footer">
-  <div class="footer__contained">
-    <div class="footer__cols">
-      <div class="footer__cols__col">
-        <div class="footer__cols__col__logo">
-          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
-        </div>
-        <div class="footer__cols__col__logo">
-          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
-        </div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
-        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
-                                                                                                                                width="14" height="14"
-                                                                                                                                alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
-       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
-        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
-      </div>
-    </div>
-  </div>
-  <div class="footer__bottom">
-    &copy;
-    <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href=/privacy_policy>Privacy Policy</a>
-    | <a href=/feed.xml>RSS Feed</a>
-    <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
-  </div>
-</footer>
-
-</body>
-</html>
+teardown</code></pre></div><table align=left style=margin-right:1em class=".language-py .notebook-skip"><td><a class=button target=_blank href=https://colab.research.google.com/github/apache/beam/blob/master/examples/notebooks/documentation/transforms/python/elementwise/pardo-py.ipynb><img src=https://github.com/googlecolab/open_in_colab/raw/master/images/icon32.png width=32px height=32px alt="Run code now"> Run code now</a></td></table><table align=left style=margin-right:1em class=.language-py><td><a class=button target=_blank href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/transforms/elementwise/pardo.py><img src=https://www.tensorflow.org/images/GitHub-Mark-32px.png width=32px height=32px alt="View source code"> View source code</a></td></table><p><br><br><br></p><blockquote><p><em>Known issues:</em></p><ul><li><a href=https://issues.apache.org/jira/browse/BEAM-7885>[BEAM-7885]</a>
+<code>DoFn.setup()</code> doesn&rsquo;t run for streaming jobs running in the <code>DirectRunner</code>.</li><li><a href=https://issues.apache.org/jira/browse/BEAM-7340>[BEAM-7340]</a>
+<code>DoFn.teardown()</code> metrics are lost.</li></ul></blockquote><h2 id=related-transforms>Related transforms</h2><ul><li><a href=/documentation/transforms/python/elementwise/map>Map</a> behaves the same, but produces exactly one output for each input.</li><li><a href=/documentation/transforms/python/elementwise/flatmap>FlatMap</a> behaves the same as <code>Map</code>,
+but for each input it may produce zero or more outputs.</li><li><a href=/documentation/transforms/python/elementwise/filter>Filter</a> is useful if the function is just
+deciding whether to output an element or not.</li></ul><table align=left style=margin-right:1em><td><a class=button target=_blank href=https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.core.html#apache_beam.transforms.core.Pardo><img src=https://beam.apache.org/images/logos/sdks/python.png width=32px height=32px alt=Pydoc>
+Pydoc</a></td></table><p><br><br><br></p></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>

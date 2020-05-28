@@ -1,58 +1,27 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Apache Beam – website</title>
-    <link>/categories/website/</link>
-    <description>Recent content in website on Apache Beam</description>
-    <generator>Hugo -- gohugo.io</generator>
-    <lastBuildDate>Mon, 22 Feb 2016 10:21:48 -0800</lastBuildDate>
-    
-	  <atom:link href="/categories/website/index.xml" rel="self" type="application/rss+xml" />
-    
-    
-      
-        
-      
-    
-    
-    <item>
-      <title>Blog: Apache Beam has a logo!</title>
-      <link>/blog/beam-has-a-logo/</link>
-      <pubDate>Mon, 22 Feb 2016 10:21:48 -0800</pubDate>
-      
-      <guid>/blog/beam-has-a-logo/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – website</title><link>/categories/website/</link><description>Recent content in website on Apache Beam</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Mon, 22 Feb 2016 10:21:48 -0800</lastBuildDate><atom:link href="/categories/website/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam has a logo!</title><link>/blog/beam-has-a-logo/</link><pubDate>Mon, 22 Feb 2016 10:21:48 -0800</pubDate><guid>/blog/beam-has-a-logo/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;p&gt;One of the major benefits of Apache Beam is the fact that it unifies both
+-->
+&lt;p>One of the major benefits of Apache Beam is the fact that it unifies both
 both batch and stream processing into one powerful model. In fact, this unification
-is so important, the name Beam itself comes from the union of &lt;strong&gt;B&lt;/strong&gt;atch + str&lt;strong&gt;EAM&lt;/strong&gt; = Beam&lt;/p&gt;
-&lt;p&gt;When the project started, we wanted a logo which was both appealing and visually
-represented this unification.&lt;/p&gt;
-&lt;p&gt;Thanks to the &lt;strong&gt;amazing&lt;/strong&gt; work of Stephanie Smythies, the Apache Beam project
-now has a logo.&lt;/p&gt;
-&lt;p&gt;&lt;em&gt;drum roll&lt;/em&gt; - &lt;strong&gt;Presenting, the Apache Beam Logo!&lt;/strong&gt;&lt;/p&gt;
-&lt;img src=&#34;/images/beam_logo_s.png&#34; alt=&#34;Apache Beam Logo&#34;&gt;
-&lt;p&gt;We are excited about this logo because it is &lt;strong&gt;simple&lt;/strong&gt;, &lt;strong&gt;bright&lt;/strong&gt;, and shows the
+is so important, the name Beam itself comes from the union of &lt;strong>B&lt;/strong>atch + str&lt;strong>EAM&lt;/strong> = Beam&lt;/p>
+&lt;p>When the project started, we wanted a logo which was both appealing and visually
+represented this unification.&lt;/p>
+&lt;p>Thanks to the &lt;strong>amazing&lt;/strong> work of Stephanie Smythies, the Apache Beam project
+now has a logo.&lt;/p>
+&lt;p>&lt;em>drum roll&lt;/em> - &lt;strong>Presenting, the Apache Beam Logo!&lt;/strong>&lt;/p>
+&lt;img src="/images/beam_logo_s.png" alt="Apache Beam Logo">
+&lt;p>We are excited about this logo because it is &lt;strong>simple&lt;/strong>, &lt;strong>bright&lt;/strong>, and shows the
 unification of bath and streaming, as beams of light, within the &amp;lsquo;B&amp;rsquo;. We will base
 our future website and documentation design around this logo and its coloring. We
 will also make various permutations and resolutions of this logo available in the
-coming weeks. For any questions or comments, send an email to the &lt;code&gt;dev@&lt;/code&gt; email list
-for Apache Beam.&lt;/p&gt;
-      </description>
-    </item>
-    
-  </channel>
-</rss>
+coming weeks. For any questions or comments, send an email to the &lt;code>dev@&lt;/code> email list
+for Apache Beam.&lt;/p></description></item></channel></rss>

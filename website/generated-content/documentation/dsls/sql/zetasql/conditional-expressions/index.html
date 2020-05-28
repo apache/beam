@@ -1,286 +1,12 @@
-
- 
- <!DOCTYPE html>
- <html lang="en" class="no-js">
- <head>
-   
- 
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>Beam ZetaSQL conditional expressions</title>
-<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
- 
-<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
- 
-
-
-    
-    <link rel="preload" href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" as="style">
-    <link href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" rel="stylesheet" integrity="">
-
-
-<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-
-<style>
-  .body__contained img { max-width: 100% }
-</style>
-
-<script src="/js/bootstrap.min.js"></script>
-<script src="/js/language-switch.js"></script>
-<script src="/js/fix-menu.js"></script>
-<script src="/js/section-nav.js"></script>
-<script src="/js/page-nav.js"></script>
-
-<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
-<link rel="canonical" href="/documentation/dsls/sql/zetasql/conditional-expressions/" data-proofer-ignore>
-<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
- 
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-  ga('create', 'UA-73650088-1', 'auto');
-  ga('send', 'pageview');
-</script>
- </head>
- <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-   
-
-<nav class="header navbar navbar-fixed-top">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-
-      <a href=/ class="navbar-brand" >
-        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
-      </a>
-    </div>
-
-    <div class="navbar-mask closed"></div>
-
-    <div id="navbar" class="navbar-container closed">
-      <ul class="nav navbar-nav">
-        <li>
-          <a href=/get-started/beam-overview/>Get Started</a>
-        </li>
-        <li>
-          <a href=/documentation/>Documentation</a>
-        </li>
-        <li>
-          <a href=/documentation/sdks/java/>Languages</a>
-        </li>
-        <li>
-          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
-        </li>
-        <li>
-          <a href=/roadmap/>Roadmap</a>
-        </li>
-        <li>
-          <a href=/contribute/>Contribute</a>
-        </li>
-        <li>
-          <a href=/community/contact-us/>Community</a>
-        </li>
-        <li><a href=/blog/>Blog</a></li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li>
-          <div style="width: 300px;">
-            <script>
-              (function() {
-                var cx = '012923275103528129024:4emlchv9wzi';
-                var gcse = document.createElement('script');
-                gcse.type = 'text/javascript';
-                gcse.async = true;
-                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(gcse, s);
-              })();
-            </script>
-            <gcse:search></gcse:search>
-          </div>
-        </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
-            <li><a href="http://www.apache.org/licenses/">License</a></li>
-            <li><a href="http://www.apache.org/security/">Security</a></li>
-            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
-            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
-            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
-          </ul>
-        </li>
-        <li>
-          
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/dsls/sql/zetasql/conditional-expressions.md" data-proofer-ignore>
-            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
-          </a>
-        </li>
-      </ul>
-    </div>
-</nav>
-
-   <div class="clearfix container-main-content">
-     <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-       <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-       <nav>
-         <ul class="section-nav-list" data-section-nav>
-           
-
-<li><span class="section-nav-list-main-title">Languages</span></li>
-
-<li>
-  <span class="section-nav-list-title">Java</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/java/">Java SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/javadoc/2.21.0/" target="_blank">Java SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/java-dependencies/">Java SDK dependencies</a></li>
-    <li><a href="/documentation/sdks/java-extensions/">Java SDK extensions</a></li>
-    <li><a href="/documentation/sdks/java-thirdparty/">Java 3rd party extensions</a></li>
-    <li><a href="/documentation/sdks/java/testing/nexmark/">Nexmark benchmark suite</a></li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">Python</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/python/">Python SDK overview</a></li>
-    <li><a href="https://beam.apache.org/releases/pydoc/2.21.0/" target="_blank">Python SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-    <li><a href="/documentation/sdks/python-dependencies/">Python SDK dependencies</a></li>
-    <li><a href="/documentation/sdks/python-streaming/">Python streaming pipelines</a></li>
-    <li><a href="/documentation/sdks/python-type-safety/">Ensuring Python type safety</a></li>
-    <li><a href="/documentation/sdks/python-pipeline-dependencies/">Managing pipeline dependencies</a></li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">Go</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/sdks/go/">Go SDK overview</a></li>
-    <li><a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam" target="_blank">Go SDK API reference <img src="/images/external-link-icon.png"
-                                                                                                                                   width="14" height="14"
-                                                                                                                                   alt="External link."></a>
-    </li>
-  </ul>
-</li>
-
-<li>
-  <span class="section-nav-list-title">SQL</span>
-  <ul class="section-nav-list">
-    <li><a href="/documentation/dsls/sql/overview/">Overview</a></li>
-    <li><a href="/documentation/dsls/sql/walkthrough/">Walkthrough</a></li>
-    <li><a href="/documentation/dsls/sql/shell/">Shell</a></li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Apache Calcite dialect</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/calcite/overview/">Calcite support overview</a></li>  
-        <li><a href="/documentation/dsls/sql/calcite/query-syntax/">Query syntax</a></li>
-        <li><a href="/documentation/dsls/sql/calcite/lexical/">Lexical structure</a></li>        
-        <li><a href="/documentation/dsls/sql/calcite/data-types/">Data types</a></li>
-        <li><a href="/documentation/dsls/sql/calcite/scalar-functions/">Scalar functions</a></li>
-        <li><a href="/documentation/dsls/sql/calcite/aggregate-functions/">Aggregate functions</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">ZetaSQL dialect</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/zetasql/overview/">ZetaSQL support overview</a></li>          
-        <li><a href="/documentation/dsls/sql/zetasql/syntax/">Function call rules</a></li>
-        <li><a href="/documentation/dsls/sql/zetasql/conversion-rules/">Conversion rules</a></li>
-        <li><a href="/documentation/dsls/sql/zetasql/query-syntax/">Query syntax</a></li>
-        <li><a href="/documentation/dsls/sql/zetasql/lexical/">Lexical structure</a></li>        
-        <li><a href="/documentation/dsls/sql/zetasql/data-types/">Data types</a></li>             
-        <li><a href="/documentation/dsls/sql/zetasql/operators/">Operators</a></li>
-
-        <li class="section-nav-item--collapsible">
-          <span class="section-nav-list-title">Scalar functions</span>
-          <ul class="section-nav-list">
-            <li><a href="/documentation/dsls/sql/zetasql/string-functions/">String functions</a></li>
-            <li><a href="/documentation/dsls/sql/zetasql/math-functions/">Mathematical functions</a></li>
-            <li><a href="/documentation/dsls/sql/zetasql/conditional-expressions/">Conditional expressions</a></li>
-          </ul>
-        </li>
-        <li><a href="/documentation/dsls/sql/zetasql/aggregate-functions/">Aggregate functions</a></li>
-      </ul>
-    </li>
-    <li class="section-nav-item--collapsible">
-      <span class="section-nav-list-title">Beam SQL extensions</span>
-
-      <ul class="section-nav-list">
-        <li><a href="/documentation/dsls/sql/extensions/create-external-table/">CREATE EXTERNAL TABLE</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/windowing-and-triggering/">Windowing & triggering</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/joins/">Joins</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/user-defined-functions/">User-defined functions</a></li>
-        <li><a href="/documentation/dsls/sql/extensions/set/">SET pipeline options</a></li>
-      </ul>
-    </li>
-  </ul>
-</li>
-
-         </ul>
-       </nav>
-     </div>
- 
-     <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-       <nav id="TableOfContents"></nav>
-     </nav>
- 
-     <div class="body__contained body__section-nav">
-       <!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<h1 id="beam-zetasql-conditional-expressions">Beam ZetaSQL conditional expressions</h1>
-<p>This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.</p>
-
-
-
-  <div class="table-wrapper"><table>
-<thead>
-<tr>
-<th>Syntax</th>
-<th>Input Data Types</th>
-<th>Result Data Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-  <td><pre>CASE expr
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Beam ZetaSQL conditional expressions</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/documentation/dsls/sql/zetasql/conditional-expressions/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body data-spy=scroll data-target=.page-nav data-offset=0><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/documentation/dsls/sql/zetasql/conditional-expressions.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Languages</span></li><li><span class=section-nav-list-title>Java</span><ul class=section-nav-list><li><a href=/documentation/sdks/java/>Java SDK overview</a></li><li><a href=https://beam.apache.org/releases/javadoc/2.21.0/ target=_blank>Java SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li><li><a href=/documentation/sdks/java-dependencies/>Java SDK dependencies</a></li><li><a href=/documentation/sdks/java-extensions/>Java SDK extensions</a></li><li><a href=/documentation/sdks/java-thirdparty/>Java 3rd party extensions</a></li><li><a href=/documentation/sdks/java/testing/nexmark/>Nexmark benchmark suite</a></li></ul></li><li><span class=section-nav-list-title>Python</span><ul class=section-nav-list><li><a href=/documentation/sdks/python/>Python SDK overview</a></li><li><a href=https://beam.apache.org/releases/pydoc/2.21.0/ target=_blank>Python SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li><li><a href=/documentation/sdks/python-dependencies/>Python SDK dependencies</a></li><li><a href=/documentation/sdks/python-streaming/>Python streaming pipelines</a></li><li><a href=/documentation/sdks/python-type-safety/>Ensuring Python type safety</a></li><li><a href=/documentation/sdks/python-pipeline-dependencies/>Managing pipeline dependencies</a></li></ul></li><li><span class=section-nav-list-title>Go</span><ul class=section-nav-list><li><a href=/documentation/sdks/go/>Go SDK overview</a></li><li><a href=https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam target=_blank>Go SDK API reference <img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></li></ul></li><li><span class=section-nav-list-title>SQL</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/overview/>Overview</a></li><li><a href=/documentation/dsls/sql/walkthrough/>Walkthrough</a></li><li><a href=/documentation/dsls/sql/shell/>Shell</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Apache Calcite dialect</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/calcite/overview/>Calcite support overview</a></li><li><a href=/documentation/dsls/sql/calcite/query-syntax/>Query syntax</a></li><li><a href=/documentation/dsls/sql/calcite/lexical/>Lexical structure</a></li><li><a href=/documentation/dsls/sql/calcite/data-types/>Data types</a></li><li><a href=/documentation/dsls/sql/calcite/scalar-functions/>Scalar functions</a></li><li><a href=/documentation/dsls/sql/calcite/aggregate-functions/>Aggregate functions</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>ZetaSQL dialect</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/zetasql/overview/>ZetaSQL support overview</a></li><li><a href=/documentation/dsls/sql/zetasql/syntax/>Function call rules</a></li><li><a href=/documentation/dsls/sql/zetasql/conversion-rules/>Conversion rules</a></li><li><a href=/documentation/dsls/sql/zetasql/query-syntax/>Query syntax</a></li><li><a href=/documentation/dsls/sql/zetasql/lexical/>Lexical structure</a></li><li><a href=/documentation/dsls/sql/zetasql/data-types/>Data types</a></li><li><a href=/documentation/dsls/sql/zetasql/operators/>Operators</a></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Scalar functions</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/zetasql/string-functions/>String functions</a></li><li><a href=/documentation/dsls/sql/zetasql/math-functions/>Mathematical functions</a></li><li><a href=/documentation/dsls/sql/zetasql/conditional-expressions/>Conditional expressions</a></li></ul></li><li><a href=/documentation/dsls/sql/zetasql/aggregate-functions/>Aggregate functions</a></li></ul></li><li class=section-nav-item--collapsible><span class=section-nav-list-title>Beam SQL extensions</span><ul class=section-nav-list><li><a href=/documentation/dsls/sql/extensions/create-external-table/>CREATE EXTERNAL TABLE</a></li><li><a href=/documentation/dsls/sql/extensions/windowing-and-triggering/>Windowing & triggering</a></li><li><a href=/documentation/dsls/sql/extensions/joins/>Joins</a></li><li><a href=/documentation/dsls/sql/extensions/user-defined-functions/>User-defined functions</a></li><li><a href=/documentation/dsls/sql/extensions/set/>SET pipeline options</a></li></ul></li></ul></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents></nav></nav><div class="body__contained body__section-nav"><h1 id=beam-zetasql-conditional-expressions>Beam ZetaSQL conditional expressions</h1><p>This page documents the ZetaSQL scalar functions supported by Beam ZetaSQL.</p><div class=table-wrapper><table><thead><tr><th>Syntax</th><th>Input Data Types</th><th>Result Data Type</th><th>Description</th></tr></thead><tbody><tr><td><pre>CASE expr
   WHEN value THEN result
   [WHEN ...]
   [ELSE else_result]
-  END</pre></td>
-<td><code>expr</code> and <code>value</code>: Any type</td>
-<td><code>result</code> and <code>else_result</code>: Supertype of input
-types.</td>
-<td>Compares <code>expr</code> to value of each successive <code>WHEN</code>
+  END</pre></td><td><code>expr</code> and <code>value</code>: Any type</td><td><code>result</code> and <code>else_result</code>: Supertype of input
+types.</td><td>Compares <code>expr</code> to value of each successive <code>WHEN</code>
 clause and returns the first result where this comparison returns true. The
 remaining <code>WHEN</code> clauses and <code>else_result</code> are not
 evaluated. If the
@@ -290,124 +16,31 @@ all <code>WHEN</code> clauses, returns
 <code>expr</code> and <code>value</code> expressions
 must be implicitly coercible to a common supertype; equality comparisons are
 done on coerced values. <code>result</code> and <code>else_result</code>
-expressions must be coercible to a common supertype.</td>
-</tr>
-<tr>
-  <td><pre>CASE
+expressions must be coercible to a common supertype.</td></tr><tr><td><pre>CASE
   WHEN cond1 THEN result
   [WHEN cond2...]
   [ELSE else_result]
-  END</pre></td>
-<td><code>cond</code>: BOOL</td>
-<td><code>result</code> and <code>else_result</code>: Supertype of input
-types.</td>
-<td>Evaluates condition <code>cond</code> of each successive <code>WHEN</code>
+  END</pre></td><td><code>cond</code>: BOOL</td><td><code>result</code> and <code>else_result</code>: Supertype of input
+types.</td><td>Evaluates condition <code>cond</code> of each successive <code>WHEN</code>
 clause and returns the first result where the condition is true; any remaining
 <code>WHEN</code> clauses and <code>else_result</code> are not evaluated. If all
 conditions are false or <code>NULL</code>, returns
 <code>else_result</code> if present; if not present, returns
 <code>NULL</code>. <code>result</code> and <code>else_result</code>
-expressions must be implicitly coercible to a common supertype. </td>
-</tr>
-<tr>
-<td><a id="coalesce"></a>COALESCE(expr1, ..., exprN)</td>
-<td>Any type</td>
-<td>Supertype of input types</td>
-<td>Returns the value of the first non-null expression. The remaining
+expressions must be implicitly coercible to a common supertype.</td></tr><tr><td><a id=coalesce></a>COALESCE(expr1, ..., exprN)</td><td>Any type</td><td>Supertype of input types</td><td>Returns the value of the first non-null expression. The remaining
 expressions are not evaluated. All input expressions must be implicitly
-coercible to a common supertype.</td>
-</tr>
-<tr>
-<td><a id="if"></a>IF(cond, true_result, else_result)</td>
-<td><code>cond</code>: BOOL</td>
-<td><code>true_result</code> and <code>else_result</code>: Any type.</td>
-<td>If <code>cond</code> is true, returns <code>true_result</code>, else returns
+coercible to a common supertype.</td></tr><tr><td><a id=if></a>IF(cond, true_result, else_result)</td><td><code>cond</code>: BOOL</td><td><code>true_result</code> and <code>else_result</code>: Any type.</td><td>If <code>cond</code> is true, returns <code>true_result</code>, else returns
 <code>else_result</code>. <code>else_result</code> is not evaluated if
 <code>cond</code> is true. <code>true_result</code> is not evaluated if
 <code>cond</code> is false or <code>NULL</code>. <code>true_result</code> and
-<code>else_result</code> must be coercible to a common supertype.</td>
-</tr>
-<tr>
-<td><a id="ifnull"></a>IFNULL(expr, null_result)</td>
-<td>Any type</td>
-<td>Any type or supertype of input types.</td>
-<td>If <code>expr</code> is <code>NULL</code>, return <code>null_result</code>. Otherwise,
+<code>else_result</code> must be coercible to a common supertype.</td></tr><tr><td><a id=ifnull></a>IFNULL(expr, null_result)</td><td>Any type</td><td>Any type or supertype of input types.</td><td>If <code>expr</code> is <code>NULL</code>, return <code>null_result</code>. Otherwise,
 return <code>expr</code>. If <code>expr</code> is not <code>NULL</code>,
 <code>null_result</code> is not evaluated. <code>expr</code> and
 <code>null_result</code> must be implicitly coercible to a common
-supertype. Synonym for <code>COALESCE(expr, null_result)</code>.</td>
-</tr>
-<tr>
-<td><a id="nullif"></a>NULLIF(expression, expression_to_match)</td>
-<td>Any type T or subtype of T</td>
-<td>Any type T or subtype of T</td>
-<td>Returns <code>NULL</code> if <code>expression = expression_to_match</code>
+supertype. Synonym for <code>COALESCE(expr, null_result)</code>.</td></tr><tr><td><a id=nullif></a>NULLIF(expression, expression_to_match)</td><td>Any type T or subtype of T</td><td>Any type T or subtype of T</td><td>Returns <code>NULL</code> if <code>expression = expression_to_match</code>
 is true, otherwise returns <code>expression</code>. <code>expression</code> and
 <code>expression_to_match</code> must be implicitly coercible to a common
-supertype; equality comparison is done on coerced values.</td>
-</tr>
-</tbody>
-</table>
-</div>
-
-
-
-     </div>
-   </div>
- 
-
-<footer class="footer">
-  <div class="footer__contained">
-    <div class="footer__cols">
-      <div class="footer__cols__col">
-        <div class="footer__cols__col__logo">
-          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
-        </div>
-        <div class="footer__cols__col__logo">
-          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
-        </div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
-        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
-                                                                                                                                width="14" height="14"
-                                                                                                                                alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
-       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
-        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
-      </div>
-    </div>
-  </div>
-  <div class="footer__bottom">
-    &copy;
-    <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href=/privacy_policy>Privacy Policy</a>
-    | <a href=/feed.xml>RSS Feed</a>
-    <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
-  </div>
-</footer>
-
- </body>
- </html>
- 
+supertype; equality comparison is done on coerced values.</td></tr></tbody></table></div></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>

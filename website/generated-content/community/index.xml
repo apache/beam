@@ -1,777 +1,554 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
-  <channel>
-    <title>Apache Beam – Communities</title>
-    <link>/community/</link>
-    <description>Recent content in Communities on Apache Beam</description>
-    <generator>Hugo -- gohugo.io</generator>
-    
-	  <atom:link href="/community/index.xml" rel="self" type="application/rss+xml" />
-    
-    
-      
-        
-      
-    
-    
-    <item>
-      <title>Community: Beam Logos</title>
-      <link>/community/logos/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/logos/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Communities</title><link>/community/</link><description>Recent content in Communities on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/community/index.xml" rel="self" type="application/rss+xml"/><item><title>Community: Beam Logos</title><link>/community/logos/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/logos/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;apache-beam-logos&#34;&gt;Apache Beam Logos&lt;/h1&gt;
-&lt;p&gt;This page contains project material for the Apache Beam project.&lt;/p&gt;
-&lt;h2 id=&#34;project-logos&#34;&gt;Project logos&lt;/h2&gt;
-&lt;p&gt;You can download &lt;a href=&#34;/downloads/logos.zip&#34;&gt;this archive&lt;/a&gt;
-containing all of the logos or download the logos individually.&lt;/p&gt;
-&lt;h3 id=&#34;scalable-vector-graphics-svg&#34;&gt;Scalable Vector Graphics (SVG)&lt;/h3&gt;
-&lt;p&gt;These &lt;a href=&#34;https://en.wikipedia.org/wiki/Scalable_Vector_Graphics&#34;&gt;SVG files&lt;/a&gt; can
+-->
+&lt;h1 id="apache-beam-logos">Apache Beam Logos&lt;/h1>
+&lt;p>This page contains project material for the Apache Beam project.&lt;/p>
+&lt;h2 id="project-logos">Project logos&lt;/h2>
+&lt;p>You can download &lt;a href="/downloads/logos.zip">this archive&lt;/a>
+containing all of the logos or download the logos individually.&lt;/p>
+&lt;h3 id="scalable-vector-graphics-svg">Scalable Vector Graphics (SVG)&lt;/h3>
+&lt;p>These &lt;a href="https://en.wikipedia.org/wiki/Scalable_Vector_Graphics">SVG files&lt;/a> can
 be resized easily and are suitable for print or web use. Click on the logo to
-download it.&lt;/p&gt;
-
-
-
-    &lt;h4 id=&#34;full-color&#34;&gt;Full color&lt;/h4&gt;
-    &lt;div class=&#34;row&#34;&gt;
-        &lt;div class=&#34;col-md-2&#34;&gt;&lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless.svg&#34; alt=&#34;beam-logo-full-color-nameless.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom.svg&#34; alt=&#34;beam-logo-full-color-name-bottom.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right.svg&#34; alt=&#34;beam-logo-full-color-name-right.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-    &lt;/div&gt;
-
-    &lt;h4 id=&#34;three-color&#34;&gt;Three color&lt;/h4&gt;
-    &lt;div class=&#34;row&#34;&gt;
-        &lt;div class=&#34;col-md-2&#34;&gt;&lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless.svg&#34; alt=&#34;beam-logo-3-color-nameless.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom.svg&#34; alt=&#34;beam-logo-3-color-name-bottom.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right.svg&#34; alt=&#34;beam-logo-3-color-name-right.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-    &lt;/div&gt;
-
-    &lt;h4 id=&#34;black-and-white&#34;&gt;Black and white&lt;/h4&gt;
-    &lt;div class=&#34;row&#34;&gt;
-        &lt;div class=&#34;col-md-2&#34;&gt;&lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless.svg&#34; alt=&#34;beam-logo-bw-nameless.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom.svg&#34; alt=&#34;beam-logo-bw-name-bottom.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;a href=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right.svg&#34; role=&#34;button&#34;&gt;
-                        &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right.svg&#34; alt=&#34;beam-logo-bw-name-right.svg&#34;&gt;
-                    &lt;/a&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-            &lt;/div&gt;
-        
-    &lt;/div&gt;
-
-
-&lt;h3 id=&#34;portable-network-graphics-png&#34;&gt;Portable Network Graphics (PNG)&lt;/h3&gt;
-&lt;p&gt;These &lt;a href=&#34;https://en.wikipedia.org/wiki/Portable_Network_Graphics&#34;&gt;PNG files&lt;/a&gt; are
-available in a number of fixed sizes and are optimized for web use.&lt;/p&gt;
-
-
-
-    &lt;h4 id=&#34;full-color&#34;&gt;Full color&lt;/h4&gt;
-    &lt;div class=&#34;row&#34;&gt;
-        &lt;div class=&#34;col-md-2&#34;&gt;&lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless.svg&#34; alt=&#34;beam-logo-full-color-nameless&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/nameless/beam-logo-full-color-nameless-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom.svg&#34; alt=&#34;beam-logo-full-color-name-bottom&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right.svg&#34; alt=&#34;beam-logo-full-color-name-right&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/full-color/name-right/beam-logo-full-color-name-right-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-    &lt;/div&gt;
-
-    &lt;h4 id=&#34;three-color&#34;&gt;Three color&lt;/h4&gt;
-    &lt;div class=&#34;row&#34;&gt;
-        &lt;div class=&#34;col-md-2&#34;&gt;&lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless.svg&#34; alt=&#34;beam-logo-3-color-nameless&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/nameless/beam-logo-3-color-nameless-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom.svg&#34; alt=&#34;beam-logo-3-color-name-bottom&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right.svg&#34; alt=&#34;beam-logo-3-color-name-right&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/3-color/name-right/beam-logo-3-color-name-right-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-    &lt;/div&gt;
-
-    &lt;h4 id=&#34;black-and-white&#34;&gt;Black and white&lt;/h4&gt;
-    &lt;div class=&#34;row&#34;&gt;
-        &lt;div class=&#34;col-md-2&#34;&gt;&lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless.svg&#34; alt=&#34;beam-logo-bw-nameless&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/nameless/beam-logo-bw-nameless-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom.svg&#34; alt=&#34;beam-logo-bw-name-bottom&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-            &lt;div class=&#34;col-md-2&#34;&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    &lt;img style=&#34;height: 60px&#34; src=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right.svg&#34; alt=&#34;beam-logo-bw-name-right&#34;&gt;
-                &lt;/div&gt;
-                &lt;br&gt;
-                &lt;div class=&#34;row&#34;&gt;
-                    
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right-100.png&#34;&gt;100x100&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right-200.png&#34;&gt;200x200&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right-500.png&#34;&gt;500x500&lt;/a&gt;
-                        ,
-                    
-                        &lt;a href=&#34;/images/logos/bw/name-right/beam-logo-bw-name-right-1000.png&#34;&gt;1000x1000&lt;/a&gt;
-                        
-                    
-                &lt;/div&gt;
-            &lt;/div&gt;
-        
-    &lt;/div&gt;
-
-
-&lt;h2 id=&#34;colors-and-fonts&#34;&gt;Colors and fonts&lt;/h2&gt;
-&lt;p&gt;The Apache Beam project uses predefined colors and fonts. &lt;a href=&#34;/downloads/palette.pdf&#34;&gt;This document&lt;/a&gt; has more information.&lt;/p&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Beam Presentation Materials</title>
-      <link>/community/presentation-materials/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/presentation-materials/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+download it.&lt;/p>
+&lt;h4 id="full-color">Full color&lt;/h4>
+&lt;div class="row">
+&lt;div class="col-md-2">&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/full-color/nameless/beam-logo-full-color-nameless.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/full-color/nameless/beam-logo-full-color-nameless.svg" alt="beam-logo-full-color-nameless.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom.svg" alt="beam-logo-full-color-name-bottom.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/full-color/name-right/beam-logo-full-color-name-right.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/full-color/name-right/beam-logo-full-color-name-right.svg" alt="beam-logo-full-color-name-right.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="three-color">Three color&lt;/h4>
+&lt;div class="row">
+&lt;div class="col-md-2">&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/3-color/nameless/beam-logo-3-color-nameless.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/3-color/nameless/beam-logo-3-color-nameless.svg" alt="beam-logo-3-color-nameless.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom.svg" alt="beam-logo-3-color-name-bottom.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/3-color/name-right/beam-logo-3-color-name-right.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/3-color/name-right/beam-logo-3-color-name-right.svg" alt="beam-logo-3-color-name-right.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="black-and-white">Black and white&lt;/h4>
+&lt;div class="row">
+&lt;div class="col-md-2">&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/bw/nameless/beam-logo-bw-nameless.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/bw/nameless/beam-logo-bw-nameless.svg" alt="beam-logo-bw-nameless.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom.svg" alt="beam-logo-bw-name-bottom.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;a href="/images/logos/bw/name-right/beam-logo-bw-name-right.svg" role="button">
+&lt;img style="height: 60px" src="/images/logos/bw/name-right/beam-logo-bw-name-right.svg" alt="beam-logo-bw-name-right.svg">
+&lt;/a>
+&lt;/div>
+&lt;br>
+&lt;/div>
+&lt;/div>
+&lt;h3 id="portable-network-graphics-png">Portable Network Graphics (PNG)&lt;/h3>
+&lt;p>These &lt;a href="https://en.wikipedia.org/wiki/Portable_Network_Graphics">PNG files&lt;/a> are
+available in a number of fixed sizes and are optimized for web use.&lt;/p>
+&lt;h4 id="full-color">Full color&lt;/h4>
+&lt;div class="row">
+&lt;div class="col-md-2">&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/full-color/nameless/beam-logo-full-color-nameless.svg" alt="beam-logo-full-color-nameless">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/full-color/nameless/beam-logo-full-color-nameless-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/full-color/nameless/beam-logo-full-color-nameless-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/full-color/nameless/beam-logo-full-color-nameless-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/full-color/nameless/beam-logo-full-color-nameless-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom.svg" alt="beam-logo-full-color-name-bottom">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/full-color/name-bottom/beam-logo-full-color-name-bottom-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/full-color/name-right/beam-logo-full-color-name-right.svg" alt="beam-logo-full-color-name-right">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/full-color/name-right/beam-logo-full-color-name-right-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/full-color/name-right/beam-logo-full-color-name-right-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/full-color/name-right/beam-logo-full-color-name-right-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/full-color/name-right/beam-logo-full-color-name-right-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="three-color">Three color&lt;/h4>
+&lt;div class="row">
+&lt;div class="col-md-2">&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/3-color/nameless/beam-logo-3-color-nameless.svg" alt="beam-logo-3-color-nameless">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/3-color/nameless/beam-logo-3-color-nameless-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/3-color/nameless/beam-logo-3-color-nameless-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/3-color/nameless/beam-logo-3-color-nameless-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/3-color/nameless/beam-logo-3-color-nameless-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom.svg" alt="beam-logo-3-color-name-bottom">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/3-color/name-bottom/beam-logo-3-color-name-bottom-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/3-color/name-right/beam-logo-3-color-name-right.svg" alt="beam-logo-3-color-name-right">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/3-color/name-right/beam-logo-3-color-name-right-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/3-color/name-right/beam-logo-3-color-name-right-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/3-color/name-right/beam-logo-3-color-name-right-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/3-color/name-right/beam-logo-3-color-name-right-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h4 id="black-and-white">Black and white&lt;/h4>
+&lt;div class="row">
+&lt;div class="col-md-2">&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/bw/nameless/beam-logo-bw-nameless.svg" alt="beam-logo-bw-nameless">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/bw/nameless/beam-logo-bw-nameless-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/bw/nameless/beam-logo-bw-nameless-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/bw/nameless/beam-logo-bw-nameless-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/bw/nameless/beam-logo-bw-nameless-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom.svg" alt="beam-logo-bw-name-bottom">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/bw/name-bottom/beam-logo-bw-name-bottom-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;div class="col-md-2">
+&lt;div class="row">
+&lt;img style="height: 60px" src="/images/logos/bw/name-right/beam-logo-bw-name-right.svg" alt="beam-logo-bw-name-right">
+&lt;/div>
+&lt;br>
+&lt;div class="row">
+&lt;a href="/images/logos/bw/name-right/beam-logo-bw-name-right-100.png">100x100&lt;/a>
+,
+&lt;a href="/images/logos/bw/name-right/beam-logo-bw-name-right-200.png">200x200&lt;/a>
+,
+&lt;a href="/images/logos/bw/name-right/beam-logo-bw-name-right-500.png">500x500&lt;/a>
+,
+&lt;a href="/images/logos/bw/name-right/beam-logo-bw-name-right-1000.png">1000x1000&lt;/a>
+&lt;/div>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="colors-and-fonts">Colors and fonts&lt;/h2>
+&lt;p>The Apache Beam project uses predefined colors and fonts. &lt;a href="/downloads/palette.pdf">This document&lt;/a> has more information.&lt;/p></description></item><item><title>Community: Beam Presentation Materials</title><link>/community/presentation-materials/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/presentation-materials/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;apache-beam-presentation-materials&#34;&gt;Apache Beam Presentation Materials&lt;/h1&gt;
-&lt;p&gt;Are you interested in learning more about Apache Beam or giving a talk about Apache Beam? Excellent! The Apache Beam community has created this collection of materials to help you get started. The community periodically reviews these materials to ensure they are accurate and up-to-date.&lt;/p&gt;
-&lt;div class=&#34;panel panel-default&#34;&gt;
-  &lt;div class=&#34;panel-body&#34;&gt;
-    &lt;iframe src=&#34;https://drive.google.com/embeddedfolderview?id=0B-IhJZh9Ab52a3JLVXFWMDltcHM#list&#34; width=&#34;700&#34; height=&#34;300&#34; frameborder=&#34;0&#34;&gt;&lt;/iframe&gt;
-  &lt;/div&gt;
-&lt;/div&gt;
-&lt;h2 id=&#34;using-these-materials&#34;&gt;Using these materials&lt;/h2&gt;
-&lt;p&gt;These materials can be used by anyone. If you do use these materials, please remember to give credit to the authors cited in each presentation. These materials include speaker notes and you can view them by clicking &lt;strong&gt;&lt;code&gt;View&lt;/code&gt;&lt;/strong&gt; and selecting &lt;strong&gt;&lt;code&gt;Show speaker notes&lt;/code&gt;&lt;/strong&gt;. Some presentations have &lt;code&gt;[Long]&lt;/code&gt; or &lt;code&gt;[Short]&lt;/code&gt; in their name, such as the &lt;em&gt;Apache Beam Model&lt;/em&gt;, which means there are two different presentations (a long and short version) depending on your needs and time constraints.&lt;/p&gt;
-&lt;p&gt;If you have any questions about the these materials, please ask on the &lt;a href=&#34;mailto:user@beam.apache.org&#34;&gt;&lt;code&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list.&lt;/p&gt;
-&lt;p&gt;The Apache Beam community is looking for feedback on these materials to improve them over time. If you deliver a presentation based on these materials, we&amp;rsquo;d love to hear from you on the &lt;a href=&#34;mailto:user@beam.apache.org&#34;&gt;&lt;code&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list. Please share your thoughts, questions you were asked, and (if available and appropriate) a link to the recording of your talk so the rest of the Apache Beam community can benefit from it.&lt;/p&gt;
-&lt;h2 id=&#34;contributing-new-content&#34;&gt;Contributing new content&lt;/h2&gt;
-&lt;p&gt;The Apache Beam community is always looking for new core content and contributions!&lt;/p&gt;
-&lt;p&gt;If you are interested in contributing new content, we recommend you first search the &lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM&#34;&gt;Apache Beam JIRA&lt;/a&gt; to see if your idea currently has an open JIRA item. If it does not, send an email to the &lt;a href=&#34;mailto:user@beam.apache.org&#34;&gt;&lt;code&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list or open a new issue in the &lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM&#34;&gt;Apache Beam JIRA&lt;/a&gt; using the &lt;a href=&#34;https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website&#34;&gt;website&lt;/a&gt; component. Based on community submissions or contributions, the Beam community collaboratively reviews or creates new content and then adds it to this shared space for everyone to use.&lt;/p&gt;
-&lt;h2 id=&#34;corrections-and-updates&#34;&gt;Corrections and updates&lt;/h2&gt;
-&lt;p&gt;If you encounter missing, incorrect, or out of date material, please make a comment in the presentation or send an email to the &lt;a href=&#34;mailto:user@beam.apache.org&#34;&gt;&lt;code&gt;user@beam.apache.org&lt;/code&gt;&lt;/a&gt; mailing list.&lt;/p&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Beam Twitter handle</title>
-      <link>/community/twitter-handle/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/twitter-handle/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+-->
+&lt;h1 id="apache-beam-presentation-materials">Apache Beam Presentation Materials&lt;/h1>
+&lt;p>Are you interested in learning more about Apache Beam or giving a talk about Apache Beam? Excellent! The Apache Beam community has created this collection of materials to help you get started. The community periodically reviews these materials to ensure they are accurate and up-to-date.&lt;/p>
+&lt;div class="panel panel-default">
+&lt;div class="panel-body">
+&lt;iframe src="https://drive.google.com/embeddedfolderview?id=0B-IhJZh9Ab52a3JLVXFWMDltcHM#list" width="700" height="300" frameborder="0">&lt;/iframe>
+&lt;/div>
+&lt;/div>
+&lt;h2 id="using-these-materials">Using these materials&lt;/h2>
+&lt;p>These materials can be used by anyone. If you do use these materials, please remember to give credit to the authors cited in each presentation. These materials include speaker notes and you can view them by clicking &lt;strong>&lt;code>View&lt;/code>&lt;/strong> and selecting &lt;strong>&lt;code>Show speaker notes&lt;/code>&lt;/strong>. Some presentations have &lt;code>[Long]&lt;/code> or &lt;code>[Short]&lt;/code> in their name, such as the &lt;em>Apache Beam Model&lt;/em>, which means there are two different presentations (a long and short version) depending on your needs and time constraints.&lt;/p>
+&lt;p>If you have any questions about the these materials, please ask on the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list.&lt;/p>
+&lt;p>The Apache Beam community is looking for feedback on these materials to improve them over time. If you deliver a presentation based on these materials, we&amp;rsquo;d love to hear from you on the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list. Please share your thoughts, questions you were asked, and (if available and appropriate) a link to the recording of your talk so the rest of the Apache Beam community can benefit from it.&lt;/p>
+&lt;h2 id="contributing-new-content">Contributing new content&lt;/h2>
+&lt;p>The Apache Beam community is always looking for new core content and contributions!&lt;/p>
+&lt;p>If you are interested in contributing new content, we recommend you first search the &lt;a href="https://issues.apache.org/jira/browse/BEAM">Apache Beam JIRA&lt;/a> to see if your idea currently has an open JIRA item. If it does not, send an email to the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list or open a new issue in the &lt;a href="https://issues.apache.org/jira/browse/BEAM">Apache Beam JIRA&lt;/a> using the &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website">website&lt;/a> component. Based on community submissions or contributions, the Beam community collaboratively reviews or creates new content and then adds it to this shared space for everyone to use.&lt;/p>
+&lt;h2 id="corrections-and-updates">Corrections and updates&lt;/h2>
+&lt;p>If you encounter missing, incorrect, or out of date material, please make a comment in the presentation or send an email to the &lt;a href="mailto:user@beam.apache.org">&lt;code>user@beam.apache.org&lt;/code>&lt;/a> mailing list.&lt;/p></description></item><item><title>Community: Beam Twitter handle</title><link>/community/twitter-handle/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/twitter-handle/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;beam-twitter-handle&#34;&gt;Beam Twitter handle&lt;/h1&gt;
-&lt;h2 id=&#34;what-is-it-and-what-are-the-goals&#34;&gt;What is it and what are the goals?&lt;/h2&gt;
-&lt;p&gt;Apache Beam community thrives to be inclusive to everyone. As part of this effort, we want to enable any community member to share anything interesting and fun related to Beam via its &lt;a href=&#34;https://twitter.com/ApacheBeam&#34;&gt;official Twitter handle&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;The Twitter feed found here is owned by the Apache Beam PMC, and the process of proposing new tweets is documented below.&lt;/p&gt;
-&lt;p&gt;&lt;a class=&#34;twitter-timeline&#34; data-lang=&#34;en&#34; data-height=&#34;500&#34; data-theme=&#34;light&#34; data-link-color=&#34;#E95F28&#34; href=&#34;https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw&#34;&gt;Tweets by ApacheBeam&lt;/a&gt; &lt;script async src=&#34;https://platform.twitter.com/widgets.js&#34; charset=&#34;utf-8&#34;&gt;&lt;/script&gt;&lt;/p&gt;
-&lt;h2 id=&#34;process-to-propose-new-tweets-for-the-apache-beam-twitter&#34;&gt;Process to propose new tweets for the Apache Beam Twitter&lt;/h2&gt;
-&lt;ul&gt;
-&lt;li&gt;Compose a tweet with the news you want to share. It can be anything that is relevant to Apache Beam. For example, it can be a tweet to welcome new committers, announce new Beam features, share and recognize contributors publicly, promote events and meetups, share trending articles around batch and stream processing big data, etc.&lt;/li&gt;
-&lt;li&gt;Go to &lt;a href=&#34;https://s.apache.org/beam-tweets&#34;&gt;s.apache.org/beam-tweets&lt;/a&gt; and request “Edit” access.&lt;/li&gt;
-&lt;li&gt;After you are able to edit the document, fill out the necessary fields:
-&lt;ul&gt;
-&lt;li&gt;Date - the date when you are filling out the document&lt;/li&gt;
-&lt;li&gt;Author - your name&lt;/li&gt;
-&lt;li&gt;Topic - what is the tweet about&lt;/li&gt;
-&lt;li&gt;Content - the actual text of the tweet or link to the tweet that need to be retweeted&lt;/li&gt;
-&lt;li&gt;Links/media - anything you want to add to the tweet, eg. photos, videos, references&lt;/li&gt;
-&lt;li&gt;Deadline - by when the tweet needs to be out, or preferred date when it needs to be out&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;li&gt;After you type in your tweets, PMC members that are subscribed to the document will get notified and review the content.&lt;/li&gt;
-&lt;li&gt;After approval, a PMC member with access to the Twitter handle will publish the tweet.&lt;/li&gt;
-&lt;li&gt;Follow &lt;a href=&#34;https://twitter.com/ApacheBeam&#34;&gt;Apache Beam handle&lt;/a&gt; to see if your content is published!&lt;/li&gt;
-&lt;/ul&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Beam YouTube channel</title>
-      <link>/community/youtube-channel/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/youtube-channel/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+-->
+&lt;h1 id="beam-twitter-handle">Beam Twitter handle&lt;/h1>
+&lt;h2 id="what-is-it-and-what-are-the-goals">What is it and what are the goals?&lt;/h2>
+&lt;p>Apache Beam community thrives to be inclusive to everyone. As part of this effort, we want to enable any community member to share anything interesting and fun related to Beam via its &lt;a href="https://twitter.com/ApacheBeam">official Twitter handle&lt;/a>.&lt;/p>
+&lt;p>The Twitter feed found here is owned by the Apache Beam PMC, and the process of proposing new tweets is documented below.&lt;/p>
+&lt;p>&lt;a class="twitter-timeline" data-lang="en" data-height="500" data-theme="light" data-link-color="#E95F28" href="https://twitter.com/ApacheBeam?ref_src=twsrc%5Etfw">Tweets by ApacheBeam&lt;/a> &lt;script async src="https://platform.twitter.com/widgets.js" charset="utf-8">&lt;/script>&lt;/p>
+&lt;h2 id="process-to-propose-new-tweets-for-the-apache-beam-twitter">Process to propose new tweets for the Apache Beam Twitter&lt;/h2>
+&lt;ul>
+&lt;li>Compose a tweet with the news you want to share. It can be anything that is relevant to Apache Beam. For example, it can be a tweet to welcome new committers, announce new Beam features, share and recognize contributors publicly, promote events and meetups, share trending articles around batch and stream processing big data, etc.&lt;/li>
+&lt;li>Go to &lt;a href="https://s.apache.org/beam-tweets">s.apache.org/beam-tweets&lt;/a> and request “Edit” access.&lt;/li>
+&lt;li>After you are able to edit the document, fill out the necessary fields:
+&lt;ul>
+&lt;li>Date - the date when you are filling out the document&lt;/li>
+&lt;li>Author - your name&lt;/li>
+&lt;li>Topic - what is the tweet about&lt;/li>
+&lt;li>Content - the actual text of the tweet or link to the tweet that need to be retweeted&lt;/li>
+&lt;li>Links/media - anything you want to add to the tweet, eg. photos, videos, references&lt;/li>
+&lt;li>Deadline - by when the tweet needs to be out, or preferred date when it needs to be out&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>After you type in your tweets, PMC members that are subscribed to the document will get notified and review the content.&lt;/li>
+&lt;li>After approval, a PMC member with access to the Twitter handle will publish the tweet.&lt;/li>
+&lt;li>Follow &lt;a href="https://twitter.com/ApacheBeam">Apache Beam handle&lt;/a> to see if your content is published!&lt;/li>
+&lt;/ul></description></item><item><title>Community: Beam YouTube channel</title><link>/community/youtube-channel/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/youtube-channel/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;beam-youtube-channel&#34;&gt;Beam YouTube channel&lt;/h1&gt;
-&lt;h2 id=&#34;what-is-it-and-what-are-the-goals&#34;&gt;What is it and what are the goals?&lt;/h2&gt;
-&lt;p&gt;The goal of the &lt;a href=&#34;https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ&#34;&gt;Beam YouTube channel&lt;/a&gt; is have a central repository with all the videos on or related to the Apache Beam project.
-This can range from very tech-focused talks, to more business- and use case-focused talks; talks delivered at meet ups, conferences or on a webcast.&lt;/p&gt;
-&lt;p&gt;People who have a recording related to Apache Beam can share this on the channel. The process is documented below.&lt;/p&gt;
-&lt;p&gt;The YouTube channel found here is owned by the Apache Beam PMC.&lt;/p&gt;
-&lt;iframe width=&#34;560&#34; height=&#34;340&#34; src=&#34;https://www.youtube.com/embed/bhj4Bjczb8I&#34; frameborder=&#34;0&#34; allowfullscreen&gt;&lt;/iframe&gt;
-&lt;h2 id=&#34;process-to-add-videos-to-the-apache-beam-youtube-channel&#34;&gt;Process to add videos to the Apache Beam YouTube channel&lt;/h2&gt;
-&lt;p&gt;When recording a session, make sure you have the following:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Get a verbal/written agreement of the people talking, allowing you to record and share the session.&lt;/li&gt;
-&lt;li&gt;Get a verbal/written agreement of the premises where you are filming to record and share the session.&lt;/li&gt;
-&lt;li&gt;Get a verbal/written agreement of the person recording the video that you can share the recording afterwards.&lt;/li&gt;
-&lt;li&gt;Check with local laws if any extra agreements need to be in place to allow to record and share the session.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;When you want to add your recording to the channel, do the following:&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;Send an e-mail to &lt;a href=&#34;/community/contact-us&#34;&gt;dev@beam.apache.org&lt;/a&gt; mailing list with:
-&lt;ul&gt;
-&lt;li&gt;Subject: &amp;ldquo;[Youtube channel] Add video: your video title&amp;rdquo;.&lt;/li&gt;
-&lt;li&gt;The video or link to the video.&lt;/li&gt;
-&lt;li&gt;The above agreements.&lt;/li&gt;
-&lt;li&gt;The description that you want the video to be accompanied with on YouTube.&lt;/li&gt;
-&lt;li&gt;A brief explanation of the contents.&lt;/li&gt;
-&lt;/ul&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Once at least one committer or PMC members agrees and nobody objects within 1 business day, publish it and close the email thread.&lt;/p&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Contact Us</title>
-      <link>/community/contact-us/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/contact-us/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+-->
+&lt;h1 id="beam-youtube-channel">Beam YouTube channel&lt;/h1>
+&lt;h2 id="what-is-it-and-what-are-the-goals">What is it and what are the goals?&lt;/h2>
+&lt;p>The goal of the &lt;a href="https://www.youtube.com/channel/UChNnb_YO_7B0HlW6FhAXZZQ">Beam YouTube channel&lt;/a> is have a central repository with all the videos on or related to the Apache Beam project.
+This can range from very tech-focused talks, to more business- and use case-focused talks; talks delivered at meet ups, conferences or on a webcast.&lt;/p>
+&lt;p>People who have a recording related to Apache Beam can share this on the channel. The process is documented below.&lt;/p>
+&lt;p>The YouTube channel found here is owned by the Apache Beam PMC.&lt;/p>
+&lt;iframe width="560" height="340" src="https://www.youtube.com/embed/bhj4Bjczb8I" frameborder="0" allowfullscreen>&lt;/iframe>
+&lt;h2 id="process-to-add-videos-to-the-apache-beam-youtube-channel">Process to add videos to the Apache Beam YouTube channel&lt;/h2>
+&lt;p>When recording a session, make sure you have the following:&lt;/p>
+&lt;ul>
+&lt;li>Get a verbal/written agreement of the people talking, allowing you to record and share the session.&lt;/li>
+&lt;li>Get a verbal/written agreement of the premises where you are filming to record and share the session.&lt;/li>
+&lt;li>Get a verbal/written agreement of the person recording the video that you can share the recording afterwards.&lt;/li>
+&lt;li>Check with local laws if any extra agreements need to be in place to allow to record and share the session.&lt;/li>
+&lt;/ul>
+&lt;p>When you want to add your recording to the channel, do the following:&lt;/p>
+&lt;ul>
+&lt;li>Send an e-mail to &lt;a href="/community/contact-us">dev@beam.apache.org&lt;/a> mailing list with:
+&lt;ul>
+&lt;li>Subject: &amp;ldquo;[Youtube channel] Add video: your video title&amp;rdquo;.&lt;/li>
+&lt;li>The video or link to the video.&lt;/li>
+&lt;li>The above agreements.&lt;/li>
+&lt;li>The description that you want the video to be accompanied with on YouTube.&lt;/li>
+&lt;li>A brief explanation of the contents.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;p>Once at least one committer or PMC members agrees and nobody objects within 1 business day, publish it and close the email thread.&lt;/p></description></item><item><title>Community: Contact Us</title><link>/community/contact-us/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/contact-us/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;contact-us&#34;&gt;Contact Us&lt;/h1&gt;
-&lt;p&gt;There are many ways to reach the Beam user and developer communities - use
-whichever one seems best.&lt;/p&gt;
-&lt;!-- We use div instead of table shortcode here, because markdownify break superscripts --&gt;
-&lt;div class=&#34;table-wrapper&#34;&gt;
-&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;How to contact us&lt;/th&gt;
-&lt;th&gt;When to use it&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://lists.apache.org/list.html?user@beam.apache.org&#34;&gt;user@&lt;/a&gt; mailing list&lt;/td&gt;
-&lt;td&gt;User support and questions (&lt;a href=&#34;mailto:user-subscribe@beam.apache.org&#34;&gt;Subscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;mailto:user-unsubscribe@beam.apache.org&#34;&gt;Unsubscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;https://lists.apache.org/list.html?user@beam.apache.org&#34;&gt;Archives&lt;/a&gt;)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://lists.apache.org/list.html?dev@beam.apache.org&#34;&gt;dev@&lt;/a&gt; mailing list&lt;/td&gt;
-&lt;td&gt;Development discussions (&lt;a href=&#34;mailto:dev-subscribe@beam.apache.org&#34;&gt;Subscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;mailto:dev-unsubscribe@beam.apache.org&#34;&gt;Unsubscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;https://lists.apache.org/list.html?dev@beam.apache.org&#34;&gt;Archives&lt;/a&gt;)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://lists.apache.org/list.html?commits@beam.apache.org&#34;&gt;commits@&lt;/a&gt; mailing list&lt;/td&gt;
-&lt;td&gt;Firehose of commits, bugs, pull requests, etc. (&lt;a href=&#34;mailto:commits-subscribe@beam.apache.org&#34;&gt;Subscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;mailto:commits-unsubscribe@beam.apache.org&#34;&gt;Unsubscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;https://lists.apache.org/list.html?commits@beam.apache.org&#34;&gt;Archives&lt;/a&gt;)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://lists.apache.org/list.html?builds@beam.apache.org&#34;&gt;builds@&lt;/a&gt; mailing list&lt;/td&gt;
-&lt;td&gt;Firehose of build notifications from Jenkins (&lt;a href=&#34;mailto:builds-subscribe@beam.apache.org&#34;&gt;Subscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;mailto:builds-unsubscribe@beam.apache.org&#34;&gt;Unsubscribe&lt;/a&gt;&lt;sup id=&#34;fnref:1&#34;&gt;&lt;a href=&#34;#fn:1&#34; class=&#34;footnote-ref&#34; role=&#34;doc-noteref&#34;&gt;1&lt;/a&gt;&lt;/sup&gt;, &lt;a href=&#34;https://lists.apache.org/list.html?builds@beam.apache.org&#34;&gt;Archives&lt;/a&gt;)&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://issues.apache.org/jira/browse/BEAM&#34;&gt;JIRA bug tracker&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;Report bugs / discover known issues&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://stackoverflow.com/questions/tagged/apache-beam&#34;&gt;StackOverflow&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;Ask and answer user support questions&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;&lt;a href=&#34;https://s.apache.org/beam-slack-channel&#34;&gt;Slack&lt;/a&gt;&lt;/td&gt;
-&lt;td&gt;Chat with users and developers in the ASF Slack. Note: Please &lt;a href=&#34;https://s.apache.org/beam-slack-channel&#34;&gt;join the #beam channel&lt;/a&gt; after you &lt;a href=&#34;https://s.apache.org/slack-invite&#34;&gt;created an account&lt;/a&gt;. Please do not ask Beam questions in #general.&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;
-&lt;/div&gt;
-&lt;p&gt;If you have questions about how to use Apache Beam, we recommend you try out the &lt;a href=&#34;https://lists.apache.org/list.html?user@beam.apache.org&#34;&gt;user@&lt;/a&gt; mailing list, and &lt;a href=&#34;https://stackoverflow.com/questions/tagged/apache-beam&#34;&gt;StackOverflow&lt;/a&gt;.&lt;/p&gt;
-&lt;p&gt;If you wish to report a security vulnerability, please contact &lt;a href=&#34;mailto:security@apache.org&#34;&gt;security@apache.org&lt;/a&gt;. Apache Beam follows the typical &lt;a href=&#34;https://apache.org/security/committers.html#vulnerability-handling&#34;&gt;Apache vulnerability handling process&lt;/a&gt;.&lt;/p&gt;
-&lt;section class=&#34;footnotes&#34; role=&#34;doc-endnotes&#34;&gt;
-&lt;hr&gt;
-&lt;ol&gt;
-&lt;li id=&#34;fn:1&#34; role=&#34;doc-endnote&#34;&gt;
-&lt;p&gt;To subscribe or unsubscribe, a blank email is fine. &lt;a href=&#34;#fnref:1&#34; class=&#34;footnote-backref&#34; role=&#34;doc-backlink&#34;&gt;&amp;#x21a9;&amp;#xfe0e;&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ol&gt;
-&lt;/section&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Contact Us</title>
-      <link>/community/in-person/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/in-person/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+-->
+&lt;h1 id="contact-us">Contact Us&lt;/h1>
+&lt;p>There are many ways to reach the Beam user and developer communities - use
+whichever one seems best.&lt;/p>
+&lt;!-- We use div instead of table shortcode here, because markdownify break superscripts -->
+&lt;div class="table-wrapper">
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>How to contact us&lt;/th>
+&lt;th>When to use it&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">user@&lt;/a> mailing list&lt;/td>
+&lt;td>User support and questions (&lt;a href="mailto:user-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:user-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="https://lists.apache.org/list.html?dev@beam.apache.org">dev@&lt;/a> mailing list&lt;/td>
+&lt;td>Development discussions (&lt;a href="mailto:dev-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:dev-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?dev@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="https://lists.apache.org/list.html?commits@beam.apache.org">commits@&lt;/a> mailing list&lt;/td>
+&lt;td>Firehose of commits, bugs, pull requests, etc. (&lt;a href="mailto:commits-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:commits-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?commits@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="https://lists.apache.org/list.html?builds@beam.apache.org">builds@&lt;/a> mailing list&lt;/td>
+&lt;td>Firehose of build notifications from Jenkins (&lt;a href="mailto:builds-subscribe@beam.apache.org">Subscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="mailto:builds-unsubscribe@beam.apache.org">Unsubscribe&lt;/a>&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>, &lt;a href="https://lists.apache.org/list.html?builds@beam.apache.org">Archives&lt;/a>)&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="https://issues.apache.org/jira/browse/BEAM">JIRA bug tracker&lt;/a>&lt;/td>
+&lt;td>Report bugs / discover known issues&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="https://stackoverflow.com/questions/tagged/apache-beam">StackOverflow&lt;/a>&lt;/td>
+&lt;td>Ask and answer user support questions&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;a href="https://s.apache.org/beam-slack-channel">Slack&lt;/a>&lt;/td>
+&lt;td>Chat with users and developers in the ASF Slack. Note: Please &lt;a href="https://s.apache.org/beam-slack-channel">join the #beam channel&lt;/a> after you &lt;a href="https://s.apache.org/slack-invite">created an account&lt;/a>. Please do not ask Beam questions in #general.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;/div>
+&lt;p>If you have questions about how to use Apache Beam, we recommend you try out the &lt;a href="https://lists.apache.org/list.html?user@beam.apache.org">user@&lt;/a> mailing list, and &lt;a href="https://stackoverflow.com/questions/tagged/apache-beam">StackOverflow&lt;/a>.&lt;/p>
+&lt;p>If you wish to report a security vulnerability, please contact &lt;a href="mailto:security@apache.org">security@apache.org&lt;/a>. Apache Beam follows the typical &lt;a href="https://apache.org/security/committers.html#vulnerability-handling">Apache vulnerability handling process&lt;/a>.&lt;/p>
+&lt;section class="footnotes" role="doc-endnotes">
+&lt;hr>
+&lt;ol>
+&lt;li id="fn:1" role="doc-endnote">
+&lt;p>To subscribe or unsubscribe, a blank email is fine. &lt;a href="#fnref:1" class="footnote-backref" role="doc-backlink">&amp;#x21a9;&amp;#xfe0e;&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/section></description></item><item><title>Community: Contact Us</title><link>/community/in-person/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/in-person/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;we-are-nice-find-us-in-person&#34;&gt;We are nice, find us in person&lt;/h1&gt;
-&lt;p&gt;While the official communication happens on the mailing list, and you can find us online (see: &lt;a href=&#34;https://beam.apache.org/community/contact-us/&#34;&gt;contact-us&lt;/a&gt;), we also get together in person at Meetups and Conferences.&lt;/p&gt;
-&lt;h2 id=&#34;meetups&#34;&gt;Meetups&lt;/h2&gt;
-&lt;p&gt;We occasionally meet up in various locations around the globe. Active or to-be-started meetups include:&lt;/p&gt;
-
-
-
-  &lt;div class=&#34;table-wrapper&#34;&gt;&lt;table&gt;
-&lt;thead&gt;
-&lt;tr&gt;
-&lt;th&gt;Meetup City&lt;/th&gt;
-&lt;th&gt;Name&lt;/th&gt;
-&lt;/tr&gt;
-&lt;/thead&gt;
-&lt;tbody&gt;
-&lt;tr&gt;
-&lt;td&gt;Stockholm&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/Apache-Beam-Stockholm/&#34;&gt;Apache Beam Stockholm&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;London&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/London-Apache-Beam-Meetup/&#34;&gt;London Apache Beam Meetup&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;San Francisco Bay Area&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/San-Francisco-Apache-Beam/&#34;&gt;Bay Area Apache Beam&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Los Angeles&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/Los-Angeles-Apache-Beam/&#34;&gt;Los Angeles Apache Beam&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Washington DC&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/DC-Apache-Beam/&#34;&gt;Washington DC Apache Beam Meetup&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;New York City&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/New-York-Apache-Beam/&#34;&gt;New York Apache Beam&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Boston, MA&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/Boston-Beam-Meetup/&#34;&gt;Boston Apache Beam Meetup&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Austin, TX&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/Austin-Beam-Meetup/&#34;&gt;Austin Apache Beam Meetup&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Bangalore&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/Bangalore-Apache-Beam/&#34;&gt;Bangalore Apache Beam Meetup&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;tr&gt;
-&lt;td&gt;Paris&lt;/td&gt;
-&lt;td&gt;&lt;a href=&#34;https://www.meetup.com/Paris-Apache-Beam-Meetup/&#34;&gt;Paris Apache Beam&lt;/a&gt;&lt;/td&gt;
-&lt;/tr&gt;
-&lt;/tbody&gt;
-&lt;/table&gt;&lt;/div&gt;
-
-
-&lt;p&gt;The above are the meetups that are already known to the community (please add if you are organizing one!). For Meetups that are tagged with &amp;lsquo;Apache Beam&amp;rsquo;, see the &lt;a href=&#34;https://www.meetup.com/topics/apache-beam/&#34;&gt;list&lt;/a&gt;.&lt;/p&gt;
-&lt;h2 id=&#34;conference-talks&#34;&gt;Conference Talks&lt;/h2&gt;
-&lt;p&gt;You can find a list &lt;a href=&#34;https://docs.google.com/spreadsheets/d/1CloF63FOKSPM6YIuu8eExjhX6xrIiOp5j4zPbSg3Apo/&#34;&gt;here&lt;/a&gt;&lt;/p&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Integrations</title>
-      <link>/community/integrations/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/integrations/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+-->
+&lt;h1 id="we-are-nice-find-us-in-person">We are nice, find us in person&lt;/h1>
+&lt;p>While the official communication happens on the mailing list, and you can find us online (see: &lt;a href="https://beam.apache.org/community/contact-us/">contact-us&lt;/a>), we also get together in person at Meetups and Conferences.&lt;/p>
+&lt;h2 id="meetups">Meetups&lt;/h2>
+&lt;p>We occasionally meet up in various locations around the globe. Active or to-be-started meetups include:&lt;/p>
+&lt;div class="table-wrapper">&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Meetup City&lt;/th>
+&lt;th>Name&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Stockholm&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/Apache-Beam-Stockholm/">Apache Beam Stockholm&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>London&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/London-Apache-Beam-Meetup/">London Apache Beam Meetup&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>San Francisco Bay Area&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/San-Francisco-Apache-Beam/">Bay Area Apache Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Los Angeles&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/Los-Angeles-Apache-Beam/">Los Angeles Apache Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Washington DC&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/DC-Apache-Beam/">Washington DC Apache Beam Meetup&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>New York City&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/New-York-Apache-Beam/">New York Apache Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Boston, MA&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/Boston-Beam-Meetup/">Boston Apache Beam Meetup&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Austin, TX&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/Austin-Beam-Meetup/">Austin Apache Beam Meetup&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Bangalore&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/Bangalore-Apache-Beam/">Bangalore Apache Beam Meetup&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Paris&lt;/td>
+&lt;td>&lt;a href="https://www.meetup.com/Paris-Apache-Beam-Meetup/">Paris Apache Beam&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>&lt;/div>
+&lt;p>The above are the meetups that are already known to the community (please add if you are organizing one!). For Meetups that are tagged with &amp;lsquo;Apache Beam&amp;rsquo;, see the &lt;a href="https://www.meetup.com/topics/apache-beam/">list&lt;/a>.&lt;/p>
+&lt;h2 id="conference-talks">Conference Talks&lt;/h2>
+&lt;p>You can find a list &lt;a href="https://docs.google.com/spreadsheets/d/1CloF63FOKSPM6YIuu8eExjhX6xrIiOp5j4zPbSg3Apo/">here&lt;/a>&lt;/p></description></item><item><title>Community: Integrations</title><link>/community/integrations/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/integrations/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;integrations&#34;&gt;Integrations&lt;/h1&gt;
-&lt;p&gt;The following external projects integrate with Apache Beam:&lt;/p&gt;
-&lt;h2 id=&#34;kettle-pentaho-data-integration&#34;&gt;Kettle (Pentaho Data Integration)&lt;/h2&gt;
-&lt;p&gt;Kettle is a tool for desinging data pipelines using a graphical user interface.
-The resulting pipelines can be translated to Beam pipelines.&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://github.com/mattcasters/kettle-beam&#34;&gt;Kettle-Beam Integration&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://github.com/mattcasters/kettle-beam-examples&#34;&gt;Kettle-Beam Examples&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
-&lt;p&gt;&lt;a href=&#34;https://github.com/pentaho/pentaho-kettle/&#34;&gt;Kettle GitHub&lt;/a&gt;&lt;/p&gt;
-&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;Kettle License: Apache 2.0&lt;/p&gt;
-
-      </description>
-    </item>
-    
-    <item>
-      <title>Community: Policies</title>
-      <link>/community/policies/</link>
-      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
-      
-      <guid>/community/policies/</guid>
-      <description>
-        
-        
-        &lt;!--
-Licensed under the Apache License, Version 2.0 (the &#34;License&#34;);
+-->
+&lt;h1 id="integrations">Integrations&lt;/h1>
+&lt;p>The following external projects integrate with Apache Beam:&lt;/p>
+&lt;h2 id="kettle-pentaho-data-integration">Kettle (Pentaho Data Integration)&lt;/h2>
+&lt;p>Kettle is a tool for desinging data pipelines using a graphical user interface.
+The resulting pipelines can be translated to Beam pipelines.&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;a href="https://github.com/mattcasters/kettle-beam">Kettle-Beam Integration&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://github.com/mattcasters/kettle-beam-examples">Kettle-Beam Examples&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="https://github.com/pentaho/pentaho-kettle/">Kettle GitHub&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Kettle License: Apache 2.0&lt;/p></description></item><item><title>Community: Policies</title><link>/community/policies/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/policies/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an &#34;AS IS&#34; BASIS,
+distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
---&gt;
-&lt;h1 id=&#34;policies&#34;&gt;Policies&lt;/h1&gt;
-&lt;p&gt;This page contains a list of major policies agreed upon by the Apache Beam community.&lt;/p&gt;
-&lt;h2 id=&#34;releases&#34;&gt;Releases&lt;/h2&gt;
-&lt;p&gt;Apache Beam makes minor releases every 6 weeks, therefore 8 releases in a 12 month period. Apache Beam has a &lt;a href=&#34;https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com&#34;&gt;calendar&lt;/a&gt; for cutting the next release branch. After a release branch is cut, the community works quickly to finalize that release.  We encourage you to update early and often; do not wait until the deprecation date of the version you are using.&lt;/p&gt;
-&lt;p&gt;It is up to the Apache Beam community to decide whether an identified issue is a major issue that warrants a patch release. Some examples of major issues are high severity security issues and high risk data integrity issues.&lt;/p&gt;
-&lt;p&gt;If you wish to report a security vulnerability, please contact &lt;a href=&#34;mailto:security@apache.org&#34;&gt;security@apache.org&lt;/a&gt;. Apache Beam follows the typical &lt;a href=&#34;https://apache.org/security/committers.html#vulnerability-handling&#34;&gt;Apache vulnerability handling process&lt;/a&gt;.&lt;/p&gt;
-
-      </description>
-    </item>
-    
-  </channel>
-</rss>
+-->
+&lt;h1 id="policies">Policies&lt;/h1>
+&lt;p>This page contains a list of major policies agreed upon by the Apache Beam community.&lt;/p>
+&lt;h2 id="releases">Releases&lt;/h2>
+&lt;p>Apache Beam makes minor releases every 6 weeks, therefore 8 releases in a 12 month period. Apache Beam has a &lt;a href="https://calendar.google.com/calendar/embed?src=0p73sl034k80oob7seouanigd0%40group.calendar.google.com">calendar&lt;/a> for cutting the next release branch. After a release branch is cut, the community works quickly to finalize that release. We encourage you to update early and often; do not wait until the deprecation date of the version you are using.&lt;/p>
+&lt;p>It is up to the Apache Beam community to decide whether an identified issue is a major issue that warrants a patch release. Some examples of major issues are high severity security issues and high risk data integrity issues.&lt;/p>
+&lt;p>If you wish to report a security vulnerability, please contact &lt;a href="mailto:security@apache.org">security@apache.org&lt;/a>. Apache Beam follows the typical &lt;a href="https://apache.org/security/committers.html#vulnerability-handling">Apache vulnerability handling process&lt;/a>.&lt;/p></description></item><item><title>Community: Powered by Apache Beam</title><link>/community/powered-by/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/powered-by/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="projects-and-products-powered-by-apache-beam">Projects and Products Powered by Apache Beam&lt;/h1>
+&lt;p>To add yourself to the list, please open a &lt;a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/community/powered_by.md">pull request&lt;/a> adding your organization name, URL, a list of which Beam components you are using, and a short description of your use case.&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="https://cloud.google.com/dataflow">Cloud Dataflow&lt;/a>:&lt;/strong> Google Cloud Dataflow is a fully managed service for executing
+Apache Beam pipelines within the Google Cloud Platform ecosystem.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="https://www.tensorflow.org/tfx">TensorFlow Extended (TFX)&lt;/a>:&lt;/strong> TensorFlow Extended (TFX) is an end-to-end platform
+for deploying production ML pipelines.&lt;/li>
+&lt;/ul></description></item></channel></rss>

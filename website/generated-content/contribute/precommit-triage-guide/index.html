@@ -1,356 +1,38 @@
-
-
-<!DOCTYPE html>
-<html lang="en" class="no-js">
-<head>
-  
- 
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>Pre-commit Slowness Triage Guide</title>
-<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
- 
-<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
- 
-
-
-    
-    <link rel="preload" href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" as="style">
-    <link href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" rel="stylesheet" integrity="">
-
-
-<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-
-<style>
-  .body__contained img { max-width: 100% }
-</style>
-
-<script src="/js/bootstrap.min.js"></script>
-<script src="/js/language-switch.js"></script>
-<script src="/js/fix-menu.js"></script>
-<script src="/js/section-nav.js"></script>
-<script src="/js/page-nav.js"></script>
-
-<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
-<link rel="canonical" href="/contribute/precommit-triage-guide/" data-proofer-ignore>
-<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
- 
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-  ga('create', 'UA-73650088-1', 'auto');
-  ga('send', 'pageview');
-</script>
-</head>
-<body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
-  
-
-<nav class="header navbar navbar-fixed-top">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-
-      <a href=/ class="navbar-brand" >
-        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
-      </a>
-    </div>
-
-    <div class="navbar-mask closed"></div>
-
-    <div id="navbar" class="navbar-container closed">
-      <ul class="nav navbar-nav">
-        <li>
-          <a href=/get-started/beam-overview/>Get Started</a>
-        </li>
-        <li>
-          <a href=/documentation/>Documentation</a>
-        </li>
-        <li>
-          <a href=/documentation/sdks/java/>Languages</a>
-        </li>
-        <li>
-          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
-        </li>
-        <li>
-          <a href=/roadmap/>Roadmap</a>
-        </li>
-        <li>
-          <a href=/contribute/>Contribute</a>
-        </li>
-        <li>
-          <a href=/community/contact-us/>Community</a>
-        </li>
-        <li><a href=/blog/>Blog</a></li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li>
-          <div style="width: 300px;">
-            <script>
-              (function() {
-                var cx = '012923275103528129024:4emlchv9wzi';
-                var gcse = document.createElement('script');
-                gcse.type = 'text/javascript';
-                gcse.async = true;
-                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(gcse, s);
-              })();
-            </script>
-            <gcse:search></gcse:search>
-          </div>
-        </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
-            <li><a href="http://www.apache.org/licenses/">License</a></li>
-            <li><a href="http://www.apache.org/security/">Security</a></li>
-            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
-            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
-            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
-          </ul>
-        </li>
-        <li>
-          
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/contribute/precommit-triage-guide.md" data-proofer-ignore>
-            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
-          </a>
-        </li>
-      </ul>
-    </div>
-</nav>
-
-  <div class="clearfix container-main-content">
-    <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
-      <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
-      <nav>
-        <ul class="section-nav-list" data-section-nav>
-          
-
-<li><span class="section-nav-list-main-title">Contribute</span></li>
-<li><a href="/contribute/">Get started contributing</a></li>
-<li><a href="/contribute/get-help/">Get Help</a></li>
-<li>
-  <span class="section-nav-list-title">Technical Docs</span>
-
-  <ul class="section-nav-list">
-    <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide">Testing guide</a></li>
-    <li><a href="/contribute/precommit-triage-guide/">Pre-commit Slowness Triage</a></li>
-    <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
-    <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
-    <li><a href="https://cwiki.apache.org/confluence/display/BEAM/Design+Documents">Design documents</a></li>
-    <li><a href="/contribute/dependencies/">Dependencies guide</a></li>
-    <li><a href="/contribute/feature-branches/">Feature branches</a></li>
-  </ul>
-</li>
-<li>
-  <span class="section-nav-list-title">Policies</span>
-  <ul class="section-nav-list">
-    <li><a href="/contribute/jira-priorities/">Jira priorities</a></li>
-    <li><a href="/contribute/precommit-policies/">Pre-commit test policies</a></li>
-    <li><a href="/contribute/postcommits-policies/">Post-commit test policies</a></li>
-    <li><a href="/contribute/release-blockers/">Release blockers</a></li>
-  </ul>
-</li>
-<li>
-  <span class="section-nav-list-title">Committers</span>
-  <ul class="section-nav-list">
-    <li><a href="/contribute/become-a-committer/">Become a committer</a></li>
-    <li><a href="/contribute/committer-guide/">Committer guide</a></li>
-    <li><a href="/contribute/release-guide/">Release guide</a></li>
-  </ul>
-</li>
-
-        </ul>
-      </nav>
-    </div>
-
-    <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
-      <nav id="TableOfContents">
-  <ul>
-    <li><a href="#what-are-fast-pre-commits">What are fast pre-commits?</a></li>
-    <li><a href="#determining-slowness">Determining Slowness</a>
-      <ul>
-        <li><a href="#pre-commit-dashboard">Pre-commit Dashboard</a></li>
-      </ul>
-    </li>
-    <li><a href="#triage-process">Triage Process</a></li>
-    <li><a href="#resolution">Resolution</a></li>
-    <li><a href="#possible-causes-and-solutions">Possible Causes and Solutions</a>
-      <ul>
-        <li><a href="#resource-exhaustion">Resource Exhaustion</a></li>
-        <li><a href="#slow-individual-tests">Slow individual tests</a></li>
-        <li><a href="#slow-integration-tests">Slow integration tests</a></li>
-      </ul>
-    </li>
-    <li><a href="#references">References</a></li>
-  </ul>
-</nav>
-    </nav>
-
-    <div class="body__contained body__section-nav">
-      <!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<h1 id="pre-commit-slowness-triage-guide">Pre-commit Slowness Triage Guide</h1>
-<p>Beam pre-commit jobs are suites of tests run automatically on Jenkins build
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Pre-commit Slowness Triage Guide</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/contribute/precommit-triage-guide/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body data-spy=scroll data-target=.page-nav data-offset=0><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/contribute/precommit-triage-guide.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class="clearfix container-main-content"><div class="section-nav closed" data-offset-top=90 data-offset-bottom=500><span class="section-nav-back glyphicon glyphicon-menu-left"></span><nav><ul class=section-nav-list data-section-nav><li><span class=section-nav-list-main-title>Contribute</span></li><li><a href=/contribute/>Get started contributing</a></li><li><a href=/contribute/get-help/>Get Help</a></li><li><span class=section-nav-list-title>Technical Docs</span><ul class=section-nav-list><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide>Testing guide</a></li><li><a href=/contribute/precommit-triage-guide/>Pre-commit Slowness Triage</a></li><li><a href=/contribute/ptransform-style-guide/>PTransform style guide</a></li><li><a href=/contribute/runner-guide/>Runner authoring guide</a></li><li><a href=https://cwiki.apache.org/confluence/display/BEAM/Design+Documents>Design documents</a></li><li><a href=/contribute/dependencies/>Dependencies guide</a></li><li><a href=/contribute/feature-branches/>Feature branches</a></li></ul></li><li><span class=section-nav-list-title>Policies</span><ul class=section-nav-list><li><a href=/contribute/jira-priorities/>Jira priorities</a></li><li><a href=/contribute/precommit-policies/>Pre-commit test policies</a></li><li><a href=/contribute/postcommits-policies/>Post-commit test policies</a></li><li><a href=/contribute/release-blockers/>Release blockers</a></li></ul></li><li><span class=section-nav-list-title>Committers</span><ul class=section-nav-list><li><a href=/contribute/become-a-committer/>Become a committer</a></li><li><a href=/contribute/committer-guide/>Committer guide</a></li><li><a href=/contribute/release-guide/>Release guide</a></li></ul></li></ul></nav></div><nav class="page-nav clearfix" data-offset-top=90 data-offset-bottom=500><nav id=TableOfContents><ul><li><a href=#what-are-fast-pre-commits>What are fast pre-commits?</a></li><li><a href=#determining-slowness>Determining Slowness</a><ul><li><a href=#pre-commit-dashboard>Pre-commit Dashboard</a></li></ul></li><li><a href=#triage-process>Triage Process</a></li><li><a href=#resolution>Resolution</a></li><li><a href=#possible-causes-and-solutions>Possible Causes and Solutions</a><ul><li><a href=#resource-exhaustion>Resource Exhaustion</a></li><li><a href=#slow-individual-tests>Slow individual tests</a></li><li><a href=#slow-integration-tests>Slow integration tests</a></li></ul></li><li><a href=#references>References</a></li></ul></nav></nav><div class="body__contained body__section-nav"><h1 id=pre-commit-slowness-triage-guide>Pre-commit Slowness Triage Guide</h1><p>Beam pre-commit jobs are suites of tests run automatically on Jenkins build
 machines for each pull request (PR) submitted to
-<a href="https://github.com/apache/beam">apache/beam</a>. For more information and the
+<a href=https://github.com/apache/beam>apache/beam</a>. For more information and the
 difference between pre-commits and post-commits, see
-<a href="https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide">testing</a>.</p>
-<h2 id="what-are-fast-pre-commits">What are fast pre-commits?</h2>
-<p>Pre-commit tests are required to pass before a pull request (PR) is merged.
+<a href=https://cwiki.apache.org/confluence/display/BEAM/Contribution+Testing+Guide>testing</a>.</p><h2 id=what-are-fast-pre-commits>What are fast pre-commits?</h2><p>Pre-commit tests are required to pass before a pull request (PR) is merged.
 When these tests are slow they slow down Beam&rsquo;s development process.
 The aim is to have 95% of pre-commit jobs complete within 30 minutes
-(failing or passing).</p>
-<p>Technically, the 95th percentile of running time should be below 30 minutes over
+(failing or passing).</p><p>Technically, the 95th percentile of running time should be below 30 minutes over
 the past 4 weeks, where running time is the duration of time the job spends in
-the Jenkins queue + the actual time it spends running.</p>
-<h2 id="determining-slowness">Determining Slowness</h2>
-<p>There are two main signs of slowness:</p>
-<ol>
-<li>Pre-commit jobs are timing out after 30 minutes. This can be determined from
-the console log of a job.</li>
-<li>Pre-commits aren&rsquo;t timing out, but the total wait time for pre-commit results
-is &gt;30m.</li>
-</ol>
-<h3 id="pre-commit-dashboard">Pre-commit Dashboard</h3>
-<p>The Beam Community Metrics site contains a <a href="http://104.154.241.245/d/_TNndF2iz/pre-commit-tests">Pre-Commit
+the Jenkins queue + the actual time it spends running.</p><h2 id=determining-slowness>Determining Slowness</h2><p>There are two main signs of slowness:</p><ol><li>Pre-commit jobs are timing out after 30 minutes. This can be determined from
+the console log of a job.</li><li>Pre-commits aren&rsquo;t timing out, but the total wait time for pre-commit results
+is >30m.</li></ol><h3 id=pre-commit-dashboard>Pre-commit Dashboard</h3><p>The Beam Community Metrics site contains a <a href=http://104.154.241.245/d/_TNndF2iz/pre-commit-tests>Pre-Commit
 Tests</a> dashboard showing
 job timing trends. You can modify the time window (defaults to 7 days) or filter
-down to a specific test suite by clicking on it.</p>
-<p><img src="/images/precommit_dashboard.png" alt="example pre-commit duration dashboard"></p>
-<h2 id="triage-process">Triage Process</h2>
-<ol>
-<li><a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20labels%20%3D%20precommit%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Search for existing
-issues</a></li>
-<li>Create a new issue if needed: <a href="https://issues.apache.org/jira/issues">Apache
-JIRA</a></li>
-</ol>
-<ul>
-<li>Project: Beam</li>
-<li>Components: testing, anything else relevant</li>
-<li>Label: precommit</li>
-<li>Reference this page in the description.</li>
-</ul>
-<ol>
-<li>Determine where the slowness is coming from and identify issues. Open
-additional issues if needed (such as for multiple issues).</li>
-<li>Assign the issue as appropriate, e.g., to the test&rsquo;s or PR&rsquo;s author.</li>
-</ol>
-<h2 id="resolution">Resolution</h2>
-<p>It is important that we quickly fix slow pre-commit tests. See <a href="/contribute/precommit-policies/">pre-commit test
-policies</a> for details.</p>
-<h2 id="possible-causes-and-solutions">Possible Causes and Solutions</h2>
-<p>This section lists some starting points for fixing pre-commit slowness.</p>
-<h3 id="resource-exhaustion">Resource Exhaustion</h3>
-<p>Have a look at the graphs in the Jupyter notebook. Does the rise in total
+down to a specific test suite by clicking on it.</p><p><img src=/images/precommit_dashboard.png alt="example pre-commit duration dashboard"></p><h2 id=triage-process>Triage Process</h2><ol><li><a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20status%20in%20(Open%2C%20%22In%20Progress%22%2C%20Reopened)%20AND%20labels%20%3D%20precommit%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC">Search for existing
+issues</a></li><li>Create a new issue if needed: <a href=https://issues.apache.org/jira/issues>Apache
+JIRA</a></li></ol><ul><li>Project: Beam</li><li>Components: testing, anything else relevant</li><li>Label: precommit</li><li>Reference this page in the description.</li></ul><ol><li>Determine where the slowness is coming from and identify issues. Open
+additional issues if needed (such as for multiple issues).</li><li>Assign the issue as appropriate, e.g., to the test&rsquo;s or PR&rsquo;s author.</li></ol><h2 id=resolution>Resolution</h2><p>It is important that we quickly fix slow pre-commit tests. See <a href=/contribute/precommit-policies/>pre-commit test
+policies</a> for details.</p><h2 id=possible-causes-and-solutions>Possible Causes and Solutions</h2><p>This section lists some starting points for fixing pre-commit slowness.</p><h3 id=resource-exhaustion>Resource Exhaustion</h3><p>Have a look at the graphs in the Jupyter notebook. Does the rise in total
 duration match the rise in queuing time? If so, the slowness might be unrelated
-to this specific pre-commit job.</p>
-<p>Example of when total and queuing durations rise and fall together (mostly):
-<img src="/images/precommit_graph_queuing_time.png" alt="graph of pre-commit times"></p>
-<p>Since Jenkins machines are a limited resource, other jobs can
+to this specific pre-commit job.</p><p>Example of when total and queuing durations rise and fall together (mostly):
+<img src=/images/precommit_graph_queuing_time.png alt="graph of pre-commit times"></p><p>Since Jenkins machines are a limited resource, other jobs can
 affect pre-commit queueing times. Try to figure out if other jobs have been
-recently slower, increased in frequency, or new jobs have been introduced.</p>
-<p>Another option is to look at adding more Jenkins machines.</p>
-<h3 id="slow-individual-tests">Slow individual tests</h3>
-<p>Sometimes a pre-commit job is slowed down due to one or more tests. One way of
-determining if this is the case is by looking at individual test timings.</p>
-<p>Where to find individual test timings:</p>
-<ul>
-<li>Look at the <code>Gradle Build Scan</code> link on the pre-commit job&rsquo;s Jenkins page.
-This page will contain individual test timings for Java tests only (2018-08).</li>
-<li>Look at the <code>Test Result</code> link on the pre-commit job&rsquo;s Jenkins page. This
-should be available for Java and Python tests (2018-08).</li>
-</ul>
-<p>Sometimes tests can be made faster by refactoring. A test that spends a lot of
+recently slower, increased in frequency, or new jobs have been introduced.</p><p>Another option is to look at adding more Jenkins machines.</p><h3 id=slow-individual-tests>Slow individual tests</h3><p>Sometimes a pre-commit job is slowed down due to one or more tests. One way of
+determining if this is the case is by looking at individual test timings.</p><p>Where to find individual test timings:</p><ul><li>Look at the <code>Gradle Build Scan</code> link on the pre-commit job&rsquo;s Jenkins page.
+This page will contain individual test timings for Java tests only (2018-08).</li><li>Look at the <code>Test Result</code> link on the pre-commit job&rsquo;s Jenkins page. This
+should be available for Java and Python tests (2018-08).</li></ul><p>Sometimes tests can be made faster by refactoring. A test that spends a lot of
 time waiting (such as an integration test) could be made to run concurrently with
-the other tests.</p>
-<p>If a test is determined to be too slow to be part of pre-commit tests, it should
+the other tests.</p><p>If a test is determined to be too slow to be part of pre-commit tests, it should
 be removed from pre-commit and placed in post-commit instead. In addition,
-ensure that the code covered by the removed test is <a href="/contribute/postcommits-policies-details/#precommit_for_postcommit">covered by a unit test in
-pre-commit</a>.</p>
-<h3 id="slow-integration-tests">Slow integration tests</h3>
-<p>Integration test slowdowns may be caused by dependent services.</p>
-<h2 id="references">References</h2>
-<ul>
-<li><a href="https://docs.google.com/document/d/1udtvggmS2LTMmdwjEtZCcUQy6aQAiYTI3OrTP8CLfJM/edit?usp=sharing">Beam Fast Precommits design doc</a></li>
-</ul>
-
-    </div>
-  </div>
-
-
-<footer class="footer">
-  <div class="footer__contained">
-    <div class="footer__cols">
-      <div class="footer__cols__col">
-        <div class="footer__cols__col__logo">
-          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
-        </div>
-        <div class="footer__cols__col__logo">
-          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
-        </div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
-        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
-                                                                                                                                width="14" height="14"
-                                                                                                                                alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
-       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
-        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
-      </div>
-    </div>
-  </div>
-  <div class="footer__bottom">
-    &copy;
-    <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href=/privacy_policy>Privacy Policy</a>
-    | <a href=/feed.xml>RSS Feed</a>
-    <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
-  </div>
-</footer>
-
-</body>
-</html>
+ensure that the code covered by the removed test is <a href=/contribute/postcommits-policies-details/#precommit_for_postcommit>covered by a unit test in
+pre-commit</a>.</p><h3 id=slow-integration-tests>Slow integration tests</h3><p>Integration test slowdowns may be caused by dependent services.</p><h2 id=references>References</h2><ul><li><a href="https://docs.google.com/document/d/1udtvggmS2LTMmdwjEtZCcUQy6aQAiYTI3OrTP8CLfJM/edit?usp=sharing">Beam Fast Precommits design doc</a></li></ul></div></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>

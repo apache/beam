@@ -1,309 +1,44 @@
-
-
-<!DOCTYPE html>
-<html lang="en" class="no-js">
-<head>
-  
- 
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<title>Apache Beam 2.21.0</title>
-<meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.">
- 
-<link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
- 
-
-
-    
-    <link rel="preload" href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" as="style">
-    <link href="/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css" rel="stylesheet" integrity="">
-
-
-<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
-
-<style>
-  .body__contained img { max-width: 100% }
-</style>
-
-<script src="/js/bootstrap.min.js"></script>
-<script src="/js/language-switch.js"></script>
-<script src="/js/fix-menu.js"></script>
-<script src="/js/section-nav.js"></script>
-<script src="/js/page-nav.js"></script>
-
-<link rel="alternate" type="application/rss+xml" title="Apache Beam" href="/feed.xml">
-<link rel="canonical" href="/blog/beam-2.21.0/" data-proofer-ignore>
-<link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
-<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.4.1/css/all.css" integrity="sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz" crossorigin="anonymous">
- 
-<script>
-  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-  })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-  ga('create', 'UA-73650088-1', 'auto');
-  ga('send', 'pageview');
-</script>
-</head>
-<body class="body">
-  
-
-<nav class="header navbar navbar-fixed-top">
-    <div class="navbar-header">
-      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
-        <span class="sr-only">Toggle navigation</span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-        <span class="icon-bar"></span>
-      </button>
-
-      <a href=/ class="navbar-brand" >
-        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
-      </a>
-    </div>
-
-    <div class="navbar-mask closed"></div>
-
-    <div id="navbar" class="navbar-container closed">
-      <ul class="nav navbar-nav">
-        <li>
-          <a href=/get-started/beam-overview/>Get Started</a>
-        </li>
-        <li>
-          <a href=/documentation/>Documentation</a>
-        </li>
-        <li>
-          <a href=/documentation/sdks/java/>Languages</a>
-        </li>
-        <li>
-          <a href=/documentation/runners/capability-matrix/>RUNNERS</a>
-        </li>
-        <li>
-          <a href=/roadmap/>Roadmap</a>
-        </li>
-        <li>
-          <a href=/contribute/>Contribute</a>
-        </li>
-        <li>
-          <a href=/community/contact-us/>Community</a>
-        </li>
-        <li><a href=/blog/>Blog</a></li>
-      </ul>
-      <ul class="nav navbar-nav navbar-right">
-        <li>
-          <div style="width: 300px;">
-            <script>
-              (function() {
-                var cx = '012923275103528129024:4emlchv9wzi';
-                var gcse = document.createElement('script');
-                gcse.type = 'text/javascript';
-                gcse.async = true;
-                gcse.src = 'https://cse.google.com/cse.js?cx=' + cx;
-                var s = document.getElementsByTagName('script')[0];
-                s.parentNode.insertBefore(gcse, s);
-              })();
-            </script>
-            <gcse:search></gcse:search>
-          </div>
-        </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
-          <ul class="dropdown-menu dropdown-menu-right">
-            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
-            <li><a href="http://www.apache.org/licenses/">License</a></li>
-            <li><a href="http://www.apache.org/security/">Security</a></li>
-            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
-            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
-            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
-          </ul>
-        </li>
-        <li>
-          
-          <a href="https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/beam-2.21.0.md" data-proofer-ignore>
-            <i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i>
-          </a>
-        </li>
-      </ul>
-    </div>
-</nav>
-
-  <div class="body__contained">
-    
-    
-    <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
-
-      <header class="post-header">
-        <h1 class="post-title" itemprop="name headline">Apache Beam 2.21.0</h1>
-        <p class="post-meta"><time datetime="2020-05-27T00:00:01-08:00" itemprop="datePublished">May 27, 2020</time>
-         •
-            
-            
-                
-                
-                  
-            
-        
-        </p>
-      </header>
-
-      <div class="post-content" itemprop="articleBody">
-        <!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<p>We are happy to present the new 2.21.0 release of Beam. This release includes both improvements and new functionality.
-See the <a href="/get-started/downloads/#xxxx-xxxx">download page</a> for this release.
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Apache Beam 2.21.0</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/blog/beam-2.21.0/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/beam-2.21.0.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class=body__contained><article class=post itemscope itemtype=http://schema.org/BlogPosting><header class=post-header><h1 class=post-title itemprop="name headline">Apache Beam 2.21.0</h1><p class=post-meta><time datetime=2020-05-27T00:00:01-08:00 itemprop=datePublished>May 27, 2020</time>
+•</p></header><div class=post-content itemprop=articleBody><p>We are happy to present the new 2.21.0 release of Beam. This release includes both improvements and new functionality.
+See the <a href=/get-started/downloads/#xxxx-xxxx>download page</a> for this release.
 For more information on changes in 2.21.0, check out the
-<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;version=12347143">detailed release notes</a>.</p>
-<h2 id="ios">I/Os</h2>
-<ul>
-<li>Python: Deprecated module <code>apache_beam.io.gcp.datastore.v1</code> has been removed
+<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347143">detailed release notes</a>.</p><h2 id=ios>I/Os</h2><ul><li>Python: Deprecated module <code>apache_beam.io.gcp.datastore.v1</code> has been removed
 as the client it uses is out of date and does not support Python 3
-(<a href="https://issues.apache.org/jira/browse/BEAM-9529">BEAM-9529</a>).
+(<a href=https://issues.apache.org/jira/browse/BEAM-9529>BEAM-9529</a>).
 Please migrate your code to use
-<a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html">apache_beam.io.gcp.datastore.<strong>v1new</strong></a>.
+<a href=https://beam.apache.org/releases/pydoc/current/apache_beam.io.gcp.datastore.v1new.datastoreio.html>apache_beam.io.gcp.datastore.<strong>v1new</strong></a>.
 See the updated
-<a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py">datastore_wordcount</a>
-for example usage.</li>
-<li>Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform (<a href="https://issues.apache.org/jira/browse/BEAM-8949">BEAM-8949</a>).</li>
-</ul>
-<h2 id="new-features--improvements">New Features / Improvements</h2>
-<ul>
-<li>
-<p>Python SDK will now use Python 3 type annotations as pipeline type hints.
-(<a href="https://github.com/apache/beam/pull/10717">#10717</a>)</p>
-<p>If you suspect that this feature is causing your pipeline to fail, calling
+<a href=https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/cookbook/datastore_wordcount.py>datastore_wordcount</a>
+for example usage.</li><li>Python SDK: Added integration tests and updated batch write functionality for Google Cloud Spanner transform (<a href=https://issues.apache.org/jira/browse/BEAM-8949>BEAM-8949</a>).</li></ul><h2 id=new-features--improvements>New Features / Improvements</h2><ul><li><p>Python SDK will now use Python 3 type annotations as pipeline type hints.
+(<a href=https://github.com/apache/beam/pull/10717>#10717</a>)</p><p>If you suspect that this feature is causing your pipeline to fail, calling
 <code>apache_beam.typehints.disable_type_annotations()</code> before pipeline creation
 will disable is completely, and decorating specific functions (such as
 <code>process()</code>) with <code>@apache_beam.typehints.no_annotations</code> will disable it
-for that function.</p>
-<p>More details will be in
-<a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety</a>
+for that function.</p><p>More details will be in
+<a href=https://beam.apache.org/documentation/sdks/python-type-safety/>Ensuring Python Type Safety</a>
 and an upcoming
-<a href="https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html">blog post</a>.</p>
-</li>
-<li>
-<p>Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+<a href=https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html>blog post</a>.</p></li><li><p>Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
 context to fields and schemas. This replaces the current Beam metadata that is present
 in a FieldType only, options are available in fields and row schemas. Schema options are
 fully typed and can contain complex rows. <em>Remark: Schema aware is still experimental.</em>
-(<a href="https://issues.apache.org/jira/browse/BEAM-9035">BEAM-9035</a>)</p>
-</li>
-<li>
-<p>Java SDK: The protobuf extension is fully schema aware and also includes protobuf option
+(<a href=https://issues.apache.org/jira/browse/BEAM-9035>BEAM-9035</a>)</p></li><li><p>Java SDK: The protobuf extension is fully schema aware and also includes protobuf option
 conversion to beam schema options. <em>Remark: Schema aware is still experimental.</em>
-(<a href="https://issues.apache.org/jira/browse/BEAM-9044">BEAM-9044</a>)</p>
-</li>
-<li>
-<p>Added ability to write to BigQuery via Avro file loads (Python) (<a href="https://issues.apache.org/jira/browse/BEAM-8841">BEAM-8841</a>)</p>
-<p>By default, file loads will be done using JSON, but it is possible to
+(<a href=https://issues.apache.org/jira/browse/BEAM-9044>BEAM-9044</a>)</p></li><li><p>Added ability to write to BigQuery via Avro file loads (Python) (<a href=https://issues.apache.org/jira/browse/BEAM-8841>BEAM-8841</a>)</p><p>By default, file loads will be done using JSON, but it is possible to
 specify the temp_file_format parameter to perform file exports with AVRO.
 AVRO-based file loads work by exporting Python types into Avro types, so
 to switch to Avro-based loads, you will need to change your data types
 from Json-compatible types (string-type dates and timestamp, long numeric
 values as strings) into Python native types that are written to Avro
 (Python&rsquo;s date, datetime types, decimal, etc). For more information
-see <a href="https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions">https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions</a>.</p>
-</li>
-<li>
-<p>Added integration of Java SDK with Google Cloud AI VideoIntelligence service
-(<a href="https://issues.apache.org/jira/browse/BEAM-9147">BEAM-9147</a>)</p>
-</li>
-<li>
-<p>Added integration of Java SDK with Google Cloud AI natural language processing API
-(<a href="https://issues.apache.org/jira/browse/BEAM-9634">BEAM-9634</a>)</p>
-</li>
-<li>
-<p><code>docker-pull-licenses</code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when <code>docker-pull-licenses</code> was set.
+see <a href=https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions>https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-avro#avro_conversions</a>.</p></li><li><p>Added integration of Java SDK with Google Cloud AI VideoIntelligence service
+(<a href=https://issues.apache.org/jira/browse/BEAM-9147>BEAM-9147</a>)</p></li><li><p>Added integration of Java SDK with Google Cloud AI natural language processing API
+(<a href=https://issues.apache.org/jira/browse/BEAM-9634>BEAM-9634</a>)</p></li><li><p><code>docker-pull-licenses</code> tag was introduced. Licenses/notices of third party dependencies will be added to the docker images when <code>docker-pull-licenses</code> was set.
 The files are added to <code>/opt/apache/beam/third_party_licenses/</code>.
-By default, no licenses/notices are added to the docker images. (<a href="https://issues.apache.org/jira/browse/BEAM-9136">BEAM-9136</a>)</p>
-</li>
-</ul>
-<h2 id="breaking-changes">Breaking Changes</h2>
-<ul>
-<li>Dataflow runner now requires the <code>--region</code> option to be set, unless a default value is set in the environment (<a href="https://issues.apache.org/jira/browse/BEAM-9199">BEAM-9199</a>). See <a href="https://cloud.google.com/dataflow/docs/concepts/regional-endpoints">here</a> for more details.</li>
-<li>HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects (<a href="https://issues.apache.org/jira/browse/BEAM-9279">BEAM-9279</a>).</li>
-<li>ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator (<a href="https://issues.apache.org/jira/browse/BEAM-9430">BEAM-9430</a>).</li>
-<li>Coder inference for PCollection of Row objects has been disabled (<a href="https://issues.apache.org/jira/browse/BEAM-9569">BEAM-9569</a>).</li>
-<li>Go SDK docker images are no longer released until further notice.</li>
-</ul>
-<h2 id="deprecations">Deprecations</h2>
-<ul>
-<li>Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
-Schema Options, it will be removed in version <code>2.23.0</code>. (<a href="https://issues.apache.org/jira/browse/BEAM-9704">BEAM-9704</a>)</li>
-<li>The <code>--zone</code> option in the Dataflow runner is now deprecated. Please use <code>--worker_zone</code> instead. (<a href="https://issues.apache.org/jira/browse/BEAM-9716">BEAM-9716</a>)</li>
-</ul>
-<h2 id="list-of-contributors">List of Contributors</h2>
-<p>According to git shortlog, the following people contributed to the 2.21.0 release. Thank you to all contributors!</p>
-<p>Aaron Meihm, Adrian Eka, Ahmet Altay, AldairCoronel, Alex Van Boxel, Alexey Romanenko, Andrew Crites, Andrew Pilloud, Ankur Goenka, Badrul (Taki) Chowdhury, Bartok Jozsef, Boyuan Zhang, Brian Hulette, brucearctor, bumblebee-coming, Chad Dombrova, Chamikara Jayalath, Chie Hayashida, Chris Gorgolewski, Chuck Yang, Colm O hEigeartaigh, Curtis &ldquo;Fjord&rdquo; Hawthorne, Daniel Mills, Daniel Oliveira, David Yan, Elias Djurfeldt, Emiliano Capoccia, Etienne Chauchot, Fernando Diaz, Filipe Regadas, Gleb Kanterov, Hai Lu, Hannah Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Hk-tang, Ismaël Mejía, Jacoby, Jan Lukavský, Jeroen Van Goey, jfarr, Jozef Vilcek, Kai Jiang, Kamil Wasilewski, Kenneth Knowles, KevinGG, Kyle Weaver, Kyoungha Min, Luke Cwik, Maximilian Michels, Michal Walenia, Ning Kang, Pablo Estrada, paul fisher, Piotr Szuberski, Reuven Lax, Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Sam Rohde, Sam Whittle, Spoorti Kundargi, Steve Koonce, sunjincheng121, Ted Yun, Tesio, Thomas Weise, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, Yichi Zhang, yoshiki.obata, Yueyang Qiu</p>
-
-      </div>
-
-    </article>
-
-  </div>
-  
-
-<footer class="footer">
-  <div class="footer__contained">
-    <div class="footer__cols">
-      <div class="footer__cols__col">
-        <div class="footer__cols__col__logo">
-          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
-        </div>
-        <div class="footer__cols__col__logo">
-          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
-        </div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Start</div>
-        <div class="footer__cols__col__link"><a href=/get-started/beam-overview/>Overview</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div>
-        <div class="footer__cols__col__link"><a href=/get-started/downloads/>Downloads</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Docs</div>
-        <div class="footer__cols__col__link"><a href=/documentation/programming-guide/>Concepts</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div>
-        <div class="footer__cols__col__link"><a href=/documentation/runners/capability-matrix/>Runners</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Community</div>
-        <div class="footer__cols__col__link"><a href=/contribute/>Contribute</a></div>
-        <div class="footer__cols__col__link"><a href=https://projects.apache.org/committee.html?beam target="_blank">Team<img src="/images/external-link-icon.png"
-                                                                                                                                width="14" height="14"
-                                                                                                                                alt="External link."></a></div>
-        <div class="footer__cols__col__link"><a href=/community/presentation-materials/>Media</a></div>
-       <div class="footer__cols__col__link"><a href=/community/in-person/>Events/Meetups</a></div>
-      </div>
-      <div class="footer__cols__col footer__cols__col--md">
-        <div class="footer__cols__col__title">Resources</div>
-        <div class="footer__cols__col__link"><a href=/blog/>Blog</a></div>
-        <div class="footer__cols__col__link"><a href=/community/contact-us/>Contact Us</a></div>
-        <div class="footer__cols__col__link"><a href=https://github.com/apache/beam>GitHub</a></div>
-      </div>
-    </div>
-  </div>
-  <div class="footer__bottom">
-    &copy;
-    <a href="http://www.apache.org">The Apache Software Foundation</a>
-    | <a href=/privacy_policy>Privacy Policy</a>
-    | <a href=/feed.xml>RSS Feed</a>
-    <br><br>
-    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.
-  </div>
-</footer>
-
-</body>
-</html>
+By default, no licenses/notices are added to the docker images. (<a href=https://issues.apache.org/jira/browse/BEAM-9136>BEAM-9136</a>)</p></li></ul><h2 id=breaking-changes>Breaking Changes</h2><ul><li>Dataflow runner now requires the <code>--region</code> option to be set, unless a default value is set in the environment (<a href=https://issues.apache.org/jira/browse/BEAM-9199>BEAM-9199</a>). See <a href=https://cloud.google.com/dataflow/docs/concepts/regional-endpoints>here</a> for more details.</li><li>HBaseIO.ReadAll now requires a PCollection of HBaseIO.Read objects instead of HBaseQuery objects (<a href=https://issues.apache.org/jira/browse/BEAM-9279>BEAM-9279</a>).</li><li>ProcessContext.updateWatermark has been removed in favor of using a WatermarkEstimator (<a href=https://issues.apache.org/jira/browse/BEAM-9430>BEAM-9430</a>).</li><li>Coder inference for PCollection of Row objects has been disabled (<a href=https://issues.apache.org/jira/browse/BEAM-9569>BEAM-9569</a>).</li><li>Go SDK docker images are no longer released until further notice.</li></ul><h2 id=deprecations>Deprecations</h2><ul><li>Java SDK: Beam Schema FieldType.getMetadata is now deprecated and is replaced by the Beam
+Schema Options, it will be removed in version <code>2.23.0</code>. (<a href=https://issues.apache.org/jira/browse/BEAM-9704>BEAM-9704</a>)</li><li>The <code>--zone</code> option in the Dataflow runner is now deprecated. Please use <code>--worker_zone</code> instead. (<a href=https://issues.apache.org/jira/browse/BEAM-9716>BEAM-9716</a>)</li></ul><h2 id=list-of-contributors>List of Contributors</h2><p>According to git shortlog, the following people contributed to the 2.21.0 release. Thank you to all contributors!</p><p>Aaron Meihm, Adrian Eka, Ahmet Altay, AldairCoronel, Alex Van Boxel, Alexey Romanenko, Andrew Crites, Andrew Pilloud, Ankur Goenka, Badrul (Taki) Chowdhury, Bartok Jozsef, Boyuan Zhang, Brian Hulette, brucearctor, bumblebee-coming, Chad Dombrova, Chamikara Jayalath, Chie Hayashida, Chris Gorgolewski, Chuck Yang, Colm O hEigeartaigh, Curtis &ldquo;Fjord&rdquo; Hawthorne, Daniel Mills, Daniel Oliveira, David Yan, Elias Djurfeldt, Emiliano Capoccia, Etienne Chauchot, Fernando Diaz, Filipe Regadas, Gleb Kanterov, Hai Lu, Hannah Jiang, Harch Vardhan, Heejong Lee, Henry Suryawirawan, Hk-tang, Ismaël Mejía, Jacoby, Jan Lukavský, Jeroen Van Goey, jfarr, Jozef Vilcek, Kai Jiang, Kamil Wasilewski, Kenneth Knowles, KevinGG, Kyle Weaver, Kyoungha Min, Luke Cwik, Maximilian Michels, Michal Walenia, Ning Kang, Pablo Estrada, paul fisher, Piotr Szuberski, Reuven Lax, Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Sam Rohde, Sam Whittle, Spoorti Kundargi, Steve Koonce, sunjincheng121, Ted Yun, Tesio, Thomas Weise, Tomo Suzuki, Udi Meiri, Valentyn Tymofieiev, Vasu Nori, Yichi Zhang, yoshiki.obata, Yueyang Qiu</p></div></article></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>
