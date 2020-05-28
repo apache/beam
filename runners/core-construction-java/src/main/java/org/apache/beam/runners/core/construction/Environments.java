@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
+import com.fasterxml.jackson.core.Base64Variants;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -215,25 +216,19 @@ public class Environments {
     Set<String> deduplicatedStagingFiles = new LinkedHashSet<>(stagingFiles);
     for (String path : deduplicatedStagingFiles) {
       File file;
-      String stagedName;
+      String stagedName = null;
       if (path.contains("=")) {
         String[] components = path.split("=", 2);
         file = new File(components[1]);
         stagedName = components[0];
       } else {
         file = new File(path);
-        stagedName = createStagingFileName(file);
       }
       // Spurious items get added to the classpath. Filter by just those that exist.
       if (file.exists()) {
         ArtifactInformation.Builder artifactBuilder = ArtifactInformation.newBuilder();
         artifactBuilder.setTypeUrn(BeamUrns.getUrn(StandardArtifacts.Types.FILE));
         artifactBuilder.setRoleUrn(BeamUrns.getUrn(StandardArtifacts.Roles.STAGING_TO));
-        artifactBuilder.setRolePayload(
-            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
-                .setStagedName(stagedName)
-                .build()
-                .toByteString());
         HashCode hashCode;
         if (file.isDirectory()) {
           File zippedFile;
@@ -264,6 +259,14 @@ public class Environments {
                   .build()
                   .toByteString());
         }
+        if (stagedName == null) {
+          stagedName = createStagingFileName(file, hashCode);
+        }
+        artifactBuilder.setRolePayload(
+            RunnerApi.ArtifactStagingToRolePayload.newBuilder()
+                .setStagedName(stagedName)
+                .build()
+                .toByteString());
         artifactsBuilder.add(artifactBuilder.build());
       }
     }
@@ -314,10 +317,12 @@ public class Environments {
     return capabilities.build();
   }
 
-  public static String createStagingFileName(File path) {
+  public static String createStagingFileName(File path, HashCode hash) {
+    String encodedHash = Base64Variants.MODIFIED_FOR_URL.encode(hash.asBytes());
+    String fileName = Files.getNameWithoutExtension(path.getAbsolutePath());
     String ext = path.isDirectory() ? "jar" : Files.getFileExtension(path.getAbsolutePath());
     String suffix = Strings.isNullOrEmpty(ext) ? "" : "." + ext;
-    return UUID.randomUUID().toString() + suffix;
+    return String.format("%s-%s%s", fileName, encodedHash, suffix);
   }
 
   private static File zipDirectory(File directory) throws IOException {
