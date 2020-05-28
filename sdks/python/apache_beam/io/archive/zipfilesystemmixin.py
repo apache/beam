@@ -49,6 +49,17 @@ class ZipFileSystemMixin(ArchiveFileSystemMixinBase):
       | Map(lambda x: x.open().read())
       | Map(print)
   )
+
+
+    (
+      p
+      | MatchFiles("s3://ashwin-bucket123/logs.zip")
+      | ExtractMatches()
+      | MatchAll("*.log")
+      | ReadMatches()
+      | Map(lambda x: x.open().read())
+      | Map(print)
+  )
   ```
   
   Behind the scenes, a custom class is created like this:

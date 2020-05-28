@@ -235,8 +235,11 @@ class FileSystems(object):
     Args:
       patterns: list of string for the file path pattern to match against
       limits: list of maximum number of responses that need to be fetched
-      archive_path: (optional) Path of the archive within which 
-      archivesystem: (optional) ArchiveSystemMixin, if archive_path is specified and a particular archive system should be specified rather than inferring from the archive_path extension.
+      archive_path: (optional) Path of the archive within which to search,
+        if searching within an archive.
+      archivesystem: (optional) Which ArchiveSystemMixin to use, if archive_path is
+        specified and you want to override the default behavior of inferring the
+        ArchiveSystemMixin from the archive_path extension.
 
     Returns: list of ``MatchResult`` objects.
 
@@ -246,9 +249,6 @@ class FileSystems(object):
     if len(patterns) == 0:
       return []
     pattern = patterns[0]
-    # if isintance(pattern, FileMetadata):
-    #   pattern = 
-    #   archive_path = 
     filesystem = FileSystems.get_filesystem(pattern, archive_path, archivesystem)
     return filesystem.match(patterns, limits)
 

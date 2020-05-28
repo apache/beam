@@ -153,15 +153,12 @@ class EmptyMatchTreatment(object):
 
 
 class _MatchAllFn(beam.DoFn):
-  def __init__(self, empty_match_treatment, archive_path=None, archivesystem=None):
+  def __init__(self, empty_match_treatment):
     self._empty_match_treatment = empty_match_treatment
-    self.archive_path = archive_path
-    self.archivesystem = archivesystem
 
   def process(self, file_pattern):
     # TODO: Should we batch the lookups?
-    match_results = filesystems.FileSystems.match([file_pattern], archive_path=self.archive_path, archivesystem=self.archivesystem)
-    match_result = match_results[0]
+    match_result = filesystems.FileSystems.match([file_pattern])[0]
 
     if (not match_result.metadata_list and
         not EmptyMatchTreatment.allow_empty_match(file_pattern,
@@ -169,8 +166,23 @@ class _MatchAllFn(beam.DoFn):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
 
-    return match_result.metadata_list
+class _MatchExtractedFilesFn(beam.DoFn):
+  def __init__(self, archive_file_match=None, archivesystem=None, empty_match_treatment=None):
+    self.archive_file_match = archive_file_match
+    self.archivesystem = archivesystem
+    self._empty_match_treatment = empty_match_treatment
 
+  def process(self, file_metadata):
+    # TODO: Should we batch the lookups?
+    import pdb; pdb.set_trace()
+    file_pattern = file_metadata.path
+    match_result = filesystems.FileSystems.match([self.archive_file_match], archive_path=file_pattern, archivesystem=self.archivesystem)[0]
+
+    if (not match_result.metadata_list and
+        not EmptyMatchTreatment.allow_empty_match(file_pattern,
+                                                  self._empty_match_treatment)):
+      raise BeamIOError(
+          'Empty match for pattern %s. Disallowed.' % file_pattern)
 
 @experimental()
 class MatchFiles(beam.PTransform):
@@ -181,16 +193,12 @@ class MatchFiles(beam.PTransform):
   def __init__(
       self,
       file_pattern,
-      empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD,
-      archive_path=None,
-      archivesystem=None):
+      empty_match_treatment=EmptyMatchTreatment.ALLOW_IF_WILDCARD):
     self._file_pattern = file_pattern
     self._empty_match_treatment = empty_match_treatment
-    self.archive_path = archive_path
-    self.archivesystem = archivesystem
 
   def expand(self, pcoll):
-    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(self._empty_match_treatment, self.archive_path, self.archivesystem)
+    return pcoll.pipeline | beam.Create([self._file_pattern]) | MatchAll(self._empty_match_treatment)
 
 
 @experimental()
@@ -200,17 +208,29 @@ class MatchAll(beam.PTransform):
   This ``PTransform`` returns a ``PCollection`` of matching files in the form
   of ``FileMetadata`` objects."""
   def __init__(self,
-    empty_match_treatment=EmptyMatchTreatment.ALLOW,
-    archive_path=None,
-    archivesystem=None
+    empty_match_treatment=EmptyMatchTreatment.ALLOW):
+    self._empty_match_treatment=empty_match_treatment
+
+  def expand(self, pcoll):
+    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment))
+
+@experimental()
+class MatchExtractedFiles(beam.PTransform):
+  """Matches file patterns that are within archive paths from the input PCollection via ``FileSystems.match``.
+
+  This ``PTransform`` returns a ``PCollection`` of matching files in the form
+  of ``FileMetadata`` objects."""
+  def __init__(self,
+    archive_file_match=None,
+    archivesystem=None,
+    empty_match_treatment=EmptyMatchTreatment.ALLOW
   ):
     self._empty_match_treatment = empty_match_treatment
-    self.archive_path = archive_path
+    self.archive_file_match = archive_file_match
     self.archivesystem = archivesystem
 
   def expand(self, pcoll):
-    return pcoll | beam.ParDo(_MatchAllFn(self._empty_match_treatment, self.archive_path, self.archivesystem))
-
+    return pcoll | beam.ParDo(_MatchExtractedFilesFn(self.archive_file_match, self.archivesystem, self._empty_match_treatment))
 
 class _ReadMatchesFn(beam.DoFn):
   def __init__(self, compression, skip_directories):
