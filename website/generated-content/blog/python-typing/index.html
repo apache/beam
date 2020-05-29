@@ -1,0 +1,67 @@
+<!doctype html><html lang=en class=no-js><head><meta charset=utf-8><meta http-equiv=x-ua-compatible content="IE=edge"><meta name=viewport content="width=device-width,initial-scale=1"><title>Python SDK Typing Changes</title><meta name=description content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes."><link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel=stylesheet><link rel=preload href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css as=style><link href=/scss/main.min.7bfa213b38fe814e9a5d5af502d4d2e0d4e9e7dfe8a528843e32a858c6c92bc2.css rel=stylesheet integrity><script src=https://code.jquery.com/jquery-2.2.4.min.js></script><style>.body__contained img{max-width:100%}</style><script src=/js/bootstrap.min.js></script><script src=/js/language-switch.js></script><script src=/js/fix-menu.js></script><script src=/js/section-nav.js></script><script src=/js/page-nav.js></script><link rel=alternate type=application/rss+xml title="Apache Beam" href=/feed.xml><link rel=canonical href=/blog/python-typing/ data-proofer-ignore><link rel="shortcut icon" type=image/x-icon href=/images/favicon.ico><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.4.1/css/all.css integrity=sha384-5sAR7xN1Nv6T6+dT2mhtzEpVJvfS3NScPQTrOxhwjIuvcA67KV2R5Jz6kr4abQsz crossorigin=anonymous><script>(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,'script','//www.google-analytics.com/analytics.js','ga');ga('create','UA-73650088-1','auto');ga('send','pageview');</script></head><body class=body><nav class="header navbar navbar-fixed-top"><div class=navbar-header><button type=button class=navbar-toggle aria-expanded=false aria-controls=navbar>
+<span class=sr-only>Toggle navigation</span>
+<span class=icon-bar></span><span class=icon-bar></span><span class=icon-bar></span></button>
+<a href=/ class=navbar-brand><img alt=Brand style=height:25px src=/images/beam_logo_navbar.png></a></div><div class="navbar-mask closed"></div><div id=navbar class="navbar-container closed"><ul class="nav navbar-nav"><li><a href=/get-started/beam-overview/>Get Started</a></li><li><a href=/documentation/>Documentation</a></li><li><a href=/documentation/sdks/java/>Languages</a></li><li><a href=/documentation/runners/capability-matrix/>RUNNERS</a></li><li><a href=/roadmap/>Roadmap</a></li><li><a href=/contribute/>Contribute</a></li><li><a href=/community/contact-us/>Community</a></li><li><a href=/blog/>Blog</a></li></ul><ul class="nav navbar-nav navbar-right"><li><div style=width:300px><script>(function(){var cx='012923275103528129024:4emlchv9wzi';var gcse=document.createElement('script');gcse.type='text/javascript';gcse.async=true;gcse.src='https://cse.google.com/cse.js?cx='+cx;var s=document.getElementsByTagName('script')[0];s.parentNode.insertBefore(gcse,s);})();</script><gcse:search></gcse:search></div></li><li class=dropdown><a href=# class=dropdown-toggle data-toggle=dropdown role=button aria-haspopup=true aria-expanded=false><img src=https://www.apache.org/foundation/press/kit/feather_small.png alt="Apache Logo" style=height:20px><span class=caret></span></a><ul class="dropdown-menu dropdown-menu-right"><li><a href=http://www.apache.org/>ASF Homepage</a></li><li><a href=http://www.apache.org/licenses/>License</a></li><li><a href=http://www.apache.org/security/>Security</a></li><li><a href=http://www.apache.org/foundation/thanks.html>Thanks</a></li><li><a href=http://www.apache.org/foundation/sponsorship.html>Sponsorship</a></li><li><a href=https://www.apache.org/foundation/policies/conduct>Code of Conduct</a></li></ul></li><li><a href=https://github.com/apache/beam/edit/master/website/www/site/content/en/blog/python-typing.md data-proofer-ignore><i class="far fa-edit fa-lg" alt="Edit on GitHub" title="Edit on GitHub"></i></a></li></ul></div></nav><div class=body__contained><article class=post itemscope itemtype=http://schema.org/BlogPosting><header class=post-header><h1 class=post-title itemprop="name headline">Python SDK Typing Changes</h1><p class=post-meta><time datetime=2020-05-28T00:00:01-08:00 itemprop=datePublished>May 28, 2020</time>
+•
+Chad Dombrova
+&
+Udi Meiri [<a href=https://twitter.com/udim>@udim</a>]</p></header><div class=post-content itemprop=articleBody><p>Beam Python has recently increased its support and integration of Python 3 type
+annotations for improved code clarity and type correctness checks.
+Read on to find out what&rsquo;s new.</p><p>Python supports type annotations on functions (PEP 484). Static type checkers,
+such as mypy, are used to verify adherence to these types.
+For example:</p><pre><code>def f(v: int) -&gt; int:
+  return v[0]
+</code></pre><p>Running mypy on the above code will give the error:
+<code>Value of type "int" is not indexable</code>.</p><p>We&rsquo;ve recently made changes to Beam in 2 areas:</p><p>Adding type annotations throughout Beam. Type annotations make a large and
+sophisticated codebase like Beam easier to comprehend and navigate in your
+favorite IDE.</p><p>Second, we&rsquo;ve added support for Python 3 type annotations. This allows SDK
+users to specify a DoFn&rsquo;s type hints in one place.
+We&rsquo;ve also expanded Beam&rsquo;s support of <code>typing</code> module types.</p><p>For more background see:
+<a href=https://beam.apache.org/documentation/sdks/python-type-safety/>Ensuring Python Type Safety</a>.</p><h1 id=beam-is-typed>Beam Is Typed</h1><p>In tandem with the new type annotation support within DoFns, we&rsquo;ve invested a
+great deal of time adding type annotations to the Beam python code itself.
+With this in place, we have begun using mypy, a static type
+checker, as part of Beam&rsquo;s code review process, which ensures higher quality
+contributions and fewer bugs.
+The added context and insight that type annotations add throughout Beam is
+useful for all Beam developers, contributors and end users alike, but
+it is especially beneficial for developers who are new to the project.
+If you use an IDE that understands type annotations, it will provide richer
+type completions and warnings than before.
+You&rsquo;ll also be able to use your IDE to inspect the types of Beam functions and
+transforms to better understand how they work, which will ease your own
+development.
+Finally, once Beam is fully annotated, end users will be able to benefit from
+the use of static type analysis on their own pipelines and custom transforms.</p><h1 id=new-ways-to-annotate>New Ways to Annotate</h1><h2 id=python-3-syntax-annotations>Python 3 Syntax Annotations</h2><p>Coming in Beam 2.21 (BEAM-8280), you will be able to use Python annotation
+syntax to specify input and output types.</p><p>For example, this new form:</p><pre><code>class MyDoFn(beam.DoFn):
+  def process(self, element: int) -&gt; typing.Text:
+    yield str(element)
+</code></pre><p>is equivalent to this:</p><pre><code>@apache_beam.typehints.with_input_types(int)
+@apache_beam.typehints.with_output_types(typing.Text)
+class MyDoFn(beam.DoFn):
+  def process(self, element):
+    yield str(element)
+</code></pre><p>One of the advantages of the new form is that you may already be using it
+in tandem with a static type checker such as mypy, thus getting additional
+runtime type checking for free.</p><p>This feature will be enabled by default, and there will be 2 mechanisms in
+place to disable it:</p><ol><li>Calling <code>apache_beam.typehints.disable_type_annotations()</code> before pipeline
+construction will disable the new feature completely.</li><li>Decorating a function with <code>@apache_beam.typehints.no_annotations</code> will
+tell Beam to ignore annotations for it.</li></ol><p>Uses of Beam&rsquo;s <code>with_input_type</code>, <code>with_output_type</code> methods and decorators will
+still work and take precedence over annotations.</p><h3 id=sidebar>Sidebar</h3><p>You might ask: couldn&rsquo;t we use mypy to type check Beam pipelines?
+There are several reasons why this is not the case.</p><ul><li>Pipelines are constructed at runtime and may depend on information that is
+only known at that time, such as a config file or database table schema.</li><li>PCollections don&rsquo;t have the necessary type information, so mypy sees them as
+effectively containing any element type.
+This may change in in the future.</li><li>Transforms using lambdas (ex: <code>beam.Map(lambda x: (1, x)</code>) cannot be
+annotated properly using PEP 484.
+However, Beam does a best-effort attempt to analyze the output type
+from the bytecode.</li></ul><h2 id=typing-module-support>Typing Module Support</h2><p>Python&rsquo;s <a href=https://docs.python.org/3/library/typing.html>typing</a> module defines
+types used in type annotations. This is what we call &ldquo;native&rdquo; types.
+While Beam has its own typing types, it also supports native types.
+While both Beam and native types are supported, for new code we encourage using
+native typing types. Native types have as these are supported by additional tools.</p><p>While working on Python 3 annotations syntax support, we&rsquo;ve also discovered and
+fixed issues with native type support. There may still be bugs and unsupported
+native types. Please
+<a href=https://beam.apache.org/community/contact-us/>let us know</a> if you encounter
+issues.</p></div></article></div><footer class=footer><div class=footer__contained><div class=footer__cols><div class=footer__cols__col><div class=footer__cols__col__logo><img src=/images/beam_logo_circle.svg class=footer__logo alt="Beam logo"></div><div class=footer__cols__col__logo><img src=/images/apache_logo_circle.svg class=footer__logo alt="Apache logo"></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Start</div><div class=footer__cols__col__link><a href=/get-started/beam-overview/>Overview</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-java/>Quickstart (Java)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-py/>Quickstart (Python)</a></div><div class=footer__cols__col__link><a href=/get-started/quickstart-go/>Quickstart (Go)</a></div><div class=footer__cols__col__link><a href=/get-started/downloads/>Downloads</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Docs</div><div class=footer__cols__col__link><a href=/documentation/programming-guide/>Concepts</a></div><div class=footer__cols__col__link><a href=/documentation/pipelines/design-your-pipeline/>Pipelines</a></div><div class=footer__cols__col__link><a href=/documentation/runners/capability-matrix/>Runners</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Community</div><div class=footer__cols__col__link><a href=/contribute/>Contribute</a></div><div class=footer__cols__col__link><a href=https://projects.apache.org/committee.html?beam target=_blank>Team<img src=/images/external-link-icon.png width=14 height=14 alt="External link."></a></div><div class=footer__cols__col__link><a href=/community/presentation-materials/>Media</a></div><div class=footer__cols__col__link><a href=/community/in-person/>Events/Meetups</a></div></div><div class="footer__cols__col footer__cols__col--md"><div class=footer__cols__col__title>Resources</div><div class=footer__cols__col__link><a href=/blog/>Blog</a></div><div class=footer__cols__col__link><a href=/community/contact-us/>Contact Us</a></div><div class=footer__cols__col__link><a href=https://github.com/apache/beam>GitHub</a></div></div></div></div><div class=footer__bottom>&copy;
+<a href=http://www.apache.org>The Apache Software Foundation</a>
+| <a href=/privacy_policy>Privacy Policy</a>
+| <a href=/feed.xml>RSS Feed</a><br><br>Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are either registered trademarks or trademarks of The Apache Software Foundation. All other products or name brands are trademarks of their respective holders, including The Apache Software Foundation.</div></footer></body></html>

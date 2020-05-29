@@ -1,4 +1,102 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.21.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Python SDK Typing Changes</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>Beam Python has recently increased its support and integration of Python 3 type
+annotations for improved code clarity and type correctness checks.
+Read on to find out what&amp;rsquo;s new.&lt;/p>
+&lt;p>Python supports type annotations on functions (PEP 484). Static type checkers,
+such as mypy, are used to verify adherence to these types.
+For example:&lt;/p>
+&lt;pre>&lt;code>def f(v: int) -&amp;gt; int:
+return v[0]
+&lt;/code>&lt;/pre>&lt;p>Running mypy on the above code will give the error:
+&lt;code>Value of type &amp;quot;int&amp;quot; is not indexable&lt;/code>.&lt;/p>
+&lt;p>We&amp;rsquo;ve recently made changes to Beam in 2 areas:&lt;/p>
+&lt;p>Adding type annotations throughout Beam. Type annotations make a large and
+sophisticated codebase like Beam easier to comprehend and navigate in your
+favorite IDE.&lt;/p>
+&lt;p>Second, we&amp;rsquo;ve added support for Python 3 type annotations. This allows SDK
+users to specify a DoFn&amp;rsquo;s type hints in one place.
+We&amp;rsquo;ve also expanded Beam&amp;rsquo;s support of &lt;code>typing&lt;/code> module types.&lt;/p>
+&lt;p>For more background see:
+&lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>.&lt;/p>
+&lt;h1 id="beam-is-typed">Beam Is Typed&lt;/h1>
+&lt;p>In tandem with the new type annotation support within DoFns, we&amp;rsquo;ve invested a
+great deal of time adding type annotations to the Beam python code itself.
+With this in place, we have begun using mypy, a static type
+checker, as part of Beam&amp;rsquo;s code review process, which ensures higher quality
+contributions and fewer bugs.
+The added context and insight that type annotations add throughout Beam is
+useful for all Beam developers, contributors and end users alike, but
+it is especially beneficial for developers who are new to the project.
+If you use an IDE that understands type annotations, it will provide richer
+type completions and warnings than before.
+You&amp;rsquo;ll also be able to use your IDE to inspect the types of Beam functions and
+transforms to better understand how they work, which will ease your own
+development.
+Finally, once Beam is fully annotated, end users will be able to benefit from
+the use of static type analysis on their own pipelines and custom transforms.&lt;/p>
+&lt;h1 id="new-ways-to-annotate">New Ways to Annotate&lt;/h1>
+&lt;h2 id="python-3-syntax-annotations">Python 3 Syntax Annotations&lt;/h2>
+&lt;p>Coming in Beam 2.21 (BEAM-8280), you will be able to use Python annotation
+syntax to specify input and output types.&lt;/p>
+&lt;p>For example, this new form:&lt;/p>
+&lt;pre>&lt;code>class MyDoFn(beam.DoFn):
+def process(self, element: int) -&amp;gt; typing.Text:
+yield str(element)
+&lt;/code>&lt;/pre>&lt;p>is equivalent to this:&lt;/p>
+&lt;pre>&lt;code>@apache_beam.typehints.with_input_types(int)
+@apache_beam.typehints.with_output_types(typing.Text)
+class MyDoFn(beam.DoFn):
+def process(self, element):
+yield str(element)
+&lt;/code>&lt;/pre>&lt;p>One of the advantages of the new form is that you may already be using it
+in tandem with a static type checker such as mypy, thus getting additional
+runtime type checking for free.&lt;/p>
+&lt;p>This feature will be enabled by default, and there will be 2 mechanisms in
+place to disable it:&lt;/p>
+&lt;ol>
+&lt;li>Calling &lt;code>apache_beam.typehints.disable_type_annotations()&lt;/code> before pipeline
+construction will disable the new feature completely.&lt;/li>
+&lt;li>Decorating a function with &lt;code>@apache_beam.typehints.no_annotations&lt;/code> will
+tell Beam to ignore annotations for it.&lt;/li>
+&lt;/ol>
+&lt;p>Uses of Beam&amp;rsquo;s &lt;code>with_input_type&lt;/code>, &lt;code>with_output_type&lt;/code> methods and decorators will
+still work and take precedence over annotations.&lt;/p>
+&lt;h3 id="sidebar">Sidebar&lt;/h3>
+&lt;p>You might ask: couldn&amp;rsquo;t we use mypy to type check Beam pipelines?
+There are several reasons why this is not the case.&lt;/p>
+&lt;ul>
+&lt;li>Pipelines are constructed at runtime and may depend on information that is
+only known at that time, such as a config file or database table schema.&lt;/li>
+&lt;li>PCollections don&amp;rsquo;t have the necessary type information, so mypy sees them as
+effectively containing any element type.
+This may change in in the future.&lt;/li>
+&lt;li>Transforms using lambdas (ex: &lt;code>beam.Map(lambda x: (1, x)&lt;/code>) cannot be
+annotated properly using PEP 484.
+However, Beam does a best-effort attempt to analyze the output type
+from the bytecode.&lt;/li>
+&lt;/ul>
+&lt;h2 id="typing-module-support">Typing Module Support&lt;/h2>
+&lt;p>Python&amp;rsquo;s &lt;a href="https://docs.python.org/3/library/typing.html">typing&lt;/a> module defines
+types used in type annotations. This is what we call &amp;ldquo;native&amp;rdquo; types.
+While Beam has its own typing types, it also supports native types.
+While both Beam and native types are supported, for new code we encourage using
+native typing types. Native types have as these are supported by additional tools.&lt;/p>
+&lt;p>While working on Python 3 annotations syntax support, we&amp;rsquo;ve also discovered and
+fixed issues with native type support. There may still be bugs and unsupported
+native types. Please
+&lt;a href="https://beam.apache.org/community/contact-us/">let us know&lt;/a> if you encounter
+issues.&lt;/p></description><link>/blog/python-typing/</link><pubDate>Thu, 28 May 2020 00:00:01 -0800</pubDate><guid>/blog/python-typing/</guid><category>blog</category><category>python</category><category>typing</category></item><item><title>Apache Beam 2.21.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -668,88 +766,4 @@ Pablo Estrada, Paul King, Paul Suganthan, Raheel Khan, Rakesh Kumar,
 Reza Rokni, Robert Bradshaw, Robert Burke, rosetn, Rui Wang, Ryan Skraba, RyanSkraba,
 Sahith Nallapareddy, Sam Rohde, Sam Whittle, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
 Tianyang Hu, ttanay, tvalentyn, Udi Meiri, Valentyn Tymofieiev, Wout Scheepers,
-yanzhi, Yekut, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Yunqing Zhou&lt;/p></description><link>/blog/beam-2.15.0/</link><pubDate>Thu, 22 Aug 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.15.0/</guid><category>blog</category></item><item><title>Apache Beam 2.14.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.14.0 release of Beam. This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2140-2019-08-01">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.14.0, check out the
-&lt;a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&amp;amp;version=12345431">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Python 3 support is extended to Python 3.6 and 3.7; in addition to various other Python 3 &lt;a href="https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&amp;amp;page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-16890504">improvements&lt;/a>.&lt;/li>
-&lt;li>Spark portable runner (batch) now &lt;a href="https://lists.apache.org/thread.html/c43678fc24c9a1dc9f48c51c51950aedcb9bc0fd3b633df16c3d595a@%3Cuser.beam.apache.org%3E">available&lt;/a> for Java, Python, Go.&lt;/li>
-&lt;li>Added new runner: Hazelcast Jet Runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7305">BEAM-7305&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="ios">I/Os&lt;/h3>
-&lt;ul>
-&lt;li>Schema support added to BigQuery reads. (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6673">BEAM-6673&lt;/a>)&lt;/li>
-&lt;li>Schema support added to JDBC source. (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6674">BEAM-6674&lt;/a>)&lt;/li>
-&lt;li>BigQuery support for &lt;code>bytes&lt;/code> is fixed. (Python 3) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6769">BEAM-6769&lt;/a>)&lt;/li>
-&lt;li>Added DynamoDB IO. (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7043">BEAM-7043&lt;/a>)&lt;/li>
-&lt;li>Added support unbounded reads with HCatalogIO (Java) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7450">BEAM-7450&lt;/a>)&lt;/li>
-&lt;li>Added BoundedSource wrapper for SDF. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7443">BEAM-7443&lt;/a>)&lt;/li>
-&lt;li>Added support for INCRBY/DECRBY operations in RedisIO. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7286">BEAM-7286&lt;/a>)&lt;/li>
-&lt;li>Added Support for ValueProvider defined GCS Location for WriteToBigQuery with File Loads. (Java) ((&lt;a href="https://issues.apache.org/jira/browse/BEAM-7603">BEAM-7603&lt;/a>))&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Python SDK add support for DoFn &lt;code>setup&lt;/code> and &lt;code>teardown&lt;/code> methods. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-562">BEAM-562&lt;/a>)&lt;/li>
-&lt;li>Python SDK adds new transforms: &lt;a href="https://issues.apache.org/jira/browse/BEAM-6693">ApproximateUnique&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-6695">Latest&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-7019">Reify&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-7021">ToString&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-7023">WithKeys&lt;/a>.&lt;/li>
-&lt;li>Added hook for user-defined JVM initialization in workers. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6872">BEAM-6872&lt;/a>)&lt;/li>
-&lt;li>Added support for SQL Row Estimation for BigQueryTable. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7513">BEAM-7513&lt;/a>)&lt;/li>
-&lt;li>Auto sharding of streaming sinks in FlinkRunner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-5865">BEAM-5865&lt;/a>)&lt;/li>
-&lt;li>Removed the Hadoop dependency from the external sorter. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7268">BEAM-7268&lt;/a>)&lt;/li>
-&lt;li>Added option to expire portable SDK worker environments. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7348">BEAM-7348&lt;/a>)&lt;/li>
-&lt;li>Beam does not relocate Guava anymore and depends only on its own vendored version of Guava. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6620">BEAM-6620&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>Deprecated set/getClientConfiguration in Jdbc IO. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7263">BEAM-7263&lt;/a>)&lt;/li>
-&lt;/ul>
-&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
-&lt;ul>
-&lt;li>Fixed reading of concatenated compressed files. (Python) (&lt;a href="https://issues.apache.org/jira/browse/BEAM-6952">BEAM-6952&lt;/a>)&lt;/li>
-&lt;li>Fixed re-scaling issues on Flink &amp;gt;= 1.6 versions. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7144">BEAM-7144&lt;/a>)&lt;/li>
-&lt;li>Fixed SQL EXCEPT DISTINCT behavior. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7194">BEAM-7194&lt;/a>)&lt;/li>
-&lt;li>Fixed OOM issues with bounded Reads for Flink Runner. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7442">BEAM-7442&lt;/a>)&lt;/li>
-&lt;li>Fixed HdfsFileSystem to correctly match directories. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7561">BEAM-7561&lt;/a>)&lt;/li>
-&lt;li>Upgraded Spark runner to use spark version 2.4.3. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7265">BEAM-7265&lt;/a>)&lt;/li>
-&lt;li>Upgraded Jackson to version 2.9.9. (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7465">BEAM-7465&lt;/a>)&lt;/li>
-&lt;li>Various other bug fixes and performance improvements.&lt;/li>
-&lt;/ul>
-&lt;h3 id="known-issues">Known Issues&lt;/h3>
-&lt;ul>
-&lt;li>Do &lt;strong>NOT&lt;/strong> use Python MongoDB source in this release. Python MongoDB source &lt;a href="https://issues.apache.org/jira/browse/BEAM-5148">added&lt;/a> in this release has a known issue that can result in data loss. See (&lt;a href="https://issues.apache.org/jira/browse/BEAM-7866">BEAM-7866&lt;/a>) for details.&lt;/li>
-&lt;li>Can&amp;rsquo;t install the Python SDK on macOS 10.15. See (&lt;a href="https://issues.apache.org/jira/browse/BEAM-8368">BEAM-8368&lt;/a>) for details.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.14.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmet Altay, Aizhamal Nurmamat kyzy, Ajo Thomas, Alex Amato, Alexey Romanenko,
-Alexey Strokach, Alex Van Boxel, Alireza Samadian, Andrew Pilloud,
-Ankit Jhalaria, Ankur Goenka, Anton Kedin, Aryan Naraghi, Bartok Jozsef,
-Bora Kaplan, Boyuan Zhang, Brian Hulette, Cam Mach, Chamikara Jayalath,
-Charith Ellawala, Charles Chen, Colm O hEigeartaigh, Cyrus Maden,
-Daniel Mills, Daniel Oliveira, David Cavazos, David Moravek, David Yan,
-Daniel Lescohier, Elwin Arens, Etienne Chauchot, Fábio Franco Uechi,
-Finch Keung, Frederik Bode, Gregory Kovelman, Graham Polley, Hai Lu, Hannah Jiang,
-Harshit Dwivedi, Harsh Vardhan, Heejong Lee, Henry Suryawirawan,
-Ismaël Mejía, Jan Lukavský, Jean-Baptiste Onofré, Jozef Vilcek, Juta, Kai Jiang,
-Kamil Wu, Kasia Kucharczyk, Kenneth Knowles, Kyle Weaver, Lara Schmidt,
-Łukasz Gajowy, Luke Cwik, Manu Zhang, Mark Liu, Matthias Baetens,
-Maximilian Michels, Melissa Pashniak, Michael Luckey, Michal Walenia,
-Mikhail Gryzykhin, Ming Liang, Neville Li, Pablo Estrada, Paul Suganthan,
-Peter Backx, Rakesh Kumar, Rasmi Elasmar, Reuven Lax, Reza Rokni, Robbe Sneyders,
-Robert Bradshaw, Robert Burke, Rose Nguyen, Rui Wang, Ruoyun Huang,
-Shoaib Zafar, Slava Chernyak, Steve Niemitz, Tanay Tummalapalli, Thomas Weise,
-Tim Robertson, Tim van der Lippe, Udi Meiri, Valentyn Tymofieiev, Varun Dhussa,
-Viktor Gerdin, Yichi Zhang, Yifan Mai, Yifan Zou, Yueyang Qiu.&lt;/p></description><link>/blog/beam-2.14.0/</link><pubDate>Wed, 31 Jul 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.14.0/</guid><category>blog</category></item></channel></rss>
+yanzhi, Yekut, Yichi Zhang, Yifan Zou, yoshiki.obata, Yueyang Qiu, Yunqing Zhou&lt;/p></description><link>/blog/beam-2.15.0/</link><pubDate>Thu, 22 Aug 2019 00:00:01 -0800</pubDate><guid>/blog/beam-2.15.0/</guid><category>blog</category></item></channel></rss>

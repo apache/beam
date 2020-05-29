@@ -252,7 +252,7 @@ replace current frameworks for developing bounded and unbounded sources.
 Splittable DoFn is being developed along side current Beam portability
 efforts. See &lt;a href="https://beam.apache.org/roadmap/portability/">Beam portability framework roadmap&lt;/a> for more details.&lt;/p>
 &lt;h1 id="cross-language-transforms">Cross-language transforms&lt;/h1>
-&lt;p>&lt;em>Last updated on November 2019.&lt;/em>&lt;/p>
+&lt;p>&lt;em>Last updated on May 2020.&lt;/em>&lt;/p>
 &lt;p>As an added benefit of Beam portability effort, we are able to utilize Beam transforms across SDKs. This has many benefits.&lt;/p>
 &lt;ul>
 &lt;li>Connector sharing across SDKs. For example,
@@ -274,9 +274,9 @@ language of choice and utilize these transforms from other languages reducing th
 &lt;ul>
 &lt;li>Basic API for Java SDK - completed&lt;/li>
 &lt;li>Basic API for Python SDK - completed&lt;/li>
-&lt;li>Basic API for Go SDK - Not started&lt;/li>
+&lt;li>Basic API for Go SDK - In progress&lt;/li>
 &lt;li>Basic cross-language transform expansion service for Java and Python SDKs - completed&lt;/li>
-&lt;li>Artifact staging - In progress - &lt;a href="https://lists.apache.org/thread.html/6fcee7047f53cf1c0636fb65367ef70842016d57effe2e5795c4137d@%3Cdev.beam.apache.org%3E">email thread&lt;/a>, &lt;a href="https://docs.google.com/document/d/1XaiNekAY2sptuQRIXpjGAyaYdSc-wlJ-VKjl04c8N48/edit#heading=h.900gc947qrw8">doc&lt;/a>&lt;/li>
+&lt;li>Artifact staging - mostly completed - &lt;a href="https://lists.apache.org/thread.html/6fcee7047f53cf1c0636fb65367ef70842016d57effe2e5795c4137d@%3Cdev.beam.apache.org%3E">email thread&lt;/a>, &lt;a href="https://docs.google.com/document/d/1XaiNekAY2sptuQRIXpjGAyaYdSc-wlJ-VKjl04c8N48/edit#heading=h.900gc947qrw8">doc&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="support-for-flink-runner">Support for Flink runner&lt;/h3>
 &lt;p>Work related to making cross-language transforms available for Flink runner.&lt;/p>
@@ -295,18 +295,20 @@ language of choice and utilize these transforms from other languages reducing th
 &lt;h3 id="support-for-direct-runner">Support for Direct runner&lt;/h3>
 &lt;p>Work related to making cross-language transforms available on Direct runner&lt;/p>
 &lt;ul>
-&lt;li>Basic support for executing cross-language transforms on portable Direct runner - Not started&lt;/li>
+&lt;li>Basic support for executing cross-language transforms on Pyton Direct runner - completed&lt;/li>
+&lt;li>Basic support for executing cross-language transforms on Java Direct runner - Not started&lt;/li>
 &lt;/ul>
 &lt;h3 id="connectortransform-support">Connector/transform support&lt;/h3>
 &lt;p>Ongoing and planned work related to making existing connectors/transforms available to other SDKs through the cross-language transforms framework.&lt;/p>
 &lt;ul>
-&lt;li>Java KafkIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7029">BEAM-7029&lt;/a>&lt;/li>
+&lt;li>Java KafkaIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7029">BEAM-7029&lt;/a>&lt;/li>
 &lt;li>Java PubSubIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7738">BEAM-7738&lt;/a>&lt;/li>
+&lt;li>Java SQL - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-8603">BEAM-8603&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="portable-beam-schema">Portable Beam schema&lt;/h3>
 &lt;p>Portable Beam schema support will provide a generalized mechanism for serializing and transferring data across language boundaries which will be extremely useful for pipelines that employ cross-language transforms.&lt;/p>
 &lt;ul>
-&lt;li>Make row coder a standard coder and implement in python - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7886">BEAM-7886&lt;/a>&lt;/li>
+&lt;li>Make row coder a standard coder and implement in python - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7886">BEAM-7886&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;h3 id="integrationperformance-testing">Integration/Performance testing&lt;/h3>
 &lt;ul>
