@@ -105,40 +105,50 @@ class FlinkBatchTransformTranslators {
   // --------------------------------------------------------------------------------------------
 
   @SuppressWarnings("rawtypes")
-  private static final Map<String, FlinkBatchPipelineTranslator.BatchTransformTranslator>
+  private static final Map<String, List<FlinkBatchPipelineTranslator.BatchTransformTranslator>>
       TRANSLATORS = new HashMap<>();
 
-  static {
-    TRANSLATORS.put(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslatorBatch());
-
-    TRANSLATORS.put(
-        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
-        new CreatePCollectionViewTranslatorBatch());
-
-    TRANSLATORS.put(
-        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
-    TRANSLATORS.put(
-        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
-    TRANSLATORS.put(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
-
-    TRANSLATORS.put(
-        PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch());
-
-    TRANSLATORS.put(
-        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch());
-
-    TRANSLATORS.put(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch());
-
-    TRANSLATORS.put(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
+  private static void registerTranslator(
+      String urn, FlinkBatchPipelineTranslator.BatchTransformTranslator<?> translator) {
+    if (!TRANSLATORS.containsKey(urn)) {
+      TRANSLATORS.put(urn, new ArrayList<>());
+    }
+    TRANSLATORS.get(urn).add(translator);
   }
 
-  static FlinkBatchPipelineTranslator.BatchTransformTranslator<?> getTranslator(
-      PTransform<?, ?> transform) {
-    @Nullable String urn = PTransformTranslation.urnForTransformOrNull(transform);
-    return urn == null ? null : TRANSLATORS.get(urn);
+  static {
+    registerTranslator(PTransformTranslation.IMPULSE_TRANSFORM_URN, new ImpulseTranslatorBatch());
+    registerTranslator(
+        PTransformTranslation.CREATE_VIEW_TRANSFORM_URN,
+        new CreatePCollectionViewTranslatorBatch());
+    registerTranslator(
+        PTransformTranslation.COMBINE_PER_KEY_TRANSFORM_URN, new CombinePerKeyTranslatorBatch());
+    registerTranslator(
+        PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN, new GroupByKeyTranslatorBatch());
+    registerTranslator(PTransformTranslation.RESHUFFLE_URN, new ReshuffleTranslatorBatch());
+    registerTranslator(
+        PTransformTranslation.FLATTEN_TRANSFORM_URN, new FlattenPCollectionTranslatorBatch());
+    registerTranslator(
+        PTransformTranslation.ASSIGN_WINDOWS_TRANSFORM_URN, new WindowAssignTranslatorBatch());
+    registerTranslator(PTransformTranslation.PAR_DO_TRANSFORM_URN, new ParDoTranslatorBatch());
+    registerTranslator(PTransformTranslation.READ_TRANSFORM_URN, new ReadSourceTranslatorBatch());
   }
 
   @SuppressWarnings("unchecked")
+  static FlinkBatchPipelineTranslator.BatchTransformTranslator<?> getTranslator(
+      PTransform<?, ?> transform, FlinkBatchTranslationContext context) {
+    @Nullable final String urn = PTransformTranslation.urnForTransformOrNull(transform);
+    if (urn != null && TRANSLATORS.containsKey(urn)) {
+      for (FlinkBatchPipelineTranslator.BatchTransformTranslator translator :
+          TRANSLATORS.get(urn)) {
+        if (translator.canTranslate(transform, context)) {
+          return translator;
+        }
+      }
+    }
+    return null;
+  }
+
   private static String getCurrentTransformName(FlinkBatchTranslationContext context) {
     return context.getCurrentTransform().getFullName();
   }
@@ -604,7 +614,7 @@ class FlinkBatchTransformTranslators {
         throw new RuntimeException(e);
       }
 
-      Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders();
+      final Map<TupleTag<?>, Coder<?>> outputCoderMap = context.getOutputCoders(transform);
 
       String fullName = getCurrentTransformName(context);
       if (usesStateOrTimers) {
