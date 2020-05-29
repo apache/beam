@@ -1135,11 +1135,9 @@ All wheels should be published, in addition to the zip of the release source.
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
-Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Then update download address for last release version, [example PR](https://github.com/apache/beam-site/pull/478).
+Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Make sure to change these links on the website ([example](https://github.com/apache/beam/pull/11727)).
 
 __NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
-
-Make sure the download address for last release version is upldaed, [example PR](https://github.com/apache/beam-site/pull/478).
 
 ### Deploy SDK docker images to DockerHub
 * Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
