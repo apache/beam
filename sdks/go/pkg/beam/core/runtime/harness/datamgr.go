@@ -347,13 +347,13 @@ func (c *DataChannel) makeReader(ctx context.Context, id clientID) *dataReader {
 
 	r := &dataReader{id: id, buf: make(chan []byte, bufElements), done: make(chan bool, 1), channel: c}
 
-	// Just in case initial data for an instructionsarrives *after* an instructon has ended.
+	// Just in case initial data for an instruction arrives *after* an instructon has ended.
 	// eg. it was blocked by another reader being slow, or the other instruction failed.
 	// So we provide a pre-completed reader, and do not cache it, as there's no further cleanup for it.
 	if _, ok := c.endedInstructions[id.instID]; ok {
 		r.completed = true
 		close(r.buf)
-		r.err = io.EOF // In of any actual data readers, so they terminate without error.
+		r.err = io.EOF // In case of any actual data readers, so they terminate without error.
 		return r
 	}
 
