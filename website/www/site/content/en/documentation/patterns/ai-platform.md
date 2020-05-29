@@ -41,6 +41,37 @@ Here is an example of a pipeline that creates in-memory PCollection of strings, 
 
 ### Extracting sentiments
 
+This is a part of response object returned from the API. Sentence-level sentiments can be found in `sentences` attribute. `sentences` behaves like a standard Python sequence, therefore all core language features (like iteration or slicing) will work. Overall sentiment can be found in `document_sentiment` attribute.
+
+```
+sentences {
+  text {
+    content: "My experience so far has been fantastic!"
+  }
+  sentiment {
+    magnitude: 0.8999999761581421
+    score: 0.8999999761581421
+  }
+}
+sentences {
+  text {
+    content: "I\'d really recommend this product."
+    begin_offset: 41
+  }
+  sentiment {
+    magnitude: 0.8999999761581421
+    score: 0.8999999761581421
+  }
+}
+
+...many lines omitted
+
+document_sentiment {
+  magnitude: 1.899999976158142
+  score: 0.8999999761581421
+}
+```
+
 The function for extracting information about sentence-level and document-level sentiments is shown in the next code snippet.
 
 {{< highlight py >}}
@@ -51,9 +82,7 @@ The function for extracting information about sentence-level and document-level 
 // Java examples will be available on Beam 2.23 release.
 {{< /highlight >}}
 
-Sentence-level sentiments can be found in `sentences` attribute. `sentences` behaves like a standard Python sequence, therefore all core language features (like iteration or slicing) will work. The snippet loops over `sentences` and, for each sentence, extracts the sentiment score. 
-
-Overall sentiment can be found in `document_sentiment` attribute. 
+The snippet loops over `sentences` and, for each sentence, extracts the sentiment score. 
 
 The output is:
 
