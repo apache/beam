@@ -256,7 +256,7 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
-        'never': Never,
+        'never': _Never,
         'or_finally': OrFinally,
         'repeat': Repeatedly,
     }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
@@ -408,8 +408,10 @@ class Always(TriggerFn):
         always=beam_runner_api_pb2.Trigger.Always())
 
 
-class Never(TriggerFn):
+class _Never(TriggerFn):
   """A trigger that never fires.
+
+  Data may still be released at window closing.
   """
   def __init__(self):
     pass
@@ -443,7 +445,7 @@ class Never(TriggerFn):
 
   @staticmethod
   def from_runner_api(proto, context):
-    return Never()
+    return _Never()
 
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
@@ -1063,6 +1065,12 @@ class MergeableStateAdapter(SimpleState):
 def create_trigger_driver(
     windowing, is_batch=False, phased_combine_fn=None, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
+
+  # TODO(BEAM-10149): Respect closing and on-time behaviors.
+  # For batch, we should always fire once, no matter what.
+  if is_batch and windowing.triggerfn == _Never():
+    windowing = copy.copy(windowing)
+    windowing.triggerfn = Always()
 
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
