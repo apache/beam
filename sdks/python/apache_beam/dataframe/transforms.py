@@ -16,12 +16,27 @@
 
 from __future__ import absolute_import
 
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Mapping
+from typing import Tuple
+from typing import TypeVar
+from typing import Union
+
 import pandas as pd
 
 import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
+
+if TYPE_CHECKING:
+  # pylint: disable=ungrouped-imports
+  from apache_beam.pvalue import PCollection
+
+T = TypeVar('T')
 
 
 class DataframeTransform(transforms.PTransform):
@@ -82,8 +97,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
   def _apply_deferred_ops(
       self,
-      inputs,  # type: Dict[PlaceholderExpr, PCollection]
-      outputs,  # type: Dict[Any, Expression]
+      inputs,  # type: Dict[expressions.Expression, PCollection]
+      outputs,  # type: Dict[Any, expressions.Expression]
       ):  # -> Dict[Any, PCollection]
     """Construct a Beam graph that evaluates a set of expressions on a set of
     input PCollections.
@@ -248,7 +263,12 @@ def _dict_union(dicts):
   return result
 
 
-def _flatten(valueish, root=()):
+def _flatten(
+    valueish,  # type: Union[T, List[T], Tuple[T], Dict[Any, T]]
+    root=(),  # type: Tuple[Any, ...]
+    ):
+  # type: (...) -> Mapping[Tuple[Any, ...], T]
+
   """Given a nested structure of dicts, tuples, and lists, return a flat
   dictionary where the values are the leafs and the keys are the "paths" to
   these leaves.
