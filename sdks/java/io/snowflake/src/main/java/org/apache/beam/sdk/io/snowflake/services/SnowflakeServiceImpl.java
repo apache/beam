@@ -108,7 +108,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       query =
           String.format(
               "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP);",
-              table, getProperBucketDir(source), files, CSV_QUOTE_CHAR_FOR_COPY);
+              table, source, files, CSV_QUOTE_CHAR_FOR_COPY);
     }
 
     runStatement(query, dataSource.getConnection(), null);

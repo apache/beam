@@ -647,9 +647,7 @@ public class SnowflakeIO {
       Location loc = getLocation();
 
       checkArgument(loc != null, "withLocation() is required");
-      checkArgument(
-          loc.getStorageIntegrationName() != null,
-          "location with storageIntegrationName is required");
+
       checkArgument(
           loc.getStagingBucketName() != null, "location with stagingBucketName is required");
 
