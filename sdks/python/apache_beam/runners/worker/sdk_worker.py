@@ -186,8 +186,9 @@ class SdkHarness(object):
     else:
       self._status_handler = None
 
-    # TODO(BEAM-8998) use common SharedUnboundedThreadPoolExecutor to process bundle
-    #  progress once dataflow runner's excessive progress polling is removed.
+    # TODO(BEAM-8998) use common SharedUnboundedThreadPoolExecutor to process
+    # bundle progress once dataflow runner's excessive progress polling is
+    # removed.
     self._report_progress_executor = futures.ThreadPoolExecutor(max_workers=1)
     self._worker_thread_pool = SharedUnboundedThreadPoolExecutor
     self._responses = queue.Queue(

@@ -137,9 +137,6 @@ class UnboundedThreadPoolExecutor(_base.Executor):
 
 
 class _SharedUnboundedThreadPoolExecutor(UnboundedThreadPoolExecutor):
-  def __init__(self):
-    super(_SharedUnboundedThreadPoolExecutor, self).__init__()
-
   def shutdown(self, wait=True):
     # Prevent shutting down the shared thread pool
     pass

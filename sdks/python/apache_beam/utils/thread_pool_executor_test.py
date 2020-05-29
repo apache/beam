@@ -30,8 +30,8 @@ import unittest
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
+from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
 class UnboundedThreadPoolExecutorTest(unittest.TestCase):
