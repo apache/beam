@@ -176,3 +176,20 @@ task validatesRunnerStreamingTests {
     }
   }
 }
+
+task runPerformanceTest(type: Exec) {
+  dependsOn 'installGcpTest'
+  dependsOn ':sdks:python:sdist'
+
+  def test = project.findProperty('test')
+  def suite = "runPerformanceTest-df${pythonVersionSuffix}"
+  def xUnitFile ="nosetests-${suite}.xml"
+
+  def testOpts = project.findProperty('test-pipeline-options')
+  testOpts += " --sdk_location=${files(configurations.distTarBall.files).singleFile}"
+
+  setWorkingDir "${project.rootDir}/sdks/python"
+  commandLine 'sh', '-c', ". ${envdir}/bin/activate && ${envdir}/bin/python setup.py nosetests" +
+              " --tests=${test}  --test-pipeline-options=\"${testOpts}\" --with-xunitmp" +
+              " --xunitmp-file=${xUnitFile}"
+}
