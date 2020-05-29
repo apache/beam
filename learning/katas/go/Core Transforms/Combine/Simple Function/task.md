@@ -33,7 +33,7 @@ Simple combine operations, such as sums, can usually be implemented as a simple 
 <div class="hint">
   Implement a combine function compatible with the
   <a href="https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#Combine">
-    beam.Combine</a> method that performs the summation of an Iterable.
+    beam.Combine</a> method that performs the summation of a PCollection&lt;int&gt;.
 </div>
 
 <div class="hint">
