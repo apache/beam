@@ -448,21 +448,6 @@ public class WriteFilesTest {
     p.run();
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testUnboundedWritesNeedSharding() {
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage(
-        "When applying WriteFiles to an unbounded PCollection, "
-            + "must specify number of output shards explicitly");
-
-    SimpleSink<Void> sink = makeSimpleSink();
-    p.apply(Create.of("foo"))
-        .setIsBoundedInternal(IsBounded.UNBOUNDED)
-        .apply(WriteFiles.to(sink).withWindowedWrites());
-    p.run();
-  }
-
   // Test DynamicDestinations class. Expects user values to be string-encoded integers.
   // Stores the integer mod 5 as the destination, and uses that in the file prefix.
   static class TestDestinations extends DynamicDestinations<String, Integer, String> {
