@@ -48,7 +48,7 @@ import grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import sdk_worker
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,7 +78,7 @@ class BeamFnExternalWorkerPoolServicer(
       container_executable=None  # type: Optional[str]
   ):
     # type: (...) -> Tuple[str, grpc.Server]
-    worker_server = grpc.server(UnboundedThreadPoolExecutor())
+    worker_server = grpc.server(SharedUnboundedThreadPoolExecutor)
     worker_address = 'localhost:%s' % worker_server.add_insecure_port(
         '[::]:%s' % port)
     worker_pool = cls(

@@ -63,7 +63,7 @@ from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
 from apache_beam.runners.worker.sdk_worker import _Future
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
 
 # State caching is enabled in the fn_api_runner for testing, except for one
 # test which runs without state caching (FnApiRunnerTestWithDisabledCaching).
@@ -441,7 +441,7 @@ class GrpcServer(object):
     # type: (...) -> None
     self.state = state
     self.provision_info = provision_info
-    self.control_server = grpc.server(UnboundedThreadPoolExecutor())
+    self.control_server = grpc.server(SharedUnboundedThreadPoolExecutor)
     self.control_port = self.control_server.add_insecure_port('[::]:0')
     self.control_address = 'localhost:%s' % self.control_port
 
@@ -451,11 +451,11 @@ class GrpcServer(object):
     no_max_message_sizes = [("grpc.max_receive_message_length", -1),
                             ("grpc.max_send_message_length", -1)]
     self.data_server = grpc.server(
-        UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
+        SharedUnboundedThreadPoolExecutor, options=no_max_message_sizes)
     self.data_port = self.data_server.add_insecure_port('[::]:0')
 
     self.state_server = grpc.server(
-        UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
+        SharedUnboundedThreadPoolExecutor, options=no_max_message_sizes)
     self.state_port = self.state_server.add_insecure_port('[::]:0')
 
     self.control_handler = BeamFnControlServicer(worker_manager)
@@ -493,7 +493,7 @@ class GrpcServer(object):
         GrpcStateServicer(state), self.state_server)
 
     self.logging_server = grpc.server(
-        UnboundedThreadPoolExecutor(), options=no_max_message_sizes)
+        SharedUnboundedThreadPoolExecutor, options=no_max_message_sizes)
     self.logging_port = self.logging_server.add_insecure_port('[::]:0')
     beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
         BasicLoggingService(), self.logging_server)

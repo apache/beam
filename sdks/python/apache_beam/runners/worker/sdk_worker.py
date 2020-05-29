@@ -64,7 +64,7 @@ from apache_beam.runners.worker.data_plane import PeriodicThread
 from apache_beam.runners.worker.statecache import StateCache
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
 
 if TYPE_CHECKING:
   from apache_beam.portability.api import endpoints_pb2
@@ -186,10 +186,10 @@ class SdkHarness(object):
     else:
       self._status_handler = None
 
-    # TODO(BEAM-8998) use common UnboundedThreadPoolExecutor to process bundle
+    # TODO(BEAM-8998) use common SharedUnboundedThreadPoolExecutor to process bundle
     #  progress once dataflow runner's excessive progress polling is removed.
     self._report_progress_executor = futures.ThreadPoolExecutor(max_workers=1)
-    self._worker_thread_pool = UnboundedThreadPoolExecutor()
+    self._worker_thread_pool = SharedUnboundedThreadPoolExecutor
     self._responses = queue.Queue(
     )  # type: queue.Queue[beam_fn_api_pb2.InstructionResponse]
     _LOGGER.info('Initializing SDKHarness with unbounded number of workers.')

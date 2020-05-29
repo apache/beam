@@ -134,3 +134,15 @@ class UnboundedThreadPoolExecutor(_base.Executor):
       if wait:
         for worker in self._workers:
           worker.join()
+
+
+class _SharedUnboundedThreadPoolExecutor(UnboundedThreadPoolExecutor):
+  def __init__(self):
+    super(_SharedUnboundedThreadPoolExecutor, self).__init__()
+
+  def shutdown(self, wait=True):
+    # Prevent shutting down the shared thread pool
+    pass
+
+
+SharedUnboundedThreadPoolExecutor = _SharedUnboundedThreadPoolExecutor()
