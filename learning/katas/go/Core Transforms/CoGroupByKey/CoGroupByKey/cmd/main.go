@@ -13,15 +13,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module hello_beam
+package main
 
-go 1.14
-
-require (
-	github.com/apache/beam v2.19.0+incompatible
-	github.com/golang/protobuf v1.3.5 // indirect
-	github.com/google/go-cmp v0.4.0 // indirect
-	go.opencensus.io v0.22.3 // indirect
-	google.golang.org/api v0.21.0 // indirect
-	google.golang.org/grpc v1.28.1 // indirect
+import (
+	"cogroupbykey/pkg/task"
+	"context"
+	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
+	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
+
+func main() {
+	ctx := context.Background()
+
+	p, s := beam.NewPipelineWithRoot()
+
+	fruits := beam.Create(s.Scope("Fruits"), "apple", "banana", "cherry")
+	countries := beam.Create(s.Scope("Countries"), "australia", "brazil", "canada")
+
+	output := task.ApplyTransform(s, fruits, countries)
+
+	debug.Print(s, output)
+
+	err := beamx.Run(ctx, p)
+
+	if err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
+	}
+}
