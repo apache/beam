@@ -5737,7 +5737,7 @@ XmlIO
 &lt;/td>
 &lt;td>Transforms for reading and writing XML files using &lt;a href="https://www.oracle.com/technical-resources/articles/javase/jaxb.html">JAXB&lt;/a> mappers.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/io/xml/XmlIO.html">org.apache.beam.sdk.io.xml.XmlIO&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/xml/XmlIO.html">org.apache.beam.sdk.io.xml.XmlIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -5746,7 +5746,7 @@ TikaIO
 &lt;/td>
 &lt;td>Transforms for parsing arbitrary files using &lt;a href="https://tika.apache.org/">Apache Tika&lt;/a>.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/io/tika/TikaIO.html">org.apache.beam.sdk.io.tika.TikaIO&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/tika/TikaIO.html">org.apache.beam.sdk.io.tika.TikaIO&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -6277,7 +6277,7 @@ FlinkStreamingImpulseSource
 &lt;/td>
 &lt;td>A PTransform that provides an unbounded, streaming source of empty byte arrays. This can only be used with the Flink runner.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.flink.flink_streaming_impulse_source.html">apache_beam.io.flink.flink_streaming_impulse_source&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.flink.flink_streaming_impulse_source.html">apache_beam.io.flink.flink_streaming_impulse_source&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-java">
@@ -6286,7 +6286,7 @@ GenerateSequence
 &lt;/td>
 &lt;td>Generates a bounded or unbounded stream of integers.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/GenerateSequence.html">org.apache.beam.sdk.io.GenerateSequence&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html">org.apache.beam.sdk.io.GenerateSequence&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;tr class="language-py">
@@ -6295,7 +6295,7 @@ GenerateSequence
 &lt;/td>
 &lt;td>Generates a bounded or unbounded stream of integers.&lt;/td>
 &lt;td style="word-break: break-all;">
-&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.external.generate_sequence.html">apache_beam.io.external.generate_sequence.GenerateSequence&lt;/a>&lt;/div>
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.generate_sequence.html">apache_beam.io.external.generate_sequence.GenerateSequence&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
 &lt;/table>
