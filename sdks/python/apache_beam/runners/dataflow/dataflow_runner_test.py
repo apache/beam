@@ -752,6 +752,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(
         gbk_step[u'properties']['output_info'], expected_output_info)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_write_bigquery_translation(self):
     runner = DataflowRunner()
 
@@ -802,6 +805,9 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     del step_encoding[u'component_encodings'][0][u'@type']
     self.assertEqual(expected_step, write_step)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_write_bigquery_failed_translation(self):
     """Tests that WriteToBigQuery cannot have any consumers if replaced."""
     runner = DataflowRunner()
