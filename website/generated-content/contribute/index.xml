@@ -921,13 +921,6 @@ ls -al /opt/apache/beam/third_party_licenses/ | wc -l
 please run &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh">./sign_hash_python_wheels.sh&lt;/a>, which copies the wheels along with signatures and hashes to &lt;a href="https://dist.apache.org/repos/dist/dev/beam/">dist.apache.org&lt;/a>.&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>Update Beam website (&lt;a href="https://github.com/apache/beam/pull/11727">example&lt;/a>)
-&lt;ol>
-&lt;li>Update release version in &lt;code>website/www/site/config.toml&lt;/code>.&lt;/li>
-&lt;li>Add new release in &lt;code>website/www/site/content/en/get-started/downloads.md&lt;/code>.&lt;/li>
-&lt;li>Update &lt;code>website/www/site/static/.htaccess&lt;/code> to redirect to the new version.&lt;/li>
-&lt;/ol>
-&lt;/li>
 &lt;/ol>
 &lt;hr>
 &lt;h2 id="6-prepare-documents">6. Prepare documents&lt;/h2>
@@ -967,31 +960,18 @@ the PR is merged, the new contents will get picked up automatically and served
 to the Beam website, usually within an hour.&lt;/p>
 &lt;p>&lt;strong>PR 1: apache/beam-site&lt;/strong>&lt;/p>
 &lt;p>This pull request is against the &lt;code>apache/beam-site&lt;/code> repo, on the &lt;code>release-docs&lt;/code>
-branch.&lt;/p>
-&lt;ul>
-&lt;li>Add the new Javadoc to &lt;a href="https://beam.apache.org/releases/javadoc/">SDK API Reference page&lt;/a> page, as follows:
-&lt;ul>
-&lt;li>Unpack the Maven artifact &lt;code>org.apache.beam:beam-sdks-java-javadoc&lt;/code> into some temporary location. Call this &lt;code>${JAVADOC_TMP}&lt;/code>.&lt;/li>
-&lt;li>Copy the generated Javadoc into the website repository: &lt;code>cp -r ${JAVADOC_TMP} javadoc/${RELEASE}&lt;/code>.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Add the new Pydoc to &lt;a href="https://beam.apache.org/releases/pydoc/">SDK API Reference page&lt;/a> page, as follows:
-&lt;ul>
-&lt;li>Copy the generated Pydoc into the website repository: &lt;code>cp -r ${PYDOC_ROOT} pydoc/${RELEASE}&lt;/code>.&lt;/li>
-&lt;li>Remove &lt;code>.doctrees&lt;/code> directory.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Stage files using: &lt;code>git add --all javadoc/ pydoc/&lt;/code>.&lt;/li>
-&lt;/ul>
+branch (&lt;a href="https://github.com/apache/beam-site/pull/603">example&lt;/a>).
+It is created by &lt;code>build_release_candidate.sh&lt;/code> (see above).&lt;/p>
 &lt;p>&lt;strong>PR 2: apache/beam&lt;/strong>&lt;/p>
-&lt;p>This pull request is against the &lt;code>apache/beam&lt;/code> repo, on the &lt;code>master&lt;/code> branch.&lt;/p>
+&lt;p>This pull request is against the &lt;code>apache/beam&lt;/code> repo, on the &lt;code>master&lt;/code> branch (&lt;a href="https://github.com/apache/beam/pull/11727">example&lt;/a>).&lt;/p>
 &lt;ul>
-&lt;li>Update the &lt;code>release_latest&lt;/code> version flag in &lt;code>/website/_config.yml&lt;/code>, and list
-the new release in &lt;code>/website/src/get-started/downloads.md&lt;/code>, linking to the
-source code download and the Release Notes in JIRA.&lt;/li>
-&lt;li>Update the &lt;code>RedirectMatch&lt;/code> rule in
-&lt;a href="https://github.com/apache/beam/blob/master/website/src/.htaccess">/website/src/.htaccess&lt;/a>
-to point to the new release. See file history for examples.&lt;/li>
+&lt;li>Update release version in &lt;code>website/www/site/config.toml&lt;/code>.&lt;/li>
+&lt;li>Add new release in &lt;code>website/www/site/content/en/get-started/downloads.md&lt;/code>.
+&lt;ul>
+&lt;li>Download links will not work until the release is finalized.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Update &lt;code>website/www/site/static/.htaccess&lt;/code> to redirect to the new version.&lt;/li>
 &lt;/ul>
 &lt;h3 id="blog-post">Blog post&lt;/h3>
 &lt;p>Write a blog post similar to &lt;a href="https://github.com/apache/beam/blob/master/website/www/site/content/en/blog/beam-2.20.0.md">beam-2.20.0.md&lt;/a>.&lt;/p>
@@ -1389,9 +1369,8 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;/ul>
 &lt;h3 id="deploy-source-release-to-distapacheorg">Deploy source release to dist.apache.org&lt;/h3>
 &lt;p>Copy the source release from the &lt;code>dev&lt;/code> repository to the &lt;code>release&lt;/code> repository at &lt;code>dist.apache.org&lt;/code> using Subversion.&lt;/p>
-&lt;p>Move last release artifacts from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code> using Subversion. Then update download address for last release version, &lt;a href="https://github.com/apache/beam-site/pull/478">example PR&lt;/a>.&lt;/p>
+&lt;p>Move last release artifacts from &lt;code>dist.apache.org&lt;/code> to &lt;code>archive.apache.org&lt;/code> using Subversion. Make sure to change these links on the website (&lt;a href="https://github.com/apache/beam/pull/11727">example&lt;/a>).&lt;/p>
 &lt;p>&lt;strong>NOTE&lt;/strong>: Only PMC members have permissions to do it, ping &lt;a href="mailto:dev@beam.apache.org">dev@&lt;/a> for assitance;&lt;/p>
-&lt;p>Make sure the download address for last release version is upldaed, &lt;a href="https://github.com/apache/beam-site/pull/478">example PR&lt;/a>.&lt;/p>
 &lt;h3 id="deploy-sdk-docker-images-to-dockerhub">Deploy SDK docker images to DockerHub&lt;/h3>
 &lt;ul>
 &lt;li>Script: &lt;a href="https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh">publish_docker_images.sh&lt;/a>&lt;/li>
