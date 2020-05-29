@@ -670,15 +670,8 @@ to the Beam website, usually within an hour.
 **PR 1: apache/beam-site**
 
 This pull request is against the `apache/beam-site` repo, on the `release-docs`
-branch.
-
-* Add the new Javadoc to [SDK API Reference page](https://beam.apache.org/releases/javadoc/) page, as follows:
-  * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
-  * Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} javadoc/${RELEASE}`.
-* Add the new Pydoc to [SDK API Reference page](https://beam.apache.org/releases/pydoc/) page, as follows:
-  * Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} pydoc/${RELEASE}`.
-  * Remove `.doctrees` directory.
-* Stage files using: `git add --all javadoc/ pydoc/`.
+branch ([example](https://github.com/apache/beam-site/pull/603)).
+It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
