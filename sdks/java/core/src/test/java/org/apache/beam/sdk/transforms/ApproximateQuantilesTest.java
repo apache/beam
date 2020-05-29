@@ -38,6 +38,8 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles.ApproximateQuantilesCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -46,9 +48,11 @@ import org.hamcrest.Description;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
@@ -70,6 +74,7 @@ public class ApproximateQuantilesTest {
             KV.of("b", 100));
 
     @Rule public TestPipeline p = TestPipeline.create();
+    @Rule public ExpectedException exceptionRule = ExpectedException.none();
 
     public PCollection<KV<String, Integer>> createInputTable(Pipeline p) {
       return p.apply(
@@ -95,6 +100,18 @@ public class ApproximateQuantilesTest {
 
       PAssert.that(quantiles).containsInAnyOrder(Arrays.asList(100, 75, 50, 25, 0));
       p.run();
+    }
+
+    @Test
+    public void testGlobalWindowErrorMessageShows() {
+      PCollection<Integer> input = intRangeCollection(p, 101);
+      PCollection<Integer> windowed =
+          input.apply(Window.into(FixedWindows.of(Duration.standardDays(1))));
+      String expectedMsg =
+          ApproximateQuantiles.combineFn(5).getIncompatibleGlobalWindowErrorMessage();
+      exceptionRule.expect(IllegalStateException.class);
+      exceptionRule.expectMessage(expectedMsg);
+      windowed.apply(ApproximateQuantiles.globally(5));
     }
 
     @Test
