@@ -93,7 +93,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
-            .via(Location.of(options.getStorageIntegrationName(), null))
+            .withLocation(Location.of(options.getStorageIntegrationName(), null))
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -103,7 +103,7 @@ public class SnowflakeIOReadTest implements Serializable {
   @Test
   public void testConfigIsMissingLocation() {
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("via() is required");
+    thrown.expectMessage("withLocation() is required");
 
     pipeline.apply(
         SnowflakeIO.<GenericRecord>read(snowflakeService)
@@ -124,7 +124,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
-            .via(Location.of(null, options.getStagingBucketName()))
+            .withLocation(Location.of(null, options.getStagingBucketName()))
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -140,7 +140,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
-            .via(location)
+            .withLocation(location)
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
     pipeline.run();
@@ -155,7 +155,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable(FAKE_TABLE)
-            .via(location)
+            .withLocation(location)
             .withCsvMapper(getCsvMapper()));
 
     pipeline.run();
@@ -169,7 +169,7 @@ public class SnowflakeIOReadTest implements Serializable {
     pipeline.apply(
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
-            .via(location)
+            .withLocation(location)
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -184,7 +184,7 @@ public class SnowflakeIOReadTest implements Serializable {
     pipeline.apply(
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .fromTable(FAKE_TABLE)
-            .via(location)
+            .withLocation(location)
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -201,7 +201,7 @@ public class SnowflakeIOReadTest implements Serializable {
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("")
             .fromTable(FAKE_TABLE)
-            .via(location)
+            .withLocation(location)
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -217,7 +217,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromTable("NON_EXIST")
-            .via(location)
+            .withLocation(location)
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -233,7 +233,7 @@ public class SnowflakeIOReadTest implements Serializable {
         SnowflakeIO.<GenericRecord>read(snowflakeService)
             .withDataSourceConfiguration(dataSourceConfiguration)
             .fromQuery("BAD_QUERY")
-            .via(location)
+            .withLocation(location)
             .withCsvMapper(getCsvMapper())
             .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -247,7 +247,7 @@ public class SnowflakeIOReadTest implements Serializable {
             SnowflakeIO.<GenericRecord>read(snowflakeService)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromTable(FAKE_TABLE)
-                .via(location)
+                .withLocation(location)
                 .withCsvMapper(getCsvMapper())
                 .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 
@@ -262,7 +262,7 @@ public class SnowflakeIOReadTest implements Serializable {
             SnowflakeIO.<GenericRecord>read(snowflakeService)
                 .withDataSourceConfiguration(dataSourceConfiguration)
                 .fromQuery(FAKE_QUERY)
-                .via(location)
+                .withLocation(location)
                 .withCsvMapper(getCsvMapper())
                 .withCoder(AvroCoder.of(AvroGeneratedUser.getClassSchema())));
 

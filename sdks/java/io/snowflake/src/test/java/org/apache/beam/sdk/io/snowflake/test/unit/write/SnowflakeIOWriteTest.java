@@ -98,8 +98,8 @@ public class SnowflakeIOWriteTest {
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withSnowflakeService(snowflakeService));
 
     pipeline.run(options).waitUntilFinish();
@@ -116,8 +116,8 @@ public class SnowflakeIOWriteTest {
         .apply(
             "External text write IO",
             SnowflakeIO.<Long>write()
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withSnowflakeService(snowflakeService));
@@ -139,8 +139,8 @@ public class SnowflakeIOWriteTest {
             SnowflakeIO.<KV<String, Long>>write()
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withSnowflakeService(snowflakeService));
 
     pipeline.run(options).waitUntilFinish();
@@ -155,8 +155,8 @@ public class SnowflakeIOWriteTest {
         .apply(
             "Write SnowflakeIO",
             SnowflakeIO.<KV<String, Long>>write()
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
                 .withDataSourceConfiguration(dc)
                 .withQueryTransformation(query)

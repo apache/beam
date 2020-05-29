@@ -18,19 +18,23 @@
 package org.apache.beam.sdk.io.snowflake;
 
 import java.io.Serializable;
+import javax.annotation.Nullable;
 
 /**
  * Used as one of the arguments for {@link org.apache.beam.sdk.io.snowflake.SnowflakeIO} write and
  * read operations. It keeps information about storage integration and staging bucket name.
  * Integration name is Snowflake storage integration object created according to Snowflake
- * documentation for the GCS bucket. Staging bucket name is Google Cloud Storage bucket which in the
- * case of writing operation will be used to save CSV files which will end up in Snowflake under
+ * documentation (https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html)
+ * for the GCS bucket. Staging bucket name is Google Cloud Storage bucket which in the case of
+ * writing operation will be used to save CSV files which will end up in Snowflake under
  * “staging_bucket_name/data” path and in the case of reading operation will be used as a temporary
  * location for storing CSV files named `sf_copy_csv_DATE_TIME_RANDOMSUFFIX` which will be removed
  * automatically once Read operation finishes.
  */
 public class Location implements Serializable {
-  private String storageIntegrationName;
+
+  @Nullable private String storageIntegrationName;
+
   private String stagingBucketName;
 
   public static Location of(SnowflakePipelineOptions options) {

@@ -125,7 +125,7 @@ import org.slf4j.LoggerFactory;
  *  SnowflakeIO.<GenericRecord>read()
  *    .withDataSourceConfiguration(dataSourceConfiguration)
  *    .fromQuery(QUERY)
- *    .via(location)
+ *    .withLocation(location)
  *    .withCsvMapper(...)
  *    .withCoder(...));
  * }</pre>
@@ -148,8 +148,8 @@ import org.slf4j.LoggerFactory;
  * items.apply(
  *     SnowflakeIO.<KV<Integer, String>>write()
  *         .withDataSourceConfiguration(dataSourceConfiguration)
- *         .to(table)
- *         .via(location)
+ *         .withTable(table)
+ *         .withLocation(location)
  *         .withUserDataMapper(maper);
  * }</pre>
  *
@@ -305,7 +305,7 @@ public class SnowflakeIO {
      *
      * @param location - an instance of {@link Location}.
      */
-    public Read<T> via(Location location) {
+    public Read<T> withLocation(Location location) {
       return toBuilder().setLocation(location).build();
     }
 
@@ -329,8 +329,8 @@ public class SnowflakeIO {
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      checkArguments();
       Location loc = getLocation();
-      checkArguments(loc);
 
       String tmpDirName = makeTmpDirName();
       String stagingBucketDir = String.format("%s/%s/", loc.getStagingBucketName(), tmpDirName);
@@ -363,10 +363,12 @@ public class SnowflakeIO {
       return output;
     }
 
-    private void checkArguments(Location loc) {
+    private void checkArguments() {
       // Either table or query is required. If query is present, it's being used, table is used
       // otherwise
-      checkArgument(loc != null, "via() is required");
+      Location loc = getLocation();
+
+      checkArgument(loc != null, "withLocation() is required");
       checkArgument(
           loc.getStorageIntegrationName() != null,
           "location with storageIntegrationName is required");
@@ -569,7 +571,7 @@ public class SnowflakeIO {
      *
      * @param table - String with the name of the table.
      */
-    public Write<T> to(String table) {
+    public Write<T> withTable(String table) {
       return toBuilder().setTable(table).build();
     }
 
@@ -587,7 +589,7 @@ public class SnowflakeIO {
      *
      * @param location - an instance of {@link Location}.
      */
-    public Write<T> via(Location location) {
+    public Write<T> withLocation(Location location) {
       return toBuilder().setLocation(location).build();
     }
 
@@ -631,7 +633,7 @@ public class SnowflakeIO {
     @Override
     public PDone expand(PCollection<T> input) {
       Location loc = getLocation();
-      checkArguments(loc);
+      checkArguments();
 
       String stagingBucketDir = String.format("%s/%s/", loc.getStagingBucketName(), WRITE_TMP_PATH);
 
@@ -641,8 +643,10 @@ public class SnowflakeIO {
       return PDone.in(out.getPipeline());
     }
 
-    private void checkArguments(Location loc) {
-      checkArgument(loc != null, "via() is required");
+    private void checkArguments() {
+      Location loc = getLocation();
+
+      checkArgument(loc != null, "withLocation() is required");
       checkArgument(
           loc.getStorageIntegrationName() != null,
           "location with storageIntegrationName is required");

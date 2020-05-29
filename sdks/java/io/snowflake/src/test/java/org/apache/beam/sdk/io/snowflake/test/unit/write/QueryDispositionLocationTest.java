@@ -96,8 +96,8 @@ public class QueryDispositionLocationTest {
             "Truncate before write",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output*")
                 .withWriteDisposition(WriteDisposition.TRUNCATE)
@@ -124,8 +124,8 @@ public class QueryDispositionLocationTest {
             "Write SnowflakeIO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output*")
                 .withWriteDisposition(WriteDisposition.EMPTY)
@@ -144,8 +144,8 @@ public class QueryDispositionLocationTest {
             "Write SnowflakeIO",
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
-                .to(FAKE_TABLE)
-                .via(location)
+                .withTable(FAKE_TABLE)
+                .withLocation(location)
                 .withFileNameTemplate("output*")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withWriteDisposition(WriteDisposition.EMPTY)
