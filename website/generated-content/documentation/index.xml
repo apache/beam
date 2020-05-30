@@ -3162,7 +3162,7 @@ tuples - have numerical indices instead.&lt;/li>
 languages: int, long, string, etc.&lt;/li>
 &lt;li>Often a field type can be marked as optional (sometimes referred to as nullable) or required.&lt;/li>
 &lt;/ul>
-&lt;p>Oten records have a nested structure. A nested structure occurs when a field itself has subfields so the
+&lt;p>Often records have a nested structure. A nested structure occurs when a field itself has subfields so the
 type of the field itself has a schema. Fields that are array or map types is also a common feature of these structured
 records.&lt;/p>
 &lt;p>For example, consider the following schema, representing actions in a fictitious e-commerce company:&lt;/p>
