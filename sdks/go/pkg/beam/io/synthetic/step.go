@@ -18,11 +18,17 @@ package synthetic
 import (
 	"fmt"
 	"math/rand"
+	"reflect"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/rtrackers/offsetrange"
 )
+
+func init() {
+	beam.RegisterType(reflect.TypeOf((*stepFn)(nil)).Elem())
+	beam.RegisterType(reflect.TypeOf((*sdfStepFn)(nil)).Elem())
+}
 
 // Step creates a synthetic step transform that receives KV<[]byte, []byte>
 // elements from other synthetic transforms, and outputs KV<[]byte, []byte>
@@ -40,9 +46,9 @@ import (
 func Step(s beam.Scope, cfg StepConfig, col beam.PCollection) beam.PCollection {
 	s = s.Scope("synthetic.Step")
 	if cfg.Splittable {
-		return beam.ParDo(s, &sdfStepFn{cfg: cfg}, col)
+		return beam.ParDo(s, &sdfStepFn{Cfg: cfg}, col)
 	} else {
-		return beam.ParDo(s, &stepFn{cfg: cfg}, col)
+		return beam.ParDo(s, &stepFn{Cfg: cfg}, col)
 	}
 }
 
@@ -52,7 +58,7 @@ func Step(s beam.Scope, cfg StepConfig, col beam.PCollection) beam.PCollection {
 // The stepFn is expected to be initialized with a cfg and will follow that
 // config to determine its behavior when emitting elements.
 type stepFn struct {
-	cfg StepConfig
+	Cfg StepConfig
 	rng randWrapper
 }
 
@@ -65,9 +71,9 @@ func (fn *stepFn) Setup() {
 // outputs identical to that input based on the outputs per input configuration
 // in StepConfig.
 func (fn *stepFn) ProcessElement(key, val []byte, emit func([]byte, []byte)) {
-	filtered := fn.cfg.FilterRatio > 0 && fn.rng.Float64() < fn.cfg.FilterRatio
+	filtered := fn.Cfg.FilterRatio > 0 && fn.rng.Float64() < fn.Cfg.FilterRatio
 
-	for i := 0; i < fn.cfg.OutputPerInput; i++ {
+	for i := 0; i < fn.Cfg.OutputPerInput; i++ {
 		if !filtered {
 			emit(key, val)
 		}
@@ -80,7 +86,7 @@ func (fn *stepFn) ProcessElement(key, val []byte, emit func([]byte, []byte)) {
 // The sdfStepFn is expected to be initialized with a cfg and will follow
 // that config to determine its behavior when splitting and emitting elements.
 type sdfStepFn struct {
-	cfg StepConfig
+	Cfg StepConfig
 	rng randWrapper
 }
 
@@ -90,7 +96,7 @@ type sdfStepFn struct {
 func (fn *sdfStepFn) CreateInitialRestriction(key, val []byte) offsetrange.Restriction {
 	return offsetrange.Restriction{
 		Start: 0,
-		End:   int64(fn.cfg.OutputPerInput),
+		End:   int64(fn.Cfg.OutputPerInput),
 	}
 }
 
@@ -99,7 +105,7 @@ func (fn *sdfStepFn) CreateInitialRestriction(key, val []byte) offsetrange.Restr
 // method will contain at least one element, so the number of splits will not
 // exceed the number of elements.
 func (fn *sdfStepFn) SplitRestriction(key, val []byte, rest offsetrange.Restriction) (splits []offsetrange.Restriction) {
-	return rest.EvenSplits(int64(fn.cfg.InitialSplits))
+	return rest.EvenSplits(int64(fn.Cfg.InitialSplits))
 }
 
 // RestrictionSize outputs the size of the restriction as the number of elements
@@ -122,7 +128,7 @@ func (fn *sdfStepFn) Setup() {
 // ProcessElement takes an input and either filters it or produces a number of
 // outputs identical to that input based on the restriction size.
 func (fn *sdfStepFn) ProcessElement(rt *offsetrange.Tracker, key, val []byte, emit func([]byte, []byte)) {
-	filtered := fn.cfg.FilterRatio > 0 && fn.rng.Float64() < fn.cfg.FilterRatio
+	filtered := fn.Cfg.FilterRatio > 0 && fn.rng.Float64() < fn.Cfg.FilterRatio
 
 	for i := rt.Rest.Start; rt.TryClaim(i) == true; i++ {
 		if !filtered {
