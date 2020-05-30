@@ -848,9 +848,11 @@ class WorkerHandlerManager(object):
             self._job_provision_info.for_environment(environment),
             grpc_server)
         _LOGGER.info(
-            "Created Worker handler %s for environment %s",
+            "Created Worker handler %s for environment %s (%s, %r)",
             worker_handler,
-            environment)
+            environment_id,
+            environment.urn,
+            environment.payload)
         self._cached_handlers[environment_id].append(worker_handler)
         self._workers_by_id[worker_handler.worker_id] = worker_handler
         worker_handler.start_worker()

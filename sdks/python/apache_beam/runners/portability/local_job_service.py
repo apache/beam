@@ -275,10 +275,12 @@ class BeamJob(abstract_job_service.AbstractBeamJob):
     with JobLogHandler(self._log_queues):
       self._update_dependencies()
       try:
+        start = time.time()
         result = fn_runner.FnApiRunner(
             provision_info=self._provision_info).run_via_runner_api(
                 self._pipeline_proto)
-        _LOGGER.info('Successfully completed job.')
+        _LOGGER.info(
+            'Successfully completed job in %s seconds.', time.time() - start)
         self.set_state(beam_job_api_pb2.JobState.DONE)
         self.result = result
       except:  # pylint: disable=bare-except
