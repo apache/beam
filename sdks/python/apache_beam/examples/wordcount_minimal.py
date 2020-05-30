@@ -85,7 +85,7 @@ def run(argv=None, save_main_session=True):
       # CHANGE 3/6: (OPTIONAL) Your project ID is required in order to
       # run your pipeline on the Google Cloud Dataflow Service.
       '--project=SET_YOUR_PROJECT_ID_HERE',
-      # CHANGE 4/6: (OPTIONAL) The Google Cloud region (e.g. us-central1) 
+      # CHANGE 4/6: (OPTIONAL) The Google Cloud region (e.g. us-central1)
       # is required in order to run your pipeline on the Google Cloud
       # Dataflow Service.
       '--region=SET_REGION_HERE',
