@@ -108,12 +108,16 @@ class BackgroundCachingJob(object):
         pass
 
 
-def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
+def attempt_to_run_background_caching_job(
+    runner, user_pipeline, options=None, limiters=None):
   """Attempts to run a background caching job for a user-defined pipeline.
 
   The pipeline result is automatically tracked by Interactive Beam in case
   future cancellation/cleanup is needed.
   """
+  if not limiters:
+    limiters = ie.current_env().options.capture_control.limiters()
+
   if is_background_caching_job_needed(user_pipeline):
     # Cancel non-terminal jobs if there is any before starting a new one.
     attempt_to_cancel_background_caching_job(user_pipeline)
@@ -130,7 +134,6 @@ def attempt_to_run_background_caching_job(runner, user_pipeline, options=None):
         runner,
         options).run()
 
-    limiters = ie.current_env().options.capture_control.limiters()
     ie.current_env().set_background_caching_job(
         user_pipeline,
         BackgroundCachingJob(background_caching_job_result, limiters=limiters))

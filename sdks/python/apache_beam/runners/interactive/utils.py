@@ -27,6 +27,7 @@ import logging
 import pandas as pd
 
 from apache_beam.portability.api.beam_runner_api_pb2 import TestStreamPayload
+from apache_beam.testing.test_stream import WindowedValueHolder
 
 
 def to_element_list(
@@ -49,8 +50,10 @@ def to_element_list(
           yield (
               decoded.windowed_value
               if include_window_info else decoded.windowed_value.value)
-    else:
+    elif isinstance(e, WindowedValueHolder):
       yield e.windowed_value if include_window_info else e.windowed_value.value
+    else:
+      yield e
 
 
 def elements_to_df(elements, include_window_info=False):

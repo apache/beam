@@ -44,6 +44,7 @@ from apache_beam.runners.interactive import pipeline_fragment as pf
 from apache_beam.runners.interactive import pipeline_instrument as pi
 from apache_beam.runners.interactive.display import pipeline_graph
 from apache_beam.runners.interactive.display.pcoll_visualization import visualize
+from apache_beam.runners.interactive.recording_manager import RecordingManager
 from apache_beam.runners.interactive.options import interactive_options
 from apache_beam.runners.interactive.utils import elements_to_df
 from apache_beam.runners.interactive.utils import progress_indicated
@@ -342,11 +343,7 @@ def show(*pcolls, **configs):
     assert isinstance(pcoll, beam.pvalue.PCollection), (
         '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
   user_pipeline = pcolls[0].pipeline
-  for pcoll in pcolls:
-    assert pcoll.pipeline is user_pipeline, (
-        '{} belongs to a different user-defined pipeline ({}) than that of'
-        ' other PCollections ({}).'.format(
-            pcoll, pcoll.pipeline, user_pipeline))
+
   # TODO(BEAM-8288): Remove below pops and assertion once Python 2 is
   # deprecated from Beam.
   include_window_info = configs.pop('include_window_info', False)
@@ -356,84 +353,41 @@ def show(*pcolls, **configs):
   assert not configs, (
       'The only configs supported are include_window_info and '
       'visualize_data.')
-  runner = user_pipeline.runner
-  if isinstance(runner, ir.InteractiveRunner):
-    runner = runner._underlying_runner
 
-  # Make sure that sources without a user reference are still cached.
-  pi.watch_sources(user_pipeline)
+  recording_manager = RecordingManager(user_pipeline)
+  recording = recording_manager.record_all([pcoll])
 
-  # Make sure that all PCollections to be shown are watched. If a PCollection
-  # has not been watched, make up a variable name for that PCollection and watch
-  # it. No validation is needed here because the watch logic can handle
-  # arbitrary variables.
-  watched_pcollections = set()
-  for watching in ie.current_env().watching():
-    for _, val in watching:
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        watched_pcollections.add(val)
-  for pcoll in pcolls:
-    if pcoll not in watched_pcollections:
-      watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
-
-  if ie.current_env().is_in_ipython:
-    warnings.filterwarnings(
-        'ignore',
-        'options is deprecated since First stable release. References to '
-        '<pipeline>.options will not be supported',
-        category=DeprecationWarning)
-  # Attempt to run background caching job since we have the reference to the
-  # user-defined pipeline.
-  bcj.attempt_to_run_background_caching_job(
-      runner, user_pipeline, user_pipeline.options)
-
-  pcolls = set(pcolls)
-  computed_pcolls = set()
-  for pcoll in pcolls:
-    if pcoll in ie.current_env().computed_pcollections:
-      computed_pcolls.add(pcoll)
-  pcolls = pcolls.difference(computed_pcolls)
   # If in notebook, static plotting computed pcolls as computation is done.
   if ie.current_env().is_in_notebook:
-    for pcoll in computed_pcolls:
+    for stream in recording.computed().values():
       visualize(
-          pcoll,
+          stream,
           include_window_info=include_window_info,
           display_facets=visualize_data)
   elif ie.current_env().is_in_ipython:
-    for pcoll in computed_pcolls:
-      visualize(pcoll, include_window_info=include_window_info)
+    for stream in recording.computed().values():
+      visualize(stream, include_window_info=include_window_info)
 
-  if not pcolls:
+  if recording.is_computed():
     return
-
-  # Build a pipeline fragment for the PCollections and run it.
-  result = pf.PipelineFragment(list(pcolls), user_pipeline.options).run()
-  ie.current_env().set_pipeline_result(user_pipeline, result)
 
   # If in notebook, dynamic plotting as computation goes.
   if ie.current_env().is_in_notebook:
-    for pcoll in pcolls:
+    for stream in recording.uncomputed().values():
       visualize(
-          pcoll,
+          stream,
           dynamic_plotting_interval=1,
           include_window_info=include_window_info,
           display_facets=visualize_data)
 
   # Invoke wait_until_finish to ensure the blocking nature of this API without
   # relying on the run to be blocking.
-  result.wait_until_finish()
+  recording.wait_until_finish()
 
   # If just in ipython shell, plotting once when the computation is completed.
   if ie.current_env().is_in_ipython and not ie.current_env().is_in_notebook:
-    for pcoll in pcolls:
+    for stream in recording.computed().values():
       visualize(pcoll, include_window_info=include_window_info)
-
-  # If the pipeline execution is successful at this stage, mark the computation
-  # completeness for the given PCollections so that when further `show`
-  # invocation occurs, Interactive Beam wouldn't need to re-compute them.
-  if result.state is beam.runners.runner.PipelineState.DONE:
-    ie.current_env().mark_pcollection_computed(pcolls)
 
 
 def collect(pcoll, include_window_info=False):
@@ -470,57 +424,15 @@ def head(pcoll, n=5, include_window_info=False):
       '{} is not an apache_beam.pvalue.PCollection.'.format(pcoll))
 
   user_pipeline = pcoll.pipeline
-  runner = user_pipeline.runner
-  if isinstance(runner, ir.InteractiveRunner):
-    runner = runner._underlying_runner
+  recording_manager = RecordingManager(user_pipeline)
 
-  # Make sure that sources without a user reference are still cached.
-  pi.watch_sources(user_pipeline)
+  recording = recording_manager.record_all([pcoll])
 
-  # Make sure that all PCollections to be shown are watched. If a PCollection
-  # has not been watched, make up a variable name for that PCollection and watch
-  # it. No validation is needed here because the watch logic can handle
-  # arbitrary variables.
-  watched_pcollections = set()
-  for watching in ie.current_env().watching():
-    for _, val in watching:
-      if hasattr(val, '__class__') and isinstance(val, beam.pvalue.PCollection):
-        watched_pcollections.add(val)
-  if pcoll not in watched_pcollections:
-    watch({'anonymous_pcollection_{}'.format(id(pcoll)): pcoll})
-
-  warnings.filterwarnings('ignore', category=DeprecationWarning)
-  # Attempt to run background caching job since we have the reference to the
-  # user-defined pipeline.
-  bcj.attempt_to_run_background_caching_job(
-      runner, user_pipeline, user_pipeline.options)
-
-  if pcoll in ie.current_env().computed_pcollections:
-    # Read from pcoll cache, then convert to DF
-    pipeline_instrument = pi.PipelineInstrument(pcoll.pipeline)
-    key = pipeline_instrument.cache_key(pcoll)
-    cache_manager = ie.current_env().get_cache_manager(user_pipeline)
-
-    coder = cache_manager.load_pcoder('full', key)
-    reader, _ = cache_manager.read('full', key)
-    elements = to_element_list(reader, coder, include_window_info=True)
-  else:
-
-    # Build a pipeline fragment for the PCollections and run it.
-    result = pf.PipelineFragment([pcoll], user_pipeline.options).run()
-    ie.current_env().set_pipeline_result(user_pipeline, result)
-
+  if not recording.is_computed():
     # Invoke wait_until_finish to ensure the blocking nature of this API without
     # relying on the run to be blocking.
-    result.wait_until_finish()
-
-    # If the pipeline execution is successful at this stage, mark the
-    # computation completeness for the given PCollections so that when further
-    # `show` invocation occurs, Interactive Beam wouldn't need to re-compute.
-    if result.state is beam.runners.runner.PipelineState.DONE:
-      ie.current_env().mark_pcollection_computed([pcoll])
-
-    elements = result.read(pcoll, include_window_info=True)
+    recording.wait_until_finish()
+  elements = recording.stream(pcoll).read()
 
   results = []
   for e in elements:

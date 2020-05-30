@@ -137,7 +137,7 @@ _DATAFRAME_PAGINATION_TEMPLATE = _CSS + """
 
 
 def visualize(
-    pcoll,
+    stream,
     dynamic_plotting_interval=None,
     include_window_info=False,
     display_facets=False):
@@ -174,7 +174,7 @@ def visualize(
   if not _pcoll_visualization_ready:
     return None
   pv = PCollectionVisualization(
-      pcoll,
+      stream,
       include_window_info=include_window_info,
       display_facets=display_facets)
   if ie.current_env().is_in_notebook:
@@ -189,7 +189,7 @@ def visualize(
     logging.getLogger('timeloop').disabled = True
     tl = Timeloop()
 
-    def dynamic_plotting(pcoll, pv, tl, include_window_info, display_facets):
+    def dynamic_plotting(stream, pv, tl, include_window_info, display_facets):
       @tl.job(interval=timedelta(seconds=dynamic_plotting_interval))
       def continuous_update_display():  # pylint: disable=unused-variable
         # Always creates a new PCollVisualization instance when the
@@ -199,11 +199,11 @@ def visualize(
         # plotting interval information when instantiated because it's already
         # in dynamic plotting logic.
         updated_pv = PCollectionVisualization(
-            pcoll,
+            stream,
             include_window_info=include_window_info,
             display_facets=display_facets)
         updated_pv.display(updating_pv=pv)
-        if ie.current_env().is_terminated(pcoll.pipeline):
+        if stream.is_computed():
           try:
             tl.stop()
           except RuntimeError:
@@ -213,7 +213,7 @@ def visualize(
       tl.start()
       return tl
 
-    return dynamic_plotting(pcoll, pv, tl, include_window_info, display_facets)
+    return dynamic_plotting(stream, pv, tl, include_window_info, display_facets)
   return None
 
 
@@ -224,32 +224,18 @@ class PCollectionVisualization(object):
   access current interactive environment for materialized PCollection data at
   the moment of self instantiation through cache.
   """
-  def __init__(self, pcoll, include_window_info=False, display_facets=False):
+  def __init__(self, stream, include_window_info=False, display_facets=False):
     assert _pcoll_visualization_ready, (
         'Dependencies for PCollection visualization are not available. Please '
         'use `pip install apache-beam[interactive]` to install necessary '
         'dependencies and make sure that you are executing code in an '
         'interactive environment such as a Jupyter notebook.')
-    assert isinstance(
-        pcoll,
-        pvalue.PCollection), ('pcoll should be apache_beam.pvalue.PCollection')
-    self._pcoll = pcoll
-    # This allows us to access cache key and other meta data about the pipeline
-    # whether it's the pipeline defined in user code or a copy of that pipeline.
-    # Thus, this module doesn't need any other user input but the PCollection
-    # variable to be visualized. It then automatically figures out the pipeline
-    # definition, materialized data and the pipeline result for the execution
-    # even if the user never assigned or waited the result explicitly.
-    # With only the constructor of PipelineInstrument, any interactivity related
-    # pre-process or instrument is not triggered for performance concerns.
-    self._pin = instr.PipelineInstrument(pcoll.pipeline)
+    self._stream = stream
     # Variable name as the title for element value in the rendered data table.
-    self._pcoll_var = self._pin.cacheable_var_by_pcoll_id(
-        self._pin.pcolls_to_pcoll_id.get(str(pcoll), None))
+    self._pcoll_var = stream.var()
     if not self._pcoll_var:
       self._pcoll_var = 'Value'
-    self._cache_key = self._pin.cache_key(self._pcoll)
-    obfuscated_id = obfuscate(self._cache_key, id(self))
+    obfuscated_id = stream.display_id(id(self))
     self._dive_display_id = 'facets_dive_{}'.format(obfuscated_id)
     self._overview_display_id = 'facets_overview_{}'.format(obfuscated_id)
     self._df_display_id = 'df_{}'.format(obfuscated_id)
@@ -397,13 +383,7 @@ class PCollectionVisualization(object):
           self._is_datatable_empty = False
 
   def _to_dataframe(self):
-    results = []
-    cache_manager = ie.current_env().get_cache_manager(self._pcoll.pipeline)
-    if cache_manager.exists('full', self._cache_key):
-      coder = cache_manager.load_pcoder('full', self._cache_key)
-      reader, _ = cache_manager.read('full', self._cache_key)
-      results = list(to_element_list(reader, coder, include_window_info=True))
-
+    results = list(self._stream.read())
     return elements_to_df(results, self._include_window_info)
 
 
