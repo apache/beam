@@ -25,29 +25,29 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun io_textio_textio_read() {
-        val countries = testPipeline.apply(TextIO.read().from("countries.txt"))
+  @Test
+  fun io_textio_textio_read() {
+    val countries = testPipeline.apply(TextIO.read().from("countries.txt"))
 
-        val results = applyTransform(countries)
+    val results = applyTransform(countries)
 
-        PAssert.that(results).containsInAnyOrder(
-            "AUSTRALIA",
-            "CHINA",
-            "ENGLAND",
-            "FRANCE",
-            "GERMANY",
-            "INDONESIA",
-            "JAPAN",
-            "MEXICO",
-            "SINGAPORE",
-            "UNITED STATES"
-        )
+    PAssert.that(results).containsInAnyOrder(
+      "AUSTRALIA",
+      "CHINA",
+      "ENGLAND",
+      "FRANCE",
+      "GERMANY",
+      "INDONESIA",
+      "JAPAN",
+      "MEXICO",
+      "SINGAPORE",
+      "UNITED STATES"
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

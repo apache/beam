@@ -32,50 +32,50 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun windowing_fixed_window_time_fixed_window_time() {
-        val eventsPColl = testPipeline.apply(
-            Create.timestamped(
-                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
-                TimestampedValue.of("event", Instant.parse("2019-06-10T00:00:00+00:00"))
-            )
-        )
+  @Test
+  fun windowing_fixed_window_time_fixed_window_time() {
+    val eventsPColl = testPipeline.apply(
+      Create.timestamped(
+        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-05T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-08T00:00:00+00:00")),
+        TimestampedValue.of("event", Instant.parse("2019-06-10T00:00:00+00:00"))
+      )
+    )
 
-        val results = applyTransform(eventsPColl)
+    val results = applyTransform(eventsPColl)
 
-        val windowedResults = results.apply(
-            "WindowedEvent",
-            ParDo.of(object : DoFn<KV<String, Long>, WindowedEvent>() {
-                @ProcessElement
-                fun processElement(
-                    @Element element: KV<String, Long>,
-                    window: BoundedWindow, out: OutputReceiver<WindowedEvent>
-                ) {
+    val windowedResults = results.apply(
+      "WindowedEvent",
+      ParDo.of(object : DoFn<KV<String, Long>, WindowedEvent>() {
+        @ProcessElement
+        fun processElement(
+          @Element element: KV<String, Long>,
+          window: BoundedWindow, out: OutputReceiver<WindowedEvent>
+        ) {
 
-                    out.output(WindowedEvent(element.key, element.value, window.toString()))
-                }
-            })
-        )
+          out.output(WindowedEvent(element.key, element.value, window.toString()))
+        }
+      })
+    )
 
-        PAssert.that(windowedResults).containsInAnyOrder(
-            WindowedEvent("event", 4L, "[2019-06-01T00:00:00.000Z..2019-06-02T00:00:00.000Z)"),
-            WindowedEvent("event", 2L, "[2019-06-05T00:00:00.000Z..2019-06-06T00:00:00.000Z)"),
-            WindowedEvent("event", 3L, "[2019-06-08T00:00:00.000Z..2019-06-09T00:00:00.000Z)"),
-            WindowedEvent("event", 1L, "[2019-06-10T00:00:00.000Z..2019-06-11T00:00:00.000Z)")
-        )
+    PAssert.that(windowedResults).containsInAnyOrder(
+      WindowedEvent("event", 4L, "[2019-06-01T00:00:00.000Z..2019-06-02T00:00:00.000Z)"),
+      WindowedEvent("event", 2L, "[2019-06-05T00:00:00.000Z..2019-06-06T00:00:00.000Z)"),
+      WindowedEvent("event", 3L, "[2019-06-08T00:00:00.000Z..2019-06-09T00:00:00.000Z)"),
+      WindowedEvent("event", 1L, "[2019-06-10T00:00:00.000Z..2019-06-11T00:00:00.000Z)")
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

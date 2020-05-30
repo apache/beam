@@ -31,45 +31,45 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun windowing_adding_timestamp_withtimestamps() {
-        val events = listOf(
-            Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
-            Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
-            Event("3", "paper-order", DateTime.parse("2019-06-03T00:00:00+00:00")),
-            Event("4", "pencil-order", DateTime.parse("2019-06-04T00:00:00+00:00")),
-            Event("5", "book-order", DateTime.parse("2019-06-05T00:00:00+00:00"))
-        )
+  @Test
+  fun windowing_adding_timestamp_withtimestamps() {
+    val events = listOf(
+      Event("1", "book-order", DateTime.parse("2019-06-01T00:00:00+00:00")),
+      Event("2", "pencil-order", DateTime.parse("2019-06-02T00:00:00+00:00")),
+      Event("3", "paper-order", DateTime.parse("2019-06-03T00:00:00+00:00")),
+      Event("4", "pencil-order", DateTime.parse("2019-06-04T00:00:00+00:00")),
+      Event("5", "book-order", DateTime.parse("2019-06-05T00:00:00+00:00"))
+    )
 
-        val eventsPColl = testPipeline.apply(Create.of(events))
+    val eventsPColl = testPipeline.apply(Create.of(events))
 
-        val results = applyTransform(eventsPColl)
+    val results = applyTransform(eventsPColl)
 
-        val timestampedResults = results.apply(
-            "KV<Event, Instant>",
-            ParDo.of(object : DoFn<Event, KV<Event, Instant>>() {
-                @ProcessElement
-                fun processElement(context: ProcessContext, out: OutputReceiver<KV<Event, Instant>>) {
-                    val event = context.element()
-                    out.output(KV.of(event, context.timestamp()))
-                }
-            })
-        )
+    val timestampedResults = results.apply(
+      "KV<Event, Instant>",
+      ParDo.of(object : DoFn<Event, KV<Event, Instant>>() {
+        @ProcessElement
+        fun processElement(context: ProcessContext, out: OutputReceiver<KV<Event, Instant>>) {
+          val event = context.element()
+          out.output(KV.of(event, context.timestamp()))
+        }
+      })
+    )
 
-        PAssert.that(results).containsInAnyOrder(events)
+    PAssert.that(results).containsInAnyOrder(events)
 
-        PAssert.that(timestampedResults).containsInAnyOrder(
-            KV.of(events[0], events[0].date.toInstant()),
-            KV.of(events[1], events[1].date.toInstant()),
-            KV.of(events[2], events[2].date.toInstant()),
-            KV.of(events[3], events[3].date.toInstant()),
-            KV.of(events[4], events[4].date.toInstant())
-        )
+    PAssert.that(timestampedResults).containsInAnyOrder(
+      KV.of(events[0], events[0].date.toInstant()),
+      KV.of(events[1], events[1].date.toInstant()),
+      KV.of(events[2], events[2].date.toInstant()),
+      KV.of(events[3], events[3].date.toInstant()),
+      KV.of(events[4], events[4].date.toInstant())
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

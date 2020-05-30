@@ -27,28 +27,28 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    private const val FILE_PATH = "IO/TextIO/TextIO Read/countries.txt"
+  private const val FILE_PATH = "IO/TextIO/TextIO Read/countries.txt"
 
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val countries = pipeline.apply("Read Countries", TextIO.read().from(FILE_PATH))
+    val countries = pipeline.apply("Read Countries", TextIO.read().from(FILE_PATH))
 
-        val output = applyTransform(countries)
+    val output = applyTransform(countries)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(
-            MapElements
-                .into(TypeDescriptors.strings())
-                .via(SerializableFunction(String::toUpperCase))
-        )
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<String>): PCollection<String> {
+    return input.apply(
+      MapElements
+        .into(TypeDescriptors.strings())
+        .via(SerializableFunction(String::toUpperCase))
+    )
+  }
 }

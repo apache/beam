@@ -23,25 +23,25 @@ import org.hamcrest.Matcher
 import org.hamcrest.TypeSafeMatcher
 
 class KvMatcher<K, V>(
-    private val keyMatcher: Matcher<in K>,
-    private val valueMatcher: Matcher<in V>
+  private val keyMatcher: Matcher<in K>,
+  private val valueMatcher: Matcher<in V>
 ) : TypeSafeMatcher<KV<out K, out V>>() {
 
-    companion object {
-        fun <K, V> isKv(keyMatcher: Matcher<K>, valueMatcher: Matcher<V>): KvMatcher<K, V> {
-            return KvMatcher(keyMatcher, valueMatcher)
-        }
+  companion object {
+    fun <K, V> isKv(keyMatcher: Matcher<K>, valueMatcher: Matcher<V>): KvMatcher<K, V> {
+      return KvMatcher(keyMatcher, valueMatcher)
     }
+  }
 
-    public override fun matchesSafely(kv: KV<out K, out V>): Boolean {
-        return (keyMatcher.matches(kv.key) && valueMatcher.matches(kv.value))
-    }
+  public override fun matchesSafely(kv: KV<out K, out V>): Boolean {
+    return (keyMatcher.matches(kv.key) && valueMatcher.matches(kv.value))
+  }
 
-    override fun describeTo(description: Description) {
-        description
-            .appendText("a KV(").appendValue(keyMatcher)
-            .appendText(", ").appendValue(valueMatcher)
-            .appendText(")")
-    }
+  override fun describeTo(description: Description) {
+    description
+      .appendText("a KV(").appendValue(keyMatcher)
+      .appendText(", ").appendValue(valueMatcher)
+      .appendText(")")
+  }
 
 }

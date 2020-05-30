@@ -27,23 +27,23 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_side_output_side_output() {
-        val numbers = testPipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
+  @Test
+  fun core_transforms_side_output_side_output() {
+    val numbers = testPipeline.apply(Create.of(10, 50, 120, 20, 200, 0))
 
-        val numBelow100Tag = object : TupleTag<Int>() {}
-        val numAbove100Tag = object : TupleTag<Int>() {}
+    val numBelow100Tag = object : TupleTag<Int>() {}
+    val numAbove100Tag = object : TupleTag<Int>() {}
 
-        val resultsTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
+    val resultsTuple = applyTransform(numbers, numBelow100Tag, numAbove100Tag)
 
-        PAssert.that(resultsTuple.get(numBelow100Tag)).containsInAnyOrder(0, 10, 20, 50)
+    PAssert.that(resultsTuple.get(numBelow100Tag)).containsInAnyOrder(0, 10, 20, 50)
 
-        PAssert.that(resultsTuple.get(numAbove100Tag)).containsInAnyOrder(120, 200)
+    PAssert.that(resultsTuple.get(numAbove100Tag)).containsInAnyOrder(120, 200)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

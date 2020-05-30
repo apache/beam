@@ -26,22 +26,22 @@ import org.junit.Test
 import java.math.BigInteger
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_combine_binarycombinefn_lambda() {
-        val values = Create.of(
-            BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
-            BigInteger.valueOf(40), BigInteger.valueOf(50)
-        )
-        val numbers = testPipeline.apply(values)
+  @Test
+  fun core_transforms_combine_binarycombinefn_lambda() {
+    val values = Create.of(
+      BigInteger.valueOf(10), BigInteger.valueOf(20), BigInteger.valueOf(30),
+      BigInteger.valueOf(40), BigInteger.valueOf(50)
+    )
+    val numbers = testPipeline.apply(values)
 
-        val results = applyTransform(numbers)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder(BigInteger.valueOf(150))
+    PAssert.that(results).containsInAnyOrder(BigInteger.valueOf(150))
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

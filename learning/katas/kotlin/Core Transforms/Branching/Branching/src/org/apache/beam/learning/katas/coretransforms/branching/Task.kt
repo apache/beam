@@ -27,37 +27,37 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5))
+    val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5))
 
-        val mult5Results = applyMultiply5Transform(numbers)
-        val mult10Results = applyMultiply10Transform(numbers)
+    val mult5Results = applyMultiply5Transform(numbers)
+    val mult10Results = applyMultiply10Transform(numbers)
 
-        mult5Results.apply("Log multiply 5", Log.ofElements("Multiplied by 5: "))
-        mult10Results.apply("Log multiply 10", Log.ofElements("Multiplied by 10: "))
+    mult5Results.apply("Log multiply 5", Log.ofElements("Multiplied by 5: "))
+    mult10Results.apply("Log multiply 10", Log.ofElements("Multiplied by 10: "))
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyMultiply5Transform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply(
-            "Multiply by 5", MapElements
-                .into(TypeDescriptors.integers())
-                .via(SerializableFunction { num: Int -> num * 5 })
-        )
-    }
+  @JvmStatic
+  fun applyMultiply5Transform(input: PCollection<Int>): PCollection<Int> {
+    return input.apply(
+      "Multiply by 5", MapElements
+        .into(TypeDescriptors.integers())
+        .via(SerializableFunction { num: Int -> num * 5 })
+    )
+  }
 
-    @JvmStatic
-    fun applyMultiply10Transform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply(
-            "Multiply by 10", MapElements
-                .into(TypeDescriptors.integers())
-                .via(SerializableFunction { num: Int -> num * 10 })
-        )
-    }
+  @JvmStatic
+  fun applyMultiply10Transform(input: PCollection<Int>): PCollection<Int> {
+    return input.apply(
+      "Multiply by 10", MapElements
+        .into(TypeDescriptors.integers())
+        .via(SerializableFunction { num: Int -> num * 10 })
+    )
+  }
 }

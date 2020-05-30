@@ -26,24 +26,24 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_combine_combine_perkey() {
-        val values = Create.of(
-            KV.of(Task.PLAYER_1, 15), KV.of(Task.PLAYER_2, 10), KV.of(Task.PLAYER_1, 100),
-            KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
-        )
-        val numbers = testPipeline.apply(values)
+  @Test
+  fun core_transforms_combine_combine_perkey() {
+    val values = Create.of(
+      KV.of(Task.PLAYER_1, 15), KV.of(Task.PLAYER_2, 10), KV.of(Task.PLAYER_1, 100),
+      KV.of(Task.PLAYER_3, 25), KV.of(Task.PLAYER_2, 75)
+    )
+    val numbers = testPipeline.apply(values)
 
-        val results = applyTransform(numbers)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder(
-            KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
-        )
+    PAssert.that(results).containsInAnyOrder(
+      KV.of(Task.PLAYER_1, 115), KV.of(Task.PLAYER_2, 85), KV.of(Task.PLAYER_3, 25)
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

@@ -31,34 +31,34 @@ import org.junit.Test
 import java.io.Serializable
 
 class TaskTest : Serializable {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun triggers_window_accumulation_mode_window_accumulation_mode() {
-        val testStream = TestStream.create(SerializableCoder.of(String::class.java))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(0)))
-            .advanceProcessingTime(Duration.standardSeconds(1))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(1)))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(2)))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(3)))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(4)))
-            .advanceProcessingTime(Duration.standardSeconds(1))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(5)))
-            .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(6)))
-            .advanceWatermarkToInfinity()
+  @Test
+  fun triggers_window_accumulation_mode_window_accumulation_mode() {
+    val testStream = TestStream.create(SerializableCoder.of(String::class.java))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(0)))
+      .advanceProcessingTime(Duration.standardSeconds(1))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(1)))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(2)))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(3)))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(4)))
+      .advanceProcessingTime(Duration.standardSeconds(1))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(5)))
+      .addElements(TimestampedValue.of("event", Instant.ofEpochSecond(6)))
+      .advanceWatermarkToInfinity()
 
-        val eventsPColl = testPipeline.apply(testStream)
+    val eventsPColl = testPipeline.apply(testStream)
 
-        val results = applyTransform(eventsPColl)
+    val results = applyTransform(eventsPColl)
 
-        PAssert.that(results)
-            .inEarlyPane(IntervalWindow(Instant.EPOCH, Instant.parse("1970-01-02T00:00:00+00:00")))
-            .containsInAnyOrder(1L, 5L)
-            .inFinalPane(IntervalWindow(Instant.EPOCH, Instant.parse("1970-01-02T00:00:00+00:00")))
-            .containsInAnyOrder(7L)
+    PAssert.that(results)
+      .inEarlyPane(IntervalWindow(Instant.EPOCH, Instant.parse("1970-01-02T00:00:00+00:00")))
+      .containsInAnyOrder(1L, 5L)
+      .inFinalPane(IntervalWindow(Instant.EPOCH, Instant.parse("1970-01-02T00:00:00+00:00")))
+      .containsInAnyOrder(7L)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

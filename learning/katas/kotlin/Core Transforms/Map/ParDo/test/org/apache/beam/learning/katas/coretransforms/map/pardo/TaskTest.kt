@@ -26,19 +26,19 @@ import org.junit.Test
 
 class TaskTest {
 
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_map_pardo() {
-        val values = Create.of(1, 2, 3, 4, 5)
-        val numbers = testPipeline.apply(values)
+  @Test
+  fun core_transforms_map_pardo() {
+    val values = Create.of(1, 2, 3, 4, 5)
+    val numbers = testPipeline.apply(values)
 
-        val results = applyTransform(numbers)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50)
+    PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

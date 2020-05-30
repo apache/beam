@@ -29,29 +29,29 @@ import org.apache.beam.sdk.values.PCollection
 import org.joda.time.Duration
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val events = pipeline.apply(GenerateEvent.everySecond())
+    val events = pipeline.apply(GenerateEvent.everySecond())
 
-        val output = applyTransform(events)
+    val output = applyTransform(events)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(events: PCollection<String>): PCollection<Long> {
-        return events
-            .apply(
-                Window.into<String>(FixedWindows.of(Duration.standardSeconds(5)))
-                    .triggering(AfterWatermark.pastEndOfWindow())
-                    .withAllowedLateness(Duration.ZERO)
-                    .discardingFiredPanes()
-            )
-            .apply(Combine.globally(Count.combineFn<String>()).withoutDefaults())
-    }
+  @JvmStatic
+  fun applyTransform(events: PCollection<String>): PCollection<Long> {
+    return events
+      .apply(
+        Window.into<String>(FixedWindows.of(Duration.standardSeconds(5)))
+          .triggering(AfterWatermark.pastEndOfWindow())
+          .withAllowedLateness(Duration.ZERO)
+          .discardingFiredPanes()
+      )
+      .apply(Combine.globally(Count.combineFn<String>()).withoutDefaults())
+  }
 }

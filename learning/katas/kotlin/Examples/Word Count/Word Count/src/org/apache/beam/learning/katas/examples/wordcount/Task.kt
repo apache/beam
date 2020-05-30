@@ -26,41 +26,41 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val lines = arrayOf(
-            "apple orange grape banana apple banana",
-            "banana orange banana papaya"
-        )
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val lines = arrayOf(
+      "apple orange grape banana apple banana",
+      "banana orange banana papaya"
+    )
 
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val wordCounts = pipeline.apply(Create.of(listOf(*lines)))
+    val wordCounts = pipeline.apply(Create.of(listOf(*lines)))
 
-        val output = applyTransform(wordCounts)
+    val output = applyTransform(wordCounts)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input
-            .apply(
-                FlatMapElements
-                    .into(TypeDescriptors.strings())
-                    .via(SerializableFunction<String, Iterable<String>> { line: String ->
-                        line.split(" ")
-                    })
-            )
-            .apply(Count.perElement())
-            .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
-                @ProcessElement
-                fun processElement(@Element element: KV<String, Long>, out: OutputReceiver<String>) {
-                    out.output(element.key.toString() + ":" + element.value)
-                }
-            }))
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<String>): PCollection<String> {
+    return input
+      .apply(
+        FlatMapElements
+          .into(TypeDescriptors.strings())
+          .via(SerializableFunction<String, Iterable<String>> { line: String ->
+            line.split(" ")
+          })
+      )
+      .apply(Count.perElement())
+      .apply(ParDo.of(object : DoFn<KV<String, Long>, String>() {
+        @ProcessElement
+        fun processElement(@Element element: KV<String, Long>, out: OutputReceiver<String>) {
+          out.output(element.key.toString() + ":" + element.value)
+        }
+      }))
+  }
 }

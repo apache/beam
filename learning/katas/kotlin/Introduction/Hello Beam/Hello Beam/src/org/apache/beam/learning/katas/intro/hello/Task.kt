@@ -24,20 +24,20 @@ import org.apache.beam.sdk.transforms.Create
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val output = setupPipeline(pipeline)
+    val output = setupPipeline(pipeline)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun setupPipeline(pipeline: Pipeline): PCollection<String> {
-        return pipeline.apply(Create.of("Hello Beam"))
-    }
+  @JvmStatic
+  fun setupPipeline(pipeline: Pipeline): PCollection<String> {
+    return pipeline.apply(Create.of("Hello Beam"))
+  }
 }

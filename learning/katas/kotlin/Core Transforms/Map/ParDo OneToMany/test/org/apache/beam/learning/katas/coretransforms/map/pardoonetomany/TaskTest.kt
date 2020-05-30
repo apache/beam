@@ -25,17 +25,17 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_map_pardo_onetomany() {
-        val values = Create.of("Hello Beam", "It is awesome")
-        val numbers = testPipeline.apply(values)
-        val results = applyTransform(numbers)
+  @Test
+  fun core_transforms_map_pardo_onetomany() {
+    val values = Create.of("Hello Beam", "It is awesome")
+    val numbers = testPipeline.apply(values)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder("Hello", "Beam", "It", "is", "awesome")
-        testPipeline.run().waitUntilFinish()
-    }
+    PAssert.that(results).containsInAnyOrder("Hello", "Beam", "It", "is", "awesome")
+    testPipeline.run().waitUntilFinish()
+  }
 }

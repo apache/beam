@@ -29,30 +29,30 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val words = pipeline.apply(
-            Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
-        )
+    val words = pipeline.apply(
+      Create.of("apple", "ball", "car", "bear", "cheetah", "ant")
+    )
 
-        val output = applyTransform(words)
+    val output = applyTransform(words)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<String>): PCollection<KV<String, Iterable<String>>> {
-        return input
-            .apply(
-                MapElements
-                    .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
-                    .via(SerializableFunction { word: String -> KV.of(word.substring(0, 1), word) })
-            )
-            .apply(GroupByKey.create())
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<String>): PCollection<KV<String, Iterable<String>>> {
+    return input
+      .apply(
+        MapElements
+          .into(TypeDescriptors.kvs(TypeDescriptors.strings(), TypeDescriptors.strings()))
+          .via(SerializableFunction { word: String -> KV.of(word.substring(0, 1), word) })
+      )
+      .apply(GroupByKey.create())
+  }
 }

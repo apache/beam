@@ -27,15 +27,15 @@ import org.apache.beam.sdk.values.TypeDescriptors
 import org.joda.time.Duration
 
 class GenerateEvent : PTransform<PBegin, PCollection<String>>() {
-    companion object {
-        fun everySecond(): GenerateEvent {
-            return GenerateEvent()
-        }
+  companion object {
+    fun everySecond(): GenerateEvent {
+      return GenerateEvent()
     }
+  }
 
-    override fun expand(input: PBegin): PCollection<String> {
-        return input
-            .apply(GenerateSequence.from(1).withRate(1, Duration.standardSeconds(1)))
-            .apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction { "event" }))
-    }
+  override fun expand(input: PBegin): PCollection<String> {
+    return input
+      .apply(GenerateSequence.from(1).withRate(1, Duration.standardSeconds(1)))
+      .apply(MapElements.into(TypeDescriptors.strings()).via(SerializableFunction { "event" }))
+  }
 }

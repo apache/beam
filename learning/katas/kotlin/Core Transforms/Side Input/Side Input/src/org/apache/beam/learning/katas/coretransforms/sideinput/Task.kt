@@ -29,62 +29,62 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionView
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val citiesToCountries = pipeline.apply(
-            "Cities and Countries",
-            Create.of(
-                KV.of("Beijing", "China"),
-                KV.of("London", "United Kingdom"),
-                KV.of("San Francisco", "United States"),
-                KV.of("Singapore", "Singapore"),
-                KV.of("Sydney", "Australia")
-            )
-        )
+    val citiesToCountries = pipeline.apply(
+      "Cities and Countries",
+      Create.of(
+        KV.of("Beijing", "China"),
+        KV.of("London", "United Kingdom"),
+        KV.of("San Francisco", "United States"),
+        KV.of("Singapore", "Singapore"),
+        KV.of("Sydney", "Australia")
+      )
+    )
 
-        val citiesToCountriesView = createView(citiesToCountries)
+    val citiesToCountriesView = createView(citiesToCountries)
 
-        val persons = pipeline.apply(
-            "Persons",
-            Create.of(
-                Person("Henry", "Singapore"),
-                Person("Jane", "San Francisco"),
-                Person("Lee", "Beijing"),
-                Person("John", "Sydney"),
-                Person("Alfred", "London")
-            )
-        )
+    val persons = pipeline.apply(
+      "Persons",
+      Create.of(
+        Person("Henry", "Singapore"),
+        Person("Jane", "San Francisco"),
+        Person("Lee", "Beijing"),
+        Person("John", "Sydney"),
+        Person("Alfred", "London")
+      )
+    )
 
-        val output = applyTransform(persons, citiesToCountriesView)
+    val output = applyTransform(persons, citiesToCountriesView)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun createView(citiesToCountries: PCollection<KV<String, String>>): PCollectionView<Map<String, String>> {
-        return citiesToCountries.apply(View.asMap())
-    }
+  @JvmStatic
+  fun createView(citiesToCountries: PCollection<KV<String, String>>): PCollectionView<Map<String, String>> {
+    return citiesToCountries.apply(View.asMap())
+  }
 
-    @JvmStatic
-    fun applyTransform(
-        persons: PCollection<Person>,
-        citiesToCountriesView: PCollectionView<Map<String, String>>
-    ): PCollection<Person> {
+  @JvmStatic
+  fun applyTransform(
+    persons: PCollection<Person>,
+    citiesToCountriesView: PCollectionView<Map<String, String>>
+  ): PCollection<Person> {
 
-        return persons.apply(ParDo.of(object : DoFn<Person, Person>() {
-            @ProcessElement
-            fun processElement(@Element person: Person, out: OutputReceiver<Person>, context: ProcessContext) {
-                val citiesToCountries: Map<String, String> = context.sideInput(citiesToCountriesView)
-                val city = person.city
-                val country = citiesToCountries[city]
+    return persons.apply(ParDo.of(object : DoFn<Person, Person>() {
+      @ProcessElement
+      fun processElement(@Element person: Person, out: OutputReceiver<Person>, context: ProcessContext) {
+        val citiesToCountries: Map<String, String> = context.sideInput(citiesToCountriesView)
+        val city = person.city
+        val country = citiesToCountries[city]
 
-                out.output(Person(person.name, city, country))
-            }
-        }).withSideInputs(citiesToCountriesView))
-    }
+        out.output(Person(person.name, city, country))
+      }
+    }).withSideInputs(citiesToCountriesView))
+  }
 }

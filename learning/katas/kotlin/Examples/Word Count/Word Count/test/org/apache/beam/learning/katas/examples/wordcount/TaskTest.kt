@@ -25,29 +25,29 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun examples_word_count_word_count() {
-        val lines = Create.of(
-            "apple orange grape banana apple banana",
-            "banana orange banana papaya"
-        )
+  @Test
+  fun examples_word_count_word_count() {
+    val lines = Create.of(
+      "apple orange grape banana apple banana",
+      "banana orange banana papaya"
+    )
 
-        val linesPColl = testPipeline.apply(lines)
+    val linesPColl = testPipeline.apply(lines)
 
-        val results = applyTransform(linesPColl)
+    val results = applyTransform(linesPColl)
 
-        PAssert.that(results).containsInAnyOrder(
-            "apple:2",
-            "banana:4",
-            "grape:1",
-            "orange:2",
-            "papaya:1"
-        )
+    PAssert.that(results).containsInAnyOrder(
+      "apple:2",
+      "banana:4",
+      "grape:1",
+      "orange:2",
+      "papaya:1"
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

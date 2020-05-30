@@ -25,20 +25,20 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_map_flatmapelements() {
-        val values = Create.of("Apache Beam", "Unified Batch and Streaming")
-        val numbers = testPipeline.apply(values)
+  @Test
+  fun core_transforms_map_flatmapelements() {
+    val values = Create.of("Apache Beam", "Unified Batch and Streaming")
+    val numbers = testPipeline.apply(values)
 
-        val results = applyTransform(numbers)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder(
-            "Apache", "Beam", "Unified", "Batch", "and", "Streaming"
-        )
-        testPipeline.run().waitUntilFinish()
-    }
+    PAssert.that(results).containsInAnyOrder(
+      "Apache", "Beam", "Unified", "Batch", "and", "Streaming"
+    )
+    testPipeline.run().waitUntilFinish()
+  }
 }

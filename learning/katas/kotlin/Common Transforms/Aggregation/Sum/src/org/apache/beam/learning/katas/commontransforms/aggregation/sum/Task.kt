@@ -25,21 +25,21 @@ import org.apache.beam.sdk.transforms.Sum
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+    val numbers = pipeline.apply(Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
 
-        val output = applyTransform(numbers)
+    val output = applyTransform(numbers)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    fun applyTransform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply(Sum.integersGlobally())
-    }
+  fun applyTransform(input: PCollection<Int>): PCollection<Int> {
+    return input.apply(Sum.integersGlobally())
+  }
 }

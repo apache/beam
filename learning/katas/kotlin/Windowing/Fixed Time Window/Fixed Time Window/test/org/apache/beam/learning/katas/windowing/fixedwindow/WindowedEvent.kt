@@ -18,6 +18,5 @@
 package org.apache.beam.learning.katas.windowing.fixedwindow
 
 import java.io.Serializable
-import java.util.*
 
 data class WindowedEvent(private val event: String?, private val count: Long, private val window: String) : Serializable

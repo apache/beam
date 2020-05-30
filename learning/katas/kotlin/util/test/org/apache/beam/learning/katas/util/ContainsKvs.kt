@@ -28,31 +28,31 @@ import org.junit.Assert
 import java.util.*
 
 class ContainsKvs private constructor(private val expectedKvs: List<KV<String, Iterable<String>>>) :
-    SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void?> {
+  SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void?> {
 
-    companion object {
-        @SafeVarargs
-        fun containsKvs(vararg kvs: KV<String, Iterable<String>>): SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void?> {
-            return ContainsKvs(ImmutableList.copyOf(kvs))
-        }
+  companion object {
+    @SafeVarargs
+    fun containsKvs(vararg kvs: KV<String, Iterable<String>>): SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void?> {
+      return ContainsKvs(ImmutableList.copyOf(kvs))
+    }
+  }
+
+  override fun apply(input: Iterable<KV<String, Iterable<String>>>): Void? {
+    val matchers: MutableList<Matcher<in KV<String, Iterable<String>>>> = ArrayList()
+
+    for (expected in expectedKvs) {
+      val values = Iterables.toArray(expected.value, String::class.java)
+      matchers.add(
+        KvMatcher.isKv(
+          CoreMatchers.equalTo(expected.key),
+          IsIterableContainingInAnyOrder.containsInAnyOrder(*values)
+        )
+      )
     }
 
-    override fun apply(input: Iterable<KV<String, Iterable<String>>>): Void? {
-        val matchers: MutableList<Matcher<in KV<String, Iterable<String>>>> = ArrayList()
+    Assert.assertThat(input, IsIterableContainingInAnyOrder.containsInAnyOrder(matchers))
 
-        for (expected in expectedKvs) {
-            val values = Iterables.toArray(expected.value, String::class.java)
-            matchers.add(
-                KvMatcher.isKv(
-                    CoreMatchers.equalTo(expected.key),
-                    IsIterableContainingInAnyOrder.containsInAnyOrder(*values)
-                )
-            )
-        }
-
-        Assert.assertThat(input, IsIterableContainingInAnyOrder.containsInAnyOrder(matchers))
-
-        return null
-    }
+    return null
+  }
 
 }

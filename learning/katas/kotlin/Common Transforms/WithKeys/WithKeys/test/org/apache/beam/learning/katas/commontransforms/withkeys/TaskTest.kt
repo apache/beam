@@ -26,26 +26,26 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun `Common Transforms - WithKeys - WithKeys`() {
-        val numbers = testPipeline.apply(
-            Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
-        )
-        val results = applyTransform(numbers)
+  @Test
+  fun `Common Transforms - WithKeys - WithKeys`() {
+    val numbers = testPipeline.apply(
+      Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
+    )
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder(
-            KV.of("a", "apple"),
-            KV.of("b", "banana"),
-            KV.of("c", "cherry"),
-            KV.of("d", "durian"),
-            KV.of("g", "guava"),
-            KV.of("m", "melon")
-        )
+    PAssert.that(results).containsInAnyOrder(
+      KV.of("a", "apple"),
+      KV.of("b", "banana"),
+      KV.of("c", "cherry"),
+      KV.of("d", "durian"),
+      KV.of("g", "guava"),
+      KV.of("m", "melon")
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

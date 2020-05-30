@@ -27,37 +27,37 @@ import org.apache.beam.sdk.values.KV
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-    const val PLAYER_1 = "Player 1"
-    const val PLAYER_2 = "Player 2"
-    const val PLAYER_3 = "Player 3"
+  const val PLAYER_1 = "Player 1"
+  const val PLAYER_2 = "Player 2"
+  const val PLAYER_3 = "Player 3"
 
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val scores = pipeline.apply(
-            Create.of(
-                KV.of(PLAYER_1, 15), KV.of(PLAYER_2, 10), KV.of(PLAYER_1, 100),
-                KV.of(PLAYER_3, 25), KV.of(PLAYER_2, 75)
-            )
-        )
+    val scores = pipeline.apply(
+      Create.of(
+        KV.of(PLAYER_1, 15), KV.of(PLAYER_2, 10), KV.of(PLAYER_1, 100),
+        KV.of(PLAYER_3, 25), KV.of(PLAYER_2, 75)
+      )
+    )
 
-        val output = applyTransform(scores)
+    val output = applyTransform(scores)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
+    pipeline.run()
+  }
+
+  @JvmStatic
+  fun applyTransform(input: PCollection<KV<String, Int>>): PCollection<KV<String, Int>> {
+    return input.apply<PCollection<KV<String, Int>>>(Combine.perKey(SumIntBinaryCombineFn()))
+  }
+
+  internal class SumIntBinaryCombineFn : BinaryCombineFn<Int>() {
+    override fun apply(left: Int, right: Int): Int {
+      return left + right
     }
-
-    @JvmStatic
-    fun applyTransform(input: PCollection<KV<String, Int>>): PCollection<KV<String, Int>> {
-        return input.apply<PCollection<KV<String, Int>>>(Combine.perKey(SumIntBinaryCombineFn()))
-    }
-
-    internal class SumIntBinaryCombineFn : BinaryCombineFn<Int>() {
-        override fun apply(left: Int, right: Int): Int {
-            return left + right
-        }
-    }
+  }
 }

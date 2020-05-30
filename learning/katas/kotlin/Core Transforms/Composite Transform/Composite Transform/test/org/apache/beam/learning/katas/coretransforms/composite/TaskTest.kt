@@ -25,20 +25,20 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_composite_transform_composite_transform() {
-        val values = Create.of("1,2,3,4,5", "6,7,8,9,10")
+  @Test
+  fun core_transforms_composite_transform_composite_transform() {
+    val values = Create.of("1,2,3,4,5", "6,7,8,9,10")
 
-        val results = testPipeline
-            .apply(values)
-            .apply(ExtractAndMultiplyNumbers())
+    val results = testPipeline
+      .apply(values)
+      .apply(ExtractAndMultiplyNumbers())
 
-        PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+    PAssert.that(results).containsInAnyOrder(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

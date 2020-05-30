@@ -26,56 +26,54 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn
 import org.apache.beam.sdk.transforms.Create
 import org.apache.beam.sdk.values.PCollection
 import java.io.Serializable
-import java.util.*
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val numbers = pipeline.apply(Create.of(10, 20, 50, 70, 90))
+    val numbers = pipeline.apply(Create.of(10, 20, 50, 70, 90))
 
-        val output = applyTransform(numbers)
+    val output = applyTransform(numbers)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
+    pipeline.run()
+  }
+
+  @JvmStatic
+  fun applyTransform(input: PCollection<Int>): PCollection<Double> {
+    return input.apply(Combine.globally(AverageFn()))
+  }
+
+  internal class AverageFn : CombineFn<Int, Accum, Double>() {
+    internal data class Accum(var sum: Int = 0, var count: Int = 0) : Serializable
+
+    override fun createAccumulator(): Accum {
+      return Accum()
     }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<Int>): PCollection<Double> {
-        return input.apply(Combine.globally(AverageFn()))
+    override fun addInput(accumulator: Accum, input: Int): Accum {
+      accumulator.sum += input
+      accumulator.count++
+
+      return accumulator
     }
 
-    internal class AverageFn : CombineFn<Int, Accum, Double>() {
+    override fun mergeAccumulators(accumulators: Iterable<Accum>): Accum {
+      val merged = createAccumulator()
 
-        internal data class Accum(var sum: Int = 0, var count: Int = 0) : Serializable
+      for (accumulator in accumulators) {
+        merged.sum += accumulator.sum
+        merged.count += accumulator.count
+      }
 
-        override fun createAccumulator(): Accum {
-            return Accum()
-        }
-
-        override fun addInput(accumulator: Accum, input: Int): Accum {
-            accumulator.sum += input
-            accumulator.count++
-
-            return accumulator
-        }
-
-        override fun mergeAccumulators(accumulators: Iterable<Accum>): Accum {
-            val merged = createAccumulator()
-
-            for (accumulator in accumulators) {
-                merged.sum += accumulator.sum
-                merged.count += accumulator.count
-            }
-
-            return merged
-        }
-
-        override fun extractOutput(accumulator: Accum): Double {
-            return accumulator.sum.toDouble() / accumulator.count
-        }
+      return merged
     }
+
+    override fun extractOutput(accumulator: Accum): Double {
+      return accumulator.sum.toDouble() / accumulator.count
+    }
+  }
 }

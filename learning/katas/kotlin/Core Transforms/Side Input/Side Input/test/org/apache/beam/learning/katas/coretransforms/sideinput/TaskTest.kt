@@ -27,46 +27,46 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_side_input_side_input() {
-        val citiesToCountries = testPipeline.apply(
-            "Cities and Countries",
-            Create.of(
-                KV.of("Beijing", "China"),
-                KV.of("London", "United Kingdom"),
-                KV.of("San Francisco", "United States"),
-                KV.of("Singapore", "Singapore"),
-                KV.of("Sydney", "Australia")
-            )
-        )
+  @Test
+  fun core_transforms_side_input_side_input() {
+    val citiesToCountries = testPipeline.apply(
+      "Cities and Countries",
+      Create.of(
+        KV.of("Beijing", "China"),
+        KV.of("London", "United Kingdom"),
+        KV.of("San Francisco", "United States"),
+        KV.of("Singapore", "Singapore"),
+        KV.of("Sydney", "Australia")
+      )
+    )
 
-        val citiesToCountriesView = createView(citiesToCountries)
+    val citiesToCountriesView = createView(citiesToCountries)
 
-        val persons = testPipeline.apply(
-            "Persons",
-            Create.of(
-                Person("Henry", "Singapore"),
-                Person("Jane", "San Francisco"),
-                Person("Lee", "Beijing"),
-                Person("John", "Sydney"),
-                Person("Alfred", "London")
-            )
-        )
+    val persons = testPipeline.apply(
+      "Persons",
+      Create.of(
+        Person("Henry", "Singapore"),
+        Person("Jane", "San Francisco"),
+        Person("Lee", "Beijing"),
+        Person("John", "Sydney"),
+        Person("Alfred", "London")
+      )
+    )
 
-        val results = applyTransform(persons, citiesToCountriesView)
+    val results = applyTransform(persons, citiesToCountriesView)
 
-        PAssert.that(results).containsInAnyOrder(
-            Person("Henry", "Singapore", "Singapore"),
-            Person("Jane", "San Francisco", "United States"),
-            Person("Lee", "Beijing", "China"),
-            Person("John", "Sydney", "Australia"),
-            Person("Alfred", "London", "United Kingdom")
-        )
+    PAssert.that(results).containsInAnyOrder(
+      Person("Henry", "Singapore", "Singapore"),
+      Person("Jane", "San Francisco", "United States"),
+      Person("Lee", "Beijing", "China"),
+      Person("John", "Sydney", "Australia"),
+      Person("Alfred", "London", "United Kingdom")
+    )
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

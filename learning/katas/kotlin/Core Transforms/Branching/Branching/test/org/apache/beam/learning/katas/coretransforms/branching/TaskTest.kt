@@ -26,22 +26,22 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_branching_branching() {
-        val values = Create.of(1, 2, 3, 4, 5)
-        val numbers = testPipeline.apply(values)
+  @Test
+  fun core_transforms_branching_branching() {
+    val values = Create.of(1, 2, 3, 4, 5)
+    val numbers = testPipeline.apply(values)
 
-        val mult5Results = applyMultiply5Transform(numbers)
-        val mult10Results = applyMultiply10Transform(numbers)
+    val mult5Results = applyMultiply5Transform(numbers)
+    val mult10Results = applyMultiply10Transform(numbers)
 
-        PAssert.that(mult5Results).containsInAnyOrder(5, 10, 15, 20, 25)
+    PAssert.that(mult5Results).containsInAnyOrder(5, 10, 15, 20, 25)
 
-        PAssert.that(mult10Results).containsInAnyOrder(10, 20, 30, 40, 50)
+    PAssert.that(mult10Results).containsInAnyOrder(10, 20, 30, 40, 50)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

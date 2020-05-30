@@ -26,32 +26,32 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.PCollectionList
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val numbers = pipeline.apply(
-            Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
-        )
+    val numbers = pipeline.apply(
+      Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250)
+    )
 
-        val partition = applyTransform(numbers)
+    val partition = applyTransform(numbers)
 
-        partition[0].apply(Log.ofElements("Number > 100: "))
-        partition[1].apply(Log.ofElements("Number <= 100: "))
+    partition[0].apply(Log.ofElements("Number > 100: "))
+    partition[1].apply(Log.ofElements("Number <= 100: "))
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<Int>): PCollectionList<Int> {
-        return input
-            .apply(Partition.of(2) { number: Int, numPartitions: Int ->
-                if (number > 100) {
-                    0
-                } else {
-                    1
-                }
-            })
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<Int>): PCollectionList<Int> {
+    return input
+      .apply(Partition.of(2) { number: Int, numPartitions: Int ->
+        if (number > 100) {
+          0
+        } else {
+          1
+        }
+      })
+  }
 }

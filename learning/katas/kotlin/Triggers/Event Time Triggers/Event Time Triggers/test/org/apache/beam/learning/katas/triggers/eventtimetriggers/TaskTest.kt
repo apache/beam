@@ -29,39 +29,39 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun triggers_event_time_triggers_event_time_triggers() {
-        val testStream = TestStream.create(SerializableCoder.of(String::class.java))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:01+00:00")))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:02+00:00")))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:03+00:00")))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:04+00:00")))
-            .advanceWatermarkTo(Instant.parse("2019-06-01T00:00:05+00:00"))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:05+00:00")))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:06+00:00")))
-            .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:07+00:00")))
-            .advanceWatermarkTo(Instant.parse("2019-06-01T00:00:10+00:00"))
-            .advanceWatermarkToInfinity()
+  @Test
+  fun triggers_event_time_triggers_event_time_triggers() {
+    val testStream = TestStream.create(SerializableCoder.of(String::class.java))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:00+00:00")))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:01+00:00")))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:02+00:00")))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:03+00:00")))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:04+00:00")))
+      .advanceWatermarkTo(Instant.parse("2019-06-01T00:00:05+00:00"))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:05+00:00")))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:06+00:00")))
+      .addElements(TimestampedValue.of("event", Instant.parse("2019-06-01T00:00:07+00:00")))
+      .advanceWatermarkTo(Instant.parse("2019-06-01T00:00:10+00:00"))
+      .advanceWatermarkToInfinity()
 
-        val eventsPColl = testPipeline.apply(testStream)
+    val eventsPColl = testPipeline.apply(testStream)
 
-        val results = applyTransform(eventsPColl)
+    val results = applyTransform(eventsPColl)
 
-        PAssert.that(results)
-            .inWindow(createIntervalWindow("2019-06-01T00:00:00+00:00", "2019-06-01T00:00:05+00:00"))
-            .containsInAnyOrder(5L)
-            .inWindow(createIntervalWindow("2019-06-01T00:00:05+00:00", "2019-06-01T00:00:10+00:00"))
-            .containsInAnyOrder(3L)
+    PAssert.that(results)
+      .inWindow(createIntervalWindow("2019-06-01T00:00:00+00:00", "2019-06-01T00:00:05+00:00"))
+      .containsInAnyOrder(5L)
+      .inWindow(createIntervalWindow("2019-06-01T00:00:05+00:00", "2019-06-01T00:00:10+00:00"))
+      .containsInAnyOrder(3L)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 
-    private fun createIntervalWindow(startStr: String, endStr: String): IntervalWindow {
-        return IntervalWindow(Instant.parse(startStr), Instant.parse(endStr))
-    }
+  private fun createIntervalWindow(startStr: String, endStr: String): IntervalWindow {
+    return IntervalWindow(Instant.parse(startStr), Instant.parse(endStr))
+  }
 }

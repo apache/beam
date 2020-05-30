@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/groupbykey/Task.kt
   visible: true
   placeholders:
-  - offset: 1906
-    length: 309
+  - offset: 1858
+    length: 263
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/groupbykey/TaskTest.kt
   visible: false

@@ -27,27 +27,27 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val words = pipeline.apply(
-            Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
-        )
+    val words = pipeline.apply(
+      Create.of("apple", "banana", "cherry", "durian", "guava", "melon")
+    )
 
-        val output = applyTransform(words)
+    val output = applyTransform(words)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<String>): PCollection<KV<String, String>> {
-        return input.apply(WithKeys
-            .of { fruit: String -> fruit.substring(0, 1) }
-            .withKeyType(TypeDescriptors.strings())
-        )
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<String>): PCollection<KV<String, String>> {
+    return input.apply(WithKeys
+      .of { fruit: String -> fruit.substring(0, 1) }
+      .withKeyType(TypeDescriptors.strings())
+    )
+  }
 }

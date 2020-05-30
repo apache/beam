@@ -25,25 +25,25 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_flatten_flatten() {
-        val wordsStartingWithA = testPipeline.apply(
-            "Words starting with A",
-            Create.of("apple", "ant", "arrow")
-        )
-        val wordsStartingWithB = testPipeline.apply(
-            "Words starting with B",
-            Create.of("ball", "book", "bow")
-        )
+  @Test
+  fun core_transforms_flatten_flatten() {
+    val wordsStartingWithA = testPipeline.apply(
+      "Words starting with A",
+      Create.of("apple", "ant", "arrow")
+    )
+    val wordsStartingWithB = testPipeline.apply(
+      "Words starting with B",
+      Create.of("ball", "book", "bow")
+    )
 
-        val results = applyTransform(wordsStartingWithA, wordsStartingWithB)
+    val results = applyTransform(wordsStartingWithA, wordsStartingWithB)
 
-        PAssert.that(results).containsInAnyOrder("apple", "ant", "arrow", "ball", "book", "bow")
+    PAssert.that(results).containsInAnyOrder("apple", "ant", "arrow", "ball", "book", "bow")
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

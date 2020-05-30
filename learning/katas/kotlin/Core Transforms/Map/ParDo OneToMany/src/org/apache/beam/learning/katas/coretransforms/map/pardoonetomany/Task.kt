@@ -26,30 +26,30 @@ import org.apache.beam.sdk.transforms.ParDo
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val sentences = pipeline.apply(Create.of("Hello Beam", "It is awesome"))
+    val sentences = pipeline.apply(Create.of("Hello Beam", "It is awesome"))
 
-        val output = applyTransform(sentences)
+    val output = applyTransform(sentences)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(ParDo.of(object : DoFn<String, String>() {
-            @ProcessElement
-            fun processElement(@Element sentence: String, out: OutputReceiver<String?>) {
-                val words = sentence.split(" ")
-                for (word in words) {
-                    out.output(word)
-                }
-            }
-        }))
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<String>): PCollection<String> {
+    return input.apply(ParDo.of(object : DoFn<String, String>() {
+      @ProcessElement
+      fun processElement(@Element sentence: String, out: OutputReceiver<String?>) {
+        val words = sentence.split(" ")
+        for (word in words) {
+          out.output(word)
+        }
+      }
+    }))
+  }
 }

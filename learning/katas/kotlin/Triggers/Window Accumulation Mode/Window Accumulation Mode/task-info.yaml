@@ -5,8 +5,8 @@ files:
 - name: src/org/apache/beam/learning/katas/triggers/windowaccummode/Task.kt
   visible: true
   placeholders:
-  - offset: 1894
-    length: 536
+  - offset: 1856
+    length: 430
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/triggers/windowaccummode/TaskTest.kt
   visible: false

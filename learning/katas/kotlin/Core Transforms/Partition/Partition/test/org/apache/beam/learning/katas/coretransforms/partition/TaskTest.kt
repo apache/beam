@@ -25,20 +25,20 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun core_transforms_partition_partition() {
-        val numbers = testPipeline.apply(Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250))
+  @Test
+  fun core_transforms_partition_partition() {
+    val numbers = testPipeline.apply(Create.of(1, 2, 3, 4, 5, 100, 110, 150, 250))
 
-        val results = applyTransform(numbers)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results[0]).containsInAnyOrder(110, 150, 250)
+    PAssert.that(results[0]).containsInAnyOrder(110, 150, 250)
 
-        PAssert.that(results[1]).containsInAnyOrder(1, 2, 3, 4, 5, 100)
+    PAssert.that(results[1]).containsInAnyOrder(1, 2, 3, 4, 5, 100)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

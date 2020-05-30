@@ -27,28 +27,28 @@ import org.apache.beam.sdk.values.PCollection
 import org.apache.beam.sdk.values.TypeDescriptors
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val sentences = pipeline.apply(Create.of("Apache Beam", "Unified Batch and Streaming"))
+    val sentences = pipeline.apply(Create.of("Apache Beam", "Unified Batch and Streaming"))
 
-        val output = applyTransform(sentences)
+    val output = applyTransform(sentences)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
-    }
+    pipeline.run()
+  }
 
-    @JvmStatic
-    fun applyTransform(input: PCollection<String>): PCollection<String> {
-        return input.apply(
-            FlatMapElements
-                .into(TypeDescriptors.strings())
-                .via(SerializableFunction<String, Iterable<String>> { sentence: String ->
-                    sentence.split(" ")
-                })
-        )
-    }
+  @JvmStatic
+  fun applyTransform(input: PCollection<String>): PCollection<String> {
+    return input.apply(
+      FlatMapElements
+        .into(TypeDescriptors.strings())
+        .via(SerializableFunction<String, Iterable<String>> { sentence: String ->
+          sentence.split(" ")
+        })
+    )
+  }
 }

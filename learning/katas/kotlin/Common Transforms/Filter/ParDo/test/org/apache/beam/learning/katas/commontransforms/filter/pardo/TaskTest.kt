@@ -25,19 +25,19 @@ import org.junit.Rule
 import org.junit.Test
 
 class TaskTest {
-    @get:Rule
-    @Transient
-    val testPipeline: TestPipeline = TestPipeline.create()
+  @get:Rule
+  @Transient
+  val testPipeline: TestPipeline = TestPipeline.create()
 
-    @Test
-    fun common_transforms_filter_pardo() {
-        val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-        val numbers = testPipeline.apply(values)
+  @Test
+  fun common_transforms_filter_pardo() {
+    val values = Create.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+    val numbers = testPipeline.apply(values)
 
-        val results = applyTransform(numbers)
+    val results = applyTransform(numbers)
 
-        PAssert.that(results).containsInAnyOrder(1, 3, 5, 7, 9)
+    PAssert.that(results).containsInAnyOrder(1, 3, 5, 7, 9)
 
-        testPipeline.run().waitUntilFinish()
-    }
+    testPipeline.run().waitUntilFinish()
+  }
 }

@@ -26,28 +26,28 @@ import org.apache.beam.sdk.transforms.SerializableFunction
 import org.apache.beam.sdk.values.PCollection
 
 object Task {
-    @JvmStatic
-    fun main(args: Array<String>) {
-        val options = PipelineOptionsFactory.fromArgs(*args).create()
-        val pipeline = Pipeline.create(options)
+  @JvmStatic
+  fun main(args: Array<String>) {
+    val options = PipelineOptionsFactory.fromArgs(*args).create()
+    val pipeline = Pipeline.create(options)
 
-        val numbers = pipeline.apply(Create.of(10, 30, 50, 70, 90))
+    val numbers = pipeline.apply(Create.of(10, 30, 50, 70, 90))
 
-        val output = applyTransform(numbers)
+    val output = applyTransform(numbers)
 
-        output.apply(Log.ofElements())
+    output.apply(Log.ofElements())
 
-        pipeline.run()
+    pipeline.run()
+  }
+
+  @JvmStatic
+  fun applyTransform(input: PCollection<Int>): PCollection<Int> {
+    return input.apply(Combine.globally(SumIntegerFn()))
+  }
+
+  internal class SumIntegerFn : SerializableFunction<Iterable<Int>, Int> {
+    override fun apply(input: Iterable<Int>): Int {
+      return input.sum()
     }
-
-    @JvmStatic
-    fun applyTransform(input: PCollection<Int>): PCollection<Int> {
-        return input.apply(Combine.globally(SumIntegerFn()))
-    }
-
-    internal class SumIntegerFn : SerializableFunction<Iterable<Int>, Int> {
-        override fun apply(input: Iterable<Int>): Int {
-            return input.sum()
-        }
-    }
+  }
 }
