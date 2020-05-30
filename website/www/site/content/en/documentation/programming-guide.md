@@ -2655,7 +2655,7 @@ field as a top-level field. Both top-level and nested fields can be selected. Fo
 could select only the userId and streetAddress fields as follows
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames("userId", shippingAddress.streetAddress"));
+purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The resulting `PCollection` will have the following schema
@@ -2683,7 +2683,7 @@ The resulting `PCollection` will have the following schema
 The same is true for wildcard selections. The following
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames("userId", shippingAddress.*"));
+purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2729,7 +2729,7 @@ top-level field in the resulting row. This means that if multiple fields are sel
 selected field will appear as its own array field. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames( "transactions.bank", transactions.purchaseAmount"));
+purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2832,7 +2832,7 @@ The simplest usage of `Group` specifies no aggregations, in which case all input
 are grouped together into an `ITERABLE` field. For example
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames("userId", shippingAddress.streetAddress"));
+purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The output schema of this is:
@@ -2863,7 +2863,7 @@ The names of the key and values fields in the output schema can be controlled us
 builders, as follows:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames("userId", shippingAddress.streetAddress")
+purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress")
     .withKeyField("userAndStreet")
     .withValueField("matchingPurchases"));
 {{< /highlight >}}
