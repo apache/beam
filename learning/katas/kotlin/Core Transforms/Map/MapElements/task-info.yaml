@@ -3,8 +3,8 @@ files:
 - name: src/org/apache/beam/learning/katas/coretransforms/map/mapelements/Task.kt
   visible: true
   placeholders:
-  - offset: 1704
-    length: 150
+  - offset: 1711
+    length: 143
     placeholder_text: TODO()
 - name: test/org/apache/beam/learning/katas/coretransforms/map/mapelements/TaskTest.kt
   visible: false
