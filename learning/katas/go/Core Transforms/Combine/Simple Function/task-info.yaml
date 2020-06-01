@@ -28,8 +28,8 @@ files:
 - name: pkg/task/task.go
   visible: true
   placeholders:
-  - offset: 942
-    length: 79
+  - offset: 949
+    length: 72
     placeholder_text: TODO()
 - name: go.sum
   visible: false

@@ -20,7 +20,7 @@ import (
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.Combine(s, func(sum, item int) int {
-		return sum + item
+	return beam.Combine(s, func(sum, elem int) int {
+		return sum + elem
 	}, input)
 }
