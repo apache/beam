@@ -23,12 +23,12 @@ public class FlinkCapabilities {
   /**
    * Support for outputting elements in close method of chained drivers.
    *
-   * <p>{@see <a href="https://issues.apache.org/jira/browse/FLINK-14709" FLINK-14709</a>} for more
+   * <p>{@see <a href="https://issues.apache.org/jira/browse/FLINK-14709">FLINK-14709</a>} for more
    * details.
    *
    * @return True if feature is supported.
    */
-  public static boolean supportsOutputInTearDown() {
+  public static boolean supportsOutputDuringClosing() {
     return true;
   }
 }
