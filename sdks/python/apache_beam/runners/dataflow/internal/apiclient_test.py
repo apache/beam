@@ -61,6 +61,9 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions()
     apiclient.DataflowApplicationClient(pipeline_options)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_pipeline_url(self):
     pipeline_options = PipelineOptions([
         '--subnetwork',
@@ -92,6 +95,9 @@ class UtilTest(unittest.TestCase):
 
     self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_set_network(self):
     pipeline_options = PipelineOptions([
         '--network',
@@ -105,6 +111,9 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].network, 'anetworkname')
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_set_subnetwork(self):
     pipeline_options = PipelineOptions([
         '--subnetwork',
@@ -121,6 +130,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].subnetwork,
         '/regions/MY/subnetworks/SUBNETWORK')
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_flexrs_blank(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
@@ -131,6 +143,9 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.flexResourceSchedulingGoal, None)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_flexrs_cost(self):
     pipeline_options = PipelineOptions([
         '--flexrs_goal',
@@ -149,6 +164,9 @@ class UtilTest(unittest.TestCase):
             dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
             FLEXRS_COST_OPTIMIZED))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_flexrs_speed(self):
     pipeline_options = PipelineOptions([
         '--flexrs_goal',
@@ -167,6 +185,9 @@ class UtilTest(unittest.TestCase):
             dataflow.Environment.FlexResourceSchedulingGoalValueValuesEnum.
             FLEXRS_SPEED_OPTIMIZED))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_sdk_harness_container_images_get_set(self):
 
     pipeline_options = PipelineOptions([
@@ -350,6 +371,9 @@ class UtilTest(unittest.TestCase):
     self.assertEqual(
         metric_update.floatingPointMean.count.lowBits, accumulator.count)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_default_ip_configuration(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
@@ -359,6 +383,9 @@ class UtilTest(unittest.TestCase):
                                 FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].ipConfiguration, None)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_public_ip_configuration(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--use_public_ips'])
@@ -370,6 +397,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_private_ip_configuration(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--no_use_public_ips'])
@@ -381,6 +411,9 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_number_of_worker_harness_threads(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
@@ -398,6 +431,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_harness_override_default_in_released_sdks(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
@@ -416,6 +452,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_harness_override_absent_in_released_sdks_with_runner_v2(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
@@ -436,6 +475,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_harness_override_custom_in_released_sdks(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
@@ -460,6 +502,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_harness_override_custom_in_released_sdks_with_runner_v2(self):
     pipeline_options = PipelineOptions([
         '--temp_location',
@@ -485,6 +530,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0.rc1')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_harness_override_uses_base_version_in_rc_releases(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
@@ -503,6 +551,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0.dev')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
@@ -518,6 +569,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0.dev')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_pinned_worker_harness_image_tag_used_in_dev_sdk(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
@@ -580,6 +634,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_worker_harness_image_tag_matches_released_sdk_version(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
@@ -630,6 +687,9 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0.rc1')
+  @unittest.skipIf(
+      sys.version_info.minor == 8, 'Re-enable once BEAM-9754 is '
+      'resolved')
   def test_worker_harness_image_tag_matches_base_sdk_version_of_an_rc(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions(
@@ -676,6 +736,9 @@ class UtilTest(unittest.TestCase):
               names.DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python%d%d:2.2.0' %
               (sys.version_info[0], sys.version_info[1])))
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
     # streaming, fnapi pipeline.
     pipeline_options = PipelineOptions([
@@ -765,6 +828,9 @@ class UtilTest(unittest.TestCase):
     self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
     self.assertEqual('', job.proto.labels.additionalProperties[4].value)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
   def test_experiment_use_multiple_sdk_containers(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -944,7 +1010,8 @@ class UtilTest(unittest.TestCase):
         '--temp_location',
         'gs://test-location/temp',
         '--staging_location',
-        'gs://test-location/staging'
+        'gs://test-location/staging',
+        '--no_auth'
     ])
     pipeline = beam_runner_api_pb2.Pipeline(
         components=beam_runner_api_pb2.Components(

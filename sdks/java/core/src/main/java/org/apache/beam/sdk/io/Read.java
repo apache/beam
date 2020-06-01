@@ -725,7 +725,7 @@ public class Read {
 
         @Override
         public Instant getWatermark() {
-          throw new UnsupportedOperationException("getWatermark is never meant to be invoked.");
+          return BoundedWindow.TIMESTAMP_MAX_VALUE;
         }
 
         @Override
@@ -836,16 +836,20 @@ public class Read {
       @Override
       public SplitResult<UnboundedSourceRestriction<OutputT, CheckpointT>> trySplit(
           double fractionOfRemainder) {
-        // Don't split if we have claimed all since the SDF wrapper will be finishing soon.
+        // Don't split if we have the empty sources since the SDF wrapper will be finishing soon.
+        UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction = currentRestriction();
+        if (currentRestriction.getSource() instanceof EmptyUnboundedSource) {
+          return null;
+        }
+
         // Our split result sets the primary to have no checkpoint mark associated
         // with it since when we resume we don't have any state but we specifically pass
         // the checkpoint mark to the current reader so that when we finish the current bundle
         // we may register for finalization.
-        UnboundedSourceRestriction<OutputT, CheckpointT> currentRestriction = currentRestriction();
         SplitResult<UnboundedSourceRestriction<OutputT, CheckpointT>> result =
             SplitResult.of(
                 UnboundedSourceRestriction.create(
-                    EmptyUnboundedSource.INSTANCE, null, currentRestriction.getWatermark()),
+                    EmptyUnboundedSource.INSTANCE, null, BoundedWindow.TIMESTAMP_MAX_VALUE),
                 currentRestriction);
         currentReader =
             EmptyUnboundedSource.INSTANCE.createReader(null, currentRestriction.getCheckpoint());

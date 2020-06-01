@@ -712,53 +712,53 @@ all major features and bug fixes, and all known issues.
 Template:
 
 ```
-    We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
-    See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.<!--more-->
-    For more information on changes in {$RELEASE_VERSION}, check out the
-    [detailed release notes]({$JIRA_RELEASE_NOTES}).
+We are happy to present the new {$RELEASE_VERSION} release of Beam. This release includes both improvements and new functionality.
+See the [download page](/get-started/downloads/{$DOWNLOAD_ANCHOR}) for this release.
+For more information on changes in {$RELEASE_VERSION}, check out the
+[detailed release notes]({$JIRA_RELEASE_NOTES}).
 
-    ## Highlights
+## Highlights
 
-     * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-     * New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+  * New highly anticipated feature X added to Python SDK ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+  * New highly anticipated feature Y added to JavaSDK ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
-    {$TOPICS e.g.:}
-    ### I/Os
-    * Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    {$TOPICS}
+{$TOPICS e.g.:}
+### I/Os
+* Support for X source added (Java) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+{$TOPICS}
 
-    ### New Features / Improvements
+### New Features / Improvements
 
-    * X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
+* X feature added (Python) ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Y feature added (Java) [BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y).
 
-    ### Breaking Changes
+### Breaking Changes
 
-    * X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* X behavior was changed ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* Y behavior was changed ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
-    ### Deprecations
+### Deprecations
 
-    * X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
+* X behavior is deprecated and will be removed in X versions ([BEAM-X](https://issues.apache.org/jira/browse/BEAM-X)).
 
-    ### Bugfixes
+### Bugfixes
 
-    * Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
-    * Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
+* Fixed X (Python) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-X)).
+* Fixed Y (Java) ([BEAM-Y](https://issues.apache.org/jira/browse/BEAM-Y)).
 
-    ### Known Issues
+### Known Issues
 
-    * {$KNOWN_ISSUE_1}
-    * {$KNOWN_ISSUE_2}
-    * See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
+* {$KNOWN_ISSUE_1}
+* {$KNOWN_ISSUE_2}
+* See a full list of open [issues that affect](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20affectedVersion%20%3D%20{$RELEASE}%20ORDER%20BY%20priority%20DESC%2C%20updated%20DESC) this version.
 
 
-    ## List of Contributors
+## List of Contributors
 
-    According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.XX.0 release. Thank you to all contributors!
 
-    ${CONTRIBUTORS}
- ```
+${CONTRIBUTORS}
+```
 
 
 #### Checklist to proceed to the next step

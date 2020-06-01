@@ -23,19 +23,21 @@ pushd "${MY_DIR}" &>/dev/null || exit 1
 
 echo "Working directory: ${MY_DIR}"
 
-DIST_DIR=${1:-"./site/github_samples"}
+PROJECT_ROOT_REL_PATH=../..
+
+DIST_DIR=${1:-"./site/code_samples"}
 echo "Dist directory: ${DIST_DIR}"
 
 CONTENT_DIR=${2:-"./site/content"}
 
-mapfile -t github_urls < <(grep -rh "{{< github_sample" "${CONTENT_DIR}" | sed -e 's/^.*"\(.*\)".*$/\1/g' | sort | uniq | sed 's/\/blob\//\//g' | xargs -n 1 echo)
+mapfile -t code_sample_uris < <(grep -rh "{{< code_sample" "${CONTENT_DIR}" | sed -e 's/^.*"\(.*\)".*$/\1/g' | sort | uniq | xargs -n 1 echo)
 
 mkdir -pv "${DIST_DIR}"
 
-for url in "${github_urls[@]}"
+for uri in "${code_sample_uris[@]}"
 do
-  fileName=$(echo "$url" | sed -e 's/\//_/g')
-  curl -o "$DIST_DIR"/"$fileName" "https://raw.githubusercontent.com$url"
+  fileName=$(echo "$uri" | sed -e 's/\//_/g')
+  cp "$PROJECT_ROOT_REL_PATH"/"$uri" "$DIST_DIR"/"$fileName"
 done
 
 popd &>/dev/null || exit 1

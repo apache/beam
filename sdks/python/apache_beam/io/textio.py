@@ -438,7 +438,7 @@ def _create_text_source(
 class ReadAllFromText(PTransform):
   """A ``PTransform`` for reading a ``PCollection`` of text files.
 
-   Reads a ``PCollection`` of text files or file patterns and and produces a
+   Reads a ``PCollection`` of text files or file patterns and produces a
    ``PCollection`` of strings.
 
   Parses a text file as newline-delimited elements, by default assuming
