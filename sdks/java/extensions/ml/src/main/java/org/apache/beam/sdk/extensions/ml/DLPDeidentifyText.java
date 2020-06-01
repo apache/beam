@@ -202,6 +202,7 @@ public abstract class DLPDeidentifyText
     private final DeidentifyConfig deidentifyConfig;
     private final PCollectionView<List<String>> headerColumns;
     private transient DeidentifyContentRequest.Builder requestBuilder;
+    private transient DlpServiceClient dlpServiceClient;
 
     @Setup
     public void setup() throws IOException {
@@ -219,6 +220,12 @@ public abstract class DLPDeidentifyText
       if (deidentifyTemplateName != null) {
         requestBuilder.setDeidentifyTemplateName(deidentifyTemplateName);
       }
+      dlpServiceClient = DlpServiceClient.create();
+    }
+
+    @Teardown
+    public void teardown() {
+      dlpServiceClient.close();
     }
 
     /**
@@ -248,30 +255,28 @@ public abstract class DLPDeidentifyText
 
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
-      try (DlpServiceClient dlpServiceClient = DlpServiceClient.create()) {
-        String fileName = c.element().getKey();
-        List<FieldId> dlpTableHeaders;
-        if (headerColumns != null) {
-          dlpTableHeaders =
-              c.sideInput(headerColumns).stream()
-                  .map(header -> FieldId.newBuilder().setName(header).build())
-                  .collect(Collectors.toList());
-        } else {
-          // handle unstructured input
-          dlpTableHeaders = new ArrayList<>();
-          dlpTableHeaders.add(FieldId.newBuilder().setName("value").build());
-        }
-        Table table =
-            Table.newBuilder()
-                .addAllHeaders(dlpTableHeaders)
-                .addAllRows(c.element().getValue())
-                .build();
-        ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
-        this.requestBuilder.setItem(contentItem);
-        DeidentifyContentResponse response =
-            dlpServiceClient.deidentifyContent(this.requestBuilder.build());
-        c.output(KV.of(fileName, response));
+      String fileName = c.element().getKey();
+      List<FieldId> dlpTableHeaders;
+      if (headerColumns != null) {
+        dlpTableHeaders =
+            c.sideInput(headerColumns).stream()
+                .map(header -> FieldId.newBuilder().setName(header).build())
+                .collect(Collectors.toList());
+      } else {
+        // handle unstructured input
+        dlpTableHeaders = new ArrayList<>();
+        dlpTableHeaders.add(FieldId.newBuilder().setName("value").build());
       }
+      Table table =
+          Table.newBuilder()
+              .addAllHeaders(dlpTableHeaders)
+              .addAllRows(c.element().getValue())
+              .build();
+      ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
+      this.requestBuilder.setItem(contentItem);
+      DeidentifyContentResponse response =
+          dlpServiceClient.deidentifyContent(this.requestBuilder.build());
+      c.output(KV.of(fileName, response));
     }
   }
 }

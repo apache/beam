@@ -205,8 +205,9 @@ public abstract class DLPReidentifyText
     private final String reidentifyTemplateName;
     private final InspectConfig inspectConfig;
     private final DeidentifyConfig reidentifyConfig;
-    private transient ReidentifyContentRequest.Builder requestBuilder;
     private final PCollectionView<List<String>> headerColumns;
+    private transient ReidentifyContentRequest.Builder requestBuilder;
+    private transient DlpServiceClient dlpServiceClient;
 
     @Setup
     public void setup() throws IOException {
@@ -224,6 +225,12 @@ public abstract class DLPReidentifyText
       if (reidentifyTemplateName != null) {
         requestBuilder.setReidentifyTemplateName(reidentifyTemplateName);
       }
+      dlpServiceClient = DlpServiceClient.create();
+    }
+
+    @Teardown
+    public void teardown() {
+      dlpServiceClient.close();
     }
 
     /**
@@ -253,29 +260,27 @@ public abstract class DLPReidentifyText
 
     @ProcessElement
     public void processElement(ProcessContext context) throws IOException {
-      try (DlpServiceClient dlpServiceClient = DlpServiceClient.create()) {
-        List<FieldId> tableHeaders;
-        if (headerColumns != null) {
-          tableHeaders =
-              context.sideInput(headerColumns).stream()
-                  .map(header -> FieldId.newBuilder().setName(header).build())
-                  .collect(Collectors.toList());
-        } else {
-          // handle unstructured input.
-          tableHeaders = new ArrayList<>();
-          tableHeaders.add(FieldId.newBuilder().setName("value").build());
-        }
-        Table table =
-            Table.newBuilder()
-                .addAllHeaders(tableHeaders)
-                .addAllRows(context.element().getValue())
-                .build();
-        ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
-        this.requestBuilder.setItem(contentItem);
-        ReidentifyContentResponse response =
-            dlpServiceClient.reidentifyContent(requestBuilder.build());
-        context.output(KV.of(context.element().getKey(), response));
+      List<FieldId> tableHeaders;
+      if (headerColumns != null) {
+        tableHeaders =
+            context.sideInput(headerColumns).stream()
+                .map(header -> FieldId.newBuilder().setName(header).build())
+                .collect(Collectors.toList());
+      } else {
+        // handle unstructured input.
+        tableHeaders = new ArrayList<>();
+        tableHeaders.add(FieldId.newBuilder().setName("value").build());
       }
+      Table table =
+          Table.newBuilder()
+              .addAllHeaders(tableHeaders)
+              .addAllRows(context.element().getValue())
+              .build();
+      ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
+      this.requestBuilder.setItem(contentItem);
+      ReidentifyContentResponse response =
+          dlpServiceClient.reidentifyContent(requestBuilder.build());
+      context.output(KV.of(context.element().getKey(), response));
     }
   }
 }

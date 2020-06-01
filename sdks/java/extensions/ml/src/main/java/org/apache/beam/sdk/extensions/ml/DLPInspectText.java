@@ -177,8 +177,9 @@ public abstract class DLPInspectText
     private final String projectId;
     private final String inspectTemplateName;
     private final InspectConfig inspectConfig;
-    private transient InspectContentRequest.Builder requestBuilder;
     private final PCollectionView<List<String>> headerColumns;
+    private transient DlpServiceClient dlpServiceClient;
+    private transient InspectContentRequest.Builder requestBuilder;
 
     /**
      * @param projectId ID of GCP project that should be used for data inspection.
@@ -198,7 +199,7 @@ public abstract class DLPInspectText
     }
 
     @Setup
-    public void setup() {
+    public void setup() throws IOException {
       this.requestBuilder =
           InspectContentRequest.newBuilder().setParent(ProjectName.of(this.projectId).toString());
       if (inspectTemplateName != null) {
@@ -207,32 +208,33 @@ public abstract class DLPInspectText
       if (inspectConfig != null) {
         requestBuilder.setInspectConfig(inspectConfig);
       }
+      dlpServiceClient = DlpServiceClient.create();
+    }
+
+    @Teardown
+    public void teardown() {
+      dlpServiceClient.close();
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) throws IOException {
-      try (DlpServiceClient dlpServiceClient = DlpServiceClient.create()) {
-        List<FieldId> tableHeaders;
-        if (headerColumns != null) {
-          tableHeaders =
-              c.sideInput(headerColumns).stream()
-                  .map(header -> FieldId.newBuilder().setName(header).build())
-                  .collect(Collectors.toList());
-        } else {
-          tableHeaders = new ArrayList<>();
-          tableHeaders.add(FieldId.newBuilder().setName("value").build());
-        }
-        Table table =
-            Table.newBuilder()
-                .addAllHeaders(tableHeaders)
-                .addAllRows(c.element().getValue())
-                .build();
-        ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
-        this.requestBuilder.setItem(contentItem);
-        InspectContentResponse response =
-            dlpServiceClient.inspectContent(this.requestBuilder.build());
-        c.output(KV.of(c.element().getKey(), response));
+      List<FieldId> tableHeaders;
+      if (headerColumns != null) {
+        tableHeaders =
+            c.sideInput(headerColumns).stream()
+                .map(header -> FieldId.newBuilder().setName(header).build())
+                .collect(Collectors.toList());
+      } else {
+        tableHeaders = new ArrayList<>();
+        tableHeaders.add(FieldId.newBuilder().setName("value").build());
       }
+      Table table =
+          Table.newBuilder().addAllHeaders(tableHeaders).addAllRows(c.element().getValue()).build();
+      ContentItem contentItem = ContentItem.newBuilder().setTable(table).build();
+      this.requestBuilder.setItem(contentItem);
+      InspectContentResponse response =
+          dlpServiceClient.inspectContent(this.requestBuilder.build());
+      c.output(KV.of(c.element().getKey(), response));
     }
   }
 }
