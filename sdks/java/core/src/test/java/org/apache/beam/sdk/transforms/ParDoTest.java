@@ -3539,10 +3539,24 @@ public class ParDoTest implements Serializable {
     @Category({
       ValidatesRunner.class,
       UsesTimersInParDo.class,
-      UsesUnboundedPCollections.class,
       DataflowPortabilityApiUnsupported.class
     })
-    public void testOutputTimestampDefault() throws Exception {
+    public void testOutputTimestampDefaultBounded() throws Exception {
+      runTestOutputTimestampDefault(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesUnboundedPCollections.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutputTimestampDefaultUnbounded() throws Exception {
+      runTestOutputTimestampDefault(true);
+    }
+
+    public void runTestOutputTimestampDefault(boolean useStreaming) throws Exception {
       final String timerId = "foo";
       DoFn<KV<String, Long>, Long> fn1 =
           new DoFn<KV<String, Long>, Long>() {
@@ -3567,7 +3581,7 @@ public class ParDoTest implements Serializable {
       PCollection<Long> output =
           pipeline
               .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 1L), new Instant(3))))
-              .setIsBoundedInternal(IsBounded.UNBOUNDED)
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
               .apply("first", ParDo.of(fn1));
 
       PAssert.that(output).containsInAnyOrder(new Instant(8).getMillis()); // result output
