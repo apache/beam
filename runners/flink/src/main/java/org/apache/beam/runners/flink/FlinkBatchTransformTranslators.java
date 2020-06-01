@@ -653,11 +653,11 @@ class FlinkBatchTransformTranslators {
                 doFnSchemaInformation,
                 sideInputMapping);
 
-        if (FlinkCapabilities.supportsOutputInTearDown()) {
+        if (FlinkCapabilities.supportsOutputDuringClosing()) {
           outputDataSet =
               new FlatMapOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
         } else {
-          // This can be removed once we drop support for 1.9 and 1.10 versions.
+          // This can be removed once we drop support for 1.8 and 1.9 versions.
           outputDataSet =
               new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
         }
