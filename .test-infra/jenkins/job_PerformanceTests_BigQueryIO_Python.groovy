@@ -82,7 +82,7 @@ def executeJob = { scope, testConfig ->
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_BiqQueryIO_Read_Performance_Test_Python',
+        'beam_PerformanceTests_BiqQueryIO_Read_Python',
         'Run BigQueryIO Read Performance Test Python',
         'BigQueryIO Read Performance Test Python',
         this
@@ -90,12 +90,12 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     executeJob(delegate, bqio_read_test)
 }
 
-CronJobBuilder.cronJob('beam_BiqQueryIO_Read_Performance_Test_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Read_Python', 'H 15 * * *', this) {
     executeJob(delegate, bqio_read_test)
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_BiqQueryIO_Write_Performance_Test_Python_Batch',
+        'beam_PerformanceTests_BiqQueryIO_Write_Python_Batch',
         'Run BigQueryIO Write Performance Test Python Batch',
         'BigQueryIO Write Performance Test Python Batch',
         this
@@ -103,6 +103,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     executeJob(delegate, bqio_write_test)
 }
 
-CronJobBuilder.cronJob('beam_BiqQueryIO_Write_Performance_Test_Python_Batch', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_BiqQueryIO_Write_Python_Batch', 'H 15 * * *', this) {
     executeJob(delegate, bqio_write_test)
 }
