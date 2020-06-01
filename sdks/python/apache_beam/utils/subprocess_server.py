@@ -32,7 +32,6 @@ import threading
 import time
 
 import grpc
-
 from future.moves.urllib.error import URLError
 from future.moves.urllib.request import urlopen
 
