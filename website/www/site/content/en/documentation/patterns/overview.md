@@ -38,6 +38,9 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 **BigQuery patterns** - Patterns for BigQueryIO
 * [Google BigQuery patterns](/documentation/patterns/bigqueryio/#google-bigquery-patterns)
 
+**AI Platform integration patterns** - Patterns for using Google Cloud AI Platform transforms
+* [Analysing the structure and meaning of text](/documentation/patterns/ai-platform/#analysing-the-structure-and-meaning-of-text)
+
 ## Contributing a pattern
 
 To contribute a new pipeline pattern, create an issue with the [`pipeline-patterns` label](https://issues.apache.org/jira/browse/BEAM-7449?jql=labels%20%3D%20pipeline-patterns) and add details to the issue description. See [Get started contributing](/contribute/) for more information.
