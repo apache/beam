@@ -2763,6 +2763,43 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testSelectSameTable() {
+    String sql = "SELECT * FROM table1 UNION ALL SELECT * FROM table1";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    // PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testMultipleSelect() {
+    String sql = "SELECT 1; SELECT 2;";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    // PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testCreateFunction() {
+    String sql = "CREATE FUNCTION plusOne(x INT64) AS (x + 1); SELECT plusOne(1);";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(
+        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(2L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   public void testTimestampLiteralWithNonUTCTimeZone() {
     String sql = "SELECT TIMESTAMP '2018-12-10 10:38:59-10:00'";
 

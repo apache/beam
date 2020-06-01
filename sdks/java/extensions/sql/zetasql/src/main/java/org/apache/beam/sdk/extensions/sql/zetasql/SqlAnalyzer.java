@@ -30,6 +30,7 @@ import com.google.zetasql.Function;
 import com.google.zetasql.FunctionArgumentType;
 import com.google.zetasql.FunctionProtos.FunctionArgumentTypeOptionsProto;
 import com.google.zetasql.FunctionSignature;
+import com.google.zetasql.ParseResumeLocation;
 import com.google.zetasql.SimpleCatalog;
 import com.google.zetasql.TVFRelation;
 import com.google.zetasql.TableValuedFunction;
@@ -99,13 +100,32 @@ class SqlAnalyzer {
    */
   ResolvedStatement analyze(String sql) {
     AnalyzerOptions options = initAnalyzerOptions(builder.queryParams);
-    List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
+    // List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
+    List<List<String>> tables = ImmutableList.of();
 
     SimpleCatalog catalog =
         createPopulatedCatalog(builder.topLevelSchema.getName(), options, tables);
 
     return Analyzer.analyzeStatement(sql, options, catalog);
   }
+
+  /**
+   * Accepts the SQL string, returns the resolved AST.
+   *
+   * <p>Initializes query parameters, populates the catalog based on Calcite's schema and table name
+   * resolution strategy set in the context.
+   */
+  // ResolvedStatement analyzeNextStatement(ParseResumeLocation parseResumeLocation) {
+  //   AnalyzerOptions options = initAnalyzerOptions(builder.queryParams);
+  //
+  //   int startBytePosition = parseResumeLocation.getBytePosition();
+  //   List<List<String>> tables = Analyzer.extractTableNamesFromStatement(parseResumeLocation);
+  //
+  //   SimpleCatalog catalog =
+  //       createPopulatedCatalog(builder.topLevelSchema.getName(), options, tables);
+  //
+  //   return Analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
+  // }
 
   static AnalyzerOptions initAnalyzerOptions() {
     AnalyzerOptions options = new AnalyzerOptions();
@@ -325,6 +345,10 @@ class SqlAnalyzer {
     Builder withTypeFactory(JavaTypeFactory typeFactory) {
       this.typeFactory = typeFactory;
       return this;
+    }
+
+    SqlAnalyzer build() {
+      return new SqlAnalyzer(this);
     }
 
     /** Returns the parsed and resolved query. */

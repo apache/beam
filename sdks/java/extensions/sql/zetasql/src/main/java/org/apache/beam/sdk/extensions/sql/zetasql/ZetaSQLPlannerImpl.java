@@ -135,19 +135,21 @@ public class ZetaSQLPlannerImpl implements Planner {
 
     QueryTrait trait = new QueryTrait();
 
+    SqlAnalyzer analyzer = SqlAnalyzer.getBuilder()
+        .withQueryParams(params)
+        .withQueryTrait(trait)
+        .withCalciteContext(config.getContext())
+        .withTopLevelSchema(defaultSchemaPlus)
+        .withTypeFactory((JavaTypeFactory) cluster.getTypeFactory())
+        .build();
+
     // Set up table providers that need to be pre-registered
     // TODO(https://issues.apache.org/jira/browse/BEAM-8817): share this logic between dialects
     List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
     TableResolution.registerTables(this.defaultSchemaPlus, tables);
 
-    ResolvedStatement statement =
-        SqlAnalyzer.getBuilder()
-            .withQueryParams(params)
-            .withQueryTrait(trait)
-            .withCalciteContext(config.getContext())
-            .withTopLevelSchema(defaultSchemaPlus)
-            .withTypeFactory((JavaTypeFactory) cluster.getTypeFactory())
-            .analyze(sql);
+
+    ResolvedStatement statement = analyzer.analyze(sql);
 
     if (!(statement instanceof ResolvedQueryStmt)) {
       throw new UnsupportedOperationException(
