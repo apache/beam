@@ -1,0 +1,7 @@
+{
+  "NotebookApp": {
+    "nbserver_extensions": {
+      "interactive_beam_side_panel": true
+    }
+  }
+}

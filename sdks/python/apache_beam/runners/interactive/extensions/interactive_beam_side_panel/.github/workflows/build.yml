@@ -1,0 +1,38 @@
+name: Build
+
+on:
+  push:
+    branches: master
+  pull_request:
+    branches: '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Install node
+      uses: actions/setup-node@v1
+      with:
+       node-version: '10.x'
+    - name: Install Python
+      uses: actions/setup-python@v1
+      with:
+        python-version: '3.7'
+        architecture: 'x64'
+    - name: Install dependencies
+      run: python -m pip install jupyterlab
+    - name: Build the extension
+      run: |
+        jlpm
+        jlpm run eslint:check
+
+        pip install .
+        jupyter lab build
+        jupyter serverextension list 1>serverextensions 2>&1
+        cat serverextensions | grep "interactive_beam_side_panel.*OK"
+        jupyter labextension list 1>labextensions 2>&1
+        cat labextensions | grep "interactive-beam-side-panel.*OK"
+
+        python -m jupyterlab.browser_check
