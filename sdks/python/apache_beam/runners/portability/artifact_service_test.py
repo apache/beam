@@ -44,7 +44,7 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 
 class AbstractArtifactServiceTest(unittest.TestCase):
@@ -83,7 +83,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
     self._run_staging(self._service, self._service)
 
   def test_with_grpc(self):
-    server = grpc.server(SharedUnboundedThreadPoolExecutor)
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     try:
       beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
           self._service, server)
@@ -225,7 +225,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
               self._service, tokens[session(index)], name(index)))
 
     # pylint: disable=range-builtin-not-iterating
-    pool = SharedUnboundedThreadPoolExecutor
+    pool = thread_pool_executor.shared_unbounded_instance()
     sessions = set(pool.map(put, range(100)))
     tokens = dict(pool.map(commit, sessions))
     # List forces materialization.

@@ -36,7 +36,7 @@ import grpc
 from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.runners.portability import portable_stager
-from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 
 class PortableStagerTest(unittest.TestCase):
@@ -58,7 +58,7 @@ class PortableStagerTest(unittest.TestCase):
           describing the name of the artifacts in local temp folder and desired
           name in staging location.
     """
-    server = grpc.server(SharedUnboundedThreadPoolExecutor)
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     staging_service = TestLocalFileSystemLegacyArtifactStagingServiceServicer(
         self._remote_dir)
     beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(

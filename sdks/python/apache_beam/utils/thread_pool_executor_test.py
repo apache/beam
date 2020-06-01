@@ -30,7 +30,7 @@ import unittest
 # patches unittest.TestCase to be python3 compatible
 import future.tests.base  # pylint: disable=unused-import
 
-from apache_beam.utils.thread_pool_executor import SharedUnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
 
 
@@ -113,10 +113,10 @@ class UnboundedThreadPoolExecutorTest(unittest.TestCase):
       self.assertEqual(5, len(self._worker_idents))
 
   def test_shared_shutdown_does_nothing(self):
-    SharedUnboundedThreadPoolExecutor.shutdown()
+    thread_pool_executor.shared_unbounded_instance().shutdown()
 
     futures = []
-    with SharedUnboundedThreadPoolExecutor as executor:
+    with thread_pool_executor.shared_unbounded_instance() as executor:
       for _ in range(0, 5):
         futures.append(executor.submit(self.append_and_sleep, 0.01))
 

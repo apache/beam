@@ -142,4 +142,8 @@ class _SharedUnboundedThreadPoolExecutor(UnboundedThreadPoolExecutor):
     pass
 
 
-SharedUnboundedThreadPoolExecutor = _SharedUnboundedThreadPoolExecutor()
+_SHARED_UNBOUNDED_THREAD_POOL_EXECUTOR = _SharedUnboundedThreadPoolExecutor()
+
+
+def shared_unbounded_instance():
+  return _SHARED_UNBOUNDED_THREAD_POOL_EXECUTOR
