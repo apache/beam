@@ -240,7 +240,7 @@ class FlinkBatchTransformTranslators {
         PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
         FlinkBatchTranslationContext context) {
 
-      // for now, this is copied from the Combine.PerKey translater. Once we have the new runner API
+      // for now, this is copied from the Combine.PerKey translator. Once we have the new runner API
       // we can replace GroupByKey by a Combine.PerKey with the Concatenate CombineFn
 
       DataSet<WindowedValue<KV<K, InputT>>> inputDataSet =
@@ -527,11 +527,12 @@ class FlinkBatchTransformTranslators {
 
       Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
 
-      TupleTag<?> mainOutputTag;
+      final TupleTag<OutputT> mainOutputTag;
       DoFnSchemaInformation doFnSchemaInformation;
       Map<String, PCollectionView<?>> sideInputMapping;
       try {
-        mainOutputTag = ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
+        mainOutputTag =
+            (TupleTag<OutputT>) ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -638,8 +639,8 @@ class FlinkBatchTransformTranslators {
         outputDataSet = new GroupReduceOperator(grouping, typeInformation, doFnWrapper, fullName);
 
       } else {
-        FlinkDoFnFunction<InputT, RawUnionValue> doFnWrapper =
-            new FlinkDoFnFunction(
+        final FlinkDoFnFunction<InputT, OutputT> doFnWrapper =
+            new FlinkDoFnFunction<>(
                 doFn,
                 fullName,
                 windowingStrategy,
@@ -652,8 +653,14 @@ class FlinkBatchTransformTranslators {
                 doFnSchemaInformation,
                 sideInputMapping);
 
-        outputDataSet =
-            new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
+        if (FlinkCapabilities.supportsOutputDuringClosing()) {
+          outputDataSet =
+              new FlatMapOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
+        } else {
+          // This can be removed once we drop support for 1.8 and 1.9 versions.
+          outputDataSet =
+              new MapPartitionOperator<>(inputDataSet, typeInformation, doFnWrapper, fullName);
+        }
       }
 
       transformSideInputs(sideInputs, outputDataSet, context);
