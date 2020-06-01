@@ -1,4 +1,212 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Learn about Beam</title><link>/documentation/</link><description>Recent content in Learn about Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/documentation/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation: Apache Beam: Developing I/O connectors for Java</title><link>/documentation/io/developing-io-java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/developing-io-java/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Learn about Beam</title><link>/documentation/</link><description>Recent content in Learn about Beam on Apache Beam</description><generator>Hugo -- gohugo.io</generator><atom:link href="/documentation/index.xml" rel="self" type="application/rss+xml"/><item><title>Documentation: AI Platform integration patterns</title><link>/documentation/patterns/ai-platform/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/patterns/ai-platform/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="ai-platform-integration-patterns">AI Platform integration patterns&lt;/h1>
+&lt;p>This page describes common patterns in pipelines with Google Cloud AI Platform transforms.&lt;/p>
+&lt;nav class="language-switcher">
+&lt;strong>Adapt for:&lt;/strong>
+&lt;ul>
+&lt;li data-type="language-java" class="active">Java SDK&lt;/li>
+&lt;li data-type="language-py">Python SDK&lt;/li>
+&lt;/ul>
+&lt;/nav>
+&lt;h2 id="analysing-the-structure-and-meaning-of-text">Analysing the structure and meaning of text&lt;/h2>
+&lt;p>This section shows how to use &lt;a href="https://cloud.google.com/natural-language">Google Cloud Natural Language API&lt;/a> to perform text analysis.&lt;/p>
+&lt;p>Beam provides a PTransform called &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.gcp.naturallanguageml.html#apache_beam.ml.gcp.naturallanguageml.AnnotateText">AnnotateText&lt;/a>. The transform takes a PCollection of type &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.gcp.naturallanguageml.html#apache_beam.ml.gcp.naturallanguageml.Document">Document&lt;/a>. Each Document object contains various information about text. This includes the content, whether it is a plain text or HTML, an optional language hint and other settings.
+&lt;code>AnnotateText&lt;/code> produces response object of type &lt;code>AnnotateTextResponse&lt;/code> returned from the API. &lt;code>AnnotateTextResponse&lt;/code> is a protobuf message which contains a lot of attributes, some of which are complex structures.&lt;/p>
+&lt;p>Here is an example of a pipeline that creates in-memory PCollection of strings, changes each string to Document object and invokes Natural Language API. Then, for each response object, a function is called to extract certain results of analysis.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="n">features&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">nlp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">types&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AnnotateTextRequest&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Features&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">extract_entities&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">extract_document_sentiment&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">extract_entity_sentiment&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">extract_syntax&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="bp">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">)&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">responses&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;span class="s1">&amp;#39;My experience so far has been fantastic! &amp;#39;&lt;/span>
+&lt;span class="s1">&amp;#39;I&lt;/span>&lt;span class="se">\&amp;#39;&lt;/span>&lt;span class="s1">d really recommend this product.&amp;#39;&lt;/span>
+&lt;span class="p">])&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="k">lambda&lt;/span> &lt;span class="n">x&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">nlp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Document&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">x&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">type&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;PLAIN_TEXT&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">nlp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AnnotateText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">features&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">responses&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">extract_sentiments&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse sentiments to JSON&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dumps&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Write sentiments&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;sentiments.txt&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">responses&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">extract_entities&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse entities to JSON&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dumps&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Write entities&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;entities.txt&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;span class="n">responses&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">analyze_dependency_tree&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Parse adjacency list to JSON&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dumps&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Write adjacency list&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WriteToText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;adjancency_list.txt&amp;#39;&lt;/span>&lt;span class="p">))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;h3 id="extracting-sentiments">Extracting sentiments&lt;/h3>
+&lt;p>This is a part of response object returned from the API. Sentence-level sentiments can be found in &lt;code>sentences&lt;/code> attribute. &lt;code>sentences&lt;/code> behaves like a standard Python sequence, therefore all core language features (like iteration or slicing) will work. Overall sentiment can be found in &lt;code>document_sentiment&lt;/code> attribute.&lt;/p>
+&lt;pre>&lt;code>sentences {
+text {
+content: &amp;quot;My experience so far has been fantastic!&amp;quot;
+}
+sentiment {
+magnitude: 0.8999999761581421
+score: 0.8999999761581421
+}
+}
+sentences {
+text {
+content: &amp;quot;I\'d really recommend this product.&amp;quot;
+begin_offset: 41
+}
+sentiment {
+magnitude: 0.8999999761581421
+score: 0.8999999761581421
+}
+}
+...many lines omitted
+document_sentiment {
+magnitude: 1.899999976158142
+score: 0.8999999761581421
+}
+&lt;/code>&lt;/pre>&lt;p>The function for extracting information about sentence-level and document-level sentiments is shown in the next code snippet.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">return&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;span class="s1">&amp;#39;sentences&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="p">[{&lt;/span>
+&lt;span class="n">sentence&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">content&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">sentence&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sentiment&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">score&lt;/span>
+&lt;span class="p">}&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">sentence&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sentences&lt;/span>&lt;span class="p">],&lt;/span>
+&lt;span class="s1">&amp;#39;document_sentiment&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">document_sentiment&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">score&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>The snippet loops over &lt;code>sentences&lt;/code> and, for each sentence, extracts the sentiment score.&lt;/p>
+&lt;p>The output is:&lt;/p>
+&lt;pre>&lt;code>{&amp;quot;sentences&amp;quot;: [{&amp;quot;My experience so far has been fantastic!&amp;quot;: 0.8999999761581421}, {&amp;quot;I'd really recommend this product.&amp;quot;: 0.8999999761581421}], &amp;quot;document_sentiment&amp;quot;: 0.8999999761581421}
+&lt;/code>&lt;/pre>&lt;h3 id="extracting-entities">Extracting entities&lt;/h3>
+&lt;p>The next function inspects the response for entities and returns the names and the types of those entities.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">return&lt;/span> &lt;span class="p">[{&lt;/span>
+&lt;span class="s1">&amp;#39;name&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">entity&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="s1">&amp;#39;type&amp;#39;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">nlp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">enums&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Entity&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Type&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">entity&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">type&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="p">}&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">entity&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">entities&lt;/span>&lt;span class="p">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>Entities can be found in &lt;code>entities&lt;/code> attribute. Just like before, &lt;code>entities&lt;/code> is a sequence, that&amp;rsquo;s why list comprehension is a viable choice. The most tricky part is interpreting the types of entities. Natural Language API defines entity types as enum. In a response object, entity types are returned as integers. That&amp;rsquo;s why a user has to instantiate &lt;code>naturallanguageml.enums.Entity.Type&lt;/code> to access a human-readable name.&lt;/p>
+&lt;p>The output is:&lt;/p>
+&lt;pre>&lt;code>[{&amp;quot;name&amp;quot;: &amp;quot;experience&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;OTHER&amp;quot;}, {&amp;quot;name&amp;quot;: &amp;quot;product&amp;quot;, &amp;quot;type&amp;quot;: &amp;quot;CONSUMER_GOOD&amp;quot;}]
+&lt;/code>&lt;/pre>&lt;h3 id="accessing-sentence-dependency-tree">Accessing sentence dependency tree&lt;/h3>
+&lt;p>The following code loops over the sentences and, for each sentence, builds an adjacency list that represents a dependency tree. For more information on what dependency tree is, see &lt;a href="https://cloud.google.com/natural-language/docs/morphology#dependency_trees">Morphology &amp;amp; Dependency Trees&lt;/a>.&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">collections&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">defaultdict&lt;/span>
+&lt;span class="n">adjacency_lists&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[]&lt;/span>
+&lt;span class="n">index&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="mi">0&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="n">sentence&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">sentences&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">adjacency_list&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">defaultdict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nb">list&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">sentence_begin&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sentence&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">begin_offset&lt;/span>
+&lt;span class="n">sentence_end&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sentence_begin&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">sentence&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">content&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>
+&lt;span class="k">while&lt;/span> &lt;span class="n">index&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tokens&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="ow">and&lt;/span> \
+&lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tokens&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">index&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">begin_offset&lt;/span> &lt;span class="o">&amp;lt;=&lt;/span> &lt;span class="n">sentence_end&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">token&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tokens&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">index&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;span class="n">head_token_index&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">token&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">dependency_edge&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">head_token_index&lt;/span>
+&lt;span class="n">head_token_text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">response&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">tokens&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">head_token_index&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">content&lt;/span>
+&lt;span class="n">adjacency_list&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">head_token_text&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">token&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">content&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">index&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="mi">1&lt;/span>
+&lt;span class="n">adjacency_lists&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">append&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">adjacency_list&lt;/span>&lt;span class="p">)&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Java&lt;/span> &lt;span class="n">examples&lt;/span> &lt;span class="n">will&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="n">on&lt;/span> &lt;span class="n">Beam&lt;/span> &lt;span class="n">2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">23&lt;/span> &lt;span class="n">release&lt;/span>&lt;span class="o">.&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;p>The output is below. For better readability, indexes are replaced by text which they refer to:&lt;/p>
+&lt;pre>&lt;code>[
+{
+&amp;quot;experience&amp;quot;: [
+&amp;quot;My&amp;quot;
+],
+&amp;quot;been&amp;quot;: [
+&amp;quot;experience&amp;quot;,
+&amp;quot;far&amp;quot;,
+&amp;quot;has&amp;quot;,
+&amp;quot;been&amp;quot;,
+&amp;quot;fantastic&amp;quot;,
+&amp;quot;!&amp;quot;
+],
+&amp;quot;far&amp;quot;: [
+&amp;quot;so&amp;quot;
+]
+},
+{
+&amp;quot;recommend&amp;quot;: [
+&amp;quot;I&amp;quot;,
+&amp;quot;'d&amp;quot;,
+&amp;quot;really&amp;quot;,
+&amp;quot;recommend&amp;quot;,
+&amp;quot;product&amp;quot;,
+&amp;quot;.&amp;quot;
+],
+&amp;quot;product&amp;quot;: [
+&amp;quot;this&amp;quot;
+]
+}
+]
+&lt;/code>&lt;/pre>&lt;h2 id="getting-predictions">Getting predictions&lt;/h2>
+&lt;p>This section shows how to use &lt;a href="https://cloud.google.com/ai-platform/prediction/docs/overview">Google Cloud AI Platform Prediction&lt;/a> to make predictions about new data from a cloud-hosted machine learning model.&lt;/p>
+&lt;p>&lt;a href="https://github.com/tensorflow/tfx-bsl">tfx_bsl&lt;/a> is a library with a Beam PTransform called &lt;code>RunInference&lt;/code>. &lt;code>RunInference&lt;/code> is able to perform an inference that can use an external service endpoint for receiving data. When using a service endpoint, the transform takes a PCollection of type &lt;code>tf.train.Example&lt;/code> and, for every batch of elements, sends a request to AI Platform Prediction. The size of a batch is automatically computed. For more details on how Beam finds the best batch size, refer to a docstring for &lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.util.html?highlight=batchelements#apache_beam.transforms.util.BatchElements">BatchElements&lt;/a>. Currently, the transform does not support using &lt;code>tf.train.SequenceExample&lt;/code> as input, but the work is in progress.&lt;/p>
+&lt;p>The transform produces a PCollection of type &lt;code>PredictionLog&lt;/code>, which contains predictions.&lt;/p>
+&lt;p>Before getting started, deploy a TensorFlow model to AI Platform Prediction. The cloud service manages the infrastructure needed to handle prediction requests in both efficient and scalable way. Do note that only TensorFlow models are supported by the transform. For more information, see &lt;a href="https://cloud.google.com/ai-platform/prediction/docs/exporting-savedmodel-for-prediction">Exporting a SavedModel for prediction&lt;/a>.&lt;/p>
+&lt;p>Once a machine learning model is deployed, prepare a list of instances to get predictions for. To send binary data, make sure that the name of an input ends in &lt;code>_bytes&lt;/code>. This will base64-encode data before sending a request.&lt;/p>
+&lt;h3 id="example">Example&lt;/h3>
+&lt;p>Here is an example of a pipeline that reads input instances from the file, converts JSON objects to &lt;code>tf.train.Example&lt;/code> objects and sends data to AI Platform Prediction. The content of a file can look like this:&lt;/p>
+&lt;pre>&lt;code>{&amp;quot;input&amp;quot;: &amp;quot;the quick brown&amp;quot;}
+{&amp;quot;input&amp;quot;: &amp;quot;la bruja le&amp;quot;}
+&lt;/code>&lt;/pre>&lt;p>The example creates &lt;code>tf.train.BytesList&lt;/code> instances, thus it expects byte-like strings as input. However, other data types, like &lt;code>tf.train.FloatList&lt;/code> and &lt;code>tf.train.Int64List&lt;/code>, are also supported by the transform.&lt;/p>
+&lt;p>Here is the code:&lt;/p>
+&lt;div class=language-py>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">import&lt;/span> &lt;span class="nn">json&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">apache_beam&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">beam&lt;/span>
+&lt;span class="kn">import&lt;/span> &lt;span class="nn">tensorflow&lt;/span> &lt;span class="kn">as&lt;/span> &lt;span class="nn">tf&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">tfx_bsl.beam.run_inference&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">RunInference&lt;/span>
+&lt;span class="kn">from&lt;/span> &lt;span class="nn">tfx_bsl.proto&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">model_spec_pb2&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">convert_json_to_tf_example&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json_obj&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">samples&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">json&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">loads&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">json_obj&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">for&lt;/span> &lt;span class="n">name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">text&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="n">samples&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">items&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;span class="n">value&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Feature&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">bytes_list&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">BytesList&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">value&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">encode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;utf-8&amp;#39;&lt;/span>&lt;span class="p">)]))&lt;/span>
+&lt;span class="n">feature&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="n">name&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="n">value&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;span class="k">return&lt;/span> &lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Example&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">features&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">tf&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">train&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Features&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">feature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">feature&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="k">with&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">io&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ReadFromText&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;gs://my-bucket/samples.json&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Map&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">convert_json_to_tf_example&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="n">RunInference&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">model_spec_pb2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">InferenceEndpoint&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">model_endpoint_spec&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">model_spec_pb2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">AIPlatformPredictionModelSpec&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;span class="n">project_id&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;my-project-id&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">model_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;my-model-name&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">version_name&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s1">&amp;#39;my-model-version&amp;#39;&lt;/span>&lt;span class="p">))))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-java>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="o">//&lt;/span> &lt;span class="n">Getting&lt;/span> &lt;span class="n">predictions&lt;/span> &lt;span class="n">is&lt;/span> &lt;span class="n">not&lt;/span> &lt;span class="n">yet&lt;/span> &lt;span class="n">available&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">Java&lt;/span>&lt;span class="o">.&lt;/span> &lt;span class="o">[&lt;/span>&lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">9501&lt;/span>&lt;span class="o">]&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div></description></item><item><title>Documentation: Apache Beam: Developing I/O connectors for Java</title><link>/documentation/io/developing-io-java/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/io/developing-io-java/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -10063,49 +10271,4 @@ Pydoc&lt;/a
 >
 &lt;/td>
 &lt;/table>
-&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item><item><title>Documentation: Latest</title><link>/documentation/transforms/java/aggregation/latest/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/transforms/java/aggregation/latest/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="latest">Latest&lt;/h1>
-&lt;table align="left">
-&lt;a target="_blank" class="button"
-href="https://beam.apache.org/releases/javadoc/current/index.html?org/apache/beam/sdk/transforms/Latest.html">
-&lt;img src="https://beam.apache.org/images/logos/sdks/java.png" width="20px" height="20px"
-alt="Javadoc" />
-Javadoc
-&lt;/a>
-&lt;/table>
-&lt;br>&lt;br>
-&lt;p>A transform and &lt;code>Combine.CombineFn&lt;/code> for computing the latest element in a collection.&lt;/p>
-&lt;ul>
-&lt;li>&lt;code>Latest.globally()&lt;/code> takes a collection of values and produces the collection
-containing the single value with the latest implicit timestamp.&lt;/li>
-&lt;li>&lt;code>Latest.perKey()&lt;/code> takes a collection of key value pairs, and returns the
-latest value for each key, according to the implicit timestamp.&lt;/li>
-&lt;/ul>
-&lt;p>For elements with the same timestamp, the output element is arbitrarily selected.&lt;/p>
-&lt;h2 id="examples">Examples&lt;/h2>
-&lt;p>&lt;strong>Example&lt;/strong>: compute the latest value for each session
-&lt;div class=language-java>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java"> &lt;span class="n">PCollection&lt;/span> &lt;span class="n">input&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="o">...;&lt;/span>
-&lt;span class="n">PCollection&lt;/span> &lt;span class="n">sessioned&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">input&lt;/span>
-&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Window&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">into&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Sessions&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">withGapDuration&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Duration&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">standardMinutes&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">5&lt;/span>&lt;span class="o">)));&lt;/span>
-&lt;span class="n">PCollection&lt;/span> &lt;span class="n">latestValues&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">sessioned&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">Latest&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">globally&lt;/span>&lt;span class="o">());&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
-&lt;/div>
-&lt;/p>
-&lt;h2 id="related-transforms">Related transforms&lt;/h2>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/reify">Reify&lt;/a>
-converts between explicit and implicit form of various Beam values&lt;/li>
-&lt;li>&lt;a href="/documentation/transforms/java/elementwise/withtimestamps">WithTimestamps&lt;/a>
-assigns timestamps to all the elements of a collection&lt;/li>
-&lt;/ul></description></item></channel></rss>
+&lt;p>&lt;br>&lt;br>&lt;br>&lt;/p></description></item></channel></rss>
