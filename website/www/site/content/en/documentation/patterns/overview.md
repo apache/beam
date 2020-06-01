@@ -40,6 +40,7 @@ Pipeline patterns demonstrate common Beam use cases. Pipeline patterns are based
 
 **AI Platform integration patterns** - Patterns for using Google Cloud AI Platform transforms
 * [Analysing the structure and meaning of text](/documentation/patterns/ai-platform/#analysing-the-structure-and-meaning-of-text)
+* [Getting predictions](/documentation/patterns/ai-platform/#getting-predictions)
 
 ## Contributing a pattern
 
