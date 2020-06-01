@@ -57,10 +57,12 @@ import org.apache.beam.sdk.io.snowflake.services.SnowflakeServiceImpl;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -685,8 +687,13 @@ public class SnowflakeIO {
       PCollection mappedUserData =
           input
               .apply(
-                  "Map user data to Objects array",
-                  ParDo.of(new MapUserDataObjectsArrayFn<T>(getUserDataMapper())))
+                  MapElements.via(
+                      new SimpleFunction<T, Object[]>() {
+                        @Override
+                        public Object[] apply(T element) {
+                          return getUserDataMapper().mapRow(element);
+                        }
+                      }))
               .apply("Map Objects array to CSV lines", ParDo.of(new MapObjectsArrayToCsvFn()))
               .setCoder(StringUtf8Coder.of());
 
@@ -746,19 +753,6 @@ public class SnowflakeIO {
     @Override
     public List<String> extractOutput(List<String> accumulator) {
       return accumulator;
-    }
-  }
-
-  private static class MapUserDataObjectsArrayFn<T> extends DoFn<T, Object[]> {
-    private final UserDataMapper<T> csvMapper;
-
-    public MapUserDataObjectsArrayFn(UserDataMapper<T> csvMapper) {
-      this.csvMapper = csvMapper;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext context) throws Exception {
-      context.output(csvMapper.mapRow(context.element()));
     }
   }
 
