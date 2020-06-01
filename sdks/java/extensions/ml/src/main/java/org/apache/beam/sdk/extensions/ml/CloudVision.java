@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.PCollectionView;
  */
 @Experimental
 public class CloudVision {
+  private static final int DEFAULT_PARALLELISM = 5;
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
@@ -68,6 +69,24 @@ public class CloudVision {
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
+   * GCS addresses. Uses default parallelism of 5.
+   *
+   * @param contextSideInput optional side input with contexts for select images. The {@link
+   *     ImageContext} objects provide additional metadata for the annotation API. This way users
+   *     can
+   * @param features annotation features that should be passed to the API
+   * @param batchSize request batch size to be sent to API. Max 16, at least 1.
+   * @return the PTransform.
+   */
+  public static AnnotateImagesFromGcsUri annotateImagesFromGcsUri(
+      PCollectionView<Map<String, ImageContext>> contextSideInput,
+      List<Feature> features,
+      long batchSize) {
+    return annotateImagesFromGcsUri(contextSideInput, features, batchSize, DEFAULT_PARALLELISM);
+  }
+
+  /**
+   * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
    * contents encoded in {@link ByteString}s.
    *
    * @param contextSideInput optional side input with contexts for select images.
@@ -86,6 +105,22 @@ public class CloudVision {
   }
 
   /**
+   * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
+   * contents encoded in {@link ByteString}s. Uses default parallelism of 5.
+   *
+   * @param contextSideInput optional side input with contexts for select images.
+   * @param features annotation features that should be passed to the API
+   * @param batchSize request batch size to be sent to API. Max 16, at least 1.
+   * @return the PTransform.
+   */
+  public static AnnotateImagesFromBytes annotateImagesFromBytes(
+      PCollectionView<Map<ByteString, ImageContext>> contextSideInput,
+      List<Feature> features,
+      long batchSize) {
+    return annotateImagesFromBytes(contextSideInput, features, batchSize, DEFAULT_PARALLELISM);
+  }
+
+  /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from KVs of
    * their GCS addresses in Strings and {@link ImageContext} for each image.
    *
@@ -101,6 +136,20 @@ public class CloudVision {
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from KVs of
+   * their GCS addresses in Strings and {@link ImageContext} for each image. Uses default
+   * parallelism of 5.
+   *
+   * @param features annotation features that should be passed to the API
+   * @param batchSize request batch size to be sent to API. Max 16, at least 1.
+   * @return the PTransform.
+   */
+  public static AnnotateImagesFromBytesWithContext annotateImagesFromBytesWithContext(
+      List<Feature> features, long batchSize) {
+    return annotateImagesFromBytesWithContext(features, batchSize, DEFAULT_PARALLELISM);
+  }
+
+  /**
+   * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from KVs of
    * their String-encoded contents and {@link ImageContext} for each image.
    *
    * @param features annotation features that should be passed to the API
@@ -111,6 +160,20 @@ public class CloudVision {
   public static AnnotateImagesFromGcsUriWithContext annotateImagesFromGcsUriWithContext(
       List<Feature> features, long batchSize, int desiredRequestParallelism) {
     return new AnnotateImagesFromGcsUriWithContext(features, batchSize, desiredRequestParallelism);
+  }
+
+  /**
+   * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from KVs of
+   * their String-encoded contents and {@link ImageContext} for each image. Uses default parallelism
+   * of 5.
+   *
+   * @param features annotation features that should be passed to the API
+   * @param batchSize request batch size to be sent to API. Max 16, at least 1.
+   * @return the PTransform.
+   */
+  public static AnnotateImagesFromGcsUriWithContext annotateImagesFromGcsUriWithContext(
+      List<Feature> features, long batchSize) {
+    return annotateImagesFromGcsUriWithContext(features, batchSize, DEFAULT_PARALLELISM);
   }
 
   /**
