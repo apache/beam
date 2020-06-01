@@ -54,15 +54,16 @@ public class CloudVision {
    *     can
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param numKeys number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism number of keys to map the requests into for batching.
    * @return the PTransform.
    */
   public static AnnotateImagesFromGcsUri annotateImagesFromGcsUri(
       PCollectionView<Map<String, ImageContext>> contextSideInput,
       List<Feature> features,
       long batchSize,
-      int numKeys) {
-    return new AnnotateImagesFromGcsUri(contextSideInput, features, batchSize, numKeys);
+      int desiredRequestParallelism) {
+    return new AnnotateImagesFromGcsUri(
+        contextSideInput, features, batchSize, desiredRequestParallelism);
   }
 
   /**
@@ -72,15 +73,16 @@ public class CloudVision {
    * @param contextSideInput optional side input with contexts for select images.
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param numKeys number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism number of keys to map the requests into for batching.
    * @return the PTransform.
    */
   public static AnnotateImagesFromBytes annotateImagesFromBytes(
       PCollectionView<Map<ByteString, ImageContext>> contextSideInput,
       List<Feature> features,
       long batchSize,
-      int numKeys) {
-    return new AnnotateImagesFromBytes(contextSideInput, features, batchSize, numKeys);
+      int desiredRequestParallelism) {
+    return new AnnotateImagesFromBytes(
+        contextSideInput, features, batchSize, desiredRequestParallelism);
   }
 
   /**
@@ -89,12 +91,12 @@ public class CloudVision {
    *
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param numKeys number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism number of keys to map the requests into for batching.
    * @return the PTransform.
    */
   public static AnnotateImagesFromBytesWithContext annotateImagesFromBytesWithContext(
-      List<Feature> features, long batchSize, int numKeys) {
-    return new AnnotateImagesFromBytesWithContext(features, batchSize, numKeys);
+      List<Feature> features, long batchSize, int desiredRequestParallelism) {
+    return new AnnotateImagesFromBytesWithContext(features, batchSize, desiredRequestParallelism);
   }
 
   /**
@@ -103,12 +105,12 @@ public class CloudVision {
    *
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param numKeys number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism number of keys to map the requests into for batching.
    * @return the PTransform.
    */
   public static AnnotateImagesFromGcsUriWithContext annotateImagesFromGcsUriWithContext(
-      List<Feature> features, long batchSize, int numKeys) {
-    return new AnnotateImagesFromGcsUriWithContext(features, batchSize, numKeys);
+      List<Feature> features, long batchSize, int desiredRequestParallelism) {
+    return new AnnotateImagesFromGcsUriWithContext(features, batchSize, desiredRequestParallelism);
   }
 
   /**
@@ -122,8 +124,8 @@ public class CloudVision {
         PCollectionView<Map<String, ImageContext>> contextSideInput,
         List<Feature> featureList,
         long batchSize,
-        int numKeys) {
-      super(contextSideInput, featureList, batchSize, numKeys);
+        int desiredRequestParallelism) {
+      super(contextSideInput, featureList, batchSize, desiredRequestParallelism);
     }
 
     /**
@@ -159,8 +161,8 @@ public class CloudVision {
         PCollectionView<Map<ByteString, ImageContext>> contextSideInput,
         List<Feature> featureList,
         long batchSize,
-        int numKeys) {
-      super(contextSideInput, featureList, batchSize, numKeys);
+        int desiredRequestParallelism) {
+      super(contextSideInput, featureList, batchSize, desiredRequestParallelism);
     }
 
     /**
@@ -192,8 +194,8 @@ public class CloudVision {
       extends AnnotateImages<KV<String, ImageContext>> {
 
     public AnnotateImagesFromGcsUriWithContext(
-        List<Feature> featureList, long batchSize, int numKeys) {
-      super(featureList, batchSize, numKeys);
+        List<Feature> featureList, long batchSize, int desiredRequestParallelism) {
+      super(featureList, batchSize, desiredRequestParallelism);
     }
 
     /**
@@ -226,8 +228,8 @@ public class CloudVision {
       extends AnnotateImages<KV<ByteString, ImageContext>> {
 
     public AnnotateImagesFromBytesWithContext(
-        List<Feature> featureList, long batchSize, int numKeys) {
-      super(featureList, batchSize, numKeys);
+        List<Feature> featureList, long batchSize, int desiredRequestParallelism) {
+      super(featureList, batchSize, desiredRequestParallelism);
     }
 
     /**

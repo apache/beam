@@ -58,7 +58,7 @@ abstract class AnnotateImages<T>
   protected final PCollectionView<Map<T, ImageContext>> contextSideInput;
   protected final List<Feature> featureList;
   private final long batchSize;
-  protected final int numKeys;
+  protected final int desiredRequestParallelism;
 
   /**
    * @param contextSideInput Side input optionally containting a map of elements to {@link
@@ -66,16 +66,16 @@ abstract class AnnotateImages<T>
    * @param featureList list of features to be extracted from the image.
    * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
    *     16.
-   * @param numKeys number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism number of keys to map the requests into for batching.
    */
   public AnnotateImages(
       @Nullable PCollectionView<Map<T, ImageContext>> contextSideInput,
       List<Feature> featureList,
       long batchSize,
-      int numKeys) {
+      int desiredRequestParallelism) {
     this.contextSideInput = contextSideInput;
     this.featureList = featureList;
-    this.numKeys = numKeys;
+    this.desiredRequestParallelism = desiredRequestParallelism;
     checkBatchSizeCorrectness(batchSize);
     this.batchSize = batchSize;
   }
@@ -86,10 +86,10 @@ abstract class AnnotateImages<T>
    * @param featureList list of features to be extracted from the image.
    * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
    *     16.
-   * @param numKeys number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism number of keys to map the requests into for batching.
    */
-  public AnnotateImages(List<Feature> featureList, long batchSize, int numKeys) {
-    this.numKeys = numKeys;
+  public AnnotateImages(List<Feature> featureList, long batchSize, int desiredRequestParallelism) {
+    this.desiredRequestParallelism = desiredRequestParallelism;
     contextSideInput = null;
     this.featureList = featureList;
     checkBatchSizeCorrectness(batchSize);
@@ -128,7 +128,7 @@ abstract class AnnotateImages<T>
         .apply(
             WithKeys.of(
                     (SerializableFunction<AnnotateImageRequest, Integer>)
-                        ignored -> new Random().nextInt(numKeys))
+                        ignored -> new Random().nextInt(desiredRequestParallelism))
                 .withKeyType(TypeDescriptors.integers()))
         .apply(GroupIntoBatches.ofSize(batchSize))
         .apply(ParDo.of(new PerformImageAnnotation()));
