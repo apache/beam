@@ -182,10 +182,6 @@ The example creates `tf.train.BytesList` instances, thus it expects byte-like st
 
 Here is the code:
 
-{{< highlight java >}}
-// Getting predictions is not yet available for Java. [BEAM-9501]
-{{< /highlight >}}
-
 {{< highlight py >}}
 import json
 
@@ -213,4 +209,8 @@ with beam.Pipeline() as p:
                      project_id='my-project-id',
                      model_name='my-model-name',
                      version_name='my-model-version'))))
+{{< /highlight >}}
+
+{{< highlight java >}}
+// Getting predictions is not yet available for Java. [BEAM-9501]
 {{< /highlight >}}
