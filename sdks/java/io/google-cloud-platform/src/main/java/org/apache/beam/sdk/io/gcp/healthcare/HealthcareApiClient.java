@@ -157,10 +157,11 @@ public interface HealthcareApiClient {
       String fhirStore,
       String relativeResourceName,
       String resource,
-      Map<String, String> searchParameters)
+      Map<String, String> searchParameters,
+      @Nullable String etag)
       throws IOException, HealthcareHttpException;
 
-  HttpBody fhirUpdate(String fhirStore, String type, String resource)
+  HttpBody fhirUpdate(String fhirStore, String type, String resource, @Nullable String etag)
       throws IOException, HealthcareHttpException;
 
   /**

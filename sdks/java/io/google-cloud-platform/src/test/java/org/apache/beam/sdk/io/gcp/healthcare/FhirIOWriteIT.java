@@ -19,24 +19,27 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
+import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.RESOURCES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
 
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.GetByKey;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.values.KV;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -139,24 +142,13 @@ public class FhirIOWriteIT {
         (Result) pipeline
             .apply(Create.of(BUNDLES.get(version)))
             .apply(FhirIO.<String>createResources(options.getFhirStore())
-                .withTypeFunction((String resource) -> {
-                  ObjectMapper mapper = new ObjectMapper();
-                  Map<String, String> map = mapper.readValue(resource, Map.class);
-                  return map.get("resourceType");
-
-                })
-                .withIfNotExistFunction((String resource) -> {
-                  ObjectMapper mapper = new ObjectMapper();
-                  Map<String, String> map = mapper.readValue(resource, Map.class);
-                  String id = map.get("id");
-                  return String.format("_id=%s", id);
-                })
-                .withFormatBodyFunction((String x) -> x)
+                .withTypeFunction(new GetByKey("resourceType"))
+                .withIfNotExistFunction(new FhirIOTestUtil.ExtractIDSearchQuery())
+                .withFormatBodyFunction(x -> x)
             );
 
 
-    // TODO have a known number of pre-condition failed case and assert it appears in error queue
-    PAssert.thatSingleton(writeResult.getFailedBodies().apply(Count.globally())).isEqualTo(1L);
+    PAssert.that(writeResult.getFailedBodies()).empty();
 
     pipeline.run().waitUntilFinish();
   }
@@ -164,14 +156,14 @@ public class FhirIOWriteIT {
   @Test
   public void testFhirIO_Update() {
     // TODO write initial resources to FHIR
-    // use beam to perform updates
     FhirIO.Write.Result writeResult =
         (Result) pipeline
-            .apply(Create.of(BUNDLES.get(version)))
-            .apply(FhirIO.update(options.getFhirStore())
-                .withFormatBodyFunction(x -> "{}")
-                .withResourceNameFunction(x -> "name")
-            );
+            .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+            .apply("Extract ID keys", WithKeys.of(new GetByKey("id")))
+            .apply("Update Resources",
+                FhirIO.<KV<String, String>>update(options.getFhirStore())
+                  .withResourceNameFunction(x -> x.getKey())
+                  .withFormatBodyFunction(x -> ((KV<String, String>) x).getValue()));
 
     PAssert.that(writeResult.getFailedBodies()).empty();
 
@@ -184,13 +176,12 @@ public class FhirIOWriteIT {
     // TODO write initial resources to FHIR
     FhirIO.Write.Result writeResult =
         (Result) pipeline
-            .apply(Create.of(BUNDLES.get(version)))
-            .apply(FhirIO.conditionalUpdate(options.getFhirStore())
-                .withTypeFunction(x -> "patient")
-                .withFormatBodyFunction(x -> "{}")
-                .withSearchParametersFunction(x-> new HashMap<String, String>())
-            );
+            .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+            .apply("Conditional Update Resources",
+                FhirIO.<String>conditionalUpdate(options.getFhirStore())
+                  .withTypeFunction(x -> "patient")
+                  .withFormatBodyFunction(x -> "{}")
+                  .withSearchParametersFunction(x -> new HashMap<>()));
     // TODO spot check update results
-    // TODO have a known number of pre-condition failed case and assert it appears in error queue
   }
 }

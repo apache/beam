@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import java.io.IOException;
 import java.io.Serializable;
 
 /**
@@ -36,5 +37,5 @@ public interface SerializableFunction<InputT, OutputT>
     extends ProcessFunction<InputT, OutputT>, Serializable {
   /** Returns the result of invoking this function on the given input. */
   @Override
-  OutputT apply(InputT input) throws JsonProcessingException;
+  OutputT apply(InputT input) throws IOException;
 }

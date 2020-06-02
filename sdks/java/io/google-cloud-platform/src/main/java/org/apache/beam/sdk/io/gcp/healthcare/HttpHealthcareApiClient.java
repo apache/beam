@@ -86,6 +86,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   private static final String FHIRSTORE_HEADER_CONTENT_TYPE = "application/fhir+json";
   private static final String FHIRSTORE_HEADER_ACCEPT = "application/fhir+json; charset=utf-8";
   private static final String FHIRSTORE_HEADER_ACCEPT_CHARSET = "utf-8";
+  private static final String IF_MATCH_HEADER = "If-Match";
   private static final Logger LOG = LoggerFactory.getLogger(HttpHealthcareApiClient.class);
   private transient CloudHealthcare client;
   public transient HttpClient httpClient;
@@ -531,20 +532,32 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   @Override
   public HttpBody fhirConditionalUpdate(
-      String fhirStore, String type, String resource, Map<String, String> searchParameters)
+      String fhirStore, String type, String resource, Map<String, String> searchParameters,
+      @Nullable String etag)
       throws IOException, HealthcareHttpException {
+    Map<String, String> headers = new HashMap<>();
+    if (etag != null) {
+      headers.put(IF_MATCH_HEADER, etag);
+    }
     return executeFhirHttpRequest(
         FhirHttpRequest.of(fhirStore, resource)
+            .setHeaders(headers)
             .setPathSuffix("/" + type)
             .setParameters(searchParameters)
             .setMethod(Method.PUT));
   }
 
   @Override
-  public HttpBody fhirUpdate(String fhirStore, String relativeResourceName, String resource)
+  public HttpBody fhirUpdate(String fhirStore, String relativeResourceName, String resource,
+      @Nullable String etag)
       throws IOException, HealthcareHttpException {
+    Map<String, String> headers = new HashMap<>();
+    if (etag != null) {
+      headers.put(IF_MATCH_HEADER, etag);
+    }
     return executeFhirHttpRequest(
         FhirHttpRequest.of(fhirStore, resource)
+            .setHeaders(headers)
             .setPathSuffix("/" + relativeResourceName)
             .setMethod(Method.PUT));
   }

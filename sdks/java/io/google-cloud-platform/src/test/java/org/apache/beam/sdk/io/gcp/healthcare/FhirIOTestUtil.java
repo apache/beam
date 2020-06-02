@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -39,16 +40,52 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
+
+  public static class ExtractIDSearchQuery implements
+      SerializableFunction<String, String> {
+    private ObjectMapper mapper;
+
+    ExtractIDSearchQuery(){
+      mapper = new ObjectMapper();
+    }
+
+    @Override
+    public String apply(String resource) throws IOException {
+      Map<String, String> map = mapper.readValue(resource.toString().getBytes(), Map.class);
+      String id = map.get("id");
+      return String.format("_id=%s", id);
+    }
+  }
+
+  public static class GetByKey implements
+      SerializableFunction<String, String> {
+    private final String key;
+    private ObjectMapper mapper;
+
+    public GetByKey(String key){
+      this.key = key;
+      mapper = new ObjectMapper();
+    }
+
+    @Override
+    public String apply(String resource) throws IOException {
+      Map<String, String> map = mapper.readValue(resource.getBytes(), Map.class);
+      return map.get(key);
+    }
+  }
+
   // TODO read initial resources function.
   // TODO read update resources function.
   // TODO spot check resource update utility.
-  private static Stream<String> readPrettyBundles(String version) {
-    ClassLoader classLoader = FhirIOTestUtil.class.getClassLoader();
-    Path resourceDir = Paths.get("build", "resources", "test", version);
+
+  private static Stream<String> readAllTestResources(String subDir, String version ) {
+    Path resourceDir = Paths.get("build", "resources", "test",
+        subDir, version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
@@ -63,8 +100,15 @@ class FhirIOTestUtil {
               }
             })
         .map(String::new);
+
+  }
+  private static Stream<String> readPrettyBundles(String version) {
+    return readAllTestResources("transactional_bundles", version);
   }
 
+  private static Stream<String> readPrettyResources(String version) {
+    return readAllTestResources("resources", version);
+  }
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
   static final List<String> DSTU2_PRETTY_BUNDLES =
@@ -82,6 +126,25 @@ class FhirIOTestUtil {
     m.put("STU3", STU3_PRETTY_BUNDLES);
     m.put("R4", R4_PRETTY_BUNDLES);
     BUNDLES = Collections.unmodifiableMap(m);
+  }
+
+  // Could generate more messages at scale using a tool like
+  // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
+  static final List<String> DSTU2_PRETTY_RESOURCES =
+      readPrettyResources("DSTU2").collect(Collectors.toList());
+  static final List<String> STU3_PRETTY_RESOURCES =
+      readPrettyResources("STU3").collect(Collectors.toList());
+  static final List<String> R4_PRETTY_RESOURCES=
+      readPrettyResources("R4").collect(Collectors.toList());
+
+  static final Map<String, List<String>> RESOURCES;
+
+  static {
+    Map<String, List<String>> m = new HashMap<>();
+    m.put("DSTU2", DSTU2_PRETTY_RESOURCES);
+    m.put("STU3", STU3_PRETTY_RESOURCES);
+    m.put("R4", R4_PRETTY_RESOURCES);
+    RESOURCES = Collections.unmodifiableMap(m);
   }
 
   /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
