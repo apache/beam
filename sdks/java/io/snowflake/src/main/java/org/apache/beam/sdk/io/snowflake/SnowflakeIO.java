@@ -44,6 +44,7 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -712,16 +713,14 @@ public class SnowflakeIO {
               .setCoder(StringUtf8Coder.of());
 
       WriteFilesResult filesResult =
-          (WriteFilesResult)
-              mappedUserData.apply(
-                  "Write files to specified location",
-                  FileIO.write()
-                      .via((FileIO.Sink) new CSVSink())
-                      .to(stagingBucketDir)
-                      .withPrefix(getFileNameTemplate())
-                      .withSuffix(".csv")
-                      .withPrefix(UUID.randomUUID().toString().subSequence(0, 8).toString())
-                      .withCompression(Compression.GZIP));
+          mappedUserData.apply(
+              "Write files to specified location",
+              FileIO.<String>write()
+                  .via(TextIO.sink())
+                  .to(stagingBucketDir)
+                  .withPrefix(getFileNameTemplate())
+                  .withSuffix(".csv")
+                  .withCompression(Compression.GZIP));
 
       return (PCollection)
           filesResult
