@@ -34,6 +34,7 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms.sql import Row
 from apache_beam.transforms.sql import SqlTransform
 
 SimpleRow = typing.NamedTuple(
@@ -137,6 +138,15 @@ class SqlTransformTest(unittest.TestCase):
               JOIN enrich
               ON simple.`id` = enrich.`id`"""))
       assert_that(out, equal_to([(1, "a"), (26, "z"), (1, "a")]))
+
+  def test_row(self):
+    with TestPipeline() as p:
+      out = (
+          p
+          | beam.Create([1, 2, 10])
+          | beam.Map(lambda x: Row(a=x, b=str(x)))
+          | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
+      assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 
   def test_zetasql_generate_data(self):
     with TestPipeline() as p:
