@@ -133,6 +133,11 @@ Should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
+  <td><code>reIterableGroupByKeyResult</code></td>
+  <td>Flag indicating whether result of GBK needs to be re-iterable. Re-iterable result implies that all values for a single key must fit in memory as we currently do not support spilling to disk.</td>
+  <td>Default: <code>false</code></td>
+</tr>
+<tr>
   <td><code>reportCheckpointDuration</code></td>
   <td>If not null, reports the checkpoint duration of each ParDo stage in the provided metric namespace.</td>
   <td></td>
