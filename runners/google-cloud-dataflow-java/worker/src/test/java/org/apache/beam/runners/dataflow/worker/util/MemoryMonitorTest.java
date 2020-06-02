@@ -69,7 +69,7 @@ public class MemoryMonitorTest {
     provider = new FakeGCStatsProvider();
     localDumpFolder = tempFolder.newFolder();
     // Update every 10ms, never shutdown VM.
-    monitor = MemoryMonitor.forTest(provider, 10, 0, false, null, localDumpFolder);
+    monitor = MemoryMonitor.forTest(provider, 10, 0, false, 50.0, null, localDumpFolder);
     thread = new Thread(monitor);
     thread.start();
   }
@@ -122,7 +122,8 @@ public class MemoryMonitorTest {
   @Test
   public void uploadToGcs() throws Exception {
     File remoteFolder = tempFolder.newFolder();
-    monitor = MemoryMonitor.forTest(provider, 10, 0, true, remoteFolder.getPath(), localDumpFolder);
+    monitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 50.0, remoteFolder.getPath(), localDumpFolder);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();
@@ -138,7 +139,7 @@ public class MemoryMonitorTest {
 
   @Test
   public void uploadToGcsDisabled() throws Exception {
-    monitor = MemoryMonitor.forTest(provider, 10, 0, true, null, localDumpFolder);
+    monitor = MemoryMonitor.forTest(provider, 10, 0, true, 50.0, null, localDumpFolder);
 
     // Force the monitor to generate a local heap dump
     monitor.dumpHeap();

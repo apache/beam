@@ -193,6 +193,22 @@ public interface DataflowPipelineDebugOptions extends ExperimentalOptions, Pipel
   void setDumpHeapOnOOM(boolean dumpHeapBeforeExit);
 
   /**
+   * The GC thrashing threshold (0.00 - 100.00) for every period to be used by MemoryMonitor. If the
+   * time spent on garbage collection in one period exceeds this threshold, that period is
+   * considered to be in GC thrashing.
+   *
+   * <p>If {@literal 100} is given as the value, MemoryMonitor will be disabled.
+   */
+  @Description(
+      "The GC thrashing threshold (0.00 - 100.00) for every period to be used by MemoryMonitor. "
+          + "If the time spent on garbage collection in one period exceeds this threshold, that "
+          + "period is considered to be in GC thrashing.")
+  @Default.Double(50)
+  Double getGCThrashingPercentagePerPeriod();
+
+  void setGCThrashingPercentagePerPeriod(Double value);
+
+  /**
    * The size of the worker's in-memory cache, in megabytes.
    *
    * <p>Currently, this cache is used for storing read values of side inputs. as well as the state

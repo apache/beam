@@ -92,13 +92,6 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private static final int NUM_MONITORED_PERIODS = 4; // ie 1 min's worth.
 
   /**
-   * The GC thrashing threshold (0.00 - 100.00) for every period. If the time spent on garbage
-   * collection in one period exceeds this threshold, that period is considered to be in GC
-   * thrashing.
-   */
-  private static final double GC_THRASHING_PERCENTAGE_PER_PERIOD = 50.0;
-
-  /**
    * The <code>(# monitored periods in GC thrashing) / (# monitored
    * periods)</code> threshold after which the server is considered to be in GC thrashing, expressed
    * as a percentage.
@@ -174,6 +167,13 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   /** If true, dump the heap when thrashing or requested. */
   private final boolean canDumpHeap;
 
+  /**
+   * The GC thrashing threshold (0.00 - 100.00) for every period. If the time spent on garbage
+   * collection in one period exceeds this threshold, that period is considered to be in GC
+   * thrashing.
+   */
+  private final double GCThrashingPercentagePerPeriod;
+
   private final AtomicBoolean isThrashing = new AtomicBoolean(false);
 
   private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -199,11 +199,14 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     DataflowPipelineDebugOptions debugOptions = options.as(DataflowPipelineDebugOptions.class);
     String uploadToGCSPath = debugOptions.getSaveHeapDumpsToGcsPath();
     boolean canDumpHeap = uploadToGCSPath != null || debugOptions.getDumpHeapOnOOM();
+    double gcThrashingPercentagePerPeriod = debugOptions.getGCThrashingPercentagePerPeriod();
+
     return new MemoryMonitor(
         new SystemGCStatsProvider(),
         DEFAULT_SLEEP_TIME_MILLIS,
         DEFAULT_SHUT_DOWN_AFTER_NUM_GCTHRASHING,
         canDumpHeap,
+        gcThrashingPercentagePerPeriod,
         uploadToGCSPath,
         getLoggingDir());
   }
@@ -214,6 +217,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       long sleepTimeMillis,
       int shutDownAfterNumGCThrashing,
       boolean canDumpHeap,
+      double GCThrashingPercentagePerPeriod,
       @Nullable String uploadToGCSPath,
       File localDumpFolder) {
     return new MemoryMonitor(
@@ -221,6 +225,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         sleepTimeMillis,
         shutDownAfterNumGCThrashing,
         canDumpHeap,
+        GCThrashingPercentagePerPeriod,
         uploadToGCSPath,
         localDumpFolder);
   }
@@ -230,12 +235,14 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       long sleepTimeMillis,
       int shutDownAfterNumGCThrashing,
       boolean canDumpHeap,
+      double GCThrashingPercentagePerPeriod,
       @Nullable String uploadToGCSPath,
       File localDumpFolder) {
     this.gcStatsProvider = gcStatsProvider;
     this.sleepTimeMillis = sleepTimeMillis;
     this.shutDownAfterNumGCThrashing = shutDownAfterNumGCThrashing;
     this.canDumpHeap = canDumpHeap;
+    this.GCThrashingPercentagePerPeriod = GCThrashingPercentagePerPeriod;
     this.uploadToGCSPath = uploadToGCSPath;
     this.localDumpFolder = localDumpFolder;
   }
@@ -404,7 +411,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     maxGCPercentage.set(Math.max(maxGCPercentage.get(), gcPercentage));
     timeInGC = inGC;
 
-    return gcPercentage > GC_THRASHING_PERCENTAGE_PER_PERIOD;
+    return gcPercentage > this.GCThrashingPercentagePerPeriod;
   }
 
   /**
@@ -467,6 +474,14 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   public void run() {
     synchronized (waitingForStateChange) {
       Preconditions.checkState(!isRunning.getAndSet(true), "already running");
+
+      if (this.GCThrashingPercentagePerPeriod <= 0 || this.GCThrashingPercentagePerPeriod >= 100) {
+        LOG.warn(
+            "GCThrashingPercentagePerPeriod: {} is not valid value. Not starting MemoryMonitor.",
+            this.GCThrashingPercentagePerPeriod);
+        isRunning.set(false);
+      }
+
       waitingForStateChange.notifyAll();
     }
 
