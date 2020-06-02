@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Compression;
@@ -63,10 +64,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
@@ -158,6 +159,7 @@ import org.slf4j.LoggerFactory;
  * <p><b>Important</b> When writing data to Snowflake, firstly data will be saved as CSV files on
  * specified stagingBucketName in directory named 'data' and then into Snowflake.
  */
+@Experimental
 public class SnowflakeIO {
   private static final Logger LOG = LoggerFactory.getLogger(SnowflakeIO.class);
 
@@ -677,12 +679,6 @@ public class SnowflakeIO {
     }
 
     private PCollection writeFiles(PCollection<T> input, String stagingBucketDir) {
-      class Parse extends DoFn<KV<T, String>, String> {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          c.output(c.element().getValue());
-        }
-      }
 
       PCollection mappedUserData =
           input
@@ -712,7 +708,7 @@ public class SnowflakeIO {
       return (PCollection)
           filesResult
               .getPerDestinationOutputFilenames()
-              .apply("Parse KV filenames to Strings", ParDo.of(new Parse()));
+              .apply("Parse KV filenames to Strings", Values.<String>create());
     }
 
     private ParDo.SingleOutput<Object, Object> copyToTable(
