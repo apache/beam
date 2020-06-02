@@ -66,7 +66,8 @@ abstract class AnnotateImages<T>
    * @param featureList list of features to be extracted from the image.
    * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
    *     16.
-   * @param desiredRequestParallelism number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism desiredRequestParallelism desired number of concurrent batched
+   *     requests.
    */
   public AnnotateImages(
       @Nullable PCollectionView<Map<T, ImageContext>> contextSideInput,
@@ -86,7 +87,8 @@ abstract class AnnotateImages<T>
    * @param featureList list of features to be extracted from the image.
    * @param batchSize desired size of request batches sent to Cloud Vision API. At least 1, at most
    *     16.
-   * @param desiredRequestParallelism number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism desiredRequestParallelism desired number of concurrent batched
+   *     requests.
    */
   public AnnotateImages(List<Feature> featureList, long batchSize, int desiredRequestParallelism) {
     this.desiredRequestParallelism = desiredRequestParallelism;

@@ -55,7 +55,7 @@ public class CloudVision {
    *     can
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param desiredRequestParallelism number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism desired number of concurrent batched requests.
    * @return the PTransform.
    */
   public static AnnotateImagesFromGcsUri annotateImagesFromGcsUri(
@@ -69,11 +69,11 @@ public class CloudVision {
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
-   * GCS addresses. Uses default parallelism of 5.
+   * GCS addresses. Uses a default value 5 for desiredRequestParallelism.
    *
    * @param contextSideInput optional side input with contexts for select images. The {@link
    *     ImageContext} objects provide additional metadata for the annotation API. This way users
-   *     can
+   *     can fine-tune analysis of selected images.
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
    * @return the PTransform.
@@ -89,10 +89,12 @@ public class CloudVision {
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
    * contents encoded in {@link ByteString}s.
    *
-   * @param contextSideInput optional side input with contexts for select images.
+   * @param contextSideInput optional side input with contexts for select images. The {@link
+   *     ImageContext} objects provide additional metadata for the annotation API. This way users
+   *     can fine-tune analysis of selected images.
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param desiredRequestParallelism number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism desired number of concurrent batched requests.
    * @return the PTransform.
    */
   public static AnnotateImagesFromBytes annotateImagesFromBytes(
@@ -106,9 +108,11 @@ public class CloudVision {
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from their
-   * contents encoded in {@link ByteString}s. Uses default parallelism of 5.
+   * contents encoded in {@link ByteString}s. Uses a default value 5 for desiredRequestParallelism.
    *
-   * @param contextSideInput optional side input with contexts for select images.
+   * @param contextSideInput optional side input with contexts for select images. The {@link
+   *     ImageContext} objects provide additional metadata for the annotation API. This way users
+   *     can fine-tune analysis of selected images.
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
    * @return the PTransform.
@@ -126,7 +130,7 @@ public class CloudVision {
    *
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param desiredRequestParallelism number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism desired number of concurrent batched requests.
    * @return the PTransform.
    */
   public static AnnotateImagesFromBytesWithContext annotateImagesFromBytesWithContext(
@@ -136,8 +140,8 @@ public class CloudVision {
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from KVs of
-   * their GCS addresses in Strings and {@link ImageContext} for each image. Uses default
-   * parallelism of 5.
+   * their GCS addresses in Strings and {@link ImageContext} for each image. Uses a default value 5
+   * for desiredRequestParallelism.
    *
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
@@ -154,7 +158,7 @@ public class CloudVision {
    *
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
-   * @param desiredRequestParallelism number of keys to map the requests into for batching.
+   * @param desiredRequestParallelism desired number of concurrent batched requests.
    * @return the PTransform.
    */
   public static AnnotateImagesFromGcsUriWithContext annotateImagesFromGcsUriWithContext(
@@ -164,8 +168,8 @@ public class CloudVision {
 
   /**
    * Creates a {@link org.apache.beam.sdk.transforms.PTransform} that annotates images from KVs of
-   * their String-encoded contents and {@link ImageContext} for each image. Uses default parallelism
-   * of 5.
+   * their String-encoded contents and {@link ImageContext} for each image. Uses a default value 5
+   * for desiredRequestParallelism.
    *
    * @param features annotation features that should be passed to the API
    * @param batchSize request batch size to be sent to API. Max 16, at least 1.
