@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-"""Unit tests for the S3 File System"""
+"""Unit tests for the HTTP File System"""
 
 # pytype: skip-file
 
