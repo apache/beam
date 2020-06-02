@@ -956,9 +956,8 @@ public class JdbcIO {
       return create(maxAttempts, DEFAULT_MAX_CUMULATIVE_BACKOFF, initialDuration);
     }
 
-    public static RetryConfiguration create(int maxAttempts,
-        Duration maxDuration,
-        Duration initialDuration) {
+    public static RetryConfiguration create(
+        int maxAttempts, Duration maxDuration, Duration initialDuration) {
       checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
       checkArgument(
           maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
