@@ -337,7 +337,6 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 	var u Node
 	switch urn {
 	case graphx.URNParDo,
-		graphx.URNJavaDoFn,
 		urnPerKeyCombinePre,
 		urnPerKeyCombineMerge,
 		urnPerKeyCombineExtract,
