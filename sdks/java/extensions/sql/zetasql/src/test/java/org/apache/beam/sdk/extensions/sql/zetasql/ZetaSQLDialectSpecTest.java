@@ -3134,7 +3134,7 @@ public class ZetaSQLDialectSpecTest {
   public void testStringAggregation() {
     String sql =
         "SELECT STRING_AGG(fruit) AS string_agg"
-            + " FROM UNNEST([\"apple\", \"pear\", \"banana\", \"pear\"]) AS fruit";
+            + " FROM UNNEST([\"apple\", \"pear\", NULL, \"banana\", \"pear\"]) AS fruit";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
