@@ -158,6 +158,9 @@ public class ZetaSQLPlannerImpl implements Planner {
 
     RelNode convertedNode =
         QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
+
+    LOG.info("Calcite Plan>\n" + convertedNode.toString());
+
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 
