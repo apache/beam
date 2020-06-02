@@ -95,10 +95,10 @@ import org.slf4j.LoggerFactory;
  * is mainly to catch scenarios where the upstream {@link PCollection} contains IDs that are not
  * valid or are not reachable due to permissions issues.
  *
- * <p> Warning, when using message fetching in {@link HL7v2IO.Read} the input collection should not
+ * <p>Warning, when using message fetching in {@link HL7v2IO.Read} the input collection should not
  * be {@link TimestampedValue}s. This could lead to an issue where {@link HL7v2IO.Read} can not
- * properly assign a timestamp / asses watermark based on sendTime if sendTime is before the
- * input element's timestamp.
+ * properly assign a timestamp / asses watermark based on sendTime if sendTime is before the input
+ * element's timestamp.
  *
  * <p>Message Listing Message Listing with {@link ListHL7v2Messages} and {@link
  * ListTimestampedHL7v2Messages} supports batch use cases where you want to process all the messages
@@ -483,17 +483,6 @@ public class HL7v2IO {
           this.client = new HttpHealthcareApiClient();
         }
 
-        @GetInitialWatermarkEstimatorState
-        public Instant getInitialWatermarkEstimatorState(@Timestamp Instant currentElementTimestamp) {
-          return currentElementTimestamp;
-        }
-
-        @NewWatermarkEstimator
-        public WatermarkEstimators.MonotonicallyIncreasing newWatermarkEstimator(
-            @WatermarkEstimatorState Instant watermarkEstimatorState) {
-          return new WatermarkEstimators.MonotonicallyIncreasing(watermarkEstimatorState);
-        }
-
         /**
          * Process element.
          *
@@ -704,7 +693,6 @@ public class HL7v2IO {
         @WatermarkEstimatorState Instant watermarkEstimatorState) {
       return new WatermarkEstimators.MonotonicallyIncreasing(watermarkEstimatorState);
     }
-
 
     @GetInitialRestriction
     public OffsetRange getEarliestToLatestRestriction(@Element String hl7v2Store)

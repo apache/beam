@@ -52,6 +52,7 @@ public class HL7v2IOTest {
 
     PCollection<String> failedMsgIds =
         failed.apply(
+            "Extract Message IDs",
             MapElements.into(TypeDescriptors.strings()).via(HealthcareIOError::getDataResource));
 
     PAssert.that(failedMsgIds).containsInAnyOrder(badMessageIDs);
