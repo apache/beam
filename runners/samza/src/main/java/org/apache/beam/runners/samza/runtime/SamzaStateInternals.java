@@ -260,8 +260,12 @@ public class SamzaStateInternals<K> implements StateInternals {
   }
 
   private abstract class AbstractSamzaState<T> {
-    private final byte[] encodedStoreKey;
-    private final String namespace;
+    private final StateNamespace namespace;
+    private final String addressId;
+    private final boolean isBeamStore;
+    private final String stageId;
+    private final byte[] keyBytes;
+    private byte[] encodedStoreKey;
     protected final Coder<T> coder;
     protected final KeyValueStore<ByteArray, StateValue<T>> store;
 
@@ -269,27 +273,15 @@ public class SamzaStateInternals<K> implements StateInternals {
     protected AbstractSamzaState(
         StateNamespace namespace, StateTag<? extends State> address, Coder<T> coder) {
       this.coder = coder;
-      this.namespace = namespace.stringKey();
-
-      final KeyValueStore<ByteArray, StateValue<T>> userStore =
-          (KeyValueStore) stores.get(address.getId());
-      this.store = userStore != null ? userStore : (KeyValueStore) stores.get(BEAM_STORE);
-
-      final ByteArrayOutputStream baos = getThreadLocalBaos();
-      try (DataOutputStream dos = new DataOutputStream(baos)) {
-        dos.write(keyBytes);
-        dos.writeUTF(namespace.stringKey());
-
-        if (userStore == null) {
-          // for system state, we need to differentiate based on the following:
-          dos.writeUTF(stageId);
-          dos.writeUTF(address.getId());
-        }
-      } catch (IOException e) {
-        throw new RuntimeException(
-            "Could not encode full address for state: " + address.getId(), e);
-      }
-      this.encodedStoreKey = baos.toByteArray();
+      this.namespace = namespace;
+      this.addressId = address.getId();
+      this.isBeamStore = !stores.containsKey(address.getId());
+      this.store =
+          isBeamStore
+              ? (KeyValueStore) stores.get(BEAM_STORE)
+              : (KeyValueStore) stores.get(address.getId());
+      this.stageId = SamzaStateInternals.this.stageId;
+      this.keyBytes = SamzaStateInternals.this.keyBytes;
     }
 
     protected void clearInternal() {
@@ -320,10 +312,26 @@ public class SamzaStateInternals<K> implements StateInternals {
     }
 
     protected ByteArray getEncodedStoreKey() {
-      return ByteArray.of(encodedStoreKey);
+      return ByteArray.of(getEncodedStoreKeyBytes());
     }
 
     protected byte[] getEncodedStoreKeyBytes() {
+      if (encodedStoreKey == null) {
+        final ByteArrayOutputStream baos = getThreadLocalBaos();
+        try (DataOutputStream dos = new DataOutputStream(baos)) {
+          dos.write(keyBytes);
+          dos.writeUTF(namespace.stringKey());
+
+          if (isBeamStore) {
+            // for system state, we need to differentiate based on the following:
+            dos.writeUTF(stageId);
+            dos.writeUTF(addressId);
+          }
+        } catch (IOException e) {
+          throw new RuntimeException("Could not encode full address for state: " + addressId, e);
+        }
+        this.encodedStoreKey = baos.toByteArray();
+      }
       return encodedStoreKey;
     }
 
@@ -342,13 +350,20 @@ public class SamzaStateInternals<K> implements StateInternals {
 
       @SuppressWarnings("unchecked")
       final AbstractSamzaState<?> that = (AbstractSamzaState<?>) o;
-      return Arrays.equals(encodedStoreKey, that.encodedStoreKey);
+      if (isBeamStore || that.isBeamStore) {
+        if (!isBeamStore || !that.isBeamStore || !stageId.equals(that.stageId)) {
+          return false;
+        }
+      }
+      return Arrays.equals(keyBytes, that.keyBytes)
+          && addressId.equals(that.addressId)
+          && this.namespace.equals(that.namespace);
     }
 
     @Override
     public int hashCode() {
       int result = namespace.hashCode();
-      result = 31 * result + Arrays.hashCode(encodedStoreKey);
+      result = 31 * result + Arrays.hashCode(getEncodedStoreKeyBytes());
       return result;
     }
   }
