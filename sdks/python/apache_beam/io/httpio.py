@@ -70,7 +70,7 @@ class HttpIO(object):
       return io.BufferedReader(
         DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
     else:
-      raise ValueError('Invalid file open mode: %s.' % mode)
+      raise ValueError('Unsupported file open mode: %s for URI %s.' % (mode, uri))
 
   def list_prefix(self, path):
     """Lists files matching the prefix.
