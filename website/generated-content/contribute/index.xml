@@ -1639,20 +1639,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="jira-priorities">Jira Priorities&lt;/h1>
-&lt;h2 id="blocker--p0">Blocker / P0&lt;/h2>
-&lt;p>&lt;em>Expectation&lt;/em>: Drop everything else and work continuously to resolve. Note that
-the term &amp;ldquo;blocker&amp;rdquo; does not refer to blocking releases. A P0 issue is more
-urgent than simply blocking the next release.&lt;/p>
-&lt;p>&lt;em>Example Blocker/P0 issues&lt;/em>:&lt;/p>
+&lt;h2 id="p0-outage">P0: Outage&lt;/h2>
+&lt;p>&lt;em>Expectation&lt;/em>: Drop everything else and work continuously to resolve. An outage
+means that some piece of infrastructure that the community relies on is down. A
+P0 issue is &lt;em>more&lt;/em> urgent than simply blocking the next release.&lt;/p>
+&lt;p>&lt;em>Example P0 issues&lt;/em>:&lt;/p>
 &lt;ul>
 &lt;li>the build is broken, halting all development&lt;/li>
 &lt;li>the website is down&lt;/li>
 &lt;li>a vulnerability requires a point release ASAP&lt;/li>
 &lt;/ul>
-&lt;h2 id="critical--p1">Critical / P1&lt;/h2>
-&lt;p>&lt;em>Expectation&lt;/em>: Continuous status updates. Critical bugs should not be
-unassigned. Most critical bugs should block release.&lt;/p>
-&lt;p>&lt;em>Example Critical/P1 issues&lt;/em>:&lt;/p>
+&lt;h2 id="p1-critical">P1: Critical&lt;/h2>
+&lt;p>&lt;em>Expectation&lt;/em>: Continuous status updates. P1 bugs should not be
+unassigned. Most P1 bugs should block release.&lt;/p>
+&lt;p>&lt;em>Example P1 issues&lt;/em>:&lt;/p>
 &lt;ul>
 &lt;li>data loss error&lt;/li>
 &lt;li>important component is nonfunctional for important use cases&lt;/li>
@@ -1660,26 +1660,29 @@ unassigned. Most critical bugs should block release.&lt;/p>
 &lt;li>failing postcommit test&lt;/li>
 &lt;li>flaky test&lt;/li>
 &lt;/ul>
-&lt;h2 id="major--p2">Major / P2&lt;/h2>
+&lt;h2 id="p2-default">P2: Default&lt;/h2>
 &lt;p>&lt;em>Expectation&lt;/em>: Most tickets fall into this priority. These can be planned and
-executed by anyone who is interested. No special urgency is associated.&lt;/p>
-&lt;p>&lt;em>Example Major/P2 issues&lt;/em>&lt;/p>
+executed by anyone who is interested. No special urgency is associated, but if
+no action is taken on a P2 ticket for a long time, it indicates it is actually
+just P3/nice-to-have.&lt;/p>
+&lt;p>&lt;em>Example P2 issues&lt;/em>&lt;/p>
 &lt;ul>
 &lt;li>typical feature request&lt;/li>
 &lt;li>bug that affects some use cases but don&amp;rsquo;t make a component nonfunctional&lt;/li>
 &lt;li>ignored (&amp;ldquo;sickbayed&amp;rdquo;) test&lt;/li>
 &lt;/ul>
-&lt;h2 id="minor--p3">Minor / P3&lt;/h2>
+&lt;h2 id="p3-nice-to-have">P3: Nice-to-have&lt;/h2>
 &lt;p>&lt;em>Expectation&lt;/em>: Nice-to-have improvements.&lt;/p>
-&lt;p>&lt;em>Example Minor/P3 issues&lt;/em>&lt;/p>
+&lt;p>&lt;em>Example P3 issues&lt;/em>&lt;/p>
 &lt;ul>
 &lt;li>feature request that is nice-to-have&lt;/li>
+&lt;li>ticket filed as P2 that no one finds time to work on&lt;/li>
 &lt;/ul>
-&lt;h2 id="trivial--p4">Trivial / P4&lt;/h2>
+&lt;h2 id="p4">P4&lt;/h2>
 &lt;p>&lt;em>Expectation&lt;/em>: Nice-to-have improvements that are also very small and easy.
 Usually it is quicker to just fix them than to file a bug, but the Jira
 can be referenced by a pull request and shows up in release notes.&lt;/p>
-&lt;p>&lt;em>Example Trivial/P4 issues&lt;/em>&lt;/p>
+&lt;p>&lt;em>Example P4 issues&lt;/em>&lt;/p>
 &lt;ul>
 &lt;li>spelling errors in comments or code&lt;/li>
 &lt;/ul></description></item><item><title>Contribute: Post-commit policies details</title><link>/contribute/postcommits-policies-details/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/contribute/postcommits-policies-details/</guid><description>
