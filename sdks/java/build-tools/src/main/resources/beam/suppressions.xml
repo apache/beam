@@ -89,6 +89,15 @@
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*ZetaSQLPlannerImpl\.java" />
   <suppress id="ForbidNonVendoredGuava" files=".*zetasql.*SqlAnalyzer\.java" />
 
+  <!-- gRPC/protobuf exceptions -->
+  <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*protobuf.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*DateTimeUtils\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*zetasql.*ZetaSqlUtils\.java" />
+
   <!-- Flink -->
   <!-- Checkstyle does not correctly detect package files across multiple source directories. -->
   <suppress checks="JavadocPackage" files=".*runners.flink.*CoderTypeSerializer\.java"/>
