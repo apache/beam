@@ -122,7 +122,7 @@ Pipeline p = Pipeline.create(options);
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -157,7 +157,7 @@ PipelineOptions options =
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_creating >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -199,7 +199,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -229,7 +229,7 @@ public interface MyOptions extends PipelineOptions {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom_with_help_and_default >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_options_define_custom_with_help_and_default >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -316,7 +316,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_reading >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipelines_constructing_reading >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -369,7 +369,7 @@ public static void main(String[] args) {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_pcollection >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pcollection >}}
 {{< /highlight >}}
 
 ### 3.2. PCollection characteristics {#pcollection-characteristics}
@@ -631,8 +631,8 @@ PCollection<Integer> wordLengths = words.apply(
 words = ...
 
 # The DoFn to perform on each element in the input PCollection.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_apply >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_apply >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -708,7 +708,7 @@ static class ComputeWordLengthFn extends DoFn<String, Integer> {
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_pardo >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -771,7 +771,7 @@ words = ...
 
 # Apply a lambda function to the PCollection words.
 # Save the result as the PCollection word_lengths.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_flatmap >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_flatmap >}}
 {{< /highlight >}}
 
 {{< highlight go >}}
@@ -810,7 +810,7 @@ words = ...
 
 # Apply a Map with a lambda function to the PCollection words.
 # Save the result as the PCollection word_lengths.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_map >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_using_map >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -966,22 +966,22 @@ data contains names and phone numbers.
 </span>
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleInputs >}}
+{{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleInputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_inputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_inputs >}}
 {{< /highlight >}}
 
 After `CoGroupByKey`, the resulting data contains all data associated with each
 unique key from any of the input collections.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleOutputs >}}
+{{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleOutputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_outputs >}}
 {{< /highlight >}}
 
 The following code example joins the two `PCollection`s with `CoGroupByKey`,
@@ -989,21 +989,21 @@ followed by a `ParDo` to consume the result. Then, the code uses tags to look up
 and format data from each collection.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CoGroupByKeyTuple >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" CoGroupByKeyTuple >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_group_by_key_cogroupbykey_tuple >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_group_by_key_cogroupbykey_tuple >}}
 {{< /highlight >}}
 
 The formatted data looks like this:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleFormattedOutputs >}}
+{{< code_sample "examples/java/src/test/java/org/apache/beam/examples/snippets/SnippetsTest.java" CoGroupByKeyTupleFormattedOutputs >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_formatted_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_group_by_key_cogroupbykey_tuple_formatted_outputs >}}
 {{< /highlight >}}
 
 #### 4.2.4. Combine {#combine}
@@ -1048,7 +1048,7 @@ public static class SumInts implements SerializableFunction<Iterable<Integer>, I
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_bounded_sum >}}
 {{< /highlight >}}
 
 ##### 4.2.4.2. Advanced combinations using CombineFn {#advanced-combines}
@@ -1121,7 +1121,7 @@ public class AverageFn extends CombineFn<Integer, AverageFn.Accum, Double> {
 
 {{< highlight py >}}
 pc = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_define >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_define >}}
 {{< /highlight >}}
 
 ##### 4.2.4.3. Combining a PCollection into a single value {#combining-pcollection}
@@ -1145,7 +1145,7 @@ PCollection<Integer> sum = pc.apply(
 # The resulting PCollection, called result, contains one value: the sum of all
 # the elements in the input PCollection.
 pc = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_custom_average_execute >}}
 {{< /highlight >}}
 
 ##### 4.2.4.4. Combine and global windowing {#combine-global-windowing}
@@ -1229,7 +1229,7 @@ PCollection<KV<String, Double>> avgAccuracyPerPlayer =
 # PCollection is grouped by key and the numeric values associated with each key
 # are averaged into a float.
 player_accuracies = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_per_key >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" combine_per_key >}}
 {{< /highlight >}}
 
 #### 4.2.5. Flatten {#flatten}
@@ -1258,7 +1258,7 @@ PCollection<String> merged = collections.apply(Flatten.<String>pCollections());
 {{< highlight py >}}
 # Flatten takes a tuple of PCollection objects.
 # Returns a single PCollection that contains all of the elements in the PCollection objects in that tuple.
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_flatten >}}
 {{< /highlight >}}
 
 ##### 4.2.5.1. Data encoding in merged collections {#data-encoding-merged-collections}
@@ -1321,10 +1321,10 @@ PCollection<Student> fortiethPercentile = studentsByPercentile.get(4);
 # Provide an int value with the desired number of result partitions, and a partitioning function (partition_fn in this example).
 # Returns a tuple of PCollection objects containing each of the resulting partitions as individual PCollection objects.
 students = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition >}}
 
 # You can extract each partition from the tuple of PCollection objects as follows:
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition_40th >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_multiple_pcollections_partition_40th >}}
 {{< /highlight >}}
 
 ### 4.3. Requirements for writing user code for Beam transforms {#requirements-for-writing-user-code-for-beam-transforms}
@@ -1448,12 +1448,12 @@ determined by the input data, or depend on a different branch of your pipeline.
 # of the actual elements of pcoll being passed into each process invocation. In this example, side inputs are
 # passed to a FlatMap transform as extra arguments and consumed by filter_using_length.
 words = ...
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input >}}
 
 # We can also pass side inputs to a ParDo transform, which will get passed to its process method.
 # The first two arguments for the process method would be self and element.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input_dofn >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_side_input_dofn >}}
 ...
 {{< /highlight >}}
 
@@ -1550,12 +1550,12 @@ together.
 # with_outputs are attributes on the returned DoOutputsTuple object. The tags give access to the
 # corresponding output PCollections.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs >}}
 
 # The result is also iterable, ordered in the same order that the tags were passed to with_outputs(),
 # the main tag (if specified) first.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs_iter >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_tagged_outputs_iter >}}
 {{< /highlight >}}
 
 #### 4.5.2. Emitting to multiple outputs in your DoFn {#multiple-outputs-dofn}
@@ -1588,12 +1588,12 @@ together.
 # using the pvalue.OutputValue wrapper class.
 # Based on the previous example, this shows the DoFn emitting to the main output and two additional outputs.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_emitting_values_on_tagged_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_emitting_values_on_tagged_outputs >}}
 
 # Producing multiple outputs is also available in Map and FlatMap.
 # Here is an example that uses FlatMap and shows that the tags do not need to be specified ahead of time.
 
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_undeclared_outputs >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_pardo_with_undeclared_outputs >}}
 {{< /highlight >}}
 
 #### 4.5.3. Accessing additional parameters in your DoFn {#other-dofn-parameters}
@@ -1839,7 +1839,7 @@ transform's intermediate data changes type multiple times.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" pipeline_monitoring_composite >}}
 {{< /highlight >}}
 
 #### 4.6.2. Creating a composite transform {#composite-transform-creation}
@@ -1867,7 +1867,7 @@ The following code sample shows how to declare a `PTransform` that accepts a
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
 Within your `PTransform` subclass, you'll need to override the `expand` method.
@@ -1891,7 +1891,7 @@ The following code sample shows how to override `expand` for the
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_transform >}}
 {{< /highlight >}}
 
 As long as you override the `expand` method in your `PTransform` subclass to
@@ -1969,7 +1969,7 @@ p.apply("ReadFromText",
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_read >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_read >}}
 {{< /highlight >}}
 
 To read data from disparate sources into a single `PCollection`, read each one
@@ -1994,7 +1994,7 @@ records.apply("WriteToText",
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_write >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_pipelineio_write >}}
 {{< /highlight >}}
 
 ### 5.4. Beam-provided I/O transforms {#provided-io-transforms}
@@ -2020,7 +2020,7 @@ Most structured records share some common characteristics:
  languages: int, long, string, etc.
 * Often a field type can be marked as optional (sometimes referred to as nullable) or required.
 
-Oten records have a nested structure. A nested structure occurs when a field itself has subfields so the 
+Often records have a nested structure. A nested structure occurs when a field itself has subfields so the 
 type of the field itself has a schema. Fields that are  array or map types is also a common feature of these structured 
 records.
 
@@ -2362,7 +2362,7 @@ This logical type allows creating an enumeration type consisting of a set of nam
 {{< highlight java >}}
 Schema schema = Schema.builder()
                …
-     .addLogicalTypeField(“color”, EnumerationType.create(“RED”, “GREEN”, “BLUE”))
+     .addLogicalTypeField("color", EnumerationType.create("RED", "GREEN", "BLUE"))
      .build();
 {{< /highlight >}}
 
@@ -2370,15 +2370,15 @@ The value of this field is stored in the row as an INT32 type, however the logic
 you access the enumeration either as a string or a value. For example:
 
 {{< highlight java >}}
-EnumerationType.Value enumValue = enumType.valueOf(“RED”);
+EnumerationType.Value enumValue = enumType.valueOf("RED");
 enumValue.getValue();  // Returns 0, the integer value of the constant.
-enumValue.toString();  // Returns “RED”, the string value of the constant
+enumValue.toString();  // Returns "RED", the string value of the constant
 {{< /highlight >}}
 
 Given a row object with an enumeration field, you can also extract the field as the enumeration value.
 
 {{< highlight java >}}
-EnumerationType.Value enumValue = row.getLogicalTypeValue(“color”, EnumerationType.Value.class);
+EnumerationType.Value enumValue = row.getLogicalTypeValue("color", EnumerationType.Value.class);
 {{< /highlight >}}
 
 Automatic schema inference from Java POJOs and JavaBeans automatically converts Java enums to EnumerationType logical 
@@ -2391,10 +2391,10 @@ OneOfType allows creating a disjoint union type over a set of schema fields. For
 {{< highlight java >}}
 Schema schema = Schema.builder()
                …
-     .addLogicalTypeField(“oneOfField”, 
-        OneOfType.create(Field.of(“intField”, FieldType.INT32),
-                         Field.of(“stringField”, FieldType.STRING),
-                         Field.of(“bytesField”, FieldType.BYTES)))
+     .addLogicalTypeField("oneOfField", 
+        OneOfType.create(Field.of("intField", FieldType.INT32),
+                         Field.of("stringField", FieldType.STRING),
+                         Field.of("bytesField", FieldType.BYTES)))
       .build();
 {{< /highlight >}}
 
@@ -2405,19 +2405,19 @@ logical type however defines a Value object that contains an enumeration value i
 {{< highlight java >}}
 // Returns an enumeration indicating all possible case values for the enum.
 // For the above example, this will be 
-// EnumerationType.create(“intField”, “stringField”, “bytesField”);
+// EnumerationType.create("intField", "stringField", "bytesField");
 EnumerationType oneOfEnum = onOfType.getCaseEnumType();
 
 // Creates an instance of the union with the string field set.
-OneOfType.Value oneOfValue = oneOfType.createValue(“stringField”, “foobar”);
+OneOfType.Value oneOfValue = oneOfType.createValue("stringField", "foobar");
 
 // Handle the oneof
 switch (oneOfValue.getCaseEnumType().toString()) {
-  case “intField”:  
+  case "intField":  
     return processInt(oneOfValue.getValue(Integer.class));
-  case “stringField”:
+  case "stringField":
     return processString(oneOfValue.getValue(String.class));
-  case “bytesField”:
+  case "bytesField":
     return processBytes(oneOfValue.getValue(bytes[].class));
 }
 {{< /highlight >}}
@@ -2565,7 +2565,7 @@ In order to select a field at the top level of a schema, the name of the field i
 the user ids from a `PCollection` of purchases one would write (using the `Select` transform)
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”));
+purchases.apply(Select.fieldNames("userId"));
 {{< /highlight >}}
 
 ##### **Nested fields**
@@ -2574,7 +2574,7 @@ Individual nested fields can be specified using the dot operator. For example, t
  shipping address one would write
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“shippingAddress.postCode”));
+purchases.apply(Select.fieldNames("shippingAddress.postCode"));
 {{< /highlight >}}
 
 ##### **Wildcards**
@@ -2583,7 +2583,7 @@ The * operator can be specified at any nesting level to represent all fields at 
 shipping-address fields one would write
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“shippingAddress.*”));
+purchases.apply(Select.fieldNames("shippingAddress.*"));
 {{< /highlight >}}
 
 ##### **Arrays**
@@ -2592,7 +2592,7 @@ An array field, where the array element type is a row, can also have subfields o
 selected, the result is an array of the selected subfield type. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“transactions[].bank”));
+purchases.apply(Select.fieldNames("transactions[].bank"));
 {{< /highlight >}}
 
 Will result in a row containing an array field with element-type string, containing the list of banks for each 
@@ -2631,7 +2631,7 @@ specific keys from the map. For example, given the following schema:
 The following 
 
 {{< highlight java >}}
-purchasesByType.apply(Select.fieldNames(“purchases{}.userId”));
+purchasesByType.apply(Select.fieldNames("purchases{}.userId"));
 {{< /highlight >}}
 
 Will result in a row containing an map field with key-type string and value-type string. The selected map will contain
@@ -2655,7 +2655,7 @@ field as a top-level field. Both top-level and nested fields can be selected. Fo
 could select only the userId and streetAddress fields as follows
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”, shippingAddress.streetAddress”));
+purchases.apply(Select.fieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The resulting `PCollection` will have the following schema
@@ -2683,7 +2683,7 @@ The resulting `PCollection` will have the following schema
 The same is true for wildcard selections. The following
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames(“userId”, shippingAddress.*”));
+purchases.apply(Select.fieldNames("userId", "shippingAddress.*"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2729,7 +2729,7 @@ top-level field in the resulting row. This means that if multiple fields are sel
 selected field will appear as its own array field. For example
 
 {{< highlight java >}}
-purchases.apply(Select.fieldNames( “transactions.bank”, transactions.purchaseAmount”));
+purchases.apply(Select.fieldNames( "transactions.bank", "transactions.purchaseAmount"));
 {{< /highlight >}}
 
 Will result in the following schema
@@ -2832,7 +2832,7 @@ The simplest usage of `Group` specifies no aggregations, in which case all input
 are grouped together into an `ITERABLE` field. For example
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”));
+purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 The output schema of this is:
@@ -2863,9 +2863,9 @@ The names of the key and values fields in the output schema can be controlled us
 builders, as follows:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”, shippingAddress.streetAddress”)
-    .withKeyField(“userAndStreet”)
-    .withValueField(“matchingPurchases”));
+purchases.apply(Group.byFieldNames("userId", "shippingAddress.streetAddress")
+    .withKeyField("userAndStreet")
+    .withValueField("matchingPurchases"));
 {{< /highlight >}}
 
 It is quite common to apply one or more aggregations to the grouped result. Each aggregation can  specify one or more fields 
@@ -2874,10 +2874,10 @@ following application computes three aggregations grouped by userId, with all ag
 output schema:
 
 {{< highlight java >}}
-purchases.apply(Group.byFieldNames(“userId”)
-    .aggregateField(“itemId”, Count.combineFn(), “numPurchases”)
-    .aggregateField(“costCents”, Sum.ofLongs(), “totalSpendCents”)
-    .aggregateField(“costCents”, Top.<Long>largestLongsFn(10), “topPurchases”));
+purchases.apply(Group.byFieldNames("userId")
+    .aggregateField("itemId", Count.combineFn(), "numPurchases")
+    .aggregateField("costCents", Sum.ofLongs(), "totalSpendCents")
+    .aggregateField("costCents", Top.<Long>largestLongsFn(10), "topPurchases"));
 {{< /highlight >}}
 
 The result of this aggregation will have the following schema:
@@ -2915,7 +2915,7 @@ and is specified with the `using` keyword:
 PCollection<Transaction> transactions = readTransactions();
 PCollection<Review> reviews = readReviews();
 PCollection<Row> joined = transactions.apply(
-    Join.innerJoin(reviews).using(“userId”, “productId”));
+    Join.innerJoin(reviews).using("userId", "productId"));
 {{< /highlight >}}
 
 The resulting schema is the following:
@@ -2948,8 +2948,8 @@ Review schema named those fields differently than the Transaction schema, then w
 PCollection<Row> joined = transactions.apply(
     Join.innerJoin(reviews).on(
       FieldsEqual
-         .left(“userId”, “productId”)
-         .right(“reviewUserId”, “reviewProductId”)));
+         .left("userId", "productId")
+         .right("reviewUserId", "reviewProductId")));
 {{< /highlight >}}
 
 In addition to inner joins, the Join transform supports full outer joins, left outer joins, and right outer joins.
@@ -2971,8 +2971,8 @@ which all predicates return true will pass the filter. For example the following
 
 {{< highlight java >}}
 purchases.apply(Filter
-    .whereFieldName(“costCents”, c -> c > 100 * 20)
-    .whereFieldName(“shippingAddress.country”, c -> c.equals(“de”));
+    .whereFieldName("costCents", c -> c > 100 * 20)
+    .whereFieldName("shippingAddress.country", c -> c.equals("de"));
 {{< /highlight >}}
 
 Will produce all purchases made from Germany with a purchase price of greater than twenty cents.
@@ -2989,9 +2989,9 @@ For example, the following application
 
 {{< highlight java >}}
 purchases.apply(AddFields.<PurchasePojo>create()
-    .field(“timeOfDaySeconds”, FieldType.INT32)
-    .field(“shippingAddress.deliveryNotes”, FieldType.STRING)
-    .field(“transactions.isFlagged, FieldType.BOOLEAN, false));
+    .field("timeOfDaySeconds", FieldType.INT32)
+    .field("shippingAddress.deliveryNotes", FieldType.STRING)
+    .field("transactions.isFlagged, FieldType.BOOLEAN, false));
 {{< /highlight >}}
 
 Results in a `PCollection` with an expanded schema. All of the rows and fields of the input, but also with the specified 
@@ -3007,7 +3007,7 @@ syntax.
 For example, the following snippet
 
 {{< highlight java >}}
-purchases.apply(DropFields.fields(“userId”, “shippingAddress.streetAddress”));
+purchases.apply(DropFields.fields("userId", "shippingAddress.streetAddress"));
 {{< /highlight >}}
 
 Results in a copy of the input with those two fields and their corresponding values removed.
@@ -3024,8 +3024,8 @@ For example, the following snippet
 
 {{< highlight java >}}
 purchases.apply(RenameFields.<PurchasePojo>create()
-  .rename(“userId”, “userIdentifier”)
-  .rename(“shippingAddress.streetAddress”, “shippingAddress.street”));
+  .rename("userId", "userIdentifier")
+  .rename("shippingAddress.streetAddress", "shippingAddress.street"));
 {{< /highlight >}}
 
 Results in the same set of unmodified input elements, however the schema on the PCollection has been changed to rename 
@@ -3113,7 +3113,7 @@ using the above-described selection expressions, as follows:
 {{< highlight java >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(
-     @FieldAccess(“userId”) String userId, @FieldAccess(“itemId”) long itemId) {
+     @FieldAccess("userId") String userId, @FieldAccess("itemId") long itemId) {
       ...
   }
 }));
@@ -3124,7 +3124,7 @@ You can also select nested fields, as follows.
 {{< highlight java >}}
 purchases.appy(ParDo.of(new DoFn<PurchasePojo, PurchasePojo>() {
   @ProcessElement public void process(
-    @FieldAccess(“shippingAddress.street”) String street) {
+    @FieldAccess("shippingAddress.street") String street) {
       ...
   }
 }));
@@ -3660,7 +3660,7 @@ into fixed windows, each 60 seconds in length:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_fixed_windows >}}
 {{< /highlight >}}
 
 #### 8.3.2. Sliding time windows {#using-sliding-time-windows}
@@ -3676,7 +3676,7 @@ begins every five seconds:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_sliding_windows >}}
 {{< /highlight >}}
 
 #### 8.3.3. Session windows {#using-session-windows}
@@ -3692,7 +3692,7 @@ least 10 minutes (600 seconds):
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_session_windows >}}
 {{< /highlight >}}
 
 Note that the sessions are per-key — each key in the collection will have its
@@ -3711,7 +3711,7 @@ a single global window for a `PCollection`:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_global_window >}}
 {{< /highlight >}}
 
 ### 8.4. Watermarks and late data {#watermarks-and-late-data}
@@ -3822,7 +3822,7 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" setting_timestamp >}}
 {{< /highlight >}}
 
 ## 9. Triggers {#triggers}
@@ -3911,7 +3911,7 @@ firings:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_early_late_triggers >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_early_late_triggers >}}
 {{< /highlight >}}
 
 #### 9.1.1. Default trigger {#default-trigger}
@@ -3953,8 +3953,8 @@ It is important to note that if, for example, you specify
 <span class="language-py">AfterCount(50)</span> and only 32 elements arrive,
 those 32 elements sit around forever. If the 32 elements are important to you,
 consider using [composite triggers](#composite-triggers) to combine multiple
-conditions. This allows you to specify multiple firing conditions such as “fire
-either when I receive 50 elements, or every 1 second”.
+conditions. This allows you to specify multiple firing conditions such as "fire
+either when I receive 50 elements, or every 1 second".
 
 ### 9.4. Setting a trigger {#setting-a-trigger}
 
@@ -3988,7 +3988,7 @@ sets the window's **accumulation mode**.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_setting_trigger >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_setting_trigger >}}
 {{< /highlight >}}
 
 #### 9.4.1. Window accumulation modes {#window-accumulation-modes}
@@ -4155,7 +4155,7 @@ example trigger code fires on the following conditions:
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_composite_triggers >}}
 {{< /highlight >}}
 
 #### 9.5.3. Other composite triggers {#other-composite-triggers}
@@ -4171,7 +4171,7 @@ elements, or after a minute.
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py" model_other_composite_triggers >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets_test.py" model_other_composite_triggers >}}
 {{< /highlight >}}
 
 ## 10. Metrics {#metrics}

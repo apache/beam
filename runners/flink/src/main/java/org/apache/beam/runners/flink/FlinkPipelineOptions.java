@@ -267,4 +267,11 @@ public interface FlinkPipelineOptions
   String getReportCheckpointDuration();
 
   void setReportCheckpointDuration(String metricNamespace);
+
+  @Description(
+      "Flag indicating whether result of GBK needs to be re-iterable. Re-iterable result implies that all values for a single key must fit in memory as we currently do not support spilling to disk.")
+  @Default.Boolean(false)
+  Boolean getReIterableGroupByKeyResult();
+
+  void setReIterableGroupByKeyResult(Boolean reIterableGroupByKeyResult);
 }

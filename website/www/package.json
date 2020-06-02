@@ -5,9 +5,9 @@
   "repository": "apache/beam",
   "license": "MIT",
   "scripts": {
-    "build_github_samples": "./build_github_samples.sh",
+    "build_code_samples": "./build_code_samples.sh",
     "develop": "cd site && hugo server",
-    "build": "cross-env HUGO_ENV=production hugo -d ../dist -s site -v",
+    "build": "cross-env HUGO_ENV=production hugo --minify -d ../dist -s site -v",
     "start": "hugo -d ../dist -s site -vw"
   },
   "dependencies": {},

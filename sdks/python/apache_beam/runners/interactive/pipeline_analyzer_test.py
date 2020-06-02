@@ -219,7 +219,7 @@ class PipelineAnalyzerTest(unittest.TestCase):
     pipeline_proto = to_stable_runner_api(p)
 
     pipeline_info = pipeline_analyzer.PipelineInfo(pipeline_proto.components)
-    pcoll_id = 'ref_PCollection_PCollection_12'  # Output PCollection of Square
+    pcoll_id = 'ref_PCollection_PCollection_10'  # Output PCollection of Square
     cache_label1 = pipeline_info.cache_label(pcoll_id)
 
     analyzer = pipeline_analyzer.PipelineAnalyzer(

@@ -43,6 +43,9 @@ import collections
 import contextlib
 import doctest
 import re
+from typing import Any
+from typing import Dict
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -136,7 +139,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS = {}
+  _ALL_RESULTS = {}  # type: Dict[str, List[Any]]
 
   def __init__(self):
     self._id = id(self)

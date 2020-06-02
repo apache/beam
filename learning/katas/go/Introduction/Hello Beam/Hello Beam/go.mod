@@ -15,7 +15,7 @@
 
 module hello_beam
 
-go 1.13
+go 1.14
 
 require (
 	github.com/apache/beam v2.19.0+incompatible

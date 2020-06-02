@@ -112,6 +112,9 @@ rat {
     "learning/katas/**/task-remote-info.yaml",
     "learning/katas/*/IO/**/*.txt",
 
+    // test p8 file for SnowflakeIO
+    "sdks/java/io/snowflake/src/test/resources/test_rsa_key.p8",
+
     // Mockito extensions
     "sdks/java/io/amazon-web-services2/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker",
     "sdks/java/extensions/ml/src/test/resources/mockito-extensions/org.mockito.plugins.MockMaker"
@@ -152,6 +155,8 @@ task javaPreCommit() {
 }
 
 task sqlPreCommit() {
+  dependsOn ":sdks:java:extensions:sql:runBasicExample"
+  dependsOn ":sdks:java:extensions:sql:runPojoExample"
   dependsOn ":sdks:java:extensions:sql:build"
   dependsOn ":sdks:java:extensions:sql:buildDependents"
 }
@@ -210,6 +215,7 @@ task pythonPreCommit() {
   dependsOn ":sdks:python:test-suites:tox:py35:preCommitPy35"
   dependsOn ":sdks:python:test-suites:tox:py36:preCommitPy36"
   dependsOn ":sdks:python:test-suites:tox:py37:preCommitPy37"
+  dependsOn ":sdks:python:test-suites:tox:py38:preCommitPy38"
   dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT"
   dependsOn ":sdks:python:test-suites:dataflow:py2:preCommitIT_V2"
   dependsOn ":sdks:python:test-suites:dataflow:py37:preCommitIT"
@@ -224,6 +230,7 @@ task pythonDockerBuildPreCommit() {
   dependsOn ":sdks:python:container:py35:docker"
   dependsOn ":sdks:python:container:py36:docker"
   dependsOn ":sdks:python:container:py37:docker"
+  dependsOn ":sdks:python:container:py38:docker"
 }
 
 task pythonLintPreCommit() {
@@ -232,7 +239,7 @@ task pythonLintPreCommit() {
 }
 
 task pythonFormatterPreCommit() {
-  dependsOn 'sdks:python:test-suites:tox:py37:formatter'
+  dependsOn 'sdks:python:test-suites:tox:py38:formatter'
 }
 
 task python2PostCommit() {

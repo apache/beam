@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 
 import inspect
+from typing import Dict
 
 import pandas as pd
 
@@ -25,7 +26,7 @@ from apache_beam.dataframe import expressions
 
 class DeferredFrame(object):
 
-  _pandas_type_map = {}
+  _pandas_type_map = {}  # type: Dict[type, type]
 
   def __init__(self, expr):
     self._expr = expr

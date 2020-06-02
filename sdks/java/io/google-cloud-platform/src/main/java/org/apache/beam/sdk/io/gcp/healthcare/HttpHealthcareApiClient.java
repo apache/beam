@@ -391,7 +391,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       throws InterruptedException, IOException {
     LOG.debug(String.format("started opertation %s. polling until complete.", operation.getName()));
     while (operation.getDone() == null || !operation.getDone()) {
-      // ConditionalUpdate the status of the operation with another request.
+      // Update the status of the operation with another request.
       Thread.sleep(sleepMs); // Pause between requests.
       operation =
           client.projects().locations().datasets().operations().get(operation.getName()).execute();
@@ -638,8 +638,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   private void initClient() throws IOException {
 
     credentials = GoogleCredentials.getApplicationDefault();
-    // ConditionalUpdate a HttpRequestInitializer, which will provide a baseline configuration to
-    // all requests.
+    // Create a HttpRequestInitializer, which will provide a baseline configuration to all requests.
     HttpRequestInitializer requestInitializer =
         new AuthenticatedRetryInitializer(
             credentials.createScoped(

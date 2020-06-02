@@ -1,0 +1,55 @@
+{{/*
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+ */}}
+ 
+{{ $data := index $.Site.Data.io_matrix }}
+
+{{ define "language-row" }}
+  {{ if len (where .row.implementations "language" .language) }}
+  <tr class="language-{{ .language }}">
+    <td>
+      {{ .row.transform | markdownify }}
+      {{ if .row.docs }}<a href="{{ .row.docs }}"> (guide)</a>{{ else }}{{ end }}
+    </td>
+    <td>{{ .row.description | markdownify }}</td>
+    <td style="word-break: break-all;">
+      {{ range where .row.implementations "language" .language }}
+        <div><a target="_blank" href="{{ .url }}">{{ .name }}</a></div>
+      {{ else }}
+        N/A
+      {{ end }}
+    </td>
+  </tr>
+  {{ else }}
+  {{ end }}
+{{ end }}
+
+
+{{ range $data.categories }}
+<h3>{{ .name }}</h3>
+<p>{{ .description }}</p>
+<table class="table table-bordered">
+  <tr>
+    <th>Name</th>
+    <th>Description</th>
+    <th>
+      <span class="language-java">Javadoc</span>
+      <span class="language-py">pydoc</span>
+      <span class="language-go">Godoc</span>
+    </th>
+  </tr>
+  {{ range .rows }}
+    {{ block "language-row" (dict "row" . "language" "java") }}{{ end }}
+    {{ block "language-row" (dict "row" . "language" "py") }}{{ end }}
+    {{ block "language-row" (dict "row" . "language" "go") }}{{ end }}
+  {{ end }}
+</table>
+{{ end }}

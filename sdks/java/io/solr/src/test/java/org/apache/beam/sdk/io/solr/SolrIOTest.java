@@ -156,6 +156,23 @@ public class SolrIOTest extends SolrCloudTestCase {
   }
 
   @Test
+  public void testReadAll() throws Exception {
+    SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
+
+    PCollection<SolrDocument> output =
+        pipeline
+            .apply(
+                Create.of(
+                    SolrIO.read()
+                        .withConnectionConfiguration(connectionConfiguration)
+                        .from(SOLR_COLLECTION)
+                        .withBatchSize(101)))
+            .apply(SolrIO.readAll());
+    PAssert.thatSingleton(output.apply("Count", Count.globally())).isEqualTo(NUM_DOCS);
+    pipeline.run();
+  }
+
+  @Test
   public void testReadWithQuery() throws Exception {
     SolrIOTestUtils.insertTestDocuments(SOLR_COLLECTION, NUM_DOCS, solrClient);
 

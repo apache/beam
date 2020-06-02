@@ -106,6 +106,7 @@ func NewCoderUnmarshaller(m map[string]*pb.Coder) *CoderUnmarshaller {
 	}
 }
 
+// Coders unmarshals a list of coder ids.
 func (b *CoderUnmarshaller) Coders(ids []string) ([]*coder.Coder, error) {
 	coders := make([]*coder.Coder, len(ids))
 	for i, id := range ids {
@@ -133,6 +134,7 @@ func (b *CoderUnmarshaller) Coder(id string) (*coder.Coder, error) {
 	if err != nil {
 		return nil, errors.WithContextf(err, "unmarshalling coder %v", id)
 	}
+	ret.ID = id
 
 	b.coders[id] = ret
 	return ret, nil
@@ -256,6 +258,7 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 		if err != nil {
 			return nil, err
 		}
+		custom.ID = components[0]
 		t := typex.New(custom.Type)
 		return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
 

@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.model.pipeline.v1.RunnerApi.SideInput;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -200,7 +201,8 @@ public class ParDoTranslationTest {
         Coder<?> timerCoder =
             CoderTranslation.fromProto(
                 components.getCodersOrThrow(timerFamilySpec.getTimerFamilyCoderId()),
-                rehydratedComponents);
+                rehydratedComponents,
+                TranslationContext.DEFAULT);
         assertEquals(
             org.apache.beam.runners.core.construction.Timer.Coder.of(
                 VarLongCoder.of(), GlobalWindow.Coder.INSTANCE),

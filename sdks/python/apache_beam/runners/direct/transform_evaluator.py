@@ -45,6 +45,7 @@ from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
 from apache_beam.runners.direct.direct_runner import _DirectReadFromPubSub
+from apache_beam.runners.direct.direct_runner import _GroupByKeyOnly
 from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
 from apache_beam.runners.direct.direct_userstate import DirectUserStateContext
@@ -106,7 +107,7 @@ class TransformEvaluatorRegistry(object):
         core.Flatten: _FlattenEvaluator,
         core.Impulse: _ImpulseEvaluator,
         core.ParDo: _ParDoEvaluator,
-        core._GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
+        _GroupByKeyOnly: _GroupByKeyOnlyEvaluator,
         _StreamingGroupByKeyOnly: _StreamingGroupByKeyOnlyEvaluator,
         _StreamingGroupAlsoByWindow: _StreamingGroupAlsoByWindowEvaluator,
         _NativeWrite: _NativeWriteEvaluator,
@@ -176,7 +177,7 @@ class TransformEvaluatorRegistry(object):
       True if executor should execute applied_ptransform serially.
     """
     if isinstance(applied_ptransform.transform,
-                  (core._GroupByKeyOnly,
+                  (_GroupByKeyOnly,
                    _StreamingGroupByKeyOnly,
                    _StreamingGroupAlsoByWindow,
                    _NativeWrite)):

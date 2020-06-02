@@ -95,16 +95,16 @@ import org.slf4j.LoggerFactory;
  * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
- * org.apache.beam.sdk.io.TextIO}**) .
+ * org.apache.beam.sdk.io.TextIO}*) .
  *
  * <p>Fetch Resource contents from Fhir Store based on the {@link PCollection} of message ID strings
  * {@link FhirIO.Read.Result} where one can call {@link Read.Result#getResources()} to retrieve a
  * {@link PCollection} containing the successfully fetched {@link String}s and/or {@link
- * FhirIO.Read.Result#getFailedReads()}** to retrieve a {@link PCollection} of {@link
- * HealthcareIOError}** containing the resource ID that could not be fetched and the exception as a
+ * FhirIO.Read.Result#getFailedReads()}* to retrieve a {@link PCollection} of {@link
+ * HealthcareIOError}* containing the resource ID that could not be fetched and the exception as a
  * {@link HealthcareIOError}, this can be used to write to the dead letter storage system of your
  * choosing. This error handling is mainly to transparently surface errors where the upstream {@link
- * PCollection}** contains IDs that are not valid or are not reachable due to permissions issues.
+ * PCollection}* contains IDs that are not valid or are not reachable due to permissions issues.
  *
  * <h3>Writing</h3>
  *
@@ -114,14 +114,14 @@ import org.slf4j.LoggerFactory;
  * other clients or otherwise need referential integrity (e.g. A Streaming HL7v2 to FHIR ETL
  * pipeline).
  *
+ * <p>Import This is best for use cases where you are populating an empty FHIR store with no other
+ * clients. It is faster than the execute bundles method but does not respect referential integrity
+ * and the resources are not written transactionally (e.g. a historicaly backfill on a new FHIR
+ * store) This requires each resource to contain a client provided ID. It is important that when
+ * using import you give the appropriate permissions to the Google Cloud Healthcare Service Agent.
+ *
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/executeBundle></a>
- *     <p>Import This is best for use cases where you are populating an empty FHIR store with no
- *     other clients. It is faster than the execute bundles method but does not respect referential
- *     integrity and the resources are not written transactionally (e.g. a historicaly backfill on a
- *     new FHIR store) This requires each resource to contain a client provided ID. It is important
- *     that when using import you give the appropriate permissions to the Google Cloud Healthcare
- *     Service Agent
  * @see <a
  *     href=>https://cloud.google.com/healthcare/docs/how-tos/permissions-healthcare-api-gcp-products#fhir_store_cloud_storage_permissions></a>
  * @see <a
@@ -132,6 +132,7 @@ import org.slf4j.LoggerFactory;
  *     FhirIO.Write.Result#getFailedBodies()} to retrieve a {@link PCollection} of {@link
  *     HealthcareIOError} containing the {@link String} that failed to be ingested and the
  *     exception.
+ *
  *     <h3>Conditional Creating / Updating Resources</h3>
  *     {@link FhirIO} supports interfaces for conditional update. These can be useful to handle
  *     scenarios where an executeBundle failed. For example if you tried to create a resource that
@@ -283,7 +284,7 @@ public class FhirIO {
       PCollectionTuple pct;
 
       /**
-       * FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
+       * Create FhirIO.Read.Result form PCollectionTuple with OUT and DEAD_LETTER tags.
        *
        * @param pct the pct
        * @return the read result
@@ -358,7 +359,7 @@ public class FhirIO {
      * <p>This DoFn consumes a {@link PCollection} of notifications {@link String}s from the FHIR
      * store, and fetches the actual {@link String} object based on the id in the notification and
      * will output a {@link PCollectionTuple} which contains the output and dead-letter {@link
-     * PCollection}**.
+     * PCollection}*.
      *
      * <p>The {@link PCollectionTuple} output will contain the following {@link PCollection}:
      *
@@ -366,8 +367,8 @@ public class FhirIO {
      *   <li>{@link FhirIO.Read#OUT} - Contains all {@link PCollection} records successfully read
      *       from the Fhir store.
      *   <li>{@link FhirIO.Read#DEAD_LETTER} - Contains all {@link PCollection} of {@link
-     *       HealthcareIOError}** of message IDs which failed to be fetched from the Fhir store,
-     *       with error message and stacktrace.
+     *       HealthcareIOError}* of message IDs which failed to be fetched from the Fhir store, with
+     *       error message and stacktrace.
      * </ul>
      */
     static class FetchResourceJsonString
@@ -768,7 +769,7 @@ public class FhirIO {
               input
                   .apply(
                       "Execute FHIR Bundles",
-                      ParDo.of(new FhirIO.ExecuteBundles.ExecuteBundlesFn(this.getFhirStore())))
+                      ParDo.of(new ExecuteBundles.ExecuteBundlesFn(this.getFhirStore())))
                   .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
       return Result.in(input.getPipeline(), failedBundles);
@@ -779,8 +780,8 @@ public class FhirIO {
    * Writes each bundle of elements to a new-line delimited JSON file on GCS and issues a
    * fhirStores.import Request for that file. This is intended for batch use only to facilitate
    * large backfills to empty FHIR stores and should not be used with unbounded PCollections. If
-   * your use case is streaming checkout using {@link Import} to more safely execute bundles as
-   * transactions which is safer practice for a use on a "live" FHIR store.
+   * your use case is streaming checkout using {@link ExecuteBundles} to more safely execute bundles
+   * as transactions which is safer practice for a use on a "live" FHIR store.
    */
   public static class Import extends Write {
 

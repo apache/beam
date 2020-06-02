@@ -17,6 +17,7 @@ package beam
 
 import (
 	"fmt"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 
@@ -37,12 +38,14 @@ func TryParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) ([]PCo
 		return nil, addParDoCtx(err, s)
 	}
 
-	num := graph.MainSingle
+	doFnOpt := graph.NumMainInputs(graph.MainSingle)
 	// Check the PCollection for any keyed type (not just KV specifically).
-	if typex.IsKV(col.Type()) || typex.IsCoGBK(col.Type()) {
-		num = graph.MainKv
+	if typex.IsKV(col.Type()) {
+		doFnOpt = graph.NumMainInputs(graph.MainKv)
+	} else if typex.IsCoGBK(col.Type()) {
+		doFnOpt = graph.CoGBKMainInput(len(col.Type().Components()))
 	}
-	fn, err := graph.NewDoFn(dofn, graph.NumMainInputs(num))
+	fn, err := graph.NewDoFn(dofn, doFnOpt)
 	if err != nil {
 		return nil, addParDoCtx(err, s)
 	}
