@@ -407,9 +407,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
     URI uri;
     try {
-      uri =
-          new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir")
-              .build();
+      uri = new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir").build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
       throw new IllegalArgumentException(e);
