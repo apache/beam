@@ -242,6 +242,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_WriteVoid.Builder<T>()
         .setBatchSize(DEFAULT_BATCH_SIZE)
         .setRetryStrategy(new DefaultRetryStrategy())
+        .setFluentBackoffConfiguration(new DefaultFluentBackoffConfiguration(5, 5))
         .build();
   }
 
@@ -1155,6 +1156,9 @@ public class JdbcIO {
 
     @Nullable
     abstract String getTable();
+
+    @Nullable
+    abstract FluentBackoffConfiguration getFluentBackoffConfiguration();
 
     abstract Builder<T> toBuilder();
 

@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -50,6 +52,7 @@ import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
 import java.util.TimeZone;
+import java.util.logging.LogRecord;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -68,6 +71,7 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -76,7 +80,10 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 import org.apache.commons.dbcp2.PoolingDataSource;
 import org.apache.derby.drda.NetworkServerControl;
 import org.apache.derby.jdbc.ClientDataSource;
+import org.hamcrest.Description;
+import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 import org.junit.After;
@@ -935,5 +942,111 @@ public class JdbcIOTest implements Serializable {
     // instances with the same configuration. Also check that the deserialized provider was
     // able to produce an instance.
     assertSame(provider.apply(null), deserializedProvider.apply(null));
+  }
+
+  @Test
+  public void testCustomFluentBackOffConfiguration() throws Exception {
+
+    String tableName = DatabaseTestHelper.getTestTableName("UT_FLUENT_BACKOFF");
+    DatabaseTestHelper.createTable(dataSource, tableName);
+
+    // lock table
+    Connection connection = dataSource.getConnection();
+    Statement lockStatement = connection.createStatement();
+    lockStatement.execute("ALTER TABLE " + tableName + " LOCKSIZE TABLE");
+    lockStatement.execute("LOCK TABLE " + tableName + " IN EXCLUSIVE MODE");
+
+    // start a first transaction
+    connection.setAutoCommit(false);
+    PreparedStatement insertStatement =
+        connection.prepareStatement("insert into " + tableName + " values(?, ?)");
+    insertStatement.setInt(1, 1);
+    insertStatement.setString(2, "TEST");
+    insertStatement.execute();
+
+    // try to write to this table
+    pipeline
+        .apply(Create.of(Collections.singletonList(KV.of(1, "TEST"))))
+        .apply(
+            JdbcIO.<KV<Integer, String>>write()
+                .withDataSourceConfiguration(
+                    JdbcIO.DataSourceConfiguration.create(
+                        "org.apache.derby.jdbc.ClientDriver",
+                        "jdbc:derby://localhost:" + port + "/target/beam"))
+                .withStatement(String.format("insert into %s values(?, ?)", tableName))
+                .withRetryStrategy(
+                    (JdbcIO.RetryStrategy)
+                        e -> {
+                          return "XJ208"
+                              .equals(e.getSQLState()); // we fake a deadlock with a lock here
+                        })
+                .withFluentBackoffConfiguration(new CustomFluentBackoffConfiguration(2, 1))
+                .withPreparedStatementSetter(
+                    (element, statement) -> {
+                      statement.setInt(1, element.getKey());
+                      statement.setString(2, element.getValue());
+                    }));
+
+    // starting a thread to perform the commit later, while the pipeline is running into the backoff
+    Thread commitThread =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(10000);
+                connection.commit();
+              } catch (Exception e) {
+                // nothing to do
+              }
+            });
+
+    try {
+      commitThread.start();
+      pipeline.run();
+      commitThread.join();
+    } catch (Exception e) {
+
+      expectedLogs.verifyLogRecords(
+          new TypeSafeMatcher<Iterable<LogRecord>>() {
+            @Override
+            public void describeTo(Description description) {}
+
+            @Override
+            protected boolean matchesSafely(Iterable<LogRecord> logRecords) {
+              int count = 0;
+              for (LogRecord logRecord : logRecords) {
+                if (logRecord.getMessage().contains("Deadlock detected, retrying")) {
+                  count += 1;
+                }
+              }
+              // Max retries will be 2 + the original deadlock error.
+              return count == 3;
+            }
+          });
+
+      assertThat(
+          e.getMessage(),
+          containsString("java.sql.BatchUpdateException: Non-atomic batch failure."));
+    }
+
+    // since, we got an error we will only have one row and the second one wouldn't go through.
+    assertRowCount(tableName, 1);
+  }
+
+  static class CustomFluentBackoffConfiguration implements JdbcIO.FluentBackoffConfiguration {
+
+    private final int maxRetries;
+    private final long initialBackoff;
+
+    public CustomFluentBackoffConfiguration(int maxRetries, long initialBackoff) {
+      this.maxRetries = maxRetries;
+      this.initialBackoff = initialBackoff;
+    }
+
+    @Override
+    public FluentBackoff configure() {
+      return FluentBackoff.DEFAULT
+          .withMaxRetries(maxRetries)
+          .withInitialBackoff(Duration.standardSeconds(initialBackoff));
+    }
   }
 }
