@@ -38,11 +38,11 @@ class PartitioningsTest(unittest.TestCase):
   def test_index_is_subpartition(self):
     ordered_list = [Nothing(), Index([3]), Index([1, 3]), Index(), Singleton()]
     for loose, strict in zip(ordered_list[:1], ordered_list[1:]):
-      self.assertTrue(strict.is_subpartition_of(loose), (strict, loose))
-      self.assertFalse(loose.is_subpartition_of(strict), (loose, strict))
+      self.assertTrue(strict.is_subpartitioning_of(loose), (strict, loose))
+      self.assertFalse(loose.is_subpartitioning_of(strict), (loose, strict))
     # Incomparable.
-    self.assertFalse(Index([1, 2]).is_subpartition_of(Index([1, 3])))
-    self.assertFalse(Index([1, 3]).is_subpartition_of(Index([1, 2])))
+    self.assertFalse(Index([1, 2]).is_subpartitioning_of(Index([1, 3])))
+    self.assertFalse(Index([1, 3]).is_subpartitioning_of(Index([1, 2])))
 
   def _check_partition(self, partitioning, min_non_empty, max_non_empty=None):
     if max_non_empty is None:
@@ -69,13 +69,13 @@ class PartitioningsTest(unittest.TestCase):
       Index._INDEX_PARTITIONS = old
 
   def test_nothing_subpartition(self):
-    self.assertTrue(Nothing().is_subpartition_of(Nothing()))
+    self.assertTrue(Nothing().is_subpartitioning_of(Nothing()))
     for p in [Index([1]), Index([1, 2]), Index(), Singleton()]:
-      self.assertFalse(Nothing().is_subpartition_of(p), p)
+      self.assertFalse(Nothing().is_subpartitioning_of(p), p)
 
   def test_singleton_subpartition(self):
     for p in [Nothing(), Index([1]), Index([1, 2]), Index(), Singleton()]:
-      self.assertTrue(Singleton().is_subpartition_of(p), p)
+      self.assertTrue(Singleton().is_subpartitioning_of(p), p)
 
   def test_singleton_partition(self):
     parts = list(Singleton().partition_fn(pd.Series(range(10))))

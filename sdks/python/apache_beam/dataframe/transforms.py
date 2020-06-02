@@ -158,9 +158,9 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         # Within a stage, the singleton partitioning is trivially preserved.
         return True
       elif expr in stage.inputs:
-        return stage.partitioning.is_subpartition_of(partitioning)
-      elif expr.preserves_partition_by().is_subpartition_of(partitioning):
-        if expr.requires_partition_by().is_subpartition_of(partitioning):
+        return stage.partitioning.is_subpartitioning_of(partitioning)
+      elif expr.preserves_partition_by().is_subpartitioning_of(partitioning):
+        if expr.requires_partition_by().is_subpartitioning_of(partitioning):
           return True
         else:
           return all(

@@ -28,7 +28,7 @@ Frame = TypeVar('Frame', bound=pd.core.generic.NDFrame)
 class Partitioning(object):
   """A class representing a (consistent) partitioning of dataframe objects.
   """
-  def is_subpartition_of(self, other):
+  def is_subpartitioning_of(self, other):
     # type: (Partitioning) -> bool
 
     """Returns whether self is a sub-partition of other.
@@ -74,7 +74,7 @@ class Index(Partitioning):
     else:
       return hash(type(self))
 
-  def is_subpartition_of(self, other):
+  def is_subpartitioning_of(self, other):
     if isinstance(other, Nothing):
       return True
     elif isinstance(other, Index):
@@ -108,7 +108,7 @@ class Singleton(Partitioning):
   def __hash__(self):
     return hash(type(self))
 
-  def is_subpartition_of(self, other):
+  def is_subpartitioning_of(self, other):
     return True
 
   def partition_fn(self, df):
@@ -124,7 +124,7 @@ class Nothing(Partitioning):
   def __hash__(self):
     return hash(type(self))
 
-  def is_subpartition_of(self, other):
+  def is_subpartitioning_of(self, other):
     return not other
 
   def __bool__(self):
