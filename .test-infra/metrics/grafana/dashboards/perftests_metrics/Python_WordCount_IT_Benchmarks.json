@@ -60,7 +60,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "python27_performance",
+          "alias": "runtime",
           "groupBy": [
             {
               "params": [
@@ -182,7 +182,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "alias": "python37_performance",
+          "alias": "runtime",
           "groupBy": [
             {
               "params": [
@@ -270,7 +270,7 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-30d",
     "to": "now"
   },
   "timepicker": {
