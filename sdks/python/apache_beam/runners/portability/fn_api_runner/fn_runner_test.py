@@ -377,11 +377,6 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(expected))
 
   def test_pardo_timers_clear(self):
-    if type(self).__name__ != 'FlinkRunnerTest':
-      # FnApiRunner fails to wire multiple timer collections
-      # this method can replace test_pardo_timers when the issue is fixed
-      self.skipTest('BEAM-7074: Multiple timer definitions not supported.')
-
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     clear_timer_spec = userstate.TimerSpec(
         'clear_timer', userstate.TimeDomain.WATERMARK)
