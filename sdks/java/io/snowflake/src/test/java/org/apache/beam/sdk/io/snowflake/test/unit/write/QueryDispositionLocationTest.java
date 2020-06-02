@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
-import org.apache.beam.sdk.io.snowflake.Location;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
@@ -55,7 +54,6 @@ public class QueryDispositionLocationTest {
 
   private static SnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
-  private static Location location;
 
   private static SnowflakeService snowflakeService;
   private static List<Long> testData;
@@ -74,7 +72,6 @@ public class QueryDispositionLocationTest {
     options.setStagingBucketName(BUCKET_NAME);
     options.setStorageIntegrationName("STORAGE_INTEGRATION");
     options.setServerName("NULL.snowflakecomputing.com");
-    location = Location.of(options);
 
     dc =
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
@@ -97,7 +94,8 @@ public class QueryDispositionLocationTest {
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output*")
                 .withWriteDisposition(WriteDisposition.TRUNCATE)
@@ -125,7 +123,8 @@ public class QueryDispositionLocationTest {
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withFileNameTemplate("output*")
                 .withWriteDisposition(WriteDisposition.EMPTY)
@@ -145,7 +144,8 @@ public class QueryDispositionLocationTest {
             SnowflakeIO.<Long>write()
                 .withDataSourceConfiguration(dc)
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withFileNameTemplate("output*")
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withWriteDisposition(WriteDisposition.EMPTY)

@@ -123,12 +123,12 @@ import org.slf4j.LoggerFactory;
  * <p>For example
  *
  * <pre>{@code
- * Location location = Location.of(storageIntegrationName, stagingBucketName);
  * PCollection<GenericRecord> items = pipeline.apply(
  *  SnowflakeIO.<GenericRecord>read()
  *    .withDataSourceConfiguration(dataSourceConfiguration)
  *    .fromQuery(QUERY)
- *    .withLocation(location)
+ *    .withStagingBucketName(...)
+ *    .withStorageIntegrationName(...)
  *    .withCsvMapper(...)
  *    .withCoder(...));
  * }</pre>
@@ -147,12 +147,12 @@ import org.slf4j.LoggerFactory;
  * <p>For example
  *
  * <pre>{@code
- * Location location = Location.of(storageIntegrationName, stagingBucketName);
  * items.apply(
  *     SnowflakeIO.<KV<Integer, String>>write()
  *         .withDataSourceConfiguration(dataSourceConfiguration)
  *         .withTable(table)
- *         .withLocation(location)
+ *         .withStagingBucketName(...)
+ *         .withStorageIntegrationName(...)
  *         .withUserDataMapper(maper);
  * }</pre>
  *
@@ -234,7 +234,10 @@ public class SnowflakeIO {
     abstract String getTable();
 
     @Nullable
-    abstract Location getLocation();
+    abstract String getStorageIntegrationName();
+
+    @Nullable
+    abstract String getStagingBucketName();
 
     @Nullable
     abstract CsvMapper<T> getCsvMapper();
@@ -256,7 +259,9 @@ public class SnowflakeIO {
 
       abstract Builder<T> setTable(String table);
 
-      abstract Builder<T> setLocation(Location location);
+      abstract Builder<T> setStorageIntegrationName(String storageIntegrationName);
+
+      abstract Builder<T> setStagingBucketName(String stagingBucketName);
 
       abstract Builder<T> setCsvMapper(CsvMapper<T> csvMapper);
 
@@ -305,12 +310,23 @@ public class SnowflakeIO {
     }
 
     /**
-     * A location object which contains connection config between Snowflake and GCP.
+     * Name of the cloud bucket (GCS by now) to use as tmp location of CSVs during COPY statement.
      *
-     * @param location - an instance of {@link Location}.
+     * @param stagingBucketName - String with the name of the bucket.
      */
-    public Read<T> withLocation(Location location) {
-      return toBuilder().setLocation(location).build();
+    public Read<T> withStagingBucketName(String stagingBucketName) {
+      return toBuilder().setStagingBucketName(stagingBucketName).build();
+    }
+
+    /**
+     * Name of the Storage Integration in Snowflake to be used. See
+     * https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html for
+     * reference.
+     *
+     * @param integrationName - String with the name of the Storage Integration.
+     */
+    public Read<T> withStorageIntegrationName(String integrationName) {
+      return toBuilder().setStorageIntegrationName(integrationName).build();
     }
 
     /**
@@ -334,10 +350,9 @@ public class SnowflakeIO {
     @Override
     public PCollection<T> expand(PBegin input) {
       checkArguments();
-      Location loc = getLocation();
 
       String tmpDirName = makeTmpDirName();
-      String stagingBucketDir = String.format("%s/%s/", loc.getStagingBucketName(), tmpDirName);
+      String stagingBucketDir = String.format("%s/%s/", getStagingBucketName(), tmpDirName);
 
       PCollection<Void> emptyCollection = input.apply(Create.of((Void) null));
 
@@ -349,7 +364,7 @@ public class SnowflakeIO {
                           getDataSourceProviderFn(),
                           getQuery(),
                           getTable(),
-                          loc.getStorageIntegrationName(),
+                          getStorageIntegrationName(),
                           stagingBucketDir,
                           getSnowflakeService())))
               .apply(Reshuffle.viaRandomKey())
@@ -370,14 +385,9 @@ public class SnowflakeIO {
     private void checkArguments() {
       // Either table or query is required. If query is present, it's being used, table is used
       // otherwise
-      Location loc = getLocation();
 
-      checkArgument(loc != null, "withLocation() is required");
-      checkArgument(
-          loc.getStorageIntegrationName() != null,
-          "location with storageIntegrationName is required");
-      checkArgument(
-          loc.getStagingBucketName() != null, "location with stagingBucketName is required");
+      checkArgument(getStorageIntegrationName() != null, "withStorageIntegrationName is required");
+      checkArgument(getStagingBucketName() != null, "withStagingBucketName is required");
 
       checkArgument(
           getQuery() != null || getTable() != null, "fromTable() or fromQuery() is required");
@@ -481,8 +491,6 @@ public class SnowflakeIO {
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      Location loc = getLocation();
-
       super.populateDisplayData(builder);
       if (getQuery() != null) {
         builder.add(DisplayData.item("query", getQuery()));
@@ -490,8 +498,8 @@ public class SnowflakeIO {
       if (getTable() != null) {
         builder.add(DisplayData.item("table", getTable()));
       }
-      builder.add(DisplayData.item("storageIntegrationName", loc.getStagingBucketName()));
-      builder.add(DisplayData.item("stagingBucketName", loc.getStagingBucketName()));
+      builder.add(DisplayData.item("storageIntegrationName", getStagingBucketName()));
+      builder.add(DisplayData.item("stagingBucketName", getStagingBucketName()));
       builder.add(DisplayData.item("csvMapper", getCsvMapper().getClass().getName()));
       builder.add(DisplayData.item("coder", getCoder().getClass().getName()));
       if (getDataSourceProviderFn() instanceof HasDisplayData) {
@@ -510,10 +518,13 @@ public class SnowflakeIO {
     abstract String getTable();
 
     @Nullable
-    abstract String getQuery();
+    abstract String getStorageIntegrationName();
 
     @Nullable
-    abstract Location getLocation();
+    abstract String getStagingBucketName();
+
+    @Nullable
+    abstract String getQuery();
 
     @Nullable
     abstract String getFileNameTemplate();
@@ -536,9 +547,11 @@ public class SnowflakeIO {
 
       abstract Builder<T> setTable(String table);
 
-      abstract Builder<T> setQuery(String query);
+      abstract Builder<T> setStorageIntegrationName(String storageIntegrationName);
 
-      abstract Builder<T> setLocation(Location location);
+      abstract Builder<T> setStagingBucketName(String stagingBucketName);
+
+      abstract Builder<T> setQuery(String query);
 
       abstract Builder<T> setFileNameTemplate(String fileNameTemplate);
 
@@ -580,21 +593,32 @@ public class SnowflakeIO {
     }
 
     /**
+     * Name of the cloud bucket (GCS by now) to use as tmp location of CSVs during COPY statement.
+     *
+     * @param stagingBucketName - String with the name of the bucket.
+     */
+    public Write<T> withStagingBucketName(String stagingBucketName) {
+      return toBuilder().setStagingBucketName(stagingBucketName).build();
+    }
+
+    /**
+     * Name of the Storage Integration in Snowflake to be used. See
+     * https://docs.snowflake.com/en/sql-reference/sql/create-storage-integration.html for
+     * reference.
+     *
+     * @param integrationName - String with the name of the Storage Integration.
+     */
+    public Write<T> withStorageIntegrationName(String integrationName) {
+      return toBuilder().setStorageIntegrationName(integrationName).build();
+    }
+
+    /**
      * A query to be executed in Snowflake.
      *
      * @param query - String with query.
      */
     public Write<T> withQueryTransformation(String query) {
       return toBuilder().setQuery(query).build();
-    }
-
-    /**
-     * A location object which contains connection config between Snowflake and GCP.
-     *
-     * @param location - an instance of {@link Location}.
-     */
-    public Write<T> withLocation(Location location) {
-      return toBuilder().setLocation(location).build();
     }
 
     /**
@@ -636,10 +660,9 @@ public class SnowflakeIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      Location loc = getLocation();
       checkArguments();
 
-      String stagingBucketDir = String.format("%s/%s/", loc.getStagingBucketName(), WRITE_TMP_PATH);
+      String stagingBucketDir = String.format("%s/%s/", getStagingBucketName(), WRITE_TMP_PATH);
 
       PCollection out = write(input, stagingBucketDir);
       out.setCoder(StringUtf8Coder.of());
@@ -648,12 +671,7 @@ public class SnowflakeIO {
     }
 
     private void checkArguments() {
-      Location loc = getLocation();
-
-      checkArgument(loc != null, "withLocation() is required");
-
-      checkArgument(
-          loc.getStagingBucketName() != null, "location with stagingBucketName is required");
+      checkArgument(getStagingBucketName() != null, "withStagingBucketName is required");
 
       checkArgument(getUserDataMapper() != null, "withUserDataMapper() is required");
 
@@ -719,7 +737,7 @@ public class SnowflakeIO {
               getTable(),
               getQuery(),
               stagingBucketDir,
-              getLocation(),
+              getStorageIntegrationName(),
               getWriteDisposition(),
               snowflakeService));
     }
@@ -790,7 +808,7 @@ public class SnowflakeIO {
     private final String table;
     private final String query;
     private final String stagingBucketDir;
-    private final Location location;
+    private final String storageIntegrationName;
     private final WriteDisposition writeDisposition;
     private final SnowflakeService snowflakeService;
 
@@ -799,14 +817,14 @@ public class SnowflakeIO {
         String table,
         String query,
         String stagingBucketDir,
-        Location location,
+        String storageIntegrationName,
         WriteDisposition writeDisposition,
         SnowflakeService snowflakeService) {
       this.dataSourceProviderFn = dataSourceProviderFn;
       this.table = table;
       this.query = query;
       this.stagingBucketDir = stagingBucketDir;
-      this.location = location;
+      this.storageIntegrationName = storageIntegrationName;
       this.writeDisposition = writeDisposition;
       this.snowflakeService = snowflakeService;
     }
@@ -820,7 +838,7 @@ public class SnowflakeIO {
               table,
               query,
               writeDisposition,
-              location,
+              storageIntegrationName,
               stagingBucketDir);
       snowflakeService.write(config);
     }

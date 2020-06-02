@@ -24,7 +24,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.io.snowflake.Location;
 import org.apache.beam.sdk.io.snowflake.enums.CloudProvider;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -81,7 +80,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
     String table = config.getTable();
     String query = config.getQuery();
     WriteDisposition writeDisposition = config.getWriteDisposition();
-    Location location = config.getLocation();
+    String storageIntegrationName = config.getstorageIntegrationName();
     String stagingBucketDir = config.getStagingBucketDir();
 
     String source;
@@ -98,12 +97,15 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
 
     prepareTableAccordingWriteDisposition(dataSource, table, writeDisposition);
 
-    if (location.isStorageIntegrationName()) {
-      String integration = location.getStorageIntegrationName();
+    if (!storageIntegrationName.isEmpty()) {
       query =
           String.format(
               "COPY INTO %s FROM %s FILES=(%s) FILE_FORMAT=(TYPE=CSV FIELD_OPTIONALLY_ENCLOSED_BY='%s' COMPRESSION=GZIP) STORAGE_INTEGRATION=%s;",
-              table, getProperBucketDir(source), files, CSV_QUOTE_CHAR_FOR_COPY, integration);
+              table,
+              getProperBucketDir(source),
+              files,
+              CSV_QUOTE_CHAR_FOR_COPY,
+              storageIntegrationName);
     } else {
       query =
           String.format(

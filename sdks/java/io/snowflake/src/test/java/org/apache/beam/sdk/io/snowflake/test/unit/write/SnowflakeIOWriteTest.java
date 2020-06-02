@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 import net.snowflake.client.jdbc.SnowflakeSQLException;
-import org.apache.beam.sdk.io.snowflake.Location;
 import org.apache.beam.sdk.io.snowflake.SnowflakeIO;
 import org.apache.beam.sdk.io.snowflake.SnowflakePipelineOptions;
 import org.apache.beam.sdk.io.snowflake.services.SnowflakeService;
@@ -57,7 +56,6 @@ public class SnowflakeIOWriteTest {
 
   private static SnowflakePipelineOptions options;
   private static SnowflakeIO.DataSourceConfiguration dc;
-  private static Location location;
 
   private static SnowflakeService snowflakeService;
   private static List<Long> testData;
@@ -78,7 +76,6 @@ public class SnowflakeIOWriteTest {
     options.setStorageIntegrationName("STORAGE_INTEGRATION");
     options.setServerName("NULL.snowflakecomputing.com");
 
-    location = Location.of(options);
     dc =
         SnowflakeIO.DataSourceConfiguration.create(new FakeSnowflakeBasicDataSource())
             .withServerName(options.getServerName());
@@ -99,7 +96,8 @@ public class SnowflakeIOWriteTest {
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withSnowflakeService(snowflakeService));
 
     pipeline.run(options).waitUntilFinish();
@@ -117,7 +115,8 @@ public class SnowflakeIOWriteTest {
             "External text write IO",
             SnowflakeIO.<Long>write()
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapper())
                 .withSnowflakeService(snowflakeService));
@@ -140,7 +139,8 @@ public class SnowflakeIOWriteTest {
                 .withDataSourceConfiguration(dc)
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withSnowflakeService(snowflakeService));
 
     pipeline.run(options).waitUntilFinish();
@@ -156,7 +156,8 @@ public class SnowflakeIOWriteTest {
             "Write SnowflakeIO",
             SnowflakeIO.<KV<String, Long>>write()
                 .withTable(FAKE_TABLE)
-                .withLocation(location)
+                .withStagingBucketName(options.getStagingBucketName())
+                .withStorageIntegrationName(options.getStorageIntegrationName())
                 .withUserDataMapper(TestUtils.getLongCsvMapperKV())
                 .withDataSourceConfiguration(dc)
                 .withQueryTransformation(query)

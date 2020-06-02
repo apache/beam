@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.snowflake.services;
 
 import java.util.List;
 import javax.sql.DataSource;
-import org.apache.beam.sdk.io.snowflake.Location;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 
@@ -32,7 +31,6 @@ public class SnowflakeServiceConfig extends ServiceConfig {
   private List<String> filesList;
 
   private WriteDisposition writeDisposition;
-  private Location location;
   private String stagingBucketDir;
 
   public SnowflakeServiceConfig(
@@ -54,14 +52,14 @@ public class SnowflakeServiceConfig extends ServiceConfig {
       String table,
       String query,
       WriteDisposition writeDisposition,
-      Location location,
+      String storageIntegrationName,
       String stagingBucketDir) {
     this.dataSourceProviderFn = dataSourceProviderFn;
     this.filesList = filesList;
     this.table = table;
     this.query = query;
     this.writeDisposition = writeDisposition;
-    this.location = location;
+    this.storageIntegrationName = storageIntegrationName;
     this.stagingBucketDir = stagingBucketDir;
   }
 
@@ -91,9 +89,5 @@ public class SnowflakeServiceConfig extends ServiceConfig {
 
   public WriteDisposition getWriteDisposition() {
     return writeDisposition;
-  }
-
-  public Location getLocation() {
-    return location;
   }
 }
