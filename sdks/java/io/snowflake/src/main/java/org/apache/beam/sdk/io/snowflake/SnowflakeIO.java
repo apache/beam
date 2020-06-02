@@ -664,7 +664,7 @@ public class SnowflakeIO {
 
       String stagingBucketDir = String.format("%s/%s/", getStagingBucketName(), WRITE_TMP_PATH);
 
-      PCollection out = write(input, stagingBucketDir);
+      PCollection<String> out = write(input, stagingBucketDir);
       out.setCoder(StringUtf8Coder.of());
 
       return PDone.in(out.getPipeline());
@@ -682,11 +682,11 @@ public class SnowflakeIO {
       checkArgument(getTable() != null, "withTable() is required");
     }
 
-    private PCollection write(PCollection input, String stagingBucketDir) {
+    private PCollection<String> write(PCollection<T> input, String stagingBucketDir) {
       SnowflakeService snowflakeService =
           getSnowflakeService() != null ? getSnowflakeService() : new SnowflakeServiceImpl();
 
-      PCollection files = writeFiles(input, stagingBucketDir);
+      PCollection<String> files = writeFiles(input, stagingBucketDir);
 
       files =
           (PCollection)
@@ -696,9 +696,9 @@ public class SnowflakeIO {
           files.apply("Copy files to table", copyToTable(snowflakeService, stagingBucketDir));
     }
 
-    private PCollection writeFiles(PCollection<T> input, String stagingBucketDir) {
+    private PCollection<String> writeFiles(PCollection<T> input, String stagingBucketDir) {
 
-      PCollection mappedUserData =
+      PCollection<String> mappedUserData =
           input
               .apply(
                   MapElements.via(
