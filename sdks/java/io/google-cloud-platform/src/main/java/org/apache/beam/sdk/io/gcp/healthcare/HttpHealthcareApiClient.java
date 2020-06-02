@@ -417,6 +417,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       this.payload = payload;
       this.method = Method.POST;
       this.headers = new HashMap<>();
+      this.parameters = new HashMap<>();
     }
 
     public static FhirHttpRequest of(String fhirStore, String payload) {
@@ -486,7 +487,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
         .addHeader("Accept", FHIRSTORE_HEADER_ACCEPT);
 
-    // add additional headers
+    // add additional parameters
     for (Map.Entry<String, String> param : fhirHttpRequest.parameters.entrySet()) {
       requestBuilder.addParameter(param.getKey(), param.getValue());
     }

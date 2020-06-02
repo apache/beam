@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.BUNDLES;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
 import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.RESOURCES;
 import static org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.HEALTHCARE_DATASET_TEMPLATE;
@@ -27,9 +26,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
-import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Import.ContentStructure;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.GetByKey;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -102,20 +99,20 @@ public class FhirIOUpdateIT {
     FhirIOTestUtil.tearDownTempBucket();
   }
 
-  // TODO(jaketf) add IT for conditional create, update, conditional update transforms.
   @Test
   public void testFhirIO_CreateResources() {
-    Result writeResult =
+    Result createResult =
         (Result)
             pipeline
-                .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+                .apply("Seed Test Resources", Create.of(RESOURCES.get(version)))
                 .apply(
+                    "Create FHIR Resources",
                     FhirIO.<String>createResources(options.getFhirStore())
                         .withTypeFunction(new GetByKey("resourceType"))
                         .withIfNotExistFunction(new FhirIOTestUtil.ExtractIDSearchQuery())
                         .withFormatBodyFunction(x -> x));
 
-    PAssert.that(writeResult.getFailedBodies()).empty();
+    PAssert.that(createResult.getFailedBodies()).empty();
 
     pipeline.run().waitUntilFinish();
   }
@@ -123,10 +120,10 @@ public class FhirIOUpdateIT {
   @Test
   public void testFhirIO_Update() {
     // TODO write initial resources to FHIR
-    Result writeResult =
+    Result updateResult =
         (Result)
             pipeline
-                .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+                .apply("Seed Test Resources", Create.of(RESOURCES.get(version)))
                 .apply("Extract ID keys", WithKeys.of(new GetByKey("id")))
                 .apply(
                     "Update Resources",
@@ -134,7 +131,7 @@ public class FhirIOUpdateIT {
                         .withResourceNameFunction(x -> x.getKey())
                         .withFormatBodyFunction(x -> ((KV<String, String>) x).getValue()));
 
-    PAssert.that(writeResult.getFailedBodies()).empty();
+    PAssert.that(updateResult.getFailedBodies()).empty();
 
     pipeline.run().waitUntilFinish();
     // TODO spot check update results
@@ -143,7 +140,7 @@ public class FhirIOUpdateIT {
   @Test
   public void testFhirIO_ConditionalUpdate() {
     // TODO write initial resources to FHIR
-    Result writeResult =
+    Result conditionalUpdateResult =
         (Result)
             pipeline
                 .apply("Create Test Resources", Create.of(RESOURCES.get(version)))

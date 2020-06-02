@@ -28,6 +28,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -55,13 +56,14 @@ class FhirIOTestUtil {
     @Override
     public String apply(String resource) {
       try {
-        Map<String, String> map = mapper.readValue(resource.getBytes(), Map.class);
+        Map<String, String> map =
+            mapper.readValue(resource.getBytes(StandardCharsets.UTF_8), Map.class);
         String id = map.get("id");
         return String.format("_id=%s", id);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      }
+    }
   }
 
   public static class GetByKey implements SerializableFunction<String, String> {
@@ -76,7 +78,8 @@ class FhirIOTestUtil {
     @Override
     public String apply(String resource) {
       try {
-        Map<String, String> map = mapper.readValue(resource.getBytes(), Map.class);
+        Map<String, String> map =
+            mapper.readValue(resource.getBytes(StandardCharsets.UTF_8), Map.class);
         return map.get(key);
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -106,21 +109,21 @@ class FhirIOTestUtil {
         .map(String::new);
   }
 
-  private static Stream<String> readPrettyBundles(String version) {
-    return readAllTestResources("transactional_bundles", version);
+  private static List<String> readPrettyBundles(String version) {
+    return readAllTestResources("transactional_bundles", version).collect(Collectors.toList());
   }
 
-  private static Stream<String> readPrettyResources(String version) {
-    return readAllTestResources("resources", version);
+  private static List<String> readResources(String version) {
+    return readAllTestResources("resources", version) // stream of file contents
+        .map((String x) -> x.split("\\r?\\n")) // split lines
+        .flatMap(Arrays::stream) // flatten lines for all files
+        .collect(Collectors.toList());
   }
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
-  static final List<String> DSTU2_PRETTY_BUNDLES =
-      readPrettyBundles("DSTU2").collect(Collectors.toList());
-  static final List<String> STU3_PRETTY_BUNDLES =
-      readPrettyBundles("STU3").collect(Collectors.toList());
-  static final List<String> R4_PRETTY_BUNDLES =
-      readPrettyBundles("R4").collect(Collectors.toList());
+  static final List<String> DSTU2_PRETTY_BUNDLES = readPrettyBundles("DSTU2");
+  static final List<String> STU3_PRETTY_BUNDLES = readPrettyBundles("STU3");
+  static final List<String> R4_PRETTY_BUNDLES = readPrettyBundles("R4");
 
   static final Map<String, List<String>> BUNDLES;
 
@@ -134,20 +137,17 @@ class FhirIOTestUtil {
 
   // Could generate more messages at scale using a tool like
   // https://synthetichealth.github.io/synthea/ if necessary chose not to avoid the dependency.
-  static final List<String> DSTU2_PRETTY_RESOURCES =
-      readPrettyResources("DSTU2").collect(Collectors.toList());
-  static final List<String> STU3_PRETTY_RESOURCES =
-      readPrettyResources("STU3").collect(Collectors.toList());
-  static final List<String> R4_PRETTY_RESOURCES =
-      readPrettyResources("R4").collect(Collectors.toList());
+  static final List<String> DSTU2_RESOURCES = readResources("DSTU2");
+  static final List<String> STU3_RESOURCES = readResources("STU3");
+  static final List<String> R4_RESOURCES = readResources("R4");
 
   static final Map<String, List<String>> RESOURCES;
 
   static {
     Map<String, List<String>> m = new HashMap<>();
-    m.put("DSTU2", DSTU2_PRETTY_RESOURCES);
-    m.put("STU3", STU3_PRETTY_RESOURCES);
-    m.put("R4", R4_PRETTY_RESOURCES);
+    m.put("DSTU2", DSTU2_RESOURCES);
+    m.put("STU3", STU3_RESOURCES);
+    m.put("R4", R4_RESOURCES);
     RESOURCES = Collections.unmodifiableMap(m);
   }
 
