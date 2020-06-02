@@ -409,7 +409,6 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     try {
       uri =
           new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir")
-              .setParameter("access_token", credentials.getAccessToken().getTokenValue())
               .build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
