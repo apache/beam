@@ -147,4 +147,20 @@ public class MemoryMonitorTest {
     // Try to upload the heap dump
     assertFalse(monitor.tryUploadHeapDumpIfItExists());
   }
+
+  @Test
+  public void disableMemoryMonitor() throws Exception {
+    MemoryMonitor disabledMonitor =
+        MemoryMonitor.forTest(provider, 10, 0, true, 100.0, null, localDumpFolder);
+    Thread disabledMonitorThread = new Thread(disabledMonitor);
+    disabledMonitorThread.start();
+
+    // Monitor thread should stop quickly after starting. Wait 10 seconds, and check that monitor
+    // thread is not alive.
+    disabledMonitorThread.join(10000);
+    assertFalse(disabledMonitorThread.isAlive());
+
+    // Enabled monitor thread should still be running.
+    assertTrue(thread.isAlive());
+  }
 }

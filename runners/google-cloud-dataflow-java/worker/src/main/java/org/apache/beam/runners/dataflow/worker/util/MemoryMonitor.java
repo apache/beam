@@ -168,11 +168,10 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
   private final boolean canDumpHeap;
 
   /**
-   * The GC thrashing threshold (0.00 - 100.00) for every period. If the time spent on garbage
-   * collection in one period exceeds this threshold, that period is considered to be in GC
-   * thrashing.
+   * The GC thrashing threshold for every period. If the time spent on garbage collection in one
+   * period exceeds this threshold, that period is considered to be in GC thrashing.
    */
-  private final double GCThrashingPercentagePerPeriod;
+  private final double gcThrashingPercentagePerPeriod;
 
   private final AtomicBoolean isThrashing = new AtomicBoolean(false);
 
@@ -217,7 +216,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       long sleepTimeMillis,
       int shutDownAfterNumGCThrashing,
       boolean canDumpHeap,
-      double GCThrashingPercentagePerPeriod,
+      double gcThrashingPercentagePerPeriod,
       @Nullable String uploadToGCSPath,
       File localDumpFolder) {
     return new MemoryMonitor(
@@ -225,7 +224,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
         sleepTimeMillis,
         shutDownAfterNumGCThrashing,
         canDumpHeap,
-        GCThrashingPercentagePerPeriod,
+        gcThrashingPercentagePerPeriod,
         uploadToGCSPath,
         localDumpFolder);
   }
@@ -235,14 +234,14 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
       long sleepTimeMillis,
       int shutDownAfterNumGCThrashing,
       boolean canDumpHeap,
-      double GCThrashingPercentagePerPeriod,
+      double gcThrashingPercentagePerPeriod,
       @Nullable String uploadToGCSPath,
       File localDumpFolder) {
     this.gcStatsProvider = gcStatsProvider;
     this.sleepTimeMillis = sleepTimeMillis;
     this.shutDownAfterNumGCThrashing = shutDownAfterNumGCThrashing;
     this.canDumpHeap = canDumpHeap;
-    this.GCThrashingPercentagePerPeriod = GCThrashingPercentagePerPeriod;
+    this.gcThrashingPercentagePerPeriod = gcThrashingPercentagePerPeriod;
     this.uploadToGCSPath = uploadToGCSPath;
     this.localDumpFolder = localDumpFolder;
   }
@@ -411,7 +410,7 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     maxGCPercentage.set(Math.max(maxGCPercentage.get(), gcPercentage));
     timeInGC = inGC;
 
-    return gcPercentage > this.GCThrashingPercentagePerPeriod;
+    return gcPercentage > this.gcThrashingPercentagePerPeriod;
   }
 
   /**
@@ -475,10 +474,10 @@ public class MemoryMonitor implements Runnable, StatusDataProvider {
     synchronized (waitingForStateChange) {
       Preconditions.checkState(!isRunning.getAndSet(true), "already running");
 
-      if (this.GCThrashingPercentagePerPeriod <= 0 || this.GCThrashingPercentagePerPeriod >= 100) {
+      if (this.gcThrashingPercentagePerPeriod <= 0 || this.gcThrashingPercentagePerPeriod >= 100) {
         LOG.warn(
-            "GCThrashingPercentagePerPeriod: {} is not valid value. Not starting MemoryMonitor.",
-            this.GCThrashingPercentagePerPeriod);
+            "gcThrashingPercentagePerPeriod: {} is not valid value. Not starting MemoryMonitor.",
+            this.gcThrashingPercentagePerPeriod);
         isRunning.set(false);
       }
 
