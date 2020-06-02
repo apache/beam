@@ -507,22 +507,6 @@ For all other JIRA issues:
 
 If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
 
-### Review Release Notes in JIRA
-
-JIRA automatically generates Release Notes based on the `Fix Version` field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.
-
-Open the release notes from the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel) by choosing the release underway and clicking Release Notes.
-
-You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:
-
-* Be appropriately classified as `Bug`, `New Feature`, `Improvement`, etc.
-* Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.
-* Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.
-* Have an issue title that makes sense when read on its own.
-
-Adjust any of the above properties to the improve clarity and presentation of the Release Notes.
-
-
 ### Review cherry-picks
 
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
@@ -555,7 +539,6 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 * JIRA release item for the subsequent release has been created;
 * All test failures from branch verification have associated JIRA issues;
 * There are no release blocking JIRA issues;
-* Release Notes in JIRA have been audited and adjusted;
 * Combined javadoc has the appropriate contents;
 * Release branch has been created;
 * There are no open pull requests to release branch;
