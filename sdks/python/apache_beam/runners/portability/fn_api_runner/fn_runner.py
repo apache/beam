@@ -383,7 +383,9 @@ class FnApiRunner(runner.PipelineRunner):
                                      decoded_timer.windows[0]] = decoded_timer
         out = create_OutputStream()
         for decoded_timer in timers_by_key_and_window.values():
-          timer_coder_impl.encode_to_stream(decoded_timer, out, True)
+          # Only add not cleared timer to fired timers.
+          if not decoded_timer.clear_bit:
+            timer_coder_impl.encode_to_stream(decoded_timer, out, True)
         fired_timers[(transform_id, timer_family_id)] = ListBuffer(
             coder_impl=timer_coder_impl)
         fired_timers[(transform_id, timer_family_id)].append(out.get())
