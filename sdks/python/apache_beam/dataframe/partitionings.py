@@ -58,9 +58,12 @@ class Index(Partitioning):
   These form a partial order, given by
 
       Nothing() < Index([i]) < Index([i, j]) < ... < Index() < Singleton()
+
+  The ordering is implemented via the is_subpartitioning_of method, where the
+  examples on the right are subpartitionings of the examples on the left above.
   """
 
-  _INDEX_PARTITIONS = 100
+  _INDEX_PARTITIONS = 10
 
   def __init__(self, levels=None):
     self._levels = levels
