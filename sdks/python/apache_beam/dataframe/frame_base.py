@@ -131,3 +131,13 @@ def copy_and_mutate(func):
     return copy
 
   return wrapper
+
+
+class WontImplementError(NotImplementedError):
+  """An subclass of NotImplementedError to raise indicating that implementing
+  the given method is infeasible.
+
+  Raising this error will also prevent this doctests from being validated
+  when run with the beam dataframe validation doctest runner.
+  """
+  pass
