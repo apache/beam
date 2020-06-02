@@ -25,7 +25,7 @@ LICENSE_DIR="${ROOT}/sdks/java/container/build/target/third_party_licenses"
 ./gradlew generateLicenseReport --rerun-tasks
 
 # activate virtualenv
-virtualenv ${ENV_DIR} && . ${ENV_DIR}/bin/activate
+virtualenv --python=python3 ${ENV_DIR} && . ${ENV_DIR}/bin/activate
 
 # install packages
 ${ENV_DIR}/bin/pip install -r ${SCRIPT_DIR}/requirement.txt
