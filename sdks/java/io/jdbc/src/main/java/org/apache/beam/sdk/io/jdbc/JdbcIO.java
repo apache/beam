@@ -228,6 +228,9 @@ public class JdbcIO {
 
   private static final long DEFAULT_BATCH_SIZE = 1000L;
   private static final int DEFAULT_FETCH_SIZE = 50_000;
+  // Default values used from fluent backoff.
+  private static final Duration DEFAULT_INITIAL_BACKOFF = Duration.standardSeconds(1);
+  private static final Duration DEFAULT_MAX_CUMULATIVE_BACKOFF = Duration.standardDays(1000);
 
   /**
    * Write data to a JDBC datasource.
@@ -242,7 +245,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_WriteVoid.Builder<T>()
         .setBatchSize(DEFAULT_BATCH_SIZE)
         .setRetryStrategy(new DefaultRetryStrategy())
-        .setFluentBackoffConfiguration(new DefaultFluentBackoffConfiguration(5, 5))
+        .setRetryConfiguration(RetryConfiguration.create(Duration.standardSeconds(5), 5))
         .build();
   }
 
@@ -905,6 +908,73 @@ public class JdbcIO {
   }
 
   /**
+   * Builder used to help with retry configuration for {@link JdbcIO}. The retry configuration
+   * accepts maxAttempts and maxDuration for {@link FluentBackoff}.
+   */
+  @AutoValue
+  public abstract static class RetryConfiguration implements Serializable {
+
+    abstract int getMaxAttempts();
+
+    @Nullable
+    abstract Duration getMaxDuration();
+
+    @Nullable
+    abstract Duration getInitialDuration();
+
+    abstract RetryConfiguration.Builder builder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setMaxAttempts(int maxAttempts);
+
+      abstract Builder setMaxDuration(Duration maxDuration);
+
+      abstract Builder setInitialDuration(Duration initialDuration);
+
+      abstract RetryConfiguration build();
+    }
+
+    public static RetryConfiguration create(int maxAttempts) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      return create(maxAttempts, DEFAULT_MAX_CUMULATIVE_BACKOFF, DEFAULT_INITIAL_BACKOFF);
+    }
+
+    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+          "maxDuration must be greater than 0");
+      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_BACKOFF);
+    }
+
+    public static RetryConfiguration create(Duration initialDuration, int maxAttempts) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration must be greater than 0");
+      return create(maxAttempts, DEFAULT_MAX_CUMULATIVE_BACKOFF, initialDuration);
+    }
+
+    public static RetryConfiguration create(int maxAttempts,
+        Duration maxDuration,
+        Duration initialDuration) {
+      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
+      checkArgument(
+          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
+          "maxDuration must be greater than 0");
+      checkArgument(
+          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
+          "initialDuration must be greater than 0");
+      return new AutoValue_JdbcIO_RetryConfiguration.Builder()
+          .setMaxAttempts(maxAttempts)
+          .setInitialDuration(initialDuration)
+          .setMaxDuration(maxDuration)
+          .build();
+    }
+  }
+
+  /**
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
@@ -968,6 +1038,11 @@ public class JdbcIO {
     /** See {@link WriteVoid#withRetryStrategy(RetryStrategy)}. */
     public Write<T> withRetryStrategy(RetryStrategy retryStrategy) {
       return new Write(inner.withRetryStrategy(retryStrategy));
+    }
+
+    /** See {@link WriteVoid#withRetryConfiguration(RetryConfiguration)}. */
+    public Write<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      return new Write(inner.withRetryConfiguration(retryConfiguration));
     }
 
     /** See {@link WriteVoid#withTable(String)}. */
@@ -1155,10 +1230,10 @@ public class JdbcIO {
     abstract RetryStrategy getRetryStrategy();
 
     @Nullable
-    abstract String getTable();
+    abstract RetryConfiguration getRetryConfiguration();
 
     @Nullable
-    abstract FluentBackoffConfiguration getFluentBackoffConfiguration();
+    abstract String getTable();
 
     abstract Builder<T> toBuilder();
 
@@ -1174,6 +1249,8 @@ public class JdbcIO {
       abstract Builder<T> setPreparedStatementSetter(PreparedStatementSetter<T> setter);
 
       abstract Builder<T> setRetryStrategy(RetryStrategy deadlockPredicate);
+
+      abstract Builder<T> setRetryConfiguration(RetryConfiguration retryConfiguration);
 
       abstract Builder<T> setTable(String table);
 
@@ -1221,6 +1298,16 @@ public class JdbcIO {
       return toBuilder().setRetryStrategy(retryStrategy).build();
     }
 
+    /**
+     * When a SQL exception occurs, {@link Write} uses this {@link RetryConfiguration} to
+     * exponentially back off and retry the statements based on the {@link RetryConfiguration}
+     * mentioned.
+     */
+    public WriteVoid<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
+      checkArgument(retryConfiguration != null, "retryConfiguration can not be null");
+      return toBuilder().setRetryConfiguration(retryConfiguration).build();
+    }
+
     public WriteVoid<T> withTable(String table) {
       checkArgument(table != null, "table name can not be null");
       return toBuilder().setTable(table).build();
@@ -1241,17 +1328,11 @@ public class JdbcIO {
     private static class WriteFn<T> extends DoFn<T, Void> {
 
       private final WriteVoid<T> spec;
-
-      private static final int MAX_RETRIES = 5;
-      private static final FluentBackoff BUNDLE_WRITE_BACKOFF =
-          FluentBackoff.DEFAULT
-              .withMaxRetries(MAX_RETRIES)
-              .withInitialBackoff(Duration.standardSeconds(5));
-
       private DataSource dataSource;
       private Connection connection;
       private PreparedStatement preparedStatement;
       private final List<T> records = new ArrayList<>();
+      private static FluentBackoff retryBackOff;
 
       public WriteFn(WriteVoid<T> spec) {
         this.spec = spec;
@@ -1260,6 +1341,13 @@ public class JdbcIO {
       @Setup
       public void setup() {
         dataSource = spec.getDataSourceProviderFn().apply(null);
+        RetryConfiguration retryConfiguration = spec.getRetryConfiguration();
+
+        retryBackOff =
+            FluentBackoff.DEFAULT
+                .withInitialBackoff(retryConfiguration.getInitialDuration())
+                .withMaxCumulativeBackoff(retryConfiguration.getMaxDuration())
+                .withMaxRetries(retryConfiguration.getMaxAttempts());
       }
 
       @StartBundle
@@ -1309,7 +1397,7 @@ public class JdbcIO {
           return;
         }
         Sleeper sleeper = Sleeper.DEFAULT;
-        BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+        BackOff backoff = retryBackOff.backoff();
         while (true) {
           try (PreparedStatement preparedStatement =
               connection.prepareStatement(spec.getStatement().get())) {
