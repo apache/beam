@@ -420,6 +420,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         RequestBuilder.post()
             .setUri(uri)
             .setEntity(requestEntity)
+            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
             .addHeader("User-Agent", USER_AGENT)
             .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
             .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
@@ -429,6 +430,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     HttpResponse response = httpClient.execute(request);
     HttpEntity responseEntity = response.getEntity();
     String content = EntityUtils.toString(responseEntity);
+
     // Check 2XX code.
     if (!(response.getStatusLine().getStatusCode() / 100 == 2)) {
       throw HealthcareHttpException.of(response);
