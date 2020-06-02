@@ -460,10 +460,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
       if (!Strings.isNullOrEmpty(fhirHttpRequest.pathSuffix)) {
         uriString += fhirHttpRequest.pathSuffix;
       }
-      uri =
-          new URIBuilder(uriString)
-              .setParameter("access_token", credentials.getAccessToken().getTokenValue())
-              .build();
+      uri = new URIBuilder(uriString).build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
       throw new IllegalArgumentException(e);
@@ -483,6 +480,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     requestBuilder
         .setUri(uri)
         .setEntity(requestEntity)
+        .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
         .addHeader("User-Agent", USER_AGENT)
         .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
         .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
@@ -532,7 +530,10 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   @Override
   public HttpBody fhirConditionalUpdate(
-      String fhirStore, String type, String resource, Map<String, String> searchParameters,
+      String fhirStore,
+      String type,
+      String resource,
+      Map<String, String> searchParameters,
       @Nullable String etag)
       throws IOException, HealthcareHttpException {
     Map<String, String> headers = new HashMap<>();
@@ -548,8 +549,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
   }
 
   @Override
-  public HttpBody fhirUpdate(String fhirStore, String relativeResourceName, String resource,
-      @Nullable String etag)
+  public HttpBody fhirUpdate(
+      String fhirStore, String relativeResourceName, String resource, @Nullable String etag)
       throws IOException, HealthcareHttpException {
     Map<String, String> headers = new HashMap<>();
     if (etag != null) {

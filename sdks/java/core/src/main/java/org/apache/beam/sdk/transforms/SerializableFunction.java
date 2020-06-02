@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.io.Serializable;
 

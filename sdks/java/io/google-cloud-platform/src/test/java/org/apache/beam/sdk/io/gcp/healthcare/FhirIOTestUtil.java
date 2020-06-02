@@ -45,37 +45,42 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
 
-
-  public static class ExtractIDSearchQuery implements
-      SerializableFunction<String, String> {
+  public static class ExtractIDSearchQuery implements SerializableFunction<String, String> {
     private ObjectMapper mapper;
 
-    ExtractIDSearchQuery(){
+    ExtractIDSearchQuery() {
       mapper = new ObjectMapper();
     }
 
     @Override
-    public String apply(String resource) throws IOException {
-      Map<String, String> map = mapper.readValue(resource.toString().getBytes(), Map.class);
-      String id = map.get("id");
-      return String.format("_id=%s", id);
-    }
+    public String apply(String resource) {
+      try {
+        Map<String, String> map = mapper.readValue(resource.getBytes(), Map.class);
+        String id = map.get("id");
+        return String.format("_id=%s", id);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      }
   }
 
-  public static class GetByKey implements
-      SerializableFunction<String, String> {
+  public static class GetByKey implements SerializableFunction<String, String> {
     private final String key;
     private ObjectMapper mapper;
 
-    public GetByKey(String key){
+    public GetByKey(String key) {
       this.key = key;
       mapper = new ObjectMapper();
     }
 
     @Override
-    public String apply(String resource) throws IOException {
-      Map<String, String> map = mapper.readValue(resource.getBytes(), Map.class);
-      return map.get(key);
+    public String apply(String resource) {
+      try {
+        Map<String, String> map = mapper.readValue(resource.getBytes(), Map.class);
+        return map.get(key);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -83,9 +88,8 @@ class FhirIOTestUtil {
   // TODO read update resources function.
   // TODO spot check resource update utility.
 
-  private static Stream<String> readAllTestResources(String subDir, String version ) {
-    Path resourceDir = Paths.get("build", "resources", "test",
-        subDir, version);
+  private static Stream<String> readAllTestResources(String subDir, String version) {
+    Path resourceDir = Paths.get("build", "resources", "test", subDir, version);
     String absolutePath = resourceDir.toFile().getAbsolutePath();
     File dir = new File(absolutePath);
     File[] fhirJsons = dir.listFiles();
@@ -100,8 +104,8 @@ class FhirIOTestUtil {
               }
             })
         .map(String::new);
-
   }
+
   private static Stream<String> readPrettyBundles(String version) {
     return readAllTestResources("transactional_bundles", version);
   }
@@ -134,7 +138,7 @@ class FhirIOTestUtil {
       readPrettyResources("DSTU2").collect(Collectors.toList());
   static final List<String> STU3_PRETTY_RESOURCES =
       readPrettyResources("STU3").collect(Collectors.toList());
-  static final List<String> R4_PRETTY_RESOURCES=
+  static final List<String> R4_PRETTY_RESOURCES =
       readPrettyResources("R4").collect(Collectors.toList());
 
   static final Map<String, List<String>> RESOURCES;

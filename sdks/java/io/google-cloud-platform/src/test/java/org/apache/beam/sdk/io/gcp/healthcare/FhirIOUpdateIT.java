@@ -48,7 +48,7 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
-public class FhirIOWriteIT {
+public class FhirIOUpdateIT {
 
   @Parameters(name = "{0}")
   public static Collection<String> versions() {
@@ -65,7 +65,7 @@ public class FhirIOWriteIT {
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
-  public FhirIOWriteIT(String version) {
+  public FhirIOUpdateIT(String version) {
     this.version = version;
     this.fhirStoreName =
         "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
@@ -102,12 +102,18 @@ public class FhirIOWriteIT {
     FhirIOTestUtil.tearDownTempBucket();
   }
 
+  // TODO(jaketf) add IT for conditional create, update, conditional update transforms.
   @Test
-  public void testFhirIO_ExecuteBundle() throws IOException {
-    FhirIO.Write.Result writeResult =
-        pipeline
-            .apply(Create.of(BUNDLES.get(version)))
-            .apply(FhirIO.Write.executeBundles(options.getFhirStore()));
+  public void testFhirIO_CreateResources() {
+    Result writeResult =
+        (Result)
+            pipeline
+                .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+                .apply(
+                    FhirIO.<String>createResources(options.getFhirStore())
+                        .withTypeFunction(new GetByKey("resourceType"))
+                        .withIfNotExistFunction(new FhirIOTestUtil.ExtractIDSearchQuery())
+                        .withFormatBodyFunction(x -> x));
 
     PAssert.that(writeResult.getFailedBodies()).empty();
 
@@ -115,21 +121,38 @@ public class FhirIOWriteIT {
   }
 
   @Test
-  public void testFhirIO_Import() {
-    Pipeline pipeline = Pipeline.create(options);
-    options.setTempLocation("gs://temp-storage-for-healthcare-io-tests");
-    FhirIO.Write.Result result =
-        pipeline
-            .apply(Create.of(BUNDLES.get(version)))
-            .apply(
-                FhirIO.Write.fhirStoresImport(
-                    options.getFhirStore(),
-                    options.getGcsDeadLetterPath(),
-                    ContentStructure.BUNDLE));
+  public void testFhirIO_Update() {
+    // TODO write initial resources to FHIR
+    Result writeResult =
+        (Result)
+            pipeline
+                .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+                .apply("Extract ID keys", WithKeys.of(new GetByKey("id")))
+                .apply(
+                    "Update Resources",
+                    FhirIO.<KV<String, String>>update(options.getFhirStore())
+                        .withResourceNameFunction(x -> x.getKey())
+                        .withFormatBodyFunction(x -> ((KV<String, String>) x).getValue()));
 
-    PAssert.that(result.getFailedBodies()).empty();
-    PAssert.that(result.getFailedFiles()).empty();
+    PAssert.that(writeResult.getFailedBodies()).empty();
 
     pipeline.run().waitUntilFinish();
+    // TODO spot check update results
+  }
+
+  @Test
+  public void testFhirIO_ConditionalUpdate() {
+    // TODO write initial resources to FHIR
+    Result writeResult =
+        (Result)
+            pipeline
+                .apply("Create Test Resources", Create.of(RESOURCES.get(version)))
+                .apply(
+                    "Conditional Update Resources",
+                    FhirIO.<String>conditionalUpdate(options.getFhirStore())
+                        .withTypeFunction(x -> "patient")
+                        .withFormatBodyFunction(x -> "{}")
+                        .withSearchParametersFunction(x -> new HashMap<>()));
+    // TODO spot check update results
   }
 }

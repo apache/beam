@@ -1284,7 +1284,7 @@ public class FhirIO {
    * @param fhirStore the fhir store
    * @return the fhir io . create resources
    */
-  public static <T> FhirIO.CreateResources<T> createResources(ValueProvider<String> fhirStore){
+  public static <T> FhirIO.CreateResources<T> createResources(ValueProvider<String> fhirStore) {
     return new CreateResources(fhirStore);
   }
 
@@ -1295,7 +1295,7 @@ public class FhirIO {
    * @param fhirStore the fhir store
    * @return the fhir io . create resources
    */
-  public static <T> FhirIO.CreateResources<T> createResources(String fhirStore){
+  public static <T> FhirIO.CreateResources<T> createResources(String fhirStore) {
     return new CreateResources(fhirStore);
   }
   /**
@@ -1353,8 +1353,7 @@ public class FhirIO {
      * @param typeFunction for extracting type from a resource.
      * @return the create resources
      */
-    public CreateResources withTypeFunction(
-        SerializableFunction<T, String> typeFunction) {
+    public CreateResources withTypeFunction(SerializableFunction<T, String> typeFunction) {
       this.typeFunction = typeFunction;
       return this;
     }
@@ -1388,7 +1387,8 @@ public class FhirIO {
           input
               .apply(
                   ParDo.of(
-                      new CreateFn<T>(fhirStore, typeFunction, formatBodyFunction, ifNoneExistFunction)))
+                      new CreateFn<T>(
+                          fhirStore, typeFunction, formatBodyFunction, ifNoneExistFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
@@ -1419,8 +1419,7 @@ public class FhirIO {
       }
 
       @ProcessElement
-      public void create(ProcessContext context)
-          throws IOException {
+      public void create(ProcessContext context) throws IOException {
         T input = context.element();
         String body = formatBodyFunction.apply(input);
         String type = typeFunction.apply(input);
@@ -1448,7 +1447,7 @@ public class FhirIO {
    * @param fhirStore the fhir store
    * @return the update resources
    */
-  public static <T extends KV> UpdateResources<T> update(ValueProvider<String> fhirStore){
+  public static <T extends KV> UpdateResources<T> update(ValueProvider<String> fhirStore) {
     return new UpdateResources<T>(fhirStore);
   }
 
@@ -1459,24 +1458,24 @@ public class FhirIO {
    * @param fhirStore the fhir store
    * @return the update resources
    */
-  public static <T extends KV> UpdateResources<T> update(String fhirStore){
+  public static <T extends KV> UpdateResources<T> update(String fhirStore) {
     return new UpdateResources<T>(fhirStore);
   }
 
   /**
    * {@link PTransform} for Updating FHIR resources resources.
    *
-   * This transform assumes the input {@link PCollection} contains
-   * {@link KV} of resource name, value pairs and by default will call {@code .toString} to extract
-   * string values.
-   * However, the user can override this behavior by specifying a {@link SerializableFunction} with
-   * custom logic to extract the resource name and body from the {@link KV} in
-   * {@link UpdateResources#withResourceNameFunction(SerializableFunction)} and
-   * {@link UpdateResources#withFormatBodyFunction(SerializableFunction)}
+   * <p>This transform assumes the input {@link PCollection} contains {@link KV} of resource name,
+   * value pairs and by default will call {@code .toString} to extract string values. However, the
+   * user can override this behavior by specifying a {@link SerializableFunction} with custom logic
+   * to extract the resource name and body from the {@link KV} in {@link
+   * UpdateResources#withResourceNameFunction(SerializableFunction)} and {@link
+   * UpdateResources#withFormatBodyFunction(SerializableFunction)}
    *
    * <p>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.fhirStores.fhir/update
    */
-  public static class UpdateResources<T extends KV> extends PTransform<PCollection<T>, Write.Result> {
+  public static class UpdateResources<T extends KV>
+      extends PTransform<PCollection<T>, Write.Result> {
     private final ValueProvider<String> fhirStore;
     private SerializableFunction<T, String> formatBodyFunction;
     private SerializableFunction<T, String> resourceNameFunction;
@@ -1530,12 +1529,10 @@ public class FhirIO {
      * @param etagFunction ETag function
      * @return the update resources
      */
-    public UpdateResources withETagFunction(
-        SerializableFunction<T, String> etagFunction) {
+    public UpdateResources withETagFunction(SerializableFunction<T, String> etagFunction) {
       this.etagFunction = etagFunction;
       return this;
     }
-
 
     @Override
     public FhirIO.Write.Result expand(PCollection<T> input) {
@@ -1548,7 +1545,10 @@ public class FhirIO {
       return Write.Result.in(
           input.getPipeline(),
           input
-              .apply(ParDo.of(new UpdateFn<T>(fhirStore, formatBodyFunction, resourceNameFunction, etagFunction)))
+              .apply(
+                  ParDo.of(
+                      new UpdateFn<T>(
+                          fhirStore, formatBodyFunction, resourceNameFunction, etagFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
 
@@ -1579,8 +1579,7 @@ public class FhirIO {
       }
 
       @ProcessElement
-      public void update(ProcessContext context)
-          throws IOException {
+      public void update(ProcessContext context) throws IOException {
         T input = context.element();
         String body = formatBodyFunction.apply(input);
         try {
@@ -1588,7 +1587,7 @@ public class FhirIO {
           mapper.readTree(body);
           String resourceName = resourceNameFunction.apply(input);
           String etag = null;
-          if (etagFunction != null){
+          if (etagFunction != null) {
             etag = etagFunction.apply(input);
           }
           HttpBody result = client.fhirUpdate(fhirStore.get(), resourceName, body, etag);
@@ -1608,8 +1607,8 @@ public class FhirIO {
    * @param fhirStore the fhir store
    * @return the conditional update
    */
-  public static <T> ConditionalUpdate<T> conditionalUpdate(ValueProvider<String> fhirStore){
-   return new ConditionalUpdate<T>(fhirStore);
+  public static <T> ConditionalUpdate<T> conditionalUpdate(ValueProvider<String> fhirStore) {
+    return new ConditionalUpdate<T>(fhirStore);
   }
 
   /**
@@ -1619,7 +1618,7 @@ public class FhirIO {
    * @param fhirStore the fhir store
    * @return the conditional update
    */
-  public static <T> ConditionalUpdate<T> conditionalUpdate(String fhirStore){
+  public static <T> ConditionalUpdate<T> conditionalUpdate(String fhirStore) {
     return new ConditionalUpdate<T>(fhirStore);
   }
 
@@ -1652,7 +1651,6 @@ public class FhirIO {
     ConditionalUpdate(String fhirStore) {
       this.fhirStore = StaticValueProvider.of(fhirStore);
     }
-
 
     /**
      * With search parameters function conditional update.
@@ -1714,7 +1712,10 @@ public class FhirIO {
               .apply(
                   ParDo.of(
                       new ConditionalUpdateFn<T>(
-                          fhirStore, typeFunction, searchParametersFunction, formatBodyFunction,
+                          fhirStore,
+                          typeFunction,
+                          searchParametersFunction,
+                          formatBodyFunction,
                           etagFunction)))
               .setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of())));
     }
@@ -1759,7 +1760,7 @@ public class FhirIO {
           mapper.readTree(body);
           Map<String, String> searchParameters = searchParametersFunction.apply(input);
           String etag = null;
-          if (etagFunction != null){
+          if (etagFunction != null) {
             etag = etagFunction.apply(input);
           }
           client.fhirConditionalUpdate(fhirStore.get(), type, body, searchParameters, etag);
