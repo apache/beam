@@ -564,6 +564,7 @@ class TriggerPipelineTest(unittest.TestCase):
     test_stream.advance_watermark_to(START_TIMESTAMP + 2)
 
     with TestPipeline(options=PipelineOptions(['--streaming'])) as p:
+      # pylint: disable=expression-not-assigned
       (
           p
           | 'TestStream' >> test_stream
