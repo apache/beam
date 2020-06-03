@@ -110,7 +110,7 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
 				p.status = Broken
-				return err
+				return errors.Wrapf(err, "while executing Up for %v", p)
 			}
 		}
 		p.status = Up
@@ -126,19 +126,19 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, func(ctx context.Context) error { return root.StartBundle(ctx, id, manager) }); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing StartBundle for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.Process); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.FinishBundle); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing FinishBundle for %v", p)
 		}
 	}
 
