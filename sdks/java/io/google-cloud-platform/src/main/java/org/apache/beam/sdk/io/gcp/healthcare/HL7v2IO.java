@@ -41,7 +41,6 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
 import org.apache.beam.sdk.transforms.FlatMapElements;
-import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -53,11 +52,8 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
-import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Throwables;
@@ -95,14 +91,9 @@ import org.slf4j.LoggerFactory;
  * is mainly to catch scenarios where the upstream {@link PCollection} contains IDs that are not
  * valid or are not reachable due to permissions issues.
  *
- * <p>Warning, when using message fetching in {@link HL7v2IO.Read} the input collection should not
- * be {@link TimestampedValue}s. This could lead to an issue where {@link HL7v2IO.Read} can not
- * properly assign a timestamp / asses watermark based on sendTime if sendTime is before the input
- * element's timestamp.
- *
- * <p>Message Listing Message Listing with {@link ListHL7v2Messages} and {@link
- * ListTimestampedHL7v2Messages} supports batch use cases where you want to process all the messages
- * in an HL7v2 store or those matching a filter @see <a
+ * <p>Message Listing Message Listing with {@link ListHL7v2Messages} and {@link ListHL7v2Messages}
+ * supports batch use cases where you want to process all the messages in an HL7v2 store or those
+ * matching a filter @see <a
  * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters</a>
  * This paginates through results of a Messages.List call @see <a
  * href=>https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list</a>
@@ -189,21 +180,9 @@ public class HL7v2IO {
     return new ListHL7v2Messages(StaticValueProvider.of(hl7v2Stores), StaticValueProvider.of(null));
   }
 
-  /** Read all HL7v2 Messages from multiple stores as sendTime {@link TimestampedValue}s. */
-  public static ListTimestampedHL7v2Messages readAllWithTimestamps(List<String> hl7v2Stores) {
-    return new ListTimestampedHL7v2Messages(
-        StaticValueProvider.of(hl7v2Stores), StaticValueProvider.of(null));
-  }
-
   /** Read all HL7v2 Messages from multiple stores. */
   public static ListHL7v2Messages readAll(ValueProvider<List<String>> hl7v2Stores) {
     return new ListHL7v2Messages(hl7v2Stores, StaticValueProvider.of(null));
-  }
-
-  /** Read all HL7v2 Messages from multiple stores as sendTime {@link TimestampedValue}s. */
-  public static ListTimestampedHL7v2Messages readAllWithTimestamps(
-      ValueProvider<List<String>> hl7v2Stores) {
-    return new ListTimestampedHL7v2Messages(hl7v2Stores, StaticValueProvider.of(null));
   }
 
   /** Read all HL7v2 Messages from a single store. */
@@ -213,23 +192,9 @@ public class HL7v2IO {
         StaticValueProvider.of(null));
   }
 
-  /** Read HL7v2 Messages from a single store as sendTime {@link TimestampedValue}s. */
-  public static ListTimestampedHL7v2Messages readWithTimestamps(String hl7v2Store) {
-    return new ListTimestampedHL7v2Messages(
-        StaticValueProvider.of(Collections.singletonList(hl7v2Store)),
-        StaticValueProvider.of(null));
-  }
-
   /** Read all HL7v2 Messages from a single store. */
   public static ListHL7v2Messages read(ValueProvider<String> hl7v2Store) {
     return new ListHL7v2Messages(
-        StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())),
-        StaticValueProvider.of(null));
-  }
-
-  /** Read HL7v2 Messages from a single store as sendTime {@link TimestampedValue}s. */
-  public static ListTimestampedHL7v2Messages readWithTimestamps(ValueProvider<String> hl7v2Store) {
-    return new ListTimestampedHL7v2Messages(
         StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())),
         StaticValueProvider.of(null));
   }
@@ -247,20 +212,6 @@ public class HL7v2IO {
   }
 
   /**
-   * Read all HL7v2 Messages from a single store matching a filter with sendTime {@link
-   * TimestampedValue}s.
-   *
-   * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
-   */
-  public static ListTimestampedHL7v2Messages readWithFilterWithTimestamps(
-      String hl7v2Store, String filter) {
-    return new ListTimestampedHL7v2Messages(
-        StaticValueProvider.of(Collections.singletonList(hl7v2Store)),
-        StaticValueProvider.of(filter));
-  }
-
-  /**
    * Read all HL7v2 Messages from a single store matching a filter.
    *
    * @see <a
@@ -269,19 +220,6 @@ public class HL7v2IO {
   public static ListHL7v2Messages readWithFilter(
       ValueProvider<String> hl7v2Store, ValueProvider<String> filter) {
     return new ListHL7v2Messages(
-        StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())), filter);
-  }
-
-  /**
-   * Read all HL7v2 Messages from a single store matching a filter with sendTime {@link
-   * TimestampedValue}s.
-   *
-   * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
-   */
-  public static ListTimestampedHL7v2Messages readWithFilterWithTimestamps(
-      ValueProvider<String> hl7v2Store, ValueProvider<String> filter) {
-    return new ListTimestampedHL7v2Messages(
         StaticValueProvider.of(Collections.singletonList(hl7v2Store.get())), filter);
   }
 
@@ -297,19 +235,6 @@ public class HL7v2IO {
   }
 
   /**
-   * Read all HL7v2 Messages from a multiple stores matching a filter with sendTime {@link
-   * TimestampedValue}s.
-   *
-   * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
-   */
-  public static ListTimestampedHL7v2Messages readAllWithFilterWithTimestamps(
-      List<String> hl7v2Stores, String filter) {
-    return new ListTimestampedHL7v2Messages(
-        StaticValueProvider.of(hl7v2Stores), StaticValueProvider.of(filter));
-  }
-
-  /**
    * Read all HL7v2 Messages from a multiple stores matching a filter.
    *
    * @see <a
@@ -318,18 +243,6 @@ public class HL7v2IO {
   public static ListHL7v2Messages readAllWithFilter(
       ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
     return new ListHL7v2Messages(hl7v2Stores, filter);
-  }
-
-  /**
-   * Read all HL7v2 Messages from a multiple stores matching a filter with sendTime {@link
-   * TimestampedValue}s.
-   *
-   * @see <a
-   *     href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list#query-parameters></a>
-   */
-  public static ListTimestampedHL7v2Messages readAllWithFilterWithTimestamps(
-      ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
-    return new ListTimestampedHL7v2Messages(hl7v2Stores, filter);
   }
 
   /**
@@ -348,8 +261,8 @@ public class HL7v2IO {
    *
    * <p>These could be sourced from any {@link PCollection} of {@link String}s but the most popular
    * patterns would be {@link PubsubIO#readStrings()} reading a subscription on an HL7v2 Store's
-   * notification channel topic or using {@link ListTimestampedHL7v2Messages} to list HL7v2 message
-   * IDs with an optional filter using Ingest write method. @see <a
+   * notification channel topic or using {@link ListHL7v2Messages} to list HL7v2 message IDs with an
+   * optional filter using Ingest write method. @see <a
    * href=https://cloud.google.com/healthcare/docs/reference/rest/v1beta1/projects.locations.datasets.hl7V2Stores.messages/list></a>.
    */
   public static class Read extends PTransform<PCollection<String>, Read.Result> {
@@ -357,7 +270,7 @@ public class HL7v2IO {
     public Read() {}
 
     public static class Result implements POutput, PInput {
-      private PCollection<TimestampedValue<HL7v2Message>> messages;
+      private PCollection<HL7v2Message> messages;
 
       private PCollection<HealthcareIOError<String>> failedReads;
       PCollectionTuple pct;
@@ -376,7 +289,7 @@ public class HL7v2IO {
 
       private Result(PCollectionTuple pct) {
         this.pct = pct;
-        this.messages = pct.get(OUT).setCoder(TimestampedValueCoder.of(HL7v2MessageCoder.of()));
+        this.messages = pct.get(OUT).setCoder(HL7v2MessageCoder.of());
         this.failedReads =
             pct.get(DEAD_LETTER).setCoder(HealthcareIOErrorCoder.of(StringUtf8Coder.of()));
       }
@@ -386,12 +299,6 @@ public class HL7v2IO {
       }
 
       public PCollection<HL7v2Message> getMessages() {
-        return messages.apply(
-            MapElements.into(TypeDescriptor.of(HL7v2Message.class))
-                .via(TimestampedValue<HL7v2Message>::getValue));
-      }
-
-      public PCollection<TimestampedValue<HL7v2Message>> getTimestampedMessages() {
         return messages;
       }
 
@@ -411,8 +318,7 @@ public class HL7v2IO {
     }
 
     /** The tag for the main output of HL7v2 Messages. */
-    public static final TupleTag<TimestampedValue<HL7v2Message>> OUT =
-        new TupleTag<TimestampedValue<HL7v2Message>>() {};
+    public static final TupleTag<HL7v2Message> OUT = new TupleTag<HL7v2Message>() {};
     /** The tag for the deadletter output of HL7v2 Messages. */
     public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
         new TupleTag<HealthcareIOError<String>>() {};
@@ -459,7 +365,7 @@ public class HL7v2IO {
       }
 
       /** DoFn for fetching messages from the HL7v2 store with error handling. */
-      public static class HL7v2MessageGetFn extends DoFn<String, TimestampedValue<HL7v2Message>> {
+      public static class HL7v2MessageGetFn extends DoFn<String, HL7v2Message> {
 
         private Counter failedMessageGets =
             Metrics.counter(FetchHL7v2Message.HL7v2MessageGetFn.class, "failed-message-reads");
@@ -493,7 +399,7 @@ public class HL7v2IO {
           String msgId = context.element();
           try {
             HL7v2Message msg = HL7v2Message.fromModel(fetchMessage(this.client, msgId));
-            context.output(TimestampedValue.of(msg, Instant.parse(msg.getSendTime())));
+            context.outputWithTimestamp(msg, Instant.parse(msg.getSendTime()));
           } catch (Exception e) {
             failedMessageGets.inc();
             LOG.warn(
@@ -545,12 +451,19 @@ public class HL7v2IO {
    * </ol>
    *
    * If your use case doesn't lend itself to daily splitting, you can can control initial splitting
-   * with {@link ListTimestampedHL7v2Messages#withInitialSplitDuration(Duration)}
+   * with {@link ListHL7v2Messages#withInitialSplitDuration(Duration)}
    */
   public static class ListHL7v2Messages extends PTransform<PBegin, PCollection<HL7v2Message>> {
+    private static final TimestampMethod DEFAULT_TIMESTAMP_METHOD = TimestampMethod.SEND_TIME;
     private final ValueProvider<List<String>> hl7v2Stores;
-    private final ValueProvider<String> filter;
+    private ValueProvider<String> filter;
     private Duration initialSplitDuration;
+    private TimestampMethod timestampMethod;
+
+    enum TimestampMethod {
+      INPUT_ELEMENT,
+      SEND_TIME
+    }
 
     /**
      * Instantiates a new List HL7v2 message IDs with filter.
@@ -562,6 +475,53 @@ public class HL7v2IO {
       this.hl7v2Stores = hl7v2Stores;
       this.filter = filter;
       this.initialSplitDuration = null;
+      this.timestampMethod = DEFAULT_TIMESTAMP_METHOD;
+    }
+
+    /**
+     * Controls the initial splitting for parallelization of HL7v2 Messages List requests based on
+     * disjoint sendTime filters of the specified duration.
+     *
+     * @param initialSplitDuration the initial split duration
+     * @return the list hl 7 v 2 messages
+     */
+    ListHL7v2Messages withInitialSplitDuration(Duration initialSplitDuration) {
+      this.initialSplitDuration = initialSplitDuration;
+      return this;
+    }
+
+    /**
+     * Controls if the output elements will be assigned a timestamp beased on the sendTime property
+     * or the input element's timestamp.
+     *
+     * @param timestampMethod the timestamp method
+     * @return the list hl 7 v 2 messages
+     */
+    ListHL7v2Messages withTimestampMethod(TimestampMethod timestampMethod) {
+      this.timestampMethod = timestampMethod;
+      return this;
+    }
+
+    /**
+     * Adds a filter to HL7v2 Message List requests made by this transform.
+     *
+     * @param filter the filter
+     * @return the list hl 7 v 2 messages
+     */
+    ListHL7v2Messages withFilter(String filter) {
+      this.filter = StaticValueProvider.of(filter);
+      return this;
+    }
+
+    /**
+     * Adds a filter to HL7v2 Message List requests made by this transform.
+     *
+     * @param filter the filter
+     * @return the list hl 7 v 2 messages
+     */
+    ListHL7v2Messages withFilter(ValueProvider<String> filter) {
+      this.filter = filter;
+      return this;
     }
 
     @Override
@@ -571,72 +531,8 @@ public class HL7v2IO {
       return input
           .apply(Create.ofProvider(this.hl7v2Stores, ListCoder.of(StringUtf8Coder.of())))
           .apply(FlatMapElements.into(TypeDescriptors.strings()).via((x) -> x))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(filter, initialSplitDuration)))
-          .setCoder(TimestampedValueCoder.of(HL7v2MessageCoder.of()))
-          .apply(
-              MapElements.into(TypeDescriptor.of(HL7v2Message.class))
-                  .via((TimestampedValue<HL7v2Message>::getValue)))
-          // Break fusion to encourage parallelization of downstream processing.
-          .apply(Reshuffle.viaRandomKey());
-    }
-  }
-
-  /**
-   * List {@link TimestampedValue}s of HL7v2 messages in HL7v2 Stores with optional filter. The
-   * timestamps will be the HL7v2 Message sendTime.
-   *
-   * <p>This transform is optimized for splitting of message.list calls for large batches of
-   * historical data and assumes rather continuous stream of sendTimes.
-   *
-   * <p>Note on Benchmarking: The default initial splitting on day will make more queries than
-   * necessary when used with very small data sets (or very sparse data sets in the sendTime
-   * dimension). If you are looking to get an accurate benchmark be sure to use sufficient volume of
-   * data with messages that span sendTimes over a realistic time range (days)
-   *
-   * <p>Implementation includes overhead for:
-   *
-   * <ol>
-   *   <li>two api calls to determine the min/max sendTime of the HL7v2 store at invocation time.
-   *   <li>initial splitting into non-overlapping time ranges (default daily) to achieve
-   *       parallelization in separate messages.list calls.
-   * </ol>
-   *
-   * If your use case doesn't lend itself to daily splitting, you can can control initial splitting
-   * with {@link ListTimestampedHL7v2Messages#withInitialSplitDuration(Duration)}
-   */
-  public static class ListTimestampedHL7v2Messages
-      extends PTransform<PBegin, PCollection<TimestampedValue<HL7v2Message>>> {
-    private final ValueProvider<List<String>> hl7v2Stores;
-    private final ValueProvider<String> filter;
-    private Duration initialSplitDuration;
-
-    /**
-     * Instantiates a new List HL7v2 message IDs with filter.
-     *
-     * @param hl7v2Stores the HL7v2 stores
-     * @param filter the filter
-     */
-    ListTimestampedHL7v2Messages(
-        ValueProvider<List<String>> hl7v2Stores, ValueProvider<String> filter) {
-      this.hl7v2Stores = hl7v2Stores;
-      this.filter = filter;
-      this.initialSplitDuration = null;
-    }
-
-    public ListTimestampedHL7v2Messages withInitialSplitDuration(Duration initialSplitDuration) {
-      this.initialSplitDuration = initialSplitDuration;
-      return this;
-    }
-
-    @Override
-    public PCollection<TimestampedValue<HL7v2Message>> expand(PBegin input) {
-      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
-      coderRegistry.registerCoderForClass(HL7v2Message.class, HL7v2MessageCoder.of());
-      return input
-          .apply(Create.ofProvider(this.hl7v2Stores, ListCoder.of(StringUtf8Coder.of())))
-          .apply(FlatMapElements.into(TypeDescriptors.strings()).via((x) -> x))
-          .apply(ParDo.of(new ListHL7v2MessagesFn(filter, initialSplitDuration)))
-          .setCoder(TimestampedValueCoder.of(HL7v2MessageCoder.of()))
+          .apply(ParDo.of(new ListHL7v2MessagesFn(filter, initialSplitDuration, timestampMethod)))
+          .setCoder(HL7v2MessageCoder.of())
           // Break fusion to encourage parallelization of downstream processing.
           .apply(Reshuffle.viaRandomKey());
     }
@@ -648,13 +544,14 @@ public class HL7v2IO {
    */
   @BoundedPerElement
   @VisibleForTesting
-  static class ListHL7v2MessagesFn extends DoFn<String, TimestampedValue<HL7v2Message>> {
+  static class ListHL7v2MessagesFn extends DoFn<String, HL7v2Message> {
     // These control the initial restriction split which means that the list of integer pairs
     // must comfortably fit in memory.
     private static final Duration DEFAULT_DESIRED_SPLIT_DURATION = Duration.standardDays(1);
     private static final Duration DEFAULT_MIN_SPLIT_DURATION = Duration.standardHours(1);
 
     private static final Logger LOG = LoggerFactory.getLogger(ListHL7v2MessagesFn.class);
+    private final ListHL7v2Messages.TimestampMethod timestampMethod;
     private ValueProvider<String> filter;
     private Duration initialSplitDuration;
     private transient HealthcareApiClient client;
@@ -664,13 +561,17 @@ public class HL7v2IO {
      * @param filter the filter
      */
     ListHL7v2MessagesFn(String filter) {
-      this(StaticValueProvider.of(filter), null);
+      this(StaticValueProvider.of(filter), null, null);
     }
 
-    ListHL7v2MessagesFn(ValueProvider<String> filter, @Nullable Duration initialSplitDuration) {
+    ListHL7v2MessagesFn(
+        ValueProvider<String> filter,
+        @Nullable Duration initialSplitDuration,
+        ListHL7v2Messages.TimestampMethod timestampMethod) {
       this.filter = filter;
       this.initialSplitDuration =
           (initialSplitDuration == null) ? DEFAULT_DESIRED_SPLIT_DURATION : initialSplitDuration;
+      this.timestampMethod = timestampMethod;
     }
 
     /**
@@ -740,8 +641,9 @@ public class HL7v2IO {
     @ProcessElement
     public void listMessages(
         @Element String hl7v2Store,
+        ProcessContext context,
         RestrictionTracker<OffsetRange, Long> tracker,
-        OutputReceiver<TimestampedValue<HL7v2Message>> outputReceiver)
+        OutputReceiver<HL7v2Message> outputReceiver)
         throws IOException {
       OffsetRange currentRestriction = (OffsetRange) tracker.currentRestriction();
       Instant startRestriction = Instant.ofEpochMilli(currentRestriction.getFrom());
@@ -762,9 +664,14 @@ public class HL7v2IO {
           lastClaimedMilliSecond = cursor.getMillis();
         }
 
-        outputReceiver.output(TimestampedValue.of(msg, Instant.parse(msg.getSendTime())));
+        switch (timestampMethod) {
+          case SEND_TIME:
+            outputReceiver.outputWithTimestamp(msg, Instant.parse(msg.getSendTime()));
+            break;
+          case INPUT_ELEMENT:
+            outputReceiver.outputWithTimestamp(msg, context.timestamp());
+        }
       }
-
       // We've paginated through all messages for this restriction but the last message may be
       // before the end of the restriction
       tracker.tryClaim(currentRestriction.getTo());

@@ -33,8 +33,6 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -115,20 +113,19 @@ public class HL7v2IOReadIT {
   public void testHL7v2IO_ListHL7v2Messages_withTimeStamps() throws Exception {
     // Should read all messages.
     Pipeline pipeline = Pipeline.create();
-    PCollection<TimestampedValue<HL7v2Message>> result =
-        pipeline.apply(
-            HL7v2IO.readWithTimestamps(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
+    PCollection<HL7v2Message> result =
+        pipeline.apply(HL7v2IO.read(healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME));
     PCollection<Long> numReadMessages =
-        result.setCoder(TimestampedValueCoder.of(HL7v2MessageCoder.of())).apply(Count.globally());
+        result.setCoder(HL7v2MessageCoder.of()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo((long) MESSAGES.size());
 
     PAssert.that(result)
         .satisfies(
             input -> {
-              for (TimestampedValue<HL7v2Message> elem : input) {
-                assertFalse(elem.getValue().getName().isEmpty());
-                assertFalse(elem.getValue().getData().isEmpty());
-                assertFalse(elem.getValue().getMessageType().isEmpty());
+              for (HL7v2Message elem : input) {
+                assertFalse(elem.getName().isEmpty());
+                assertFalse(elem.getData().isEmpty());
+                assertFalse(elem.getMessageType().isEmpty());
               }
               return null;
             });
@@ -166,19 +163,19 @@ public class HL7v2IOReadIT {
     final String adtFilter = "messageType = \"ADT\"";
     // Should read all ADT messages.
     Pipeline pipeline = Pipeline.create();
-    PCollection<TimestampedValue<HL7v2Message>> result =
+    PCollection<HL7v2Message> result =
         pipeline.apply(
-            HL7v2IO.readWithFilterWithTimestamps(
+            HL7v2IO.readWithFilter(
                 healthcareDataset + "/hl7V2Stores/" + HL7V2_STORE_NAME, adtFilter));
     PCollection<Long> numReadMessages =
-        result.setCoder(TimestampedValueCoder.of(HL7v2MessageCoder.of())).apply(Count.globally());
+        result.setCoder(HL7v2MessageCoder.of()).apply(Count.globally());
     PAssert.thatSingleton(numReadMessages).isEqualTo(NUM_ADT);
 
     PAssert.that(result)
         .satisfies(
             input -> {
-              for (TimestampedValue<HL7v2Message> elem : input) {
-                assertEquals("ADT", elem.getValue().getMessageType());
+              for (HL7v2Message elem : input) {
+                assertEquals("ADT", elem.getMessageType());
               }
               return null;
             });
