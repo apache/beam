@@ -1377,8 +1377,16 @@ All wheels should be published, in addition to the zip of the release source.
 &lt;p>Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:&lt;/p>
 &lt;pre>&lt;code>VERSION_TAG=&amp;quot;v${RELEASE}&amp;quot;
 git tag -s &amp;quot;$VERSION_TAG&amp;quot; &amp;quot;$RC_TAG&amp;quot;
-git push github &amp;quot;$VERSION_TAG&amp;quot;
+git push upstream &amp;quot;$VERSION_TAG&amp;quot;
 &lt;/code>&lt;/pre>
+&lt;p>After the tag is uploaded, publish the release in the Github UI.&lt;/p>
+&lt;ol>
+&lt;li>Navigate to &lt;code>https://github.com/apache/beam/releases/tag/$VERSION_TAG&lt;/code>.&lt;/li>
+&lt;li>Click the &amp;ldquo;Edit tag&amp;rdquo; button.&lt;/li>
+&lt;li>Give the release a title, such as &lt;code>Beam 2.21.0&lt;/code>.&lt;/li>
+&lt;li>For the release description, copy the current version&amp;rsquo;s changes from &lt;code>CHANGES.md&lt;/code>. (You may want to touch up the formatting a bit.)&lt;/li>
+&lt;li>Click the &amp;ldquo;Publish release&amp;rdquo; button.&lt;/li>
+&lt;/ol>
 &lt;h3 id="merge-website-pull-request">Merge website pull request&lt;/h3>
 &lt;p>Merge the website pull request to &lt;a href="/get-started/downloads/">list the release&lt;/a>, publish the &lt;a href="https://beam.apache.org/releases/pydoc/">Python API reference manual&lt;/a>, the &lt;a href="https://beam.apache.org/releases/javadoc/">Java API reference manual&lt;/a> and Blogpost created earlier.&lt;/p>
 &lt;h3 id="mark-the-version-as-released-in-jira">Mark the version as released in JIRA&lt;/h3>
