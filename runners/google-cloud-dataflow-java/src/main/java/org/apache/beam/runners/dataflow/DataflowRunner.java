@@ -1357,7 +1357,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       // read PubsubMessage's from Windmill and simply pass them around; and in case it
       // doesn't need attributes, we're already implicitly using a "Coder" that interprets
       // the data as a PubsubMessage's payload.
-      if (overriddenTransform.getNeedsAttributes() | overriddenTransform.getNeedsMessageId()) {
+      if (overriddenTransform.getNeedsAttributes() || overriddenTransform.getNeedsMessageId()) {
         stepContext.addInput(
                 PropertyNames.PUBSUB_SERIALIZED_ATTRIBUTES_FN,
                 byteArrayToJsonString(serializeToByteArray(new IdentityMessageFn())));
