@@ -19,9 +19,9 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  creationTimestamp: null
   labels:
     io.kompose.service: beam-grafana-etcdata
+    app: beammetrics
   name: beam-grafana-etcdata
 spec:
   accessModes:
@@ -29,4 +29,3 @@ spec:
   resources:
     requests:
       storage: 100Mi
-status: {}

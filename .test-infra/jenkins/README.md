@@ -47,6 +47,7 @@ Beam Jenkins overview page: [link](https://builds.apache.org/view/A-D/view/Beam/
 
 | Name | Link | PR Trigger Phrase | Cron Status |
 |------|------|-------------------|-------------|
+| beam_PostCommit_BeamMetrics_Publish | [cron](https://builds.apache.org/job/beam_PostCommit_BeamMetrics_Publish/) | N/A | [![Build Status](https://builds.apache.org/job/beam_PostCommit_BeamMetrics_Publish/badge/icon)](https://builds.apache.org/job/beam_PostCommit_BeamMetrics_Publish) |
 | beam_PostCommit_CrossLanguageValidatesRunner | [cron](https://builds.apache.org/job/beam_PostCommit_XVR_Flink/), [phrase](https://builds.apache.org/job/beam_PostCommit_XVR_Flink_PR/) | `Run XVR_Flink PostCommit` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_XVR_Flink/badge/icon)](https://builds.apache.org/job/beam_PostCommit_XVR_Flink) |
 | beam_PostCommit_Go | [cron](https://builds.apache.org/job/beam_PostCommit_Go/), [phrase](https://builds.apache.org/job/beam_PostCommit_Go_PR/) | `Run Go PostCommit` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Go/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Go) |
 | beam_PostCommit_Go_VR_Flink | [cron](https://builds.apache.org/job/beam_PostCommit_Go_VR_Flink/), [phrase](https://builds.apache.org/job/beam_PostCommit_Go_VR_Flink_PR/) | `Run Go Flink ValidatesRunner` | [![Build Status](https://builds.apache.org/job/beam_PostCommit_Go_VR_Flink/badge/icon)](https://builds.apache.org/job/beam_PostCommit_Go_VR_Flink/) |

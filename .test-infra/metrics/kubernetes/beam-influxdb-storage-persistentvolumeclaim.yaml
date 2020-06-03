@@ -20,6 +20,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: influxdb-storage
+  labels:
+    app: beammetrics
 spec:
   accessModes:
   - ReadWriteOnce

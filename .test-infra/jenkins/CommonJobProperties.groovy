@@ -242,23 +242,6 @@ class CommonJobProperties {
     return argList.join(' ')
   }
 
-  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
-      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
-
-      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
-      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
-    }
-  }
-
-  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
-      shell("rm ${kubeconfigLocation}")
-    }
-  }
-
   // Namespace must contain lower case alphanumeric characters or '-'
   static String getKubernetesNamespace(def jobName) {
     jobName = jobName.replaceAll("_", "-").toLowerCase()
