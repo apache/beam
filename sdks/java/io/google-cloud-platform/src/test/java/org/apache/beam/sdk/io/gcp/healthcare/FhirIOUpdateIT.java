@@ -88,6 +88,8 @@ public class FhirIOUpdateIT {
     options.setFhirStore(healthcareDataset + "/fhirStores/" + fhirStoreName);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.createFhirStore(healthcareDataset, fhirStoreName, version);
+    FhirIOTestUtil.createFhirResources(
+        client, healthcareDataset + "/fhirStores/" + fhirStoreName, RESOURCES.get(version));
   }
 
   @After
@@ -103,31 +105,7 @@ public class FhirIOUpdateIT {
   }
 
   @Test
-  public void testFhirIO_Update() throws IOException, HealthcareHttpException {
-    List<String> initialResources = RESOURCES.get(version);
-    FhirIOTestUtil.createFhirResources(
-        client, healthcareDataset + "/fhirStores/" + fhirStoreName, initialResources);
-    // TODO write initial resources to FHIR
-    Result updateResult =
-        (Result)
-            pipeline
-                .apply("Seed Test Resources", Create.of(initialResources))
-                .apply("Extract ID keys", WithKeys.of(new GetByKey("id")))
-                .apply(
-                    "Update Resources",
-                    FhirIO.<KV<String, String>>update(options.getFhirStore())
-                        .withResourceNameFunction(x -> x.getKey())
-                        .withFormatBodyFunction(x -> ((KV<String, String>) x).getValue()));
-
-    PAssert.that(updateResult.getFailedBodies()).empty();
-
-    pipeline.run().waitUntilFinish();
-    // TODO spot check update results
-  }
-
-  @Test
   public void testFhirIO_ConditionalUpdate() {
-    // TODO write initial resources to FHIR
     Result conditionalUpdateResult =
         (Result)
             pipeline

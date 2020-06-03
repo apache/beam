@@ -408,6 +408,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     private Map<String, String> parameters;
 
     enum Method {
+      GET,
       POST,
       PUT
     }
@@ -469,6 +470,9 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
     RequestBuilder requestBuilder;
     switch (fhirHttpRequest.method) {
+      case GET:
+        requestBuilder = RequestBuilder.get();
+        break;
       case PUT:
         requestBuilder = RequestBuilder.put();
         break;
@@ -562,6 +566,17 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             .setHeaders(headers)
             .setPathSuffix("/" + relativeResourceName)
             .setMethod(Method.PUT));
+  }
+
+  @Override
+  public HttpBody fhirSearch(
+      String fhirStore, @Nullable String type, Map<String, String> searchParameters
+  ) throws IOException, HealthcareHttpException {
+    return executeFhirHttpRequest(
+        new FhirHttpRequest(fhirStore, null)
+            .setPathSuffix(type)
+            .setMethod(Method.GET)
+            .setParameters(searchParameters));
   }
 
   /**

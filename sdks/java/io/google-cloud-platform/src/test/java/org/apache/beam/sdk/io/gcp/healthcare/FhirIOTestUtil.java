@@ -22,6 +22,7 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -41,7 +42,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.values.KV;
 
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
@@ -229,4 +232,30 @@ class FhirIOTestUtil {
       }
     }
   }
+
+  public static class ResourceIdToNameFn extends DoFn<KV<String, String>, KV<String, String>> {
+    private transient HealthcareApiClient client;
+    private ExtractIDSearchParams extractIDSearchParams = new ExtractIDSearchParams();
+    private final String fhirStore;
+    private ObjectMapper mapper;
+
+    public ResourceIdToNameFn(String fhirStore) {
+      this.fhirStore = fhirStore;
+    }
+
+    @Setup
+    void setup() throws IOException {
+      client = new HttpHealthcareApiClient();
+      mapper = new ObjectMapper();
+    }
+
+    @ProcessElement
+    void mapKeys(@Element KV<String, String> idResourcePair, OutputReceiver<KV<String, String>> out)
+        throws IOException, HealthcareHttpException {
+      Map<String, String> searchParams = extractIDSearchParams.apply(idResourcePair.getValue());
+      String searchResults = client.fhirSearch(fhirStore, null, searchParams).getData();
+
+    }
+  }
+
 }

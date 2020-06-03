@@ -164,6 +164,10 @@ public interface HealthcareApiClient {
   HttpBody fhirUpdate(String fhirStore, String type, String resource, @Nullable String etag)
       throws IOException, HealthcareHttpException;
 
+  HttpBody fhirSearch(
+      String fhirStore, @Nullable String type, Map<String, String> searchParameters
+  ) throws IOException, HealthcareHttpException;
+
   /**
    * Read fhir resource http body.
    *
@@ -198,4 +202,5 @@ public interface HealthcareApiClient {
   Empty deleteHL7v2Store(String store) throws IOException;
 
   Empty deleteFhirStore(String store) throws IOException;
+
 }
