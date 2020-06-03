@@ -67,6 +67,8 @@ task buildAndPublishContainers(type: Exec) {
 // Applies new configuration to all resources labeled with `app=beammetrics`
 // and forces Kubernetes to re-pull images.
 task applyConfiguration() {
+  dependsOn buildAndPublishContainers
+
   doLast {
     assert grgit : 'Cannot use outside of git repository'
 
@@ -75,12 +77,17 @@ task applyConfiguration() {
       it.dateTime > ZonedDateTime.now().minusHours(6)
     }
 
+    // Older version of kubectl does not offer `rollout restart` command, therefore we scale
+    // deployments to 0 and then scale back to 1.
     if (!commitedChanges.isEmpty()) {
       exec {
         executable 'sh'
         args '-c', 'kubectl apply --selector=app=beammetrics --prune=true -Rf kubernetes && \
-          kubectl wait --selector=app=beammetrics --for=condition=available deployment && \
-          kubectl get --selector=app=beammetrics -o name deployments | xargs -r kubectl rollout restart'
+          kubectl wait --selector=app=beammetrics --for=condition=available --timeout=5m deployment && \
+          kubectl get --selector=app=beammetrics -o name deployments \
+          | xargs -r kubectl scale --replicas=0 && \
+          kubectl get --selector=app=beammetrics -o name deployments \
+          | xargs -r kubectl scale --replicas=1'
       }
     } else {
       println 'No changes committed since the last 6 hours.'
@@ -89,7 +96,6 @@ task applyConfiguration() {
 }
 
 task deploy {
-  dependsOn buildAndPublishContainers
   dependsOn applyConfiguration
 }
 
