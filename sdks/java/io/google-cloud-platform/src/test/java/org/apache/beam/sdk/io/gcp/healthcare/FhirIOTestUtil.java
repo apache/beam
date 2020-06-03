@@ -22,7 +22,6 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.services.healthcare.v1beta1.model.HttpBody;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -254,8 +253,6 @@ class FhirIOTestUtil {
         throws IOException, HealthcareHttpException {
       Map<String, String> searchParams = extractIDSearchParams.apply(idResourcePair.getValue());
       String searchResults = client.fhirSearch(fhirStore, null, searchParams).getData();
-
     }
   }
-
 }

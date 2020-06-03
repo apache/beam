@@ -132,8 +132,7 @@ import org.slf4j.LoggerFactory;
  *     FhirIO.Write.Result#getFailedBodies()} to retrieve a {@link PCollection} of {@link
  *     HealthcareIOError} containing the {@link String} that failed to be ingested and the
  *     exception.
- *
- * <h3>Conditional Creating / Updating Resources</h3>
+ *     <h3>Conditional Creating / Updating Resources</h3>
  *     {@link FhirIO} supports interfaces for conditional update. These can be useful to handle
  *     scenarios where an executeBundle failed. For example if you tried to create a resource that
  *     already exists you can grab the faield bodies of your {@link FhirIO.ExecuteBundles} transform
@@ -1440,7 +1439,6 @@ public class FhirIO {
       }
     }
   }
-
 
   /**
    * Conditional update conditional update.

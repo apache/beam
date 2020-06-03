@@ -570,8 +570,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
 
   @Override
   public HttpBody fhirSearch(
-      String fhirStore, @Nullable String type, Map<String, String> searchParameters
-  ) throws IOException, HealthcareHttpException {
+      String fhirStore, @Nullable String type, Map<String, String> searchParameters)
+      throws IOException, HealthcareHttpException {
     return executeFhirHttpRequest(
         new FhirHttpRequest(fhirStore, null)
             .setPathSuffix(type)
