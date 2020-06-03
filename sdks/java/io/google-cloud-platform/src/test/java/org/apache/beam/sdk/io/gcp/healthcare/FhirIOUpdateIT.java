@@ -25,10 +25,12 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.List;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.ExtractIDSearchParams;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.GetByKey;
+import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -49,7 +51,8 @@ public class FhirIOUpdateIT {
 
   @Parameters(name = "{0}")
   public static Collection<String> versions() {
-    return Arrays.asList("DSTU2", "STU3", "R4");
+    // TODO(jaketf) uncomment other versions.
+    return Arrays.asList(/*"DSTU2", "STU3", */ "R4");
   }
 
   private final String fhirStoreName;
@@ -100,30 +103,15 @@ public class FhirIOUpdateIT {
   }
 
   @Test
-  public void testFhirIO_CreateResources() {
-    Result createResult =
-        (Result)
-            pipeline
-                .apply("Seed Test Resources", Create.of(RESOURCES.get(version)))
-                .apply(
-                    "Create FHIR Resources",
-                    FhirIO.<String>createResources(options.getFhirStore())
-                        .withTypeFunction(new GetByKey("resourceType"))
-                        .withIfNotExistFunction(new FhirIOTestUtil.ExtractIDSearchQuery())
-                        .withFormatBodyFunction(x -> x));
-
-    PAssert.that(createResult.getFailedBodies()).empty();
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  @Test
-  public void testFhirIO_Update() {
+  public void testFhirIO_Update() throws IOException, HealthcareHttpException {
+    List<String> initialResources = RESOURCES.get(version);
+    FhirIOTestUtil.createFhirResources(
+        client, healthcareDataset + "/fhirStores/" + fhirStoreName, initialResources);
     // TODO write initial resources to FHIR
     Result updateResult =
         (Result)
             pipeline
-                .apply("Seed Test Resources", Create.of(RESOURCES.get(version)))
+                .apply("Seed Test Resources", Create.of(initialResources))
                 .apply("Extract ID keys", WithKeys.of(new GetByKey("id")))
                 .apply(
                     "Update Resources",
@@ -147,9 +135,9 @@ public class FhirIOUpdateIT {
                 .apply(
                     "Conditional Update Resources",
                     FhirIO.<String>conditionalUpdate(options.getFhirStore())
-                        .withTypeFunction(x -> "patient")
-                        .withFormatBodyFunction(x -> "{}")
-                        .withSearchParametersFunction(x -> new HashMap<>()));
-    // TODO spot check update results
+                        .withTypeFunction(new GetByKey("resourceType"))
+                        .withFormatBodyFunction(x -> x)
+                        .withSearchParametersFunction(new ExtractIDSearchParams()));
+    pipeline.run().waitUntilFinish();
   }
 }

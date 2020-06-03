@@ -1538,10 +1538,10 @@ public class FhirIO {
     public FhirIO.Write.Result expand(PCollection<T> input) {
       checkArgument(
           formatBodyFunction != null,
-          "FhirIO.UpdateResources should always be called with a " + "withFormatBodyFunction.");
+          "FhirIO.UpdateResources should always be called with a withFormatBodyFunction.");
       checkArgument(
-          resourceNameFunction == null,
-          "resourceNameFunction must be set when using FhirIO.UpdateResources");
+          resourceNameFunction != null,
+          "FhirIO.UpdateResources should always be called with a withResourceNameFunction.");
       return Write.Result.in(
           input.getPipeline(),
           input
@@ -1579,7 +1579,7 @@ public class FhirIO {
       }
 
       @ProcessElement
-      public void update(ProcessContext context) throws IOException {
+      public void update(ProcessContext context) {
         T input = context.element();
         String body = formatBodyFunction.apply(input);
         try {

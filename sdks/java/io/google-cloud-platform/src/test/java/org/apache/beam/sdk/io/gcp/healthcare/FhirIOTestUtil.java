@@ -66,6 +66,29 @@ class FhirIOTestUtil {
     }
   }
 
+  public static class ExtractIDSearchParams
+      implements SerializableFunction<String, Map<String, String>> {
+    private ObjectMapper mapper;
+
+    ExtractIDSearchParams() {
+      mapper = new ObjectMapper();
+    }
+
+    @Override
+    public Map<String, String> apply(String resource) {
+      Map<String, String> searchParams = new HashMap<>();
+      try {
+        Map<String, String> map =
+            mapper.readValue(resource.getBytes(StandardCharsets.UTF_8), Map.class);
+        String id = map.get("id");
+        searchParams.put("_id", id);
+        return searchParams;
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
   public static class GetByKey implements SerializableFunction<String, String> {
     private final String key;
     private ObjectMapper mapper;
@@ -156,6 +179,18 @@ class FhirIOTestUtil {
       throws IOException, HealthcareHttpException {
     for (String bundle : bundles) {
       client.executeFhirBundle(fhirStore, bundle);
+    }
+  }
+
+  /** Populate the test resources into the FHIR store and returns a list of resource IDs. */
+  static void createFhirResources(
+      HealthcareApiClient client, String fhirStore, List<String> resources)
+      throws IOException, HealthcareHttpException {
+    GetByKey getByKey = new GetByKey("resourceType");
+    ExtractIDSearchQuery extractIDSearchQuery = new ExtractIDSearchQuery();
+    for (String resource : resources) {
+      client.fhirCreate(
+          fhirStore, getByKey.apply(resource), resource, extractIDSearchQuery.apply(resource));
     }
   }
 

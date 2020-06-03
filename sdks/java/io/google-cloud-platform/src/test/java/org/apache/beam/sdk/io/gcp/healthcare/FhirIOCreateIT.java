@@ -25,16 +25,14 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIO.Write.Result;
+import org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.ExtractIDSearchParams;
 import org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.GetByKey;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.values.KV;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -109,7 +107,7 @@ public class FhirIOCreateIT {
                     "Create FHIR Resources",
                     FhirIO.<String>createResources(options.getFhirStore())
                         .withTypeFunction(new GetByKey("resourceType"))
-                        .withIfNotExistFunction(new FhirIOTestUtil.ExtractIDSearchQuery())
+                        .withIfNotExistFunction(new ExtractIDSearchParams())
                         .withFormatBodyFunction(x -> x));
 
     PAssert.that(createResult.getFailedBodies()).empty();
