@@ -33,7 +33,6 @@ public class SqlStdOperatorMappingTable {
       ImmutableList.of(
           FunctionSignatureId.FN_AND,
           FunctionSignatureId.FN_ANY_VALUE,
-          // FunctionSignatureId.FN_STRING_AGG_DELIM_STRING,
           FunctionSignatureId.FN_STRING_AGG_STRING,
           FunctionSignatureId.FN_OR,
           FunctionSignatureId.FN_NOT,
@@ -213,7 +212,7 @@ public class SqlStdOperatorMappingTable {
           // aggregate UDF
           // .put("array_agg", )
           // .put("array_concat_agg")
-          .put("string_agg", SqlOperators.STRING_AGG_STRING_FN)
+          .put("string_agg", SqlOperators.STRING_AGG_STRING_FN) // NULL values not supported
           // .put("bit_and")
           // .put("bit_or")
           // .put("bit_xor")
