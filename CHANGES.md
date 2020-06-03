@@ -99,6 +99,8 @@
     * Reidentification of data.
 * Add a more complete I/O support matrix in the documentation site ([BEAM-9916](https://issues.apache.org/jira/browse/BEAM-9916)).
 * Upgrade Sphinx to 3.0.3 for building PyDoc.
+* Added a PTransform for image annotation using Google Cloud AI image processing service
+([BEAM-9646](https://issues.apache.org/jira/browse/BEAM-9646))
 
 ## Breaking Changes
 
