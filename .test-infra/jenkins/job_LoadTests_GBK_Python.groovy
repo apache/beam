@@ -179,7 +179,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
 CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_Dataflow_Batch', 'H 12 * * *', this) {
   additionalPipelineArgs = [
     influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
   ]
   loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
 }

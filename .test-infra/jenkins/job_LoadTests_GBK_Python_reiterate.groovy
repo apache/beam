@@ -100,7 +100,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Batch',
     'H 14 * * *', this) {
       additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
       ]
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'batch')
     }
@@ -119,7 +119,7 @@ CronJobBuilder.cronJob('beam_LoadTests_Python_GBK_reiterate_Dataflow_Streaming',
     'H 14 * * *', this) {
       additionalPipelineArgs = [
         influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostUrl,
       ]
       loadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT, 'streaming')
     }

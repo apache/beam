@@ -48,7 +48,7 @@ job(jobName) {
     bigQueryTable        : 'hadoopformatioit_results',
     influxMeasurement    : 'hadoopformatioit_results',
     influxDatabase       : InfluxDBCredentialsHelper.InfluxDBDatabaseName,
-    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostname,
+    influxHost           : InfluxDBCredentialsHelper.InfluxDBHostUrl,
     postgresUsername     : 'postgres',
     postgresPassword     : 'uuinkks',
     postgresDatabaseName : 'postgres',
