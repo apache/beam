@@ -19,14 +19,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  creationTimestamp: null
   labels:
-    io.kompose.service: beam-postgresql-data
-  name: beam-postgresql-data
+    io.kompose.service: beam-grafana-logdata
+    app: beammetrics
+  name: beam-grafana-logdata
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
       storage: 100Mi
-status: {}

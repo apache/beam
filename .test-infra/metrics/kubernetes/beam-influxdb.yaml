@@ -29,7 +29,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app: influxdb
+    app: beammetrics
   name: influxdb
 spec:
   replicas: 1
