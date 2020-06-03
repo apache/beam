@@ -598,7 +598,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     }
 
     /**
-     * ConditionalUpdate Exception of {@link HttpResponse}.
+     * Create Exception of {@link HttpResponse}.
      *
      * @param response the HTTP response
      * @return the healthcare http exception
