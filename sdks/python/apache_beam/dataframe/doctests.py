@@ -43,6 +43,9 @@ import collections
 import contextlib
 import doctest
 import re
+from typing import Any
+from typing import Dict
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -136,7 +139,7 @@ class _InMemoryResultRecorder(object):
   """
 
   # Class-level value to survive pickling.
-  _ALL_RESULTS = {}
+  _ALL_RESULTS = {}  # type: Dict[str, List[Any]]
 
   def __init__(self):
     self._id = id(self)
@@ -242,6 +245,11 @@ class BeamDataframeDoctestRunner(doctest.DocTestRunner):
         **kwargs)
 
   def run(self, test, **kwargs):
+    for example in test.examples:
+      if example.exc_msg is None:
+        # Don't fail doctests that raise this error.
+        example.exc_msg = (
+            'apache_beam.dataframe.frame_base.WontImplementError: ...')
     with self._test_env.context():
       return super(BeamDataframeDoctestRunner, self).run(test, **kwargs)
 

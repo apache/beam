@@ -30,6 +30,7 @@ ext.summary = """Contains code to run a SQL Expansion Service."""
 
 dependencies {
   compile project(path: ":sdks:java:extensions:sql")
+  compile project(path: ":sdks:java:extensions:sql:zetasql")
   compile project(path: ":sdks:java:expansion-service")
 }
 

@@ -51,12 +51,7 @@ const (
 	URNSessionsWindowFn       = "beam:window_fn:session_windows:v1"
 
 	// SDK constants
-
-	// URNJavaDoFn is the legacy constant for marking a DoFn.
-	// TODO: remove URNJavaDoFN when the Dataflow runner
-	// uses the model pipeline and no longer falls back to Java.
-	URNJavaDoFn = "beam:dofn:javasdk:0.1"
-	URNDoFn     = "beam:go:transform:dofn:v1"
+	URNDoFn = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
 	URNReshuffleInput       = "beam:go:transform:reshuffleinput:v1"
@@ -239,7 +234,7 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 	acID := m.coders.Add(edge.AccumCoder)
 	payload := &pipepb.CombinePayload{
 		CombineFn: &pipepb.FunctionSpec{
-			Urn:     URNJavaDoFn,
+			Urn:     URNDoFn,
 			Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
 		},
 		AccumulatorCoderId: acID,
@@ -341,7 +336,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
-				Urn:     URNJavaDoFn,
+				Urn:     URNDoFn,
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 			SideInputs: si,
@@ -355,7 +350,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	case graph.Combine:
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
-				Urn:     URNJavaDoFn,
+				Urn:     URNDoFn,
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 		}

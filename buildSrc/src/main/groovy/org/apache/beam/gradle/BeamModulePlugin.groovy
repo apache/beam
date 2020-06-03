@@ -257,6 +257,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
+    // Tests to include/exclude from running, by default all tests are included
+    Closure testFilter = {
+      // Use the following to include / exclude tests:
+      // includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+      // excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+    }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
     // Additional system properties.
@@ -311,7 +317,7 @@ class BeamModulePlugin implements Plugin<Project> {
 
     // Automatically use the official release version if we are performing a release
     // otherwise append '-SNAPSHOT'
-    project.version = '2.22.0'
+    project.version = '2.23.0'
     if (!isRelease(project)) {
       project.version += '-SNAPSHOT'
     }
@@ -382,7 +388,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def generated_grpc_ga_version = "1.85.1"
     def google_auth_version = "0.19.0"
     def google_clients_version = "1.30.9"
-    def google_cloud_bigdataoss_version = "2.1.2"
+    def google_cloud_bigdataoss_version = "2.1.3"
     def google_cloud_core_version = "1.92.2"
     def google_cloud_spanner_version = "1.49.1"
     def google_cloud_datacatalog_version = "0.32.1"
@@ -481,6 +487,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_oauth_client                         : "com.google.oauth-client:google-oauth-client:$google_oauth_clients_version",
         google_oauth_client_java6                   : "com.google.oauth-client:google-oauth-client-java6:$google_oauth_clients_version",
         grpc_all                                    : "io.grpc:grpc-all:$grpc_version",
+        grpc_alts                                   : "io.grpc:grpc-alts:$grpc_version",
         grpc_auth                                   : "io.grpc:grpc-auth:$grpc_version",
         grpc_core                                   : "io.grpc:grpc-core:$grpc_version",
         grpc_context                                : "io.grpc:grpc-context:$grpc_version",
@@ -489,6 +496,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_protobuf                               : "io.grpc:grpc-protobuf:$grpc_version",
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite:$grpc_version",
         grpc_netty                                  : "io.grpc:grpc-netty:$grpc_version",
+        grpc_netty_shaded                           : "io.grpc:grpc-netty-shaded:$grpc_version",
         grpc_stub                                   : "io.grpc:grpc-stub:$grpc_version",
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
@@ -549,7 +557,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
-        zstd_jni                                    : "com.github.luben:zstd-jni:1.3.8-3",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
       groovy: [
@@ -1687,6 +1695,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testClassesDirs = project.files(project.project(":sdks:java:core").sourceSets.test.output.classesDirs, project.project(":runners:core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
+        filter(config.testFilter)
         // increase maxHeapSize as this is directly correlated to direct memory,
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'

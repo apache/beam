@@ -33,9 +33,11 @@ string. The tags can contain only letters, digits and _.
 
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import argparse
 import base64
+import json
 from builtins import object
 from builtins import range
 from decimal import Decimal
@@ -49,6 +51,13 @@ from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import PTransform
+
+# Protect against environments where Google Cloud Natural Language client is
+# not available.
+try:
+  from apache_beam.ml.gcp import naturallanguageml as nlp
+except ImportError:
+  nlp = None
 
 # Quiet some pylint warnings that happen because of the somewhat special
 # format for the code snippets.
@@ -1492,3 +1501,113 @@ def side_input_slow_update(
   # [END SideInputSlowUpdateSnip1]
 
   return p, result
+
+
+def bigqueryio_deadletter():
+  # [START BigQueryIODeadLetter]
+
+  # Create pipeline.
+  schema = ({'fields': [{'name': 'a', 'type': 'STRING', 'mode': 'REQUIRED'}]})
+
+  p = beam.Pipeline()
+
+  errors = (
+      p | 'Data' >> beam.Create([1, 2])
+      | 'CreateBrokenData' >>
+      beam.Map(lambda src: {'a': src} if src == 2 else {'a': None})
+      | 'WriteToBigQuery' >> beam.io.WriteToBigQuery(
+          "<Your Project:Test.dummy_a_table",
+          schema=schema,
+          insert_retry_strategy='RETRY_ON_TRANSIENT_ERROR',
+          create_disposition='CREATE_IF_NEEDED',
+          write_disposition='WRITE_APPEND'))
+  result = (
+      errors['FailedRows']
+      | 'PrintErrors' >>
+      beam.FlatMap(lambda err: print("Error Found {}".format(err))))
+  # [END BigQueryIODeadLetter]
+
+  return result
+
+
+def extract_sentiments(response):
+  # [START nlp_extract_sentiments]
+  return {
+      'sentences': [{
+          sentence.text.content: sentence.sentiment.score
+      } for sentence in response.sentences],
+      'document_sentiment': response.document_sentiment.score,
+  }
+  # [END nlp_extract_sentiments]
+
+
+def extract_entities(response):
+  # [START nlp_extract_entities]
+  return [{
+      'name': entity.name,
+      'type': nlp.enums.Entity.Type(entity.type).name,
+  } for entity in response.entities]
+  # [END nlp_extract_entities]
+
+
+def analyze_dependency_tree(response):
+  # [START analyze_dependency_tree]
+  from collections import defaultdict
+  adjacency_lists = []
+
+  index = 0
+  for sentence in response.sentences:
+    adjacency_list = defaultdict(list)
+    sentence_begin = sentence.text.begin_offset
+    sentence_end = sentence_begin + len(sentence.text.content) - 1
+
+    while index < len(response.tokens) and \
+        response.tokens[index].text.begin_offset <= sentence_end:
+      token = response.tokens[index]
+      head_token_index = token.dependency_edge.head_token_index
+      head_token_text = response.tokens[head_token_index].text.content
+      adjacency_list[head_token_text].append(token.text.content)
+      index += 1
+    adjacency_lists.append(adjacency_list)
+  # [END analyze_dependency_tree]
+
+  return adjacency_lists
+
+
+def nlp_analyze_text():
+  # [START nlp_analyze_text]
+  features = nlp.types.AnnotateTextRequest.Features(
+      extract_entities=True,
+      extract_document_sentiment=True,
+      extract_entity_sentiment=True,
+      extract_syntax=True,
+  )
+
+  with beam.Pipeline() as p:
+    responses = (
+        p
+        | beam.Create([
+            'My experience so far has been fantastic! '
+            'I\'d really recommend this product.'
+        ])
+        | beam.Map(lambda x: nlp.Document(x, type='PLAIN_TEXT'))
+        | nlp.AnnotateText(features))
+
+    _ = (
+        responses
+        | beam.Map(extract_sentiments)
+        | 'Parse sentiments to JSON' >> beam.Map(json.dumps)
+        | 'Write sentiments' >> beam.io.WriteToText('sentiments.txt'))
+
+    _ = (
+        responses
+        | beam.Map(extract_entities)
+        | 'Parse entities to JSON' >> beam.Map(json.dumps)
+        | 'Write entities' >> beam.io.WriteToText('entities.txt'))
+
+    _ = (
+        responses
+        | beam.Map(analyze_dependency_tree)
+        | 'Parse adjacency list to JSON' >> beam.Map(json.dumps)
+        | 'Write adjacency list' >> beam.io.WriteToText('adjancency_list.txt'))
+  # [END nlp_analyze_text]

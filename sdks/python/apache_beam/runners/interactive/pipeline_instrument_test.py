@@ -69,7 +69,7 @@ class PipelineInstrumentTest(unittest.TestCase):
     _, ctx = p.to_runner_api(use_fake_coders=True, return_context=True)
     self.assertEqual(
         instr.cacheable_key(init_pcoll, instr.pcolls_to_pcoll_id(p, ctx)),
-        str(id(init_pcoll)) + '_ref_PCollection_PCollection_10')
+        str(id(init_pcoll)) + '_ref_PCollection_PCollection_8')
 
   def test_cacheable_key_with_version_map(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -94,8 +94,8 @@ class PipelineInstrumentTest(unittest.TestCase):
         instr.cacheable_key(
             init_pcoll_2,
             instr.pcolls_to_pcoll_id(p2, ctx),
-            {'ref_PCollection_PCollection_10': str(id(init_pcoll))}),
-        str(id(init_pcoll)) + '_ref_PCollection_PCollection_10')
+            {'ref_PCollection_PCollection_8': str(id(init_pcoll))}),
+        str(id(init_pcoll)) + '_ref_PCollection_PCollection_8')
 
   def test_cache_key(self):
     p = beam.Pipeline(interactive_runner.InteractiveRunner())
@@ -131,19 +131,19 @@ class PipelineInstrumentTest(unittest.TestCase):
             pipeline_instrument._cacheable_key(init_pcoll): instr.Cacheable(
                 var='init_pcoll',
                 version=str(id(init_pcoll)),
-                pcoll_id='ref_PCollection_PCollection_10',
+                pcoll_id='ref_PCollection_PCollection_8',
                 producer_version=str(id(init_pcoll.producer)),
                 pcoll=init_pcoll),
             pipeline_instrument._cacheable_key(squares): instr.Cacheable(
                 var='squares',
                 version=str(id(squares)),
-                pcoll_id='ref_PCollection_PCollection_11',
+                pcoll_id='ref_PCollection_PCollection_9',
                 producer_version=str(id(squares.producer)),
                 pcoll=squares),
             pipeline_instrument._cacheable_key(cubes): instr.Cacheable(
                 var='cubes',
                 version=str(id(cubes)),
-                pcoll_id='ref_PCollection_PCollection_12',
+                pcoll_id='ref_PCollection_PCollection_10',
                 producer_version=str(id(cubes.producer)),
                 pcoll=cubes)
         })

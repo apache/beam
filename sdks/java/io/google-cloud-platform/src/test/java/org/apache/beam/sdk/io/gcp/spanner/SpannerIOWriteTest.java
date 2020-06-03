@@ -263,18 +263,34 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void noBatching() throws Exception {
+
+    // This test uses a different mock/fake because it explicitly does not want to populate the
+    // Spanner schema.
+    FakeServiceFactory fakeServiceFactory = new FakeServiceFactory();
+    ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
+    when(fakeServiceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
+
+    // Capture batches sent to writeAtLeastOnce.
+    when(fakeServiceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+        .thenReturn(null);
+
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
     mutations.apply(
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory)
+            .withServiceFactory(fakeServiceFactory)
             .withBatchSizeBytes(1)
             .grouped());
     pipeline.run();
 
-    verifyBatches(batch(m(1L)), batch(m(2L)));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
+    // If no batching then the DB schema is never read.
+    verify(tx, never()).executeQuery(any());
   }
 
   @Test
@@ -298,6 +314,54 @@ public class SpannerIOWriteTest implements Serializable {
     pipeline.run();
 
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithGrouping() throws Exception {
+
+    // verify that grouping/sorting occurs when set.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withGroupingFactor(40)
+                .withMaxNumRows(2));
+    pipeline.run();
+
+    // Output should be batches of sorted mutations.
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesNoGrouping() throws Exception {
+
+    // verify that grouping/sorting does not occur - batches should be created in received order.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+
+    // verify that grouping/sorting does not occur when notset.
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withMaxNumRows(2));
+    pipeline.run();
+
+    verifyBatches(batch(m(1L), m(5L)), batch(m(2L), m(4L)), batch(m(3L), m(6L)));
   }
 
   @Test
@@ -589,20 +653,73 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  public void displayData() throws Exception {
+  public void displayDataWrite() throws Exception {
     SpannerIO.Write write =
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withBatchSizeBytes(123);
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100);
 
     DisplayData data = DisplayData.from(write);
-    assertThat(data.items(), hasSize(4));
+    assertThat(data.items(), hasSize(7));
     assertThat(data, hasDisplayItem("projectId", "test-project"));
     assertThat(data, hasDisplayItem("instanceId", "test-instance"));
     assertThat(data, hasDisplayItem("databaseId", "test-database"));
     assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", "100"));
+
+    // check for default grouping value
+    write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database");
+
+    data = DisplayData.from(write);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("groupingFactor", "DEFAULT"));
+  }
+
+  @Test
+  public void displayDataWriteGrouped() throws Exception {
+    SpannerIO.WriteGrouped writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100)
+            .grouped();
+
+    DisplayData data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("projectId", "test-project"));
+    assertThat(data, hasDisplayItem("instanceId", "test-instance"));
+    assertThat(data, hasDisplayItem("databaseId", "test-database"));
+    assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", "100"));
+
+    // check for default grouping value
+    writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .grouped();
+
+    data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("groupingFactor", "DEFAULT"));
   }
 
   @Test

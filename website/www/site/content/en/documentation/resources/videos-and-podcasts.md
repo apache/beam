@@ -65,6 +65,24 @@ Presented by Frances Perry, *Apache Beam PPMC member*
 
 The following resources present Apache Beam partnerships.
 
+### Distributed Processing for Machine Learning Production Pipelines 
+
+Flink Forward, 2020
+
+Presented by Ahmet Altay, Robert Crowe, Reza Rokni
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/jV1WFTmm4qg" frameborder="0" allowfullscreen></iframe>
+<br>
+
+### TensorFlow Extended: An End-to-End Machine Learning Platform for TensorFlow 
+
+Spark+AI, San Francisco, 2019
+
+Presented by Konstantinos Katsiapis, Ahmet Altay
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/GTibgKo7WaI" frameborder="0" allowfullscreen></iframe>
+<br>
+
 ### Flink and Beam: Current State & Roadmap
 
 Flink Forward, Berlin, 2016

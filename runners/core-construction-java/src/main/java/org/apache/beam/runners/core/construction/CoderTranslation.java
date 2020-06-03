@@ -36,6 +36,22 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Immutabl
 
 /** Converts to and from Beam Runner API representations of {@link Coder Coders}. */
 public class CoderTranslation {
+
+  /**
+   * Pass through additional parameters beyond the components and payload to be able to translate
+   * specific coders.
+   *
+   * <p>Portability state API backed coders is an example of such a coder translator requiring
+   * additional parameters.
+   */
+  public interface TranslationContext {
+    /** The default translation context containing no additional parameters. */
+    TranslationContext DEFAULT = new DefaultTranslationContext();
+  }
+
+  /** A convenient class representing a default context containing no additional parameters. */
+  private static class DefaultTranslationContext implements TranslationContext {}
+
   // This URN says that the coder is just a UDF blob this SDK understands
   // TODO: standardize such things
   public static final String JAVA_SERIALIZED_CODER_URN = "beam:coders:javasdk:0.1";
@@ -115,21 +131,29 @@ public class CoderTranslation {
         .build();
   }
 
-  public static Coder<?> fromProto(RunnerApi.Coder protoCoder, RehydratedComponents components)
+  public static Coder<?> fromProto(
+      RunnerApi.Coder protoCoder, RehydratedComponents components, TranslationContext context)
       throws IOException {
     String coderSpecUrn = protoCoder.getSpec().getUrn();
     if (coderSpecUrn.equals(JAVA_SERIALIZED_CODER_URN)) {
       return fromCustomCoder(protoCoder);
     }
-    return fromKnownCoder(protoCoder, components);
+    return fromKnownCoder(protoCoder, components, context);
   }
 
-  private static Coder<?> fromKnownCoder(RunnerApi.Coder coder, RehydratedComponents components)
+  private static Coder<?> fromKnownCoder(
+      RunnerApi.Coder coder, RehydratedComponents components, TranslationContext context)
       throws IOException {
     String coderUrn = coder.getSpec().getUrn();
     List<Coder<?>> coderComponents = new ArrayList<>();
     for (String componentId : coder.getComponentCoderIdsList()) {
-      Coder<?> innerCoder = components.getCoder(componentId);
+      // Only store coders in RehydratedComponents as long as we are not using a custom
+      // translation context.
+      Coder<?> innerCoder =
+          context == TranslationContext.DEFAULT
+              ? components.getCoder(componentId)
+              : fromProto(
+                  components.getComponents().getCodersOrThrow(componentId), components, context);
       coderComponents.add(innerCoder);
     }
     Class<? extends Coder> coderType = KNOWN_CODER_URNS.inverse().get(coderUrn);
@@ -139,7 +163,8 @@ public class CoderTranslation {
         "Unknown Coder URN %s. Known URNs: %s",
         coderUrn,
         KNOWN_CODER_URNS.values());
-    return translator.fromComponents(coderComponents, coder.getSpec().getPayload().toByteArray());
+    return translator.fromComponents(
+        coderComponents, coder.getSpec().getPayload().toByteArray(), context);
   }
 
   private static Coder<?> fromCustomCoder(RunnerApi.Coder protoCoder) throws IOException {

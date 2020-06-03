@@ -552,7 +552,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       if (!cachedFiredTimers.hasNext()) {
         return null;
       }
-      return cachedFiredTimers.next();
+      TimerData nextTimer = cachedFiredTimers.next();
+      // system timers ( GC timer) must be explicitly deleted if only there is a hold.
+      // if timestamp is not equals to outputTimestamp then there should be a hold
+      if (!nextTimer.getTimestamp().equals(nextTimer.getOutputTimestamp())) {
+        systemTimerInternals.deleteTimer(nextTimer);
+      }
+      return nextTimer;
     }
 
     // Lazily initialized
@@ -584,14 +590,18 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       timerInternals()
           .setTimer(
               StateNamespaces.window(windowCoder, window),
               timerId,
               "",
               cleanupTime,
-              cleanupTime,
+              cleanupOutputTimestamp,
               TimeDomain.EVENT_TIME);
     }
 
@@ -755,7 +765,11 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     @Override
     public <W extends BoundedWindow> void setStateCleanupTimer(
-        String timerId, W window, Coder<W> windowCoder, Instant cleanupTime) {
+        String timerId,
+        W window,
+        Coder<W> windowCoder,
+        Instant cleanupTime,
+        Instant cleanupOutputTimestamp) {
       throw new UnsupportedOperationException(
           String.format(
               "setStateCleanupTimer should not be called on %s, only on a system %s",

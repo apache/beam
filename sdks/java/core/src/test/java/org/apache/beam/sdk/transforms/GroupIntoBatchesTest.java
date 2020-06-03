@@ -54,13 +54,14 @@ import org.slf4j.LoggerFactory;
 @RunWith(JUnit4.class)
 public class GroupIntoBatchesTest implements Serializable {
   private static final int BATCH_SIZE = 5;
-  private static final long NUM_ELEMENTS = 10;
+  private static final long EVEN_NUM_ELEMENTS = 10;
+  private static final long ODD_NUM_ELEMENTS = 11;
   private static final int ALLOWED_LATENESS = 0;
   private static final Logger LOG = LoggerFactory.getLogger(GroupIntoBatchesTest.class);
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
-  private transient ArrayList<KV<String, String>> data = createTestData();
+  private transient ArrayList<KV<String, String>> data = createTestData(EVEN_NUM_ELEMENTS);
 
-  private static ArrayList<KV<String, String>> createTestData() {
+  private static ArrayList<KV<String, String>> createTestData(long numElements) {
     String[] scientists = {
       "Einstein",
       "Darwin",
@@ -74,7 +75,7 @@ public class GroupIntoBatchesTest implements Serializable {
       "Maxwell"
     };
     ArrayList<KV<String, String>> data = new ArrayList<>();
-    for (int i = 0; i < NUM_ELEMENTS; i++) {
+    for (int i = 0; i < numElements; i++) {
       int index = i % scientists.length;
       KV<String, String> element = KV.of("key", scientists[index]);
       data.add(element);
@@ -111,7 +112,45 @@ public class GroupIntoBatchesTest implements Serializable {
               }
             });
     PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
-        .isEqualTo(NUM_ELEMENTS / BATCH_SIZE);
+        .isEqualTo(EVEN_NUM_ELEMENTS / BATCH_SIZE);
+    pipeline.run();
+  }
+
+  /** test behavior when the number of input elements is not evenly divisible by batch size. */
+  @Test
+  @Category({NeedsRunner.class, UsesTimersInParDo.class, UsesStatefulParDo.class})
+  public void testWithUnevenBatches() {
+    PCollection<KV<String, Iterable<String>>> collection =
+        pipeline
+            .apply("Input data", Create.of(createTestData(ODD_NUM_ELEMENTS)))
+            .apply(GroupIntoBatches.ofSize(BATCH_SIZE))
+            // set output coder
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), IterableCoder.of(StringUtf8Coder.of())));
+    PAssert.that("Incorrect batch size in one or more elements", collection)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<String>>>, Void>() {
+
+              private boolean checkBatchSizes(Iterable<KV<String, Iterable<String>>> listToCheck) {
+                for (KV<String, Iterable<String>> element : listToCheck) {
+                  // number of elements should be less than or equal to BATCH_SIZE
+                  if (Iterables.size(element.getValue()) > BATCH_SIZE) {
+                    return false;
+                  }
+                }
+                return true;
+              }
+
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<String>>> input) {
+                assertTrue(checkBatchSizes(input));
+                return null;
+              }
+            });
+    PAssert.thatSingleton("Incorrect collection size", collection.apply("Count", Count.globally()))
+        .isEqualTo(
+            // round up division for positive numbers
+            // https://math.stackexchange.com/questions/2591316/proof-for-integer-division-algorithm-that-rounds-up.
+            (ODD_NUM_ELEMENTS + BATCH_SIZE - 1) / BATCH_SIZE);
     pipeline.run();
   }
 
@@ -142,7 +181,7 @@ public class GroupIntoBatchesTest implements Serializable {
         streamBuilder
             .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration - 1)))
             .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(windowDuration + 1)))
-            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(NUM_ELEMENTS)))
+            .advanceWatermarkTo(startInstant.plus(Duration.standardSeconds(EVEN_NUM_ELEMENTS)))
             .advanceWatermarkToInfinity();
 
     PCollection<KV<String, String>> inputCollection =

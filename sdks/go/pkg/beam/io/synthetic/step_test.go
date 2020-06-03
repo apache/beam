@@ -27,14 +27,14 @@ func TestStepConfig_OutputPerInput(t *testing.T) {
 	tests := []struct {
 		outPer int
 	}{
+		{outPer: 0},
 		{outPer: 1},
 		{outPer: 10},
 	}
 	for _, test := range tests {
 		test := test
 		t.Run(fmt.Sprintf("(outPer = %v)", test.outPer), func(t *testing.T) {
-			cfg := DefaultStepConfig()
-			cfg.OutputPerInput = test.outPer
+			cfg := DefaultStepConfig().OutputPerInput(test.outPer).Build()
 
 			// Non-splittable StepFn.
 			dfn := stepFn{cfg: cfg}
@@ -51,7 +51,7 @@ func TestStepConfig_OutputPerInput(t *testing.T) {
 			}
 
 			// SDF StepFn.
-			cfg.Splittable = true
+			cfg = DefaultStepConfig().OutputPerInput(test.outPer).Splittable(true).Build()
 			sdf := sdfStepFn{cfg: cfg}
 			keys, _ = simulateSdfStepFn(t, &sdf)
 			if got := len(keys); got != test.outPer {
@@ -96,8 +96,7 @@ func TestStepConfig_FilterRatio(t *testing.T) {
 			elm := []byte{0, 0, 0, 0}
 
 			// Non-splittable StepFn.
-			cfg := DefaultStepConfig()
-			cfg.FilterRatio = test.ratio
+			cfg := DefaultStepConfig().FilterRatio(test.ratio).Build()
 			dfn := stepFn{cfg: cfg}
 			dfn.Setup()
 			dfn.rng = &fakeRand{f64: test.rand}
@@ -110,7 +109,7 @@ func TestStepConfig_FilterRatio(t *testing.T) {
 			}
 
 			// SDF StepFn.
-			cfg.Splittable = true
+			cfg = DefaultStepConfig().FilterRatio(test.ratio).Splittable(true).Build()
 			sdf := sdfStepFn{cfg: cfg}
 			keys = nil
 			rest := sdf.CreateInitialRestriction(elm, elm)
@@ -143,15 +142,16 @@ func TestStepConfig_InitialSplits(t *testing.T) {
 		}{
 			{outPer: 100, splits: 10, want: 10},
 			{outPer: 4, splits: 10, want: 4},
-			{outPer: 100, splits: 0, want: 1},
+			{outPer: 0, splits: 10, want: 0},
 		}
 		for _, test := range tests {
 			test := test
 			t.Run(fmt.Sprintf("(outPer = %v, splits = %v)", test.outPer, test.splits), func(t *testing.T) {
-				cfg := DefaultStepConfig()
-				cfg.OutputPerInput = test.outPer
-				cfg.Splittable = true
-				cfg.InitialSplits = test.splits
+				cfg := DefaultStepConfig().
+					OutputPerInput(test.outPer).
+					Splittable(true).
+					InitialSplits(test.splits).
+					Build()
 				elm := []byte{0, 0, 0, 0}
 
 				sdf := sdfStepFn{cfg: cfg}
@@ -175,15 +175,16 @@ func TestStepConfig_InitialSplits(t *testing.T) {
 		}{
 			{outPer: 100, want: 100, splits: 10},
 			{outPer: 4, want: 4, splits: 10},
-			{outPer: -1, want: 0, splits: 10},
+			{outPer: 0, want: 0, splits: 10},
 		}
 		for _, test := range tests {
 			test := test
 			t.Run(fmt.Sprintf("(outPer = %v)", test.outPer), func(t *testing.T) {
-				cfg := DefaultStepConfig()
-				cfg.OutputPerInput = test.outPer
-				cfg.Splittable = true
-				cfg.InitialSplits = test.splits
+				cfg := DefaultStepConfig().
+					OutputPerInput(test.outPer).
+					Splittable(true).
+					InitialSplits(test.splits).
+					Build()
 
 				sdf := sdfStepFn{cfg: cfg}
 				keys, _ := simulateSdfStepFn(t, &sdf)
