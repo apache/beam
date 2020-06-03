@@ -106,9 +106,8 @@ if [[ $confirmation = "y" ]]; then
                 -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
                 -Prelease.useAutomaticVersion=true --info --no-daemon
 
-  echo "Please make sure gradle release succeed: "
-  echo "1. release code has been pushed to github repo."
-  echo "2. new rc tag has created in github."
+  git push origin "${RELEASE_BRANCH}"
+  git push origin "v${RELEASE}-RC${RC_NUM}"
 
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
