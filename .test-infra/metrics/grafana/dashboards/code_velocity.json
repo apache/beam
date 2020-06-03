@@ -51,7 +51,7 @@
           "targetBlank": true,
           "title": "Link to oldest open PRs",
           "type": "absolute",
-          "url": "https://github.com/apache/beam/pulls?q=is%3Apr+is%3Aopen+sort%3Acreated-asc"
+          "url": "https://github.com/damgadbot/beam/pulls?q=is%3Apr+is%3Aopen+sort%3Acreated-asc"
         }
       ],
       "mappingType": 1,
@@ -158,7 +158,7 @@
           "targetBlank": true,
           "title": "Link to oldest open PRs",
           "type": "absolute",
-          "url": "https://github.com/apache/beam/pulls?q=is%3Apr+is%3Aopen+sort%3Acreated-asc"
+          "url": "https://github.com/damgadbot/beam/pulls?q=is%3Apr+is%3Aopen+sort%3Acreated-asc"
         }
       ],
       "mappingType": 1,
@@ -265,7 +265,7 @@
           "targetBlank": true,
           "title": "Least updated CLs",
           "type": "absolute",
-          "url": "https://github.com/apache/beam/pulls?q=is%3Aopen+is%3Apr+sort%3Aupdated-asc"
+          "url": "https://github.com/damgadbot/beam/pulls?q=is%3Aopen+is%3Apr+sort%3Aupdated-asc"
         }
       ],
       "mappingType": 1,
@@ -371,7 +371,7 @@
         {
           "title": "Least updated PRs",
           "type": "absolute",
-          "url": "https://github.com/apache/beam/pulls?q=is%3Aopen+is%3Apr+sort%3Aupdated-asc"
+          "url": "https://github.com/damgadbot/beam/pulls?q=is%3Aopen+is%3Apr+sort%3Aupdated-asc"
         }
       ],
       "mappingType": 1,
@@ -487,7 +487,7 @@
           "link": true,
           "linkTargetBlank": true,
           "linkTooltip": "PR",
-          "linkUrl": "https://github.com/apache/beam/pull/${__cell:raw}",
+          "linkUrl": "https://github.com/damgadbot/beam/pull/${__cell:raw}",
           "mappingType": 1,
           "pattern": "pr_id",
           "thresholds": [],

@@ -12,12 +12,12 @@
 
 '''
 This query is used to fetch PR data from github via Github API v4 (GraphQL).
-Returns PRs on apache/beam repo that are older than provided timestamp.
+Returns PRs on damgadbot/beam repo that are older than provided timestamp.
 Time format "2017-10-26T20:00:00Z
 '''
 MAIN_PR_QUERY = '''
 query {
-  search(query: "type:pr repo:apache/beam updated:><TemstampSubstitueLocation> sort:updated-asc", type: ISSUE, first: 100) {
+  search(query: "type:pr repo:damgadbot/beam updated:><TemstampSubstitueLocation> sort:updated-asc", type: ISSUE, first: 100) {
     issueCount
     pageInfo {
       endCursor

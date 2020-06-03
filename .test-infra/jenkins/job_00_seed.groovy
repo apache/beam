@@ -22,7 +22,7 @@ job('beam_SeedJob') {
               ' on Jenkins DSL groovy files checked into the code repository.')
 
   properties {
-    githubProjectUrl('https://github.com/apache/beam/')
+    githubProjectUrl('https://github.com/damgadbot/beam/')
   }
 
   // Restrict to only run on Jenkins executors labeled 'beam'
@@ -35,7 +35,7 @@ job('beam_SeedJob') {
   scm {
     git {
       remote {
-        github('apache/beam')
+        github('damgadbot/beam')
 
         // ${ghprbPullId} is not interpolated by groovy, but passed through to Jenkins where it
         // refers to the environment variable
