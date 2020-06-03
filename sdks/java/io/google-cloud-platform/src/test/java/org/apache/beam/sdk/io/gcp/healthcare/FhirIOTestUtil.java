@@ -231,28 +231,4 @@ class FhirIOTestUtil {
       }
     }
   }
-
-  public static class ResourceIdToNameFn extends DoFn<KV<String, String>, KV<String, String>> {
-    private transient HealthcareApiClient client;
-    private ExtractIDSearchParams extractIDSearchParams = new ExtractIDSearchParams();
-    private final String fhirStore;
-    private ObjectMapper mapper;
-
-    public ResourceIdToNameFn(String fhirStore) {
-      this.fhirStore = fhirStore;
-    }
-
-    @Setup
-    void setup() throws IOException {
-      client = new HttpHealthcareApiClient();
-      mapper = new ObjectMapper();
-    }
-
-    @ProcessElement
-    void mapKeys(@Element KV<String, String> idResourcePair, OutputReceiver<KV<String, String>> out)
-        throws IOException, HealthcareHttpException {
-      Map<String, String> searchParams = extractIDSearchParams.apply(idResourcePair.getValue());
-      String searchResults = client.fhirSearch(fhirStore, null, searchParams).getData();
-    }
-  }
 }
