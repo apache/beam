@@ -1,6 +1,6 @@
 ---
-title:  "Apache Beam 2.21.0"
-date:   2020-05-27 00:00:01 -0800
+title:  "Apache Beam 2.22.0"
+date:   2020-06-?? 00:00:01 -0800
 categories:
   - blog
 authors:
