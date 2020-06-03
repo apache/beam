@@ -1,22 +1,37 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.extensions.sql.impl.udaf;
 
-import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.annotations.Experimental;
-
-import java.util.logging.Logger;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 
 /**
- * {@code PTransform}s for aggregating strings or bytes with an optional delimiter (default comma)
+ * {@link CombineFn}s for aggregating strings or bytes with an optional delimiter (default comma).
+ *
+ * <p>{@link StringAgg.StringAggString} does not support NULL values.
  */
-
 @Experimental
 public class StringAgg {
 
-  private static final Logger LOG = Logger.getLogger(StringAgg.class.getName());
-
+  /** A {@link CombineFn} that aggregates strings with comma as delimiter. */
   public static class StringAggString extends CombineFn<String, String, String> {
-    /* initial accumulator is an empty string */
-    private final String delimiter = ",";
+
+    private static final String delimiter = ",";
 
     @Override
     public String createAccumulator() {
@@ -28,7 +43,7 @@ public class StringAgg {
 
       if (!nextString.isEmpty()) {
         if (!curString.isEmpty()) {
-          curString += this.delimiter + nextString;
+          curString += StringAggString.delimiter + nextString;
         } else {
           curString = nextString;
         }
@@ -40,10 +55,10 @@ public class StringAgg {
     @Override
     public String mergeAccumulators(Iterable<String> accumList) {
       String mergeString = "";
-      for(String stringAccum : accumList) {
-        if(!stringAccum.isEmpty()) {
-          if(!mergeString.isEmpty()) {
-            mergeString += this.delimiter + stringAccum;
+      for (String stringAccum : accumList) {
+        if (!stringAccum.isEmpty()) {
+          if (!mergeString.isEmpty()) {
+            mergeString += StringAggString.delimiter + stringAccum;
           } else {
             mergeString = stringAccum;
           }
@@ -57,6 +72,5 @@ public class StringAgg {
     public String extractOutput(String output) {
       return output;
     }
-
   }
 }
