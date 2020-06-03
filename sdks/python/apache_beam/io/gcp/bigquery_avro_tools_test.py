@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import, division
+from __future__ import absolute_import
+from __future__ import division
 
 import json
 import logging
@@ -22,7 +23,8 @@ import unittest
 
 import fastavro
 
-from apache_beam.io.gcp import bigquery_avro_tools, bigquery_tools
+from apache_beam.io.gcp import bigquery_avro_tools
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery_test import HttpError
 from apache_beam.io.gcp.internal.clients import bigquery
 
