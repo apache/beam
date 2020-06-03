@@ -14,23 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-from __future__ import absolute_import
-from __future__ import division
+from __future__ import absolute_import, division
 
 import json
 import logging
 import unittest
 
+import fastavro
+
+from apache_beam.io.gcp import bigquery_avro_tools, bigquery_tools
+from apache_beam.io.gcp.bigquery_test import HttpError
+from apache_beam.io.gcp.internal.clients import bigquery
+
 try:
   from avro.schema import Parse  # avro-python3 library for Python 3
 except ImportError:
   from avro.schema import parse as Parse  # avro library for Python 2
-import fastavro
-
-from apache_beam.io.gcp import bigquery_avro_tools
-from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.bigquery_test import HttpError
-from apache_beam.io.gcp.internal.clients import bigquery
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -87,8 +86,7 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
     field_map = getattr(parsed_schema, "field_map", None) or \
       getattr(parsed_schema, "fields_dict", None)
 
-    self.assertEqual(
-        field_map["number"].type, Parse(json.dumps("long")))
+    self.assertEqual(field_map["number"].type, Parse(json.dumps("long")))
     self.assertEqual(
         field_map["species"].type, Parse(json.dumps(["null", "string"])))
     self.assertEqual(
@@ -122,10 +120,9 @@ class TestBigQueryToAvroSchema(unittest.TestCase):
         field_map["sound"].type, Parse(json.dumps(["null", "bytes"])))
     self.assertEqual(
         field_map["anniversaryDate"].type,
-        Parse(
-            json.dumps(["null", {
-                "type": "int", "logicalType": "date"
-            }])))
+        Parse(json.dumps(["null", {
+            "type": "int", "logicalType": "date"
+        }])))
     self.assertEqual(
         field_map["anniversaryDatetime"].type,
         Parse(json.dumps(["null", "string"])))
