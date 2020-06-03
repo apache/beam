@@ -269,7 +269,7 @@ limitations under the License.
 &lt;h1 id="beam-mascot-design">Beam Mascot Design&lt;/h1>
 &lt;p>This page contains Apache Beam&amp;rsquo;s mascot designs.&lt;/p>
 &lt;p>Beam Firefly is cute, friendly, agile, easy to use, and its main objective is to fetch streams and batches of data and process it. The mascot’s model sheet is useful to understand its features, capabilities, as well as its morphology. The original design of the mascot was created by &lt;a href="https://www.artstation.com/jbruno">Julian G. Bruno&lt;/a> and was donated to the Apache Beam community under the &lt;a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0&lt;/a>.&lt;/p>
-&lt;p>You can browse the original mascot and its adaptations in different sizes and image formats in &lt;a href="https://github.com/apache/beam/tree/mascot-upload/website/www/site/static/images/mascot">this directory&lt;/a>.&lt;/p>
+&lt;p>You can browse the original mascot and its adaptations in different sizes and image formats in &lt;a href="https://github.com/apache/beam/tree/master/website/www/site/static/images/mascot/">this directory&lt;/a>.&lt;/p>
 &lt;p>&lt;a href="/images/mascot/model_sheet.png">&lt;img src="/images/mascot/model_sheet.png" alt="Model Sheet">&lt;/a>&lt;/p>
 &lt;h2 id="beam-mascot-adaptations">Beam mascot adaptations&lt;/h2>
 &lt;p>The original Beam mascot - simple and eye-catching, was developed with its body shaped like a “B” from Beam’s logo. The ideal choice for printing in any size or using for swags. The lit-up tail is another element to play with if you want to animate the firefly.&lt;/p>
