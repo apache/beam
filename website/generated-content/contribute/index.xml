@@ -266,7 +266,6 @@ limitations under the License.
 &lt;/li>
 &lt;li>&lt;a href="#4-triage-release-blocking-issues-in-jira">4. Triage release-blocking issues in JIRA&lt;/a>
 &lt;ul>
-&lt;li>&lt;a href="#review-release-notes-in-jira">Review Release Notes in JIRA&lt;/a>&lt;/li>
 &lt;li>&lt;a href="#review-cherry-picks">Review cherry-picks&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
@@ -803,17 +802,6 @@ to find environment issues this way without having to wait until the full build 
 &lt;li>If the issue has not been resolved and it is not acceptable to release until it is fixed, the release cannot proceed. Instead, work with the Beam community to resolve the issue.&lt;/li>
 &lt;/ul>
 &lt;p>If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.&lt;/p>
-&lt;h3 id="review-release-notes-in-jira">Review Release Notes in JIRA&lt;/h3>
-&lt;p>JIRA automatically generates Release Notes based on the &lt;code>Fix Version&lt;/code> field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.&lt;/p>
-&lt;p>Open the release notes from the &lt;a href="https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel">version status page&lt;/a> by choosing the release underway and clicking Release Notes.&lt;/p>
-&lt;p>You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:&lt;/p>
-&lt;ul>
-&lt;li>Be appropriately classified as &lt;code>Bug&lt;/code>, &lt;code>New Feature&lt;/code>, &lt;code>Improvement&lt;/code>, etc.&lt;/li>
-&lt;li>Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.&lt;/li>
-&lt;li>Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.&lt;/li>
-&lt;li>Have an issue title that makes sense when read on its own.&lt;/li>
-&lt;/ul>
-&lt;p>Adjust any of the above properties to the improve clarity and presentation of the Release Notes.&lt;/p>
 &lt;h3 id="review-cherry-picks">Review cherry-picks&lt;/h3>
 &lt;p>Check if there are outstanding cherry-picks into the release branch, &lt;a href="https://github.com/apache/beam/pulls?utf8=%E2%9C%93&amp;amp;q=is%3Apr+base%3Arelease-2.14.0">e.g. for &lt;code>2.14.0&lt;/code>&lt;/a>.
 Make sure they have blocker JIRAs attached and are OK to get into the release by checking with community if needed.&lt;/p>
@@ -838,7 +826,6 @@ Make sure they have blocker JIRAs attached and are OK to get into the release by
 &lt;li>JIRA release item for the subsequent release has been created;&lt;/li>
 &lt;li>All test failures from branch verification have associated JIRA issues;&lt;/li>
 &lt;li>There are no release blocking JIRA issues;&lt;/li>
-&lt;li>Release Notes in JIRA have been audited and adjusted;&lt;/li>
 &lt;li>Combined javadoc has the appropriate contents;&lt;/li>
 &lt;li>Release branch has been created;&lt;/li>
 &lt;li>There are no open pull requests to release branch;&lt;/li>
