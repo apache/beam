@@ -254,7 +254,37 @@ available in a number of fixed sizes and are optimized for web use.&lt;/p>
 &lt;/div>
 &lt;/div>
 &lt;h2 id="colors-and-fonts">Colors and fonts&lt;/h2>
-&lt;p>The Apache Beam project uses predefined colors and fonts. &lt;a href="/downloads/palette.pdf">This document&lt;/a> has more information.&lt;/p></description></item><item><title>Community: Beam Presentation Materials</title><link>/community/presentation-materials/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/presentation-materials/</guid><description>
+&lt;p>The Apache Beam project uses predefined colors and fonts. &lt;a href="/downloads/palette.pdf">This document&lt;/a> has more information.&lt;/p></description></item><item><title>Community: Beam Mascot</title><link>/community/mascot/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/mascot/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h1 id="beam-mascot-design">Beam Mascot Design&lt;/h1>
+&lt;p>This page contains Apache Beam&amp;rsquo;s mascot designs.&lt;/p>
+&lt;p>Beam Firefly is cute, friendly, agile, easy to use, and its main objective is to fetch streams and batches of data and process it. The mascot’s model sheet is useful to understand its features, capabilities, as well as its morphology. The original design of the mascot was created by &lt;a href="https://www.artstation.com/jbruno">Julian G. Bruno&lt;/a> and was donated to the Apache Beam community under the &lt;a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0&lt;/a>.&lt;/p>
+&lt;p>You can browse the original mascot and its adaptations in different sizes and image formats in &lt;a href="https://github.com/apache/beam/tree/mascot-upload/website/www/site/static/images/mascot">this directory&lt;/a>.&lt;/p>
+&lt;p>&lt;a href="/images/mascot/model_sheet.png">&lt;img src="/images/mascot/model_sheet.png" alt="Model Sheet">&lt;/a>&lt;/p>
+&lt;h2 id="beam-mascot-adaptations">Beam mascot adaptations&lt;/h2>
+&lt;p>The original Beam mascot - simple and eye-catching, was developed with its body shaped like a “B” from Beam’s logo. The ideal choice for printing in any size or using for swags. The lit-up tail is another element to play with if you want to animate the firefly.&lt;/p>
+&lt;img src="/images/mascot/beam_mascot_500x500.png" width="200"/>
+&lt;p>The adaptation below represents independent learning. The bubble can be replaced by any other description. An ideal choice for promoting Beam talks, workshops, and webinars where the Beam community learns new things.&lt;/p>
+&lt;img src="/images/mascot/learning_independently_500x500.png" width="280"/>
+&lt;p>The second adaptation below represents data processing. The data goes through the firefly’s tail, filling the entire body with streams of information (for example, codes) and when it is done processing the mascot’s entire body outline lits up in yellow color to tell that it is loaded with data and is ready to process it, while it becomes stronger and faster. Mascot returns to its original status after finishing this process.&lt;/p>
+&lt;img src="/images/mascot/big_data_500x500.png" width="300"/>
+&lt;!--
+![Beam Firefly](/images/mascot/beam_mascot_500x500.png =100x)
+![Learning Independently](/images/mascot/learning_independently_500x500.png =100x)
+![Processing Big Data](/images/mascot/big_data_500x500.png =100x)
+-->
+&lt;h2 id="colors">Colors&lt;/h2>
+&lt;p>For the Beam mascot, we used Apache Beam project’s predefined colors and fonts. &lt;a href="/downloads/palette.pdf">This document&lt;/a> has more information. Color Palette (RGB), Orange : #FF570B, Yellow : #FFF200, White: #FFFFFF, Black: #1D1D1B&lt;/p></description></item><item><title>Community: Beam Presentation Materials</title><link>/community/presentation-materials/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/community/presentation-materials/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

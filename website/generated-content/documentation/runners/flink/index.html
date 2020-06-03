@@ -46,13 +46,13 @@ WordCount example:</p><div class=language-java><div class=highlight><pre class=c
 </span><span class=s>      --flinkMaster=&lt;flink master url&gt; \
 </span><span class=s>      --filesToStage=target/word-count-beam-bundled-0.1.jar&#34;</span></code></pre></div></div><p class=language-java>If you have a Flink <code>JobManager</code> running on your local machine you can provide <code>localhost:8081</code> for
 <code>flinkMaster</code>. Otherwise an embedded Flink cluster will be started for the job.</p><p>Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.</p><p>JobService:
-<a href=https://hub.docker.com/r/apache/beam_flink1.7_job_server>Flink 1.7</a>,
 <a href=https://hub.docker.com/r/apache/beam_flink1.8_job_server>Flink 1.8</a>,
-<a href=https://hub.docker.com/r/apache/beam_flink1.9_job_server>Flink 1.9</a>.</p><p>Beam SDK:
+<a href=https://hub.docker.com/r/apache/beam_flink1.9_job_server>Flink 1.9</a>.
+<a href=https://hub.docker.com/r/apache/beam_flink1.10_job_server>Flink 1.10</a>.</p><p>Beam SDK:
 <a href=https://hub.docker.com/r/apache/beam_python2.7_sdk>Python 2.7</a>,
 <a href=https://hub.docker.com/r/apache/beam_python3.5_sdk>Python 3.5</a>,
 <a href=https://hub.docker.com/r/apache/beam_python3.6_sdk>Python 3.6</a>,
-<a href=https://hub.docker.com/r/apache/beam_python3.7_sdk>Python 3.7</a>.</p><p>To run a pipeline on an embedded Flink cluster:</p><p class=language-py><ol><li>Start the JobService endpoint: <code>docker run --net=host apachebeam/flink1.9_job_server:latest</code></li></ol></p><p class=language-py>The JobService is the central instance where you submit your Beam pipeline to.
+<a href=https://hub.docker.com/r/apache/beam_python3.7_sdk>Python 3.7</a>.</p><p>To run a pipeline on an embedded Flink cluster:</p><p class=language-py><ol><li>Start the JobService endpoint: <code>docker run --net=host apache/beam_flink1.10_job_server:latest</code></li></ol></p><p class=language-py>The JobService is the central instance where you submit your Beam pipeline to.
 The JobService will create a Flink job for the pipeline and execute the job.</p><p class=language-py><ol start=2><li>Submit the Python pipeline to the above endpoint by using the <code>PortableRunner</code>, <code>job_endpoint</code> set to <code>localhost:8099</code> (this is the default address of the JobService), and <code>environment_type</code> set to <code>LOOPBACK</code>. For example:</li></ol></p><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
 <span class=kn>from</span> <span class=nn>apache_beam.options.pipeline_options</span> <span class=kn>import</span> <span class=n>PipelineOptions</span>
 
@@ -62,7 +62,7 @@ The JobService will create a Flink job for the pipeline and execute the job.</p>
     <span class=s2>&#34;--environment_type=LOOPBACK&#34;</span>
 <span class=p>])</span>
 <span class=k>with</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>(</span><span class=n>options</span><span class=p>)</span> <span class=k>as</span> <span class=n>p</span><span class=p>:</span>
-    <span class=o>...</span></code></pre></div></div><p class=language-py>To run on a separate <a href=https://ci.apache.org/projects/flink/flink-docs-release-1.9/getting-started/tutorials/local_setup.html>Flink cluster</a>:</p><p class=language-py><ol><li>Start a Flink cluster which exposes the Rest interface on <code>localhost:8081</code> by default.</li></ol></p><p class=language-py><ol start=2><li>Start JobService with Flink Rest endpoint: <code>docker run --net=host apachebeam/flink1.9_job_server:latest --flink-master=localhost:8081</code>.</li></ol></p><p class=language-py><ol start=3><li>Submit the pipeline as above.
+    <span class=o>...</span></code></pre></div></div><p class=language-py>To run on a separate <a href=https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html>Flink cluster</a>:</p><p class=language-py><ol><li>Start a Flink cluster which exposes the Rest interface on <code>localhost:8081</code> by default.</li></ol></p><p class=language-py><ol start=2><li>Start JobService with Flink Rest endpoint: <code>docker run --net=host apache/beam_flink1.10_job_server:latest --flink-master=localhost:8081</code>.</li></ol></p><p class=language-py><ol start=3><li>Submit the pipeline as above.
 Note however that <code>environment_type=LOOPBACK</code> is only intended for local testing.
 See <a href=/documentation/runtime/sdk-harness-config/>here</a> for details.</li></ol></p><p class=language-py>Steps 2 and 3 can be automated in Python by using the <code>FlinkRunner</code>,
 plus the optional <code>flink_version</code> and <code>flink_master</code> options, e.g.:</p><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>import</span> <span class=nn>apache_beam</span> <span class=kn>as</span> <span class=nn>beam</span>
@@ -70,7 +70,7 @@ plus the optional <code>flink_version</code> and <code>flink_master</code> optio
 
 <span class=n>options</span> <span class=o>=</span> <span class=n>PipelineOptions</span><span class=p>([</span>
     <span class=s2>&#34;--runner=FlinkRunner&#34;</span><span class=p>,</span>
-    <span class=s2>&#34;--flink_version=1.9&#34;</span><span class=p>,</span>
+    <span class=s2>&#34;--flink_version=1.10&#34;</span><span class=p>,</span>
     <span class=s2>&#34;--flink_master=localhost:8081&#34;</span><span class=p>,</span>
     <span class=s2>&#34;--environment_type=LOOPBACK&#34;</span>
 <span class=p>])</span>
