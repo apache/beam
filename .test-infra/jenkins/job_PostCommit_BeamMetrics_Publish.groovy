@@ -20,7 +20,7 @@ import CommonJobProperties as commonJobProperties
 import Kubernetes
 import PostcommitJobBuilder
 
-PostcommitJobBuilder.postCommitJob('beam_PostCommit_BeamMetrics_Publish', '',
+PostcommitJobBuilder.postCommitJob('beam_PostCommit_BeamMetrics_Publish', 'Run Beam Metrics deployment',
   'Beam Metrics deployment', this) {
 
   description('Applies new configuration to Beam Metrics infrastructure.')
@@ -28,7 +28,8 @@ PostcommitJobBuilder.postCommitJob('beam_PostCommit_BeamMetrics_Publish', '',
   // Set common parameters.
   commonJobProperties.setTopLevelMainJobProperties(delegate)
 
-  Kubernetes.create(delegate, 'config-metrics', '', 'metrics')
+  String kubeconfig = commonJobProperties.getKubeconfigLocationForNamespace('default')
+  Kubernetes.create(delegate, kubeconfig, '', 'metrics')
 
   steps {
     gradle {

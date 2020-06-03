@@ -249,7 +249,7 @@ class CommonJobProperties {
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {
-    return '"$WORKSPACE/' + "config-${namespace}" + '"'
+    return '$WORKSPACE/' + "config-${namespace}"
   }
 
   /**
