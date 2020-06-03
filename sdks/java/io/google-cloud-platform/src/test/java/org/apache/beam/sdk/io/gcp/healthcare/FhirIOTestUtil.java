@@ -41,9 +41,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.gcp.healthcare.HttpHealthcareApiClient.HealthcareHttpException;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.values.KV;
 
 class FhirIOTestUtil {
   public static final String DEFAULT_TEMP_BUCKET = "temp-storage-for-healthcare-io-tests";
