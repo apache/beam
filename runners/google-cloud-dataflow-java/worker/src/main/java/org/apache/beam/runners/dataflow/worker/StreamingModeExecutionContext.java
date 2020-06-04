@@ -24,10 +24,12 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
@@ -522,6 +524,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
       this.cachedFiredTimers = null;
       this.cachedFiredUserTimers = null;
+      this.toBeFiredTimersOrdered.clear();
     }
 
     public void flushState() {
@@ -564,10 +567,13 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
     // Lazily initialized
     private Iterator<TimerData> cachedFiredUserTimers = null;
 
+    private PriorityQueue<TimerData> toBeFiredTimersOrdered =
+        new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
+
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
       if (cachedFiredUserTimers == null) {
         cachedFiredUserTimers =
-            FluentIterable.<Timer>from(StreamingModeExecutionContext.this.getFiredTimers())
+            FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
                 .filter(
                     timer ->
                         WindmillTimerInternals.isUserTimer(timer)
@@ -577,12 +583,21 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                         WindmillTimerInternals.windmillTimerToTimerData(
                             WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
                 .iterator();
+
+        cachedFiredUserTimers.forEachRemaining(toBeFiredTimersOrdered::add);
       }
 
-      if (!cachedFiredUserTimers.hasNext()) {
+      Instant currentInputWatermark = userTimerInternals.currentInputWatermarkTime();
+      if (userTimerInternals.hasTimerBefore(currentInputWatermark)) {
+        while (!toBeFiredTimersOrdered.isEmpty()) {
+          userTimerInternals.setTimer(toBeFiredTimersOrdered.poll());
+        }
+      }
+
+      if (toBeFiredTimersOrdered.isEmpty()) {
         return null;
       }
-      TimerData nextTimer = cachedFiredUserTimers.next();
+      TimerData nextTimer = toBeFiredTimersOrdered.poll();
       // User timers must be explicitly deleted when delivered, to release the implied hold
       userTimerInternals.deleteTimer(nextTimer);
       return nextTimer;

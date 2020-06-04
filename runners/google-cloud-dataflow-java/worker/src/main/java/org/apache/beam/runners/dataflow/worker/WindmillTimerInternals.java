@@ -227,6 +227,18 @@ class WindmillTimerInternals implements TimerInternals {
     timers.clear();
   }
 
+  public boolean hasTimerBefore(Instant time) {
+    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
+      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
+      if (cell.getValue()) {
+        if (timerData.getTimestamp().isBefore(time)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private boolean needsWatermarkHold(TimerData timerData) {
     // If it is a user timer or a system timer with outputTimestamp different than timestamp
     return WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)

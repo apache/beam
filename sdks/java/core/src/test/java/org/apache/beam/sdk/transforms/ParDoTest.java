@@ -139,6 +139,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
@@ -3938,10 +3939,11 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesTimersInParDo.class,
       UsesStatefulParDo.class,
+      UsesUnboundedPCollections.class,
       UsesStrictTimerOrdering.class
     })
     public void testEventTimeTimerOrderingWithCreate() throws Exception {
-      final int numTestElements = 100;
+      final int numTestElements = 5;
       final Instant now = new Instant(1500000000000L);
 
       List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
@@ -4009,6 +4011,7 @@ public class ParDoTest implements Serializable {
 
               List<TimestampedValue<String>> flush = new ArrayList<>();
               Instant flushTime = context.timestamp();
+              int bagSize = Iterators.size(bagState.read().iterator());
               for (TimestampedValue<String> val : bagState.read()) {
                 if (!val.getTimestamp().isAfter(flushTime)) {
                   flush.add(val);
@@ -4018,7 +4021,7 @@ public class ParDoTest implements Serializable {
               context.output(
                   Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
               Instant newMinStamp = flushTime.plus(1);
-              if (flush.size() < numTestElements) {
+              if (flush.size() < numTestElements && bagSize > 0) {
                 timer.set(newMinStamp);
               }
             }
@@ -4040,7 +4043,8 @@ public class ParDoTest implements Serializable {
             }
           };
 
-      PCollection<String> output = pipeline.apply(transform).apply(ParDo.of(fn));
+      PCollection<String> output =
+          pipeline.apply(transform).setIsBoundedInternal(IsBounded.UNBOUNDED).apply(ParDo.of(fn));
       List<String> expected =
           IntStream.rangeClosed(0, numTestElements)
               .mapToObj(expandFn(numTestElements))
