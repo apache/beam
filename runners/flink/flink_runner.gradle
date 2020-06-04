@@ -177,9 +177,17 @@ dependencies {
   if (flink_version.startsWith('1.10')) {
       compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.10-lyft20200508"
       compile "com.lyft:streamingplatform-kinesis:2.1-SNAPSHOT"
+      compile("com.lyft:streamingplatform-kafka:2.1-SNAPSHOT") {
+        exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
+        exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
+      }
   } else {
       compile "org.apache.flink:flink-connector-kafka-0.11_2.11:1.8-lyft20190924"
       compile "com.lyft:streamingplatform-kinesis:1.4-SNAPSHOT"
+      compile("com.lyft:streamingplatform-kafka:1.4-SNAPSHOT") {
+        exclude group: "org.apache.flink", module: "flink-connector-kafka-0.11_2.11"
+        exclude group: "org.apache.flink", module: "flink-streaming-java_2.11"
+      }
   }
 }
 
