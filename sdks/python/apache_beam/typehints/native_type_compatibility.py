@@ -372,6 +372,8 @@ def convert_to_typing_type(typ):
     return typing.Union[tuple(convert_to_typing_types(typ.union_types))]
   if isinstance(typ, typehints.SetTypeConstraint):
     return typing.Set[convert_to_typing_type(typ.inner_type)]
+  if isinstance(typ, typehints.FrozenSetTypeConstraint):
+    return typing.FrozenSet[convert_to_typing_type(typ.inner_type)]
   if isinstance(typ, typehints.TupleConstraint):
     return typing.Tuple[tuple(convert_to_typing_types(typ.tuple_types))]
   if isinstance(typ, typehints.TupleSequenceConstraint):

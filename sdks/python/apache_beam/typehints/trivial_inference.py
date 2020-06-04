@@ -84,7 +84,7 @@ def instance_to_type(o):
   elif t == frozenset:
     if len(o) > 0:
       return typehints.FrozenSet[typehints.Union[[
-          instance_to_type(item) for item in o
+        instance_to_type(item) for item in o
       ]]]
     else:
       return typehints.FrozenSet[typehints.Any]
@@ -315,6 +315,7 @@ def infer_return_type(c, input_types, debug=False, depth=5):
         return {
             list: typehints.List[Any],
             set: typehints.Set[Any],
+            frozenset: typehints.FrozenSet[Any],
             tuple: typehints.Tuple[Any, ...],
             dict: typehints.Dict[Any, Any]
         }[c]

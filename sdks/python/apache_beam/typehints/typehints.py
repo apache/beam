@@ -87,6 +87,7 @@ __all__ = [
     'KV',
     'Dict',
     'Set',
+    'FrozenSet',
     'Iterable',
     'Iterator',
     'Generator',
@@ -96,7 +97,7 @@ __all__ = [
 
 # A set of the built-in Python types we don't support, guiding the users
 # to templated (upper-case) versions instead.
-DISALLOWED_PRIMITIVE_TYPES = (list, set, tuple, dict)
+DISALLOWED_PRIMITIVE_TYPES = (list, set, frozenset, tuple, dict)
 
 _LOGGER = logging.getLogger(__name__)
 

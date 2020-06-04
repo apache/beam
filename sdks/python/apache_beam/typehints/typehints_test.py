@@ -125,6 +125,7 @@ class AnyTypeConstraintTestCase(TypeHintTestCase):
     self.assertCompatible(typehints.KV[int, str], typehints.Any)
     self.assertCompatible(typehints.Dict[int, bool], typehints.Any)
     self.assertCompatible(typehints.Set[int], typehints.Any)
+    self.assertCompatible(typehints.FrozenSet[int], typehints.Any)
     self.assertCompatible(typehints.Iterable[int], typehints.Any)
     self.assertCompatible(typehints.Iterator[int], typehints.Any)
     self.assertCompatible(typehints.Generator[int], typehints.Any)
@@ -1263,6 +1264,7 @@ class TestGetYieldedType(unittest.TestCase):
         typehints.Union[int, str],
         typehints.get_yielded_type(typehints.Tuple[int, str]))
     self.assertEqual(int, typehints.get_yielded_type(typehints.Set[int]))
+    self.assertEqual(int, typehints.get_yielded_type(typehints.FrozenSet[int]))
 
   def test_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
