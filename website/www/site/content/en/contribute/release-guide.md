@@ -1134,29 +1134,9 @@ Create and push a new signed tag for the released version by copying the tag for
     git tag -s "$VERSION_TAG" "$RC_TAG"
     git push upstream "$VERSION_TAG"
 
-After the tag is uploaded, publish the release by calling the Github API (Make sure that the `GITHUB_TOKEN` variable is set):
+After the tag is uploaded, publish the release notes to Github:
 
-    json_escape () {
-        printf '%s' "$1" | python -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
-    }
-    
-    RELEASE_NOTES=$(sed -n '/^We are happy/,$p' website/www/site/content/en/blog/beam-${RELEASE}.md)
-    ESCAPED_NOTES=$(json_escape ${RELEASE_NOTES})
-    
-    RELEASE_JSON="$(cat <<-EOF
-    {
-      "tag_name": "${VERSION_TAG}",
-      "name": "Beam ${RELEASE} release",
-      "body": ${ESCAPED_NOTES}
-    }
-    EOF
-    )"
-    
-    curl https://api.github.com/repos/jphalip/beam/releases \
-    -X POST \
-    -H "Authorization: token ${GITHUB_TOKEN}" \
-    -H "Content-Type:application/json" \
-    -d ${RELEASE_JSON}
+    ./beam/release/src/main/scripts/publish_github_release_notes.sh
 
 ### Merge website pull request
 
