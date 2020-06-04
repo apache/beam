@@ -407,10 +407,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     StringEntity requestEntity = new StringEntity(bundle, ContentType.APPLICATION_JSON);
     URI uri;
     try {
-      uri =
-          new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir")
-              .setParameter("access_token", credentials.getAccessToken().getTokenValue())
-              .build();
+      uri = new URIBuilder(client.getRootUrl() + "v1beta1/" + fhirStore + "/fhir").build();
     } catch (URISyntaxException e) {
       LOG.error("URL error when making executeBundle request to FHIR API. " + e.getMessage());
       throw new IllegalArgumentException(e);
@@ -420,6 +417,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         RequestBuilder.post()
             .setUri(uri)
             .setEntity(requestEntity)
+            .addHeader("Authorization", "Bearer " + credentials.getAccessToken().getTokenValue())
             .addHeader("User-Agent", USER_AGENT)
             .addHeader("Content-Type", FHIRSTORE_HEADER_CONTENT_TYPE)
             .addHeader("Accept-Charset", FHIRSTORE_HEADER_ACCEPT_CHARSET)
@@ -429,6 +427,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
     HttpResponse response = httpClient.execute(request);
     HttpEntity responseEntity = response.getEntity();
     String content = EntityUtils.toString(responseEntity);
+
     // Check 2XX code.
     if (!(response.getStatusLine().getStatusCode() / 100 == 2)) {
       throw HealthcareHttpException.of(response);
