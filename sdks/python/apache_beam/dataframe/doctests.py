@@ -57,6 +57,33 @@ from apache_beam.dataframe import transforms
 from apache_beam.dataframe.frame_base import DeferredFrame
 
 
+class FakePandasObject(object):
+  """A stand-in for the wrapped pandas objects.
+  """
+  def __init__(self, pandas_obj, test_env):
+    self._pandas_obj = pandas_obj
+    self._test_env = test_env
+
+  def __call__(self, *args, **kwargs):
+    result = self._pandas_obj(*args, **kwargs)
+    if type(result) in DeferredFrame._pandas_type_map.keys():
+      placeholder = expressions.PlaceholderExpression(result[0:0])
+      self._test_env._inputs[placeholder] = result
+      return DeferredFrame.wrap(placeholder)
+    else:
+      return result
+
+  def __getattr__(self, name):
+    attr = getattr(self._pandas_obj, name)
+    if callable(attr):
+      result = FakePandasObject(attr, self._test_env)
+    else:
+      result = attr
+    # Cache this so two lookups return the same object.
+    setattr(self, name, result)
+    return result
+
+
 class TestEnvironment(object):
   """A class managing the patching (of methods, inputs, and outputs) needed
   to run and validate tests.
@@ -69,32 +96,7 @@ class TestEnvironment(object):
     self._all_frames = {}
 
   def fake_pandas_module(self):
-    class FakePandas(object):
-      """A stand-in for the pandas top-level module.
-      """
-      # For now, only populated with the frame types (below).
-      # TODO(BEAM-9561): We may want to put more here.
-      pass
-
-    fake_pd = FakePandas()
-    for pandas_type, deferred_type in DeferredFrame._pandas_type_map.items():
-      setattr(
-          fake_pd,
-          pandas_type.__name__,
-          self._deferred_frame(pandas_type, deferred_type))
-
-    return fake_pd
-
-  def _deferred_frame(self, pandas_type, deferred_type):
-    """Creates a "constructor" that record the actual value as an input and
-    returns a placeholder frame in its place."""
-    def wrapper(*args, **kwargs):
-      df = pandas_type(*args, **kwargs)
-      placeholder = expressions.PlaceholderExpression(df[0:0])
-      self._inputs[placeholder] = df
-      return deferred_type(placeholder)
-
-    return wrapper
+    return FakePandasObject(pd, self)
 
   @contextlib.contextmanager
   def _monkey_patch_type(self, deferred_type):
@@ -283,6 +285,17 @@ def testmod(*args, **kwargs):
 
 def _run_patched(func, *args, **kwargs):
   try:
+    # See
+    # https://github.com/pandas-dev/pandas/blob/a00202d12d399662b8045a8dd3fdac04f18e1e55/doc/source/conf.py#L319
+    np.random.seed(123456)
+    np.set_printoptions(precision=4, suppress=True)
+    pd.options.display.max_rows = 15
+
+    # https://github.com/pandas-dev/pandas/blob/1.0.x/setup.cfg#L63
+    optionflags = kwargs.pop('optionflags', 0)
+    optionflags |= (
+        doctest.NORMALIZE_WHITESPACE | doctest.IGNORE_EXCEPTION_DETAIL)
+
     env = TestEnvironment()
     use_beam = kwargs.pop('use_beam', True)
     extraglobs = dict(kwargs.pop('extraglobs', {}))
@@ -291,6 +304,6 @@ def _run_patched(func, *args, **kwargs):
     original_doc_test_runner = doctest.DocTestRunner
     doctest.DocTestRunner = lambda **kwargs: BeamDataframeDoctestRunner(
         env, use_beam=use_beam, **kwargs)
-    return func(*args, extraglobs=extraglobs, **kwargs)
+    return func(*args, extraglobs=extraglobs, optionflags=optionflags, **kwargs)
   finally:
     doctest.DocTestRunner = original_doc_test_runner
