@@ -17,6 +17,9 @@ set -e
 #    limitations under the License.
 #
 
+# Load environment variables
+. script.config
+
 # Get this script's absolute path
 SCRIPT_PATH=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
