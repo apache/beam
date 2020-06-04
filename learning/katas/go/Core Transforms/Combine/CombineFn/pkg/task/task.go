@@ -24,8 +24,8 @@ func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
 }
 
 type averageAccum struct {
-	Count int64
-	Sum float64
+	Count int
+	Sum int
 }
 
 type averageFn struct{}
@@ -36,7 +36,7 @@ func (c *averageFn) CreateAccumulator() averageAccum {
 
 func (c *averageFn) AddInput(accum averageAccum, input int) averageAccum {
 	accum.Count++
-	accum.Sum += float64(input)
+	accum.Sum += input
 	return accum
 }
 
@@ -47,9 +47,9 @@ func (c *averageFn) MergeAccumulators(accumA, accumB averageAccum) averageAccum 
 	}
 }
 
-func (c *averageFn) ExtractOutput(accum averageAccum) float64 {
+func (c *averageFn) ExtractOutput(accum averageAccum) int {
 	if accum.Count == 0 {
 		return 0
 	}
-	return accum.Sum / float64(accum.Count)
+	return accum.Sum / accum.Count
 }
