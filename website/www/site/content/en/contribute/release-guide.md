@@ -1134,12 +1134,9 @@ Create and push a new signed tag for the released version by copying the tag for
     git tag -s "$VERSION_TAG" "$RC_TAG"
     git push upstream "$VERSION_TAG"
 
-After the tag is uploaded, publish the release in the Github UI.
-1. Navigate to `https://github.com/apache/beam/releases/tag/$VERSION_TAG`.
-1. Click the "Edit tag" button.
-1. Give the release a title, such as `Beam 2.21.0`.
-1. For the release description, copy the current version's changes from `CHANGES.md`. (You may want to touch up the formatting a bit.)
-1. Click the "Publish release" button.
+After the tag is uploaded, publish the release notes to Github:
+
+    ./beam/release/src/main/scripts/publish_github_release_notes.sh
 
 ### Merge website pull request
 
