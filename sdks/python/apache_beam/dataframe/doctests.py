@@ -95,20 +95,6 @@ class TestEnvironment(object):
   def fake_pandas_module(self):
     return FakePandasObject(pd, self)
 
-  def _deferred_frame(self, pandas_callable):
-    """Creates a "constructor" that record the actual value as an input and
-    returns a placeholder frame in its place."""
-    def wrapper(*args, **kwargs):
-      df = pandas_callable(*args, **kwargs)
-      if type(df) in DeferredFrame._pandas_type_map.keys():
-        placeholder = expressions.PlaceholderExpression(df[0:0])
-        self._inputs[placeholder] = df
-        return DeferredFrame.wrap(placeholder)
-      else:
-        return df
-
-    return wrapper
-
   @contextlib.contextmanager
   def _monkey_patch_type(self, deferred_type):
     """Monkey-patch __init__ to record a pointer to all created frames, and
