@@ -13,6 +13,8 @@ class FlinkKafkaInput(PTransform):
   portable Flink runner."""
   consumer_properties = {'bootstrap.servers': 'localhost:9092'}
   topic = None
+  username = None
+  password = None
   max_out_of_orderness_millis = None
   start_from_timestamp_millis = None
 
@@ -37,7 +39,9 @@ class FlinkKafkaInput(PTransform):
       'topic': self.topic,
       'max_out_of_orderness_millis': self.max_out_of_orderness_millis,
       'start_from_timestamp_millis': self.start_from_timestamp_millis,
-      'properties': self.consumer_properties}))
+      'properties': self.consumer_properties,
+      'username': self.username,
+      'password': self.password}))
 
   @staticmethod
   @PTransform.register_urn("lyft:flinkKafkaInput", None)
@@ -49,6 +53,8 @@ class FlinkKafkaInput(PTransform):
     instance.max_out_of_orderness_millis = payload['max_out_of_orderness_millis']
     instance.start_from_timestamp_millis = payload['start_from_timestamp_millis']
     instance.consumer_properties = payload['properties']
+    instance.username = payload['username']
+    instance.password = payload['password']
     return instance
 
   def with_topic(self, topic):
@@ -86,6 +92,20 @@ class FlinkKafkaInput(PTransform):
     self.start_from_timestamp_millis = start_from_timestamp_millis
     return self
 
+  def with_username(self, username):
+    """
+    The username to consume data from Kafka.
+    """
+    self.username = username
+    return self
+
+  def with_password(self, password):
+    """
+    The password/credential to consume data from Kafka.
+    """
+    self.password = password
+    return self
+
 @beam.typehints.with_input_types(bytes)
 class FlinkKafkaSink(PTransform):
   """
@@ -107,6 +127,8 @@ class FlinkKafkaSink(PTransform):
   """
   producer_properties = {'bootstrap.servers': 'localhost:9092'}
   topic = None
+  username = None
+  password = None
 
   def expand(self, pcoll):
     self._check_pcollection(pcoll)
@@ -123,7 +145,9 @@ class FlinkKafkaSink(PTransform):
 
     return ("lyft:flinkKafkaSink", json.dumps({
       'topic': self.topic,
-      'properties': self.producer_properties}))
+      'properties': self.producer_properties,
+      'username': self.username,
+      'password': self.password}))
 
   @staticmethod
   @PTransform.register_urn("lyft:flinkKafkaSink", None)
@@ -133,6 +157,8 @@ class FlinkKafkaSink(PTransform):
     payload = json.loads(spec_parameter)
     instance.topic = payload['topic']
     instance.producer_properties = payload['properties']
+    instance.username = payload['username']
+    instance.password = payload['password']
     return instance
 
   def with_topic(self, topic):
@@ -146,3 +172,17 @@ class FlinkKafkaSink(PTransform):
   def with_bootstrap_servers(self, bootstrap_servers):
     return self.set_kafka_producer_property('bootstrap.servers',
                                             bootstrap_servers)
+
+  def with_username(self, username):
+    """
+    The username to write data to Kafka.
+    """
+    self.username = username
+    return self
+
+  def with_password(self, password):
+    """
+    The password/credential to write data to Kafka.
+    """
+    self.password = password
+    return self
