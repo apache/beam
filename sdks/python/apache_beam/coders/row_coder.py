@@ -67,9 +67,6 @@ class RowCoder(FastCoder):
   def to_type_hint(self):
     return named_tuple_from_schema(self.schema)
 
-  def as_cloud_object(self, coders_context=None):
-    raise NotImplementedError("as_cloud_object not supported for RowCoder")
-
   def __hash__(self):
     return hash(self.schema.SerializeToString())
 
@@ -106,6 +103,8 @@ class RowCoder(FastCoder):
     elif type_info == "array_type":
       return IterableCoder(
           RowCoder.coder_from_type(field_type.array_type.element_type))
+    elif type_info == "row_type":
+      return RowCoder(field_type.row_type.schema)
 
     # The Java SDK supports several more types, but the coders are not yet
     # standard, and are not implemented in Python.

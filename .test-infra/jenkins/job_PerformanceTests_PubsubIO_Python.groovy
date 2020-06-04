@@ -62,7 +62,7 @@ def executeJob = { scope, testConfig ->
 }
 
 PhraseTriggeringPostCommitBuilder.postCommitJob(
-        'beam_PubsubIO_Performance_Test_Python',
+        'beam_PerformanceTests_PubsubIOIT_Python_Streaming',
         'Run PubsubIO Performance Test Python',
         'PubsubIO Performance Test Python',
         this
@@ -70,6 +70,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
     executeJob(delegate, psio_test)
 }
 
-CronJobBuilder.cronJob('beam_PubsubIO_Performance_Test_Python', 'H 15 * * *', this) {
+CronJobBuilder.cronJob('beam_PerformanceTests_PubsubIOIT_Python_Streaming', 'H 15 * * *', this) {
     executeJob(delegate, psio_test)
 }

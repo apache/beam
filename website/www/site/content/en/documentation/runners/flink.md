@@ -279,9 +279,9 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 Starting with Beam 2.18.0, pre-built Docker images are available at Docker Hub.
 
 JobService:
-[Flink 1.7](https://hub.docker.com/r/apache/beam_flink1.7_job_server),
 [Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
 [Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
+[Flink 1.10](https://hub.docker.com/r/apache/beam_flink1.10_job_server).
 
 Beam SDK:
 [Python 2.7](https://hub.docker.com/r/apache/beam_python2.7_sdk),
@@ -293,7 +293,7 @@ To run a pipeline on an embedded Flink cluster:
 <!-- Span implictly ended -->
 
 {{< paragraph class="language-py" >}}
-1. Start the JobService endpoint: `docker run --net=host apachebeam/flink1.9_job_server:latest`
+1. Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -319,7 +319,7 @@ with beam.Pipeline(options) as p:
 {{< /highlight >}}
 
 {{< paragraph class="language-py" >}}
-To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.9/getting-started/tutorials/local_setup.html):
+To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html):
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -327,7 +327,7 @@ To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
-2. Start JobService with Flink Rest endpoint: `docker run --net=host apachebeam/flink1.9_job_server:latest --flink-master=localhost:8081`.
+2. Start JobService with Flink Rest endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest --flink-master=localhost:8081`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-py" >}}
@@ -347,7 +347,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
     "--runner=FlinkRunner",
-    "--flink_version=1.9",
+    "--flink_version=1.10",
     "--flink_master=localhost:8081",
     "--environment_type=LOOPBACK"
 ])

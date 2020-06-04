@@ -550,6 +550,35 @@ class TriggerPipelineTest(unittest.TestCase):
     second_firing = [str(i) for i in elements]
     assert_that(records, equal_to(first_firing + second_firing))
 
+  def test_on_pane_watermark_hold_no_pipeline_stall(self):
+    """A regression test added for
+    https://issues.apache.org/jira/browse/BEAM-10054."""
+    START_TIMESTAMP = 1534842000
+
+    test_stream = TestStream()
+    test_stream.add_elements(['a'])
+    test_stream.advance_processing_time(START_TIMESTAMP + 1)
+    test_stream.advance_watermark_to(START_TIMESTAMP + 1)
+    test_stream.add_elements(['b'])
+    test_stream.advance_processing_time(START_TIMESTAMP + 2)
+    test_stream.advance_watermark_to(START_TIMESTAMP + 2)
+
+    with TestPipeline(options=PipelineOptions(['--streaming'])) as p:
+      # pylint: disable=expression-not-assigned
+      (
+          p
+          | 'TestStream' >> test_stream
+          | 'timestamp' >>
+          beam.Map(lambda x: beam.window.TimestampedValue(x, START_TIMESTAMP))
+          | 'kv' >> beam.Map(lambda x: (x, x))
+          | 'window_1m' >> beam.WindowInto(
+              beam.window.FixedWindows(60),
+              trigger=trigger.AfterAny(
+                  trigger.AfterProcessingTime(3600), trigger.AfterWatermark()),
+              accumulation_mode=trigger.AccumulationMode.DISCARDING)
+          | 'group_by_key' >> beam.GroupByKey()
+          | 'filter' >> beam.Map(lambda x: x))
+
 
 class TranscriptTest(unittest.TestCase):
 

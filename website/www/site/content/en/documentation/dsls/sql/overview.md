@@ -38,7 +38,7 @@ There are two additional concepts you need to know to use SQL in your pipeline:
  - [SqlTransform](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/extensions/sql/SqlTransform.html): the interface for creating `PTransforms` from SQL queries.
  - [Row](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/values/Row.html):
    the type of elements that Beam SQL operates on. A `PCollection<Row>` plays the role of a table.
-{{< param release_latest >}}
+
 ## Walkthrough
 The [SQL pipeline walkthrough](/documentation/dsls/sql/walkthrough) works through how to use Beam SQL with example code.
 
