@@ -21,11 +21,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.ScalarFunctionImpl;
+import org.apache.beam.sdk.extensions.sql.impl.UdafImpl;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelDataTypeSystem;
+import org.apache.beam.sdk.extensions.sql.impl.udaf.StringAgg;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.jdbc.JavaTypeFactoryImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeFactoryImpl;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.AggregateFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.FunctionParameter;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.ScalarFunction;
@@ -43,7 +46,9 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlRet
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFactoryImpl;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeFamily;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedAggFunction;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.validate.SqlUserDefinedFunction;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Optionality;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.util.Util;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
@@ -62,6 +67,12 @@ public class SqlOperators {
   public static final SqlOperator TIMESTAMP_ADD_FN =
       createSimpleSqlFunction("timestamp_add", SqlTypeName.TIMESTAMP);
 
+  public static final SqlOperator STRING_AGG_STRING_FN =
+      createUdafOperator(
+          "string_agg",
+          x -> createTypeFactory().createSqlType(SqlTypeName.VARCHAR),
+          new UdafImpl<>(new StringAgg.StringAggString()));
+
   public static SqlFunction createSimpleSqlFunction(String name, SqlTypeName returnType) {
     return new SqlFunction(
         name,
@@ -70,6 +81,20 @@ public class SqlOperators {
         null, // operandTypeInference
         null, // operandTypeChecker
         SqlFunctionCategory.USER_DEFINED_FUNCTION);
+  }
+
+  public static SqlUserDefinedAggFunction createUdafOperator(
+      String name, SqlReturnTypeInference returnTypeInference, AggregateFunction function) {
+    return new SqlUserDefinedAggFunction(
+        new SqlIdentifier(name, SqlParserPos.ZERO),
+        returnTypeInference,
+        null,
+        null,
+        function,
+        false,
+        false,
+        Optionality.FORBIDDEN,
+        createTypeFactory());
   }
 
   public static SqlUserDefinedFunction createUdfOperator(
