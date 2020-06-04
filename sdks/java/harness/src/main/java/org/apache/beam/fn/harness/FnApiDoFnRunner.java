@@ -579,14 +579,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         this.convertSplitResultToWindowedSplitResult =
             (splitResult, watermarkEstimatorState) ->
                 WindowedSplitResult.forRoots(
-                    currentElement.withValue(
+                    WindowedValue.of(
                         KV.of(
                             currentElement.getValue(),
-                            KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState))),
-                    currentElement.withValue(
+                            KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
+                        currentElement.getTimestamp(),
+                        currentWindow,
+                        currentElement.getPane()),
+                    WindowedValue.of(
                         KV.of(
                             currentElement.getValue(),
-                            KV.of(splitResult.getResidual(), watermarkEstimatorState))));
+                            KV.of(splitResult.getResidual(), watermarkEstimatorState)),
+                        currentElement.getTimestamp(),
+                        currentWindow,
+                        currentElement.getPane()));
         break;
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
         this.convertSplitResultToWindowedSplitResult =
@@ -626,18 +632,24 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         }
                       });
               return WindowedSplitResult.forRoots(
-                  currentElement.withValue(
+                  WindowedValue.of(
                       KV.of(
                           KV.of(
                               currentElement.getValue(),
                               KV.of(splitResult.getPrimary(), currentWatermarkEstimatorState)),
-                          primarySize)),
-                  currentElement.withValue(
+                          primarySize),
+                      currentElement.getTimestamp(),
+                      currentWindow,
+                      currentElement.getPane()),
+                  WindowedValue.of(
                       KV.of(
                           KV.of(
                               currentElement.getValue(),
                               KV.of(splitResult.getResidual(), watermarkEstimatorState)),
-                          residualSize)));
+                          residualSize),
+                      currentElement.getTimestamp(),
+                      currentWindow,
+                      currentElement.getPane()));
             };
         break;
       default:
@@ -755,12 +767,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         outputTo(
             mainOutputConsumers,
             (WindowedValue)
-                elem.withValue(
+                WindowedValue.of(
                     KV.of(
                         elem.getValue(),
                         KV.of(
                             currentRestriction,
-                            doFnInvoker.invokeGetInitialWatermarkEstimatorState(processContext)))));
+                            doFnInvoker.invokeGetInitialWatermarkEstimatorState(processContext))),
+                    currentElement.getTimestamp(),
+                    currentWindow,
+                    currentElement.getPane()));
       }
     } finally {
       currentElement = null;
@@ -845,9 +860,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // Attempt to checkpoint the current restriction.
         HandlesSplits.SplitResult splitResult =
             trySplitForElementAndRestriction(0, continuation.resumeDelay());
-        // After the user has chosen to resume processing later, the Runner may have stolen
-        // the remainder of work through a split call so the above trySplit may return null. If so,
-        // the current restriction must be done.
+        /**
+         * After the user has chosen to resume processing later, either the restriction is already
+         * done and the user unknowingly claimed the last element or the Runner may have stolen the
+         * remainder of work through a split call so the above trySplit may return null. If so, the
+         * current restriction must be done.
+         */
         if (splitResult == null) {
           currentTracker.checkDone();
           continue;
