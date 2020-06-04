@@ -57,6 +57,8 @@ case $input in
     -H "Authorization: token ${GITHUB_TOKEN}" \
     -H "Content-Type:application/json" \
     -d "${REQUEST_JSON}"
+
+    echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VER}"
     ;;
 
   *)
@@ -64,6 +66,3 @@ case $input in
     exit 1
     ;;
 esac
-
-
-echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VER}"
