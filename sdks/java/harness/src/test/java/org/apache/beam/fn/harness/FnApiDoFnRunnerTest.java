@@ -126,7 +126,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Suppliers;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Collections2;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
@@ -1551,8 +1550,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
               timestampedValueInGlobalWindow("7:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2)),
               timestampedValueInGlobalWindow("7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3))));
 
-      BundleApplication primaryRoot = trySplitResult.getPrimaryRoot();
-      DelayedBundleApplication residualRoot = trySplitResult.getResidualRoot();
+      BundleApplication primaryRoot = Iterables.getOnlyElement(trySplitResult.getPrimaryRoots());
+      DelayedBundleApplication residualRoot =
+          Iterables.getOnlyElement(trySplitResult.getResidualRoots());
       assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
       assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
       assertEquals(
@@ -1732,74 +1732,72 @@ public class FnApiDoFnRunnerTest implements Serializable {
       // We expect that the watermark advances to MIN + 7 and that the primary represents [5, 8)
       // with the original watermark while the residual represents [8, 10) with the new MIN + 7
       // watermark.
-      assertEquals(2, splitListener.getPrimaryRoots().size());
+      //
+      // Since we were on the first window, we expect only a single primary root and two residual
+      // roots (the split + the unprocessed window).
+      BundleApplication primaryRoot = Iterables.getOnlyElement(splitListener.getPrimaryRoots());
       assertEquals(2, splitListener.getResidualRoots().size());
-      for (int i = 0; i < splitListener.getPrimaryRoots().size(); ++i) {
-        BundleApplication primaryRoot = splitListener.getPrimaryRoots().get(i);
-        DelayedBundleApplication residualRoot = splitListener.getResidualRoots().get(i);
-        assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
-        assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
-        assertEquals(
-            ParDoTranslation.getMainInputName(pTransform),
-            residualRoot.getApplication().getInputId());
-        assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
-        Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7);
-        assertEquals(
-            ImmutableMap.of(
-                "output",
-                org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
-                    .setSeconds(expectedOutputWatermark.getMillis() / 1000)
-                    .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
-                    .build()),
-            residualRoot.getApplication().getOutputWatermarksMap());
-        assertEquals(
-            org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.newBuilder()
-                .setSeconds(54)
-                .setNanos(321000000)
-                .build(),
-            residualRoot.getRequestedTimeDelay());
-      }
-      assertThat(
-          Collections2.transform(
-              splitListener.getPrimaryRoots(), (root) -> decode(inputCoder, root.getElement())),
-          contains(
-              WindowedValue.of(
+      DelayedBundleApplication residualRoot = splitListener.getResidualRoots().get(1);
+      DelayedBundleApplication residualRootForUnprocessedWindows =
+          splitListener.getResidualRoots().get(0);
+      assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
+      assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
+      assertEquals(
+          ParDoTranslation.getMainInputName(pTransform),
+          residualRoot.getApplication().getInputId());
+      assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+      Instant expectedOutputWatermark = GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7);
+      assertEquals(
+          ImmutableMap.of(
+              "output",
+              org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp.newBuilder()
+                  .setSeconds(expectedOutputWatermark.getMillis() / 1000)
+                  .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
+                  .build()),
+          residualRoot.getApplication().getOutputWatermarksMap());
+      assertEquals(
+          org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Duration.newBuilder()
+              .setSeconds(54)
+              .setNanos(321000000)
+              .build(),
+          residualRoot.getRequestedTimeDelay());
+      assertEquals(
+          ParDoTranslation.getMainInputName(pTransform),
+          residualRootForUnprocessedWindows.getApplication().getInputId());
+      assertEquals(
+          TEST_TRANSFORM_ID, residualRootForUnprocessedWindows.getApplication().getTransformId());
+      assertEquals(
+          residualRootForUnprocessedWindows.getRequestedTimeDelay().getDefaultInstanceForType(),
+          residualRootForUnprocessedWindows.getRequestedTimeDelay());
+      assertTrue(
+          residualRootForUnprocessedWindows.getApplication().getOutputWatermarksMap().isEmpty());
+
+      assertEquals(
+          decode(inputCoder, primaryRoot.getElement()),
+          WindowedValue.of(
+              KV.of(
+                  KV.of("5", KV.of(new OffsetRange(5, 8), GlobalWindow.TIMESTAMP_MIN_VALUE)), 3.0),
+              firstValue.getTimestamp(),
+              window1,
+              firstValue.getPane()));
+      assertEquals(
+          decode(inputCoder, residualRoot.getApplication().getElement()),
+          WindowedValue.of(
+              KV.of(
                   KV.of(
-                      KV.of("5", KV.of(new OffsetRange(5, 8), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of("5", KV.of(new OffsetRange(5, 8), GlobalWindow.TIMESTAMP_MIN_VALUE)),
-                      3.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane())));
-      assertThat(
-          Collections2.transform(
-              splitListener.getResidualRoots(),
-              (root) -> decode(inputCoder, root.getApplication().getElement())),
-          contains(
-              WindowedValue.of(
-                  KV.of(
-                      KV.of(
-                          "5",
-                          KV.of(new OffsetRange(8, 10), GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7))),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  window1,
-                  firstValue.getPane()),
-              WindowedValue.of(
-                  KV.of(
-                      KV.of(
-                          "5",
-                          KV.of(new OffsetRange(8, 10), GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7))),
-                      2.0),
-                  firstValue.getTimestamp(),
-                  window2,
-                  firstValue.getPane())));
+                      "5", KV.of(new OffsetRange(8, 10), GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7))),
+                  2.0),
+              firstValue.getTimestamp(),
+              window1,
+              firstValue.getPane()));
+      assertEquals(
+          decode(inputCoder, residualRootForUnprocessedWindows.getApplication().getElement()),
+          WindowedValue.of(
+              KV.of(
+                  KV.of("5", KV.of(new OffsetRange(5, 10), GlobalWindow.TIMESTAMP_MIN_VALUE)), 5.0),
+              firstValue.getTimestamp(),
+              window2,
+              firstValue.getPane()));
       splitListener.clear();
 
       // Check that before processing an element we don't report progress
@@ -1823,12 +1821,6 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   "5:6", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(6), window1, firstValue.getPane()),
               WindowedValue.of(
                   "5:7", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7), window1, firstValue.getPane()),
-              WindowedValue.of(
-                  "5:5", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(5), window2, firstValue.getPane()),
-              WindowedValue.of(
-                  "5:6", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(6), window2, firstValue.getPane()),
-              WindowedValue.of(
-                  "5:7", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(7), window2, firstValue.getPane()),
               WindowedValue.of(
                   "2:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0), window1, firstValue.getPane()),
               WindowedValue.of(
@@ -1903,7 +1895,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       // has yet to be invoked for the split element and that the primary represents [0, 4) with
       // the original watermark while the residual represents [4, 5) with the new MIN + 2 watermark.
       //
-      // We expect to see all the output for the second window.
+      // We expect to see none of the output for the second window.
       assertThat(
           mainOutputValues,
           contains(
@@ -1914,26 +1906,26 @@ public class FnApiDoFnRunnerTest implements Serializable {
               WindowedValue.of(
                   "7:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2), window1, splitValue.getPane()),
               WindowedValue.of(
-                  "7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3), window1, splitValue.getPane()),
-              WindowedValue.of(
-                  "7:0", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(0), window2, splitValue.getPane()),
-              WindowedValue.of(
-                  "7:1", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(1), window2, splitValue.getPane()),
-              WindowedValue.of(
-                  "7:2", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(2), window2, splitValue.getPane()),
-              WindowedValue.of(
-                  "7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3), window2, splitValue.getPane()),
-              WindowedValue.of(
-                  "7:4", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(4), window2, splitValue.getPane())));
+                  "7:3", GlobalWindow.TIMESTAMP_MIN_VALUE.plus(3), window1, splitValue.getPane())));
 
-      BundleApplication primaryRoot = trySplitResult.getPrimaryRoot();
-      DelayedBundleApplication residualRoot = trySplitResult.getResidualRoot();
+      BundleApplication primaryRoot = Iterables.getOnlyElement(trySplitResult.getPrimaryRoots());
+      assertEquals(2, trySplitResult.getResidualRoots().size());
+      DelayedBundleApplication residualRoot = trySplitResult.getResidualRoots().get(1);
+      DelayedBundleApplication residualRootInUnprocessedWindows =
+          trySplitResult.getResidualRoots().get(0);
       assertEquals(ParDoTranslation.getMainInputName(pTransform), primaryRoot.getInputId());
       assertEquals(TEST_TRANSFORM_ID, primaryRoot.getTransformId());
       assertEquals(
           ParDoTranslation.getMainInputName(pTransform),
           residualRoot.getApplication().getInputId());
       assertEquals(TEST_TRANSFORM_ID, residualRoot.getApplication().getTransformId());
+      assertEquals(
+          TEST_TRANSFORM_ID, residualRootInUnprocessedWindows.getApplication().getTransformId());
+      assertEquals(
+          residualRootInUnprocessedWindows.getRequestedTimeDelay().getDefaultInstanceForType(),
+          residualRootInUnprocessedWindows.getRequestedTimeDelay());
+      assertTrue(
+          residualRootInUnprocessedWindows.getApplication().getOutputWatermarksMap().isEmpty());
       assertEquals(
           valueInWindows(
               KV.of(
@@ -1957,6 +1949,16 @@ public class FnApiDoFnRunnerTest implements Serializable {
                   .setNanos((int) (expectedOutputWatermark.getMillis() % 1000) * 1000000)
                   .build()),
           residualRoot.getApplication().getOutputWatermarksMap());
+      assertEquals(
+          WindowedValue.of(
+              KV.of(
+                  KV.of("7", KV.of(new OffsetRange(0, 5), GlobalWindow.TIMESTAMP_MIN_VALUE)), 5.0),
+              splitValue.getTimestamp(),
+              window2,
+              splitValue.getPane()),
+          inputCoder.decode(
+              residualRootInUnprocessedWindows.getApplication().getElement().newInput()));
+
       // We expect 0 resume delay.
       assertEquals(
           residualRoot.getRequestedTimeDelay().getDefaultInstanceForType(),
