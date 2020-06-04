@@ -1073,7 +1073,7 @@ def expand_gbk(stages, pipeline_context):
 
 def fix_flatten_coders(
     stages, pipeline_context, identity_urn=bundle_processor.IDENTITY_DOFN_URN):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+  # type: (Iterable[Stage], TransformContext, str) -> Iterator[Stage]
 
   """Ensures that the inputs of Flatten have the same coders as the output.
   """
