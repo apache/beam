@@ -332,24 +332,38 @@ public class CassandraIO {
       return builder().setMinNumberOfSplits(minNumberOfSplits).build();
     }
 
-    /** Cassandra client socket option to set the connect timeout in ms. */
+    /**
+     * Specify the Cassandra client connect timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setConnectTimeoutMillis-int-
+     */
     public Read<T> withConnectTimeout(Integer timeout) {
-      checkArgument((timeout != null && timeout > 0), "connect timeout must be > 0, but was: %s", timeout);
+      checkArgument(timeout != null, "Connect timeout can not be null");
+      checkArgument(timeout > 0, "Connect timeout must be > 0, but was: %s", timeout);
       return withConnectTimeout(ValueProvider.StaticValueProvider.of(timeout));
     }
 
-    /** Cassandra client socket option to set the connect timeout in ms. */
+    /**
+     * Specify the Cassandra client connect timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setConnectTimeoutMillis-int-
+     */
     public Read<T> withConnectTimeout(ValueProvider<Integer> timeout) {
       return builder().setConnectTimeout(timeout).build();
     }
 
-    /** Cassandra client socket option to set the read timeout in ms. */
+    /**
+     * Specify the Cassandra client read timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setReadTimeoutMillis-int-
+     */
     public Read<T> withReadTimeout(Integer timeout) {
-      checkArgument((timeout != null && timeout > 0), "read timeout must be > 0, but was: %s", timeout);
+      checkArgument(timeout != null, "Read timeout can not be null");
+      checkArgument(timeout > 0, "Read timeout must be > 0, but was: %s", timeout);
       return withReadTimeout(ValueProvider.StaticValueProvider.of(timeout));
     }
 
-    /** Cassandra client socket option to set the read timeout in ms. */
+    /**
+     * Specify the Cassandra client read timeout in ms. See
+     * https://docs.datastax.com/en/drivers/java/3.8/com/datastax/driver/core/SocketOptions.html#setReadTimeoutMillis-int-
+     */
     public Read<T> withReadTimeout(ValueProvider<Integer> timeout) {
       return builder().setReadTimeout(timeout).build();
     }
