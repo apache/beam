@@ -47,9 +47,9 @@ func (c *averageFn) MergeAccumulators(accumA, accumB averageAccum) averageAccum 
 	}
 }
 
-func (c *averageFn) ExtractOutput(accum averageAccum) int {
+func (c *averageFn) ExtractOutput(accum averageAccum) float64 {
 	if accum.Count == 0 {
 		return 0
 	}
-	return accum.Sum / accum.Count
+	return float64(accum.Sum) / float64(accum.Count)
 }

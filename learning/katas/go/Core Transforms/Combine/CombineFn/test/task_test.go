@@ -31,7 +31,7 @@ func TestApplyTransform(t *testing.T) {
 	}{
 		{
 			input: beam.Create(s, 10, 20, 50, 70, 90),
-			want: []interface{}{48},
+			want: []interface{}{48.0},
 		},
 	}
 	for _, tt := range tests {
