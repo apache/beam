@@ -435,6 +435,27 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
+class ValueRuntimeState(userstate.ValueRuntimeState):
+  def __init__(self, underlying_bag_state):
+    self._underlying_bag_state = underlying_bag_state
+
+  def read(self):  # type: () -> Any
+    values = list(self._underlying_bag_state.read())
+    if not values:
+      return None
+    return values[0]
+
+  def write(self, value):  # type: (Any) -> None
+    self.clear()
+    self._underlying_bag_state.add(value)
+
+  def clear(self):  # type: () -> None
+    self._underlying_bag_state.clear()
+
+  def commit(self):  # type: () -> None
+    self._underlying_bag_state.commit()
+
+
 class CombiningValueRuntimeState(userstate.CombiningValueRuntimeState):
   def __init__(self, underlying_bag_state, combinefn):
     self._combinefn = combinefn
@@ -696,8 +717,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     self._window_coder = window_coder
     # A mapping of {timer_family_id: TimerInfo}
     self._timers_info = {}
-    self._all_states = {
-    }  # type: Dict[tuple, userstate.AccumulatingRuntimeState]
+    self._all_states = {}  # type: Dict[tuple, userstate.RuntimeState]
 
   def add_timer_info(self, timer_family_id, timer_info):
     self._timers_info[timer_family_id] = timer_info
@@ -731,9 +751,11 @@ class FnApiUserStateContext(userstate.UserStateContext):
                     key,
                     window  # type: windowed_value.BoundedWindow
                    ):
-    # type: (...) -> userstate.AccumulatingRuntimeState
+    # type: (...) -> userstate.RuntimeState
     if isinstance(state_spec,
-                  (userstate.BagStateSpec, userstate.CombiningValueStateSpec)):
+                  (userstate.BagStateSpec,
+                   userstate.CombiningValueStateSpec,
+                   userstate.ValueStateSpec)):
       bag_state = SynchronousBagRuntimeState(
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
@@ -746,6 +768,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
+      elif isinstance(state_spec, userstate.ValueStateSpec):
+        return ValueRuntimeState(bag_state)
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
     elif isinstance(state_spec, userstate.SetStateSpec):

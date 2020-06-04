@@ -23,7 +23,6 @@ from __future__ import absolute_import
 import unittest
 
 # patches unittest.TestCase to be python3 compatible
-import future.tests.base  # pylint: disable=unused-import
 import mock
 
 import apache_beam as beam
@@ -48,6 +47,7 @@ from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
+from apache_beam.transforms.userstate import ValueStateSpec
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
 from apache_beam.transforms.userstate import on_timer
@@ -119,17 +119,24 @@ class InterfaceTest(unittest.TestCase):
     BagStateSpec('statename', VarIntCoder())
     with self.assertRaises(TypeError):
       BagStateSpec(123, VarIntCoder())
+
     CombiningValueStateSpec('statename', VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec(123, VarIntCoder(), TopCombineFn(10))
     with self.assertRaises(TypeError):
       CombiningValueStateSpec('statename', VarIntCoder(), object())
-    SetStateSpec('setstatename', VarIntCoder())
 
+    SetStateSpec('setstatename', VarIntCoder())
     with self.assertRaises(TypeError):
       SetStateSpec(123, VarIntCoder())
     with self.assertRaises(TypeError):
       SetStateSpec('setstatename', object())
+
+    ValueStateSpec('valuestatename', VarIntCoder())
+    with self.assertRaises(TypeError):
+      ValueStateSpec(123, VarIntCoder())
+    with self.assertRaises(TypeError):
+      ValueStateSpec('valuestatename', object())
 
     # TODO: add more spec tests
     with self.assertRaises(ValueError):
@@ -451,6 +458,40 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
           | beam.ParDo(self.record_dofn()))
 
     self.assertEqual(['extra'], StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_simple_value_stateful_dofn(self):
+    class SimpleTestValueStatefulDoFn(DoFn):
+      VALUE_STATE = ValueStateSpec('value', StrUtf8Coder())
+
+      def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
+        last_element.write('%s:%s' % element)
+        yield last_element.read()
+
+    with TestPipeline() as p:
+      (
+          p | beam.Create([('a', 1), ('b', 3), ('c', 5)])
+          | beam.ParDo(SimpleTestValueStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+    self.assertEqual(['a:1', 'b:3', 'c:5'],
+                     StatefulDoFnOnDirectRunnerTest.all_records)
+
+  def test_clearing_value_state(self):
+    class SimpleClearingValueStatefulDoFn(DoFn):
+      VALUE_STATE = ValueStateSpec('value', VarIntCoder())
+
+      def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
+        last_element.write(element[1])
+        last_element.clear()
+        value = last_element.read()
+        if value is not None:
+          yield value
+
+    with TestPipeline() as p:
+      (
+          p | beam.Create([('a', 1), ('b', 3), ('c', 5)])
+          | beam.ParDo(SimpleClearingValueStatefulDoFn())
+          | beam.ParDo(self.record_dofn()))
+    self.assertEqual([], StatefulDoFnOnDirectRunnerTest.all_records)
 
   def test_simple_set_stateful_dofn(self):
     class SimpleTestSetStatefulDoFn(DoFn):
