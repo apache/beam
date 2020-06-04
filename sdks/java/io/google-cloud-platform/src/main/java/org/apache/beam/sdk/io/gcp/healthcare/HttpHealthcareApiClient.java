@@ -547,12 +547,7 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
         String hl7v2Store,
         @Nullable Instant start,
         @Nullable Instant end) {
-      this.client = client;
-      this.hl7v2Store = hl7v2Store;
-      this.filter = null;
-      this.orderBy = null;
-      this.start = start;
-      this.end = end;
+      this(client, hl7v2Store, start, end, null, null);
     }
 
     /**
@@ -659,9 +654,8 @@ public class HttpHealthcareApiClient implements HealthcareApiClient, Serializabl
             List<Message> msgs = response.getHl7V2Messages();
             if (msgs == null) {
               return false;
-            } else {
-              return !msgs.isEmpty();
             }
+            return !msgs.isEmpty();
           } catch (IOException e) {
             throw new NoSuchElementException(
                 String.format(
