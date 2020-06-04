@@ -42,11 +42,25 @@ REQUEST_JSON="$(cat <<-EOF
 EOF
 )"
 
-## Send request to Github API
-curl https://api.github.com/repos/apache/beam/releases \
--X POST \
--H "Authorization: token ${GITHUB_TOKEN}" \
--H "Content-Type:application/json" \
--d "${REQUEST_JSON}"
+echo -e "Below is the request JSON about to be sent to the Github API:\n\n ${REQUEST_JSON}\n\n"
 
-echo -e "\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VER}"
+read -r -p "Would you like to proceed and submit the request to the Github API? [Y/n] " input
+
+case $input in
+  [yY][eE][sS]|[yY])
+    ## Send request to Github API
+    curl https://api.github.com/repos/apache/beam/releases \
+    -X POST \
+    -H "Authorization: token ${GITHUB_TOKEN}" \
+    -H "Content-Type:application/json" \
+    -d "${REQUEST_JSON}"
+    ;;
+
+  *)
+    echo "Aborting..."
+    exit 1
+    ;;
+esac
+
+
+echo -e "\n\nView the release on Github: https://github.com/apache/beam/releases/tag/v${RELEASE_VER}"
