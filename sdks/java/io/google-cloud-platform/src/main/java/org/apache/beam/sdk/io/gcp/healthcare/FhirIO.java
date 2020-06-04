@@ -90,7 +90,7 @@ import org.slf4j.LoggerFactory;
  * <h3>Reading</h3>
  *
  * <p>FHIR resources can be read with {@link FhirIO.Read}, which supports use cases where you have a
- * ${@link PCollection} of message IDS. This is appropriate for reading the Fhir notifications from
+ * ${@link PCollection} of message IDs. This is appropriate for reading the Fhir notifications from
  * a Pub/Sub subscription with {@link PubsubIO#readStrings()} or in cases where you have a manually
  * prepared list of messages that you need to process (e.g. in a text file read with {@link
  * org.apache.beam.sdk.io.TextIO}*) .
@@ -741,13 +741,7 @@ public class FhirIO {
         ValueProvider<String> fhirStore,
         ValueProvider<String> deadLetterGcsPath,
         @Nullable ContentStructure contentStructure) {
-      this.fhirStore = fhirStore;
-      this.deadLetterGcsPath = deadLetterGcsPath;
-      if (contentStructure == null) {
-        this.contentStructure = ContentStructure.CONTENT_STRUCTURE_UNSPECIFIED;
-      } else {
-        this.contentStructure = contentStructure;
-      }
+      this(fhirStore, null, deadLetterGcsPath, contentStructure);
     }
     /**
      * Instantiates a new Import.
