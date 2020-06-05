@@ -47,7 +47,7 @@ from apache_beam.transforms.userstate import BagStateSpec
 from apache_beam.transforms.userstate import CombiningValueStateSpec
 from apache_beam.transforms.userstate import SetStateSpec
 from apache_beam.transforms.userstate import TimerSpec
-from apache_beam.transforms.userstate import ValueStateSpec
+from apache_beam.transforms.userstate import ReadModifyWriteStateSpec
 from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
 from apache_beam.transforms.userstate import on_timer
@@ -132,11 +132,11 @@ class InterfaceTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       SetStateSpec('setstatename', object())
 
-    ValueStateSpec('valuestatename', VarIntCoder())
+    ReadModifyWriteStateSpec('valuestatename', VarIntCoder())
     with self.assertRaises(TypeError):
-      ValueStateSpec(123, VarIntCoder())
+      ReadModifyWriteStateSpec(123, VarIntCoder())
     with self.assertRaises(TypeError):
-      ValueStateSpec('valuestatename', object())
+      ReadModifyWriteStateSpec('valuestatename', object())
 
     # TODO: add more spec tests
     with self.assertRaises(ValueError):
@@ -459,9 +459,9 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
 
     self.assertEqual(['extra'], StatefulDoFnOnDirectRunnerTest.all_records)
 
-  def test_simple_value_stateful_dofn(self):
-    class SimpleTestValueStatefulDoFn(DoFn):
-      VALUE_STATE = ValueStateSpec('value', StrUtf8Coder())
+  def test_simple_read_modify_write_stateful_dofn(self):
+    class SimpleTestReadModifyWriteStatefulDoFn(DoFn):
+      VALUE_STATE = ReadModifyWriteStateSpec('value', StrUtf8Coder())
 
       def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
         last_element.write('%s:%s' % element)
@@ -470,14 +470,14 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     with TestPipeline() as p:
       (
           p | beam.Create([('a', 1), ('b', 3), ('c', 5)])
-          | beam.ParDo(SimpleTestValueStatefulDoFn())
+          | beam.ParDo(SimpleTestReadModifyWriteStatefulDoFn())
           | beam.ParDo(self.record_dofn()))
     self.assertEqual(['a:1', 'b:3', 'c:5'],
                      StatefulDoFnOnDirectRunnerTest.all_records)
 
-  def test_clearing_value_state(self):
-    class SimpleClearingValueStatefulDoFn(DoFn):
-      VALUE_STATE = ValueStateSpec('value', VarIntCoder())
+  def test_clearing_read_modify_write_state(self):
+    class SimpleClearingReadModifyWriteStatefulDoFn(DoFn):
+      VALUE_STATE = ReadModifyWriteStateSpec('value', VarIntCoder())
 
       def process(self, element, last_element=DoFn.StateParam(VALUE_STATE)):
         last_element.write(element[1])
@@ -489,7 +489,7 @@ class StatefulDoFnOnDirectRunnerTest(unittest.TestCase):
     with TestPipeline() as p:
       (
           p | beam.Create([('a', 1), ('b', 3), ('c', 5)])
-          | beam.ParDo(SimpleClearingValueStatefulDoFn())
+          | beam.ParDo(SimpleClearingReadModifyWriteStatefulDoFn())
           | beam.ParDo(self.record_dofn()))
     self.assertEqual([], StatefulDoFnOnDirectRunnerTest.all_records)
 

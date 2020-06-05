@@ -66,7 +66,7 @@ class StateSpec(object):
     raise NotImplementedError
 
 
-class ValueStateSpec(StateSpec):
+class ReadModifyWriteStateSpec(StateSpec):
   """Specification for a user DoFn value state cell."""
   def to_runner_api(self, context):
     # type: (PipelineContext) -> beam_runner_api_pb2.StateSpec
@@ -326,7 +326,7 @@ class RuntimeState(object):
     pass
 
 
-class ValueRuntimeState(RuntimeState):
+class ReadModifyWriteRuntimeState(RuntimeState):
   def read(self):
     # type: () -> Any
     raise NotImplementedError(type(self))

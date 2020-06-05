@@ -435,7 +435,7 @@ class StateBackedSideInputMap(object):
     self._cache = {}
 
 
-class ValueRuntimeState(userstate.ValueRuntimeState):
+class ReadModifyWriteRuntimeState(userstate.ReadModifyWriteRuntimeState):
   def __init__(self, underlying_bag_state):
     self._underlying_bag_state = underlying_bag_state
 
@@ -755,7 +755,7 @@ class FnApiUserStateContext(userstate.UserStateContext):
     if isinstance(state_spec,
                   (userstate.BagStateSpec,
                    userstate.CombiningValueStateSpec,
-                   userstate.ValueStateSpec)):
+                   userstate.ReadModifyWriteStateSpec)):
       bag_state = SynchronousBagRuntimeState(
           self._state_handler,
           state_key=beam_fn_api_pb2.StateKey(
@@ -768,8 +768,8 @@ class FnApiUserStateContext(userstate.UserStateContext):
           value_coder=state_spec.coder)
       if isinstance(state_spec, userstate.BagStateSpec):
         return bag_state
-      elif isinstance(state_spec, userstate.ValueStateSpec):
-        return ValueRuntimeState(bag_state)
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+        return ReadModifyWriteRuntimeState(bag_state)
       else:
         return CombiningValueRuntimeState(bag_state, state_spec.combine_fn)
     elif isinstance(state_spec, userstate.SetStateSpec):

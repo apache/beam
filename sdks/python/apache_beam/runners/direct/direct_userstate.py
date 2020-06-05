@@ -36,8 +36,9 @@ class DirectRuntimeState(userstate.RuntimeState):
 
   @staticmethod
   def for_spec(state_spec, state_tag, current_value_accessor):
-    if isinstance(state_spec, userstate.ValueStateSpec):
-      return ValueRuntimeState(state_spec, state_tag, current_value_accessor)
+    if isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
+      return ReadModifyWriteRuntimeState(
+          state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, userstate.BagStateSpec):
       return BagRuntimeState(state_spec, state_tag, current_value_accessor)
     elif isinstance(state_spec, userstate.CombiningValueStateSpec):
@@ -59,9 +60,10 @@ class DirectRuntimeState(userstate.RuntimeState):
 UNREAD_VALUE = object()
 
 
-class ValueRuntimeState(DirectRuntimeState, userstate.ValueRuntimeState):
+class ReadModifyWriteRuntimeState(DirectRuntimeState,
+                                  userstate.ReadModifyWriteRuntimeState):
   def __init__(self, state_spec, state_tag, current_value_accessor):
-    super(ValueRuntimeState,
+    super(ReadModifyWriteRuntimeState,
           self).__init__(state_spec, state_tag, current_value_accessor)
     self._value = UNREAD_VALUE
     self._cleared = False
@@ -197,7 +199,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     self.state_tags = {}
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
-      if isinstance(state_spec, userstate.ValueStateSpec):
+      if isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
         state_tag = _ValueStateTag(state_key)
       elif isinstance(state_spec, userstate.BagStateSpec):
         state_tag = _ListStateTag(state_key)
@@ -263,7 +265,7 @@ class DirectUserStateContext(userstate.UserStateContext):
           for new_value in runtime_state._current_accumulator:
             state.add_state(
                 window, state_tag, state_spec.coder.encode(new_value))
-      elif isinstance(state_spec, userstate.ValueStateSpec):
+      elif isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
         if runtime_state.is_cleared():
           state.clear_state(window, state_tag)
         if runtime_state.is_modified():

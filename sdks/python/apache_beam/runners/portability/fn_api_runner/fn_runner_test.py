@@ -298,7 +298,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_state_only(self):
     index_state_spec = userstate.CombiningValueStateSpec('index', sum)
-    value_and_index_state_spec = userstate.ValueStateSpec(
+    value_and_index_state_spec = userstate.ReadModifyWriteStateSpec(
         'value:index', StrUtf8Coder())
 
     # TODO(ccy): State isn't detected with Map/FlatMap.
