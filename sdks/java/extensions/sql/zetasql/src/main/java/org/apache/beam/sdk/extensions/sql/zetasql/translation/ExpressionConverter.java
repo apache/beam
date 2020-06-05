@@ -867,7 +867,6 @@ public class ExpressionConverter {
           throw new UnsupportedOperationException(
               "Unsupported function: " + funName + ". Only support TUMBLE, HOP, and SESSION now.");
       }
-    // } else if (funGroup.equals("ZetaSQL") || funGroup.equals(USER_DEFINED_FUNCTIONS)) {
     } else if (funGroup.equals("ZetaSQL")) {
       if (op == null) {
         Type returnType = functionCall.getSignature().getResultType().getType();

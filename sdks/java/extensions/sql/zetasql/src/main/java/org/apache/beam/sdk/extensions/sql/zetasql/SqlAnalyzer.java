@@ -105,40 +105,19 @@ public class SqlAnalyzer {
    */
   ResolvedStatement analyze(String sql) {
     AnalyzerOptions options = initAnalyzerOptions(builder.queryParams);
-
-    // TODO(ibzib) extract table names
-    // List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
-    List<List<String>> tables = ImmutableList.of();
+    List<List<String>> tables = Analyzer.extractTableNamesFromStatement(sql);
 
     SimpleCatalog catalog =
         createPopulatedCatalog(builder.topLevelSchema.getName(), options, tables);
 
-    ParseResumeLocation parseResumeLocation = new ParseResumeLocation(sql);
-    while (parseResumeLocation.getAllowResume()) {
-      ResolvedStatement resolvedStatement = Analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
-      if (resolvedStatement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
-        ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) resolvedStatement;
-        Function userFunction = new Function(
-            String.join(".", createFunctionStmt.getNamePath()),
-            USER_DEFINED_FUNCTIONS,
-            // TODO(ibzib) handle UDAF, UDTF
-            Mode.SCALAR,
-            ImmutableList.of(createFunctionStmt.getSignature()));
-        catalog.addFunction(userFunction);
-      } else if (resolvedStatement.nodeKind() == RESOLVED_QUERY_STMT) {
-        return resolvedStatement;
-      } else {
-        throw new UnsupportedOperationException("Unrecognized statement type " + resolvedStatement.nodeKindString());
-      }
-    }
-    throw new IllegalStateException("Statement list did not include a query (SELECT) statement.");
+    return Analyzer.analyzeStatement(sql, options, catalog);
   }
 
   /**
-   * Accepts the SQL string, returns the resolved AST.
-   *
-   * <p>Initializes query parameters, populates the catalog based on Calcite's schema and table name
-   * resolution strategy set in the context.
+   * Accepts the ParseResumeLocation for the current position in the SQL string.
+   * Advances the ParseResumeLocation to the start of the next statement.
+   * Adds user-defined functions to the catalog for use in following statements.
+   * Returns the resolved AST.
    */
   ResolvedStatement analyzeNextStatement(ParseResumeLocation parseResumeLocation, AnalyzerOptions options, SimpleCatalog catalog) {
 
@@ -153,7 +132,7 @@ public class SqlAnalyzer {
       Function userFunction = new Function(
           createFunctionStmt.getNamePath(),
           USER_DEFINED_FUNCTIONS,
-          // TODO(ibzib) handle UDAF, UDTF
+          // TODO(BEAM-9954) handle UDAF
           Mode.SCALAR,
           com.google.common.collect.ImmutableList.of(createFunctionStmt.getSignature()));
       try {
