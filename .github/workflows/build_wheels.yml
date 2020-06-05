@@ -42,7 +42,7 @@ jobs:
         run: python3 -m pip install cython && python3 -m pip install -r build-requirements.txt
       - name: Install wheels
         run: python3 -m pip install wheel
-      - name: Buld source
+      - name: Build source
         working-directory: ./sdks/python
         run: python3 setup.py sdist --formats=gztar,zip
       - name: Unzip source
@@ -70,10 +70,10 @@ jobs:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
-          service_account_email: ${{ secrets.CCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.CCP_SA_KEY }}
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Remove existing files on GCS bucket
-        run: gsutil rm -r "gs://${{ secrets.CCP_BUCKET }}/${GITHUB_REF##*/}/" || true
+        run: gsutil rm -r "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/" || true
 
   upload_source_to_gcs:
     name: Upload source to GCS bucket
@@ -88,14 +88,14 @@ jobs:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
-          service_account_email: ${{ secrets.CCP_SA_EMAIL }}
-          service_account_key: ${{ secrets.CCP_SA_KEY }}
+          service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+          service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Copy sources to GCS bucket
-        run: gsutil cp -r -a public-read source/* gs://${{ secrets.CCP_BUCKET }}/${GITHUB_REF##*/}/
+        run: gsutil cp -r -a public-read source/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
       - name: List sources on GCS bucket
         run: |
-          gsutil ls "gs://${{ secrets.CCP_BUCKET }}/${GITHUB_REF##*/}/*.tar.gz"
-          gsutil ls "gs://${{ secrets.CCP_BUCKET }}/${GITHUB_REF##*/}/*.zip"
+          gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*.tar.gz"
+          gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*.zip"
 
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -135,7 +135,7 @@ jobs:
         name: wheelhouse-${{ matrix.os }}
         path: apache-beam-source/wheelhouse/
 
-  upload_wheeles_to_gcs:
+  upload_wheels_to_gcs:
     name: Upload wheels to GCS bucket
     needs: build_wheels
     runs-on: ubuntu-latest
@@ -151,9 +151,9 @@ jobs:
     - name: Authenticate on GCP
       uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
       with:
-        service_account_email: ${{ secrets.CCP_SA_EMAIL }}
-        service_account_key: ${{ secrets.CCP_SA_KEY }}
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
-      run: gsutil cp -r -a public-read wheelhouse/* gs://${{ secrets.CCP_BUCKET }}/${GITHUB_REF##*/}/
+      run: gsutil cp -r -a public-read wheelhouse/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
     - name: List wheels on GCS bucket
-      run: gsutil ls "gs://${{ secrets.CCP_BUCKET }}/${GITHUB_REF##*/}/*.whl"
+      run: gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*.whl"
