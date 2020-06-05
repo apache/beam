@@ -318,9 +318,7 @@ class ExternalTransform(ptransform.PTransform):
       # Some environments may not support unsecure channels. Hence using a
       # secure channel with local credentials here.
       # TODO: update this to support secure non-local channels.
-      channel_creds = grpc.local_channel_credentials()
-      with grpc.secure_channel(self._expansion_service,
-                               channel_creds) as channel:
+      with grpc.insecure_channel(self._expansion_service) as channel:
         response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
             channel).Expand(request)
     else:
