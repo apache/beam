@@ -256,7 +256,7 @@ class TriggerFn(with_metaclass(ABCMeta, object)):  # type: ignore[misc]
         'always': Always,
         'default': DefaultTrigger,
         'element_count': AfterCount,
-        # never
+        'never': _Never,
         'or_finally': OrFinally,
         'repeat': Repeatedly,
     }[proto.WhichOneof('trigger')].from_runner_api(proto, context)
@@ -406,6 +406,50 @@ class Always(TriggerFn):
   def to_runner_api(self, context):
     return beam_runner_api_pb2.Trigger(
         always=beam_runner_api_pb2.Trigger.Always())
+
+
+class _Never(TriggerFn):
+  """A trigger that never fires.
+
+  Data may still be released at window closing.
+  """
+  def __init__(self):
+    pass
+
+  def __repr__(self):
+    return 'Never'
+
+  def __eq__(self, other):
+    return type(self) == type(other)
+
+  def __hash__(self):
+    return hash(type(self))
+
+  def on_element(self, element, window, context):
+    pass
+
+  def on_merge(self, to_be_merged, merge_result, context):
+    pass
+
+  def has_ontime_pane(self):
+    False
+
+  def reset(self, window, context):
+    pass
+
+  def should_fire(self, time_domain, watermark, window, context):
+    return False
+
+  def on_fire(self, watermark, window, context):
+    return True
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return _Never()
+
+  def to_runner_api(self, context):
+    return beam_runner_api_pb2.Trigger(
+        never=beam_runner_api_pb2.Trigger.Never())
 
 
 class AfterWatermark(TriggerFn):
@@ -1021,6 +1065,12 @@ class MergeableStateAdapter(SimpleState):
 def create_trigger_driver(
     windowing, is_batch=False, phased_combine_fn=None, clock=None):
   """Create the TriggerDriver for the given windowing and options."""
+
+  # TODO(BEAM-10149): Respect closing and on-time behaviors.
+  # For batch, we should always fire once, no matter what.
+  if is_batch and windowing.triggerfn == _Never():
+    windowing = copy.copy(windowing)
+    windowing.triggerfn = Always()
 
   # TODO(robertwb): We can do more if we know elements are in timestamp
   # sorted order.
