@@ -87,14 +87,14 @@ class Expression(object):
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
 
-  def requires_partition_by(self):  # type: () -> Partitioning
+  def requires_partition_by(self):  # type: () -> partitionings.Partitioning
     """Returns the partitioning, if any, require to evaluate this expression.
 
     Returns partitioning.Nothing() to require no partitioning is required.
     """
     raise NotImplementedError(type(self))
 
-  def preserves_partition_by(self):  # type: () -> Partitioning
+  def preserves_partition_by(self):  # type: () -> partitionings.Partitioning
     """Returns the partitioning, if any, preserved by this expression.
 
     This gives an upper bound on the partitioning of its ouput.  The actual
@@ -181,9 +181,8 @@ class ComputedExpression(Expression):
       args,  # type: Iterable[Expression]
       proxy=None,  # type: Optional[T]
       _id=None,  # type: Optional[str]
-      requires_partition_by=partitionings.Index(),  # type: partition.Partitioning
-      preserves_partition_by=partitionings.Nothing(),  # type: partition.Partitioning
-
+      requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
   ):
     """Initialize a computed expression.
 
