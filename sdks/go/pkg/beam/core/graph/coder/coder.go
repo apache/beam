@@ -248,8 +248,12 @@ func (c *Coder) String() string {
 		}
 		ret += fmt.Sprintf("<%v>", strings.Join(args, ","))
 	}
-	if c.Window != nil {
+	switch c.Kind {
+	case WindowedValue:
 		ret += fmt.Sprintf("!%v", c.Window)
+	case KV, CoGBK, Bytes, Bool, VarInt, Double: // No additional info.
+	default:
+		ret += fmt.Sprintf("[%v]", c.T)
 	}
 	return ret
 }
