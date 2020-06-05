@@ -106,11 +106,11 @@ func TestEncodeDecodeStringUTF8LP(t *testing.T) {
 		want := s
 		t.Run(want, func(t *testing.T) {
 			var build strings.Builder
-			if err := EncodeStringUTF8LP(want, &build); err != nil {
+			if err := EncodeStringUTF8(want, &build); err != nil {
 				t.Fatal(err)
 			}
 			buf := bytes.NewBufferString(build.String())
-			got, err := DecodeStringUTF8LP(buf)
+			got, err := DecodeStringUTF8(buf)
 			if err != nil && err != io.EOF {
 				t.Fatal(err)
 			}
