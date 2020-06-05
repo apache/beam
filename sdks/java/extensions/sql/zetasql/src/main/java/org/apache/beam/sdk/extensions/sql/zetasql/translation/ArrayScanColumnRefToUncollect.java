@@ -59,7 +59,8 @@ public class ArrayScanColumnRefToUncollect extends RelConverter<ResolvedNodes.Re
                 .convertRexNodeFromResolvedExpr(
                     zetaNode.getArrayExpr(),
                     zetaNode.getInputScan().getColumnList(),
-                    input.getRowType().getFieldList());
+                    input.getRowType().getFieldList(),
+                    null); // TODO(ibzib) check
 
     String fieldName =
         String.format(

@@ -131,7 +131,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
               .convertRexNodeFromResolvedExpr(
                   computedColumn.getExpr(),
                   node.getInputScan().getColumnList(),
-                  input.getRowType().getFieldList()));
+                  input.getRowType().getFieldList(),
+                  null)); // TODO(ibzib) check
       fieldNames.add(getTrait().resolveAlias(computedColumn.getColumn()));
     }
 
@@ -156,7 +157,8 @@ class AggregateScanConverter extends RelConverter<ResolvedAggregateScan> {
                 .convertRexNodeFromResolvedExpr(
                     resolvedExpr,
                     node.getInputScan().getColumnList(),
-                    input.getRowType().getFieldList()));
+                    input.getRowType().getFieldList(),
+                    null)); // TODO(ibzib) check
         fieldNames.add(getTrait().resolveAlias(resolvedComputedColumn.getColumn()));
       } else if (aggregateFunctionCall.getArgumentList() != null
           && aggregateFunctionCall.getArgumentList().size() > 1) {
