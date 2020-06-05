@@ -22,7 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -291,7 +291,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				payload := &pipepb.ParDoPayload{
 					DoFn: &pipepb.FunctionSpec{
 						Urn: URNIterableSideInputKey,
-						Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+						Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 							Urn: URNIterableSideInputKey,
 						})),
 					},
@@ -415,9 +415,9 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
 				Urn: URNInject,
-				Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+				Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 					Urn:    URNInject,
-					Inject: &v1.InjectPayload{N: (int32)(i)},
+					Inject: &v1pb.InjectPayload{N: (int32)(i)},
 				})),
 			},
 		}
@@ -478,7 +478,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	payload := &pipepb.ParDoPayload{
 		DoFn: &pipepb.FunctionSpec{
 			Urn: URNExpand,
-			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNExpand,
 			})),
 		},
@@ -597,7 +597,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 	payload := &pipepb.ParDoPayload{
 		DoFn: &pipepb.FunctionSpec{
 			Urn: URNReshuffleInput,
-			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
 			})),
 		},
@@ -641,7 +641,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 	outputPayload := &pipepb.ParDoPayload{
 		DoFn: &pipepb.FunctionSpec{
 			Urn: URNReshuffleOutput,
-			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
 			})),
 		},
@@ -792,7 +792,7 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 	if err != nil {
 		panic(errors.Wrapf(err, "Failed to serialize %v", edge))
 	}
-	return protox.MustEncodeBase64(&v1.TransformPayload{
+	return protox.MustEncodeBase64(&v1pb.TransformPayload{
 		Urn:  URNDoFn,
 		Edge: ref,
 	})

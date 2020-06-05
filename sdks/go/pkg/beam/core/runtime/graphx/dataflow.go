@@ -17,7 +17,7 @@ package graphx
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -243,7 +243,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 			return nil, errors.Errorf("bad length prefix: %+v", c)
 		}
 
-		var ref v1.CustomCoder
+		var ref v1pb.CustomCoder
 		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
 			return nil, errors.Wrapf(err, "base64 decode for %v failed", c.Components[0].Type)
 		}
