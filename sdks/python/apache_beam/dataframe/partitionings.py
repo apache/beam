@@ -103,7 +103,7 @@ class Index(Partitioning):
 
 
 class Singleton(Partitioning):
-  """A partitioning co-locating all data to a singleton partition.
+  """A partitioning of all the data into a single partition.
   """
   def __eq__(self, other):
     return type(self) == type(other)
@@ -128,9 +128,4 @@ class Nothing(Partitioning):
     return hash(type(self))
 
   def is_subpartitioning_of(self, other):
-    return not other
-
-  def __bool__(self):
-    return False
-
-  __nonzero__ = __bool__
+    return isinstance(other, Nothing)

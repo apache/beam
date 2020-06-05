@@ -88,9 +88,19 @@ class Expression(object):
     raise NotImplementedError(type(self))
 
   def requires_partition_by(self):  # type: () -> Partitioning
+    """Returns the partitioning, if any, require to evaluate this expression.
+
+    Returns partitioning.Nothing() to require no partitioning is required.
+    """
     raise NotImplementedError(type(self))
 
   def preserves_partition_by(self):  # type: () -> Partitioning
+    """Returns the partitioning, if any, preserved by this expression.
+
+    This gives an upper bound on the partitioning of its ouput.  The actual
+    partitioning of the output may be less strict (e.g. if the input was
+    less partitioned).
+    """
     raise NotImplementedError(type(self))
 
 

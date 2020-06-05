@@ -110,7 +110,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
-        if self.stage.partitioning:
+        if self.stage.partitioning != partitionings.Nothing():
           # Arrange such that partitioned_pcoll is properly partitioned.
           input_pcolls = {
               tag: pcoll | 'Flat%s' % tag >> beam.FlatMap(
@@ -142,7 +142,7 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       """
       def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        if len(self.inputs) > 1 and not partitioning:
+        if len(self.inputs) > 1 and partitioning == partitionings.Nothing():
           # We have to shuffle to co-locate, might as well partition.
           self.partitioning = partitionings.Index()
         else:
@@ -152,17 +152,24 @@ class _DataframeExpressionsTransform(transforms.PTransform):
 
     # First define some helper functions.
     def output_is_partitioned_by(expr, stage, partitioning):
-      if not partitioning:
+      if partitioning == partitionings.Nothing():
+        # Always satisfied.
         return True
       elif stage.partitioning == partitionings.Singleton():
         # Within a stage, the singleton partitioning is trivially preserved.
         return True
       elif expr in stage.inputs:
+        # Inputs are all partitioned by stage.partitioning.
         return stage.partitioning.is_subpartitioning_of(partitioning)
       elif expr.preserves_partition_by().is_subpartitioning_of(partitioning):
+        # Here expr preserves at least the requested partitioning; its outputs
+        # will also have this partitioning iff its inputs do.
         if expr.requires_partition_by().is_subpartitioning_of(partitioning):
+          # If expr requires at least this partitioning, we will arrange such
+          # that its inputs satisfy this.
           return True
         else:
+          # Otherwise, recursively check all the inputs.
           return all(
               output_is_partitioned_by(arg, stage, partitioning)
               for arg in expr.args())
