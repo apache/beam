@@ -31,6 +31,7 @@ import apache_beam as beam
 from apache_beam import transforms
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
+from apache_beam.dataframe import partitionings
 
 if TYPE_CHECKING:
   # pylint: disable=ungrouped-imports
@@ -124,10 +125,11 @@ class _DataframeExpressionsTransform(transforms.PTransform):
         return '%s:%s' % (self.stage.ops, id(self))
 
       def expand(self, pcolls):
-        if self.stage.is_grouping:
+        if self.stage.partitioning != partitionings.Nothing():
           # Arrange such that partitioned_pcoll is properly partitioned.
           input_pcolls = {
-              tag: pcoll | 'Flat%s' % tag >> beam.FlatMap(partition_by_index)
+              tag: pcoll | 'Flat%s' % tag >> beam.FlatMap(
+                  self.stage.partitioning.partition_fn)
               for (tag, pcoll) in pcolls.items()
           }
           partitioned_pcoll = input_pcolls | beam.CoGroupByKey(
@@ -137,8 +139,8 @@ class _DataframeExpressionsTransform(transforms.PTransform):
                        for tag, vs in inputs.items()})
         else:
           # Already partitioned, or no partitioning needed.
-          (k, pcoll), = pcolls.items()
-          partitioned_pcoll = pcoll | beam.Map(lambda df: {k: df})
+          (tag, pcoll), = pcolls.items()
+          partitioned_pcoll = pcoll | beam.Map(lambda df: {tag: df})
 
         # Actually evaluate the expressions.
         def evaluate(partition, stage=self.stage):
@@ -153,35 +155,41 @@ class _DataframeExpressionsTransform(transforms.PTransform):
     class Stage(object):
       """Used to build up a set of operations that can be fused together.
       """
-      def __init__(self, inputs, is_grouping):
+      def __init__(self, inputs, partitioning):
         self.inputs = set(inputs)
-        self.is_grouping = is_grouping or len(self.inputs) > 1
+        if len(self.inputs) > 1 and partitioning == partitionings.Nothing():
+          # We have to shuffle to co-locate, might as well partition.
+          self.partitioning = partitionings.Index()
+        else:
+          self.partitioning = partitioning
         self.ops = []
         self.outputs = set()
 
     # First define some helper functions.
-    def output_is_partitioned_by_index(expr, stage):
-      if expr in stage.inputs:
-        return stage.is_grouping
-      elif expr.preserves_partition_by_index():
-        if expr.requires_partition_by_index():
+    def output_is_partitioned_by(expr, stage, partitioning):
+      if partitioning == partitionings.Nothing():
+        # Always satisfied.
+        return True
+      elif stage.partitioning == partitionings.Singleton():
+        # Within a stage, the singleton partitioning is trivially preserved.
+        return True
+      elif expr in stage.inputs:
+        # Inputs are all partitioned by stage.partitioning.
+        return stage.partitioning.is_subpartitioning_of(partitioning)
+      elif expr.preserves_partition_by().is_subpartitioning_of(partitioning):
+        # Here expr preserves at least the requested partitioning; its outputs
+        # will also have this partitioning iff its inputs do.
+        if expr.requires_partition_by().is_subpartitioning_of(partitioning):
+          # If expr requires at least this partitioning, we will arrange such
+          # that its inputs satisfy this.
           return True
         else:
+          # Otherwise, recursively check all the inputs.
           return all(
-              output_is_partitioned_by_index(arg, stage) for arg in expr.args())
+              output_is_partitioned_by(arg, stage, partitioning)
+              for arg in expr.args())
       else:
         return False
-
-    def partition_by_index(df, levels=None, parts=10):
-      if levels is None:
-        levels = list(range(df.index.nlevels))
-      elif isinstance(levels, (int, str)):
-        levels = [levels]
-      hashes = sum(
-          pd.util.hash_array(df.index.get_level_values(level))
-          for level in levels)
-      for key in range(parts):
-        yield key, df[hashes % parts == key]
 
     def common_stages(stage_lists):
       # Set intersection, with a preference for earlier items in the list.
@@ -200,15 +208,15 @@ class _DataframeExpressionsTransform(transforms.PTransform):
       # the first stage where all of expr's inputs are partitioned as required.
       # In either case, use the first such stage because earlier stages are
       # closer to the inputs (have fewer intermediate stages).
+      required_partitioning = expr.requires_partition_by()
       for stage in common_stages([expr_to_stages(arg) for arg in expr.args()
                                   if arg not in inputs]):
-        if (not expr.requires_partition_by_index() or
-            all(output_is_partitioned_by_index(arg, stage)
-                for arg in expr.args())):
+        if all(output_is_partitioned_by(arg, stage, required_partitioning)
+               for arg in expr.args()):
           break
       else:
         # Otherwise, compute this expression as part of a new stage.
-        stage = Stage(expr.args(), expr.requires_partition_by_index())
+        stage = Stage(expr.args(), required_partitioning)
         for arg in expr.args():
           if arg not in inputs:
             # For each non-input argument, declare that it is also available in
