@@ -20,6 +20,7 @@ import pandas as pd
 
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frame_base
+from apache_beam.dataframe import partitionings
 
 
 @frame_base.DeferredFrame._register_for(pd.Series)
@@ -49,6 +50,14 @@ for name in ['apply', 'map', 'transform']:
 
 @frame_base.DeferredFrame._register_for(pd.DataFrame)
 class DeferredDataFrame(frame_base.DeferredFrame):
+  @property
+  def T(self):
+    return self.transpose()
+
+  def transpose(self, dtype=None):
+    raise frame_base.WontImplementError(
+        'require non-index partitioning')  # XXXX ignore for now
+
   def groupby(self, cols):
     # TODO: what happens to the existing index?
     # We set the columns to index as we have a notion of being partitioned by
@@ -58,8 +67,8 @@ class DeferredDataFrame(frame_base.DeferredFrame):
             'groupbyindex',
             lambda df: df.groupby(level=list(range(df.index.nlevels))),
             [self.set_index(cols)._expr],
-            requires_partition_by_index=True,
-            preserves_partition_by_index=True))
+            requires_partition_by=partitionings.Index(),
+            preserves_partition_by=partitionings.Singleton()))
 
   def __getattr__(self, name):
     # Column attribute access.
@@ -102,6 +111,19 @@ class DeferredDataFrame(frame_base.DeferredFrame):
   def loc(self):
     return _DeferredLoc(self)
 
+  def aggregate(self, func, axis=0, *args, **kwargs):
+    if axis != 0:
+      raise NotImplementedError()
+    return frame_base.DeferredFrame.wrap(
+        expressions.ComputedExpression(
+            'aggregate',
+            lambda df: df.agg(func, axis, *args, **kwargs),
+            [self._expr],
+            # TODO(robertwb): Sub-aggregate when possible.
+            requires_partition_by=partitionings.Singleton()))
+
+  agg = aggregate
+
 
 for meth in ('filter', ):
   setattr(DeferredDataFrame, meth, frame_base._elementwise_method(meth))
@@ -115,8 +137,8 @@ class DeferredGroupBy(frame_base.DeferredFrame):
         expressions.ComputedExpression(
             'agg',
             lambda df: df.agg(fn), [self._expr],
-            requires_partition_by_index=True,
-            preserves_partition_by_index=True))
+            requires_partition_by=partitionings.Index(),
+            preserves_partition_by=partitionings.Singleton()))
 
 
 def _liftable_agg(meth):
@@ -129,14 +151,14 @@ def _liftable_agg(meth):
         'pre_combine_' + name,
         lambda df: func(df.groupby(level=list(range(df.index.nlevels)))),
         [ungrouped],
-        requires_partition_by_index=False,
-        preserves_partition_by_index=True)
+        requires_partition_by=partitionings.Nothing(),
+        preserves_partition_by=partitionings.Singleton())
     post_agg = expressions.ComputedExpression(
         'post_combine_' + name,
         lambda df: func(df.groupby(level=list(range(df.index.nlevels)))),
         [pre_agg],
-        requires_partition_by_index=True,
-        preserves_partition_by_index=True)
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
     return frame_base.DeferredFrame.wrap(post_agg)
 
   return wrapper
@@ -152,8 +174,8 @@ def _unliftable_agg(meth):
         name,
         lambda df: func(df.groupby(level=list(range(df.index.nlevels)))),
         [ungrouped],
-        requires_partition_by_index=True,
-        preserves_partition_by_index=True)
+        requires_partition_by=partitionings.Index(),
+        preserves_partition_by=partitionings.Singleton())
     return frame_base.DeferredFrame.wrap(post_agg)
 
   return wrapper
@@ -212,5 +234,8 @@ class _DeferredLoc(object):
             'loc',
             func,
             args,
-            requires_partition_by_index=len(args) > 1,
-            preserves_partition_by_index=True))
+            requires_partition_by=(
+                partitionings.Index()
+                if len(args) > 1
+                else partitionings.Nothing()),
+            preserves_partition_by=partitionings.Singleton()))
