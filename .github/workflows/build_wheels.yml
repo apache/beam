@@ -20,11 +20,11 @@ name: Build python wheels
 
 on:
   push:
-    branches:
-      - master
-      - release-*
-    tags:
-      - v*
+    branches: ['master', 'release-*']
+    tags: 'v*'
+  pull_request:
+    branches: ['master', 'release-*']
+    tags: 'v*'
 
 jobs:
 
