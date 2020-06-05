@@ -49,7 +49,8 @@ public class ArtifactRetrievalService
   static {
     checkState(FILE_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.FILE)));
     checkState(URL_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.URL)));
-    checkState(EMBEDDED_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.EMBEDDED)));
+    checkState(
+        EMBEDDED_ARTIFACT_URN.equals(BeamUrns.getUrn(RunnerApi.StandardArtifacts.Types.EMBEDDED)));
     checkState(
         STAGING_TO_ARTIFACT_URN.equals(
             BeamUrns.getUrn(RunnerApi.StandardArtifacts.Roles.STAGING_TO)));
@@ -107,23 +108,25 @@ public class ArtifactRetrievalService
       responseObserver.onError(exn);
     } catch (UnsupportedOperationException exn) {
       responseObserver.onError(
-          new StatusException(
-              Status.INVALID_ARGUMENT.withDescription(exn.getMessage())));
+          new StatusException(Status.INVALID_ARGUMENT.withDescription(exn.getMessage())));
     }
   }
 
   public static InputStream getArtifact(RunnerApi.ArtifactInformation artifact) throws IOException {
     switch (artifact.getTypeUrn()) {
       case FILE_ARTIFACT_URN:
-          RunnerApi.ArtifactFilePayload payload =
-              RunnerApi.ArtifactFilePayload.parseFrom(artifact.getTypePayload());
-          return Channels.newInputStream(
-                  FileSystems.open(
-                      FileSystems.matchNewResource(payload.getPath(), false /* is directory */)));
+        RunnerApi.ArtifactFilePayload payload =
+            RunnerApi.ArtifactFilePayload.parseFrom(artifact.getTypePayload());
+        return Channels.newInputStream(
+            FileSystems.open(
+                FileSystems.matchNewResource(payload.getPath(), false /* is directory */)));
       case EMBEDDED_ARTIFACT_URN:
-        return RunnerApi.EmbeddedFilePayload.parseFrom(artifact.getTypePayload()).getData().newInput();
+        return RunnerApi.EmbeddedFilePayload.parseFrom(artifact.getTypePayload())
+            .getData()
+            .newInput();
       default:
-        throw new UnsupportedOperationException("Unexpected artifact type: " + artifact.getTypeUrn());
+        throw new UnsupportedOperationException(
+            "Unexpected artifact type: " + artifact.getTypeUrn());
     }
   }
 
