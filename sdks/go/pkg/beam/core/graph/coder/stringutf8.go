@@ -24,8 +24,8 @@ import (
 
 const bufCap = 64
 
-// EncodeStringUTF8LP encodes a UTF string with a length prefix.
-func EncodeStringUTF8LP(s string, w io.Writer) error {
+// EncodeStringUTF8 encodes a UTF8 string with a length prefix.
+func EncodeStringUTF8(s string, w io.Writer) error {
 	if err := EncodeVarInt(int64(len(s)), w); err != nil {
 		return err
 	}
@@ -73,8 +73,8 @@ func decodeStringUTF8(l int64, r io.Reader) (string, error) {
 	return builder.String(), nil
 }
 
-// DecodeStringUTF8LP decodes a length prefixed utf8 string.
-func DecodeStringUTF8LP(r io.Reader) (string, error) {
+// DecodeStringUTF8 decodes a length prefixed UTF8 string.
+func DecodeStringUTF8(r io.Reader) (string, error) {
 	l, err := DecodeVarInt(r)
 	if err != nil {
 		return "", err
