@@ -17,6 +17,31 @@
 # under the License.
 #
 
-content:
-- Simple Function
-- CombineFn
+type: edu
+files:
+- name: test/task_test.go
+  visible: false
+- name: cmd/main.go
+  visible: true
+- name: go.mod
+  visible: false
+- name: pkg/task/task.go
+  visible: true
+  placeholders:
+  - offset: 949
+    length: 36
+    placeholder_text: TODO()
+  - offset: 1127
+    length: 14
+    placeholder_text: TODO()
+  - offset: 1221
+    length: 47
+    placeholder_text: TODO()
+  - offset: 1362
+    length: 88
+    placeholder_text: TODO()
+  - offset: 1519
+    length: 85
+    placeholder_text: TODO()
+- name: go.sum
+  visible: false
