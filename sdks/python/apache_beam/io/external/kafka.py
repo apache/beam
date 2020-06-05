@@ -16,24 +16,66 @@
 #
 
 """
-  PTransforms for supporting Kafka in Python pipelines. These transforms do not
-  run a Kafka client in Python. Instead, they expand to ExternalTransforms
-  which the Expansion Service resolves to the Java SDK's KafkaIO. In other
-  words: they are cross-language transforms.
+  `PTransform`s for supporting Kafka in Python pipelines.
 
-  Note: To use these transforms, you need to start a Java Expansion Service.
-  Please refer to the portability documentation on how to do that. Flink Users
-  can use the built-in Expansion Service of the Flink Runner's Job Server. The
-  expansion service address has to be provided when instantiating the
-  transforms.
+  These transforms are currently supported by Beam portable runners (for
+  example, portable Flink and Spark) as well as Dataflow runner.
 
-  If you start Flink's Job Server, the expansion service will be started on
-  port 8097. This is also the configured default for this transform. For a
-  different address, please set the expansion_service parameter.
+  **Setup**
 
-  For more information see:
-  - https://beam.apache.org/documentation/runners/flink/
+  Transforms provided in this module are cross-language transforms
+  implemented in the Beam Java SDK. During the pipeline construction, Python SDK
+  will connect to a Java expansion service to expand these transforms.
+  To facilitate this, a small amount of setup is needed before using these
+  transforms in a Beam Python pipeline.
+
+  There are several ways to setup cross-language Kafka transforms.
+
+  * Option 1 - Use the default expansion service
+  * Option 2 - specify a custom expansion service
+
+  See below for details regarding each of these options.
+
+  *Option 1 - Use the default expansion service*
+
+  This is the recommended and easiest setup option for using Python Kafka
+  transforms. This option is only available for Beam 2.22.0 and later.
+
+  This option requires following pre-requisites before running the Beam
+  pipeline.
+
+  * Install Java runtime in the computer from where the pipeline is constructed
+    and make sure that 'java' command is available.
+
+  In this option, Python SDK will either download (for released Beam version) or
+  build (when running from a Beam Git clone) a expansion service jar and use
+  that to expand transforms. Currently Kafka transforms use the
+  'beam-sdks-java-io-expansion-service' jar for this purpose.
+
+  *Option 2 - specify a custom expansion service*
+
+  In this option, you startup your own expansion service and provide that as
+  a parameter when using transforms provided in this module.
+
+  This option requires following pre-requisites before running the Beam
+  pipeline.
+
+  * Startup your own expansion service.
+  * Update your pipeline to provide the expansion service address when
+  initiating Kafka transforms provided in this module.
+
+  Flink Users can use the built-in Expansion Service of the Flink Runner's
+  Job Server. If you start Flink's Job Server, the expansion service will be
+  started on port 8097. For a different address, please set the
+  expansion_service parameter.
+
+  **More information**
+
+  For more information regarding cross-language transforms see:
   - https://beam.apache.org/roadmap/portability/
+
+  For more information specific to Flink runner see:
+  - https://beam.apache.org/documentation/runners/flink/
 """
 
 # pytype: skip-file
