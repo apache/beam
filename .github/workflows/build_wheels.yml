@@ -29,7 +29,7 @@ on:
 jobs:
 
   build_source:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -65,7 +65,7 @@ jobs:
   prepare_gcs:
     name: Prepare GCS
     needs: build_source
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Authenticate on GCP
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
@@ -78,7 +78,7 @@ jobs:
   upload_source_to_gcs:
     name: Upload source to GCS bucket
     needs: prepare_gcs
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - name: Download wheels
         uses: actions/download-artifact@v2
@@ -103,7 +103,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os : [ubuntu-18.04, macos-10.15]
+        os : [ubuntu-latest, macos-latest]
     steps:
     - name: Download source
       uses: actions/download-artifact@v2
@@ -138,10 +138,10 @@ jobs:
   upload_wheeles_to_gcs:
     name: Upload wheels to GCS bucket
     needs: build_wheels
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os : [ubuntu-18.04, macos-10.15]
+        os : [ubuntu-latest, macos-latest]
     steps:
     - name: Download wheels
       uses: actions/download-artifact@v2
