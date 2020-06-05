@@ -39,12 +39,12 @@ jobs:
           python-version: 3.7
       - name: Get build dependencies
         working-directory: ./sdks/python
-        run: python3 -m pip install cython && python3 -m pip install -r build-requirements.txt
+        run: python -m pip install -r build-requirements.txt
       - name: Install wheels
-        run: python3 -m pip install wheel
+        run: python -m pip install wheel
       - name: Build source
         working-directory: ./sdks/python
-        run: python3 setup.py sdist --formats=gztar,zip
+        run: python setup.py sdist --formats=gztar,zip
       - name: Unzip source
         working-directory: ./sdks/python
         run: unzip dist/$(ls dist | grep .zip | head -n 1)
@@ -114,11 +114,6 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.7
-    - name: Install packages on Mac
-      if: startsWith(matrix.os, 'macos')
-      run: |
-        brew update
-        brew install pkg-config
     - name: Install cibuildwheel
       run: pip install cibuildwheel==1.4.2
     - name: Build wheel
