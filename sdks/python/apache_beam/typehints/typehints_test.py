@@ -613,52 +613,68 @@ class DictHintTestCase(TypeHintTestCase):
                      hint.match_type_variables(typehints.Dict[int, str]))
 
 
-class SetHintTestCase(TypeHintTestCase):
+class BaseSetHintTest:
+  def __init__(self, string_type, py_type, beam_type, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.py_type = py_type
+    self.beam_type = beam_type
+    self.string_type = string_type
+
   def test_getitem_invalid_composite_type_param(self):
     with self.assertRaises(TypeError) as e:
-      typehints.Set[list]
+      self.beam_type[list]
     self.assertEqual(
-        "Parameter to a Set hint must be a non-sequence, a "
+        "Parameter to a {} hint must be a non-sequence, a "
         "type, or a TypeConstraint. {} is an instance of "
-        "type.".format(list),
+        "type.".format(self.string_type, list),
         e.exception.args[0])
 
   def test_compatibility(self):
-    hint1 = typehints.Set[typehints.List[str]]
-    hint2 = typehints.Set[typehints.Tuple[int, int]]
+    hint1 = self.beam_type[typehints.List[str]]
+    hint2 = self.beam_type[typehints.Tuple[int, int]]
 
     self.assertCompatible(hint1, hint1)
     self.assertNotCompatible(hint2, hint1)
 
   def test_repr(self):
-    hint = typehints.Set[typehints.List[bool]]
-    self.assertEqual('Set[List[bool]]', repr(hint))
+    hint = self.beam_type[typehints.List[bool]]
+    self.assertEqual('{}[List[bool]]'.format(self.string_type), repr(hint))
 
   def test_type_check_must_be_set(self):
-    hint = typehints.Set[str]
+    hint = self.beam_type[str]
     with self.assertRaises(TypeError) as e:
       hint.type_check(4)
-
-    self.assertEqual(
-        "Set type-constraint violated. Valid object instance "
-        "must be of type 'set'. Instead, an instance of 'int'"
-        " was received.",
-        e.exception.args[0])
+      self.assertEqual(
+          "{} type-constraint violated. Valid object instance "
+          "must be of type '{}'. Instead, an instance of 'int'"
+          " was received.".format(self.py_type, self.py_type.__name__),
+          e.exception.args[0])
 
   def test_type_check_invalid_elem_type(self):
-    hint = typehints.Set[float]
+    hint = self.beam_type[float]
     with self.assertRaises(TypeError):
       hint.type_check('f')
 
   def test_type_check_valid_elem_simple_type(self):
-    hint = typehints.Set[str]
-    s = set(['f', 'm', 'k'])
+    hint = self.beam_type[str]
+    s = self.py_type(['f', 'm', 'k'])
     self.assertIsNone(hint.type_check(s))
 
   def test_type_check_valid_elem_composite_type(self):
-    hint = typehints.Set[typehints.Union[int, str]]
-    s = set([9, 'm', 'k'])
+    hint = self.beam_type[typehints.Union[int, str]]
+    s = self.py_type([9, 'm', 'k'])
     self.assertIsNone(hint.type_check(s))
+
+
+class SetHintTestCase(BaseSetHintTest, TypeHintTestCase):
+  def __init__(self, *args, **kwargs):
+    super().__init__('Set', set, typehints.Set, *args, **kwargs)
+
+
+class FrozenSetHintTestCase(BaseSetHintTest, TypeHintTestCase):
+  def __init__(self, *args, **kwargs):
+    super().__init__(
+        'FrozenSet', frozenset, typehints.FrozenSet, *args, **kwargs)
 
 
 class IterableHintTestCase(TypeHintTestCase):
