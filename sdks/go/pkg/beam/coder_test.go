@@ -100,9 +100,9 @@ func TestCoders(t *testing.T) {
 			}
 			results = append(results, string(buf.Bytes()))
 		}
-		for i, data := range results {
-			if data != results[0] {
-				t.Errorf("coder not deterministic: data[%d]: %v != %v ", i, data, results[0])
+		for i, d := range results {
+			if d != results[0] {
+				t.Errorf("coder not deterministic: encoding %d not the same as the first encoding: %v != %v ", i, d, results[0])
 			}
 		}
 
