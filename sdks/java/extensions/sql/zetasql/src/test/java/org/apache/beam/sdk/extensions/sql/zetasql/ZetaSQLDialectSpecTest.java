@@ -53,7 +53,6 @@ import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
-import com.google.zetasql.ZetaSQLValue.ValueProto;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
