@@ -24,6 +24,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesSchema;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,6 +69,89 @@ public class JsonToRowTest implements Serializable {
             row(personSchema, "person3", 60, true),
             row(personSchema, "person4", 50, false),
             row(personSchema, "person5", 40, true));
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testParsesRowsDeadLetter() throws Exception {
+    Schema personSchema =
+        Schema.builder()
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
+            .build();
+
+    PCollection<String> jsonPersons =
+        pipeline.apply(
+            "jsonPersons",
+            Create.of(
+                jsonPerson("person1", "80", "true"),
+                jsonPerson("person2", "70", "false"),
+                jsonPerson("person3", "60", "true"),
+                jsonPerson("person4", "50", "false"),
+                jsonPerson("person5", "40", "true")));
+
+    PCollectionTuple results = jsonPersons.apply(JsonToRow.withDeadLetter(personSchema));
+
+    PCollection<Row> personRows = results.get(JsonToRow.MAIN_TUPLE_TAG).setRowSchema(personSchema);
+    PCollection<Row> errors =
+        results.get(JsonToRow.DEAD_LETTER_TUPLE_TAG).setRowSchema(personSchema);
+
+    PAssert.that(personRows)
+        .containsInAnyOrder(
+            row(personSchema, "person1", 80, true),
+            row(personSchema, "person2", 70, false),
+            row(personSchema, "person3", 60, true),
+            row(personSchema, "person4", 50, false),
+            row(personSchema, "person5", 40, true));
+
+    PAssert.that(errors).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testParsesErrorRowsDeadLetter() throws Exception {
+    Schema personSchema =
+        Schema.builder()
+            .addStringField("name")
+            .addInt32Field("height")
+            .addBooleanField("knowsJavascript")
+            .build();
+
+    PCollection<String> jsonPersons =
+        pipeline.apply(
+            "jsonPersons",
+            Create.of(
+                "{}",
+                "Is it 42?",
+                jsonPerson("person1", "80", "true"),
+                jsonPerson("person2", "70", "false"),
+                jsonPerson("person3", "60", "true"),
+                jsonPerson("person4", "50", "false"),
+                jsonPerson("person5", "40", "true")));
+
+    PCollectionTuple results = jsonPersons.apply(JsonToRow.withDeadLetter(personSchema));
+
+    PCollection<Row> personRows = results.get(JsonToRow.MAIN_TUPLE_TAG).setRowSchema(personSchema);
+    PCollection<Row> errors =
+        results.get(JsonToRow.DEAD_LETTER_TUPLE_TAG).setRowSchema(JsonToRow.ERROR_ROW_SCHEMA);
+
+    PAssert.that(personRows)
+        .containsInAnyOrder(
+            row(personSchema, "person1", 80, true),
+            row(personSchema, "person2", 70, false),
+            row(personSchema, "person3", 60, true),
+            row(personSchema, "person4", 50, false),
+            row(personSchema, "person5", 40, true));
+
+    PAssert.that(errors)
+        .containsInAnyOrder(
+            row(JsonToRow.ERROR_ROW_SCHEMA, "{}", "Field 'name' is not present in the JSON object"),
+            row(JsonToRow.ERROR_ROW_SCHEMA, "Is it 42?", "Unable to parse Row"));
 
     pipeline.run();
   }
