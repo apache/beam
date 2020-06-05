@@ -4590,7 +4590,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Bytes cannot be in UNION ALL")
   public void testSelectDistinct2() {
     String sql =
         "SELECT DISTINCT val.BYTES\n"
