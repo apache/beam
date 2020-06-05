@@ -61,6 +61,7 @@ from apache_beam.transforms.trigger import GeneralTriggerDriver
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.transforms.trigger import Repeatedly
 from apache_beam.transforms.trigger import TriggerFn
+from apache_beam.transforms.trigger import _Never
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.transforms.window import Sessions
@@ -515,6 +516,36 @@ class TriggerPipelineTest(unittest.TestCase):
                   # A,1 is emitted twice.
                   'B-5': {6, 7, 8, 9},
                   # B,6 is emitted twice.
+                  'B-3': {10, 15, 16},
+              }.items())))
+
+  def test_never(self):
+    with TestPipeline() as p:
+
+      def construct_timestamped(k_t):
+        return TimestampedValue((k_t[0], k_t[1]), k_t[1])
+
+      def format_result(k_v):
+        return ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))
+
+      result = (
+          p
+          | beam.Create([1, 1, 2, 3, 4, 5, 10, 11])
+          | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
+          | beam.Map(construct_timestamped)
+          | beam.WindowInto(
+              FixedWindows(10),
+              trigger=_Never(),
+              accumulation_mode=AccumulationMode.DISCARDING)
+          | beam.GroupByKey()
+          | beam.Map(format_result))
+      assert_that(
+          result,
+          equal_to(
+              list({
+                  'A-2': {10, 11},
+                  'A-6': {1, 2, 3, 4, 5},
+                  'B-5': {6, 7, 8, 9},
                   'B-3': {10, 15, 16},
               }.items())))
 
