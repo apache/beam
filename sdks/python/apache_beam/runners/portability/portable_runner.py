@@ -43,13 +43,11 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_metrics
-from apache_beam.runners.portability import portable_stager
 from apache_beam.runners.portability.fn_api_runner.fn_runner import translations
 from apache_beam.runners.worker import sdk_worker_main
 from apache_beam.runners.worker import worker_pool_main
@@ -59,6 +57,7 @@ if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
   from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.pipeline import Pipeline
+  from apache_beam.portability.api import beam_runner_api_pb2
 
 __all__ = ['PortableRunner']
 
@@ -105,11 +104,11 @@ class JobServiceHandle(object):
     Submit and run the pipeline defined by `proto_pipeline`.
     """
     prepare_response = self.prepare(proto_pipeline)
-    retrieval_token = self.stage(
+    self.stage(
         proto_pipeline,
         prepare_response.artifact_staging_endpoint.url,
         prepare_response.staging_session_token)
-    return self.run(prepare_response.preparation_id, retrieval_token)
+    return self.run(prepare_response.preparation_id)
 
   def get_pipeline_options(self):
     # type: () -> struct_pb2.Struct
@@ -189,50 +188,15 @@ class JobServiceHandle(object):
 
     """Stage artifacts"""
     if artifact_staging_endpoint:
-      channel = grpc.insecure_channel(artifact_staging_endpoint)
-      try:
-        return self._stage_via_portable_service(channel, staging_session_token)
-      except grpc.RpcError as exn:
-        if exn.code() == grpc.StatusCode.UNIMPLEMENTED:
-          # This job server doesn't yet support the new protocol.
-          return self._stage_via_legacy_service(
-              pipeline, channel, staging_session_token)
-        else:
-          raise
-    else:
-      return None
+      artifact_service.offer_artifacts(
+          beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
+              channel=grpc.insecure_channel(artifact_staging_endpoint)),
+          artifact_service.ArtifactRetrievalService(
+              artifact_service.BeamFilesystemHandler(None).file_reader),
+          staging_session_token)
 
-  def _stage_via_portable_service(
-      self, artifact_staging_channel, staging_session_token):
-    artifact_service.offer_artifacts(
-        beam_artifact_api_pb2_grpc.ArtifactStagingServiceStub(
-            channel=artifact_staging_channel),
-        artifact_service.ArtifactRetrievalService(
-            artifact_service.BeamFilesystemHandler(None).file_reader),
-        staging_session_token)
-
-  def _stage_via_legacy_service(
-      self, pipeline, artifact_staging_channel, staging_session_token):
-    stager = portable_stager.PortableStager(
-        artifact_staging_channel, staging_session_token)
-    resources = []
-    for _, env in pipeline.components.environments.items():
-      for dep in env.dependencies:
-        if dep.type_urn != common_urns.artifact_types.FILE.urn:
-          raise RuntimeError('unsupported artifact type %s' % dep.type_urn)
-        if dep.role_urn != common_urns.artifact_roles.STAGING_TO.urn:
-          raise RuntimeError('unsupported role type %s' % dep.role_urn)
-        type_payload = beam_runner_api_pb2.ArtifactFilePayload.FromString(
-            dep.type_payload)
-        role_payload = \
-            beam_runner_api_pb2.ArtifactStagingToRolePayload.FromString(
-                dep.role_payload)
-        resources.append((type_payload.path, role_payload.staged_name))
-    stager.stage_job_resources(resources, staging_location='')
-    return stager.commit_manifest()
-
-  def run(self, preparation_id, retrieval_token):
-    # type: (str, str) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
+  def run(self, preparation_id):
+    # type: (str) -> Tuple[str, Iterator[beam_job_api_pb2.JobStateEvent], Iterator[beam_job_api_pb2.JobMessagesResponse]]
 
     """Run the job"""
     try:
@@ -253,8 +217,7 @@ class JobServiceHandle(object):
     # it may take a long time for a job to complete and streaming
     # jobs currently never return a response.
     run_response = self.job_service.Run(
-        beam_job_api_pb2.RunJobRequest(
-            preparation_id=preparation_id, retrieval_token=retrieval_token))
+        beam_job_api_pb2.RunJobRequest(preparation_id=preparation_id))
 
     if state_stream is None:
       state_stream = self.job_service.GetStateStream(

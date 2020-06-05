@@ -47,7 +47,6 @@ import grpc
 from apache_beam.io import filesystems
 from apache_beam.portability import common_urns
 from apache_beam.portability import python_urns
-from apache_beam.portability.api import beam_artifact_api_pb2
 from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -419,16 +418,6 @@ class BasicProvisionService(beam_provision_api_pb2_grpc.ProvisionServiceServicer
     return beam_provision_api_pb2.GetProvisionInfoResponse(info=info)
 
 
-class EmptyArtifactRetrievalService(
-    beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer):
-  def GetManifest(self, request, context=None):
-    return beam_artifact_api_pb2.GetManifestResponse(
-        manifest=beam_artifact_api_pb2.Manifest())
-
-  def GetArtifact(self, request, context=None):
-    raise ValueError('No artifacts staged.')
-
-
 class GrpcServer(object):
 
   _DEFAULT_SHUTDOWN_TIMEOUT_SECS = 5
@@ -472,15 +461,6 @@ class GrpcServer(object):
             BasicProvisionService(
                 self.provision_info.provision_info, worker_manager),
             self.control_server)
-
-      if self.provision_info.artifact_staging_dir:
-        service = artifact_service.BeamFilesystemArtifactService(
-            self.provision_info.artifact_staging_dir
-        )  # type: beam_artifact_api_pb2_grpc.LegacyArtifactRetrievalServiceServicer
-      else:
-        service = EmptyArtifactRetrievalService()
-      beam_artifact_api_pb2_grpc.add_LegacyArtifactRetrievalServiceServicer_to_server(
-          service, self.control_server)
 
       beam_artifact_api_pb2_grpc.add_ArtifactRetrievalServiceServicer_to_server(
           artifact_service.ArtifactRetrievalService(
