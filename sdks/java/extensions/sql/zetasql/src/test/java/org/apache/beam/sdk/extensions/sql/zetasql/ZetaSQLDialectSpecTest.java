@@ -53,7 +53,6 @@ import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
-import com.google.zetasql.ZetaSQLValue.ValueProto;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -762,7 +761,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
   public void testLike1() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -802,7 +800,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
   public void testLikeAllowsEscapingNonSpecialCharacter() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -819,7 +816,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
   public void testLikeAllowsEscapingBackslash() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -834,25 +830,6 @@ public class ZetaSQLDialectSpecTest {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  @Ignore("Currently non UTF-8 values are coerced to UTF-8")
-  public void testThrowsErrorForNonUTF8() {
-    String sql = "SELECT @p0 LIKE  @p1 AS ColA";
-    byte[] bytes = {(byte) 0xe8, (byte) 0xb0};
-    Value bad =
-        Value.deserialize(
-            TypeFactory.createSimpleType(TypeKind.TYPE_STRING),
-            ValueProto.newBuilder().setStringValueBytes(ByteString.copyFrom(bytes)).build());
-    ImmutableMap<String, Value> params =
-        ImmutableMap.of("p0", Value.createStringValue("abc"), "p1", bad);
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(RuntimeException.class);
-    // TODO: message should be a constant on ZetaSQLPlannerImpl
-    thrown.expectMessage("invalid UTF-8");
-    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
   @Test
