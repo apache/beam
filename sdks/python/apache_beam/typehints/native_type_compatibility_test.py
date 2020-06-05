@@ -137,7 +137,10 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
             typing.Tuple,
             typehints.Tuple[typehints.TypeVariable('T'), ...]),
         ('bare set', typing.Set, typehints.Set[typehints.TypeVariable('T')]),
-        ('bare frozenset', typing.FrozenSet, typehints.FrozenSet[typehints.TypeVariable('T_co')]),
+        (
+            'bare frozenset',
+            typing.FrozenSet,
+            typehints.FrozenSet[typehints.TypeVariable('T_co')]),
         (
             'bare iterator',
             typing.Iterator,

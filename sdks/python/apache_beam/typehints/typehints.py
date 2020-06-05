@@ -927,7 +927,8 @@ class FrozenSetHint(CompositeTypeHint):
   """
   class FrozenSetTypeConstraint(SequenceTypeConstraint):
     def __init__(self, type_param):
-      super(FrozenSetHint.FrozenSetTypeConstraint, self).__init__(type_param, frozenset)
+      super(FrozenSetHint.FrozenSetTypeConstraint,
+            self).__init__(type_param, frozenset)
 
     def __repr__(self):
       return 'FrozenSet[%s]' % _unified_repr(self.inner_type)

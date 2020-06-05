@@ -84,7 +84,7 @@ def instance_to_type(o):
   elif t == frozenset:
     if len(o) > 0:
       return typehints.FrozenSet[typehints.Union[[
-        instance_to_type(item) for item in o
+          instance_to_type(item) for item in o
       ]]]
     else:
       return typehints.FrozenSet[typehints.Any]

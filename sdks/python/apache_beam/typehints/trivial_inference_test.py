@@ -306,7 +306,9 @@ class TrivialInferenceTest(unittest.TestCase):
         (typehints.Set[typehints.Union[str, float]], {'a', 0.4}),
         (typehints.Set[typehints.Any], set()),
         (typehints.FrozenSet[str], frozenset(['a'])),
-        (typehints.FrozenSet[typehints.Union[str, float]], frozenset(['a', 0.4])),
+        (
+            typehints.FrozenSet[typehints.Union[str, float]],
+            frozenset(['a', 0.4])),
         (typehints.FrozenSet[typehints.Any], frozenset()),
         (typehints.Tuple[int], (1, )),
         (typehints.Tuple[int, int, str], (1, 2, '3')),
