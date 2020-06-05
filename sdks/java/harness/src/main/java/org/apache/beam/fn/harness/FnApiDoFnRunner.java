@@ -300,7 +300,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private WindowedValue<InputT> currentElement;
 
   /**
-   * Only valid during {@link #processElementForSizedElementAndRestriction} and {@link
+   * Only valid during {@link #processElementForElementAndRestriction} and {@link
    * #processElementForSizedElementAndRestriction}.
    */
   private ListIterator<BoundedWindow> currentWindowIterator;
