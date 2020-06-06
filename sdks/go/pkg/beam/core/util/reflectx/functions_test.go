@@ -41,3 +41,11 @@ func TestLoadFunction(t *testing.T) {
 		t.Errorf("got %d, wanted %d", out[0].Int(), testFunction())
 	}
 }
+
+func TestFunctionOutputSize(t *testing.T) {
+	expected := 1
+	received := FunctionOutputSize(testFunction)
+	if received != expected{
+		t.Errorf("got %d, wanted %d", received,expected)
+	}
+}
