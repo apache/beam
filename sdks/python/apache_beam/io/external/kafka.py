@@ -15,8 +15,8 @@
 # limitations under the License.
 #
 
-"""
-  `PTransform`s for supporting Kafka in Python pipelines.
+"""Unbounded source and sink transforms for
+   `Kafka <href="http://kafka.apache.org/>`_.
 
   These transforms are currently supported by Beam portable runners (for
   example, portable Flink and Spark) as well as Dataflow runner.
@@ -31,12 +31,12 @@
 
   There are several ways to setup cross-language Kafka transforms.
 
-  * Option 1 - Use the default expansion service
-  * Option 2 - specify a custom expansion service
+  * Option 1: use the default expansion service
+  * Option 2: specify a custom expansion service
 
   See below for details regarding each of these options.
 
-  *Option 1 - Use the default expansion service*
+  *Option 1: Use the default expansion service*
 
   This is the recommended and easiest setup option for using Python Kafka
   transforms. This option is only available for Beam 2.22.0 and later.
@@ -52,17 +52,17 @@
   that to expand transforms. Currently Kafka transforms use the
   'beam-sdks-java-io-expansion-service' jar for this purpose.
 
-  *Option 2 - specify a custom expansion service*
+  *Option 2: specify a custom expansion service*
 
   In this option, you startup your own expansion service and provide that as
-  a parameter when using transforms provided in this module.
+  a parameter when using the transforms provided in this module.
 
   This option requires following pre-requisites before running the Beam
   pipeline.
 
   * Startup your own expansion service.
   * Update your pipeline to provide the expansion service address when
-  initiating Kafka transforms provided in this module.
+    initiating Kafka transforms provided in this module.
 
   Flink Users can use the built-in Expansion Service of the Flink Runner's
   Job Server. If you start Flink's Job Server, the expansion service will be
@@ -110,11 +110,7 @@ class ReadFromKafka(ExternalTransform):
     each item in the specified Kafka topics. If no Kafka Deserializer for
     key/value is provided, then the data will be returned as a raw byte array.
 
-    Note: Runners need to support translating Read operations in order to use
-    this source. At the moment only the Flink Runner supports this.
-
-    Experimental; no backwards compatibility guarantees.  It requires special
-    preparation of the Java SDK.  See BEAM-7870.
+    Experimental; no backwards compatibility guarantees.
   """
 
   # Returns the key/value data as raw byte arrays
@@ -177,8 +173,7 @@ class WriteToKafka(ExternalTransform):
     If no Kafka Serializer for key/value is provided, then key/value are
     assumed to be byte arrays.
 
-    Experimental; no backwards compatibility guarantees.  It requires special
-    preparation of the Java SDK.  See BEAM-7870.
+    Experimental; no backwards compatibility guarantees.
   """
 
   # Default serializer which passes raw bytes to Kafka
