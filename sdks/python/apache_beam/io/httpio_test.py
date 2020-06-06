@@ -26,7 +26,7 @@ import random
 import time
 import unittest
 import re
-from httplib2 import Response
+from httplib2 import Response, HttpLib2Error
 
 from apache_beam.io import httpio
 from apache_beam.io.filesystem import BeamIOError
@@ -104,7 +104,7 @@ class TestHttpIOSuccess(unittest.TestCase):
     f = self.httpio.open(file_name)
 
     read_lines = 0
-    for line in f:
+    for _ in f:
       read_lines += 1
 
     self.assertEqual(read_lines, len(contents.split(b"\n")) - 1)
@@ -178,7 +178,7 @@ class TestHttpIOFailure(unittest.TestCase):
 
   def test_file_read(self):
     with self.assertRaisesRegex(BeamIOError, '500'):
-      f = self.httpio.open(TEST_DATA_PATH)
+      self.httpio.open(TEST_DATA_PATH)
   
   def test_file_list_prefix(self):
     with self.assertRaisesRegex(BeamIOError, '500'):
@@ -205,10 +205,34 @@ class TestHttpIONotFound(unittest.TestCase):
 
   def test_file_read(self):
     with self.assertRaisesRegex(BeamIOError, '404'):
-      f = self.httpio.open(TEST_DATA_PATH)
+      self.httpio.open(TEST_DATA_PATH)
   
   def test_file_exists(self):
     self.assertEqual(self.httpio.exists("test"), False)
+
+
+class FakeHttpClientHttpLib2Error:
+  """Always returns a HttpLib2Error error."""
+
+  def request(self, uri, method, headers = {}):
+    raise HttpLib2Error("httplib2 error")
+
+
+class TestHttpIONotFound(unittest.TestCase):
+  def setUp(self):
+    self.httpio = httpio.HttpIO(client=FakeHttpClientHttpLib2Error())
+
+  def test_size(self):
+    with self.assertRaisesRegex(BeamIOError, 'httplib2 error'):
+      self.httpio.size(TEST_DATA_PATH)
+
+  def test_file_read(self):
+    with self.assertRaisesRegex(BeamIOError, 'httplib2 error'):
+      self.httpio.open(TEST_DATA_PATH)
+  
+  def test_file_exists(self):
+    with self.assertRaisesRegex(BeamIOError, 'httplib2 error'):
+      self.assertEqual(self.httpio.exists("test"), False)
 
 
 class FakeHttpClientNoHead:

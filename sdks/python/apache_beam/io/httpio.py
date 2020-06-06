@@ -37,8 +37,10 @@ from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.internal.http_client import get_new_http
 import sys
+from httplib2 import HttpLib2Error
 
-REQUEST_FAILED_ERROR_MSG = "HTTP request failed for URL {}: Received {} {}"
+REQUEST_FAILED_ERROR_MSG = "HTTP request failed for URL {}: {}"
+UNEXPECTED_STATUS_CODE_ERROR_MSG = "Unexpected status code received for URL {}: {} {}"
 
 
 class HttpIO(object):
@@ -67,12 +69,12 @@ class HttpIO(object):
       Raises:
         ValueError: Invalid open file mode.
       """
-    if mode == 'r' or mode == 'rb':
-      downloader = HttpDownloader(uri, self._client)
-      return io.BufferedReader(
-        DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
-    else:
-      raise ValueError('Unsupported file open mode: %s for URI %s.' % (mode, uri))
+      if mode == 'r' or mode == 'rb':
+        downloader = HttpDownloader(uri, self._client)
+        return io.BufferedReader(
+          DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
+      else:
+        raise ValueError('Unsupported file open mode: %s for URL %s.' % (mode, uri))
 
   def list_prefix(self, path):
     """Lists files matching the prefix.
@@ -106,9 +108,12 @@ class HttpIO(object):
     """
     if method:
       # Pass in "" for "Accept-Encoding" because we want the non-gzipped content-length.
-      resp, content = self._client.request(uri, method=method, headers={"Accept-Encoding": ""})
+      try:
+        resp, content = self._client.request(uri, method=method, headers={"Accept-Encoding": ""})
+      except HttpLib2Error as e:
+        raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, e))
       if resp.status != 200:
-        raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, resp.status, resp.reason))
+        raise BeamIOError(UNEXPECTED_STATUS_CODE_ERROR_MSG.format(uri, resp.status, resp.reason))
       return int(resp["content-length"])
     # Default behavior
     try:
@@ -131,12 +136,15 @@ class HttpIO(object):
       Size of the HTTP file in bytes.
     """
     if method:
-      resp, content = self._client.request(uri, method=method)
+      try:
+        resp, content = self._client.request(uri, method=method)
+      except HttpLib2Error as e:
+        raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, e))
       if resp.status == 200:
         return True
       if resp.status == 404:
         return False
-      raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, resp.status, resp.reason))
+      raise BeamIOError(UNEXPECTED_STATUS_CODE_ERROR_MSG.format(uri, resp.status, resp.reason))
     # Default behavior
     try:
       return self.exists(uri, method='HEAD')
@@ -149,9 +157,12 @@ class HttpDownloader(Downloader):
     self._uri = uri
     self._client = client
 
-    resp, content = self._client.request(self._uri, method='GET')
+    try:
+      resp, content = self._client.request(uri, method='GET')
+    except HttpLib2Error as e:
+      raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, e))
     if resp.status != 200:
-      raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, resp.status, resp.reason))
+      raise BeamIOError(UNEXPECTED_STATUS_CODE_ERROR_MSG.format(uri, resp.status, resp.reason))
     self._size = int(resp["content-length"])
     self._content = content
 
