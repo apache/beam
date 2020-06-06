@@ -66,8 +66,21 @@ class Mean(object):
   """Combiners for computing arithmetic means of elements."""
   class Globally(ptransform.PTransform):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
+    def __init__(self, has_defaults=True, *args, **kwargs):
+      super(Mean.Globally, self).__init__()
+      self.has_defaults = has_defaults
+      self.args = args
+      self.kwargs = kwargs
+
     def expand(self, pcoll):
-      return pcoll | core.CombineGlobally(MeanCombineFn())
+      if self.has_defaults:
+        return pcoll | core.CombineGlobally(MeanCombineFn())
+      else:
+        return pcoll | core.CombineGlobally(MeanCombineFn()).without_defaults()
+
+    def without_defaults(self):
+      self.has_defaults = False
+      return self.expand(self)
 
   class PerKey(ptransform.PTransform):
     """combiners.Mean.PerKey finds the means of the values for each key."""

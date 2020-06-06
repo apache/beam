@@ -43,6 +43,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import equal_to_per_window
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
+from apache_beam.transforms import WindowInto
 from apache_beam.transforms.core import CombineGlobally
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
@@ -104,6 +105,15 @@ class CombineTest(unittest.TestCase):
       result_count = pcoll | 'count' >> combine.Count.Globally()
       assert_that(result_mean, equal_to([mean]), label='assert:mean')
       assert_that(result_count, equal_to([size]), label='assert:size')
+
+      # Now for global combines without default
+      windowed = pcoll | 'window' >> WindowInto(GlobalWindows())
+      result_windowed_mean = windowed | 'mean-wo-defaults' >> combine.Mean.Globally(
+      ).without_defaults()
+      assert_that(
+          result_windowed_mean,
+          equal_to([mean]),
+          label='assert:mean-wo-defaults')
 
       # Again for per-key combines.
       pcoll = pipeline | 'start-perkey' >> Create([('a', x) for x in vals])
