@@ -5271,15 +5271,18 @@ the &lt;code>ParDo&lt;/code> these state variables can be used to write or updat
 written for that key. State is always fully scoped only to the current processing key.&lt;/p>
 &lt;p>Windowing can still be used together with stateful processing. All state for a key is scoped to the current window. This
 means that the first time a key is seen for a given window any state reads will return empty, and that a runner can
-garbage collect state when a window is completed. It&amp;rsquo;s also often useful to use Beam&amp;rsquo;s windowed aggegations prior to
+garbage collect state when a window is completed. It&amp;rsquo;s also often useful to use Beam&amp;rsquo;s windowed aggregations prior to
 the stateful operator. For example, using a combiner to preaggregate data, and then storing aggregated data inside of
 state. Merging windows are not currently supported when using state and timers.&lt;/p>
 &lt;p>Sometimes stateful processing is used to implement state-machine style processing inside a &lt;code>DoFn&lt;/code>. When doing this,
 care must be taken to remember that the elements in input PCollection have no guaranteed order and to ensure that the
 program logic is resilient to this. Unit tests written using the DirectRunner will shuffle the order of element
 processing, and are recommended to test for correctness.&lt;/p>
-&lt;p>In Java DoFn declares states to be accessed by creating final &lt;code>StateSpec&lt;/code> member variables representing each state. Each
+&lt;p class="language-java">In Java DoFn declares states to be accessed by creating final &lt;code>StateSpec&lt;/code> member variables representing each state. Each
 state must be named using the &lt;code>StateId&lt;/code> annotation; this name is unique to a ParDo in the graph and has no relation
+to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple state variables.&lt;/p>
+&lt;p class="language-py">In Python DoFn declares states to be accessed by creating &lt;code>StateSpec&lt;/code> class member variables representing each state. Each
+&lt;code>StateSpec&lt;/code> is initialized with a name, this name is unique to a ParDo in the graph and has no relation
 to other nodes in the graph. A &lt;code>DoFn&lt;/code> can declare multiple state variables.&lt;/p>
 &lt;h3 id="types-of-state">11.1 Types of state&lt;/h3>
 &lt;p>Beam provides several types of state:&lt;/p>
@@ -5323,6 +5326,14 @@ accumulates the number of elements seen.&lt;/p>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">CombiningStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">SUM_TOTAL&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CombiningValueStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;total&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">sum&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">SoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">SUM_TOTAL&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Combine state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">CombiningStateDofn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;h4 id="bagstate">BagState&lt;/h4>
 &lt;p>A common use case for state is to accumulate multiple elements. &lt;code>BagState&lt;/code> allows for accumulating an unordered set
 ofelements. This allows for addition of elements to the collection without requiring the reading of the entire
@@ -5345,6 +5356,18 @@ bags larger than available memory.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">BagStateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">state&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="k">if&lt;/span> &lt;span class="n">should_fetch&lt;/span>&lt;span class="p">():&lt;/span>
+&lt;span class="n">all_elements&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nb">list&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">process_values&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">all_elements&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Bag state pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">BagStateDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h3 id="deferred-state-reads">11.2 Deferred state reads&lt;/h3>
 &lt;p>When a &lt;code>DoFn&lt;/code> contains multiple state specifications, reading each one in order can be slow. Calling the &lt;code>read()&lt;/code> function
@@ -5420,12 +5443,30 @@ allows for event-time aggregations.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">EventTimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WATERMARK&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimestampParam&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">timer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="c1"># Set an event-time timer to the element timestamp.&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nd">@on_timer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">expiry_callback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;EventTime timer pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">EventTimerDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
 &lt;h4 id="processing-time-timers">11.3.2 Processing-time timers&lt;/h4>
 &lt;p>Processing-time timers fire when the real wall-clock time passes. This is often used to create larger batches of data
 before processing. It can also be used to schedule events that should occur at a specific time. Just like with
 event-time timers, processing-time timers are per key - each key has a separate copy of the timer.&lt;/p>
 &lt;p>While processing-time timers can be set to an absolute timestamp, it is very common to set them to an offset relative
-to the current time. The &lt;code>Timer.offset&lt;/code> and &lt;code>Timer.setRelative&lt;/code> methods can be used to accomplish this.&lt;/p>
+to the current time. In Java, the &lt;code>Timer.offset&lt;/code> and &lt;code>Timer.setRelative&lt;/code> methods can be used to accomplish this.&lt;/p>
 &lt;div class=language-java>
 &lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">perUser&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">readPerUser&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="n">perUser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="k">new&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">KV&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">ValueT&lt;/span>&lt;span class="o">&amp;gt;,&lt;/span> &lt;span class="n">OutputT&lt;/span>&lt;span class="o">&amp;gt;()&lt;/span> &lt;span class="o">{&lt;/span>
@@ -5439,6 +5480,24 @@ to the current time. The &lt;code>Timer.offset&lt;/code> and &lt;code>Timer.setR
 &lt;span class="c1">//Process timer.
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">ProcessingTimerDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">REAL_TIME&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">timer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="nb">buffer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">element_pair&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">])&lt;/span>
+&lt;span class="c1"># Set a timer to go off 30 seconds in the future.&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">Timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">now&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">30&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="nd">@on_timer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">expiry_callback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="c1"># Process timer.&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;ProcessingTime timer pardo&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ProcessingTimerDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h4 id="dynamic-timer-tags">11.3.3 Dynamic timer tags&lt;/h4>
 &lt;p>Beam also supports dynamically setting a timer tag using &lt;code>TimerMap&lt;/code>. This allows for setting multiple different timers
@@ -5461,6 +5520,9 @@ id, and timers in different timer families are independent.&lt;/p>
 &lt;span class="n">LOG&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">info&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Timer fired with id &amp;#34;&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">timerId&lt;/span>&lt;span class="o">);&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="n">To&lt;/span> &lt;span class="n">be&lt;/span> &lt;span class="n">supported&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">See&lt;/span> &lt;span class="n">BEAM&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mi">9602&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h4 id="timer-output-timestamps">11.3.4 Timer output timestamps&lt;/h4>
 &lt;p>By default, event-time timers will hold the output watermark of the &lt;code>ParDo&lt;/code> to the timestamp of the timer. This means
@@ -5560,7 +5622,7 @@ performance. There are two common strategies for garbage collecting state.&lt;/p
 &lt;p>All state and timers for a key is scoped to the window it is in. This means that depending on the timestamp of the
 input element the ParDo will see different values for the state depending on the window that element falls into. In
 addition, once the input watermark passes the end of the window, the runner should garbage collect all state for that
-window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watemark to
+window. (note: if allowed lateness is set to a positive value for the window, the runner must wait for the watermark to
 pass the end of the window plus the allowed lateness before garbage collecting state). This can be used as a
 garbage-collection strategy.&lt;/p>
 &lt;p>For example, given the following:&lt;/p>
@@ -5576,6 +5638,17 @@ garbage-collection strategy.&lt;/p>
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="c1">// midnight PST, then a new copy of the state will be seen for the next day.
 &lt;/span>&lt;span class="c1">&lt;/span> &lt;span class="o">}&lt;/span>
 &lt;span class="o">}));&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">StateDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;buffer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element_pair&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="nb">buffer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="o">...&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Windowing&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WindowInto&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">FixedWindows&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">60&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">60&lt;/span> &lt;span class="o">*&lt;/span> &lt;span class="mi">24&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;DoFn&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">StateDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;p>This &lt;code>ParDo&lt;/code> stores state per day. Once the pipeline is done processing data for a given day, all the state for that
 day is garbage collected.&lt;/p>
@@ -5614,6 +5687,33 @@ This can be done by updating a timer that garbage collects state. For example&lt
 &lt;span class="n">maxTimestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">clear&lt;/span>&lt;span class="o">();&lt;/span>
 &lt;span class="o">}&lt;/span>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
+&lt;/div>
+&lt;div class=language-python>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="k">class&lt;/span> &lt;span class="nc">UserDoFn&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">DoFn&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;span class="n">ALL_ELEMENTS&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">BagStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;state&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">coders&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarIntCoder&lt;/span>&lt;span class="p">())&lt;/span>
+&lt;span class="n">MAX_TIMESTAMP&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">CombiningValueStateSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;max_timestamp_seen&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nb">max&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">TIMER&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">TimerSpec&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;gc-timer&amp;#39;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">TimeDomain&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">WATERMARK&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">process&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">element&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">t&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimestampParam&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">max_timestamp&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MAX_TIMESTAMP&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">timer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">TimerParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">update_state&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">state&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">element&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">max_timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">t&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">micros&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="c1"># Set the timer to be one hour after the maximum timestamp seen. This will keep overwriting the same timer, so &lt;/span>
+&lt;span class="c1"># as long as there is activity on this key the state will stay active. Once the key goes inactive for one hour&amp;#39;s&lt;/span>
+&lt;span class="c1"># worth of event time (as measured by the watermark), then the gc timer will fire.&lt;/span>
+&lt;span class="n">expiration_time&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">Timestamp&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">micros&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">max_timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">read&lt;/span>&lt;span class="p">())&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="n">Duration&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">seconds&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="mi">60&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="n">timer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">set&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">expiration_time&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="nd">@on_timer&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">TIMER&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;span class="k">def&lt;/span> &lt;span class="nf">expiry_callback&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;span class="n">state&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">ALL_ELEMENTS&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;span class="n">max_timestamp&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">DoFn&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">StateParam&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">MAX_TIMESTAMP&lt;/span>&lt;span class="p">)):&lt;/span>
+&lt;span class="n">state&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">max_timestamp&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">clear&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="n">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;Read per user&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">ReadPerUser&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;span class="o">|&lt;/span> &lt;span class="s1">&amp;#39;User DoFn&amp;#39;&lt;/span> &lt;span class="o">&amp;gt;&amp;gt;&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ParDo&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">UserDoFn&lt;/span>&lt;span class="p">()))&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;h3 id="state-timers-examples">11.5 State and timers examples&lt;/h3>
 &lt;p>Following are some example uses of state and timers&lt;/p>

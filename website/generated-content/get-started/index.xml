@@ -1399,7 +1399,7 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;pre>&lt;code>PS&amp;gt; python -m pip install apache-beam&lt;/code>&lt;/pre>
 &lt;/div>
 &lt;h4 id="extra-requirements">Extra requirements&lt;/h4>
-&lt;p>The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multitple extra requirements using something like &lt;code>pip install apache-beam[feature1,feature2]&lt;/code>.&lt;/p>
+&lt;p>The above installation will not install all the extra dependencies for using features like the Google Cloud Dataflow runner. Information on what extra packages are required for different features are highlighted below. It is possible to install multiple extra requirements using something like &lt;code>pip install apache-beam[feature1,feature2]&lt;/code>.&lt;/p>
 &lt;ul>
 &lt;li>&lt;strong>Google Cloud Platform&lt;/strong>
 &lt;ul>
@@ -1412,6 +1412,12 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;li>BigQuery IO&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Amazon Web Services&lt;/strong>
+&lt;ul>
+&lt;li>Installation Command: &lt;code>pip install apache-beam[aws]&lt;/code>&lt;/li>
+&lt;li>Required for I/O connectors interfacing with AWS&lt;/li>
 &lt;/ul>
 &lt;/li>
 &lt;li>&lt;strong>Tests&lt;/strong>
