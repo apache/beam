@@ -47,8 +47,6 @@ class HttpIO(object):
   """HTTP I/O."""
 
   def __init__(self, client=None):
-    if sys.version_info[0] != 3:
-      raise RuntimeError("HttpIO only supports Python 3.")
     self._client = client or get_new_http()
   
   def open(
