@@ -82,6 +82,7 @@ public class FlattenRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -92,6 +93,7 @@ public class FlattenRunnerTest {
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
             null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 
@@ -151,6 +153,7 @@ public class FlattenRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             pTransformId,
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -161,6 +164,7 @@ public class FlattenRunnerTest {
             null /* startFunctionRegistry */,
             null, /* finishFunctionRegistry */
             null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 

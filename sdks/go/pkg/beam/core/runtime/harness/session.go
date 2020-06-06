@@ -25,7 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/hooks"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -105,7 +105,7 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	return nil
 }
 
-func recordInstructionRequest(req *pb.InstructionRequest) error {
+func recordInstructionRequest(req *fnpb.InstructionRequest) error {
 	return recordMessage(session.Kind_INSTRUCTION_REQUEST,
 		&session.Entry{
 			Kind: session.Kind_INSTRUCTION_REQUEST,
@@ -115,7 +115,7 @@ func recordInstructionRequest(req *pb.InstructionRequest) error {
 		})
 }
 
-func recordInstructionResponse(resp *pb.InstructionResponse) error {
+func recordInstructionResponse(resp *fnpb.InstructionResponse) error {
 	return recordMessage(session.Kind_INSTRUCTION_RESPONSE,
 		&session.Entry{
 			Kind: session.Kind_INSTRUCTION_RESPONSE,
@@ -125,7 +125,7 @@ func recordInstructionResponse(resp *pb.InstructionResponse) error {
 		})
 }
 
-func recordStreamReceive(data *pb.Elements) error {
+func recordStreamReceive(data *fnpb.Elements) error {
 	return recordMessage(session.Kind_DATA_RECEIVED,
 		&session.Entry{
 			Kind: session.Kind_DATA_RECEIVED,
@@ -135,7 +135,7 @@ func recordStreamReceive(data *pb.Elements) error {
 		})
 }
 
-func recordStreamSend(data *pb.Elements) error {
+func recordStreamSend(data *fnpb.Elements) error {
 	return recordMessage(session.Kind_DATA_SENT,
 		&session.Entry{
 			Kind: session.Kind_DATA_SENT,
@@ -145,7 +145,7 @@ func recordStreamSend(data *pb.Elements) error {
 		})
 }
 
-func recordLogEntries(entries *pb.LogEntry_List) error {
+func recordLogEntries(entries *fnpb.LogEntry_List) error {
 	return recordMessage(session.Kind_LOG_ENTRIES,
 		&session.Entry{
 			Kind: session.Kind_LOG_ENTRIES,

@@ -19,7 +19,6 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -52,9 +51,10 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.streaming.api.operators.InternalTimer;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Flink operator for executing splittable {@link DoFn DoFns}. Specifically, for executing the
@@ -62,6 +62,8 @@ import org.joda.time.Instant;
  */
 public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
     extends DoFnOperator<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(SplittableDoFnOperator.class);
 
   private transient ScheduledExecutorService executorService;
 
@@ -158,9 +160,9 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
   }
 
   @Override
-  protected void fireTimer(InternalTimer<ByteBuffer, TimerInternals.TimerData> timer) {
-    timerInternals.onFiredOrDeletedTimer(timer.getNamespace());
-    if (timer.getNamespace().getDomain().equals(TimeDomain.EVENT_TIME)) {
+  protected void fireTimer(TimerInternals.TimerData timer) {
+    timerInternals.onFiredOrDeletedTimer(timer);
+    if (timer.getDomain().equals(TimeDomain.EVENT_TIME)) {
       // ignore this, it can only be a state cleanup timers from StatefulDoFnRunner and ProcessFn
       // does its own state cleanup and should never set event-time timers.
       return;
@@ -168,8 +170,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
     doFnRunner.processElement(
         WindowedValue.valueInGlobalWindow(
             KeyedWorkItems.timersWorkItem(
-                (byte[]) keyedStateInternals.getKey(),
-                Collections.singletonList(timer.getNamespace()))));
+                (byte[]) keyedStateInternals.getKey(), Collections.singletonList(timer))));
   }
 
   @Override

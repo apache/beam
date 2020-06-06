@@ -328,7 +328,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_exception_is_raised_when_gcs_location_cannot_be_specified(self):
     with self.assertRaises(ValueError):
       p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project', dataset='dataset', table='table')
 
   @mock.patch('apache_beam.io.gcp.bigquery_tools.BigQueryWrapper')
@@ -337,7 +337,7 @@ class TestReadFromBigQuery(unittest.TestCase):
     pipeline_options.view_as(GoogleCloudOptions).temp_location = 'gs://bucket'
     try:
       p = beam.Pipeline(options=pipeline_options)
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project', dataset='dataset', table='table')
     except ValueError:
       self.fail('ValueError was raised unexpectedly')
@@ -345,7 +345,7 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_gcs_location_validation_works_properly(self):
     with self.assertRaises(ValueError) as context:
       p = beam.Pipeline()
-      _ = p | beam.io._ReadFromBigQuery(
+      _ = p | beam.io.ReadFromBigQuery(
           project='project',
           dataset='dataset',
           table='table',
@@ -583,6 +583,73 @@ class TestWriteToBigQuery(unittest.TestCase):
                 "dataset.table",
                 schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
                 temp_file_format=bigquery_tools.FileFormat.AVRO))
+
+  def test_to_from_runner_api(self):
+    """Tests that serialization of WriteToBigQuery is correct.
+
+    This is not intended to be a change-detector test. As such, this only tests
+    the more complicated serialization logic of parameters: ValueProviders,
+    callables, and side inputs.
+    """
+    FULL_OUTPUT_TABLE = 'test_project:output_table'
+
+    p = TestPipeline(
+        additional_pipeline_args=["--experiments=use_beam_bq_sink"])
+
+    # Used for testing side input parameters.
+    table_record_pcv = beam.pvalue.AsDict(
+        p | "MakeTable" >> beam.Create([('table', FULL_OUTPUT_TABLE)]))
+
+    # Used for testing value provider parameters.
+    schema = value_provider.StaticValueProvider(str, '"a:str"')
+
+    original = WriteToBigQuery(
+        table=lambda _,
+        side_input: side_input['table'],
+        table_side_inputs=(table_record_pcv, ),
+        schema=schema)
+
+    # pylint: disable=expression-not-assigned
+    p | 'MyWriteToBigQuery' >> original
+
+    # Run the pipeline through to generate a pipeline proto from an empty
+    # context. This ensures that the serialization code ran.
+    pipeline_proto, context = TestPipeline.from_runner_api(
+        p.to_runner_api(), p.runner, p.get_pipeline_options()).to_runner_api(
+            return_context=True)
+
+    # Find the transform from the context.
+    write_to_bq_id = [
+        k for k,
+        v in pipeline_proto.components.transforms.items()
+        if v.unique_name == 'MyWriteToBigQuery'
+    ][0]
+    deserialized_node = context.transforms.get_by_id(write_to_bq_id)
+    deserialized = deserialized_node.transform
+    self.assertIsInstance(deserialized, WriteToBigQuery)
+
+    # Test that the serialization of a value provider is correct.
+    self.assertEqual(original.schema, deserialized.schema)
+
+    # Test that the serialization of a callable is correct.
+    self.assertEqual(
+        deserialized._table(None, {'table': FULL_OUTPUT_TABLE}),
+        FULL_OUTPUT_TABLE)
+
+    # Test that the serialization of a side input is correct.
+    self.assertEqual(
+        len(original.table_side_inputs), len(deserialized.table_side_inputs))
+    original_side_input_data = original.table_side_inputs[0]._side_input_data()
+    deserialized_side_input_data = deserialized.table_side_inputs[
+        0]._side_input_data()
+    self.assertEqual(
+        original_side_input_data.access_pattern,
+        deserialized_side_input_data.access_pattern)
+    self.assertEqual(
+        original_side_input_data.window_mapping_fn,
+        deserialized_side_input_data.window_mapping_fn)
+    self.assertEqual(
+        original_side_input_data.view_fn, deserialized_side_input_data.view_fn)
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -840,8 +907,7 @@ class BigQueryStreamingInsertTransformIntegrationTests(unittest.TestCase):
                   str, '%s:%s' % (self.project, output_table_2)),
               schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
               additional_bq_parameters=lambda _: additional_bq_parameters,
-              method='FILE_LOADS',
-              temp_file_format=bigquery_tools.FileFormat.JSON))
+              method='FILE_LOADS'))
 
   @attr('IT')
   def test_multiple_destinations_transform(self):
@@ -1035,7 +1101,6 @@ class PubSubBigQueryIT(unittest.TestCase):
       _ = mesages | WriteToBigQuery(
           self.output_table,
           schema=self.SCHEMA,
-          temp_file_format=bigquery_tools.FileFormat.JSON,
           method=method,
           triggering_frequency=triggering_frequency)
 

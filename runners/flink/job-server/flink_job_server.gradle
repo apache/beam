@@ -122,7 +122,6 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
   def pipelineOptions = [
       // Limit resource consumption via parallelism
       "--parallelism=2",
-      "--shutdownSourcesOnFinalWatermark",
   ]
   if (streaming) {
     pipelineOptions += "--streaming"
@@ -149,6 +148,7 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       if (streaming) {
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStreamWithProcessingTime'
@@ -162,6 +162,10 @@ def portableValidatesRunnerTask(String name, Boolean streaming) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs'
       excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    },
+    testFilter: {
+      // TODO(BEAM-10016)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
     },
   )
 }
@@ -201,7 +205,6 @@ createCrossLanguageValidatesRunnerTask(
   numParallelTests: 1,
   pipelineOpts: [
     "--parallelism=2",
-    "--shutdownSourcesOnFinalWatermark",
   ]
 )
 

@@ -26,6 +26,7 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
+import com.google.cloud.spanner.AbortedException;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
@@ -45,23 +46,27 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -71,11 +76,13 @@ import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Stopwatch;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -350,7 +357,6 @@ public class SpannerIO {
         .setBatchSizeBytes(DEFAULT_BATCH_SIZE_BYTES)
         .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setMaxNumRows(DEFAULT_MAX_NUM_ROWS)
-        .setGroupingFactor(DEFAULT_GROUPING_FACTOR)
         .setFailureMode(FailureMode.FAIL_FAST)
         .build();
   }
@@ -781,7 +787,7 @@ public class SpannerIO {
     @Nullable
     abstract PCollection getSchemaReadySignal();
 
-    abstract int getGroupingFactor();
+    abstract OptionalInt getGroupingFactor();
 
     abstract Builder toBuilder();
 
@@ -951,9 +957,29 @@ public class SpannerIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
+      populateDisplayDataWithParamaters(builder);
+    }
+
+    private void populateDisplayDataWithParamaters(DisplayData.Builder builder) {
       getSpannerConfig().populateDisplayData(builder);
       builder.add(
-          DisplayData.item("batchSizeBytes", getBatchSizeBytes()).withLabel("Batch Size in Bytes"));
+          DisplayData.item("batchSizeBytes", getBatchSizeBytes())
+              .withLabel("Max batch size in bytes"));
+      builder.add(
+          DisplayData.item("maxNumMutations", getMaxNumMutations())
+              .withLabel("Max number of mutated cells in each batch"));
+      builder.add(
+          DisplayData.item("maxNumRows", getMaxNumRows())
+              .withLabel("Max number of rows in each batch"));
+      // Grouping factor default value depends on whether it is a batch or streaming pipeline.
+      // This function is not aware of that state, so use 'DEFAULT' if unset.
+      builder.add(
+          DisplayData.item(
+                  "groupingFactor",
+                  (getGroupingFactor().isPresent()
+                      ? Integer.toString(getGroupingFactor().getAsInt())
+                      : "DEFAULT"))
+              .withLabel("Number of batches to sort over"));
     }
   }
 
@@ -991,76 +1017,105 @@ public class SpannerIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      spec.populateDisplayDataWithParamaters(builder);
+    }
+
+    @Override
     public SpannerWriteResult expand(PCollection<MutationGroup> input) {
+      PCollection<Iterable<MutationGroup>> batches;
 
-      // First, read the Cloud Spanner schema.
-      PCollection<Void> schemaSeed =
-          input.getPipeline().apply("Create Seed", Create.of((Void) null));
-      if (spec.getSchemaReadySignal() != null) {
-        // Wait for external signal before reading schema.
-        schemaSeed = schemaSeed.apply("Wait for schema", Wait.on(spec.getSchemaReadySignal()));
+      if (spec.getBatchSizeBytes() <= 1
+          || spec.getMaxNumMutations() <= 1
+          || spec.getMaxNumRows() <= 1) {
+        LOG.info("Batching of mutationGroups is disabled");
+        TypeDescriptor<Iterable<MutationGroup>> descriptor =
+            new TypeDescriptor<Iterable<MutationGroup>>() {};
+        batches =
+            input.apply(MapElements.into(descriptor).via(element -> ImmutableList.of(element)));
+      } else {
+
+        // First, read the Cloud Spanner schema.
+        PCollection<Void> schemaSeed =
+            input.getPipeline().apply("Create Seed", Create.of((Void) null));
+        if (spec.getSchemaReadySignal() != null) {
+          // Wait for external signal before reading schema.
+          schemaSeed = schemaSeed.apply("Wait for schema", Wait.on(spec.getSchemaReadySignal()));
+        }
+        final PCollectionView<SpannerSchema> schemaView =
+            schemaSeed
+                .apply(
+                    "Read information schema",
+                    ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
+                .apply("Schema View", View.asSingleton());
+
+        // Split the mutations into batchable and unbatchable mutations.
+        // Filter out mutation groups too big to be batched.
+        PCollectionTuple filteredMutations =
+            input
+                .apply(
+                    "RewindowIntoGlobal",
+                    Window.<MutationGroup>into(new GlobalWindows())
+                        .triggering(DefaultTrigger.of())
+                        .discardingFiredPanes())
+                .apply(
+                    "Filter Unbatchable Mutations",
+                    ParDo.of(
+                            new BatchableMutationFilterFn(
+                                schemaView,
+                                UNBATCHABLE_MUTATIONS_TAG,
+                                spec.getBatchSizeBytes(),
+                                spec.getMaxNumMutations(),
+                                spec.getMaxNumRows()))
+                        .withSideInputs(schemaView)
+                        .withOutputTags(
+                            BATCHABLE_MUTATIONS_TAG, TupleTagList.of(UNBATCHABLE_MUTATIONS_TAG)));
+
+        // Build a set of Mutation groups from the current bundle,
+        // sort them by table/key then split into batches.
+        PCollection<Iterable<MutationGroup>> batchedMutations =
+            filteredMutations
+                .get(BATCHABLE_MUTATIONS_TAG)
+                .apply(
+                    "Gather And Sort",
+                    ParDo.of(
+                            new GatherBundleAndSortFn(
+                                spec.getBatchSizeBytes(),
+                                spec.getMaxNumMutations(),
+                                spec.getMaxNumRows(),
+                                // Do not group on streaming unless explicitly set.
+                                spec.getGroupingFactor()
+                                    .orElse(
+                                        input.isBounded() == IsBounded.BOUNDED
+                                            ? DEFAULT_GROUPING_FACTOR
+                                            : 1),
+                                schemaView))
+                        .withSideInputs(schemaView))
+                .apply(
+                    "Create Batches",
+                    ParDo.of(
+                            new BatchFn(
+                                spec.getBatchSizeBytes(),
+                                spec.getMaxNumMutations(),
+                                spec.getMaxNumRows(),
+                                schemaView))
+                        .withSideInputs(schemaView));
+
+        // Merge the batched and unbatchable mutation PCollections and write to Spanner.
+        batches =
+            PCollectionList.of(filteredMutations.get(UNBATCHABLE_MUTATIONS_TAG))
+                .and(batchedMutations)
+                .apply("Merge", Flatten.pCollections());
       }
-      final PCollectionView<SpannerSchema> schemaView =
-          schemaSeed
-              .apply(
-                  "Read information schema",
-                  ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
-              .apply("Schema View", View.asSingleton());
 
-      // Split the mutations into batchable and unbatchable mutations.
-      // Filter out mutation groups too big to be batched.
-      PCollectionTuple filteredMutations =
-          input
-              .apply("To Global Window", Window.into(new GlobalWindows()))
-              .apply(
-                  "Filter Unbatchable Mutations",
-                  ParDo.of(
-                          new BatchableMutationFilterFn(
-                              schemaView,
-                              UNBATCHABLE_MUTATIONS_TAG,
-                              spec.getBatchSizeBytes(),
-                              spec.getMaxNumMutations(),
-                              spec.getMaxNumRows()))
-                      .withSideInputs(schemaView)
-                      .withOutputTags(
-                          BATCHABLE_MUTATIONS_TAG, TupleTagList.of(UNBATCHABLE_MUTATIONS_TAG)));
-
-      // Build a set of Mutation groups from the current bundle,
-      // sort them by table/key then split into batches.
-      PCollection<Iterable<MutationGroup>> batchedMutations =
-          filteredMutations
-              .get(BATCHABLE_MUTATIONS_TAG)
-              .apply(
-                  "Gather And Sort",
-                  ParDo.of(
-                          new GatherBundleAndSortFn(
-                              spec.getBatchSizeBytes(),
-                              spec.getMaxNumMutations(),
-                              spec.getMaxNumRows(),
-                              spec.getGroupingFactor(),
-                              schemaView))
-                      .withSideInputs(schemaView))
-              .apply(
-                  "Create Batches",
-                  ParDo.of(
-                          new BatchFn(
-                              spec.getBatchSizeBytes(),
-                              spec.getMaxNumMutations(),
-                              spec.getMaxNumRows(),
-                              schemaView))
-                      .withSideInputs(schemaView));
-
-      // Merge the batchable and unbatchable mutation PCollections and write to Spanner.
       PCollectionTuple result =
-          PCollectionList.of(filteredMutations.get(UNBATCHABLE_MUTATIONS_TAG))
-              .and(batchedMutations)
-              .apply("Merge", Flatten.pCollections())
-              .apply(
-                  "Write mutations to Spanner",
-                  ParDo.of(
-                          new WriteToSpannerFn(
-                              spec.getSpannerConfig(), spec.getFailureMode(), FAILED_MUTATIONS_TAG))
-                      .withOutputTags(MAIN_OUT_TAG, TupleTagList.of(FAILED_MUTATIONS_TAG)));
+          batches.apply(
+              "Write batches to Spanner",
+              ParDo.of(
+                      new WriteToSpannerFn(
+                          spec.getSpannerConfig(), spec.getFailureMode(), FAILED_MUTATIONS_TAG))
+                  .withOutputTags(MAIN_OUT_TAG, TupleTagList.of(FAILED_MUTATIONS_TAG)));
 
       return new SpannerWriteResult(
           input.getPipeline(),
@@ -1154,7 +1209,10 @@ public class SpannerIO {
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      if (batchCells > 0) {
+      // Only output when there is something in the batch.
+      if (mutationsToSort.isEmpty()) {
+        mutationsToSort = null;
+      } else {
         c.output(sortAndGetList(), Instant.now(), GlobalWindow.INSTANCE);
       }
     }
@@ -1319,6 +1377,13 @@ public class SpannerIO {
     private final SpannerConfig spannerConfig;
     private final FailureMode failureMode;
 
+    /* Number of times an aborted write to spanner could be retried */
+    private static final int ABORTED_RETRY_ATTEMPTS = 5;
+    /* Error string in Aborted exception during schema change */
+    private final String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
     @VisibleForTesting static Sleeper sleeper = Sleeper.DEFAULT;
 
     private final Counter mutationGroupBatchesReceived =
@@ -1339,8 +1404,8 @@ public class SpannerIO {
         Metrics.counter(WriteGrouped.class, "spanner_write_success");
     private final Counter spannerWriteFail =
         Metrics.counter(WriteGrouped.class, "spanner_write_fail");
-    private final Counter spannerWriteTotalLatency =
-        Metrics.counter(WriteGrouped.class, "spanner_write_total_latency_ms");
+    private final Distribution spannerWriteLatency =
+        Metrics.distribution(WriteGrouped.class, "spanner_write_latency_ms");
     private final Counter spannerWriteTimeouts =
         Metrics.counter(WriteGrouped.class, "spanner_write_timeouts");
     private final Counter spannerWriteRetries =
@@ -1411,6 +1476,28 @@ public class SpannerIO {
       }
     }
 
+    /*
+     Spanner aborts all inflight transactions during a schema change. Client is expected
+     to retry silently. These must not be counted against retry backoff.
+    */
+    private void spannerWriteWithRetryIfSchemaChange(Iterable<Mutation> batch)
+        throws SpannerException {
+      for (int retry = 1; ; retry++) {
+        try {
+          spannerAccessor.getDatabaseClient().writeAtLeastOnce(batch);
+          return;
+        } catch (AbortedException e) {
+          if (retry >= ABORTED_RETRY_ATTEMPTS) {
+            throw e;
+          }
+          if (e.isRetryable() || e.getMessage().contains(errString)) {
+            continue;
+          }
+          throw e;
+        }
+      }
+    }
+
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */
     private void writeMutations(Iterable<Mutation> mutations) throws SpannerException, IOException {
       BackOff backoff = bundleWriteBackoff.backoff();
@@ -1420,7 +1507,7 @@ public class SpannerIO {
         Stopwatch timer = Stopwatch.createStarted();
         // loop is broken on success, timeout backoff/retry attempts exceeded, or other failure.
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnce(mutations);
+          spannerWriteWithRetryIfSchemaChange(mutations);
           spannerWriteSuccess.inc();
           return;
         } catch (SpannerException exception) {
@@ -1456,7 +1543,7 @@ public class SpannerIO {
             throw exception;
           }
         } finally {
-          spannerWriteTotalLatency.inc(timer.elapsed(TimeUnit.MILLISECONDS));
+          spannerWriteLatency.update(timer.elapsed(TimeUnit.MILLISECONDS));
         }
       }
     }

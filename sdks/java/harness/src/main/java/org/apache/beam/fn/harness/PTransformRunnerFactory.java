@@ -18,14 +18,17 @@
 package org.apache.beam.fn.harness;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.BundleSplitListener;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.pipeline.v1.MetricsApi.MonitoringInfo;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
@@ -44,6 +47,7 @@ public interface PTransformRunnerFactory<T> {
    * @param pipelineOptions Pipeline options
    * @param beamFnDataClient A client for handling inbound and outbound data streams.
    * @param beamFnStateClient A client for handling state requests.
+   * @param beamFnTimerClient A client for handling inbound and outbound timer streams.
    * @param pTransformId The id of the PTransform.
    * @param pTransform The PTransform definition.
    * @param processBundleInstructionId A supplier containing the active process bundle instruction
@@ -59,6 +63,8 @@ public interface PTransformRunnerFactory<T> {
    * @param startFunctionRegistry A class to register a start bundle handler with.
    * @param finishFunctionRegistry A class to register a finish bundle handler with.
    * @param addTearDownFunction A consumer to register a tear down handler with.
+   * @param addProgressRequestCallback A consumer to register a callback whenever progress is being
+   *     requested.
    * @param splitListener A listener to be invoked when the PTransform splits itself.
    * @param bundleFinalizer Register callbacks that will be invoked when the runner completes the
    *     bundle. The specified instant provides the timeout on how long the finalization callback is
@@ -68,6 +74,7 @@ public interface PTransformRunnerFactory<T> {
       PipelineOptions pipelineOptions,
       BeamFnDataClient beamFnDataClient,
       BeamFnStateClient beamFnStateClient,
+      BeamFnTimerClient beamFnTimerClient,
       String pTransformId,
       RunnerApi.PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -78,6 +85,7 @@ public interface PTransformRunnerFactory<T> {
       PTransformFunctionRegistry startFunctionRegistry,
       PTransformFunctionRegistry finishFunctionRegistry,
       Consumer<ThrowingRunnable> addTearDownFunction,
+      Consumer<ProgressRequestCallback> addProgressRequestCallback,
       BundleSplitListener splitListener,
       BundleFinalizer bundleFinalizer)
       throws IOException;
@@ -92,5 +100,14 @@ public interface PTransformRunnerFactory<T> {
      * instantiating an appropriate handler.
      */
     Map<String, PTransformRunnerFactory> getPTransformRunnerFactories();
+  }
+
+  /**
+   * A marker interface used to register providing additional monitoring information whenever
+   * progress is being requested.
+   */
+  @FunctionalInterface
+  interface ProgressRequestCallback {
+    List<MonitoringInfo> getMonitoringInfos() throws Exception;
   }
 }

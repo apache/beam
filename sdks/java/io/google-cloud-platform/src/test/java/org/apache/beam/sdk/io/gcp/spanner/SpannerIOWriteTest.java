@@ -50,9 +50,11 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.GatherBundleAndSortFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteGrouped;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
@@ -261,18 +263,34 @@ public class SpannerIOWriteTest implements Serializable {
 
   @Test
   public void noBatching() throws Exception {
+
+    // This test uses a different mock/fake because it explicitly does not want to populate the
+    // Spanner schema.
+    FakeServiceFactory fakeServiceFactory = new FakeServiceFactory();
+    ReadOnlyTransaction tx = mock(ReadOnlyTransaction.class);
+    when(fakeServiceFactory.mockDatabaseClient().readOnlyTransaction()).thenReturn(tx);
+
+    // Capture batches sent to writeAtLeastOnce.
+    when(fakeServiceFactory.mockDatabaseClient().writeAtLeastOnce(mutationBatchesCaptor.capture()))
+        .thenReturn(null);
+
     PCollection<MutationGroup> mutations = pipeline.apply(Create.of(g(m(1L)), g(m(2L))));
     mutations.apply(
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withServiceFactory(serviceFactory)
+            .withServiceFactory(fakeServiceFactory)
             .withBatchSizeBytes(1)
             .grouped());
     pipeline.run();
 
-    verifyBatches(batch(m(1L)), batch(m(2L)));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(1L))));
+    verify(fakeServiceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnce(mutationsInNoOrder(batch(m(2L))));
+    // If no batching then the DB schema is never read.
+    verify(tx, never()).executeQuery(any());
   }
 
   @Test
@@ -296,6 +314,54 @@ public class SpannerIOWriteTest implements Serializable {
     pipeline.run();
 
     verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesWithGrouping() throws Exception {
+
+    // verify that grouping/sorting occurs when set.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withGroupingFactor(40)
+                .withMaxNumRows(2));
+    pipeline.run();
+
+    // Output should be batches of sorted mutations.
+    verifyBatches(batch(m(1L), m(2L)), batch(m(3L), m(4L)), batch(m(5L), m(6L)));
+  }
+
+  @Test
+  public void streamingWritesNoGrouping() throws Exception {
+
+    // verify that grouping/sorting does not occur - batches should be created in received order.
+    TestStream<Mutation> testStream =
+        TestStream.create(SerializableCoder.of(Mutation.class))
+            .addElements(m(1L), m(5L), m(2L), m(4L), m(3L), m(6L))
+            .advanceWatermarkToInfinity();
+
+    // verify that grouping/sorting does not occur when notset.
+    pipeline
+        .apply(testStream)
+        .apply(
+            SpannerIO.write()
+                .withProjectId("test-project")
+                .withInstanceId("test-instance")
+                .withDatabaseId("test-database")
+                .withServiceFactory(serviceFactory)
+                .withMaxNumRows(2));
+    pipeline.run();
+
+    verifyBatches(batch(m(1L), m(5L)), batch(m(2L), m(4L)), batch(m(3L), m(6L)));
   }
 
   @Test
@@ -442,20 +508,218 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
-  public void displayData() throws Exception {
+  public void retryOnSchemaChangeException() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // respond with 2 timeouts and a success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // all success, so veryify no errors
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 0 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+    // 3 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(3)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryMaxOnSchemaChangeException() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // Respond with Aborted transaction
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString));
+
+    // When spanner aborts transaction for more than 5 time, pipeline execution stops with
+    // PipelineExecutionException
+    thrown.expect(PipelineExecutionException.class);
+    thrown.expectMessage(errString);
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // One error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(1, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 0 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(0)).sleep(anyLong());
+    // 5 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(5)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void retryOnAbortedAndDeadlineExceeded() throws InterruptedException {
+    List<Mutation> mutationList = Arrays.asList(m((long) 1));
+
+    String errString =
+        "Transaction aborted. "
+            + "Database schema probably changed during transaction, retry may succeed.";
+
+    // mock sleeper so that it does not actually sleep.
+    WriteToSpannerFn.sleeper = Mockito.mock(Sleeper.class);
+
+    // Respond with (1) Aborted transaction a couple of times (2) deadline exceeded
+    // (3) Aborted transaction 3 times (4)  deadline exceeded and finally return success.
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 1"))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(SpannerExceptionFactory.newSpannerException(ErrorCode.ABORTED, errString))
+        .thenThrow(
+            SpannerExceptionFactory.newSpannerException(
+                ErrorCode.DEADLINE_EXCEEDED, "simulated Timeout 2"))
+        .thenReturn(Timestamp.now());
+
+    SpannerWriteResult result =
+        pipeline
+            .apply(Create.of(mutationList))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId("test-project")
+                    .withInstanceId("test-instance")
+                    .withDatabaseId("test-database")
+                    .withServiceFactory(serviceFactory)
+                    .withBatchSizeBytes(0)
+                    .withFailureMode(FailureMode.FAIL_FAST));
+
+    // Zero error
+    PAssert.that(result.getFailedMutations())
+        .satisfies(
+            m -> {
+              assertEquals(0, Iterables.size(m));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    // 2 calls to sleeper
+    verify(WriteToSpannerFn.sleeper, times(2)).sleep(anyLong());
+    // 8 write attempts for the single mutationGroup.
+    verify(serviceFactory.mockDatabaseClient(), times(8)).writeAtLeastOnce(any());
+  }
+
+  @Test
+  public void displayDataWrite() throws Exception {
     SpannerIO.Write write =
         SpannerIO.write()
             .withProjectId("test-project")
             .withInstanceId("test-instance")
             .withDatabaseId("test-database")
-            .withBatchSizeBytes(123);
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100);
 
     DisplayData data = DisplayData.from(write);
-    assertThat(data.items(), hasSize(4));
+    assertThat(data.items(), hasSize(7));
     assertThat(data, hasDisplayItem("projectId", "test-project"));
     assertThat(data, hasDisplayItem("instanceId", "test-instance"));
     assertThat(data, hasDisplayItem("databaseId", "test-database"));
     assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", "100"));
+
+    // check for default grouping value
+    write =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database");
+
+    data = DisplayData.from(write);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("groupingFactor", "DEFAULT"));
+  }
+
+  @Test
+  public void displayDataWriteGrouped() throws Exception {
+    SpannerIO.WriteGrouped writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .withBatchSizeBytes(123)
+            .withMaxNumMutations(456)
+            .withMaxNumRows(789)
+            .withGroupingFactor(100)
+            .grouped();
+
+    DisplayData data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("projectId", "test-project"));
+    assertThat(data, hasDisplayItem("instanceId", "test-instance"));
+    assertThat(data, hasDisplayItem("databaseId", "test-database"));
+    assertThat(data, hasDisplayItem("batchSizeBytes", 123));
+    assertThat(data, hasDisplayItem("maxNumMutations", 456));
+    assertThat(data, hasDisplayItem("maxNumRows", 789));
+    assertThat(data, hasDisplayItem("groupingFactor", "100"));
+
+    // check for default grouping value
+    writeGrouped =
+        SpannerIO.write()
+            .withProjectId("test-project")
+            .withInstanceId("test-instance")
+            .withDatabaseId("test-database")
+            .grouped();
+
+    data = DisplayData.from(writeGrouped);
+    assertThat(data.items(), hasSize(7));
+    assertThat(data, hasDisplayItem("groupingFactor", "DEFAULT"));
   }
 
   @Test

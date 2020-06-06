@@ -28,7 +28,6 @@ from __future__ import print_function
 
 import sys
 import unittest
-from datetime import timedelta
 
 import pandas as pd
 
@@ -40,6 +39,7 @@ from apache_beam.runners.interactive import interactive_environment as ie
 from apache_beam.runners.interactive import interactive_runner
 from apache_beam.runners.interactive.testing.mock_ipython import mock_get_ipython
 from apache_beam.testing.test_stream import TestStream
+from apache_beam.testing.util import timeout
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils.timestamp import Timestamp
@@ -155,6 +155,7 @@ class InteractiveRunnerTest(unittest.TestCase):
   @unittest.skipIf(
       sys.version_info < (3, 5, 3),
       'The tests require at least Python 3.6 to work.')
+  @timeout(60)
   def test_streaming_wordcount(self):
     class WordExtractingDoFn(beam.DoFn):
       def process(self, element):
@@ -164,7 +165,6 @@ class InteractiveRunnerTest(unittest.TestCase):
 
     # Add the TestStream so that it can be cached.
     ib.options.capturable_sources.add(TestStream)
-    ib.options.capture_duration = timedelta(seconds=1)
 
     p = beam.Pipeline(
         runner=interactive_runner.InteractiveRunner(),
@@ -195,6 +195,27 @@ class InteractiveRunnerTest(unittest.TestCase):
     # This is normally done in the interactive_utils when a transform is
     # applied but needs an IPython environment. So we manually run this here.
     ie.current_env().track_user_pipelines()
+
+    # Create a fake limiter that cancels the BCJ once the main job receives the
+    # expected amount of results.
+    class FakeLimiter:
+      def __init__(self, p, pcoll):
+        self.p = p
+        self.pcoll = pcoll
+
+      def is_triggered(self):
+        result = ie.current_env().pipeline_result(self.p)
+        if result:
+          try:
+            results = result.get(self.pcoll)
+          except ValueError:
+            return False
+          return len(results) >= 10
+        return False
+
+    # This sets the limiters to stop reading when the test receives 10 elements.
+    ie.current_env().options.capture_control.set_limiters_for_test(
+        [FakeLimiter(p, data)])
 
     # This tests that the data was correctly cached.
     pane_info = PaneInfo(True, True, PaneInfoTiming.UNKNOWN, 0, 0)

@@ -23,7 +23,7 @@
 plugins { id 'org.apache.beam.module' }
 applyPythonNature()
 
-// Required to setup a Python 3 virtualenv.
+// Required to setup a Python 3 virtualenv and task names.
 pythonVersion = '3.7'
 
 task lint {}
@@ -35,22 +35,7 @@ lint.dependsOn lintPy37
 toxTask "mypyPy37", "py37-mypy"
 lint.dependsOn mypyPy37
 
-toxTask "formatter", "py3-yapf-check"
-check.dependsOn formatter
-
-toxTask "testPython37", "py37"
-test.dependsOn testPython37
-
-toxTask "testPy37Cloud", "py37-cloud"
-test.dependsOn testPy37Cloud
-
-toxTask "testPy37Cython", "py37-cython"
-test.dependsOn testPy37Cython
+apply from: "../common.gradle"
 
 // TODO(BEAM-8954): Remove this once tox uses isolated builds.
 testPy37Cython.mustRunAfter testPython37, testPy37Cloud
-
-task preCommitPy37() {
-    dependsOn "testPy37Cloud"
-    dependsOn "testPy37Cython"
-}

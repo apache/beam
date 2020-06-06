@@ -44,6 +44,7 @@ def smokeTestConfigurations = { datasetName -> [
                 pipelineOptions: [
                         job_name            : 'load-tests-python-dataflow-batch-gbk-smoke-' + now,
                         project             : 'apache-beam-testing',
+                        region               : 'us-central1',
                         temp_location       : 'gs://temp-storage-for-perf-tests/smoketests',
                         publish_to_big_query: true,
                         metrics_dataset     : datasetName,
@@ -64,5 +65,5 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         this
 ) {
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test_SMOKE', CommonTestProperties.TriggeringContext.PR)
-    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON, smokeTestConfigurations(datasetName), "GBK", "smoke")
+    loadTestsBuilder.loadTests(delegate, CommonTestProperties.SDK.PYTHON_37, smokeTestConfigurations(datasetName), "GBK", "smoke")
 }

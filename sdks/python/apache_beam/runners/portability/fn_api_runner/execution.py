@@ -20,31 +20,56 @@
 from __future__ import absolute_import
 
 import collections
+import copy
 import itertools
 from typing import TYPE_CHECKING
+from typing import Any
+from typing import DefaultDict
+from typing import Dict
+from typing import Iterator
+from typing import List
 from typing import MutableMapping
+from typing import Optional
+from typing import Tuple
 
 from typing_extensions import Protocol
 
 from apache_beam import coders
+from apache_beam.coders import BytesCoder
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
+from apache_beam.coders.coders import GlobalWindowCoder
+from apache_beam.coders.coders import WindowedValueCoder
 from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability.fn_api_runner import translations
+from apache_beam.runners.portability.fn_api_runner.translations import create_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import only_element
 from apache_beam.runners.portability.fn_api_runner.translations import split_buffer_id
 from apache_beam.runners.portability.fn_api_runner.translations import unique_name
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.transforms import trigger
+from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
 
 if TYPE_CHECKING:
   from apache_beam.coders.coder_impl import CoderImpl
-  from apache_beam.runners.portability.fn_api_runner import translations
   from apache_beam.runners.portability.fn_api_runner import worker_handlers
+  from apache_beam.runners.portability.fn_api_runner.translations import DataSideInput
+  from apache_beam.transforms.window import BoundedWindow
+
+ENCODED_IMPULSE_VALUE = WindowedValueCoder(
+    BytesCoder(), GlobalWindowCoder()).get_impl().encode_nested(
+        GlobalWindows.windowed_value(b''))
+
+SAFE_WINDOW_FNS = set(window.WindowFn._known_urns.keys()) - set(
+    [python_urns.PICKLED_WINDOWFN])
 
 
 class Buffer(Protocol):
@@ -112,6 +137,12 @@ class ListBuffer(object):
     self.cleared = True
     self._inputs = []
     self._grouped_output = None
+
+  def reset(self):
+    """Resets a cleared buffer for reuse."""
+    if not self.cleared:
+      raise RuntimeError('Trying to reset a non-cleared ListBuffer.')
+    self.cleared = False
 
 
 class GroupingBuffer(object):
@@ -202,7 +233,7 @@ class WindowGroupingBuffer(object):
   def __init__(
       self,
       access_pattern,
-      coder  # type: coders.WindowedValueCoder
+      coder  # type: WindowedValueCoder
   ):
     # type: (...) -> None
     # Here's where we would use a different type of partitioning
@@ -247,13 +278,34 @@ class WindowGroupingBuffer(object):
       yield encoded_key, encoded_window, output_stream.get()
 
 
+class GenericNonMergingWindowFn(window.NonMergingWindowFn):
+
+  URN = 'internal-generic-non-merging'
+
+  def __init__(self, coder):
+    self._coder = coder
+
+  def assign(self, assign_context):
+    raise NotImplementedError()
+
+  def get_window_coder(self):
+    return self._coder
+
+  @staticmethod
+  @window.urns.RunnerApiFn.register_urn(URN, bytes)
+  def from_runner_api_parameter(window_coder_id, context):
+    return GenericNonMergingWindowFn(
+        context.coders[window_coder_id.decode('utf-8')])
+
+
 class FnApiRunnerExecutionContext(object):
   """
- :var pcoll_buffers: (collections.defaultdict of str: list): Mapping of
+ :var pcoll_buffers: (dict): Mapping of
        PCollection IDs to list that functions as buffer for the
        ``beam.PCollection``.
  """
   def __init__(self,
+      stages,  # type: List[translations.Stage]
       worker_handler_manager,  # type: worker_handlers.WorkerHandlerManager
       pipeline_components,  # type: beam_runner_api_pb2.Components
       safe_coders,
@@ -266,7 +318,11 @@ class FnApiRunnerExecutionContext(object):
     :param safe_coders:
     :param data_channel_coders:
     """
+    self.stages = stages
+    self.side_input_descriptors_by_stage = (
+        self._build_data_side_inputs_map(stages))
     self.pcoll_buffers = {}  # type: MutableMapping[bytes, PartitionableBuffer]
+    self.timer_buffers = {}  # type: MutableMapping[bytes, ListBuffer]
     self.worker_handler_manager = worker_handler_manager
     self.pipeline_components = pipeline_components
     self.safe_coders = safe_coders
@@ -276,6 +332,89 @@ class FnApiRunnerExecutionContext(object):
         self.pipeline_components,
         iterable_state_write=self._iterable_state_write)
     self._last_uid = -1
+    self.safe_windowing_strategies = {
+        id: self._make_safe_windowing_strategy(id)
+        for id in self.pipeline_components.windowing_strategies.keys()
+    }
+
+  @staticmethod
+  def _build_data_side_inputs_map(stages):
+    # type: (Iterable[translations.Stage]) -> MutableMapping[str, DataSideInput]
+
+    """Builds an index mapping stages to side input descriptors.
+
+    A side input descriptor is a map of side input IDs to side input access
+    patterns for all of the outputs of a stage that will be consumed as a
+    side input.
+    """
+    transform_consumers = collections.defaultdict(
+        list)  # type: DefaultDict[str, List[beam_runner_api_pb2.PTransform]]
+    stage_consumers = collections.defaultdict(
+        list)  # type: DefaultDict[str, List[translations.Stage]]
+
+    def get_all_side_inputs():
+      # type: () -> Set[str]
+      all_side_inputs = set()  # type: Set[str]
+      for stage in stages:
+        for transform in stage.transforms:
+          for input in transform.inputs.values():
+            transform_consumers[input].append(transform)
+            stage_consumers[input].append(stage)
+        for si in stage.side_inputs():
+          all_side_inputs.add(si)
+      return all_side_inputs
+
+    all_side_inputs = frozenset(get_all_side_inputs())
+    data_side_inputs_by_producing_stage = {}
+
+    producing_stages_by_pcoll = {}
+
+    for s in stages:
+      data_side_inputs_by_producing_stage[s.name] = {}
+      for transform in s.transforms:
+        for o in transform.outputs.values():
+          if o in s.side_inputs():
+            continue
+          producing_stages_by_pcoll[o] = s
+
+    for side_pc in all_side_inputs:
+      for consuming_transform in transform_consumers[side_pc]:
+        if consuming_transform.spec.urn not in translations.PAR_DO_URNS:
+          continue
+        producing_stage = producing_stages_by_pcoll[side_pc]
+        payload = proto_utils.parse_Bytes(
+            consuming_transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for si_tag in payload.side_inputs:
+          if consuming_transform.inputs[si_tag] == side_pc:
+            side_input_id = (consuming_transform.unique_name, si_tag)
+            data_side_inputs_by_producing_stage[
+                producing_stage.name][side_input_id] = (
+                    translations.create_buffer_id(side_pc),
+                    payload.side_inputs[si_tag].access_pattern)
+
+    return data_side_inputs_by_producing_stage
+
+  def _make_safe_windowing_strategy(self, id):
+    windowing_strategy_proto = self.pipeline_components.windowing_strategies[id]
+    if windowing_strategy_proto.window_fn.urn in SAFE_WINDOW_FNS:
+      return id
+    elif (windowing_strategy_proto.merge_status ==
+          beam_runner_api_pb2.MergeStatus.NON_MERGING) or True:
+      safe_id = id + '_safe'
+      while safe_id in self.pipeline_components.windowing_strategies:
+        safe_id += '_'
+      safe_proto = copy.copy(windowing_strategy_proto)
+      safe_proto.window_fn.urn = GenericNonMergingWindowFn.URN
+      safe_proto.window_fn.payload = (
+          windowing_strategy_proto.window_coder_id.encode('utf-8'))
+      self.pipeline_context.windowing_strategies.put_proto(safe_id, safe_proto)
+      return safe_id
+    elif windowing_strategy_proto.window_fn.urn == python_urns.PICKLED_WINDOWFN:
+      return id
+    else:
+      raise NotImplementedError(
+          '[BEAM-10119] Unknown merging WindowFn: %s' %
+          windowing_strategy_proto)
 
   @property
   def state_servicer(self):
@@ -298,6 +437,43 @@ class FnApiRunnerExecutionContext(object):
         out.get())
     return token
 
+  def commit_side_inputs_to_state(
+      self,
+      data_side_input,  # type: DataSideInput
+  ):
+    # type: (...) -> None
+    for (consuming_transform_id, tag), (buffer_id,
+                                        func_spec) in data_side_input.items():
+      _, pcoll_id = split_buffer_id(buffer_id)
+      value_coder = self.pipeline_context.coders[self.safe_coders[
+          self.data_channel_coders[pcoll_id]]]
+      elements_by_window = WindowGroupingBuffer(func_spec, value_coder)
+      if buffer_id not in self.pcoll_buffers:
+        self.pcoll_buffers[buffer_id] = ListBuffer(
+            coder_impl=value_coder.get_impl())
+      for element_data in self.pcoll_buffers[buffer_id]:
+        elements_by_window.append(element_data)
+
+      if func_spec.urn == common_urns.side_inputs.ITERABLE.urn:
+        for _, window, elements_data in elements_by_window.encoded_items():
+          state_key = beam_fn_api_pb2.StateKey(
+              iterable_side_input=beam_fn_api_pb2.StateKey.IterableSideInput(
+                  transform_id=consuming_transform_id,
+                  side_input_id=tag,
+                  window=window))
+          self.state_servicer.append_raw(state_key, elements_data)
+      elif func_spec.urn == common_urns.side_inputs.MULTIMAP.urn:
+        for key, window, elements_data in elements_by_window.encoded_items():
+          state_key = beam_fn_api_pb2.StateKey(
+              multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                  transform_id=consuming_transform_id,
+                  side_input_id=tag,
+                  window=window,
+                  key=key))
+          self.state_servicer.append_raw(state_key, elements_data)
+      else:
+        raise ValueError("Unknown access pattern: '%s'" % func_spec.urn)
+
 
 class BundleContextManager(object):
 
@@ -314,6 +490,10 @@ class BundleContextManager(object):
     # Properties that are lazily initialized
     self._process_bundle_descriptor = None
     self._worker_handlers = None
+    # a mapping of {(transform_id, timer_family_id): timer_coder_id}. The map
+    # is built after self._process_bundle_descriptor is initialized.
+    # This field can be used to tell whether current bundle has timers.
+    self._timer_coder_ids = None
 
   @property
   def worker_handlers(self):
@@ -337,10 +517,13 @@ class BundleContextManager(object):
   def process_bundle_descriptor(self):
     if self._process_bundle_descriptor is None:
       self._process_bundle_descriptor = self._build_process_bundle_descriptor()
+      self._timer_coder_ids = self._build_timer_coders_id_map()
     return self._process_bundle_descriptor
 
   def _build_process_bundle_descriptor(self):
-    res = beam_fn_api_pb2.ProcessBundleDescriptor(
+    # Cannot be invoked until *after* _extract_endpoints is called.
+    # Always populate the timer_api_service_descriptor.
+    return beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self.bundle_uid,
         transforms={
             transform.unique_name: transform
@@ -354,8 +537,66 @@ class BundleContextManager(object):
             items()),
         environments=dict(
             self.execution_context.pipeline_components.environments.items()),
-        state_api_service_descriptor=self.state_api_service_descriptor())
-    return res
+        state_api_service_descriptor=self.state_api_service_descriptor(),
+        timer_api_service_descriptor=self.data_api_service_descriptor())
+
+  def extract_bundle_inputs_and_outputs(self):
+    # type: (...) -> Tuple[Dict[str, PartitionableBuffer], DataOutput, Dict[Tuple[str, str], str]]
+
+    """Returns maps of transform names to PCollection identifiers.
+
+    Also mutates IO stages to point to the data ApiServiceDescriptor.
+
+    Returns:
+      A tuple of (data_input, data_output, expected_timer_output) dictionaries.
+        `data_input` is a dictionary mapping (transform_name, output_name) to a
+        PCollection buffer; `data_output` is a dictionary mapping
+        (transform_name, output_name) to a PCollection ID.
+        `expected_timer_output` is a dictionary mapping transform_id and
+        timer family ID to a buffer id for timers.
+    """
+    data_input = {}  # type: Dict[str, PartitionableBuffer]
+    data_output = {}  # type: DataOutput
+    # A mapping of {(transform_id, timer_family_id) : buffer_id}
+    expected_timer_output = {}  # type: Dict[Tuple[str, str], str]
+    for transform in self.stage.transforms:
+      if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
+                                bundle_processor.DATA_OUTPUT_URN):
+        pcoll_id = transform.spec.payload
+        if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
+          coder_id = self.execution_context.data_channel_coders[only_element(
+              transform.outputs.values())]
+          coder = self.execution_context.pipeline_context.coders[
+              self.execution_context.safe_coders.get(coder_id, coder_id)]
+          if pcoll_id == translations.IMPULSE_BUFFER:
+            data_input[transform.unique_name] = ListBuffer(
+                coder_impl=coder.get_impl())
+            data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
+          else:
+            if pcoll_id not in self.execution_context.pcoll_buffers:
+              self.execution_context.pcoll_buffers[pcoll_id] = ListBuffer(
+                  coder_impl=coder.get_impl())
+            data_input[transform.unique_name] = (
+                self.execution_context.pcoll_buffers[pcoll_id])
+        elif transform.spec.urn == bundle_processor.DATA_OUTPUT_URN:
+          data_output[transform.unique_name] = pcoll_id
+          coder_id = self.execution_context.data_channel_coders[only_element(
+              transform.inputs.values())]
+        else:
+          raise NotImplementedError
+        data_spec = beam_fn_api_pb2.RemoteGrpcPort(coder_id=coder_id)
+        data_api_service_descriptor = self.data_api_service_descriptor()
+        if data_api_service_descriptor:
+          data_spec.api_service_descriptor.url = (
+              data_api_service_descriptor.url)
+        transform.spec.payload = data_spec.SerializeToString()
+      elif transform.spec.urn in translations.PAR_DO_URNS:
+        payload = proto_utils.parse_Bytes(
+            transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for timer_family_id in payload.timer_family_specs.keys():
+          expected_timer_output[(transform.unique_name, timer_family_id)] = (
+              create_buffer_id(timer_family_id, 'timers'))
+    return data_input, data_output, expected_timer_output
 
   def get_input_coder_impl(self, transform_id):
     # type: (str) -> CoderImpl
@@ -363,11 +604,30 @@ class BundleContextManager(object):
         self.process_bundle_descriptor.transforms[transform_id].spec.payload
     ).coder_id
     assert coder_id
+    return self.get_coder_impl(coder_id)
+
+  def _build_timer_coders_id_map(self):
+    timer_coder_ids = {}
+    for transform_id, transform_proto in (self._process_bundle_descriptor
+        .transforms.items()):
+      if transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn:
+        pardo_payload = proto_utils.parse_Bytes(
+            transform_proto.spec.payload, beam_runner_api_pb2.ParDoPayload)
+        for id, timer_family_spec in pardo_payload.timer_family_specs.items():
+          timer_coder_ids[(transform_id, id)] = (
+              timer_family_spec.timer_family_coder_id)
+    return timer_coder_ids
+
+  def get_coder_impl(self, coder_id):
     if coder_id in self.execution_context.safe_coders:
       return self.execution_context.pipeline_context.coders[
           self.execution_context.safe_coders[coder_id]].get_impl()
     else:
       return self.execution_context.pipeline_context.coders[coder_id].get_impl()
+
+  def get_timer_coder_impl(self, transform_id, timer_family_id):
+    return self.get_coder_impl(
+        self._timer_coder_ids[(transform_id, timer_family_id)])
 
   def get_buffer(self, buffer_id, transform_id):
     # type: (bytes, str) -> PartitionableBuffer
@@ -377,11 +637,18 @@ class BundleContextManager(object):
     others, we produce a ``ListBuffer``.
     """
     kind, name = split_buffer_id(buffer_id)
-    if kind in ('materialize', 'timers'):
+    if kind == 'materialize':
       if buffer_id not in self.execution_context.pcoll_buffers:
         self.execution_context.pcoll_buffers[buffer_id] = ListBuffer(
             coder_impl=self.get_input_coder_impl(transform_id))
       return self.execution_context.pcoll_buffers[buffer_id]
+    # For timer buffer, name = timer_family_id
+    elif kind == 'timers':
+      if buffer_id not in self.execution_context.timer_buffers:
+        timer_coder_impl = self.get_timer_coder_impl(transform_id, name)
+        self.execution_context.timer_buffers[buffer_id] = ListBuffer(
+            timer_coder_impl)
+      return self.execution_context.timer_buffers[buffer_id]
     elif kind == 'group':
       # This is a grouping write, create a grouping buffer if needed.
       if buffer_id not in self.execution_context.pcoll_buffers:
@@ -398,8 +665,9 @@ class BundleContextManager(object):
                 self.execution_context.data_channel_coders[output_pcoll]]]
         windowing_strategy = (
             self.execution_context.pipeline_context.windowing_strategies[
-                self.execution_context.pipeline_components.
-                pcollections[output_pcoll].windowing_strategy_id])
+                self.execution_context.safe_windowing_strategies[
+                    self.execution_context.pipeline_components.
+                    pcollections[output_pcoll].windowing_strategy_id]])
         self.execution_context.pcoll_buffers[buffer_id] = GroupingBuffer(
             pre_gbk_coder, post_gbk_coder, windowing_strategy)
     else:

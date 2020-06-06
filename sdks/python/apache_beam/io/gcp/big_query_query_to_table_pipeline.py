@@ -80,7 +80,7 @@ def run_bq_pipeline(argv=None):
             use_standard_sql=known_args.use_standard_sql,
             kms_key=kms_key))
   else:
-    data = p | 'read' >> beam.io.gcp.bigquery._ReadFromBigQuery(
+    data = p | 'read' >> beam.io.gcp.bigquery.ReadFromBigQuery(
         query=known_args.query,
         project=options.view_as(GoogleCloudOptions).project,
         use_standard_sql=known_args.use_standard_sql,

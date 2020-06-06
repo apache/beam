@@ -55,9 +55,7 @@ public class OneOfType implements LogicalType<OneOfType.Value, Row> {
 
   private OneOfType(List<Field> fields, @Nullable Map<String, Integer> enumMap) {
     List<Field> nullableFields =
-        fields.stream()
-            .map(f -> Field.nullable(f.getName(), f.getType()))
-            .collect(Collectors.toList());
+        fields.stream().map(f -> f.withNullable(true)).collect(Collectors.toList());
     if (enumMap != null) {
       nullableFields.stream().forEach(f -> checkArgument(enumMap.containsKey(f.getName())));
       enumerationType = EnumerationType.create(enumMap);

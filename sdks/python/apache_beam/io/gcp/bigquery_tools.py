@@ -56,6 +56,7 @@ from apache_beam.options import value_provider
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
 from apache_beam.transforms import DoFn
+from apache_beam.typehints.typehints import Any
 from apache_beam.utils import retry
 
 # Protect against environments where bigquery library is not available.
@@ -175,6 +176,7 @@ def parse_table_reference(table, dataset=None, project=None):
   Returns:
     A TableReference object from the bigquery API. The object has the following
     attributes: projectId, datasetId, and tableId.
+    If the input is a TableReference object, a new object will be returned.
 
   Raises:
     ValueError: if the table reference as a string does not match the expected
@@ -182,7 +184,10 @@ def parse_table_reference(table, dataset=None, project=None):
   """
 
   if isinstance(table, bigquery.TableReference):
-    return table
+    return bigquery.TableReference(
+        projectId=table.projectId,
+        datasetId=table.datasetId,
+        tableId=table.tableId)
   elif callable(table):
     return table
   elif isinstance(table, value_provider.ValueProvider):
@@ -211,6 +216,20 @@ def parse_table_reference(table, dataset=None, project=None):
 
 # -----------------------------------------------------------------------------
 # BigQueryWrapper.
+
+
+def _build_job_labels(input_labels):
+  """Builds job label protobuf structure."""
+  input_labels = input_labels or {}
+  result = bigquery.JobConfiguration.LabelsValue()
+
+  for k, v in input_labels.items():
+    result.additionalProperties.append(
+        bigquery.JobConfiguration.LabelsValue.AdditionalProperty(
+            key=k,
+            value=v,
+        ))
+  return result
 
 
 class BigQueryWrapper(object):
@@ -315,7 +334,8 @@ class BigQueryWrapper(object):
       from_table_reference,
       to_table_reference,
       create_disposition=None,
-      write_disposition=None):
+      write_disposition=None,
+      job_labels=None):
     reference = bigquery.JobReference()
     reference.jobId = job_id
     reference.projectId = project_id
@@ -328,7 +348,9 @@ class BigQueryWrapper(object):
                     sourceTable=from_table_reference,
                     createDisposition=create_disposition,
                     writeDisposition=write_disposition,
-                )),
+                ),
+                labels=_build_job_labels(job_labels),
+            ),
             jobReference=reference,
         ))
 
@@ -350,7 +372,8 @@ class BigQueryWrapper(object):
       write_disposition=None,
       create_disposition=None,
       additional_load_parameters=None,
-      source_format=None):
+      source_format=None,
+      job_labels=None):
     additional_load_parameters = additional_load_parameters or {}
     job_schema = None if schema == 'SCHEMA_AUTODETECT' else schema
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
@@ -367,7 +390,9 @@ class BigQueryWrapper(object):
                     sourceFormat=source_format,
                     useAvroLogicalTypes=True,
                     autodetect=schema == 'SCHEMA_AUTODETECT',
-                    **additional_load_parameters)),
+                    **additional_load_parameters),
+                labels=_build_job_labels(job_labels),
+            ),
             jobReference=reference,
         ))
     response = self.client.jobs.Insert(request)
@@ -384,7 +409,8 @@ class BigQueryWrapper(object):
       flatten_results,
       job_id,
       dry_run=False,
-      kms_key=None):
+      kms_key=None,
+      job_labels=None):
     reference = bigquery.JobReference(jobId=job_id, projectId=project_id)
     request = bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
@@ -399,14 +425,15 @@ class BigQueryWrapper(object):
                     if not dry_run else None,
                     flattenResults=flatten_results,
                     destinationEncryptionConfiguration=bigquery.
-                    EncryptionConfiguration(kmsKeyName=kms_key))),
+                    EncryptionConfiguration(kmsKeyName=kms_key)),
+                labels=_build_job_labels(job_labels),
+            ),
             jobReference=reference))
 
     response = self.client.jobs.Insert(request)
     return response
 
-  def wait_for_bq_job(
-      self, job_reference, sleep_duration_sec=5, max_retries=60):
+  def wait_for_bq_job(self, job_reference, sleep_duration_sec=5, max_retries=0):
     """Poll job until it is DONE.
 
     Args:
@@ -690,17 +717,19 @@ class BigQueryWrapper(object):
       job_id,
       table_reference,
       destination_format,
+      project=None,
       include_header=True,
-      compression=ExportCompression.NONE):
+      compression=ExportCompression.NONE,
+      job_labels=None):
     """Starts a job to export data from BigQuery.
 
     Returns:
       bigquery.JobReference with the information about the job that was started.
     """
-    job_reference = bigquery.JobReference(
-        jobId=job_id, projectId=table_reference.projectId)
+    job_project = project or table_reference.projectId
+    job_reference = bigquery.JobReference(jobId=job_id, projectId=job_project)
     request = bigquery.BigqueryJobsInsertRequest(
-        projectId=table_reference.projectId,
+        projectId=job_project,
         job=bigquery.Job(
             configuration=bigquery.JobConfiguration(
                 extract=bigquery.JobConfigurationExtract(
@@ -709,7 +738,9 @@ class BigQueryWrapper(object):
                     printHeader=include_header,
                     destinationFormat=destination_format,
                     compression=compression,
-                )),
+                ),
+                labels=_build_job_labels(job_labels),
+            ),
             jobReference=job_reference,
         ))
     response = self.client.jobs.Insert(request)
@@ -1178,6 +1209,9 @@ class RowAsDictJsonCoder(coders.Coder):
 
   def decode(self, encoded_table_row):
     return json.loads(encoded_table_row.decode('utf-8'))
+
+  def to_type_hint(self):
+    return Any
 
 
 class JsonRowWriter(io.IOBase):

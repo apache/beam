@@ -50,6 +50,10 @@ public final class MonitoringInfoConstants {
         extractUrn(MonitoringInfoSpecs.Enum.USER_DISTRIBUTION_DOUBLE);
     public static final String SAMPLED_BYTE_SIZE =
         extractUrn(MonitoringInfoSpecs.Enum.SAMPLED_BYTE_SIZE);
+    public static final String WORK_COMPLETED = extractUrn(MonitoringInfoSpecs.Enum.WORK_COMPLETED);
+    public static final String WORK_REMAINING = extractUrn(MonitoringInfoSpecs.Enum.WORK_REMAINING);
+    public static final String DATA_CHANNEL_READ_INDEX =
+        extractUrn(MonitoringInfoSpecs.Enum.DATA_CHANNEL_READ_INDEX);
   }
 
   /** Standardised MonitoringInfo labels that can be utilized by runners. */

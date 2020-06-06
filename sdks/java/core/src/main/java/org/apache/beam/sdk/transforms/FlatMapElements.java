@@ -72,7 +72,7 @@ public class FlatMapElements<InputT, OutputT>
    * PCollection<String> lines = ...;
    * PCollection<String> words = lines.apply(FlatMapElements.via(
    *     new InferableFunction<String, List<String>>() {
-   *       public Integer apply(String line) throws Exception {
+   *       public List<String> apply(String line) throws Exception {
    *         return Arrays.asList(line.split(" "));
    *       }
    *     });

@@ -629,22 +629,55 @@ class TimestampCoderImpl(StreamCoderImpl):
 
 class TimerCoderImpl(StreamCoderImpl):
   """For internal use only; no backwards-compatibility guarantees."""
-  def __init__(self, payload_coder_impl):
+  def __init__(self, key_coder_impl, window_coder_impl):
     self._timestamp_coder_impl = TimestampCoderImpl()
-    self._payload_coder_impl = payload_coder_impl
+    self._boolean_coder_impl = BooleanCoderImpl()
+    self._pane_info_coder_impl = PaneInfoCoderImpl()
+    self._key_coder_impl = key_coder_impl
+    self._windows_coder_impl = TupleSequenceCoderImpl(window_coder_impl)
+    from apache_beam.coders.coders import StrUtf8Coder
+    self._tag_coder_impl = StrUtf8Coder().get_impl()
 
   def encode_to_stream(self, value, out, nested):
     # type: (dict, create_OutputStream, bool) -> None
-    self._timestamp_coder_impl.encode_to_stream(value['timestamp'], out, True)
-    self._payload_coder_impl.encode_to_stream(value.get('payload'), out, True)
+    self._key_coder_impl.encode_to_stream(value.user_key, out, True)
+    self._tag_coder_impl.encode_to_stream(value.dynamic_timer_tag, out, True)
+    self._windows_coder_impl.encode_to_stream(value.windows, out, True)
+    self._boolean_coder_impl.encode_to_stream(value.clear_bit, out, True)
+    if not value.clear_bit:
+      self._timestamp_coder_impl.encode_to_stream(
+          value.fire_timestamp, out, True)
+      self._timestamp_coder_impl.encode_to_stream(
+          value.hold_timestamp, out, True)
+      self._pane_info_coder_impl.encode_to_stream(value.paneinfo, out, True)
 
   def decode_from_stream(self, in_stream, nested):
     # type: (create_InputStream, bool) -> dict
-    # TODO(robertwb): Consider using a concrete class rather than a dict here.
-    return dict(
-        timestamp=self._timestamp_coder_impl.decode_from_stream(
+    from apache_beam.transforms import userstate
+    user_key = self._key_coder_impl.decode_from_stream(in_stream, True)
+    dynamic_timer_tag = self._tag_coder_impl.decode_from_stream(in_stream, True)
+    windows = self._windows_coder_impl.decode_from_stream(in_stream, True)
+    clear_bit = self._boolean_coder_impl.decode_from_stream(in_stream, True)
+    if clear_bit:
+      return userstate.Timer(
+          user_key=user_key,
+          dynamic_timer_tag=dynamic_timer_tag,
+          windows=windows,
+          clear_bit=clear_bit,
+          fire_timestamp=None,
+          hold_timestamp=None,
+          paneinfo=None)
+
+    return userstate.Timer(
+        user_key=user_key,
+        dynamic_timer_tag=dynamic_timer_tag,
+        windows=windows,
+        clear_bit=clear_bit,
+        fire_timestamp=self._timestamp_coder_impl.decode_from_stream(
             in_stream, True),
-        payload=self._payload_coder_impl.decode_from_stream(in_stream, True))
+        hold_timestamp=self._timestamp_coder_impl.decode_from_stream(
+            in_stream, True),
+        paneinfo=self._pane_info_coder_impl.decode_from_stream(in_stream, True))
 
 
 small_ints = [chr(_).encode('latin-1') for _ in range(128)]

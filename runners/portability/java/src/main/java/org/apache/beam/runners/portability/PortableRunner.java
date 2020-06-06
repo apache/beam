@@ -25,6 +25,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
@@ -36,11 +38,14 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager;
 import org.apache.beam.runners.core.construction.ArtifactServiceStager.StagedFile;
 import org.apache.beam.runners.core.construction.BeamUrns;
+import org.apache.beam.runners.core.construction.DefaultArtifactResolver;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactStagingService;
 import org.apache.beam.runners.portability.CloseableResource.CloseException;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -53,6 +58,8 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.Status;
+import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.StatusRuntimeException;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.slf4j.Logger;
@@ -157,6 +164,7 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
 
     RunnerApi.Pipeline pipelineProto =
         PipelineTranslation.toProto(pipeline, SdkComponents.create(options));
+    pipelineProto = DefaultArtifactResolver.INSTANCE.resolveArtifacts(pipelineProto);
 
     PrepareJobRequest prepareJobRequest =
         PrepareJobRequest.newBuilder()
@@ -186,10 +194,25 @@ public class PortableRunner extends PipelineRunner<PipelineResult> {
       try (CloseableResource<ManagedChannel> artifactChannel =
           CloseableResource.of(
               channelFactory.forDescriptor(artifactStagingEndpoint), ManagedChannel::shutdown)) {
-        ArtifactServiceStager stager = ArtifactServiceStager.overChannel(artifactChannel.get());
 
         LOG.debug("Actual files staged: {}", filesToStage);
-        retrievalToken = stager.stage(stagingSessionToken, filesToStage);
+        try {
+          ArtifactStagingService.offer(
+              new ArtifactRetrievalService(),
+              ArtifactStagingServiceGrpc.newStub(artifactChannel.get()),
+              stagingSessionToken);
+          retrievalToken = "";
+        } catch (ExecutionException exn) {
+          if (exn.getCause() instanceof StatusRuntimeException
+              && ((StatusRuntimeException) exn.getCause()).getStatus().getCode()
+                  == Status.Code.UNIMPLEMENTED) {
+            // Attempt legacy staging.
+            ArtifactServiceStager stager = ArtifactServiceStager.overChannel(artifactChannel.get());
+            retrievalToken = stager.stage(stagingSessionToken, filesToStage);
+          } else {
+            throw exn;
+          }
+        }
       } catch (CloseableResource.CloseException e) {
         LOG.warn("Error closing artifact staging channel", e);
         // CloseExceptions should only be thrown while closing the channel.

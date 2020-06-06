@@ -104,8 +104,7 @@ _DESTINATION_ELEMENT_PAIRS = [
     }),
 ]
 
-_DISTINCT_DESTINATIONS = list(
-    set([elm[0] for elm in _DESTINATION_ELEMENT_PAIRS]))
+_DISTINCT_DESTINATIONS = list({elm[0] for elm in _DESTINATION_ELEMENT_PAIRS})
 
 _ELEMENTS = [elm[1] for elm in _DESTINATION_ELEMENT_PAIRS]
 
@@ -176,7 +175,7 @@ class TestWriteRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
 
-    fn = bqfl.WriteRecordsToFile(schema=_ELEMENTS_SCHEMA, max_file_size=300)
+    fn = bqfl.WriteRecordsToFile(schema=_ELEMENTS_SCHEMA, max_file_size=50)
     self.tmpdir = self._new_tempdir()
 
     def check_many_files(output_pcs):
@@ -306,7 +305,7 @@ class TestWriteGroupedRecordsToFile(_TestCaseWithTempDirCleanUp):
     file length is very small, so only a couple records fit in each file.
     """
     fn = bqfl.WriteGroupedRecordsToFile(
-        schema=_ELEMENTS_SCHEMA, max_file_size=300)
+        schema=_ELEMENTS_SCHEMA, max_file_size=50)
     self.tmpdir = self._new_tempdir()
 
     def check_multiple_files(output_pc):

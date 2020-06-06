@@ -55,6 +55,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
@@ -184,11 +185,22 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
           parDo.getSideInputs().values().stream()
               .map(s -> s.getTagInternal().getId())
               .collect(Collectors.toSet());
-      Set<String> timerInputs = signature.timerDeclarations().keySet();
-      String mainInputName =
-          Iterables.getOnlyElement(Sets.difference(allInputs, Sets.union(sideInputs, timerInputs)));
+      String mainInputName = Iterables.getOnlyElement(Sets.difference(allInputs, sideInputs));
       PCollection<?> mainInput =
           (PCollection<?>) transform.getInputs().get(new TupleTag<>(mainInputName));
+
+      Coder<BoundedWindow> windowCoder =
+          (Coder<BoundedWindow>) mainInput.getWindowingStrategy().getWindowFn().windowCoder();
+      Coder<?> keyCoder;
+      if (signature.usesState() || signature.usesTimers()) {
+        checkArgument(
+            mainInput.getCoder() instanceof KvCoder,
+            "DoFn's that use state or timers must have an input PCollection with a KvCoder but received %s",
+            mainInput.getCoder());
+        keyCoder = ((KvCoder) mainInput.getCoder()).getKeyCoder();
+      } else {
+        keyCoder = null;
+      }
 
       final DoFnSchemaInformation doFnSchemaInformation =
           ParDo.getDoFnSchemaInformation(doFn, mainInput);
@@ -226,20 +238,6 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
             }
 
             @Override
-            public Map<String, RunnerApi.TimerFamilySpec> translateTimerSpecs(
-                SdkComponents newComponents) {
-              Map<String, RunnerApi.TimerFamilySpec> timerSpecs = new HashMap<>();
-              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
-                  signature.timerDeclarations().entrySet()) {
-                RunnerApi.TimerFamilySpec spec =
-                    translateTimerFamilySpec(
-                        getTimerSpecOrThrow(timer.getValue(), doFn), newComponents);
-                timerSpecs.put(timer.getKey(), spec);
-              }
-              return timerSpecs;
-            }
-
-            @Override
             public Map<String, RunnerApi.TimerFamilySpec> translateTimerFamilySpecs(
                 SdkComponents newComponents) {
               Map<String, RunnerApi.TimerFamilySpec> timerFamilySpecs = new HashMap<>();
@@ -247,8 +245,21 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
                   signature.timerFamilyDeclarations().entrySet()) {
                 RunnerApi.TimerFamilySpec spec =
                     translateTimerFamilySpec(
-                        getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn), newComponents);
+                        getTimerFamilySpecOrThrow(timerFamily.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
                 timerFamilySpecs.put(timerFamily.getKey(), spec);
+              }
+              for (Map.Entry<String, DoFnSignature.TimerDeclaration> timer :
+                  signature.timerDeclarations().entrySet()) {
+                RunnerApi.TimerFamilySpec spec =
+                    translateTimerFamilySpec(
+                        getTimerSpecOrThrow(timer.getValue(), doFn),
+                        newComponents,
+                        keyCoder,
+                        windowCoder);
+                timerFamilySpecs.put(timer.getKey(), spec);
               }
               return timerFamilySpecs;
             }

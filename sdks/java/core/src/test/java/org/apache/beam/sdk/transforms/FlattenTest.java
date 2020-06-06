@@ -38,8 +38,10 @@ import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CollectionCoder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.NullableCoder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.SetCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
@@ -54,12 +56,15 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 import org.joda.time.Duration;
 import org.junit.Assert;
@@ -344,6 +349,51 @@ public class FlattenTest implements Serializable {
     PAssert.that(outputEvenLength).containsInAnyOrder("AA", "CC");
     PAssert.that(outputOddLength).containsInAnyOrder("BBB");
 
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenWithDifferentInputAndOutputCoders() {
+    // This test exists to prevent a regression in Dataflow. It tests a
+    // GroupByKey preceded by a Flatten with an SDK-specific input coder.
+    PCollection<KV<String, String>> flattenInput =
+        p.apply(Create.of(LINES))
+            .apply(WithKeys.of("a"))
+            .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, String>>() {}));
+    PCollection<String> output =
+        PCollectionList.of(flattenInput)
+            .apply(Flatten.pCollections())
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(GroupByKey.create())
+            .apply(Values.create())
+            .apply(
+                FlatMapElements.into(TypeDescriptors.strings())
+                    .via((Iterable<String> values) -> values));
+    PAssert.that(output).containsInAnyOrder(LINES);
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenWithDifferentInputAndOutputCoders2() {
+    // This test exists to prevent a regression in Dataflow. It tests a
+    // GroupByKey followed by a Flatten with an SDK-specific output coder.
+    PCollection<KV<String, Iterable<String>>> flattenInput =
+        p.apply(Create.of(LINES))
+            .apply(WithKeys.of("a"))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .apply(GroupByKey.create());
+    PCollection<String> output =
+        PCollectionList.of(flattenInput)
+            .apply(Flatten.pCollections())
+            .setCoder(SerializableCoder.of(new TypeDescriptor<KV<String, Iterable<String>>>() {}))
+            .apply(Values.create())
+            .setCoder(IterableCoder.of(StringUtf8Coder.of()))
+            .apply(
+                FlatMapElements.into(TypeDescriptors.strings())
+                    .via((Iterable<String> values) -> values));
+    PAssert.that(output).containsInAnyOrder(LINES);
     p.run();
   }
 

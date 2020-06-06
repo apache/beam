@@ -151,8 +151,9 @@ message PTransform {
   // details.
   FunctionSpec spec = 1;
 
-  // (Optional) if this node is a composite, a list of the ids of
-  // transforms that it contains.
+  // (Optional) A list of the ids of transforms that it contains.
+  //
+  // Primitive transforms are not allowed to specify this.
   repeated string subtransforms = 2;
 
   // (Required) A map from local names of inputs (unique only with this map, and
@@ -184,9 +185,10 @@ message PTransform {
   // there is none, it may be omitted.
   repeated DisplayData display_data = 6;
 
-  // (Optional) Environment where the current PTransform should be executed in.
-  // Runner that executes the pipeline may choose to override this if needed. If
-  // not specified, environment will be decided by the runner.
+  // Environment where the current PTransform should be executed in.
+  //
+  // Transforms that are required to be implemented by a runner must omit this.
+  // All other transforms are required to specify this.
   string environment_id = 7;
 }
 
@@ -227,11 +229,17 @@ message StandardPTransforms {
     // See https://beam.apache.org/documentation/programming-guide/#groupbykey
     // for additional details.
     //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
+    //
     // Payload: None
     GROUP_BY_KEY = 2 [(beam_urn) = "beam:transform:group_by_key:v1"];
 
     // A transform which produces a single empty byte array at the minimum
     // timestamp in the GlobalWindow.
+    //
+    // Never defines an environment as the runner is required to implement this
+    // transform.
     //
     // Payload: None
     IMPULSE = 3 [(beam_urn) = "beam:transform:impulse:v1"];
@@ -701,9 +709,14 @@ message StandardCoders {
     // Components: Coder for a single element.
     ITERABLE = 3 [(beam_urn) = "beam:coder:iterable:v1"];
 
-    // Encodes a timer containing a timestamp and a user specified payload.
-    // The encoding is represented as: timestamp payload
-    //   timestamp - a big endian 8 byte integer representing millis-since-epoch.
+    // Encodes a timer containing a user key, a dynamic timer tag, a clear bit,
+    // a fire timestamp, a hold timestamp, the windows and the paneinfo.
+    // The encoding is represented as:
+    //   user key - user defined key, uses the component coder.
+    //   dynamic timer tag - a string which identifies a timer.
+    //   windows - uses component coders.
+    //   clear bit - a boolean set for clearing the timer.
+    //   fire timestamp - a big endian 8 byte integer representing millis-since-epoch.
     //     The encoded representation is shifted so that the byte representation of
     //     negative values are lexicographically ordered before the byte representation
     //     of positive values. This is typically done by subtracting -9223372036854775808
@@ -716,8 +729,9 @@ message StandardCoders {
     //                        1: 80 00 00 00 00 00 00 01
     //                      256: 80 00 00 00 00 00 01 00
     //      9223372036854775807: FF FF FF FF FF FF FF FF
-    //   payload - user defined data, uses the component coder
-    // Components: Coder for the payload.
+    //   hold timestamp - similar to the fire timestamp.
+    //   paneinfo - similar to the paneinfo of the windowed_value.
+    // Components: Coder for the key and windows.
     TIMER = 4 [(beam_urn) = "beam:coder:timer:v1"];
 
     /*
@@ -733,9 +747,54 @@ message StandardCoders {
     // Components: None
     GLOBAL_WINDOW = 7 [(beam_urn) = "beam:coder:global_window:v1"];
 
-    // Encodes an element, the window the value is in, the timestamp of the element, and the pane
-    // of the element
-    // Components: The element coder and the window coder, in that order
+    // Encodes an element, the windows it is in, the timestamp of the element,
+    // and the pane of the element. The encoding is represented as:
+    // timestamp windows pane element
+    //   timestamp - A big endian 8 byte integer representing millis-since-epoch.
+    //     The encoded representation is shifted so that the byte representation
+    //     of negative values are lexicographically ordered before the byte
+    //     representation of positive values. This is typically done by
+    //     subtracting -9223372036854775808 from the value and encoding it as a
+    //     signed big endian integer. Example values:
+    //
+    //     -9223372036854775808: 00 00 00 00 00 00 00 00
+    //                     -255: 7F FF FF FF FF FF FF 01
+    //                       -1: 7F FF FF FF FF FF FF FF
+    //                        0: 80 00 00 00 00 00 00 00
+    //                        1: 80 00 00 00 00 00 00 01
+    //                      256: 80 00 00 00 00 00 01 00
+    //      9223372036854775807: FF FF FF FF FF FF FF FF
+    //
+    //   windows - The windows are encoded using the beam:coder:iterable:v1
+    //     format, where the windows are encoded using the supplied window
+    //     coder.
+    //
+    //   pane - The first byte of the pane info determines which type of
+    //     encoding is used, as well as the is_first, is_last, and timing
+    //     fields. If this byte is bits [0 1 2 3 4 5 6 7], then:
+    //     * bits [0 1 2 3] determine the encoding as follows:
+    //         0000 - The entire pane info is encoded as a single byte.
+    //                The is_first, is_last, and timing fields are encoded
+    //                as below, and the index and non-speculative index are
+    //                both zero (and hence are not encoded here).
+    //         0001 - The pane info is encoded as this byte plus a single
+    //                VarInt encoed integer representing the pane index. The
+    //                non-speculative index can be derived as follows:
+    //                  -1 if the pane is early, otherwise equal to index.
+    //         0010 - The pane info is encoded as this byte plus two VarInt
+    //                encoded integers representing the pane index and
+    //                non-speculative index respectively.
+    //     * bits [4 5] encode the timing as follows:
+    //         00 - early
+    //         01 - on time
+    //         10 - late
+    //         11 - unknown
+    //     * bit 6 is 1 if this is the first pane, 0 otherwise.
+    //     * bit 7 is 1 if this is the last pane, 0 otherwise.
+    //
+    //   element - The element incoded using the supplied element coder.
+    //
+    // Components: The element coder and the window coder, in that order.
     WINDOWED_VALUE = 8 [(beam_urn) = "beam:coder:windowed_value:v1"];
 
     // A windowed value coder with parameterized timestamp, windows and pane info.
@@ -1144,23 +1203,27 @@ message StandardArtifacts {
   enum Types {
     // A URN for locally-accessible artifact files.
     // payload: ArtifactFilePayload
-    FILE     = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
+    FILE      = 0 [(beam_urn) = "beam:artifact:type:file:v1"];
 
     // A URN for artifacts described by URLs.
     // payload: ArtifactUrlPayload
-    URL      = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
+    URL       = 1 [(beam_urn) = "beam:artifact:type:url:v1"];
 
     // A URN for artifacts embedded in ArtifactInformation proto.
     // payload: EmbeddedFilePayload.
-    EMBEDDED = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
+    EMBEDDED  = 2 [(beam_urn) = "beam:artifact:type:embedded:v1"];
 
     // A URN for Python artifacts hosted on PYPI.
     // payload: PypiPayload
-    PYPI     = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
+    PYPI      = 3 [(beam_urn) = "beam:artifact:type:pypi:v1"];
 
     // A URN for Java artifacts hosted on a Maven repository.
     // payload: MavenPayload
-    MAVEN    = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+    MAVEN     = 4 [(beam_urn) = "beam:artifact:type:maven:v1"];
+
+    // A URN for deferred artifacts.
+    // payload: DeferredArtifactPayload
+    DEFERRED = 5 [(beam_urn) = "beam:artifact:type:deferred:v1"];
   }
   enum Roles {
     // A URN for staging-to role.
@@ -1170,7 +1233,7 @@ message StandardArtifacts {
 }
 
 message ArtifactFilePayload {
-  // a string for an artifact path e.g. "/tmp/foo.jar"
+  // a string for an artifact file path e.g. "/tmp/foo.jar"
   string path = 1;
 
   // The hex-encoded sha256 checksum of the artifact.
@@ -1179,7 +1242,7 @@ message ArtifactFilePayload {
 
 message ArtifactUrlPayload {
   // a string for an artifact URL e.g. "https://.../foo.jar" or "gs://tmp/foo.jar"
-  string path = 1;
+  string url = 1;
 }
 
 message EmbeddedFilePayload {
@@ -1202,6 +1265,15 @@ message MavenPayload {
 
   // (Optional) Repository URL. If not specified, Maven central is used by default.
   string repository_url = 2;
+}
+
+message DeferredArtifactPayload {
+  // A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
+  // whether they can parse the data.
+  string key = 1;
+
+  // Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
+  bytes data = 2;
 }
 
 message ArtifactStagingToRolePayload {

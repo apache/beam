@@ -33,7 +33,9 @@ import typing
 import unittest
 import uuid
 from builtins import range
+from typing import Any
 from typing import Dict
+from typing import Tuple
 
 # patches unittest.TestCase to be python3 compatible
 import hamcrest  # pylint: disable=ungrouped-imports
@@ -231,14 +233,32 @@ class FnApiRunnerTest(unittest.TestCase):
   def test_multimap_side_input(self):
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create(['a', 'b'])
-      side = (
-          p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
-          # TODO(BEAM-4782): Obviate the need for this map.
-          | beam.Map(lambda kv: (kv[0], kv[1])))
+      side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
       assert_that(
           main | beam.Map(
               lambda k, d: (k, sorted(d[k])), beam.pvalue.AsMultiMap(side)),
           equal_to([('a', [1, 3]), ('b', [2])]))
+
+  def test_multimap_multiside_input(self):
+    # A test where two transforms in the same stage consume the same PCollection
+    # twice as side input.
+    with self.create_pipeline() as p:
+      main = p | 'main' >> beam.Create(['a', 'b'])
+      side = p | 'side' >> beam.Create([('a', 1), ('b', 2), ('a', 3)])
+      assert_that(
+          main | 'first map' >> beam.Map(
+              lambda k,
+              d,
+              l: (k, sorted(d[k]), sorted([e[1] for e in l])),
+              beam.pvalue.AsMultiMap(side),
+              beam.pvalue.AsList(side))
+          | 'second map' >> beam.Map(
+              lambda k,
+              d,
+              l: (k[0], sorted(d[k[0]]), sorted([e[1] for e in l])),
+              beam.pvalue.AsMultiMap(side),
+              beam.pvalue.AsList(side)),
+          equal_to([('a', [1, 3], [1, 2, 3]), ('b', [2], [1, 2, 3])]))
 
   def test_multimap_side_input_type_coercion(self):
     with self.create_pipeline() as p:
@@ -327,6 +347,7 @@ class FnApiRunnerTest(unittest.TestCase):
 
   def test_pardo_timers(self):
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
+    state_spec = userstate.CombiningValueStateSpec('num_called', sum)
 
     class TimerDoFn(beam.DoFn):
       def process(self, element, timer=beam.DoFn.TimerParam(timer_spec)):
@@ -335,7 +356,14 @@ class FnApiRunnerTest(unittest.TestCase):
         timer.set(2 * ts)
 
       @userstate.on_timer(timer_spec)
-      def process_timer(self):
+      def process_timer(
+          self,
+          ts=beam.DoFn.TimestampParam,
+          timer=beam.DoFn.TimerParam(timer_spec),
+          state=beam.DoFn.StateParam(state_spec)):
+        if state.read() == 0:
+          state.add(1)
+          timer.set(timestamp.Timestamp(micros=2 * ts.micros))
         yield 'fired'
 
     with self.create_pipeline() as p:
@@ -345,7 +373,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.ParDo(TimerDoFn())
           | beam.Map(lambda x, ts=beam.DoFn.TimestampParam: (x, ts)))
 
-      expected = [('fired', ts) for ts in (20, 200)]
+      expected = [('fired', ts) for ts in (20, 200, 40, 400)]
       assert_that(actual, equal_to(expected))
 
   def test_pardo_timers_clear(self):
@@ -389,15 +417,24 @@ class FnApiRunnerTest(unittest.TestCase):
       assert_that(actual, equal_to(expected))
 
   def test_pardo_state_timers(self):
-    self._run_pardo_state_timers(False)
+    self._run_pardo_state_timers(windowed=False)
+
+  def test_pardo_state_timers_non_standard_coder(self):
+    self._run_pardo_state_timers(windowed=False, key_type=Any)
 
   def test_windowed_pardo_state_timers(self):
-    self._run_pardo_state_timers(True)
+    self._run_pardo_state_timers(windowed=True)
 
-  def _run_pardo_state_timers(self, windowed):
+  def _run_pardo_state_timers(self, windowed, key_type=None):
+    """
+    :param windowed: If True, uses an interval window, otherwise a global window
+    :param key_type: Allows to override the inferred key type. This is useful to
+    test the use of non-standard coders, e.g. Python's FastPrimitivesCoder.
+    """
     state_spec = userstate.BagStateSpec('state', beam.coders.StrUtf8Coder())
     timer_spec = userstate.TimerSpec('timer', userstate.TimeDomain.WATERMARK)
     elements = list('abcdefgh')
+    key = 'key'
     buffer_size = 3
 
     class BufferDoFn(beam.DoFn):
@@ -448,7 +485,8 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda e: window.TimestampedValue(e, ord(e) % 2))
           | beam.WindowInto(
               window.FixedWindows(1) if windowed else window.GlobalWindows())
-          | beam.Map(lambda x: ('key', x))
+          | beam.Map(lambda x: (key, x)).with_output_types(
+              Tuple[key_type if key_type else type(key), Any])
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
@@ -613,6 +651,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
+  @unittest.skip('BEAM-9119: test is flaky')
   def test_large_elements(self):
     with self.create_pipeline() as p:
       big = (
@@ -1129,40 +1168,6 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
       return False
 
     try:
-      # TODO(ajamato): Delete this block after deleting the legacy metrics code.
-      # Test the DEPRECATED legacy metrics
-      pregbk_metrics, postgbk_metrics = list(res._metrics_by_stage.values())
-      if 'Create/Map(decode)' not in pregbk_metrics.ptransforms:
-        # The metrics above are actually unordered. Swap.
-        pregbk_metrics, postgbk_metrics = postgbk_metrics, pregbk_metrics
-      self.assertEqual(
-          4,
-          pregbk_metrics.ptransforms['Create/Map(decode)'].processed_elements.
-          measured.output_element_counts['None'])
-      self.assertEqual(
-          4,
-          pregbk_metrics.ptransforms['Map(sleep)'].processed_elements.measured.
-          output_element_counts['None'])
-      self.assertLessEqual(
-          4e-3 * DEFAULT_SAMPLING_PERIOD_MS,
-          pregbk_metrics.ptransforms['Map(sleep)'].processed_elements.measured.
-          total_time_spent)
-      self.assertEqual(
-          1,
-          postgbk_metrics.ptransforms['GroupByKey/Read'].processed_elements.
-          measured.output_element_counts['None'])
-
-      # The actual stage name ends up being something like 'm_out/lamdbda...'
-      m_out, = [
-          metrics for name, metrics in list(postgbk_metrics.ptransforms.items())
-          if name.startswith('m_out')]
-      self.assertEqual(
-          5, m_out.processed_elements.measured.output_element_counts['None'])
-      self.assertEqual(
-          1, m_out.processed_elements.measured.output_element_counts['once'])
-      self.assertEqual(
-          2, m_out.processed_elements.measured.output_element_counts['twice'])
-
       # Test the new MonitoringInfo monitoring format.
       self.assertEqual(2, len(res._monitoring_infos_by_stage))
       pregbk_mis, postgbk_mis = list(res._monitoring_infos_by_stage.values())
@@ -1197,7 +1202,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
 
       # postgbk monitoring infos
       labels = {
-          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_8'
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_6'
       }
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=1)
@@ -1205,7 +1210,7 @@ class FnApiRunnerMetricsTest(unittest.TestCase):
           postgbk_mis, monitoring_infos.SAMPLED_BYTE_SIZE_URN, labels)
 
       labels = {
-          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_9'
+          monitoring_infos.PCOLLECTION_LABEL: 'ref_PCollection_PCollection_7'
       }
       self.assert_has_counter(
           postgbk_mis, monitoring_infos.ELEMENT_COUNT_URN, labels, value=5)
@@ -1236,8 +1241,8 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
     pipeline_options = PipelineOptions(direct_num_workers=2)
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_metrics(self):
@@ -1256,8 +1261,8 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
         direct_num_workers=2, direct_running_mode='multi_threading')
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(), options=pipeline_options)
-    #TODO(BEAM-8444): Fix these tests..
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_metrics(self):
@@ -1284,7 +1289,8 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     p = beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(bundle_repeat=3),
         options=pipeline_options)
-    p.options.view_as(DebugOptions).experiments.remove('beam_fn_api')
+    #TODO(BEAM-8444): Fix these tests.
+    p._options.view_as(DebugOptions).experiments.remove('beam_fn_api')
     return p
 
   def test_register_finalizations(self):

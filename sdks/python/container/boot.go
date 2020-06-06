@@ -28,8 +28,8 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pbjob "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
-	pbpipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	jobpb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -130,7 +130,7 @@ func main() {
 	materializeArtifactsFunc := func() {
 		dir := filepath.Join(*semiPersistDir, "staged")
 
-		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetRetrievalToken(), dir)
+		files, err := artifact.Materialize(ctx, *artifactEndpoint, info.GetDependencies(), info.GetRetrievalToken(), dir)
 		if err != nil {
 			log.Fatalf("Failed to retrieve staged files: %v", err)
 		}
@@ -154,8 +154,8 @@ func main() {
 	os.Setenv("WORKER_ID", *id)
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pbpipeline.ApiServiceDescriptor{Url: *loggingEndpoint}))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pbpipeline.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *loggingEndpoint}))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pipepb.ApiServiceDescriptor{Url: *controlEndpoint}))
 
 	if info.GetStatusEndpoint() != nil {
 		os.Setenv("STATUS_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(info.GetStatusEndpoint()))
@@ -171,7 +171,7 @@ func main() {
 }
 
 // installSetupPackages installs Beam SDK and user dependencies.
-func installSetupPackages(mds []*pbjob.ArtifactMetadata, workDir string) error {
+func installSetupPackages(mds []*jobpb.ArtifactMetadata, workDir string) error {
 	log.Printf("Installing setup packages ...")
 
 	files := make([]string, len(mds))

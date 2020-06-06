@@ -32,6 +32,7 @@ import (
 )
 
 func init() {
+	runtime.RegisterFunction(failIfBadEntries)
 	runtime.RegisterType(reflect.TypeOf((*diffFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failFn)(nil)).Elem())
 	runtime.RegisterType(reflect.TypeOf((*failGBKFn)(nil)).Elem())
@@ -47,6 +48,7 @@ func init() {
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, func(*int) bool) error)(nil)).Elem(), funcMakerIntIterIntГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(int, func(*string) bool) error)(nil)).Elem(), funcMakerIntIterStringГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(t typex.T), func(t typex.T), func(t typex.T)) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰TIterTypex۰TEmitTypex۰TEmitTypex۰TEmitTypex۰TГError)
+	reflectx.RegisterFunc(reflect.TypeOf((*func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(*typex.T) bool) error)(nil)).Elem(), funcMakerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, func(*typex.Y) bool) error)(nil)).Elem(), funcMakerTypex۰XIterTypex۰YГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X, typex.Y) error)(nil)).Elem(), funcMakerTypex۰XTypex۰YГError)
 	reflectx.RegisterFunc(reflect.TypeOf((*func(typex.X) error)(nil)).Elem(), funcMakerTypex۰XГError)
@@ -177,6 +179,32 @@ func (c *callerSliceOfByteIterTypex۰TIterTypex۰TEmitTypex۰TEmitTypex۰TEmitTy
 
 func (c *callerSliceOfByteIterTypex۰TIterTypex۰TEmitTypex۰TEmitTypex۰TEmitTypex۰TГError) Call6x1(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) interface{} {
 	return c.fn(arg0.([]byte), arg1.(func(*typex.T) bool), arg2.(func(*typex.T) bool), arg3.(func(t typex.T)), arg4.(func(t typex.T)), arg5.(func(t typex.T)))
+}
+
+type callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError struct {
+	fn func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(*typex.T) bool) error
+}
+
+func funcMakerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError(fn interface{}) reflectx.Func {
+	f := fn.(func([]byte, func(*typex.T) bool, func(*typex.T) bool, func(*typex.T) bool) error)
+	return &callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError{fn: f}
+}
+
+func (c *callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError) Name() string {
+	return reflectx.FunctionName(c.fn)
+}
+
+func (c *callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError) Call(args []interface{}) []interface{} {
+	out0 := c.fn(args[0].([]byte), args[1].(func(*typex.T) bool), args[2].(func(*typex.T) bool), args[3].(func(*typex.T) bool))
+	return []interface{}{out0}
+}
+
+func (c *callerSliceOfByteIterTypex۰TIterTypex۰TIterTypex۰TГError) Call4x1(arg0, arg1, arg2, arg3 interface{}) interface{} {
+	return c.fn(arg0.([]byte), arg1.(func(*typex.T) bool), arg2.(func(*typex.T) bool), arg3.(func(*typex.T) bool))
 }
 
 type callerTypex۰XIterTypex۰YГError struct {

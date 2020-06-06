@@ -20,6 +20,8 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -29,6 +31,9 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.Timer;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.ExposedByteArrayInputStream;
+import org.apache.beam.sdk.util.ExposedByteArrayOutputStream;
+import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.HashBasedTable;
@@ -193,8 +198,9 @@ class WindmillTimerInternals implements TimerInternals {
 
       if (cell.getValue()) {
         // Setting the timer. If it is a user timer, set a hold.
-        if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
-          // Setting a user timer, clear any prior hold and set to the new value
+
+        if (needsWatermarkHold(timerData)) {
+          // Setting a timer, clear any prior hold and set to the new value
           outputBuilder
               .addWatermarkHoldsBuilder()
               .setTag(timerHoldTag(prefix, timerData))
@@ -206,8 +212,8 @@ class WindmillTimerInternals implements TimerInternals {
       } else {
         // Deleting a timer. If it is a user timer, clear the hold
         timer.clearTimestamp();
-        if (WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)) {
-          // We are deleting a user timer; clear the hold
+        if (needsWatermarkHold(timerData)) {
+          // We are deleting timer; clear the hold
           outputBuilder
               .addWatermarkHoldsBuilder()
               .setTag(timerHoldTag(prefix, timerData))
@@ -219,6 +225,12 @@ class WindmillTimerInternals implements TimerInternals {
 
     // Wipe the unpersisted state
     timers.clear();
+  }
+
+  private boolean needsWatermarkHold(TimerData timerData) {
+    // If it is a user timer or a system timer with outputTimestamp different than timestamp
+    return WindmillNamespacePrefix.USER_NAMESPACE_PREFIX.equals(prefix)
+        || !timerData.getTimestamp().isEqual(timerData.getOutputTimestamp());
   }
 
   public static boolean isSystemTimer(Windmill.Timer timer) {
@@ -278,27 +290,77 @@ class WindmillTimerInternals implements TimerInternals {
     //    - the GlobalWindow is currently encoded in zero bytes, so it becomes "//"
     //    - the Global StateNamespace is different, and becomes "/"
     //  - the id is totally arbitrary; currently unescaped though that could change
-    String tag = timer.getTag().toStringUtf8();
+
+    ByteString tag = timer.getTag();
     checkArgument(
-        timer.getTag().startsWith(prefix.byteString()),
+        tag.startsWith(prefix.byteString()),
         "Expected timer tag %s to start with prefix %s",
         tag,
         prefix.byteString());
-    int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
-    int namespaceEnd = tag.indexOf('+', namespaceStart); // keep the end slash, drop the +
-    String namespaceString = tag.substring(namespaceStart, namespaceEnd);
-    String timerIdPlusTimerFamilyId = tag.substring(namespaceEnd + 1); // timerId+timerFamilyId
-    int timerIdEnd = timerIdPlusTimerFamilyId.indexOf('+'); // end of timerId
-    // if no '+' found then timerFamilyId is empty string else they have a '+' separator
-    String familyId = timerIdEnd == -1 ? "" : timerIdPlusTimerFamilyId.substring(timerIdEnd + 1);
-    String id =
-        timerIdEnd == -1
-            ? timerIdPlusTimerFamilyId
-            : timerIdPlusTimerFamilyId.substring(0, timerIdEnd);
-    StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
+
     Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(timer.getTimestamp());
 
-    return TimerData.of(id, familyId, namespace, timestamp, timerTypeToTimeDomain(timer.getType()));
+    // Parse the namespace.
+    int namespaceStart = prefix.byteString().size(); // drop the prefix, leave the begin slash
+    int namespaceEnd = namespaceStart;
+    while (namespaceEnd < tag.size() && tag.byteAt(namespaceEnd) != '+') {
+      namespaceEnd++;
+    }
+    String namespaceString = tag.substring(namespaceStart, namespaceEnd).toStringUtf8();
+
+    // Parse the timer id.
+    int timerIdStart = namespaceEnd + 1;
+    int timerIdEnd = timerIdStart;
+    while (timerIdEnd < tag.size() && tag.byteAt(timerIdEnd) != '+') {
+      timerIdEnd++;
+    }
+    String timerId = tag.substring(timerIdStart, timerIdEnd).toStringUtf8();
+
+    // Parse the timer family.
+    int timerFamilyStart = timerIdEnd + 1;
+    int timerFamilyEnd = timerFamilyStart;
+    while (timerFamilyEnd < tag.size() && tag.byteAt(timerFamilyEnd) != '+') {
+      timerFamilyEnd++;
+    }
+    // For backwards compatibility, handle the case were the timer family isn't present.
+    String timerFamily =
+        (timerFamilyStart < tag.size())
+            ? tag.substring(timerFamilyStart, timerFamilyEnd).toStringUtf8()
+            : "";
+
+    // Parse the output timestamp.
+    int outputTimestampStart = timerFamilyEnd + 1;
+    int outputTimestampEnd = outputTimestampStart;
+    while (outputTimestampEnd < tag.size() && tag.byteAt(outputTimestampEnd) != '+') {
+      outputTimestampEnd++;
+    }
+
+    // For backwards compatibility, handle the case were the output timestamp isn't present.
+    Instant outputTimestamp = timestamp;
+    if ((outputTimestampStart < tag.size())) {
+      try {
+        outputTimestamp =
+            new Instant(
+                VarInt.decodeLong(
+                    tag.substring(outputTimestampStart, outputTimestampEnd).newInput()));
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+
+    StateNamespace namespace = StateNamespaces.fromString(namespaceString, windowCoder);
+    return TimerData.of(
+        timerId,
+        timerFamily,
+        namespace,
+        timestamp,
+        outputTimestamp,
+        timerTypeToTimeDomain(timer.getType()));
+  }
+
+  private static boolean useNewTimerTagEncoding(TimerData timerData) {
+    return !timerData.getTimerFamilyId().isEmpty()
+        || !timerData.getOutputTimestamp().equals(timerData.getTimestamp());
   }
 
   /**
@@ -309,27 +371,41 @@ class WindmillTimerInternals implements TimerInternals {
    */
   public static ByteString timerTag(WindmillNamespacePrefix prefix, TimerData timerData) {
     String tagString;
-    // Timers without timerFamily would have timerFamily would be an empty string
-    if ("".equals(timerData.getTimerFamilyId())) {
-      tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .toString();
-    } else {
-      tagString =
-          new StringBuilder()
-              .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
-              .append(timerData.getNamespace().stringKey()) // this must begin and end with a slash
-              .append('+')
-              .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
-              .append('+')
-              .append(timerData.getTimerFamilyId())
-              .toString();
+    ExposedByteArrayOutputStream out = new ExposedByteArrayOutputStream();
+    try {
+      if (useNewTimerTagEncoding(timerData)) {
+        tagString =
+            new StringBuilder()
+                .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+                .append(
+                    timerData.getNamespace().stringKey()) // this must begin and end with a slash
+                .append('+')
+                .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+                .append('+')
+                .append(timerData.getTimerFamilyId())
+                .toString();
+        out.write(tagString.getBytes(StandardCharsets.UTF_8));
+        // Only encode the extra 9 bytes if the output timestamp is different than the timestamp;
+        if (!timerData.getOutputTimestamp().equals(timerData.getTimestamp())) {
+          out.write('+');
+          VarInt.encode(timerData.getOutputTimestamp().getMillis(), out);
+        }
+      } else {
+        // Timers without timerFamily would have timerFamily would be an empty string
+        tagString =
+            new StringBuilder()
+                .append(prefix.byteString().toStringUtf8()) // this never ends with a slash
+                .append(
+                    timerData.getNamespace().stringKey()) // this must begin and end with a slash
+                .append('+')
+                .append(timerData.getTimerId()) // this is arbitrary; currently unescaped
+                .toString();
+        out.write(tagString.getBytes(StandardCharsets.UTF_8));
+      }
+      return ByteString.readFrom(new ExposedByteArrayInputStream(out.toByteArray()));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
-    return ByteString.copyFromUtf8(tagString);
   }
 
   /**

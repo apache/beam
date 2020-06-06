@@ -35,7 +35,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Gradle goals for this job.
   steps {
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING DATAFLOW RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -44,6 +44,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -55,7 +56,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceEncodability=true',
               '--enforceImmutability=true"'].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN STREAMING MODE USING DATAFLOW RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN STREAMING MODE USING DATAFLOW RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -64,6 +65,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -75,7 +77,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceEncodability=true',
               '--enforceImmutability=true"'].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING DATAFLOW RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN SQL BATCH MODE USING DATAFLOW RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -84,6 +86,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -96,7 +99,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--enforceEncodability=true',
               '--enforceImmutability=true"'].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING DATAFLOW RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN SQL STREAMING MODE USING DATAFLOW RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
@@ -105,6 +108,7 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=DataflowRunner',
+              '--region=us-central1',
               '--numWorkers=4',
               '--maxNumWorkers=4',
               '--autoscalingAlgorithm=NONE',
@@ -128,6 +132,7 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Da
   commonJobProperties.setTopLevelMainJobProperties(delegate, 'master', 240)
 
   def final JOB_SPECIFIC_OPTIONS = [
+          'region' : 'us-central1',
           'suite' : 'STRESS',
           'numWorkers' : 4,
           'maxNumWorkers' : 4,

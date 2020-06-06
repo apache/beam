@@ -21,6 +21,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import org.apache.beam.sdk.extensions.sql.integrationtest.BeamSqlBuiltinFunctionsIntegrationTestBase;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -197,6 +198,46 @@ public class BeamSqlUdfExpressionTest extends BeamSqlBuiltinFunctionsIntegration
             .addExprWithNullExpectedValue(
                 "RPAD('', CAST(3 AS BIGINT), CAST(NULL AS VARCHAR(0)))", TypeName.STRING);
 
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testMd5() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("MD5('foobar')", DigestUtils.md5("foobar"))
+            .addExpr("MD5('中文')", DigestUtils.md5("中文"))
+            .addExprWithNullExpectedValue("MD5(CAST(NULL AS VARCHAR(0)))", TypeName.BYTES);
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testSHA1() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("SHA1('foobar')", DigestUtils.sha1("foobar"))
+            .addExpr("SHA1('中文')", DigestUtils.sha1("中文"))
+            .addExprWithNullExpectedValue("SHA1(CAST(NULL AS VARCHAR(0)))", TypeName.BYTES);
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testSHA256() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("SHA256('foobar')", DigestUtils.sha256("foobar"))
+            .addExpr("SHA256('中文')", DigestUtils.sha256("中文"))
+            .addExprWithNullExpectedValue("SHA256(CAST(NULL AS VARCHAR(0)))", TypeName.BYTES);
+    checker.buildRunAndCheck();
+  }
+
+  @Test
+  public void testSHA512() throws Exception {
+    ExpressionChecker checker =
+        new ExpressionChecker()
+            .addExpr("SHA512('foobar')", DigestUtils.sha512("foobar"))
+            .addExpr("SHA512('中文')", DigestUtils.sha512("中文"))
+            .addExprWithNullExpectedValue("SHA512(CAST(NULL AS VARCHAR(0)))", TypeName.BYTES);
     checker.buildRunAndCheck();
   }
 }

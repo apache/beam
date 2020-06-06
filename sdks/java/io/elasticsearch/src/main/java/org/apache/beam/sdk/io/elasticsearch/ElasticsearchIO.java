@@ -1281,6 +1281,11 @@ public class ElasticsearchIO {
                   .withMaxRetries(spec.getRetryConfiguration().getMaxAttempts() - 1)
                   .withMaxCumulativeBackoff(spec.getRetryConfiguration().getMaxDuration());
         }
+        // configure a custom serializer for metadata to be able to change serialization based
+        // on ES version
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(DocumentMetadata.class, new DocumentMetadataSerializer());
+        OBJECT_MAPPER.registerModule(module);
       }
 
       @StartBundle
@@ -1342,9 +1347,6 @@ public class ElasticsearchIO {
                   spec.getTypeFn() != null ? spec.getTypeFn().apply(parsedDocument) : null,
                   spec.getIdFn() != null ? spec.getIdFn().apply(parsedDocument) : null,
                   spec.getUsePartialUpdate() ? DEFAULT_RETRY_ON_CONFLICT : null);
-          SimpleModule module = new SimpleModule();
-          module.addSerializer(DocumentMetadata.class, new DocumentMetadataSerializer());
-          OBJECT_MAPPER.registerModule(module);
           return OBJECT_MAPPER.writeValueAsString(metadata);
         } else {
           return "{}"; // use configuration and auto-generated document IDs

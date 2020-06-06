@@ -21,6 +21,7 @@ import CommonTestProperties
 import LoadTestsBuilder as loadTestsBuilder
 import PhraseTriggeringPostCommitBuilder
 import CronJobBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -31,11 +32,13 @@ def loadTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-cogbk-1-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_dataflow_batch_cogbk_1",
+                        influx_measurement   : 'python_batch_cogbk_1',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -59,11 +62,13 @@ def loadTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-cogbk-2-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_cogbk_2',
+                        influx_measurement   : 'python_batch_cogbk_2',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -87,11 +92,13 @@ def loadTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-cogbk-3-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : "python_dataflow_batch_cogbk_3",
+                        influx_measurement   : 'python_batch_cogbk_3',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -115,11 +122,13 @@ def loadTestConfigurations = { datasetName -> [
                 runner         : CommonTestProperties.Runner.DATAFLOW,
                 pipelineOptions: [
                         project              : 'apache-beam-testing',
+                        region               : 'us-central1',
                         job_name             : 'load-tests-python-dataflow-batch-cogbk-4-' + now,
                         temp_location        : 'gs://temp-storage-for-perf-tests/loadtests',
                         publish_to_big_query : true,
                         metrics_dataset      : datasetName,
                         metrics_table        : 'python_dataflow_batch_cogbk_4',
+                        influx_measurement   : 'python_batch_cogbk_4',
                         input_options        : '\'{' +
                                 '"num_records": 20000000,' +
                                 '"key_size": 10,' +
@@ -137,7 +146,8 @@ def loadTestConfigurations = { datasetName -> [
                         autoscaling_algorithm: 'NONE'
                 ]
         ],
-]}
+    ].each { test -> test.pipelineOptions.putAll(additionalPipelineArgs) }
+}
 
 def batchLoadTestJob = { scope, triggeringContext ->
     scope.description('Runs Python CoGBK load tests on Dataflow runner in batch mode')
@@ -145,11 +155,15 @@ def batchLoadTestJob = { scope, triggeringContext ->
 
     def datasetName = loadTestsBuilder.getBigQueryDataset('load_test', triggeringContext)
     for (testConfiguration in loadTestConfigurations(datasetName)) {
-        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON, testConfiguration.pipelineOptions, testConfiguration.test)
+        loadTestsBuilder.loadTest(scope, testConfiguration.title, testConfiguration.runner, CommonTestProperties.SDK.PYTHON_37, testConfiguration.pipelineOptions, testConfiguration.test)
     }
 }
 
 CronJobBuilder.cronJob('beam_LoadTests_Python_CoGBK_Dataflow_Batch', 'H 16 * * *', this) {
+    additionalPipelineArgs = [
+        influx_db_name: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+        influx_hostname: InfluxDBCredentialsHelper.InfluxDBHostname,
+    ]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.POST_COMMIT)
 }
 
@@ -159,5 +173,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob(
         'Load Tests Python CoGBK Dataflow Batch suite',
         this
 ) {
+    additionalPipelineArgs = [:]
     batchLoadTestJob(delegate, CommonTestProperties.TriggeringContext.PR)
 }

@@ -56,6 +56,8 @@ USER_METRIC_URNS = set(
     [USER_COUNTER_URN, USER_DISTRIBUTION_URN, USER_GAUGE_URN])
 WORK_REMAINING_URN = common_urns.monitoring_info_specs.WORK_REMAINING.spec.urn
 WORK_COMPLETED_URN = common_urns.monitoring_info_specs.WORK_COMPLETED.spec.urn
+DATA_CHANNEL_READ_INDEX = (
+    common_urns.monitoring_info_specs.DATA_CHANNEL_READ_INDEX.spec.urn)
 
 # TODO(ajamato): Implement the remaining types, i.e. Double types
 # Extrema types, etc. See:
@@ -78,7 +80,6 @@ PTRANSFORM_LABEL = (
 NAMESPACE_LABEL = (
     common_urns.monitoring_info_labels.NAMESPACE.label_props.name)
 NAME_LABEL = (common_urns.monitoring_info_labels.NAME.label_props.name)
-TAG_LABEL = "TAG"
 
 
 def extract_counter_value(monitoring_info_proto):
@@ -113,26 +114,26 @@ def extract_distribution(monitoring_info_proto):
       coders.VarIntCoder(), monitoring_info_proto.payload)
 
 
-def create_labels(ptransform=None, tag=None, namespace=None, name=None):
-  """Create the label dictionary based on the provided tags.
+def create_labels(ptransform=None, namespace=None, name=None, pcollection=None):
+  """Create the label dictionary based on the provided values.
 
   Args:
-    ptransform: The ptransform/step name.
-    tag: he output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
+    pcollection: The pcollection id used as a label.
   """
   labels = {}
-  if tag:
-    labels[TAG_LABEL] = tag
   if ptransform:
     labels[PTRANSFORM_LABEL] = ptransform
   if namespace:
     labels[NAMESPACE_LABEL] = namespace
   if name:
     labels[NAME_LABEL] = name
+  if pcollection:
+    labels[PCOLLECTION_LABEL] = pcollection
   return labels
 
 
-def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
+def int64_user_counter(namespace, name, metric, ptransform=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
@@ -140,18 +141,16 @@ def int64_user_counter(namespace, name, metric, ptransform=None, tag=None):
   Args:
     urn: The URN of the monitoring info/metric.
     metric: The payload field to use in the monitoring info or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(
-      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
   if isinstance(metric, int):
     metric = coders.VarIntCoder().encode(metric)
   return create_monitoring_info(
       USER_COUNTER_URN, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_counter(urn, metric, ptransform=None, tag=None):
+def int64_counter(urn, metric, ptransform=None, pcollection=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the counter monitoring info for the specifed URN, metric and labels.
@@ -159,33 +158,31 @@ def int64_counter(urn, metric, ptransform=None, tag=None):
   Args:
     urn: The URN of the monitoring info/metric.
     metric: The payload field to use in the monitoring info or an int value.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
+    pcollection: The pcollection id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
+  labels = create_labels(ptransform=ptransform, pcollection=pcollection)
   if isinstance(metric, int):
     metric = coders.VarIntCoder().encode(metric)
   return create_monitoring_info(urn, SUM_INT64_TYPE, metric, labels)
 
 
-def int64_user_distribution(namespace, name, metric, ptransform=None, tag=None):
+def int64_user_distribution(namespace, name, metric, ptransform=None):
   """Return the distribution monitoring info for the URN, metric and labels.
 
   Args:
     urn: The URN of the monitoring info/metric.
     metric: The DistributionData for the metric.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(
-      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
   payload = _encode_distribution(
       coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
   return create_monitoring_info(
       USER_DISTRIBUTION_URN, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_distribution(urn, metric, ptransform=None, tag=None):
+def int64_distribution(urn, metric, ptransform=None, pcollection=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return a distribution monitoring info for the URN, metric and labels.
@@ -193,16 +190,16 @@ def int64_distribution(urn, metric, ptransform=None, tag=None):
   Args:
     urn: The URN of the monitoring info/metric.
     metric: The DistributionData for the metric.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
+    pcollection: The pcollection id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
+  labels = create_labels(ptransform=ptransform, pcollection=pcollection)
   payload = _encode_distribution(
       coders.VarIntCoder(), metric.count, metric.sum, metric.min, metric.max)
   return create_monitoring_info(urn, DISTRIBUTION_INT64_TYPE, payload, labels)
 
 
-def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
+def int64_user_gauge(namespace, name, metric, ptransform=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the gauge monitoring info for the URN, metric and labels.
@@ -211,11 +208,9 @@ def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
     namespace: User-defined namespace of counter.
     name: Name of counter.
     metric: The GaugeData containing the metrics.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(
-      ptransform=ptransform, tag=tag, namespace=namespace, name=name)
+  labels = create_labels(ptransform=ptransform, namespace=namespace, name=name)
   if isinstance(metric, GaugeData):
     coder = coders.VarIntCoder()
     value = metric.value
@@ -229,7 +224,7 @@ def int64_user_gauge(namespace, name, metric, ptransform=None, tag=None):
       USER_GAUGE_URN, LATEST_INT64_TYPE, payload, labels)
 
 
-def int64_gauge(urn, metric, ptransform=None, tag=None):
+def int64_gauge(urn, metric, ptransform=None):
   # type: (...) -> metrics_pb2.MonitoringInfo
 
   """Return the gauge monitoring info for the URN, metric and labels.
@@ -238,10 +233,9 @@ def int64_gauge(urn, metric, ptransform=None, tag=None):
     urn: The URN of the monitoring info/metric.
     metric: An int representing the value. The current time will be used for
             the timestamp.
-    ptransform: The ptransform/step name used as a label.
-    tag: The output tag name, used as a label.
+    ptransform: The ptransform id used as a label.
   """
-  labels = create_labels(ptransform=ptransform, tag=tag)
+  labels = create_labels(ptransform=ptransform)
   if isinstance(metric, int):
     value = metric
     time_ms = int(time.time()) * 1000

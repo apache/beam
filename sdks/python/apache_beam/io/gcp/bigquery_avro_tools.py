@@ -29,6 +29,7 @@ from __future__ import division
 BIG_QUERY_TO_AVRO_TYPES = {
     "RECORD": "record",
     "STRING": "string",
+    "BOOL": "boolean",
     "BOOLEAN": "boolean",
     "BYTES": "bytes",
     "FLOAT": "double",
@@ -86,7 +87,7 @@ def get_record_schema_from_dict_table_schema(
 
 
 def table_field_to_avro_field(table_field, namespace):
-  # type: (Dict[Text, Any]) -> Dict[Text, Any]
+  # type: (Dict[Text, Any], str) -> Dict[Text, Any]
 
   """Convert a BigQuery field to an avro field.
 

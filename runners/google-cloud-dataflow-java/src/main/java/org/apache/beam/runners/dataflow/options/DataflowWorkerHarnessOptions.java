@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
-import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
 
@@ -41,15 +40,4 @@ public interface DataflowWorkerHarnessOptions extends DataflowPipelineOptions {
   String getJobId();
 
   void setJobId(String value);
-
-  /**
-   * The size of the worker's in-memory cache, in megabytes.
-   *
-   * <p>Currently, this cache is used for storing read values of side inputs.
-   */
-  @Description("The size of the worker's in-memory cache, in megabytes.")
-  @Default.Integer(100)
-  Integer getWorkerCacheMb();
-
-  void setWorkerCacheMb(Integer value);
 }

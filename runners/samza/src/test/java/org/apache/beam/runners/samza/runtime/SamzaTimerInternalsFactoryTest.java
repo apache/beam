@@ -144,11 +144,13 @@ public class SamzaTimerInternalsFactoryTest {
     final StateNamespace nameSpace = StateNamespaces.global();
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
     final TimerInternals.TimerData timer1 =
-        TimerInternals.TimerData.of("timer1", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
-        TimerInternals.TimerData.of("timer2", nameSpace, new Instant(100), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer2);
 
     timerInternalsFactory.setInputWatermark(new Instant(5));
@@ -181,11 +183,13 @@ public class SamzaTimerInternalsFactoryTest {
     final StateNamespace nameSpace = StateNamespaces.global();
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey(key);
     final TimerInternals.TimerData timer1 =
-        TimerInternals.TimerData.of("timer1", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
-        TimerInternals.TimerData.of("timer2", nameSpace, new Instant(100), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer2);
 
     store.close();
@@ -226,12 +230,12 @@ public class SamzaTimerInternalsFactoryTest {
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
     final TimerInternals.TimerData timer1 =
         TimerInternals.TimerData.of(
-            "timer1", nameSpace, new Instant(10), TimeDomain.PROCESSING_TIME);
+            "timer1", nameSpace, new Instant(10), new Instant(10), TimeDomain.PROCESSING_TIME);
     timerInternals.setTimer(timer1);
 
     final TimerInternals.TimerData timer2 =
         TimerInternals.TimerData.of(
-            "timer2", nameSpace, new Instant(100), TimeDomain.PROCESSING_TIME);
+            "timer2", nameSpace, new Instant(100), new Instant(100), TimeDomain.PROCESSING_TIME);
     timerInternals.setTimer(timer2);
 
     assertEquals(2, timerRegistry.timers.size());
@@ -267,16 +271,19 @@ public class SamzaTimerInternalsFactoryTest {
     final StateNamespace nameSpace = StateNamespaces.global();
     final TimerInternals timerInternals = timerInternalsFactory.timerInternalsForKey("testKey");
     final TimerInternals.TimerData timer1 =
-        TimerInternals.TimerData.of("timerId", nameSpace, new Instant(10), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timerId", nameSpace, new Instant(10), new Instant(10), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer1);
 
     // this timer should override the first timer
     final TimerInternals.TimerData timer2 =
-        TimerInternals.TimerData.of("timerId", nameSpace, new Instant(100), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timerId", nameSpace, new Instant(100), new Instant(100), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer2);
 
     final TimerInternals.TimerData timer3 =
-        TimerInternals.TimerData.of("timerId2", nameSpace, new Instant(200), TimeDomain.EVENT_TIME);
+        TimerInternals.TimerData.of(
+            "timerId2", nameSpace, new Instant(200), new Instant(200), TimeDomain.EVENT_TIME);
     timerInternals.setTimer(timer3);
 
     // this timer shouldn't override since it has a different id

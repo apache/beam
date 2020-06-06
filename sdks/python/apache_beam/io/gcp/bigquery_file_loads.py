@@ -88,10 +88,12 @@ def file_prefix_generator(
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
       raise ValueError(
           'Invalid GCS location: %r.\n'
-          'Writing to BigQuery with FILE_LOADS method requires a '
-          'GCS location to be provided to write files to be loaded'
-          ' loaded into BigQuery. Please provide a GCS bucket, or '
-          'pass method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
+          'Writing to BigQuery with FILE_LOADS method requires a'
+          ' GCS location to be provided to write files to be loaded'
+          ' into BigQuery. Please provide a GCS bucket through'
+          ' custom_gcs_temp_location in the constructor of WriteToBigQuery'
+          ' or the fallback option --temp_location, or pass'
+          ' method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
 
     prefix_uuid = _bq_uuid()
     return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)
@@ -204,7 +206,7 @@ class WriteRecordsToFile(beam.DoFn):
     self.schema = schema
     self.max_files_per_bundle = max_files_per_bundle
     self.max_file_size = max_file_size
-    self.file_format = file_format or bigquery_tools.FileFormat.AVRO
+    self.file_format = file_format or bigquery_tools.FileFormat.JSON
 
   def display_data(self):
     return {
@@ -276,7 +278,7 @@ class WriteGroupedRecordsToFile(beam.DoFn):
       self, schema, max_file_size=_DEFAULT_MAX_FILE_SIZE, file_format=None):
     self.schema = schema
     self.max_file_size = max_file_size
-    self.file_format = file_format or bigquery_tools.FileFormat.AVRO
+    self.file_format = file_format or bigquery_tools.FileFormat.JSON
 
   def process(self, element, file_prefix, *schema_side_inputs):
     destination = element[0]
@@ -645,7 +647,7 @@ class BigQueryBatchFileLoads(beam.PTransform):
 
     self.test_client = test_client
     self.schema = schema
-    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.AVRO
+    self._temp_file_format = temp_file_format or bigquery_tools.FileFormat.JSON
 
     # If we have multiple destinations, then we will have multiple load jobs,
     # thus we will need temporary tables for atomicity.

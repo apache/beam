@@ -23,6 +23,8 @@
 class CommonJobProperties {
 
   static String checkoutDir = 'src'
+  final static String JAVA_8_HOME = '/usr/lib/jvm/java-8-openjdk-amd64'
+  final static String JAVA_11_HOME = '/usr/lib/jvm/java-11-openjdk-amd64'
 
   // Sets common top-level job properties for main repository jobs.
   static void setTopLevelMainJobProperties(def context,
@@ -163,6 +165,9 @@ class CommonJobProperties {
     // For [BEAM-4847], hardcode Xms and Xmx to reasonable values (2g/4g).
     context.switches("-Dorg.gradle.jvmargs=-Xms2g")
     context.switches("-Dorg.gradle.jvmargs=-Xmx4g")
+
+    // Include dependency licenses when build docker images on Jenkins, see https://s.apache.org/zt68q
+    context.switches("-Pdocker-pull-licenses")
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -237,49 +242,6 @@ class CommonJobProperties {
     return argList.join(' ')
   }
 
-  // Configures the argument list for performance tests, adding the standard
-  // performance test job arguments.
-  private static def genPerformanceArgs(def argMap) {
-    LinkedHashMap<String, String> standardArgs = [
-      project: 'apache-beam-testing',
-      dpb_log_level: 'INFO',
-      bigquery_table: 'beam_performance.pkb_results',
-      // wait up to 6 minutes for K8s LoadBalancer
-      k8s_get_retry_count: 36,
-      k8s_get_wait_interval: 10,
-      temp_dir: '$WORKSPACE',
-      // Use source cloned by Jenkins and not clone it second time (redundantly).
-      beam_location: '$WORKSPACE/src',
-      // Publishes results with official tag, for use in dashboards.
-      official: 'true',
-      // dpb_service_zone is required in Perfkit BaseDpbService which Beam Perfkit benchmarks
-      // depends on. However, it doesn't get used in Beam. Passing a fake value from here is to
-      // avoid breakage.
-      // TODO(BEAM-7347): Remove this flag after dpb_service_zone is not required.
-      dpb_service_zone: 'fake_zone',
-    ]
-    // Note: in case of key collision, keys present in ArgMap win.
-    LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
-    return mapToArgString(joinedArgs)
-  }
-
-  static def setupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell('gcloud container clusters get-credentials io-datastores --zone=us-central1-a --verbosity=debug')
-      shell("cp /home/jenkins/.kube/config ${kubeconfigLocation}")
-
-      shell("kubectl --kubeconfig=${kubeconfigLocation} create namespace ${namespace}")
-      shell("kubectl --kubeconfig=${kubeconfigLocation} config set-context \$(kubectl config current-context) --namespace=${namespace}")
-    }
-  }
-
-  static def cleanupKubernetes(def context, def namespace, def kubeconfigLocation) {
-    context.steps {
-      shell("kubectl --kubeconfig=${kubeconfigLocation} delete namespace ${namespace}")
-      shell("rm ${kubeconfigLocation}")
-    }
-  }
-
   // Namespace must contain lower case alphanumeric characters or '-'
   static String getKubernetesNamespace(def jobName) {
     jobName = jobName.replaceAll("_", "-").toLowerCase()
@@ -287,38 +249,7 @@ class CommonJobProperties {
   }
 
   static String getKubeconfigLocationForNamespace(def namespace) {
-    return '"$WORKSPACE/' + "config-${namespace}" + '"'
-  }
-
-  // Adds the standard performance test job steps.
-  static def buildPerformanceTest(def context, def argMap) {
-    def pkbArgs = genPerformanceArgs(argMap)
-
-    // Absolute path of project root and virtualenv path of Perfkit.
-    def perfkit_root = makePathAbsolute("PerfKitBenchmarker")
-    def perfkit_env = makePathAbsolute("env/.perfkit_env")
-
-    context.steps {
-        // Clean up environment.
-        shell("rm -rf ${perfkit_root}")
-        shell("rm -rf ${perfkit_env}")
-
-        // create new VirtualEnv for Perfkit framework. Explicitly pin to python2.7
-        // here otherwise python3 is used by default.
-        shell("virtualenv ${perfkit_env} --python=python2.7")
-
-        // update setuptools and pip
-        shell("${perfkit_env}/bin/pip install --upgrade setuptools pip")
-
-        // Clone appropriate perfkit branch
-        shell("git clone --single-branch --branch=v1.14.0 https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git ${perfkit_root}")
-
-        // Install Perfkit benchmark requirements.
-        shell("${perfkit_env}/bin/pip install -r ${perfkit_root}/requirements.txt")
-
-        // Launch performance test.
-        shell("${perfkit_env}/bin/python ${perfkit_root}/pkb.py ${pkbArgs}")
-    }
+    return '$WORKSPACE/' + "config-${namespace}"
   }
 
   /**

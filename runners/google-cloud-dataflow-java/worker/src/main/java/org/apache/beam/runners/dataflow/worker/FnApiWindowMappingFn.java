@@ -35,6 +35,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.fnexecution.control.InstructionRequestHandler;
@@ -136,11 +137,15 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       outboundCoder =
           (Coder)
               CoderTranslation.fromProto(
-                  components.getCodersOrThrow(mainInputWindowCoderId), rehydratedComponents);
+                  components.getCodersOrThrow(mainInputWindowCoderId),
+                  rehydratedComponents,
+                  TranslationContext.DEFAULT);
       inboundCoder =
           (Coder)
               CoderTranslation.fromProto(
-                  components.getCodersOrThrow(sideInputWindowCoderId), rehydratedComponents);
+                  components.getCodersOrThrow(sideInputWindowCoderId),
+                  rehydratedComponents,
+                  TranslationContext.DEFAULT);
     } catch (IOException e) {
       throw new IllegalStateException(
           "Unable to create side input window mapping process bundle specification.", e);
@@ -235,7 +240,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       // Open the inbound consumer
       InboundDataClient waitForInboundTermination =
           beamFnDataService.receive(
-              LogicalEndpoint.of(processRequestInstructionId, "write"),
+              LogicalEndpoint.data(processRequestInstructionId, "write"),
               inboundCoder,
               outputValue::add);
 
@@ -245,7 +250,7 @@ class FnApiWindowMappingFn<TargetWindowT extends BoundedWindow>
       // Open the outbound consumer
       try (CloseableFnDataReceiver<WindowedValue<KV<byte[], BoundedWindow>>> outboundConsumer =
           beamFnDataService.send(
-              LogicalEndpoint.of(processRequestInstructionId, "read"), outboundCoder)) {
+              LogicalEndpoint.data(processRequestInstructionId, "read"), outboundCoder)) {
 
         outboundConsumer.accept(WindowedValue.valueInGlobalWindow(KV.of(EMPTY_ARRAY, mainWindow)));
       }

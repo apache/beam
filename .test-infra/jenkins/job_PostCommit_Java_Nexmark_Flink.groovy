@@ -35,15 +35,15 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
 
   // Gradle goals for this job.
   steps {
-    shell('echo *** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN BATCH MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=false',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -51,15 +51,15 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--monitorJobs=true"'
               ].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN STREAMING MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--streaming=true',
               '--suite=SMOKE',
               '--streamTimeout=60' ,
@@ -67,15 +67,15 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--monitorJobs=true"'
               ].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN SQL BATCH MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=false',
               '--suite=SMOKE',
@@ -83,15 +83,15 @@ NoPhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_
               '--manageResources=false"'
               ].join(' '))
     }
-    shell('echo *** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***')
+    shell('echo "*** RUN NEXMARK IN SQL STREAMING MODE USING FLINK RUNNER ***"')
     gradle {
       rootBuildScriptDir(commonJobProperties.checkoutDir)
       tasks(':sdks:java:testing:nexmark:run')
       commonJobProperties.setGradleSwitches(delegate)
-      switches('-Pnexmark.args="' +
+      switches('-Pnexmark.runner=":runners:flink:1.10"' +
+              ' -Pnexmark.args="' +
               [NexmarkBigqueryProperties.nexmarkBigQueryArgs,
               '--runner=FlinkRunner',
-              '--shutdownSourcesOnFinalWatermark=true',
               '--queryLanguage=sql',
               '--streaming=true',
               '--suite=SMOKE',
@@ -113,7 +113,6 @@ PhraseTriggeringPostCommitBuilder.postCommitJob('beam_PostCommit_Java_Nexmark_Fl
   def final JOB_SPECIFIC_OPTIONS = [
           'suite' : 'SMOKE',
           'streamTimeout' : 60,
-          'shutdownSourcesOnFinalWatermark' : true,
   ]
 
   Nexmark.standardJob(delegate, Runner.FLINK, SDK.JAVA, JOB_SPECIFIC_OPTIONS, TriggeringContext.PR)

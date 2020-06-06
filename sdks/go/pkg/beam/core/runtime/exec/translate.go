@@ -25,25 +25,28 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/stringx"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pipepb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 )
 
 // TODO(lostluck): 2018/05/28 Extract these from the canonical enums in beam_runner_api.proto
 const (
-	urnDataSource           = "beam:runner:source:v1"
-	urnDataSink             = "beam:runner:sink:v1"
-	urnPerKeyCombinePre     = "beam:transform:combine_per_key_precombine:v1"
-	urnPerKeyCombineMerge   = "beam:transform:combine_per_key_merge_accumulators:v1"
-	urnPerKeyCombineExtract = "beam:transform:combine_per_key_extract_outputs:v1"
-	urnPerKeyCombineConvert = "beam:transform:combine_per_key_convert_to_accumulators:v1"
+	urnDataSource                          = "beam:runner:source:v1"
+	urnDataSink                            = "beam:runner:sink:v1"
+	urnPerKeyCombinePre                    = "beam:transform:combine_per_key_precombine:v1"
+	urnPerKeyCombineMerge                  = "beam:transform:combine_per_key_merge_accumulators:v1"
+	urnPerKeyCombineExtract                = "beam:transform:combine_per_key_extract_outputs:v1"
+	urnPerKeyCombineConvert                = "beam:transform:combine_per_key_convert_to_accumulators:v1"
+	urnPairWithRestriction                 = "beam:transform:sdf_pair_with_restriction:v1"
+	urnSplitAndSizeRestrictions            = "beam:transform:sdf_split_and_size_restrictions:v1"
+	urnProcessSizedElementsAndRestrictions = "beam:transform:sdf_process_sized_element_and_restrictions:v1"
 )
 
 // UnmarshalPlan converts a model bundle descriptor into an execution Plan.
@@ -173,13 +176,13 @@ func (b *builder) makeWindowingStrategy(id string) (*window.WindowingStrategy, e
 	return w, nil
 }
 
-func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
+func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 	switch urn := wfn.GetUrn(); urn {
 	case graphx.URNGlobalWindowsWindowFn:
 		return window.NewGlobalWindows(), nil
 
 	case graphx.URNFixedWindowsWindowFn:
-		var payload pb.FixedWindowsPayload
+		var payload pipepb.FixedWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -190,7 +193,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewFixedWindows(size), nil
 
 	case graphx.URNSlidingWindowsWindowFn:
-		var payload pb.SlidingWindowsPayload
+		var payload pipepb.SlidingWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -205,7 +208,7 @@ func unmarshalWindowFn(wfn *pb.FunctionSpec) (*window.Fn, error) {
 		return window.NewSlidingWindows(period, size), nil
 
 	case graphx.URNSessionsWindowFn:
-		var payload pb.SessionWindowsPayload
+		var payload pipepb.SessionWindowsPayload
 		if err := proto.Unmarshal(wfn.GetPayload(), &payload); err != nil {
 			return nil, err
 		}
@@ -333,17 +336,27 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 	var u Node
 	switch urn {
-	case graphx.URNParDo, graphx.URNJavaDoFn, urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
+	case graphx.URNParDo,
+		urnPerKeyCombinePre,
+		urnPerKeyCombineMerge,
+		urnPerKeyCombineExtract,
+		urnPerKeyCombineConvert,
+		urnPairWithRestriction,
+		urnSplitAndSizeRestrictions,
+		urnProcessSizedElementsAndRestrictions:
 		var data string
 		switch urn {
-		case graphx.URNParDo:
-			var pardo pb.ParDoPayload
+		case graphx.URNParDo,
+			urnPairWithRestriction,
+			urnSplitAndSizeRestrictions,
+			urnProcessSizedElementsAndRestrictions:
+			var pardo pipepb.ParDoPayload
 			if err := proto.Unmarshal(payload, &pardo); err != nil {
 				return nil, errors.Wrapf(err, "invalid ParDo payload for %v", transform)
 			}
 			data = string(pardo.GetDoFn().GetPayload())
 		case urnPerKeyCombinePre, urnPerKeyCombineMerge, urnPerKeyCombineExtract, urnPerKeyCombineConvert:
-			var cmb pb.CombinePayload
+			var cmb pipepb.CombinePayload
 			if err := proto.Unmarshal(payload, &cmb); err != nil {
 				return nil, errors.Wrapf(err, "invalid CombinePayload payload for %v", transform)
 			}
@@ -358,7 +371,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		// TODO(herohde) 1/28/2018: Once Dataflow's fully off the old way,
 		// we can simply switch on the ParDo DoFn URN directly.
 
-		var tp v1.TransformPayload
+		var tp v1pb.TransformPayload
 		if err := protox.DecodeBase64(data, &tp); err != nil {
 			return nil, errors.Wrapf(err, "invalid transform payload for %v", transform)
 		}
@@ -372,32 +385,44 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 
 			switch op {
 			case graph.ParDo:
-				n := &ParDo{UID: b.idgen.New(), Inbound: in, Out: out}
-				n.Fn, err = graph.AsDoFn(fn, graph.MainUnknown)
+				dofn, err := graph.AsDoFn(fn, graph.MainUnknown)
 				if err != nil {
 					return nil, err
 				}
-				n.PID = transform.GetUniqueName()
+				switch urn {
+				case urnPairWithRestriction:
+					u = &PairWithRestriction{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				case urnSplitAndSizeRestrictions:
+					u = &SplitAndSizeRestrictions{UID: b.idgen.New(), Fn: dofn, Out: out[0]}
+				default:
+					n := &ParDo{UID: b.idgen.New(), Fn: dofn, Inbound: in, Out: out}
+					n.PID = transform.GetUniqueName()
 
-				input := unmarshalKeyedValues(transform.GetInputs())
-				for i := 1; i < len(input); i++ {
-					// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
-					// For now, assume we don't need any information in the pardo payload.
+					input := unmarshalKeyedValues(transform.GetInputs())
+					for i := 1; i < len(input); i++ {
+						// TODO(herohde) 8/8/2018: handle different windows, view_fn and window_mapping_fn.
+						// For now, assume we don't need any information in the pardo payload.
 
-					ec, wc, err := b.makeCoderForPCollection(input[i])
-					if err != nil {
-						return nil, err
+						ec, wc, err := b.makeCoderForPCollection(input[i])
+						if err != nil {
+							return nil, err
+						}
+
+						sid := StreamID{
+							Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
+							PtransformID: id.to,
+						}
+						sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
+						side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
+						n.Side = append(n.Side, side)
 					}
-
-					sid := StreamID{
-						Port:         Port{URL: b.desc.GetStateApiServiceDescriptor().GetUrl()},
-						PtransformID: id.to,
+					u = n
+					if urn == urnProcessSizedElementsAndRestrictions {
+						u = &ProcessSizedElementsAndRestrictions{PDo: n}
+					} else if dofn.IsSplittable() {
+						u = &SdfFallback{PDo: n}
 					}
-					sideInputID := fmt.Sprintf("i%v", i) // SideInputID (= local id, "iN")
-					side := NewSideInputAdapter(sid, sideInputID, coder.NewW(ec, wc))
-					n.Side = append(n.Side, side)
 				}
-				u = n
 
 			case graph.Combine:
 				cn := &Combine{UID: b.idgen.New(), Out: out[0]}
@@ -493,7 +518,7 @@ func (b *builder) makeLink(from string, id linkID) (Node, error) {
 		}
 
 	case graphx.URNWindow:
-		var wp pb.WindowIntoPayload
+		var wp pipepb.WindowIntoPayload
 		if err := proto.Unmarshal(payload, &wp); err != nil {
 			return nil, errors.Wrapf(err, "invalid WindowInto payload for %v", transform)
 		}

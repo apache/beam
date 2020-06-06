@@ -114,6 +114,7 @@ class MobileGamingCommands {
     if(runner == "DataflowRunner"){
       return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
+        region: testScripts.gcpRegion(),
         output: "gs://${testScripts.gcsBucket()}/${getUserScoreOutputName(runner)}"]
     }
     return [input: INPUT_GAMING_DATA,
@@ -124,6 +125,7 @@ class MobileGamingCommands {
     if(runner == "DataflowRunner"){
       return [input: INPUT_GAMING_DATA,
         project: testScripts.gcpProject(),
+        region: testScripts.gcpRegion(),
         output: "gs://${testScripts.gcsBucket()}/${getHourlyTeamScoreOutputName(runner)}"]
     }
     return [input: INPUT_GAMING_DATA,
@@ -131,26 +133,34 @@ class MobileGamingCommands {
   }
 
   private Map getLeaderBoardArgs(String runner, String jobName){
-    return [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       leaderBoardTableName: "leaderboard_${runner}",
       teamWindowDuration: 5,
       jobName: jobName]
+    if (runner == "DataflowRunner") {
+      args["region"] = testScripts.gcpRegion()
+    }
+    return args
   }
 
   private Map getLeaderBoardWithStreamingEngineArgs(String runner, String jobName){
-    return [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
             dataset: testScripts.bqDataset(),
             topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
             leaderBoardTableName: "leaderboard_${runner}",
             teamWindowDuration: 5,
             jobName: jobName,
             experiments: "enable_streaming_engine"]
+    if (runner == "DataflowRunner") {
+      args["region"] = testScripts.gcpRegion()
+    }
+    return args
   }
 
   private Map getGameStatsArgs(String runner, String jobName){
-    return [project: testScripts.gcpProject(),
+    def args = [project: testScripts.gcpProject(),
       dataset: testScripts.bqDataset(),
       topic: "projects/${testScripts.gcpProject()}/topics/${testScripts.pubsubTopic()}",
       fixedWindowDuration: 5,
@@ -158,5 +168,9 @@ class MobileGamingCommands {
       sessionGap: 1,
       gameStatsTablePrefix: "gamestats_${runner}",
       jobName: jobName]
+    if (runner == "DataflowRunner") {
+      args["region"] = testScripts.gcpRegion()
+    }
+    return args
   }
 }

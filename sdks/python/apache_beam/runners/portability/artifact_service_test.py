@@ -36,6 +36,7 @@ import time
 import unittest
 
 import grpc
+from future.moves.urllib.parse import quote
 
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_artifact_api_pb2
@@ -43,7 +44,7 @@ from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.portability import artifact_service
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 
 class AbstractArtifactServiceTest(unittest.TestCase):
@@ -82,7 +83,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
     self._run_staging(self._service, self._service)
 
   def test_with_grpc(self):
-    server = grpc.server(UnboundedThreadPoolExecutor())
+    server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     try:
       beam_artifact_api_pb2_grpc.add_LegacyArtifactStagingServiceServicer_to_server(
           self._service, server)
@@ -224,7 +225,7 @@ class AbstractArtifactServiceTest(unittest.TestCase):
               self._service, tokens[session(index)], name(index)))
 
     # pylint: disable=range-builtin-not-iterating
-    pool = UnboundedThreadPoolExecutor()
+    pool = thread_pool_executor.shared_unbounded_instance()
     sessions = set(pool.map(put, range(100)))
     tokens = dict(pool.map(commit, sessions))
     # List forces materialization.
@@ -291,9 +292,9 @@ class ArtifactServiceTest(unittest.TestCase):
         file_manager.file_reader, chunk_size=10)
     dep_a = self.file_artifact('path/to/a')
     self.assertEqual(
-        retrieval_service.ResolveArtifact(
-            beam_artifact_api_pb2.ResolveArtifactRequest(artifacts=[dep_a])),
-        beam_artifact_api_pb2.ResolveArtifactResponse(replacements=[dep_a]))
+        retrieval_service.ResolveArtifacts(
+            beam_artifact_api_pb2.ResolveArtifactsRequest(artifacts=[dep_a])),
+        beam_artifact_api_pb2.ResolveArtifactsResponse(replacements=[dep_a]))
 
     self.assertEqual(
         list(
@@ -327,7 +328,7 @@ class ArtifactServiceTest(unittest.TestCase):
     url_dep = beam_runner_api_pb2.ArtifactInformation(
         type_urn=common_urns.artifact_types.URL.urn,
         type_payload=beam_runner_api_pb2.ArtifactUrlPayload(
-            path='file://' + __file__).SerializeToString())
+            url='file:' + quote(__file__)).SerializeToString())
     content = b''.join([
         r.data for r in retrieval_service.GetArtifact(
             beam_artifact_api_pb2.GetArtifactRequest(artifact=url_dep))
@@ -342,14 +343,14 @@ class ArtifactServiceTest(unittest.TestCase):
     dep_big = self.embedded_artifact(data=b'big ' * 100, name='big.txt')
 
     class TestArtifacts(object):
-      def ResolveArtifact(self, request):
+      def ResolveArtifacts(self, request):
         replacements = []
         for artifact in request.artifacts:
           if artifact.type_urn == 'unresolved':
             replacements += [resolved_a, resolved_b]
           else:
             replacements.append(artifact)
-        return beam_artifact_api_pb2.ResolveArtifactResponse(
+        return beam_artifact_api_pb2.ResolveArtifactsResponse(
             replacements=replacements)
 
       def GetArtifact(self, request):
@@ -366,7 +367,7 @@ class ArtifactServiceTest(unittest.TestCase):
     file_manager = InMemoryFileManager()
     server = artifact_service.ArtifactStagingService(file_manager.file_writer)
 
-    server.register_job('staging_token', [unresolved, dep_big])
+    server.register_job('staging_token', {'env': [unresolved, dep_big]})
 
     # "Push" artifacts as if from a client.
     t = threading.Thread(
@@ -375,7 +376,7 @@ class ArtifactServiceTest(unittest.TestCase):
     t.daemon = True
     t.start()
 
-    resolved_deps = server.resolved_deps('staging_token', timeout=5)
+    resolved_deps = server.resolved_deps('staging_token', timeout=5)['env']
     expected = {
         'a.txt': b'a',
         'b.txt': b'bb',

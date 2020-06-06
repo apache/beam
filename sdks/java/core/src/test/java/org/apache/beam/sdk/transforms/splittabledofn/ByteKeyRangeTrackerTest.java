@@ -17,17 +17,16 @@
  */
 package org.apache.beam.sdk.transforms.splittabledofn;
 
+import static org.apache.beam.sdk.io.range.ByteKeyRangeTest.assertEqualExceptPadding;
 import static org.apache.beam.sdk.transforms.splittabledofn.ByteKeyRangeTracker.next;
-import static org.hamcrest.Matchers.allOf;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.sdk.io.range.ByteKey;
 import org.apache.beam.sdk.io.range.ByteKeyRange;
+import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.Progress;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -40,6 +39,21 @@ public class ByteKeyRangeTrackerTest {
   @Rule public final ExpectedException expected = ExpectedException.none();
 
   @Test
+  public void testTryClaimNoKeys() throws Exception {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRangeTracker.NO_KEYS);
+    assertFalse(tracker.tryClaim(ByteKey.of(0x00)));
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testTryClaimEmptyRange() throws Exception {
+    ByteKeyRangeTracker tracker =
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10)));
+    assertFalse(tracker.tryClaim(ByteKey.of(0x10)));
+    tracker.checkDone();
+  }
+
+  @Test
   public void testTryClaim() throws Exception {
     ByteKeyRange range = ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0));
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(range);
@@ -50,6 +64,7 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x99)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xc0)));
+    tracker.checkDone();
   }
 
   @Test
@@ -61,7 +76,8 @@ public class ByteKeyRangeTrackerTest {
     // We expect to get the original range back and that the current restriction
     // is effectively made empty.
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), checkpoint);
-    assertEquals(ByteKeyRangeTracker.NO_KEYS, tracker.currentRestriction());
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10)), tracker.currentRestriction());
+    tracker.checkDone();
   }
 
   @Test
@@ -73,6 +89,23 @@ public class ByteKeyRangeTrackerTest {
     // is effectively made empty.
     assertEquals(ByteKeyRange.ALL_KEYS, checkpoint);
     assertEquals(ByteKeyRangeTracker.NO_KEYS, tracker.currentRestriction());
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testCheckpointUnstartedForNoKeysRange() throws Exception {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRangeTracker.NO_KEYS);
+    assertNull(tracker.trySplit(0));
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testCheckpointUnstartedForEmptyRange() throws Exception {
+    ByteKeyRangeTracker tracker =
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10)));
+    assertNull(tracker.trySplit(0));
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10)), tracker.currentRestriction());
+    tracker.checkDone();
   }
 
   @Test
@@ -80,9 +113,9 @@ public class ByteKeyRangeTrackerTest {
     ByteKeyRangeTracker tracker =
         ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
-    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
+    assertNull(tracker.trySplit(0));
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
-    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -94,6 +127,7 @@ public class ByteKeyRangeTrackerTest {
     assertEquals(
         ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10, 0x00)), tracker.currentRestriction());
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10, 0x00), ByteKey.of(0xc0)), checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -106,6 +140,7 @@ public class ByteKeyRangeTrackerTest {
     assertEquals(
         ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x90, 0x00)), tracker.currentRestriction());
     assertEquals(ByteKeyRange.of(ByteKey.of(0x90, 0x00), ByteKey.of(0xc0)), checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -115,9 +150,8 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xc0)));
-    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
-    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
-    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+    assertNull(tracker.trySplit(0));
+    tracker.checkDone();
   }
 
   @Test
@@ -126,9 +160,9 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x50)));
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertFalse(tracker.tryClaim(ByteKey.EMPTY));
-    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
+    assertNull(tracker.trySplit(0));
     assertEquals(ByteKeyRange.ALL_KEYS, tracker.currentRestriction());
-    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -139,9 +173,9 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
     assertFalse(tracker.tryClaim(ByteKey.of(0xd0)));
-    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
+    assertNull(tracker.trySplit(0));
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
-    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+    tracker.checkDone();
   }
 
   @Test
@@ -152,9 +186,43 @@ public class ByteKeyRangeTrackerTest {
     assertTrue(tracker.tryClaim(ByteKey.of(0x90)));
     assertTrue(tracker.tryClaim(ByteKey.of(0xa0)));
     assertFalse(tracker.tryClaim(ByteKey.EMPTY));
-    ByteKeyRange checkpoint = tracker.trySplit(0).getResidual();
+    assertNull(tracker.trySplit(0));
     assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)), tracker.currentRestriction());
-    assertEquals(ByteKeyRangeTracker.NO_KEYS, checkpoint);
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testTrySplit() throws Exception {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
+    SplitResult<ByteKeyRange> res = tracker.trySplit(0.5);
+    assertKeyRangeEqualExceptPadding(
+        ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x80)), res.getPrimary());
+    assertKeyRangeEqualExceptPadding(
+        ByteKeyRange.of(ByteKey.of(0x80), ByteKey.EMPTY), res.getResidual());
+    tracker.tryClaim(ByteKey.of(0x00));
+    res = tracker.trySplit(0.5);
+    assertKeyRangeEqualExceptPadding(
+        ByteKeyRange.of(ByteKey.EMPTY, ByteKey.of(0x40)), res.getPrimary());
+    assertKeyRangeEqualExceptPadding(
+        ByteKeyRange.of(ByteKey.of(0x40), ByteKey.of(0x80)), res.getResidual());
+    assertNull(tracker.trySplit(1));
+  }
+
+  @Test
+  public void testTrySplitAtNoKeysRange() throws Exception {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRangeTracker.NO_KEYS);
+    assertNull(tracker.trySplit(0));
+    assertNull(tracker.trySplit(1));
+    tracker.checkDone();
+  }
+
+  @Test
+  public void testTrySplitAtEmptyRange() throws Exception {
+    ByteKeyRangeTracker tracker =
+        ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10)));
+    assertNull(tracker.trySplit(0.5));
+    assertEquals(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0x10)), tracker.currentRestriction());
+    tracker.checkDone();
   }
 
   @Test
@@ -260,31 +328,49 @@ public class ByteKeyRangeTrackerTest {
   @Test
   public void testBacklogUnstarted() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
-    assertEquals(1., tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(1, progress.getWorkRemaining(), 0.001);
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
-    assertEquals(1., tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(0, progress.getWorkCompleted(), 0.001);
+    assertEquals(1, progress.getWorkRemaining(), 0.001);
   }
 
   @Test
   public void testBacklogFinished() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
     tracker.tryClaim(ByteKey.EMPTY);
-    assertEquals(0., tracker.getSize(), 0.001);
+    Progress progress = tracker.getProgress();
+    assertEquals(1, progress.getWorkCompleted(), 0.001);
+    assertEquals(0, progress.getWorkRemaining(), 0.001);
 
     tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0xd0));
-    assertEquals(0., tracker.getSize(), 0.001);
+    progress = tracker.getProgress();
+    assertEquals(1, progress.getWorkCompleted(), 0.001);
+    assertEquals(0, progress.getWorkRemaining(), 0.001);
   }
 
   @Test
   public void testBacklogPartiallyCompleted() {
     ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(ByteKeyRange.ALL_KEYS);
     tracker.tryClaim(ByteKey.of(0xa0));
-    assertThat(tracker.getSize(), allOf(greaterThan(0.), lessThan(1.)));
+    Progress progress = tracker.getProgress();
+    assertEquals(0.625, progress.getWorkCompleted(), 0.001);
+    assertEquals(0.375, progress.getWorkRemaining(), 0.001);
 
-    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x10), ByteKey.of(0xc0)));
+    tracker = ByteKeyRangeTracker.of(ByteKeyRange.of(ByteKey.of(0x40), ByteKey.of(0xc0)));
     tracker.tryClaim(ByteKey.of(0xa0));
-    assertThat(tracker.getSize(), allOf(greaterThan(0.), lessThan(1.)));
+    progress = tracker.getProgress();
+    assertEquals(0.75, progress.getWorkCompleted(), 0.001);
+    assertEquals(0.25, progress.getWorkRemaining(), 0.001);
+  }
+
+  /** Asserts the two ByteKeyRange are equal except trailing zeros. */
+  private static void assertKeyRangeEqualExceptPadding(ByteKeyRange expected, ByteKeyRange key) {
+    assertEqualExceptPadding(expected.getStartKey(), key.getStartKey());
+    assertEqualExceptPadding(expected.getEndKey(), key.getEndKey());
   }
 }

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import static org.apache.beam.runners.core.construction.resources.PipelineResources.detectClassPathResourcesToStage;
+
 import com.google.auto.service.AutoService;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -37,14 +39,17 @@ import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.BeamUrns;
 import org.apache.beam.runners.core.construction.CoderTranslation;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.runners.core.construction.Environments;
 import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.SdkComponents;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.transforms.ExternalTransformBuilder;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PCollection;
@@ -199,7 +204,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
 
       RehydratedComponents rehydratedComponents =
           RehydratedComponents.forComponents(componentsBuilder.build());
-      return CoderTranslation.fromProto(coder, rehydratedComponents);
+      return CoderTranslation.fromProto(coder, rehydratedComponents, TranslationContext.DEFAULT);
     }
 
     private static RunnerApi.Coder buildProto(
@@ -317,6 +322,14 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     Pipeline pipeline = Pipeline.create();
     ExperimentalOptions.addExperiment(
         pipeline.getOptions().as(ExperimentalOptions.class), "beam_fn_api");
+    List<String> classpathResources =
+        detectClassPathResourcesToStage(Environments.class.getClassLoader(), pipeline.getOptions());
+    if (classpathResources.isEmpty()) {
+      throw new IllegalArgumentException("No classpath elements found.");
+    }
+    LOG.debug("Staging to files from the classpath: {}", classpathResources.size());
+    pipeline.getOptions().as(PortablePipelineOptions.class).setFilesToStage(classpathResources);
+
     RehydratedComponents rehydratedComponents =
         RehydratedComponents.forComponents(request.getComponents()).withPipeline(pipeline);
 
@@ -348,7 +361,9 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     // Needed to find which transform was new...
     SdkComponents sdkComponents =
         rehydratedComponents.getSdkComponents(null).withNewIdPrefix(request.getNamespace());
-    sdkComponents.registerEnvironment(Environments.JAVA_SDK_HARNESS_ENVIRONMENT);
+    sdkComponents.registerEnvironment(
+        Environments.createOrGetDefaultEnvironment(
+            pipeline.getOptions().as(PortablePipelineOptions.class)));
     Map<String, String> outputMap =
         outputs.entrySet().stream()
             .collect(
@@ -413,7 +428,12 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
     for (Map.Entry<String, TransformProvider> entry : service.registeredTransforms.entrySet()) {
       System.out.println("\t" + entry.getKey() + ": " + entry.getValue());
     }
-    Server server = ServerBuilder.forPort(port).addService(service).build();
+
+    Server server =
+        ServerBuilder.forPort(port)
+            .addService(service)
+            .addService(new ArtifactRetrievalService())
+            .build();
     server.start();
     server.awaitTermination();
   }

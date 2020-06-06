@@ -75,6 +75,17 @@ PAR_DO_URNS = frozenset([
 
 IMPULSE_BUFFER = b'impulse'
 
+# SideInputId is identified by a consumer ParDo + tag.
+SideInputId = Tuple[str, str]
+SideInputAccessPattern = beam_runner_api_pb2.FunctionSpec
+
+DataOutput = Dict[str, bytes]
+
+# DataSideInput maps SideInputIds to a tuple of the encoded bytes of the side
+# input content, and a payload specification regarding the type of side input
+# (MultiMap / Iterable).
+DataSideInput = Dict[SideInputId, Tuple[bytes, SideInputAccessPattern]]
+
 
 class Stage(object):
   """A set of Transforms that can be sent to the worker for processing."""
@@ -91,7 +102,7 @@ class Stage(object):
     self.transforms = transforms
     self.downstream_side_inputs = downstream_side_inputs
     self.must_follow = must_follow
-    self.timer_pcollections = []  # type: List[Tuple[str, str]]
+    self.timers = set()  # type: Set[Tuple[str, str]]
     self.parent = parent
     if environment is None:
       environment = functools.reduce(
@@ -148,8 +159,7 @@ class Stage(object):
 
     return (
         not consumer.forced_root and not self in consumer.must_follow and
-        not self.is_runner_urn(context) and
-        not consumer.is_runner_urn(context) and
+        self.is_all_sdk_urns(context) and consumer.is_all_sdk_urns(context) and
         no_overlap(self.downstream_side_inputs, consumer.side_inputs()))
 
   def fuse(self, other):
@@ -169,6 +179,17 @@ class Stage(object):
     return any(
         transform.spec.urn in context.known_runner_urns
         for transform in self.transforms)
+
+  def is_all_sdk_urns(self, context):
+    def is_sdk_transform(transform):
+      # Execute multi-input flattens in the runner.
+      if transform.spec.urn == common_urns.primitives.FLATTEN.urn and len(
+          transform.inputs) > 1:
+        return False
+      else:
+        return transform.spec.urn not in context.runner_only_urns
+
+    return all(is_sdk_transform(transform) for transform in self.transforms)
 
   def side_inputs(self):
     # type: () -> Iterator[str]
@@ -328,6 +349,8 @@ class TransformContext(object):
               ):
     self.components = components
     self.known_runner_urns = known_runner_urns
+    self.runner_only_urns = known_runner_urns - frozenset(
+        [common_urns.primitives.FLATTEN.urn])
     self.use_state_iterables = use_state_iterables
     # ok to pass None for context because BytesCoder has no components
     coder_proto = coders.BytesCoder().to_runner_api(
@@ -358,11 +381,8 @@ class TransformContext(object):
             self.components.windowing_strategies[
                 pcoll.windowing_strategy_id].window_coder_id
         ])
-    channel_coder = self.add_or_get_coder_id(
-        proto, pcoll.coder_id + '_windowed')
-    if pcoll.coder_id in self.safe_coders:
-      channel_coder = self.length_prefixed_coder(channel_coder)
-    self.data_channel_coders[pcoll_id] = channel_coder
+    self.data_channel_coders[pcoll_id] = self.maybe_length_prefixed_coder(
+        self.add_or_get_coder_id(proto, pcoll.coder_id + '_windowed'))
 
   @memoize_on_instance
   def with_state_iterables(self, coder_id):
@@ -393,23 +413,24 @@ class TransformContext(object):
         return new_coder_id
 
   @memoize_on_instance
-  def length_prefixed_coder(self, coder_id):
+  def maybe_length_prefixed_coder(self, coder_id):
     # type: (str) -> str
     if coder_id in self.safe_coders:
       return coder_id
-    length_prefixed_id, safe_id = self.length_prefixed_and_safe_coder(coder_id)
-    self.safe_coders[length_prefixed_id] = safe_id
-    return length_prefixed_id
+    (maybe_length_prefixed_id,
+     safe_id) = self.maybe_length_prefixed_and_safe_coder(coder_id)
+    self.safe_coders[maybe_length_prefixed_id] = safe_id
+    return maybe_length_prefixed_id
 
   @memoize_on_instance
-  def length_prefixed_and_safe_coder(self, coder_id):
+  def maybe_length_prefixed_and_safe_coder(self, coder_id):
     # type: (str) -> Tuple[str, str]
     coder = self.components.coders[coder_id]
     if coder.spec.urn == common_urns.coders.LENGTH_PREFIX.urn:
       return coder_id, self.bytes_coder_id
     elif coder.spec.urn in self._KNOWN_CODER_URNS:
       new_component_ids = [
-          self.length_prefixed_coder(c) for c in coder.component_coder_ids
+          self.maybe_length_prefixed_coder(c) for c in coder.component_coder_ids
       ]
       if new_component_ids == coder.component_coder_ids:
         new_coder_id = coder_id
@@ -441,7 +462,7 @@ class TransformContext(object):
   def length_prefix_pcoll_coders(self, pcoll_id):
     # type: (str) -> None
     self.components.pcollections[pcoll_id].coder_id = (
-        self.length_prefixed_coder(
+        self.maybe_length_prefixed_coder(
             self.components.pcollections[pcoll_id].coder_id))
 
 
@@ -886,7 +907,8 @@ def expand_sdf(stages, context):
               setattr(proto, name, value)
           if 'unique_name' not in kwargs and hasattr(proto, 'unique_name'):
             proto.unique_name = unique_name(
-                set([p.unique_name for p in protos.values()]),
+                {p.unique_name
+                 for p in protos.values()},
                 original.unique_name + suffix)
           return new_id
 
@@ -1049,8 +1071,9 @@ def expand_gbk(stages, pipeline_context):
       yield stage
 
 
-def fix_flatten_coders(stages, pipeline_context):
-  # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
+def fix_flatten_coders(
+    stages, pipeline_context, identity_urn=bundle_processor.IDENTITY_DOFN_URN):
+  # type: (Iterable[Stage], TransformContext, str) -> Iterator[Stage]
 
   """Ensures that the inputs of Flatten have the same coders as the output.
   """
@@ -1078,8 +1101,7 @@ def fix_flatten_coders(stages, pipeline_context):
                       unique_name=transcode_name,
                       inputs={local_in: pcoll_in},
                       outputs={'out': transcoded_pcollection},
-                      spec=beam_runner_api_pb2.FunctionSpec(
-                          urn=bundle_processor.IDENTITY_DOFN_URN),
+                      spec=beam_runner_api_pb2.FunctionSpec(urn=identity_urn),
                       environment_id=transform.environment_id)
               ],
               downstream_side_inputs=frozenset(),
@@ -1102,10 +1124,13 @@ def sink_flattens(stages, pipeline_context):
   same logical sink) followed by a read.
   """
   # TODO(robertwb): Actually attempt to sink rather than always materialize.
-  # TODO(robertwb): Possibly fuse this into one of the stages.
-  for stage in fix_flatten_coders(stages, pipeline_context):
+  # TODO(robertwb): Possibly fuse multi-input flattens into one of the stages.
+  for stage in fix_flatten_coders(stages,
+                                  pipeline_context,
+                                  common_urns.primitives.FLATTEN.urn):
     transform = only_element(stage.transforms)
-    if transform.spec.urn == common_urns.primitives.FLATTEN.urn:
+    if (transform.spec.urn == common_urns.primitives.FLATTEN.urn and
+        len(transform.inputs) > 1):
       # This is used later to correlate the read and writes.
       buffer_id = create_buffer_id(transform.unique_name)
       flatten_writes = []  # type: List[Stage]
@@ -1321,80 +1346,18 @@ def remove_data_plane_ops(stages, pipeline_context):
       yield stage
 
 
-def inject_timer_pcollections(stages, pipeline_context):
+def setup_timer_mapping(stages, pipeline_context):
   # type: (Iterable[Stage], TransformContext) -> Iterator[Stage]
 
-  """Create PCollections for fired timers and to-be-set timers.
-
-  At execution time, fired timers and timers-to-set are represented as
-  PCollections that are managed by the runner.  This phase adds the
-  necissary collections, with their read and writes, to any stages using
-  timers.
+  """Set up a mapping of {transform_id: [timer_ids]} for each stage.
   """
   for stage in stages:
-    for transform in list(stage.transforms):
+    for transform in stage.transforms:
       if transform.spec.urn in PAR_DO_URNS:
         payload = proto_utils.parse_Bytes(
             transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
-        for tag, spec in payload.timer_family_specs.items():
-          if len(transform.inputs) > 1:
-            raise NotImplementedError('Timers and side inputs.')
-          input_pcoll = pipeline_context.components.pcollections[next(
-              iter(transform.inputs.values()))]
-          # Create the appropriate coder for the timer PCollection.
-          key_coder_id = input_pcoll.coder_id
-          if (pipeline_context.components.coders[key_coder_id].spec.urn ==
-              common_urns.coders.KV.urn):
-            key_coder_id = pipeline_context.components.coders[
-                key_coder_id].component_coder_ids[0]
-          key_timer_coder_id = pipeline_context.add_or_get_coder_id(
-              beam_runner_api_pb2.Coder(
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=common_urns.coders.KV.urn),
-                  component_coder_ids=[
-                      key_coder_id, spec.timer_family_coder_id
-                  ]))
-          # Inject the read and write pcollections.
-          timer_read_pcoll = unique_name(
-              pipeline_context.components.pcollections,
-              '%s_timers_to_read_%s' % (transform.unique_name, tag))
-          timer_write_pcoll = unique_name(
-              pipeline_context.components.pcollections,
-              '%s_timers_to_write_%s' % (transform.unique_name, tag))
-          pipeline_context.components.pcollections[timer_read_pcoll].CopyFrom(
-              beam_runner_api_pb2.PCollection(
-                  unique_name=timer_read_pcoll,
-                  coder_id=key_timer_coder_id,
-                  windowing_strategy_id=input_pcoll.windowing_strategy_id,
-                  is_bounded=input_pcoll.is_bounded))
-          pipeline_context.components.pcollections[timer_write_pcoll].CopyFrom(
-              beam_runner_api_pb2.PCollection(
-                  unique_name=timer_write_pcoll,
-                  coder_id=key_timer_coder_id,
-                  windowing_strategy_id=input_pcoll.windowing_strategy_id,
-                  is_bounded=input_pcoll.is_bounded))
-          stage.transforms.append(
-              beam_runner_api_pb2.PTransform(
-                  unique_name=timer_read_pcoll + '/Read',
-                  outputs={'out': timer_read_pcoll},
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_INPUT_URN,
-                      payload=create_buffer_id(timer_read_pcoll,
-                                               kind='timers'))))
-          stage.transforms.append(
-              beam_runner_api_pb2.PTransform(
-                  unique_name=timer_write_pcoll + '/Write',
-                  inputs={'in': timer_write_pcoll},
-                  spec=beam_runner_api_pb2.FunctionSpec(
-                      urn=bundle_processor.DATA_OUTPUT_URN,
-                      payload=create_buffer_id(
-                          timer_write_pcoll, kind='timers'))))
-          assert tag not in transform.inputs
-          transform.inputs[tag] = timer_read_pcoll
-          assert tag not in transform.outputs
-          transform.outputs[tag] = timer_write_pcoll
-          stage.timer_pcollections.append(
-              (timer_read_pcoll + '/Read', timer_write_pcoll))
+        for timer_family_id in payload.timer_family_specs.keys():
+          stage.timers.add((transform.unique_name, timer_family_id))
     yield stage
 
 

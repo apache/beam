@@ -22,10 +22,11 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 )
 
 const extraData = 2
@@ -38,18 +39,23 @@ type fakeDataClient struct {
 	calls          int
 	err            error
 	skipFirstError bool
+
+	blocked sync.Mutex // Prevent data from being read by the gotourtinr.
 }
 
-func (f *fakeDataClient) Recv() (*pb.Elements, error) {
+func (f *fakeDataClient) Recv() (*fnpb.Elements, error) {
+	f.blocked.Lock()
+	defer f.blocked.Unlock()
+
 	f.calls++
-	data := []byte{1, 2, 3, 4}
-	elemData := pb.Elements_Data{
+	data := []byte{1, 2, 3, 4, 1, 2, 3, 4}
+	elemData := fnpb.Elements_Data{
 		InstructionId: "inst_ref",
 		Data:          data,
 		TransformId:   "ptr",
 	}
 
-	msg := pb.Elements{}
+	msg := fnpb.Elements{}
 
 	// Send extraData more than the number of elements buffered in the channel.
 	for i := 0; i < bufElements+extraData; i++ {
@@ -66,7 +72,7 @@ func (f *fakeDataClient) Recv() (*pb.Elements, error) {
 		return &msg, f.err
 	case 3:
 		elemData.Data = []byte{}
-		msg.Data = []*pb.Elements_Data{&elemData}
+		msg.Data = []*fnpb.Elements_Data{&elemData}
 		// Broadcasting done here means that this code providing messages
 		// has not been blocked by the bug blocking the dataReader
 		// from getting more messages.
@@ -77,7 +83,7 @@ func (f *fakeDataClient) Recv() (*pb.Elements, error) {
 	}
 }
 
-func (f *fakeDataClient) Send(*pb.Elements) error {
+func (f *fakeDataClient) Send(*fnpb.Elements) error {
 	// We skip errors on the first call to test that  errors can be returned
 	// on the sentinel value send in dataWriter.Close
 	// Otherwise, we return an io.EOF similar to semantics documented
@@ -130,6 +136,12 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 				// Set the 2nd Recv call to have an error.
 				client.err = expectedError
 			},
+		}, {
+			name:          "onInstructionEnd",
+			expectedError: io.EOF,
+			caseFn: func(t *testing.T, r io.ReadCloser, client *fakeDataClient, c *DataChannel) {
+				c.removeInstruction("inst_ref")
+			},
 		},
 	}
 	for _, test := range tests {
@@ -170,7 +182,46 @@ func TestDataChannelTerminate_dataReader(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestDataChannelRemoveInstruction_dataAfterClose(t *testing.T) {
+	done := make(chan bool, 1)
+	client := &fakeDataClient{t: t, done: done}
+	client.blocked.Lock()
+
+	ctx, cancelFn := context.WithCancel(context.Background())
+	c := makeDataChannel(ctx, "id", client, cancelFn)
+	c.removeInstruction("inst_ref")
+
+	client.blocked.Unlock()
+
+	r := c.OpenRead(ctx, "ptr", "inst_ref")
+
+	dr := r.(*dataReader)
+	if !dr.completed || dr.err != io.EOF {
+		t.Errorf("Expected a closed reader, but was still open: completed: %v, err: %v", dr.completed, dr.err)
+	}
+
+	n, err := r.Read(make([]byte, 4))
+	if err != io.EOF {
+		t.Errorf("Unexpected error from read: %v, read %d bytes.", err, n)
+	}
+}
+
+func TestDataChannelRemoveInstruction_limitInstructionCap(t *testing.T) {
+	done := make(chan bool, 1)
+	client := &fakeDataClient{t: t, done: done}
+	ctx, cancelFn := context.WithCancel(context.Background())
+	c := makeDataChannel(ctx, "id", client, cancelFn)
+
+	for i := 0; i < endedInstructionCap+10; i++ {
+		instID := instructionID(fmt.Sprintf("inst_ref%d", i))
+		c.OpenRead(ctx, "ptr", instID)
+		c.removeInstruction(instID)
+	}
+	if got, want := len(c.endedInstructions), endedInstructionCap; got != want {
+		t.Errorf("unexpected len(endedInstructions) got %v, want %v,", got, want)
+	}
 }
 
 func TestDataChannelTerminate_Writes(t *testing.T) {
@@ -179,26 +230,33 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 
 	expectedError := fmt.Errorf("EXPECTED ERROR")
 
+	instID := instructionID("inst_ref")
 	tests := []struct {
 		name   string
-		caseFn func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error
+		caseFn func(t *testing.T, w io.WriteCloser, client *fakeDataClient, c *DataChannel) error
 	}{
 		{
 			name: "onClose_Flush",
-			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient, c *DataChannel) error {
 				return w.Close()
 			},
 		}, {
 			name: "onClose_Sentinel",
-			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient, c *DataChannel) error {
 				client.skipFirstError = true
 				return w.Close()
 			},
 		}, {
 			name: "onWrite",
-			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient) error {
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient, c *DataChannel) error {
 				_, err := w.Write([]byte{'d', 'o', 'n', 'e'})
 				return err
+			},
+		}, {
+			name: "onInstructionEnd",
+			caseFn: func(t *testing.T, w io.WriteCloser, client *fakeDataClient, c *DataChannel) error {
+				c.removeInstruction(instID)
+				return expectedError
 			},
 		},
 	}
@@ -209,7 +267,7 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
 			c := makeDataChannel(ctx, "id", client, cancelFn)
 
-			w := c.OpenWrite(ctx, "ptr", "inst_ref")
+			w := c.OpenWrite(ctx, "ptr", instID)
 
 			msg := []byte{'b', 'y', 't', 'e'}
 			var bufSize int
@@ -221,7 +279,7 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 				}
 			}
 
-			err := test.caseFn(t, w, client)
+			err := test.caseFn(t, w, client, c)
 
 			if got, want := err, expectedError; err == nil || !strings.Contains(err.Error(), expectedError.Error()) {
 				t.Errorf("Unexpected error: got %v, want %v", got, want)
@@ -229,7 +287,7 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 			// Verify that new readers return the same error for writes after stream termination.
 			// TODO(lostluck) 2019.11.26: use the the go 1.13 errors package to check this rather
 			// than a strings.Contains check once testing infrastructure can use go 1.13.
-			if n, err := c.OpenWrite(ctx, "ptr", "inst_ref").Write(msg); err != nil && !strings.Contains(err.Error(), expectedError.Error()) {
+			if n, err := c.OpenWrite(ctx, "ptr", instID).Write(msg); err != nil && !strings.Contains(err.Error(), expectedError.Error()) {
 				t.Errorf("Unexpected error from write: got %v, want, %v read %d bytes.", err, expectedError, n)
 			}
 			select {
@@ -240,5 +298,4 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 			}
 		})
 	}
-
 }

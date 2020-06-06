@@ -18,10 +18,12 @@
 package org.apache.beam.runners.dataflow;
 
 import static org.apache.beam.runners.dataflow.DataflowRunner.getContainerImageForJob;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.Files.getFileExtension;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasItem;
@@ -29,7 +31,6 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
-import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -82,6 +83,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.DataflowRunner.BatchGroupIntoBatches;
 import org.apache.beam.runners.dataflow.DataflowRunner.StreamingShardedWriteFactory;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
@@ -334,6 +338,7 @@ public class DataflowRunnerTest implements Serializable {
     String[] args =
         new String[] {
           "--runner=DataflowRunner",
+          "--region=some-region-1",
           "--tempLocation=/tmp/not/a/gs/path",
           "--project=test-project",
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
@@ -354,6 +359,7 @@ public class DataflowRunnerTest implements Serializable {
     String[] args =
         new String[] {
           "--runner=DataflowRunner",
+          "--region=some-region-1",
           "--tempLocation=gs://does/not/exist",
           "--project=test-project",
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
@@ -375,6 +381,7 @@ public class DataflowRunnerTest implements Serializable {
     String[] args =
         new String[] {
           "--runner=DataflowRunner",
+          "--region=some-region-1",
           "--tempLocation=/tmp/testing",
           "--project=test-project",
           "--credentialFactoryClass=" + NoopCredentialFactory.class.getName(),
@@ -588,6 +595,31 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testZoneAliasWorkerZone() {
+    GcpOptions options = PipelineOptionsFactory.as(GcpOptions.class);
+    options.setZone("us-east1-b");
+    DataflowRunner.validateWorkerSettings(options);
+    assertNull(options.getZone());
+    assertEquals("us-east1-b", options.getWorkerZone());
+  }
+
+  @Test
+  public void testRegionRequiredForServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("https://dataflow.googleapis.com");
+    assertThrows(IllegalArgumentException.class, () -> DataflowRunner.fromOptions(options));
+  }
+
+  @Test
+  public void testRegionOptionalForNonServiceRunner() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.setRegion(null);
+    options.setDataflowEndpoint("http://localhost:20281");
+    DataflowRunner.fromOptions(options);
+  }
+
+  @Test
   public void testRun() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Pipeline p = buildDataflowPipeline(options);
@@ -760,9 +792,9 @@ public class DataflowRunnerTest implements Serializable {
     final String cloudDataflowDataset = "somedataset";
 
     // Create some temporary files.
-    File temp1 = File.createTempFile("DataflowRunnerTest", "txt");
+    File temp1 = File.createTempFile("DataflowRunnerTest-", ".txt");
     temp1.deleteOnExit();
-    File temp2 = File.createTempFile("DataflowRunnerTest2", "txt");
+    File temp2 = File.createTempFile("DataflowRunnerTest2-", ".txt");
     temp2.deleteOnExit();
 
     String overridePackageName = "alias.txt";
@@ -808,7 +840,7 @@ public class DataflowRunnerTest implements Serializable {
     assertEquals(2, workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().size());
     DataflowPackage workflowPackage1 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(0);
-    assertThat(workflowPackage1.getName(), startsWith(temp1.getName()));
+    assertThat(workflowPackage1.getName(), endsWith(getFileExtension(temp1.getAbsolutePath())));
     DataflowPackage workflowPackage2 =
         workflowJob.getEnvironment().getWorkerPools().get(0).getPackages().get(1);
     assertEquals(overridePackageName, workflowPackage2.getName());
@@ -839,6 +871,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     options.setGcsUtil(mockGcsUtil);
     options.setRunner(DataflowRunner.class);
@@ -958,10 +991,9 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
-  public void testNoProjectFails() {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+  public void testNoProjectFails() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions();
 
-    options.setRunner(DataflowRunner.class);
     // Explicitly set to null to prevent the default instance factory from reading credentials
     // from a user's environment, causing this test to fail.
     options.setProject(null);
@@ -975,38 +1007,24 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testProjectId() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("foo-12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
-    options.setGcpCredential(new TestCredential());
 
     DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectPrefix() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("google.com:some-project-12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
-    options.setGcpCredential(new TestCredential());
 
     DataflowRunner.fromOptions(options);
   }
 
   @Test
   public void testProjectNumber() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project ID");
@@ -1017,12 +1035,8 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testProjectDescription() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setRunner(DataflowRunner.class);
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.setProject("some project");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Project ID");
@@ -1033,14 +1047,7 @@ public class DataflowRunnerTest implements Serializable {
 
   @Test
   public void testInvalidNumberOfWorkerHarnessThreads() throws IOException {
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    FileSystems.setDefaultPipelineOptions(options);
-    options.setRunner(DataflowRunner.class);
-    options.setProject("foo-12345");
-
-    options.setGcpTempLocation(VALID_TEMP_BUCKET);
-    options.setGcsUtil(mockGcsUtil);
-
+    DataflowPipelineOptions options = buildPipelineOptions();
     options.as(DataflowPipelineDebugOptions.class).setNumberOfWorkerHarnessThreads(-1);
 
     thrown.expect(IllegalArgumentException.class);
@@ -1055,6 +1062,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject("foo-project");
+    options.setRegion(REGION_ID);
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
@@ -1069,6 +1077,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
+    options.setRegion(REGION_ID);
     options.setGcpTempLocation(VALID_TEMP_BUCKET);
     options.setGcsUtil(mockGcsUtil);
 
@@ -1081,6 +1090,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setProject("foo-project");
+    options.setRegion(REGION_ID);
     options.setTempLocation(VALID_TEMP_BUCKET);
     options.setGcsUtil(mockGcsUtil);
 
@@ -1194,8 +1204,15 @@ public class DataflowRunnerTest implements Serializable {
 
     thrown.expect(IllegalStateException.class);
     thrown.expectMessage(containsString("no translator registered"));
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
     DataflowPipelineTranslator.fromOptions(options)
-        .translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+        .translate(
+            p,
+            pipelineProto,
+            sdkComponents,
+            DataflowRunner.fromOptions(options),
+            Collections.emptyList());
 
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
@@ -1226,7 +1243,14 @@ public class DataflowRunnerTest implements Serializable {
           stepContext.addOutput(PropertyNames.OUTPUT, context.getOutput(transform1));
         });
 
-    translator.translate(p, DataflowRunner.fromOptions(options), Collections.emptyList());
+    SdkComponents sdkComponents = SdkComponents.create(options);
+    RunnerApi.Pipeline pipelineProto = PipelineTranslation.toProto(p, sdkComponents, true);
+    translator.translate(
+        p,
+        pipelineProto,
+        sdkComponents,
+        DataflowRunner.fromOptions(options),
+        Collections.emptyList());
     assertTrue(transform.translated);
   }
 
@@ -1341,6 +1365,7 @@ public class DataflowRunnerTest implements Serializable {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setJobName("TestJobName");
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setTempLocation("gs://test/temp/location");
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
@@ -1360,6 +1385,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation(existingFile.getPath());
     options.setTempLocation(tmpFolder.getRoot().getPath());
@@ -1383,6 +1409,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation(existingFile.getPath());
     options.setTempLocation(tmpFolder.getRoot().getPath());
@@ -1407,6 +1434,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRunner(DataflowRunner.class);
     options.setTemplateLocation("//bad/path");
     options.setProject("test-project");
+    options.setRegion(REGION_ID);
     options.setTempLocation(tmpFolder.getRoot().getPath());
     options.setGcpCredential(new TestCredential());
     options.setPathValidatorClass(NoopPathValidator.class);

@@ -45,11 +45,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.BeamFnDataReadRunner;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
+import org.apache.beam.fn.harness.PTransformRunnerFactory.ProgressRequestCallback;
 import org.apache.beam.fn.harness.control.FinalizeBundleHandler.CallbackRegistration;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessor;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler.BundleProcessorCache;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
+import org.apache.beam.fn.harness.data.BeamFnTimerClient;
 import org.apache.beam.fn.harness.data.PCollectionConsumerRegistry;
 import org.apache.beam.fn.harness.data.PTransformFunctionRegistry;
 import org.apache.beam.fn.harness.data.QueueingBeamFnDataClient;
@@ -68,9 +71,11 @@ import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.ModelCoders;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.Timer;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.function.ThrowingConsumer;
 import org.apache.beam.sdk.function.ThrowingRunnable;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -79,6 +84,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.DoFnWithExecutionInformation;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -88,7 +94,6 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Message;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Maps;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Multimap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.util.concurrent.Uninterruptibles;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -192,8 +197,13 @@ public class ProcessBundleHandlerTest {
     }
 
     @Override
-    Multimap<String, BeamFnApi.DelayedBundleApplication> getAllResiduals() {
-      return wrappedBundleProcessor.getAllResiduals();
+    List<ProgressRequestCallback> getProgressRequestCallbacks() {
+      return wrappedBundleProcessor.getProgressRequestCallbacks();
+    }
+
+    @Override
+    BundleSplitListener.InMemory getSplitListener() {
+      return wrappedBundleProcessor.getSplitListener();
     }
 
     @Override
@@ -224,6 +234,11 @@ public class ProcessBundleHandlerTest {
     @Override
     Collection<CallbackRegistration> getBundleFinalizationCallbackRegistrations() {
       return wrappedBundleProcessor.getBundleFinalizationCallbackRegistrations();
+    }
+
+    @Override
+    Collection<BeamFnDataReadRunner> getChannelRoots() {
+      return wrappedBundleProcessor.getChannelRoots();
     }
 
     @Override
@@ -272,6 +287,7 @@ public class ProcessBundleHandlerTest {
         (pipelineOptions,
             beamFnDataClient,
             beamFnStateClient,
+            beamFnTimerClient,
             pTransformId,
             pTransform,
             processBundleInstructionId,
@@ -282,6 +298,7 @@ public class ProcessBundleHandlerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             addTearDownFunction,
+            addProgressRequestCallback,
             splitListener,
             bundleFinalizer) -> {
           transformsProcessed.add(pTransform);
@@ -403,6 +420,7 @@ public class ProcessBundleHandlerTest {
         (pipelineOptions,
             beamFnDataClient,
             beamFnStateClient,
+            beamFnTimerClient,
             pTransformId,
             pTransform,
             processBundleInstructionId,
@@ -412,6 +430,7 @@ public class ProcessBundleHandlerTest {
             pCollectionConsumerRegistry,
             startFunctionRegistry,
             finishFunctionRegistry,
+            addProgressRequestCallback,
             addTearDownFunction,
             splitListener,
             bundleFinalizer) -> null);
@@ -474,6 +493,7 @@ public class ProcessBundleHandlerTest {
                 (pipelineOptions,
                     beamFnDataClient,
                     beamFnStateClient,
+                    beamFnTimerClient,
                     pTransformId,
                     pTransform,
                     processBundleInstructionId,
@@ -483,6 +503,7 @@ public class ProcessBundleHandlerTest {
                     pCollectionConsumerRegistry,
                     startFunctionRegistry,
                     finishFunctionRegistry,
+                    addProgressRequestCallback,
                     addTearDownFunction,
                     splitListener,
                     bundleFinalizer) -> null),
@@ -528,7 +549,7 @@ public class ProcessBundleHandlerTest {
   public void testBundleProcessorReset() {
     PTransformFunctionRegistry startFunctionRegistry = mock(PTransformFunctionRegistry.class);
     PTransformFunctionRegistry finishFunctionRegistry = mock(PTransformFunctionRegistry.class);
-    Multimap<String, BeamFnApi.DelayedBundleApplication> allResiduals = mock(Multimap.class);
+    BundleSplitListener.InMemory splitListener = mock(BundleSplitListener.InMemory.class);
     Collection<CallbackRegistration> bundleFinalizationCallbacks = mock(Collection.class);
     PCollectionConsumerRegistry pCollectionConsumerRegistry =
         mock(PCollectionConsumerRegistry.class);
@@ -542,7 +563,8 @@ public class ProcessBundleHandlerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             new ArrayList<>(),
-            allResiduals,
+            new ArrayList<>(),
+            splitListener,
             pCollectionConsumerRegistry,
             metricsContainerRegistry,
             stateTracker,
@@ -553,7 +575,7 @@ public class ProcessBundleHandlerTest {
     bundleProcessor.reset();
     verify(startFunctionRegistry, times(1)).reset();
     verify(finishFunctionRegistry, times(1)).reset();
-    verify(allResiduals, times(1)).clear();
+    verify(splitListener, times(1)).clear();
     verify(pCollectionConsumerRegistry, times(1)).reset();
     verify(metricsContainerRegistry, times(1)).reset();
     verify(stateTracker, times(1)).reset();
@@ -584,6 +606,7 @@ public class ProcessBundleHandlerTest {
                 (pipelineOptions,
                     beamFnDataClient,
                     beamFnStateClient,
+                    beamFnTimerClient,
                     pTransformId,
                     pTransform,
                     processBundleInstructionId,
@@ -594,6 +617,7 @@ public class ProcessBundleHandlerTest {
                     startFunctionRegistry,
                     finishFunctionRegistry,
                     addTearDownFunction,
+                    addProgressRequestCallback,
                     splitListener,
                     bundleFinalizer) -> {
                   thrown.expect(IllegalStateException.class);
@@ -635,6 +659,7 @@ public class ProcessBundleHandlerTest {
                     (pipelineOptions,
                         beamFnDataClient,
                         beamFnStateClient,
+                        beamFnTimerClient,
                         pTransformId,
                         pTransform,
                         processBundleInstructionId,
@@ -645,6 +670,7 @@ public class ProcessBundleHandlerTest {
                         startFunctionRegistry,
                         finishFunctionRegistry,
                         addTearDownFunction,
+                        addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
                       startFunctionRegistry.register(
@@ -701,6 +727,7 @@ public class ProcessBundleHandlerTest {
                     (pipelineOptions,
                         beamFnDataClient,
                         beamFnStateClient,
+                        beamFnTimerClient,
                         pTransformId,
                         pTransform,
                         processBundleInstructionId,
@@ -711,6 +738,7 @@ public class ProcessBundleHandlerTest {
                         startFunctionRegistry,
                         finishFunctionRegistry,
                         addTearDownFunction,
+                        addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
                       thrown.expect(IllegalStateException.class);
@@ -757,6 +785,7 @@ public class ProcessBundleHandlerTest {
                     (pipelineOptions,
                         beamFnDataClient,
                         beamFnStateClient,
+                        beamFnTimerClient,
                         pTransformId,
                         pTransform,
                         processBundleInstructionId,
@@ -767,6 +796,7 @@ public class ProcessBundleHandlerTest {
                         startFunctionRegistry,
                         finishFunctionRegistry,
                         addTearDownFunction,
+                        addProgressRequestCallback,
                         splitListener,
                         bundleFinalizer) -> {
                       thrown.expect(IllegalStateException.class);
@@ -851,6 +881,7 @@ public class ProcessBundleHandlerTest {
                       PipelineOptions pipelineOptions,
                       BeamFnDataClient beamFnDataClient,
                       BeamFnStateClient beamFnStateClient,
+                      BeamFnTimerClient beamFnTimerClient,
                       String pTransformId,
                       PTransform pTransform,
                       Supplier<String> processBundleInstructionId,
@@ -861,6 +892,7 @@ public class ProcessBundleHandlerTest {
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
                       Consumer<ThrowingRunnable> addTearDownFunction,
+                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
                       BundleFinalizer bundleFinalizer)
                       throws IOException {
@@ -914,6 +946,7 @@ public class ProcessBundleHandlerTest {
                       PipelineOptions pipelineOptions,
                       BeamFnDataClient beamFnDataClient,
                       BeamFnStateClient beamFnStateClient,
+                      BeamFnTimerClient beamFnTimerClient,
                       String pTransformId,
                       PTransform pTransform,
                       Supplier<String> processBundleInstructionId,
@@ -924,6 +957,7 @@ public class ProcessBundleHandlerTest {
                       PTransformFunctionRegistry startFunctionRegistry,
                       PTransformFunctionRegistry finishFunctionRegistry,
                       Consumer<ThrowingRunnable> addTearDownFunction,
+                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
                       BundleSplitListener splitListener,
                       BundleFinalizer bundleFinalizer)
                       throws IOException {
@@ -938,6 +972,70 @@ public class ProcessBundleHandlerTest {
                     beamFnStateClient.handle(
                         StateRequest.newBuilder().setInstructionId("SUCCESS"),
                         new CompletableFuture<>());
+                  }
+                }),
+            new BundleProcessorCache());
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorId("1L"))
+            .build());
+  }
+
+  @Test
+  public void testTimerRegistrationsFailIfNoTimerApiServiceDescriptorSpecified() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
+            .build();
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateGrpcClientCache */,
+            null /* finalizeBundleHandler */,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                new PTransformRunnerFactory<Object>() {
+                  @Override
+                  public Object createRunnerForPTransform(
+                      PipelineOptions pipelineOptions,
+                      BeamFnDataClient beamFnDataClient,
+                      BeamFnStateClient beamFnStateClient,
+                      BeamFnTimerClient beamFnTimerClient,
+                      String pTransformId,
+                      PTransform pTransform,
+                      Supplier<String> processBundleInstructionId,
+                      Map<String, PCollection> pCollections,
+                      Map<String, Coder> coders,
+                      Map<String, WindowingStrategy> windowingStrategies,
+                      PCollectionConsumerRegistry pCollectionConsumerRegistry,
+                      PTransformFunctionRegistry startFunctionRegistry,
+                      PTransformFunctionRegistry finishFunctionRegistry,
+                      Consumer<ThrowingRunnable> addTearDownFunction,
+                      Consumer<ProgressRequestCallback> addProgressRequestCallback,
+                      BundleSplitListener splitListener,
+                      BundleFinalizer bundleFinalizer)
+                      throws IOException {
+                    startFunctionRegistry.register(
+                        pTransformId, () -> doTimerRegistrations(beamFnTimerClient));
+                    return null;
+                  }
+
+                  private void doTimerRegistrations(BeamFnTimerClient beamFnTimerClient) {
+                    thrown.expect(IllegalStateException.class);
+                    thrown.expectMessage("Timers are unsupported");
+                    beamFnTimerClient.register(
+                        LogicalEndpoint.timer("1L", "2L", "Timer"),
+                        Timer.Coder.of(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+                        (timer) -> {});
                   }
                 }),
             new BundleProcessorCache());

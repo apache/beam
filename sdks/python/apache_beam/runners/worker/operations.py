@@ -50,7 +50,6 @@ from apache_beam.io import iobase
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import metrics_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -338,63 +337,49 @@ class Operation(object):
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    return beam_fn_api_pb2.Metrics.PTransform(
-        processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
-            measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
-                total_time_spent=(
-                    self.scoped_start_state.sampled_seconds() +
-                    self.scoped_process_state.sampled_seconds() +
-                    self.scoped_finish_state.sampled_seconds()),
-                # Multi-output operations should override this.
-                output_element_counts=(
-                    # If there is exactly one output, we can unambiguously
-                    # fix its name later, which we do.
-                    # TODO(robertwb): Plumb the actual name here.
-                    {
-                        'ONLY_OUTPUT': self.receivers[0].opcounter.
-                        element_counter.value()
-                    } if len(self.receivers) == 1 else None))),
-        user=self.metrics_container.to_runner_api())
-
-  def monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+  def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+    # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     """Returns the list of MonitoringInfos collected by this operation."""
     all_monitoring_infos = self.execution_time_monitoring_infos(transform_id)
     all_monitoring_infos.update(
-        self.pcollection_count_monitoring_infos(transform_id))
+        self.pcollection_count_monitoring_infos(tag_to_pcollection_id))
     all_monitoring_infos.update(self.user_monitoring_infos(transform_id))
     return all_monitoring_infos
 
-  def pcollection_count_monitoring_infos(self, transform_id):
+  def pcollection_count_monitoring_infos(self, tag_to_pcollection_id):
+    # type: (Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+
     """Returns the element count MonitoringInfo collected by this operation."""
-    if len(self.receivers) == 1:
-      # If there is exactly one output, we can unambiguously
-      # fix its name later, which we do.
-      # TODO(robertwb): Plumb the actual name here.
-      elem_count_mi = monitoring_infos.int64_counter(
-          monitoring_infos.ELEMENT_COUNT_URN,
-          self.receivers[0].opcounter.element_counter.value(),
-          ptransform=transform_id,
-          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
-      )
 
-      (unused_mean, sum, count, min, max) = (
-          self.receivers[0].opcounter.mean_byte_counter.value())
+    # Skip producing monitoring infos if there is more then one receiver
+    # since there is no way to provide a mapping from tag to pcollection id
+    # within Operation.
+    if len(self.receivers) != 1 or len(tag_to_pcollection_id) != 1:
+      return {}
 
-      sampled_byte_count = monitoring_infos.int64_distribution(
-          monitoring_infos.SAMPLED_BYTE_SIZE_URN,
-          DistributionData(sum, count, min, max),
-          ptransform=transform_id,
-          tag='ONLY_OUTPUT' if len(self.receivers) == 1 else str(None),
-      )
-      return {
-          monitoring_infos.to_key(elem_count_mi): elem_count_mi,
-          monitoring_infos.to_key(sampled_byte_count): sampled_byte_count
-      }
-    return {}
+    all_monitoring_infos = {}
+    pcollection_id = next(iter(tag_to_pcollection_id.values()))
+    receiver = self.receivers[0]
+    elem_count_mi = monitoring_infos.int64_counter(
+        monitoring_infos.ELEMENT_COUNT_URN,
+        receiver.opcounter.element_counter.value(),
+        pcollection=pcollection_id,
+    )
+
+    (unused_mean, sum, count, min, max) = (
+        receiver.opcounter.mean_byte_counter.value())
+
+    sampled_byte_count = monitoring_infos.int64_distribution(
+        monitoring_infos.SAMPLED_BYTE_SIZE_URN,
+        DistributionData(sum, count, min, max),
+        pcollection=pcollection_id,
+    )
+    all_monitoring_infos[monitoring_infos.to_key(elem_count_mi)] = elem_count_mi
+    all_monitoring_infos[monitoring_infos.to_key(
+        sampled_byte_count)] = sampled_byte_count
+
+    return all_monitoring_infos
 
   def user_monitoring_infos(self, transform_id):
     """Returns the user MonitoringInfos collected by this operation."""
@@ -556,15 +541,13 @@ class DoOperation(Operation):
                counter_factory,
                sampler,
                side_input_maps=None,
-               user_state_context=None,
-               timer_inputs=None
+               user_state_context=None
               ):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
     self.user_state_context = user_state_context
     self.tagged_receivers = None  # type: Optional[_TaggedReceivers]
     # A mapping of timer tags to the input "PCollections" they come in on.
-    self.timer_inputs = timer_inputs or {}
     self.input_info = None  # type: Optional[Tuple[str, str, coders.WindowedValueCoder, MutableMapping[str, str]]]
 
   def _read_side_inputs(self, tags_and_types):
@@ -652,7 +635,6 @@ class DoOperation(Operation):
             self.tagged_receivers[None] = self.receivers[index]
 
       if self.user_state_context:
-        self.user_state_context.update_timer_receivers(self.tagged_receivers)
         self.timer_specs = {
             spec.name: spec
             for spec in userstate.get_dofn_specs(fn)[1]
@@ -700,11 +682,17 @@ class DoOperation(Operation):
     # type: () -> bool
     return self.dofn_runner.bundle_finalizer_param.has_callbacks()
 
-  def process_timer(self, tag, windowed_timer):
-    key, timer_data = windowed_timer.value
+  def add_timer_info(self, timer_family_id, timer_info):
+    self.user_state_context.add_timer_info(timer_family_id, timer_info)
+
+  def process_timer(self, tag, timer_data):
     timer_spec = self.timer_specs[tag]
     self.dofn_runner.process_user_timer(
-        timer_spec, key, windowed_timer.windows[0], timer_data['timestamp'])
+        timer_spec,
+        timer_data.user_key,
+        timer_data.windows[0],
+        timer_data.fire_timestamp,
+        timer_data.paneinfo)
 
   def finish(self):
     # type: () -> None
@@ -727,34 +715,30 @@ class DoOperation(Operation):
       self.user_state_context.reset()
     self.dofn_runner.bundle_finalizer_param.reset()
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    metrics = super(DoOperation, self).progress_metrics()
-    if self.tagged_receivers:
-      metrics.processed_elements.measured.output_element_counts.clear()
-      for tag, receiver in self.tagged_receivers.items():
-        metrics.processed_elements.measured.output_element_counts[str(
-            tag)] = receiver.opcounter.element_counter.value()
-    return metrics
+  def pcollection_count_monitoring_infos(self, tag_to_pcollection_id):
+    # type: (Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
-  def monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
-    infos = super(DoOperation, self).monitoring_infos(transform_id)
+    """Returns the element count MonitoringInfo collected by this operation."""
+    infos = super(
+        DoOperation,
+        self).pcollection_count_monitoring_infos(tag_to_pcollection_id)
+
     if self.tagged_receivers:
       for tag, receiver in self.tagged_receivers.items():
+        if str(tag) not in tag_to_pcollection_id:
+          continue
+        pcollection_id = tag_to_pcollection_id[str(tag)]
         mi = monitoring_infos.int64_counter(
             monitoring_infos.ELEMENT_COUNT_URN,
             receiver.opcounter.element_counter.value(),
-            ptransform=transform_id,
-            tag=str(tag))
+            pcollection=pcollection_id)
         infos[monitoring_infos.to_key(mi)] = mi
         (unused_mean, sum, count, min, max) = (
             receiver.opcounter.mean_byte_counter.value())
         sampled_byte_count = monitoring_infos.int64_distribution(
             monitoring_infos.SAMPLED_BYTE_SIZE_URN,
             DistributionData(sum, count, min, max),
-            ptransform=transform_id,
-            tag=str(tag))
+            pcollection=pcollection_id)
         infos[monitoring_infos.to_key(sampled_byte_count)] = sampled_byte_count
     return infos
 
@@ -806,21 +790,8 @@ class SdfProcessSizedElements(DoOperation):
               self.element_start_output_bytes)
       return None
 
-  def progress_metrics(self):
-    # type: () -> beam_fn_api_pb2.Metrics.PTransform
-    with self.lock:
-      metrics = super(SdfProcessSizedElements, self).progress_metrics()
-      current_element_progress = self.current_element_progress()
-    if current_element_progress:
-      assert self.input_info is not None
-      metrics.active_elements.measured.input_element_counts[
-          self.input_info[1]] = 1
-      metrics.active_elements.fraction_remaining = (
-          current_element_progress.fraction_remaining)
-    return metrics
-
-  def monitoring_infos(self, transform_id):
-    # type: (str) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
+  def monitoring_infos(self, transform_id, tag_to_pcollection_id):
+    # type: (str, Dict[str, str]) -> Dict[FrozenSet, metrics_pb2.MonitoringInfo]
 
     def encode_progress(value):
       # type: (float) -> bytes
@@ -829,7 +800,7 @@ class SdfProcessSizedElements(DoOperation):
 
     with self.lock:
       infos = super(SdfProcessSizedElements,
-                    self).monitoring_infos(transform_id)
+                    self).monitoring_infos(transform_id, tag_to_pcollection_id)
       current_element_progress = self.current_element_progress()
       if current_element_progress:
         if current_element_progress.completed_work:

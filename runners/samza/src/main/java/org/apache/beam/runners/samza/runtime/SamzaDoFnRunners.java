@@ -264,9 +264,10 @@ public class SamzaDoFnRunners {
     }
 
     @Override
-    public void onTimer(
+    public <KeyT> void onTimer(
         String timerId,
         String timerFamilyId,
+        KeyT key,
         BoundedWindow window,
         Instant timestamp,
         Instant outputTimestamp,
@@ -286,6 +287,9 @@ public class SamzaDoFnRunners {
         inputReceiver = null;
       }
     }
+
+    @Override
+    public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
     @Override
     public DoFn<InT, FnOutT> getFn() {

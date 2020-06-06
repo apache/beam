@@ -87,7 +87,7 @@ purse: 6
 To run wordcount on dataflow runner do:
 
 ```
-$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
+$  go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<YOUR_GCP_REGION> --staging_location=<YOUR_GCS_LOCATION>/staging --worker_harness_container_image=<YOUR_SDK_HARNESS_IMAGE_LOCATION> --output=<YOUR_GCS_LOCATION>/output
 ```
 
 The output is a GCS file in this case:

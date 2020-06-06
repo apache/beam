@@ -145,8 +145,9 @@ public class CombineRunnersTest {
     new CombineRunners.PrecombineFactory<>()
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
-            null,
-            null,
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TEST_COMBINE_ID,
             pTransform,
             null,
@@ -156,9 +157,10 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null,
-            null,
-            null);
+            null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
 
@@ -221,8 +223,9 @@ public class CombineRunnersTest {
     MapFnRunners.forValueMapFnFactory(CombineRunners::createMergeAccumulatorsMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
-            null,
-            null,
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TEST_COMBINE_ID,
             pTransform,
             null,
@@ -232,9 +235,10 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null,
-            null,
-            null);
+            null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -285,8 +289,9 @@ public class CombineRunnersTest {
     MapFnRunners.forValueMapFnFactory(CombineRunners::createExtractOutputsMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
-            null,
-            null,
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TEST_COMBINE_ID,
             pTransform,
             null,
@@ -296,9 +301,10 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null,
-            null,
-            null);
+            null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -349,8 +355,9 @@ public class CombineRunnersTest {
     MapFnRunners.forValueMapFnFactory(CombineRunners::createConvertToAccumulatorsMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
-            null,
-            null,
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TEST_COMBINE_ID,
             pTransform,
             null,
@@ -360,9 +367,10 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null,
-            null,
-            null);
+            null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());
@@ -412,8 +420,9 @@ public class CombineRunnersTest {
     MapFnRunners.forValueMapFnFactory(CombineRunners::createCombineGroupedValuesMapFunction)
         .createRunnerForPTransform(
             PipelineOptionsFactory.create(),
-            null,
-            null,
+            null /* beamFnDataClient */,
+            null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             TEST_COMBINE_ID,
             pTransform,
             null,
@@ -423,9 +432,10 @@ public class CombineRunnersTest {
             consumers,
             startFunctionRegistry,
             finishFunctionRegistry,
-            null,
-            null,
-            null);
+            null, /* tearDownRegistry */
+            null /* addProgressRequestCallback */,
+            null /* splitListener */,
+            null /* bundleFinalizer */);
 
     assertThat(startFunctionRegistry.getFunctions(), empty());
     assertThat(finishFunctionRegistry.getFunctions(), empty());

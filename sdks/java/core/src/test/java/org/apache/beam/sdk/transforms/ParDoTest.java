@@ -91,7 +91,9 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesKeyInParDo;
 import org.apache.beam.sdk.testing.UsesMapState;
+import org.apache.beam.sdk.testing.UsesOnWindowExpiration;
 import org.apache.beam.sdk.testing.UsesRequiresTimeSortedInput;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesSideInputs;
@@ -3510,10 +3512,144 @@ public class ParDoTest implements Serializable {
                 ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
               try {
                 timer.set(window.maxTimestamp().plus(1L));
+                fail("Should have failed due to out-of-bounds timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+
+                // Make sure these words are contained in error messages for
+                // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                List<String> expectedSubstrings = Arrays.asList("timer", "expiration");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
+            }
+
+            @OnTimer(timerId)
+            public void onTimer() {}
+          };
+
+      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutputTimestampDefault() throws Exception {
+      final String timerId = "foo";
+      DoFn<KV<String, Long>, Long> fn1 =
+          new DoFn<KV<String, Long>, Long>() {
+
+            @TimerId(timerId)
+            private final TimerSpec timer = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                @TimerId(timerId) Timer timer, @Timestamp Instant timestamp) {
+              timer
+                  .withOutputTimestamp(timestamp.plus(Duration.millis(5)))
+                  .set(timestamp.plus(Duration.millis(10)));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Timestamp Instant timestamp, OutputReceiver<Long> o) {
+              o.output(timestamp.getMillis());
+            }
+          };
+
+      PCollection<Long> output =
+          pipeline
+              .apply(Create.timestamped(TimestampedValue.of(KV.of("hello", 1L), new Instant(3))))
+              .setIsBoundedInternal(IsBounded.UNBOUNDED)
+              .apply("first", ParDo.of(fn1));
+
+      PAssert.that(output).containsInAnyOrder(new Instant(8).getMillis()); // result output
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutOfBoundsEventTimeTimerHold() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+              try {
+                timer
+                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .set(window.maxTimestamp());
+                fail("Should have failed due to out-of-bounds timer.");
+              } catch (RuntimeException e) {
+                String message = e.getMessage();
+                List<String> expectedSubstrings =
+                    // Make sure these words are contained in error messages for
+                    // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                    Arrays.asList("timer", "output timestamp");
+                expectedSubstrings.forEach(
+                    str ->
+                        Preconditions.checkState(
+                            message.contains(str),
+                            "Pipeline didn't fail with the expected strings: %s",
+                            expectedSubstrings));
+              }
+            }
+
+            @OnTimer(timerId)
+            public void onTimer() {}
+          };
+
+      pipeline.apply(Create.of(KV.of("hello", 37))).apply(ParDo.of(fn));
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      DataflowPortabilityApiUnsupported.class
+    })
+    public void testOutOfBoundsProcessingTimeTimerHold() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+            @ProcessElement
+            public void processElement(
+                ProcessContext context, BoundedWindow window, @TimerId(timerId) Timer timer) {
+              try {
+                timer
+                    .withOutputTimestamp(window.maxTimestamp().plus(1L))
+                    .offset(Duration.standardSeconds(1))
+                    .setRelative();
                 fail("Should have failed due to processing time with absolute timer.");
               } catch (RuntimeException e) {
                 String message = e.getMessage();
-                List<String> expectedSubstrings = Arrays.asList("event time timer", "expiration");
+                List<String> expectedSubstrings =
+                    // Make sure these words are contained in error messages for
+                    // both SimpleDoFnRunner and FnApiDoFnRunner (portability)
+                    Arrays.asList("timer", "output timestamp");
                 expectedSubstrings.forEach(
                     str ->
                         Preconditions.checkState(
@@ -4871,6 +5007,234 @@ public class ParDoTest implements Serializable {
 
       PCollection<Integer> output = pipeline.apply(stream).apply(ParDo.of(fn));
       PAssert.that(output).containsInAnyOrder(3, 42);
+      pipeline.run();
+    }
+  }
+
+  /** Tests to validate Key in OnTimer. */
+  @RunWith(JUnit4.class)
+  public static class KeyTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimer() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key String key, OutputReceiver<Integer> r) {
+              r.output(Integer.parseInt(key));
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline.apply(Create.of(KV.of("1", 37), KV.of("2", 3))).apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(1, 2);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimerWithGenericKey() throws Exception {
+      final String timerId = "foo";
+
+      DoFn<KV<KV<String, String>, Integer>, Integer> fn =
+          new DoFn<KV<KV<String, String>, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key KV<String, String> key, OutputReceiver<Integer> r) {
+              r.output(Integer.parseInt(key.getKey()));
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(Create.of(KV.of(KV.of("1", "1"), 37), KV.of(KV.of("1", "1"), 3)))
+              .apply(ParDo.of(fn));
+      PAssert.that(output).containsInAnyOrder(1);
+      pipeline.run();
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimerWithWrongKeyType() throws Exception {
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("@Key argument is expected to be type of");
+      thrown.expectMessage(", but found ");
+
+      final String timerId = "foo";
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
+          };
+
+      pipeline.apply(Create.of(KV.of("1", 37), KV.of("1", 4), KV.of("2", 3))).apply(ParDo.of(fn));
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesTimersInParDo.class,
+      UsesKeyInParDo.class,
+    })
+    public void testKeyInOnTimerWithoutKV() throws Exception {
+
+      thrown.expect(IllegalArgumentException.class);
+      thrown.expectMessage("@Key argument is expected to be use with input element of type KV.");
+
+      final String timerId = "foo";
+
+      DoFn<String, Integer> fn =
+          new DoFn<String, Integer>() {
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, OutputReceiver<Integer> r) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(@Key Integer key, OutputReceiver<Integer> r) {}
+          };
+
+      pipeline.apply(Create.of("1")).apply(ParDo.of(fn));
+    }
+  }
+
+  /** Tests to validate OnWindowExpiration. */
+  @RunWith(JUnit4.class)
+  public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+    })
+    public void testOnWindowExpirationSimpleBounded() {
+      runOnWindowExpirationSimple(false);
+    }
+
+    @Test
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesTimersInParDo.class,
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class,
+    })
+    public void testOnWindowExpirationSimpleUnbounded() {
+      runOnWindowExpirationSimple(true);
+    }
+
+    public void runOnWindowExpirationSimple(boolean useStreaming) {
+      final String stateId = "foo";
+      final String timerId = "bar";
+      IntervalWindow firstWindow = new IntervalWindow(new Instant(0), new Instant(10));
+      IntervalWindow secondWindow = new IntervalWindow(new Instant(10), new Instant(20));
+
+      DoFn<KV<String, Integer>, Integer> fn =
+          new DoFn<KV<String, Integer>, Integer>() {
+
+            @StateId(stateId)
+            private final StateSpec<ValueState<Integer>> intState =
+                StateSpecs.value(VarIntCoder.of());
+
+            @TimerId(timerId)
+            private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+            @ProcessElement
+            public void processElement(@TimerId(timerId) Timer timer, BoundedWindow window) {
+              timer.set(new Instant(1));
+            }
+
+            @OnTimer(timerId)
+            public void onTimer(
+                @Timestamp Instant timestamp,
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state) {
+              // To check if state is persisted until OnWindowExpiration
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              state.write(currentValue + 1);
+            }
+
+            @OnWindowExpiration
+            public void onWindowExpiration(
+                @AlwaysFetched @StateId(stateId) ValueState<Integer> state,
+                @Key String key,
+                OutputReceiver<Integer> r) {
+              Integer currentValue = MoreObjects.firstNonNull(state.read(), 0);
+              // verify state
+              assertEquals(1, (int) currentValue);
+              // To check output is received from OnWindowExpiration
+              r.output(currentValue);
+            }
+          };
+
+      PCollection<Integer> output =
+          pipeline
+              .apply(
+                  Create.timestamped(
+                      // first window
+                      TimestampedValue.of(KV.of("hello", 7), new Instant(3)),
+
+                      // second window
+                      TimestampedValue.of(KV.of("hi", 35), new Instant(13))))
+              .apply(Window.into(FixedWindows.of(Duration.millis(10))))
+              .setIsBoundedInternal(useStreaming ? IsBounded.UNBOUNDED : IsBounded.BOUNDED)
+              .apply(ParDo.of(fn));
+
+      PAssert.that(output)
+          .inWindow(firstWindow)
+          // verify output
+          .containsInAnyOrder(1)
+          .inWindow(secondWindow)
+          // verify output
+          .containsInAnyOrder(1);
       pipeline.run();
     }
   }

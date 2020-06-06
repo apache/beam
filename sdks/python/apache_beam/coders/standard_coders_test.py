@@ -38,6 +38,7 @@ from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api import schema_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.transforms import userstate
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.typehints import schemas
@@ -59,7 +60,8 @@ def _load_test_cases(test_yaml):
   if not os.path.exists(test_yaml):
     raise ValueError('Could not find the test spec: %s' % test_yaml)
   with open(test_yaml, 'rb') as coder_spec:
-    for ix, spec in enumerate(yaml.load_all(coder_spec)):
+    for ix, spec in enumerate(
+        yaml.load_all(coder_spec, Loader=yaml.SafeLoader)):
       spec['index'] = ix
       name = spec.get('name', spec['coder']['urn'].split(':')[-2])
       yield [name, spec]
@@ -145,9 +147,27 @@ class StandardCodersTest(unittest.TestCase):
               x['pane']['index'],
               x['pane']['on_time_index'])),
       'beam:coder:timer:v1': lambda x,
-      payload_parser: dict(
-          payload=payload_parser(x['payload']),
-          timestamp=Timestamp(micros=x['timestamp'] * 1000)),
+      value_parser,
+      window_parser: userstate.Timer(
+          user_key=value_parser(x['userKey']),
+          dynamic_timer_tag=x['dynamicTimerTag'],
+          clear_bit=x['clearBit'],
+          windows=tuple([window_parser(w) for w in x['windows']]),
+          fire_timestamp=None,
+          hold_timestamp=None,
+          paneinfo=None) if x['clearBit'] else userstate.Timer(
+              user_key=value_parser(x['userKey']),
+              dynamic_timer_tag=x['dynamicTimerTag'],
+              clear_bit=x['clearBit'],
+              fire_timestamp=Timestamp(micros=x['fireTimestamp'] * 1000),
+              hold_timestamp=Timestamp(micros=x['holdTimestamp'] * 1000),
+              windows=tuple([window_parser(w) for w in x['windows']]),
+              paneinfo=PaneInfo(
+                  x['pane']['is_first'],
+                  x['pane']['is_last'],
+                  PaneInfoTiming.from_string(x['pane']['timing']),
+                  x['pane']['index'],
+                  x['pane']['on_time_index'])),
       'beam:coder:double:v1': parse_float,
   }
 

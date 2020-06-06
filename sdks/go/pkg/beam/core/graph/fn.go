@@ -227,24 +227,30 @@ func (f *DoFn) IsSplittable() bool {
 	return ok
 }
 
+// SplittableDoFn represents a DoFn implementing SDF methods.
 type SplittableDoFn DoFn
 
+// CreateInitialRestrictionFn returns the "CreateInitialRestriction" function, if present.
 func (f *SplittableDoFn) CreateInitialRestrictionFn() *funcx.Fn {
 	return f.methods[createInitialRestrictionName]
 }
 
+// SplitRestrictionFn returns the "SplitRestriction" function, if present.
 func (f *SplittableDoFn) SplitRestrictionFn() *funcx.Fn {
 	return f.methods[splitRestrictionName]
 }
 
+// RestrictionSizeFn returns the "RestrictionSize" function, if present.
 func (f *SplittableDoFn) RestrictionSizeFn() *funcx.Fn {
 	return f.methods[restrictionSizeName]
 }
 
+// CreateTrackerFn returns the "CreateTracker" function, if present.
 func (f *SplittableDoFn) CreateTrackerFn() *funcx.Fn {
 	return f.methods[createTrackerName]
 }
 
+// Name returns the name of the function or struct.
 func (f *SplittableDoFn) Name() string {
 	return (*Fn)(f).Name()
 }
@@ -288,6 +294,19 @@ func defaultConfig() *config {
 func NumMainInputs(num mainInputs) func(*config) {
 	return func(cfg *config) {
 		cfg.numMainIn = num
+	}
+}
+
+// CoGBKMainInput is an optional config to NewDoFn which specifies the number
+// of components of a CoGBK input to the DoFn being created, allowing for more complete
+// validation.
+//
+// Example usage:
+//   var col beam.PCollection
+//   graph.NewDoFn(fn, graph.CoGBKMainInput(len(col.Type().Components())))
+func CoGBKMainInput(components int) func(*config) {
+	return func(cfg *config) {
+		cfg.numMainIn = mainInputs(components)
 	}
 }
 
@@ -580,14 +599,9 @@ func validateSideInputsNumUnknown(processFnInputs []funcx.FnParam, method *funcx
 
 	// Handle cases where method has no inputs.
 	if !ok {
-		if numProcessIn <= int(MainKv) {
-			return nil // We're good, possible for there to be no side inputs.
-		}
-		err := errors.Errorf("side inputs expected in method %v", methodName)
-		return errors.SetTopLevelMsgf(err,
-			"Missing side inputs in the %v method of a DoFn. "+
-				"If side inputs are present in %v those side inputs must also be present in %v.",
-			methodName, processElementName, methodName)
+		// If there's no inputs, this is fine, as the ProcessElement method could be a
+		// CoGBK, and not have side inputs.
+		return nil
 	}
 
 	// Error if number of side inputs doesn't match any of the possible numbers of side inputs,
@@ -662,15 +676,14 @@ func validateIsSdf(fn *Fn) (bool, error) {
 			return false, errors.SetTopLevelMsgf(err, "Method %v has an sdf.RTracker parameter at index %v, "+
 				"but is not part of a splittable DoFn. sdf.RTracker is invalid in %v in non-splittable DoFns.",
 				processElementName, pos, processElementName)
-		} else {
-			pos, _, ok = processFn.Inputs()
-			err := errors.Errorf("method %v missing sdf.RTracker, expected one at index %v",
-				processElementName, pos)
-			return false, errors.SetTopLevelMsgf(err, "Method %v is missing an sdf.RTracker "+
-				"parameter despite being part of a splittable DoFn. %v in splittable DoFns requires an "+
-				"sdf.RTracker parameter before main inputs (in this case, at index %v).",
-				processElementName, processElementName, pos)
 		}
+		pos, _, _ = processFn.Inputs()
+		err := errors.Errorf("method %v missing sdf.RTracker, expected one at index %v",
+			processElementName, pos)
+		return false, errors.SetTopLevelMsgf(err, "Method %v is missing an sdf.RTracker "+
+			"parameter despite being part of a splittable DoFn. %v in splittable DoFns requires an "+
+			"sdf.RTracker parameter before main inputs (in this case, at index %v).",
+			processElementName, processElementName, pos)
 	}
 	return isSdf, nil
 }

@@ -163,6 +163,7 @@ public class BoundedSourceRunnerTest {
             PipelineOptionsFactory.create(),
             null /* beamFnDataClient */,
             null /* beamFnStateClient */,
+            null /* beamFnTimerClient */,
             "pTransformId",
             pTransform,
             Suppliers.ofInstance("57L")::get,
@@ -173,6 +174,7 @@ public class BoundedSourceRunnerTest {
             startFunctionRegistry,
             finishFunctionRegistry,
             teardownFunctions::add,
+            null /* addProgressRequestCallback */,
             null /* splitListener */,
             null /* bundleFinalizer */);
 

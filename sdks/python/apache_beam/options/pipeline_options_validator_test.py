@@ -32,15 +32,19 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 
 
 # Mock runners to use for validations.
 class MockRunners(object):
   class DataflowRunner(object):
-    pass
+    def get_default_gcp_region(self):
+      # Return a default so we don't have to specify --region in every test
+      # (unless specifically testing it).
+      return 'us-central1'
 
-  class TestDataflowRunner(object):
+  class TestDataflowRunner(DataflowRunner):
     pass
 
   class OtherRunner(object):
@@ -82,12 +86,15 @@ class SetupTest(unittest.TestCase):
   def test_missing_required_options(self):
     options = PipelineOptions([''])
     runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    runner.get_default_gcp_region = lambda: None
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
 
     self.assertEqual(
         self.check_errors_for_arguments(
-            errors, ['project', 'staging_location', 'temp_location']), [])
+            errors, ['project', 'staging_location', 'temp_location', 'region']),
+        [])
 
   def test_gcs_path(self):
     def get_validator(temp_location, staging_location):
@@ -446,6 +453,32 @@ class SetupTest(unittest.TestCase):
     self.assertEqual(len(errors), 1)
     self.assertIn('worker_region', errors[0])
     self.assertIn('worker_zone', errors[0])
+
+  def test_zone_alias_worker_zone(self):
+    runner = MockRunners.DataflowRunner()
+    options = PipelineOptions([
+        '--zone=us-east1-b',
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
+    self.assertIsNone(options.view_as(WorkerOptions).zone)
+    self.assertEqual(options.view_as(WorkerOptions).worker_zone, 'us-east1-b')
+
+  def test_region_optional_for_non_service_runner(self):
+    runner = MockRunners.DataflowRunner()
+    # Remove default region for this test.
+    runner.get_default_gcp_region = lambda: None
+    options = PipelineOptions([
+        '--project=example:example',
+        '--temp_location=gs://foo/bar',
+        '--dataflow_endpoint=http://localhost:20281',
+    ])
+    validator = PipelineOptionsValidator(options, runner)
+    errors = validator.validate()
+    self.assertEqual(len(errors), 0)
 
   def test_test_matcher(self):
     def get_validator(matcher):

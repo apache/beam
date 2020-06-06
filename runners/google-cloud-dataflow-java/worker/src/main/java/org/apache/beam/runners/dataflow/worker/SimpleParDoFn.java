@@ -361,6 +361,7 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       fnRunner.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          this.stepContext.stateInternals().getKey(),
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),
@@ -395,6 +396,9 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
           this,
           window,
           targetTime);
+
+      fnRunner.onWindowExpiration(
+          window, timer.getOutputTimestamp(), this.stepContext.stateInternals().getKey());
 
       // This is for a timer for a window that is expired, so clean it up.
       for (StateDeclaration stateDecl : fnSignature.stateDeclarations().values()) {
@@ -484,11 +488,13 @@ public class SimpleParDoFn<InputT, OutputT> implements ParDoFn {
       // The stepContext is the thing that know if it is batch or streaming, hence
       // whether state needs to be cleaned up or will simply be discarded so the
       // timer can be ignored
+
+      Instant cleanupTime = earliestAllowableCleanupTime(window, windowingStrategy);
+      // if DoFn has OnWindowExpiration then set holds for system timer.
+      Instant cleanupOutputTimestamp =
+          fnSignature.onWindowExpiration() == null ? cleanupTime : cleanupTime.minus(1L);
       stepContext.setStateCleanupTimer(
-          CLEANUP_TIMER_ID,
-          window,
-          windowCoder,
-          earliestAllowableCleanupTime(window, windowingStrategy));
+          CLEANUP_TIMER_ID, window, windowCoder, cleanupTime, cleanupOutputTimestamp);
     }
   }
 

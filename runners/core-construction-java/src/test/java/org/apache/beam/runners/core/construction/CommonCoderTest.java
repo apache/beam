@@ -49,6 +49,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi.StandardCoders;
 import org.apache.beam.model.pipeline.v1.SchemaApi;
+import org.apache.beam.runners.core.construction.CoderTranslation.TranslationContext;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.ByteCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -255,10 +256,34 @@ public class CommonCoderTest {
       return ((Number) value).longValue();
     } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
-      Coder<?> payloadCoder = (Coder) coder.getCoderArguments().get(0);
+      Coder<?> keyCoder = ((Timer.Coder) coder).getValueCoder();
+      Coder<? extends BoundedWindow> windowCoder = ((Timer.Coder) coder).getWindowCoder();
+      List<BoundedWindow> windows = new ArrayList<>();
+      for (Object window : (List<Object>) kvMap.get("windows")) {
+        windows.add(
+            (BoundedWindow) convertValue(window, coderSpec.getComponents().get(1), windowCoder));
+      }
+      if ((boolean) kvMap.get("clearBit")) {
+        return Timer.cleared(
+            convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
+            (String) kvMap.get("dynamicTimerTag"),
+            windows);
+      }
+      Map<String, Object> paneInfoMap = (Map<String, Object>) kvMap.get("pane");
+      PaneInfo paneInfo =
+          PaneInfo.createPane(
+              (boolean) paneInfoMap.get("is_first"),
+              (boolean) paneInfoMap.get("is_last"),
+              PaneInfo.Timing.valueOf((String) paneInfoMap.get("timing")),
+              (int) paneInfoMap.get("index"),
+              (int) paneInfoMap.get("on_time_index"));
       return Timer.of(
-          new Instant(((Number) kvMap.get("timestamp")).longValue()),
-          convertValue(kvMap.get("payload"), coderSpec.getComponents().get(0), payloadCoder));
+          convertValue(kvMap.get("userKey"), coderSpec.getComponents().get(0), keyCoder),
+          (String) kvMap.get("dynamicTimerTag"),
+          windows,
+          new Instant(((Number) kvMap.get("fireTimestamp")).longValue()),
+          new Instant(((Number) kvMap.get("holdTimestamp")).longValue()),
+          paneInfo);
     } else if (s.equals(getUrn(StandardCoders.Enum.INTERVAL_WINDOW))) {
       Map<String, Object> kvMap = (Map<String, Object>) value;
       Instant end = new Instant(((Number) kvMap.get("end")).longValue());
@@ -383,7 +408,7 @@ public class CommonCoderTest {
     checkNotNull(
         translator, "No translator found for common coder class: " + coderType.getSimpleName());
 
-    return translator.fromComponents(components, coder.getPayload());
+    return translator.fromComponents(components, coder.getPayload(), new TranslationContext() {});
   }
 
   @Test
@@ -434,8 +459,7 @@ public class CommonCoderTest {
       assertFalse(expectedValueIterator.hasNext());
 
     } else if (s.equals(getUrn(StandardCoders.Enum.TIMER))) {
-      assertEquals(((Timer) expectedValue).getTimestamp(), ((Timer) actualValue).getTimestamp());
-      assertThat(((Timer) expectedValue).getPayload(), equalTo(((Timer) actualValue).getPayload()));
+      assertEquals((Timer) expectedValue, (Timer) actualValue);
 
     } else if (s.equals(getUrn(StandardCoders.Enum.GLOBAL_WINDOW))) {
       assertEquals(expectedValue, actualValue);

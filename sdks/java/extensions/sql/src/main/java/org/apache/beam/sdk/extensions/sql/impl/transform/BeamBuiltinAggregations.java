@@ -33,11 +33,13 @@ import org.apache.beam.sdk.extensions.sql.impl.transform.agg.VarianceFn;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Max;
 import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -48,12 +50,14 @@ public class BeamBuiltinAggregations {
   public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
+              .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
               .put("COUNT", typeName -> Count.combineFn())
               .put("MAX", BeamBuiltinAggregations::createMax)
               .put("MIN", BeamBuiltinAggregations::createMin)
               .put("SUM", BeamBuiltinAggregations::createSum)
               .put("$SUM0", BeamBuiltinAggregations::createSum)
               .put("AVG", BeamBuiltinAggregations::createAvg)
+              .put("BIT_OR", BeamBuiltinAggregations::createBitOr)
               .put("VAR_POP", t -> VarianceFn.newPopulation(t.getTypeName()))
               .put("VAR_SAMP", t -> VarianceFn.newSample(t.getTypeName()))
               .put("COVAR_POP", t -> CovarianceFn.newPopulation(t.getTypeName()))
@@ -97,7 +101,7 @@ public class BeamBuiltinAggregations {
         return Max.ofDoubles();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in MAX", fieldType));
+            String.format("[%s] is not supported in MAX", fieldType));
     }
   }
 
@@ -123,7 +127,7 @@ public class BeamBuiltinAggregations {
         return Min.ofDoubles();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in MIN", fieldType));
+            String.format("[%s] is not supported in MIN", fieldType));
     }
   }
 
@@ -146,7 +150,7 @@ public class BeamBuiltinAggregations {
         return new BigDecimalSum();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in SUM", fieldType));
+            String.format("[%s] is not supported in SUM", fieldType));
     }
   }
 
@@ -169,8 +173,16 @@ public class BeamBuiltinAggregations {
         return new BigDecimalAvg();
       default:
         throw new UnsupportedOperationException(
-            String.format("[%s] is not support in AVG", fieldType));
+            String.format("[%s] is not supported in AVG", fieldType));
     }
+  }
+
+  static CombineFn createBitOr(Schema.FieldType fieldType) {
+    if (fieldType.getTypeName() == TypeName.INT64) {
+      return new BitOr();
+    }
+    throw new UnsupportedOperationException(
+        String.format("[%s] is not supported in BIT_OR", fieldType));
   }
 
   static class CustMax<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
@@ -343,6 +355,32 @@ public class BeamBuiltinAggregations {
     @Override
     public BigDecimal toBigDecimal(BigDecimal record) {
       return record;
+    }
+  }
+
+  static class BitOr<T extends Number> extends CombineFn<T, Long, Long> {
+    @Override
+    public Long createAccumulator() {
+      return 0L;
+    }
+
+    @Override
+    public Long addInput(Long accum, T input) {
+      return accum | input.longValue();
+    }
+
+    @Override
+    public Long mergeAccumulators(Iterable<Long> accums) {
+      Long merged = createAccumulator();
+      for (Long accum : accums) {
+        merged = merged | accum;
+      }
+      return merged;
+    }
+
+    @Override
+    public Long extractOutput(Long accum) {
+      return accum;
     }
   }
 }

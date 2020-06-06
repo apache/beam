@@ -16,14 +16,14 @@
 # limitations under the License.
 ################################################################################
 
-FROM python:3
+FROM python:3-slim
 
 WORKDIR /usr/src/app
 
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt pylint yapf nose
+
 COPY . .
-
-RUN pip install pylint yapf nose
-RUN pip install --no-cache-dir -r requirements.txt
-
 
 CMD python ./sync.py

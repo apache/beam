@@ -20,6 +20,7 @@ plugins {
   id 'org.apache.beam.module'
   // https://github.com/avast/gradle-docker-compose-plugin
   id 'com.avast.gradle.docker-compose'
+  id 'org.ajoberstar.grgit'
 }
 applyGroovyNature()
 
@@ -35,11 +36,70 @@ task testMetricsStack {
     // TODO(BEAM-5837): Add some actual validation of the metrics stack
     println "Hello world!" }
 }
+
+// Create an empty file and set DOCKER_CONFIG to ignore bad config file on Jenkins nodes. BEAM-7405
+task createEmptyConfig(type: Exec) {
+  outputs.file("${project.rootProject.buildDir}/config.json")
+  commandLine '/bin/sh', '-c', "echo '{}' > ${project.rootProject.buildDir}/config.json"
+}
+composeUp {
+  dependsOn "createEmptyConfig"
+}
+dockerCompose {
+  environment.put 'DOCKER_CONFIG', project.rootProject.buildDir
+}
+
 dockerCompose.isRequiredBy(testMetricsStack)
 
-task preCommit { dependsOn testMetricsStack }
+task validateConfiguration(type: Exec) {
+  commandLine 'sh', '-c', 'kubectl apply --dry-run=true -Rf kubernetes'
+}
 
-task checkProber(type:Test) {
+task preCommit {
+  dependsOn validateConfiguration
+  dependsOn testMetricsStack
+}
+
+task buildAndPublishContainers(type: Exec) {
+  commandLine './build_and_publish_containers.sh', 'true'
+}
+
+// Applies new configuration to all resources labeled with `app=beammetrics`
+// and forces Kubernetes to re-pull images.
+task applyConfiguration() {
+  dependsOn buildAndPublishContainers
+
+  doLast {
+    assert grgit : 'Cannot use outside of git repository'
+
+    def git = grgit.open()
+    def commitedChanges = git.log(paths: ['.test-infra/metrics']).findAll {
+      it.dateTime > ZonedDateTime.now().minusHours(6)
+    }
+
+    // Older version of kubectl does not offer `rollout restart` command, therefore we scale
+    // deployments to 0 and then scale back to 1.
+    if (!commitedChanges.isEmpty()) {
+      exec {
+        executable 'sh'
+        args '-c', 'kubectl apply --selector=app=beammetrics --prune=true -Rf kubernetes && \
+          kubectl wait --selector=app=beammetrics --for=condition=available --timeout=5m deployment && \
+          kubectl get --selector=app=beammetrics -o name deployments \
+          | xargs -r kubectl scale --replicas=0 && \
+          kubectl get --selector=app=beammetrics -o name deployments \
+          | xargs -r kubectl scale --replicas=1'
+      }
+    } else {
+      println 'No changes committed since the last 6 hours.'
+    }
+  }
+}
+
+task deploy {
+  dependsOn applyConfiguration
+}
+
+task checkProber(type: Test) {
   include "**/ProberTests.class"
 }
 
