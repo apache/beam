@@ -67,12 +67,12 @@ class HttpIO(object):
       Raises:
         ValueError: Invalid open file mode.
       """
-      if mode == 'r' or mode == 'rb':
-        downloader = HttpDownloader(uri, self._client)
-        return io.BufferedReader(
-          DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
-      else:
-        raise ValueError('Invalid file open mode: %s.' % mode)
+    if mode == 'r' or mode == 'rb':
+      downloader = HttpDownloader(uri, self._client)
+      return io.BufferedReader(
+        DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
+    else:
+      raise ValueError('Unsupported file open mode: %s for URI %s.' % (mode, uri))
 
   def list_prefix(self, path):
     """Lists files matching the prefix.
