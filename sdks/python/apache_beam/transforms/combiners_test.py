@@ -53,8 +53,10 @@ from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.trigger import AfterAll
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import TypeCheckError
 from apache_beam.utils.timestamp import Timestamp
 
@@ -98,6 +100,7 @@ class CombineTest(unittest.TestCase):
       vals = [6, 3, 1, 1, 9, 1, 5, 2, 0, 6]
       mean = sum(vals) / float(len(vals))
       size = len(vals)
+      timestamp = 1591485720
 
       # First for global combines.
       pcoll = pipeline | 'start' >> Create(vals)
@@ -107,7 +110,8 @@ class CombineTest(unittest.TestCase):
       assert_that(result_count, equal_to([size]), label='assert:size')
 
       # Now for global combines without default
-      windowed = pcoll | 'window' >> WindowInto(GlobalWindows())
+      timestamped = pcoll | Map(lambda x: TimestampedValue(timestamp))
+      windowed = timestamped | 'window' >> WindowInto(FixedWindows(60))
       result_windowed_mean = windowed | 'mean-wo-defaults' >> combine.Mean.Globally(
       ).without_defaults()
       assert_that(
