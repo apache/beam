@@ -23,7 +23,6 @@ from __future__ import absolute_import
 
 from future.utils import iteritems
 
-from apache_beam.io.aws import s3io
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressedFile
 from apache_beam.io.filesystem import CompressionTypes
