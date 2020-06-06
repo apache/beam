@@ -61,13 +61,13 @@ categories:
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.xml.XmlIO
-            url: https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/io/xml/XmlIO.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/xml/XmlIO.html
       - transform: TikaIO
         description: Transforms for parsing arbitrary files using [Apache Tika](https://tika.apache.org/).
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.tika.TikaIO
-            url: https://beam.apache.org/releases/javadoc/2.3.0/org/apache/beam/sdk/io/tika/TikaIO.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/tika/TikaIO.html
       - transform: ParquetIO
         description: IO for reading from and writing to [Parquet](https://parquet.apache.org/) files.
         docs: /documentation/io/built-in/parquet/
@@ -377,13 +377,13 @@ categories:
         implementations:
           - language: py
             name: apache_beam.io.flink.flink_streaming_impulse_source
-            url: https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.flink.flink_streaming_impulse_source.html
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.flink.flink_streaming_impulse_source.html
       - transform: GenerateSequence
         description: Generates a bounded or unbounded stream of integers.
         implementations:
           - language: java
             name: org.apache.beam.sdk.io.GenerateSequence
-            url: https://beam.apache.org/releases/javadoc/2.20.0/org/apache/beam/sdk/io/GenerateSequence.html
+            url: https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/GenerateSequence.html
           - language: py
             name: apache_beam.io.external.generate_sequence.GenerateSequence
-            url: https://beam.apache.org/releases/pydoc/2.20.0/apache_beam.io.external.generate_sequence.html
+            url: https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.generate_sequence.html

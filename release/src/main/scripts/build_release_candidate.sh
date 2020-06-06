@@ -106,9 +106,8 @@ if [[ $confirmation = "y" ]]; then
                 -Prelease.releaseVersion=${RELEASE}-RC${RC_NUM} \
                 -Prelease.useAutomaticVersion=true --info --no-daemon
 
-  echo "Please make sure gradle release succeed: "
-  echo "1. release code has been pushed to github repo."
-  echo "2. new rc tag has created in github."
+  git push origin "${RELEASE_BRANCH}"
+  git push origin "v${RELEASE}-RC${RC_NUM}"
 
   echo "-------------Staging Java Artifacts into Maven---------------"
   gpg --local-user ${SIGNING_KEY} --output /dev/null --sign ~/.bashrc
@@ -305,7 +304,8 @@ if [[ $confirmation = "y" ]]; then
   git commit -m "Update beam-site for release ${RELEASE}\n\nContent generated based on commit ${RELEASE_COMMIT}"
   git push -f ${USER_REMOTE_URL}
 
-  if [[ -z `which hub` ]]; then
+  # Check if hub is installed. See https://stackoverflow.com/a/677212
+  if ! hash hub 2> /dev/null; then
     echo "You don't have hub installed, do you want to install hub with sudo permission? [y|N]"
     read confirmation
     if [[ $confirmation = "y" ]]; then
@@ -318,7 +318,7 @@ if [[ $confirmation = "y" ]]; then
       rm -rf ${HUB_ARTIFACTS_NAME}*
     fi
   fi
-  if [[ -z `which hub` ]]; then
+  if hash hub 2> /dev/null; then
     hub pull-request -m "Publish ${RELEASE} release" -h ${USER_GITHUB_ID}:updates_release_${RELEASE} -b apache:release-docs
   else
     echo "Without hub, you need to create PR manually."

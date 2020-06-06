@@ -114,6 +114,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/tensorflow/tensorflow/master/LICENSE"
   tensorflow-estimator:
     license: "https://raw.githubusercontent.com/tensorflow/estimator/master/LICENSE"
+  tensorboard-plugin-wit:
+    license: "https://raw.githubusercontent.com/PAIR-code/what-if-tool/master/LICENSE"
   timeloop:
     license: "https://raw.githubusercontent.com/sankalpjonn/timeloop/master/LICENSE"
   wget:

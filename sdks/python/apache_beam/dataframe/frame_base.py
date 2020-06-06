@@ -17,6 +17,7 @@
 from __future__ import absolute_import
 
 import inspect
+from typing import Dict
 
 import pandas as pd
 
@@ -25,7 +26,7 @@ from apache_beam.dataframe import expressions
 
 class DeferredFrame(object):
 
-  _pandas_type_map = {}
+  _pandas_type_map = {}  # type: Dict[type, type]
 
   def __init__(self, expr):
     self._expr = expr
@@ -44,6 +45,10 @@ class DeferredFrame(object):
 
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
+
+  @property
+  def dtypes(self):
+    return self._expr.proxy().dtypes
 
 
 def name_and_func(method):
@@ -130,3 +135,13 @@ def copy_and_mutate(func):
     return copy
 
   return wrapper
+
+
+class WontImplementError(NotImplementedError):
+  """An subclass of NotImplementedError to raise indicating that implementing
+  the given method is infeasible.
+
+  Raising this error will also prevent this doctests from being validated
+  when run with the beam dataframe validation doctest runner.
+  """
+  pass

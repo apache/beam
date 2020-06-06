@@ -48,7 +48,7 @@ from apache_beam.runners.portability import abstract_job_service
 from apache_beam.runners.portability import artifact_service
 from apache_beam.runners.portability.fn_api_runner import fn_runner
 from apache_beam.runners.portability.fn_api_runner import worker_handlers
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
   from google.protobuf import struct_pb2  # pylint: disable=ungrouped-imports
@@ -141,7 +141,7 @@ class LocalJobServicer(abstract_job_service.AbstractJobServiceServicer):
     return 'localhost'
 
   def start_grpc_server(self, port=0):
-    self._server = grpc.server(UnboundedThreadPoolExecutor())
+    self._server = grpc.server(thread_pool_executor.shared_unbounded_instance())
     port = self._server.add_insecure_port(
         '%s:%d' % (self.get_bind_address(), port))
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
@@ -194,7 +194,8 @@ class SubprocessSdkWorker(object):
     self._worker_id = worker_id
 
   def run(self):
-    logging_server = grpc.server(UnboundedThreadPoolExecutor())
+    logging_server = grpc.server(
+        thread_pool_executor.shared_unbounded_instance())
     logging_port = logging_server.add_insecure_port('[::]:0')
     logging_server.start()
     logging_servicer = BeamFnLoggingServicer()

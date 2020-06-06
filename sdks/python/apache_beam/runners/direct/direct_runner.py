@@ -110,16 +110,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
-    use_fnapi_runner = (_FnApiRunnerSupportVisitor().accept(pipeline))
-
-    # Also ensure grpc is available.
-    try:
-      # pylint: disable=unused-import
-      import grpc
-    except ImportError:
-      use_fnapi_runner = False
-
-    if use_fnapi_runner:
+    if _FnApiRunnerSupportVisitor().accept(pipeline):
       from apache_beam.runners.portability.fn_api_runner import FnApiRunner
       runner = FnApiRunner()
     else:
@@ -245,11 +236,10 @@ class _GroupByKey(PTransform):
       reify_output_type = typehints.KV[
           key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
       gbk_input_type = (
-          typehints.
-          KV[key_type,
-             typehints.Iterable[
-                 typehints.WindowedValue[  # type: ignore[misc]
-                     value_type]]])
+          typehints.KV[
+              key_type,
+              typehints.Iterable[typehints.WindowedValue[  # type: ignore[misc]
+                  value_type]]])
       gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
 
       # pylint: disable=bad-continuation

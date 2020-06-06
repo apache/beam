@@ -53,7 +53,6 @@ import com.google.zetasql.StructType.StructField;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
-import com.google.zetasql.ZetaSQLValue.ValueProto;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -762,7 +761,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
   public void testLike1() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -802,7 +800,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
   public void testLikeAllowsEscapingNonSpecialCharacter() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -819,7 +816,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("")
   public void testLikeAllowsEscapingBackslash() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
@@ -834,25 +830,6 @@ public class ZetaSQLDialectSpecTest {
 
     PAssert.that(stream).containsInAnyOrder(Row.withSchema(schema).addValues(true).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
-  @Ignore("Currently non UTF-8 values are coerced to UTF-8")
-  public void testThrowsErrorForNonUTF8() {
-    String sql = "SELECT @p0 LIKE  @p1 AS ColA";
-    byte[] bytes = {(byte) 0xe8, (byte) 0xb0};
-    Value bad =
-        Value.deserialize(
-            TypeFactory.createSimpleType(TypeKind.TYPE_STRING),
-            ValueProto.newBuilder().setStringValueBytes(ByteString.copyFrom(bytes)).build());
-    ImmutableMap<String, Value> params =
-        ImmutableMap.of("p0", Value.createStringValue("abc"), "p1", bad);
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(RuntimeException.class);
-    // TODO: message should be a constant on ZetaSQLPlannerImpl
-    thrown.expectMessage("invalid UTF-8");
-    zetaSQLQueryPlanner.convertToBeamRel(sql, params);
   }
 
   @Test
@@ -3411,6 +3388,22 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
+  public void testStringAggregation() {
+    String sql =
+        "SELECT STRING_AGG(fruit) AS string_agg"
+            + " FROM UNNEST([\"apple\", \"pear\", \"banana\", \"pear\"]) AS fruit";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    Schema schema = Schema.builder().addStringField("string_field").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(Row.withSchema(schema).addValue("apple,pear,banana,pear").build());
+
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
   @Ignore("Seeing exception in Beam, need further investigation on the cause of this failed query.")
   public void testNamedUNNESTJoin() {
     String sql =
@@ -4574,7 +4567,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Bytes cannot be in UNION ALL")
   public void testSelectDistinct2() {
     String sql =
         "SELECT DISTINCT val.BYTES\n"
@@ -4776,6 +4768,31 @@ public class ZetaSQLDialectSpecTest {
                     DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
                     DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01 21:26:07"),
                     DateTimeUtils.parseTimestampWithUTCTimeZone("2018-07-01T21:26:08"))
+                .build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testTVFTumbleAggregation() {
+    String sql =
+        "SELECT COUNT(*) as field_count, "
+            + "window_start "
+            + "FROM TUMBLE((select * from KeyValue), descriptor(ts), 'INTERVAL 1 SECOND') "
+            + "GROUP BY window_start";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    final Schema schema =
+        Schema.builder().addInt64Field("field_count").addDateTimeField("window_start").build();
+    PAssert.that(stream)
+        .containsInAnyOrder(
+            Row.withSchema(schema)
+                .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 7, ISOChronology.getInstanceUTC()))
+                .build(),
+            Row.withSchema(schema)
+                .addValues(1L, new DateTime(2018, 7, 1, 21, 26, 6, ISOChronology.getInstanceUTC()))
                 .build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
