@@ -32,20 +32,21 @@ from __future__ import absolute_import
 import io
 from builtins import object
 
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystemio import Downloader
 from apache_beam.io.filesystemio import DownloaderStream
 from apache_beam.internal.http_client import get_new_http
 import sys
 
+REQUEST_FAILED_ERROR_MSG = "HTTP request failed for URL {}: Received {} {}"
 
 class HttpIO(object):
   """HTTP I/O."""
 
-  def __init__(self, client = None):
+  def __init__(self, client=None):
     if sys.version_info[0] != 3:
       raise RuntimeError("HttpIO only supports Python 3.")
     self._client = client or get_new_http()
-    pass
   
   def open(
       self,
@@ -65,12 +66,12 @@ class HttpIO(object):
       Raises:
         ValueError: Invalid open file mode.
       """
-    if mode == 'r' or mode == 'rb':
-      downloader = HttpDownloader(uri, self._client)
-      return io.BufferedReader(
-        DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
-    else:
-      raise ValueError('Invalid file open mode: %s.' % mode)
+      if mode == 'r' or mode == 'rb':
+        downloader = HttpDownloader(uri, self._client)
+        return io.BufferedReader(
+          DownloaderStream(downloader, mode=mode), buffer_size=read_buffer_size)
+      else:
+        raise ValueError('Invalid file open mode: %s.' % mode)
 
   def list_prefix(self, path):
     """Lists files matching the prefix.
@@ -88,7 +89,7 @@ class HttpIO(object):
     """
     return {path: self.size(path)}
 
-  def size(self, uri):
+  def size(self, uri, method=None):
     """Returns the size of a single file stored at a HTTP URL.
 
     First, the client attempts to make a HEAD request for a non-gzipped version of the file,
@@ -97,25 +98,24 @@ class HttpIO(object):
 
     Args:
       path: HTTP URL in the form http://[path] or https://[path].
+      method (optional): HTTP method to use to get the size -- if specified, overrides the default behavior mentioned above.
 
     Returns:
       Size of the HTTP file in bytes.
     """
-    try:
+    if method:
       # Pass in "" for "Accept-Encoding" because we want the non-gzipped content-length.
-      resp, content = self._client.request(uri, method='HEAD', headers={"Accept-Encoding": ""})
+      resp, content = self._client.request(uri, method=method, headers={"Accept-Encoding": ""})
       if resp.status != 200:
-        raise Exception(resp.status, resp.reason)
+        raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, resp.status, resp.reason))
       return int(resp["content-length"])
-    except Exception:
-      # Server doesn't support HEAD method;
-      # use GET method instead to prefetch the result.
-      resp, content = self._client.request(uri, method='GET')
-      if resp.status != 200:
-        raise Exception(resp.status, resp.reason)
-      return int(resp["content-length"])
+    # Default behavior
+    try:
+      return self.size(uri, method='HEAD')
+    except BeamIOError:
+      return self.size(uri, method='GET')
 
-  def exists(self, uri):
+  def exists(self, uri, method=None):
     """Returns whether the file at the given HTTP URL exists.
 
     The client attempts to make a HEAD request, and if that fails, a GET request.
@@ -124,28 +124,23 @@ class HttpIO(object):
 
     Args:
       path: HTTP URL in the form http://[path] or https://[path].
+      method (optional): HTTP method to use to check whether the file exists -- overrides the default behavior mentioned above.
 
     Returns:
       Size of the HTTP file in bytes.
     """
+    if method:
+      resp, content = self._client.request(uri, method=method)
+      if resp.status == 200:
+        return True
+      if resp.status == 404:
+        return False
+      raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, resp.status, resp.reason))
+    # Default behavior
     try:
-      resp, content = self._client.request(uri, method='HEAD')
-      if resp.status == 200:
-        return True
-      elif resp.status == 404:
-        return False
-      else:
-        raise Exception(resp.status, resp.reason)
-    except Exception:
-      # Server doesn't support HEAD method;
-      # use GET method instead to prefetch the result.
-      resp, content = self._client.request(uri, method='GET')
-      if resp.status == 200:
-        return True
-      elif resp.status == 404:
-        return False
-      else:
-        raise Exception(resp.status, resp.reason)
+      return self.exists(uri, method='HEAD')
+    except BeamIOError:
+      return self.exists(uri, method='GET')
 
 
 class HttpDownloader(Downloader):
@@ -155,7 +150,7 @@ class HttpDownloader(Downloader):
 
     resp, content = self._client.request(self._uri, method='GET')
     if resp.status != 200:
-      raise Exception(resp.status, resp.reason)
+      raise BeamIOError(REQUEST_FAILED_ERROR_MSG.format(uri, resp.status, resp.reason))
     self._size = int(resp["content-length"])
     self._content = content
 
