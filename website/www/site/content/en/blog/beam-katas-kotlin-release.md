@@ -37,7 +37,7 @@ exercises to learn about the fundamentals of Beam in Kotlin.
 [Kotlin](https://kotlinlang.org) is a modern, open-source, statically typed language that targets the JVM. It is most commonly used by 
 Android developers, however it has recently risen in popularity due to its extensive feature set that enables
 more concise and cleaner code than Java, without sacrificing performance or type safety. It recently was [ranked
-as one of the most beloved programming languages annual Stack Overflow Developer Survey](https://insights.stackoverflow.com/survey/2020#technology-most-loved-dreaded-and-wanted-languages-loved), so don't take 
+as one of the most beloved programming languages in the annual Stack Overflow Developer Survey](https://insights.stackoverflow.com/survey/2020#technology-most-loved-dreaded-and-wanted-languages-loved), so don't take 
 just our word for it. 
 
 The relationship between Apache Beam and Kotlin isn't a new one. You can find examples scattered across the web
