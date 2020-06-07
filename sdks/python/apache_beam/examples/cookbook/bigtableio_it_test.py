@@ -32,7 +32,7 @@ from typing import List
 import pytz
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigtableio import WriteToBigTable
+from apache_beam.io.gcp.experimental.bigtableio import WriteToBigTable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.runners.runner import PipelineState

@@ -25,7 +25,7 @@ import argparse
 import logging
 import unittest
 
-from apache_beam.io.gcp.bigtableio import ReadFromBigtable
+from apache_beam.io.gcp.experimental.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions

@@ -38,7 +38,7 @@ try:
   from google.cloud.bigtable.client import Client
   from google.cloud.bigtable.table import Table
   from google.cloud.bigtable.row_filters import ValueRangeFilter
-  from apache_beam.io.gcp import bigtableio
+  from apache_beam.io.gcp.experimental import bigtableio
   from google.api_core import exceptions
   import bigtableio
 except (ImportError, TypeError):
