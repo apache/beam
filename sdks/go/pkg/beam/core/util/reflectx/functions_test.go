@@ -24,6 +24,10 @@ func testFunction() int64 {
 	return 42
 }
 
+func testFunction2() (int, int) {
+	return 42, 42
+}
+
 func TestLoadFunction(t *testing.T) {
 	val := reflect.ValueOf(testFunction)
 	fi := uintptr(val.Pointer())
@@ -45,7 +49,15 @@ func TestLoadFunction(t *testing.T) {
 func TestFunctionOutputSize(t *testing.T) {
 	expected := 1
 	received := FunctionOutputSize(testFunction)
-	if received != expected{
-		t.Errorf("got %d, wanted %d", received,expected)
+	if received != expected {
+		t.Errorf("got %d, wanted %d", received, expected)
+	}
+}
+
+func TestFunction2OutputSize(t *testing.T) {
+	expected := 2
+	received := FunctionOutputSize(testFunction2)
+	if received != expected {
+		t.Errorf("got %d, wanted %d", received, expected)
 	}
 }
