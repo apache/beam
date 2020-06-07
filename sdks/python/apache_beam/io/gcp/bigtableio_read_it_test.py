@@ -25,6 +25,7 @@ import argparse
 import logging
 import unittest
 
+from apache_beam.io.gcp.bigtableio import ReadFromBigtable
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
@@ -37,9 +38,6 @@ try:
   from google.cloud.bigtable import row
 except ImportError:
   Client = None
-
-# from bigtableio import ReadFromBigtable
-from bigtableio_read import ReadFromBigtable
 
 
 @unittest.skipIf(Client is None, 'GC Bigtable dependencies are not installed')
