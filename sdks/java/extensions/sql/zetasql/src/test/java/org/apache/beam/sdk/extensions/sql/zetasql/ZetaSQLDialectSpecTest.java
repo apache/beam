@@ -3841,9 +3841,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore(
-      "Calcite codegen does not support UDF with ... args."
-          + " See:https://jira.apache.org/jira/browse/CALCITE-2889")
   public void testConcatWithSixParameters() {
     String sql = "SELECT concat('abc', 'def', '  ', 'xyz', 'kkk', 'ttt')";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
