@@ -813,7 +813,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         // no-op
     }
 
-    // TODO: Support caching state data across bundle boundaries.
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor =
         new FnApiStateAccessor(
             pipelineOptions,
@@ -899,7 +899,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentRestriction = null;
     }
 
-    // TODO: Support caching state data across bundle boundaries.
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -922,7 +922,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWindow = null;
     }
 
-    // TODO: Support caching state data across bundle boundaries.
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
@@ -1199,7 +1199,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
-    // TODO: Support caching state data across bundle boundaries.
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
   }
 
