@@ -17,10 +17,10 @@ for example usage.</li><li>Python SDK: Added integration tests and updated batch
 <code>apache_beam.typehints.disable_type_annotations()</code> before pipeline creation
 will disable is completely, and decorating specific functions (such as
 <code>process()</code>) with <code>@apache_beam.typehints.no_annotations</code> will disable it
-for that function.</p><p>More details will be in
+for that function.</p><p>More details can be found in
 <a href=https://beam.apache.org/documentation/sdks/python-type-safety/>Ensuring Python Type Safety</a>
-and an upcoming
-<a href=https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html>blog post</a>.</p></li><li><p>Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
+and the Python SDK Typing Changes
+<a href=https://beam.apache.org/blog/python-typing/>blog post</a>.</p></li><li><p>Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
 context to fields and schemas. This replaces the current Beam metadata that is present
 in a FieldType only, options are available in fields and row schemas. Schema options are
 fully typed and can contain complex rows. <em>Remark: Schema aware is still experimental.</em>

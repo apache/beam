@@ -134,10 +134,10 @@ for example usage.&lt;/li>
 will disable is completely, and decorating specific functions (such as
 &lt;code>process()&lt;/code>) with &lt;code>@apache_beam.typehints.no_annotations&lt;/code> will disable it
 for that function.&lt;/p>
-&lt;p>More details will be in
+&lt;p>More details can be found in
 &lt;a href="https://beam.apache.org/documentation/sdks/python-type-safety/">Ensuring Python Type Safety&lt;/a>
-and an upcoming
-&lt;a href="https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html">blog post&lt;/a>.&lt;/p>
+and the Python SDK Typing Changes
+&lt;a href="https://beam.apache.org/blog/python-typing/">blog post&lt;/a>.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra
