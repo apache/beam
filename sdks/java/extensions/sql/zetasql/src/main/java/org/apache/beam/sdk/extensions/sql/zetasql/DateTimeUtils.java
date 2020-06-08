@@ -22,7 +22,6 @@ import static com.google.zetasql.CivilTimeEncoder.encodePacked64TimeNanos;
 
 import com.google.zetasql.Value;
 import io.grpc.Status;
-import java.time.LocalDate;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.avatica.util.TimeUnit;
@@ -152,11 +151,6 @@ public class DateTimeUtils {
 
   public static DateTime parseDate(String str) {
     return DateTimeFormat.forPattern("yyyy-MM-dd").withZoneUTC().parseDateTime(str);
-  }
-
-  public static LocalDate parseDateToLocalDate(String str) {
-    DateTime jodaDate = parseDate(str);
-    return LocalDate.of(jodaDate.getYear(), jodaDate.getMonthOfYear(), jodaDate.getDayOfMonth());
   }
 
   public static DateTime parseTime(String str) {

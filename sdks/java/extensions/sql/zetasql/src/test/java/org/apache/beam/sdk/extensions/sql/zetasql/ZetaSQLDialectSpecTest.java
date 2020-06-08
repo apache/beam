@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseDate;
-import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseDateToLocalDate;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseDateToValue;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTime;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.parseTimeToValue;
@@ -3592,7 +3591,7 @@ public class ZetaSQLDialectSpecTest {
 
     PAssert.that(stream)
         .containsInAnyOrder(
-            Row.withSchema(resultType).addValues(1L, parseDateToLocalDate("2018-10-18")).build());
+            Row.withSchema(resultType).addValues(1L, LocalDate.parse("2018-10-18")).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 
