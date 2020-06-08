@@ -92,10 +92,6 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
       - name: Copy sources to GCS bucket
         run: gsutil cp -r -a public-read source/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
-      - name: List sources on GCS bucket
-        run: |
-          gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*.tar.gz"
-          gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*.zip"
 
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -149,5 +145,16 @@ jobs:
         service_account_key: ${{ secrets.GCP_SA_KEY }}
     - name: Copy wheels to GCS bucket
       run: gsutil cp -r -a public-read wheelhouse/* gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/
-    - name: List wheels on GCS bucket
-      run: gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*.whl"
+
+  list_files_on_gcs:
+    name: List files on Google Cloud Storage Bucket
+    needs: upload_wheels_to_gcs
+    runs-on: ubuntu-latest
+    steps:
+    - name: Authenticate on GCP
+      uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
+      with:
+        service_account_email: ${{ secrets.GCP_SA_EMAIL }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+    - name: List file on Google Cloud Storage Bucket
+      run: gsutil ls "gs://${{ secrets.GCP_BUCKET }}/${GITHUB_REF##*/}/*"
