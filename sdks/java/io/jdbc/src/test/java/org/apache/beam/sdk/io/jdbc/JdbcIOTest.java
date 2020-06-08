@@ -980,7 +980,7 @@ public class JdbcIOTest implements Serializable {
                               .equals(e.getSQLState()); // we fake a deadlock with a lock here
                         })
                 .withRetryConfiguration(
-                    JdbcIO.RetryConfiguration.create(Duration.standardSeconds(1), 2))
+                    JdbcIO.RetryConfiguration.create(2, null, Duration.standardSeconds(1)))
                 .withPreparedStatementSetter(
                     (element, statement) -> {
                       statement.setInt(1, element.getKey());

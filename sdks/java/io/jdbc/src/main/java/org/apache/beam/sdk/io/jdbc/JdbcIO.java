@@ -245,7 +245,7 @@ public class JdbcIO {
     return new AutoValue_JdbcIO_WriteVoid.Builder<T>()
         .setBatchSize(DEFAULT_BATCH_SIZE)
         .setRetryStrategy(new DefaultRetryStrategy())
-        .setRetryConfiguration(RetryConfiguration.create(Duration.standardSeconds(5), 5))
+        .setRetryConfiguration(RetryConfiguration.create(5, null, Duration.standardSeconds(5)))
         .build();
   }
 
@@ -935,36 +935,19 @@ public class JdbcIO {
       abstract RetryConfiguration build();
     }
 
-    public static RetryConfiguration create(int maxAttempts) {
-      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
-      return create(maxAttempts, DEFAULT_MAX_CUMULATIVE_BACKOFF, DEFAULT_INITIAL_BACKOFF);
-    }
-
-    public static RetryConfiguration create(int maxAttempts, Duration maxDuration) {
-      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
-      checkArgument(
-          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-          "maxDuration must be greater than 0");
-      return create(maxAttempts, maxDuration, DEFAULT_INITIAL_BACKOFF);
-    }
-
-    public static RetryConfiguration create(Duration initialDuration, int maxAttempts) {
-      checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
-      checkArgument(
-          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
-          "initialDuration must be greater than 0");
-      return create(maxAttempts, DEFAULT_MAX_CUMULATIVE_BACKOFF, initialDuration);
-    }
-
     public static RetryConfiguration create(
-        int maxAttempts, Duration maxDuration, Duration initialDuration) {
+        int maxAttempts, @Nullable Duration maxDuration, @Nullable Duration initialDuration) {
+
+      if (maxDuration == null || maxDuration.equals(Duration.ZERO)) {
+        maxDuration = DEFAULT_MAX_CUMULATIVE_BACKOFF;
+      }
+
+      if (initialDuration == null || initialDuration.equals(Duration.ZERO)) {
+        initialDuration = DEFAULT_INITIAL_BACKOFF;
+      }
+
       checkArgument(maxAttempts > 0, "maxAttempts must be greater than 0");
-      checkArgument(
-          maxDuration != null && maxDuration.isLongerThan(Duration.ZERO),
-          "maxDuration must be greater than 0");
-      checkArgument(
-          initialDuration != null && initialDuration.isLongerThan(Duration.ZERO),
-          "initialDuration must be greater than 0");
+
       return new AutoValue_JdbcIO_RetryConfiguration.Builder()
           .setMaxAttempts(maxAttempts)
           .setInitialDuration(initialDuration)
@@ -1301,6 +1284,28 @@ public class JdbcIO {
      * When a SQL exception occurs, {@link Write} uses this {@link RetryConfiguration} to
      * exponentially back off and retry the statements based on the {@link RetryConfiguration}
      * mentioned.
+     *
+     * <p>Usage of RetryConfiguration -
+     *
+     * <pre>{@code
+     * pipeline.apply(JdbcIO.<T>write())
+     *    .withDataSourceConfiguration(...)
+     *    .withRetryStrategy(...)
+     *    .withRetryConfiguration(JdbcIO.RetryConfiguration.
+     *        create(5, Duration.standardSeconds(5), Duration.standardSeconds(1))
+     *
+     * }</pre>
+     *
+     * maxDuration and initialDuration are Nullable
+     *
+     * <pre>{@code
+     * pipeline.apply(JdbcIO.<T>write())
+     *    .withDataSourceConfiguration(...)
+     *    .withRetryStrategy(...)
+     *    .withRetryConfiguration(JdbcIO.RetryConfiguration.
+     *        create(5, null, null)
+     *
+     * }</pre>
      */
     public WriteVoid<T> withRetryConfiguration(RetryConfiguration retryConfiguration) {
       checkArgument(retryConfiguration != null, "retryConfiguration can not be null");
