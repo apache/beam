@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.METHOD_PROPERTY;
+import static org.apache.beam.sdk.extensions.sql.meta.provider.bigquery.BigQueryTable.WRITE_DISPOSITION_PROPERTY;
 import static org.apache.beam.sdk.schemas.Schema.toSchema;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -28,7 +29,9 @@ import com.alibaba.fastjson.JSON;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 
@@ -89,6 +92,16 @@ public class BigQueryTableProviderTest {
     BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
 
     assertEquals(Method.EXPORT, sqlTable.method);
+  }
+
+  @Test
+  public void testSelectWriteDispositionMethod() {
+    Table table =
+            fakeTableWithProperties(
+                    "hello", "{ " + WRITE_DISPOSITION_PROPERTY + ": " + "\"" + WriteDisposition.WRITE_APPEND.toString() + "\" }");
+    BigQueryTable sqlTable = (BigQueryTable) provider.buildBeamSqlTable(table);
+
+    assertEquals(WriteDisposition.WRITE_APPEND, sqlTable.writeDisposition);
   }
 
   @Test
