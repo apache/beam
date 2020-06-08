@@ -17,9 +17,9 @@ package beam
 
 import (
 	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -417,4 +417,42 @@ func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 		panic(fmt.Sprintf("expected 7 output. Found: %v", ret))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5], ret[6]
+}
+
+//ParDoErrorFormatter is a helper function to provide a more concise error
+// message to the users when a DoFn and its ParDo pairing is incorrect.
+func ParDoErrorFormatter(doFn interface{}, parDo interface{}) string {
+	doFnName := reflectx.FunctionName(doFn)
+	doFnOutSize := reflectx.FunctionOutputSize(doFn)
+
+	parDoName := reflectx.FunctionName(parDo)
+	parDoOutSize := reflectx.FunctionOutputSize(parDo)
+
+	useParDo := reflectx.FunctionName(RecommendParDo(doFnOutSize))
+	return fmt.Sprintf("DoFn %v has %v outptus, but %v requires %v outputs, Use %v instead.", doFnName, doFnOutSize, parDoName, parDoOutSize, useParDo)
+
+}
+
+// recommendParDo takes a in a DoFns emit dimension and recommends the correct
+// ParDo to use.
+func RecommendParDo(emitDim int) interface{} {
+	switch {
+	case emitDim == 0:
+		return ParDo0
+	case emitDim == 1:
+		return ParDo
+	case emitDim == 2:
+		return ParDo2
+	case emitDim == 3:
+		return ParDo3
+	case emitDim == 4:
+		return ParDo4
+	case emitDim == 5:
+		return ParDo5
+	case emitDim == 6:
+		return ParDo6
+	case emitDim == 7:
+		return ParDo7
+	}
+	return ParDoN
 }
