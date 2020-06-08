@@ -276,18 +276,12 @@ If you have a Flink `JobManager` running on your local machine you can provide `
 `flinkMaster`. Otherwise an embedded Flink cluster will be started for the job.
 {{< /paragraph >}}
 
-{{< paragraph class="language-portable" >}}
-Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
-[Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
-[Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
-[Flink 1.10](https://hub.docker.com/r/apache/beam_flink1.10_job_server).
-{{< /paragraph >}}
-
-To run a pipeline on an embedded Flink cluster:
-<!-- Span implictly ended -->
-
 {{< paragraph class="language-py" >}}
-(1) Set the runner to `FlinkRunner`.  Optionally set `environment_type` set to `LOOPBACK`. For example:
+To run a pipeline on Flink, set the runner to `FlinkRunner`
+and `flink_master` to the master URL of a Flink cluster.
+In addition, optionally set `environment_type` set to `LOOPBACK`. For example,
+after starting up a [local flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html),
+one could run:
 {{< /paragraph >}}
 
 {{< highlight py >}}
@@ -296,14 +290,37 @@ from apache_beam.options.pipeline_options import PipelineOptions
 
 options = PipelineOptions([
     "--runner=FlinkRunner",
+    "--flink_master=localhost:8081",
     "--environment_type=LOOPBACK"
 ])
 with beam.Pipeline(options) as p:
     ...
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+To run on an embedded Flink cluster, simply omit the `flink_master` option
+and an embedded Flink cluster will be automatically started and shut down for the job.
+{{< /paragraph >}}
+
+{{< paragraph class="language-py" >}}
+The optional `flink_version` option may be required as well for older versions of Python.
+{{< /paragraph >}}
+
+
+
 {{< paragraph class="language-portable" >}}
+Starting with Beam 2.18.0, pre-built Flink Job Service Docker images are available at Docker Hub:
+[Flink 1.8](https://hub.docker.com/r/apache/beam_flink1.8_job_server),
+[Flink 1.9](https://hub.docker.com/r/apache/beam_flink1.9_job_server).
+[Flink 1.10](https://hub.docker.com/r/apache/beam_flink1.10_job_server).
+{{< /paragraph >}}
+
 <!-- TODO(BEAM-10214): Use actual lists here and below. -->
+{{< paragraph class="language-portable" >}}
+To run a pipeline on an embedded Flink cluster:
+{{< /paragraph >}}
+
+{{< paragraph class="language-portable" >}}
 (1) Start the JobService endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest`
 {{< /paragraph >}}
 
@@ -331,38 +348,13 @@ with beam.Pipeline(options) as p:
 {{< /highlight >}}
 <!-- Span implictly ended -->
 
-
-{{< paragraph class="language-py language-portable" >}}
+{{< paragraph class="language-portable" >}}
 To run on a separate [Flink cluster](https://ci.apache.org/projects/flink/flink-docs-release-1.10/getting-started/tutorials/local_setup.html):
 {{< /paragraph >}}
 
-{{< paragraph class="language-py language-portable" >}}
+{{< paragraph class="language-portable" >}}
 (1) Start a Flink cluster which exposes the Rest interface (e.g. `localhost:8081` by default).
 {{< /paragraph >}}
-
-{{< paragraph class="language-py" >}}
-(2) Submit the pipeline with the options as above,
-porting the `flink_master` option to the Flink cluster's Rest interface, e.g.:
-{{< /paragraph >}}
-
-{{< highlight py >}}
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-
-options = PipelineOptions([
-    "--runner=FlinkRunner",
-    "--flink_master=localhost:8081",
-    "--environment_type=LOOPBACK"
-])
-with beam.Pipeline(options=options) as p:
-    ...
-{{< /highlight >}}
-
-{{< paragraph class="language-py" >}}
-The optional `flink_version` option may be required as well for older versions of Python.
-{{< /paragraph >}}
-
-
 
 {{< paragraph class="language-portable" >}}
 (2) Start JobService with Flink Rest endpoint: `docker run --net=host apache/beam_flink1.10_job_server:latest --flink-master=localhost:8081`.
