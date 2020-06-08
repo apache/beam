@@ -435,10 +435,14 @@ class AnyTypeConstraint(TypeConstraint):
 
 
 class TypeVariable(AnyTypeConstraint):
-  def __init__(self, name):
+  def __init__(self, name, ignore_name=False):
     self.name = name
+    self.ignore_name = ignore_name
 
   def __eq__(self, other):
+    if self.ignore_name:
+      return type(self) == type(other)
+
     return type(self) == type(other) and self.name == other.name
 
   def __hash__(self):
@@ -920,8 +924,8 @@ SetTypeConstraint = SetHint.SetTypeConstraint
 class FrozenSetHint(CompositeTypeHint):
   """A FrozenSet type-hint.
 
-  FrozenSet[X] defines a type-hint for a set of homogeneous types. 'X' may be either a
-  built-in Python type or a another nested TypeConstraint.
+  FrozenSet[X] defines a type-hint for a set of homogeneous types. 'X' may be
+  either a  built-in Python type or a another nested TypeConstraint.
 
   This is a mirror copy of SetHint - consider refactoring common functionality.
   """

@@ -615,12 +615,6 @@ class DictHintTestCase(TypeHintTestCase):
 
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
-    def __init__(self, string_type, py_type, beam_type, method_name='runTest'):
-      super().__init__(method_name)
-      self.py_type = py_type
-      self.beam_type = beam_type
-      self.string_type = string_type
-
     def test_getitem_invalid_composite_type_param(self):
       with self.assertRaises(TypeError) as e:
         self.beam_type[list]
@@ -668,13 +662,15 @@ class BaseSetHintTest:
 
 
 class SetHintTestCase(BaseSetHintTest.CommonTests):
-  def __init__(self, method_name='runTest'):
-    super().__init__('Set', set, typehints.Set, method_name)
+  py_type = set
+  beam_type = typehints.Set
+  string_type = 'Set'
 
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
-  def __init__(self, method_name='runTest'):
-    super().__init__('FrozenSet', frozenset, typehints.FrozenSet, method_name)
+  py_type = frozenset
+  beam_type = typehints.FrozenSet
+  string_type = 'FrozenSet'
 
 
 class IterableHintTestCase(TypeHintTestCase):

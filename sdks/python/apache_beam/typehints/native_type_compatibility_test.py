@@ -55,7 +55,9 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         ('simple iterable', typing.Iterable[int], typehints.Iterable[int]),
         ('simple optional', typing.Optional[int], typehints.Optional[int]),
         ('simple set', typing.Set[float], typehints.Set[float]),
-        ('simple frozenset', typing.FrozenSet[float], typehints.FrozenSet[float]),
+        ('simple frozenset',
+         typing.FrozenSet[float],
+         typehints.FrozenSet[float]),
         ('simple unary tuple', typing.Tuple[bytes],
          typehints.Tuple[bytes]),
         ('simple union', typing.Union[int, bytes, float],
@@ -140,7 +142,7 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         (
             'bare frozenset',
             typing.FrozenSet,
-            typehints.FrozenSet[typehints.TypeVariable('T_co')]),
+            typehints.FrozenSet[typehints.TypeVariable('T')]),
         (
             'bare iterator',
             typing.Iterator,
