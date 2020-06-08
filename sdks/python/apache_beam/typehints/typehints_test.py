@@ -615,8 +615,8 @@ class DictHintTestCase(TypeHintTestCase):
 
 class BaseSetHintTest:
   class CommonTests(TypeHintTestCase):
-    def __init__(self, string_type, py_type, beam_type, *args, **kwargs):
-      super().__init__(*args, **kwargs)
+    def __init__(self, string_type, py_type, beam_type, method_name='runTest'):
+      super().__init__(method_name)
       self.py_type = py_type
       self.beam_type = beam_type
       self.string_type = string_type
@@ -668,14 +668,13 @@ class BaseSetHintTest:
 
 
 class SetHintTestCase(BaseSetHintTest.CommonTests):
-  def __init__(self, *args, **kwargs):
-    super().__init__('Set', set, typehints.Set, *args, **kwargs)
+  def __init__(self, method_name='runTest'):
+    super().__init__('Set', set, typehints.Set, method_name)
 
 
 class FrozenSetHintTestCase(BaseSetHintTest.CommonTests):
-  def __init__(self, *args, **kwargs):
-    super().__init__(
-        'FrozenSet', frozenset, typehints.FrozenSet, *args, **kwargs)
+  def __init__(self, method_name='runTest'):
+    super().__init__('FrozenSet', frozenset, typehints.FrozenSet, method_name)
 
 
 class IterableHintTestCase(TypeHintTestCase):
