@@ -88,12 +88,7 @@ class RowCoder(FastCoder):
   @staticmethod
   def from_type_hint(type_hint, registry):
     if isinstance(type_hint, row_type.RowTypeConstraint):
-      schema = schema_pb2.Schema(
-          fields=[
-              schema_pb2.Field(name=name, type=typing_to_runner_api(type))
-              for (name, type) in type_hint._fields
-          ],
-          id=str(uuid.uuid4()))
+      schema = named_fields_to_schema(type_hint._fields)
     else:
       schema = named_tuple_to_schema(type_hint)
     return RowCoder(schema)
