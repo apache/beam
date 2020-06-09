@@ -20,19 +20,16 @@ import CommonJobProperties as commonJobProperties
 import CommonTestProperties.Runner
 import CommonTestProperties.SDK
 import CommonTestProperties.TriggeringContext
+import InfluxDBCredentialsHelper
+import NexmarkDatabaseProperties
 
 // Class for building NEXMark jobs and suites.
 class NexmarkBuilder {
 
   private static Map<String, Object> defaultOptions = [
-          'bigQueryTable'          : 'nexmark',
-          'project'                : 'apache-beam-testing',
-          'resourceNameMode'       : 'QUERY_RUNNER_AND_MODE',
-          'exportSummaryToBigQuery': true,
-          'tempLocation'           : 'gs://temp-storage-for-perf-tests/nexmark',
-          'manageResources'        : false,
-          'monitorJobs'            : true
-  ]
+          'manageResources': false,
+          'monitorJobs'    : true,
+  ] << NexmarkDatabaseProperties.nexmarkBigQueryArgs << NexmarkDatabaseProperties.nexmarkInfluxDBArgs
 
   static void standardJob(context, Runner runner, SDK sdk, Map<String, Object> jobSpecificOptions, TriggeringContext triggeringContext) {
     Map<String, Object> options = getFullOptions(jobSpecificOptions, runner, triggeringContext)
@@ -67,12 +64,14 @@ class NexmarkBuilder {
     Map<String, Object> options = defaultOptions + jobSpecificOptions
 
     options.put('runner', runner.option)
-    options.put('bigQueryDataset', determineBigQueryDataset(triggeringContext))
+    options.put('bigQueryDataset', determineStorageName(triggeringContext))
+    options.put('baseInfluxMeasurement', determineStorageName(triggeringContext))
     options
   }
 
 
   static void suite(context, String title, Runner runner, SDK sdk, Map<String, Object> options) {
+    InfluxDBCredentialsHelper.useCredentials(context)
     context.steps {
       shell("echo \"*** RUN ${title} ***\"")
       gradle {
@@ -89,7 +88,7 @@ class NexmarkBuilder {
     options.collect { "--${it.key}=${it.value.toString()}" }.join(' ')
   }
 
-  private static String determineBigQueryDataset(TriggeringContext triggeringContext) {
+  private static String determineStorageName(TriggeringContext triggeringContext) {
     triggeringContext == TriggeringContext.PR ? "nexmark_PRs" : "nexmark"
   }
 }
