@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import itertools
-import uuid
 from array import array
 
 from apache_beam.coders import typecoders
@@ -36,9 +35,9 @@ from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
-from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils import proto_utils
 
 __all__ = ["RowCoder"]

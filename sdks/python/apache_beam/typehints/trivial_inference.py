@@ -450,7 +450,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
                 fields = state.stack[-pop_count + 1::2]
                 types = state.stack[-pop_count + 2::2]
                 return_type = row_type.RowTypeConstraint(
-                    zip([f.value for f in fields], Const.unwrap_all(types)))
+                    zip([fld.value for fld in fields], Const.unwrap_all(types)))
               else:
                 return_type = Any
           else:
