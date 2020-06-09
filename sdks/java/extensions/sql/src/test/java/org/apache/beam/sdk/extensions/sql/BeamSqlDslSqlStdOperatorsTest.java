@@ -178,7 +178,7 @@ public class BeamSqlDslSqlStdOperatorsTest extends BeamSqlBuiltinFunctionsIntegr
               Comparator.comparing((SqlOperatorId operator) -> operator.name()),
               Comparator.comparing((SqlOperatorId operator) -> operator.kind())));
 
-  /** Smoke test that the whitelists and utility functions actually work. */
+  /** Smoke test that the allowlist and utility functions actually work. */
   @Test
   @SqlOperatorTest(name = "CARDINALITY", kind = "OTHER_FUNCTION")
   public void testAnnotationEquality() throws Exception {
