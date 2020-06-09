@@ -19,9 +19,13 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
 import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.auto.value.AutoValue;
+import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.metrics.Distribution;
@@ -34,9 +38,13 @@ import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PInput;
+import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 
 /**
  * <i>Experimental</i>
@@ -79,42 +87,8 @@ import org.apache.beam.sdk.values.TupleTagList;
 @Experimental(Kind.SCHEMAS)
 public class JsonToRow {
 
-  private static final String LINE_FIELD_NAME = "line";
-  private static final String ERROR_FIELD_NAME = "err";
-
-  public static final Schema ERROR_ROW_SCHEMA =
-      Schema.of(
-          Field.of(LINE_FIELD_NAME, FieldType.STRING),
-          Field.of(ERROR_FIELD_NAME, FieldType.STRING));
-
-  public static final TupleTag<Row> MAIN_TUPLE_TAG = new TupleTag<Row>() {};
-  public static final TupleTag<Row> DEAD_LETTER_TUPLE_TAG = new TupleTag<Row>() {};
-
   public static PTransform<PCollection<String>, PCollection<Row>> withSchema(Schema rowSchema) {
     return JsonToRowFn.forSchema(rowSchema);
-  }
-
-  /**
-   * Enable Dead letter support. If this value is set errors in the parsing layer are returned as
-   * Row objects of form: {@link JsonToRow#ERROR_ROW_SCHEMA} line : The original json string err :
-   * The error message from the parsing function.
-   *
-   * <p>You can access the results by using:
-   *
-   * <p>{@link JsonToRow#MAIN_TUPLE_TAG}
-   *
-   * <p>{@Code PCollection<Row> personRows =
-   * results.get(JsonToRow.MAIN_TUPLE_TAG).setRowSchema(personSchema)}
-   *
-   * <p>{@link JsonToRow#DEAD_LETTER_TUPLE_TAG}
-   *
-   * <p>{@Code PCollection<Row> errors =
-   * results.get(JsonToRow.DEAD_LETTER_TUPLE_TAG).setRowSchema(JsonToRow.ERROR_ROW_SCHEMA);}
-   *
-   * @return {@link JsonToRowWithFailureCaptureFn}
-   */
-  public static JsonToRowWithFailureCaptureFn withDeadLetter(Schema rowSchema) {
-    return JsonToRowWithFailureCaptureFn.forSchema(rowSchema);
   }
 
   static class JsonToRowFn extends PTransform<PCollection<String>, PCollection<Row>> {
@@ -158,64 +132,266 @@ public class JsonToRow {
     }
   }
 
-  static class JsonToRowWithFailureCaptureFn
-      extends PTransform<PCollection<String>, PCollectionTuple> {
-    private transient volatile @Nullable ObjectMapper objectMapper;
-    private Schema schema;
-    private static final String METRIC_NAMESPACE = "JsonToRowFn";
-    private static final String DEAD_LETTER_METRIC_NAME = "JsonToRowFn_ParseFailure";
+  /**
+   * Enable Dead letter support. If this value is set errors in the parsing layer are returned as
+   * Row objects within a {@link ParseResult}
+   *
+   * <p>You can access the results by using:
+   *
+   * <p>ParseResult results = jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA));
+   *
+   * <p>{@link ParseResult#getResults()}
+   *
+   * <p>{@Code PCollection<Row> personRows = results.getResults()}
+   *
+   * <p>{@link ParseResult#getFailedToParseLines()}
+   *
+   * <p>{@Code PCollection<Row> errorsLines = results.getFailedToParseLines()}
+   *
+   * <p>To access the reason for the failure you will need to first enable extended error reporting.
+   * {@Code ParseResult results =
+   * jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA).withExtendedErrorInfo()); }
+   *
+   * <p>{@link ParseResult#getFailedToParseLinesWithErr()}
+   *
+   * <p>{@Code PCollection<Row> errorsLinesWithErrMsg = results.getFailedToParseLines()}
+   *
+   * @return {@link JsonToRowWithErrFn}
+   */
+  @Experimental(Kind.SCHEMAS)
+  public static JsonToRowWithErrFn withDeadLetter(Schema rowSchema) {
+    return JsonToRowWithErrFn.forSchema(rowSchema);
+  }
 
-    private Distribution jsonConversionErrors =
-        Metrics.distribution(METRIC_NAMESPACE, DEAD_LETTER_METRIC_NAME);
+  @AutoValue
+  abstract static class JsonToRowWithErrFn extends PTransform<PCollection<String>, ParseResult> {
 
-    public static final TupleTag<Row> main = MAIN_TUPLE_TAG;
-    public static final TupleTag<Row> deadLetter = DEAD_LETTER_TUPLE_TAG;
+    private Pipeline pipeline;
+
+    private PCollection<Row> parsedLine;
+    private PCollection<Row> failedParse;
+    private PCollection<Row> failedParseWithErr;
+
+    private static final String LINE_FIELD_NAME = "line";
+    private static final String ERROR_FIELD_NAME = "err";
+
+    public static final Schema ERROR_ROW_SCHEMA =
+        Schema.of(Field.of(LINE_FIELD_NAME, FieldType.STRING));
+
+    public static final Schema ERROR_ROW_WITH_ERR_MSG_SCHEMA =
+        Schema.of(
+            Field.of(LINE_FIELD_NAME, FieldType.STRING),
+            Field.of(ERROR_FIELD_NAME, FieldType.STRING));
+
+    static final TupleTag<Row> PARSED_LINE = new TupleTag<Row>() {};
+    static final TupleTag<Row> PARSE_ERROR_LINE = new TupleTag<Row>() {};
+    static final TupleTag<Row> PARSE_ERROR_LINE_WITH_MSG = new TupleTag<Row>() {};
+
+    public abstract Schema getSchema();
+
+    public abstract String getLineFieldName();
+
+    public abstract String getErrorFieldName();
+
+    public abstract boolean getExtendedErrorInfo();
 
     PCollection<Row> deadLetterCollection;
 
-    static JsonToRowWithFailureCaptureFn forSchema(Schema rowSchema) {
-      // Throw exception if this schema is not supported by RowJson
-      RowJson.verifySchemaSupported(rowSchema);
-      return new JsonToRowWithFailureCaptureFn(rowSchema);
+    public abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setSchema(Schema value);
+
+      public abstract Builder setLineFieldName(String value);
+
+      public abstract Builder setErrorFieldName(String value);
+
+      public abstract Builder setExtendedErrorInfo(boolean value);
+
+      public abstract JsonToRowWithErrFn build();
     }
 
-    private JsonToRowWithFailureCaptureFn(Schema schema) {
-      this.schema = schema;
+    public static JsonToRowWithErrFn forSchema(Schema rowSchema) {
+      // Throw exception if this schema is not supported by RowJson
+      RowJson.verifySchemaSupported(rowSchema);
+      return new AutoValue_JsonToRow_JsonToRowWithErrFn.Builder()
+          .setSchema(rowSchema)
+          .setExtendedErrorInfo(false)
+          .setLineFieldName(LINE_FIELD_NAME)
+          .setErrorFieldName(ERROR_FIELD_NAME)
+          .build();
+    }
+
+    /**
+     * Adds the error message to the returned error Row.
+     *
+     * @return {@link JsonToRow}
+     */
+    public JsonToRowWithErrFn withExtendedErrorInfo() {
+      return this.toBuilder().setExtendedErrorInfo(true).build();
+    }
+
+    /**
+     * Sets the field name for the line field in the returned Row.
+     *
+     * @return {@link JsonToRow}
+     */
+    public JsonToRowWithErrFn setLineField(String lineField) {
+      return this.toBuilder().setLineFieldName(lineField).build();
+    }
+
+    /**
+     * Adds the error message to the returned error Row.
+     *
+     * @return {@link JsonToRow}
+     */
+    public JsonToRowWithErrFn setErrorField(String errorField) {
+      if (!this.getExtendedErrorInfo()) {
+        throw new IllegalArgumentException(
+            "This option is only available with Extended Error Info.");
+      }
+      return this.toBuilder().setErrorFieldName(errorField).build();
     }
 
     @Override
-    public PCollectionTuple expand(PCollection<String> jsonStrings) {
+    public ParseResult expand(PCollection<String> jsonStrings) {
 
-      return jsonStrings.apply(
-          ParDo.of(
-                  new DoFn<String, Row>() {
-                    @ProcessElement
-                    public void processElement(ProcessContext context) {
-                      try {
-                        context.output(jsonToRow(objectMapper(), context.element()));
-                      } catch (Exception ex) {
-                        context.output(
-                            deadLetter,
-                            Row.withSchema(ERROR_ROW_SCHEMA)
-                                .addValue(context.element())
-                                .addValue(ex.getMessage())
-                                .build());
-                      }
-                    }
-                  })
-              .withOutputTags(main, TupleTagList.of(deadLetter)));
+      PCollectionTuple result =
+          jsonStrings.apply(
+              ParDo.of(new ParseWithError(this.getSchema(), getExtendedErrorInfo()))
+                  .withOutputTags(
+                      PARSED_LINE,
+                      TupleTagList.of(PARSE_ERROR_LINE).and(PARSE_ERROR_LINE_WITH_MSG)));
+
+      this.parsedLine = result.get(PARSED_LINE).setRowSchema(this.getSchema());
+      this.failedParse =
+          result.get(PARSE_ERROR_LINE).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_SCHEMA);
+      this.failedParseWithErr =
+          result
+              .get(PARSE_ERROR_LINE_WITH_MSG)
+              .setRowSchema(JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA);
+
+      return ParseResult.result(this);
     }
 
-    private ObjectMapper objectMapper() {
-      if (this.objectMapper == null) {
-        synchronized (this) {
-          if (this.objectMapper == null) {
-            this.objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(this.schema));
+    private static class ParseWithError extends DoFn<String, Row> {
+      private transient volatile @Nullable ObjectMapper objectMapper;
+      Schema schema;
+      Boolean withExtendedErrorInfo;
+
+      ParseWithError(Schema schema, Boolean withExtendedErrorInfo) {
+        this.schema = schema;
+        this.withExtendedErrorInfo = withExtendedErrorInfo;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context) {
+        try {
+
+          context.output(jsonToRow(objectMapper(), context.element()));
+
+        } catch (Exception ex) {
+
+          if (withExtendedErrorInfo) {
+            context.output(
+                PARSE_ERROR_LINE_WITH_MSG,
+                Row.withSchema(ERROR_ROW_WITH_ERR_MSG_SCHEMA)
+                    .addValue(context.element())
+                    .addValue(ex.getMessage())
+                    .build());
+          } else {
+            context.output(
+                PARSE_ERROR_LINE,
+                Row.withSchema(ERROR_ROW_SCHEMA).addValue(context.element()).build());
           }
         }
       }
 
-      return this.objectMapper;
+      private ObjectMapper objectMapper() {
+        if (this.objectMapper == null) {
+          synchronized (this) {
+            if (this.objectMapper == null) {
+              this.objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(schema));
+            }
+          }
+        }
+
+        return this.objectMapper;
+      }
+    }
+  }
+
+  /** The result of a {@link JsonToRow#withDeadLetter(Schema)} transform. */
+  public static final class ParseResult implements POutput {
+    private final JsonToRowWithErrFn jsonToRowWithErrFn;
+
+    private ParseResult(JsonToRowWithErrFn jsonToRowWithErrFn) {
+      this.jsonToRowWithErrFn = jsonToRowWithErrFn;
+    }
+
+    public static ParseResult result(JsonToRowWithErrFn jsonToRowWithErrFn) {
+      return new ParseResult(jsonToRowWithErrFn);
+    }
+
+    @Override
+    public Pipeline getPipeline() {
+      return jsonToRowWithErrFn.pipeline;
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> expand() {
+      if (jsonToRowWithErrFn.getExtendedErrorInfo()) {
+        return ImmutableMap.of(
+            JsonToRowWithErrFn.PARSED_LINE,
+            jsonToRowWithErrFn.parsedLine,
+            JsonToRowWithErrFn.PARSE_ERROR_LINE_WITH_MSG,
+            jsonToRowWithErrFn.failedParseWithErr);
+      }
+      return ImmutableMap.of(
+          JsonToRowWithErrFn.PARSED_LINE,
+          jsonToRowWithErrFn.parsedLine,
+          JsonToRowWithErrFn.PARSE_ERROR_LINE,
+          jsonToRowWithErrFn.failedParse);
+    }
+
+    @Override
+    public void finishSpecifyingOutput(
+        String transformName, PInput input, PTransform<?, ?> transform) {}
+
+    /** Returns a {@link PCollection} containing the {@link Row}s that have been parsed. */
+    public PCollection<Row> getResults() {
+      return jsonToRowWithErrFn.parsedLine;
+    }
+
+    /**
+     * Returns a {@link PCollection} containing the {@link Row}s that didn't parse.
+     *
+     * <p>Only use this method if you haven't enabled {@link
+     * JsonToRowWithErrFn#withExtendedErrorInfo()} . Otherwise use {@link
+     * ParseResult##getFailedInsertsWithErr()}
+     */
+    public PCollection<Row> getFailedToParseLines() {
+      checkArgument(
+          !jsonToRowWithErrFn.getExtendedErrorInfo(),
+          "Cannot use getFailedToParseLines as this ParseResult uses extended errors"
+              + " information. Use getFailedToParseLinesWithErr instead");
+      return jsonToRowWithErrFn.failedParse;
+    }
+
+    /**
+     * Returns a {@link PCollection} containing the a Row with detailed error information.
+     *
+     * <p>Only use this method if you have enabled {@link
+     * JsonToRowWithErrFn#withExtendedErrorInfo()}. * Otherwise use {@link
+     * ParseResult#getFailedToParseLines()}
+     */
+    public PCollection<Row> getFailedToParseLinesWithErr() {
+      checkArgument(
+          jsonToRowWithErrFn.getExtendedErrorInfo(),
+          "Cannot use getFailedInsertsWithErr as this ParseResult does not return"
+              + " extended errors. Use getFailedToParseLines instead");
+      return jsonToRowWithErrFn.failedParseWithErr;
     }
   }
 }
