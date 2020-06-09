@@ -38,10 +38,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
     <td><a href="https://issues.apache.org/jira/browse/BEAM-607">BEAM-607</a></td>
   </tr>
   <tr>
-    <td>Apache Kafka</td><td>Python</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788</a></td>
-  </tr>
-  <tr>
     <td>Apache Sqoop</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-67">BEAM-67</a></td>
   </tr>
