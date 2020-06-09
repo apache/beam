@@ -173,6 +173,7 @@ public abstract class JobServerDriver implements Runnable {
   public void run() {
     try {
       jobServer = createJobServer();
+      LOG.info("Job server now running, terminate with Ctrl+C");
       jobServer.getServer().awaitTermination();
     } catch (InterruptedException e) {
       LOG.warn("Job server interrupted", e);
