@@ -296,7 +296,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
 
     for (SplunkEvent event : events) {
       String payload = GSON.toJson(event);
-      SplunkWriteError error = builder.withPayload(payload).build();
+      SplunkWriteError error = builder.withPayload(payload).create();
 
       receiver.output(error);
     }

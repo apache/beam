@@ -43,7 +43,7 @@ public class SplunkEventTest {
             .withSource(source)
             .withSourceType(sourceType)
             .withTime(time)
-            .build();
+            .create();
 
     assertEquals(
         SplunkEvent.newBuilder()
@@ -53,7 +53,7 @@ public class SplunkEventTest {
             .withSource(source)
             .withSourceType(sourceType)
             .withTime(time)
-            .build(),
+            .create(),
         actualEvent);
 
     assertNotEquals(
@@ -64,7 +64,7 @@ public class SplunkEventTest {
             .withSource(source)
             .withSourceType(sourceType)
             .withTime(time)
-            .build(),
+            .create(),
         actualEvent);
   }
 }

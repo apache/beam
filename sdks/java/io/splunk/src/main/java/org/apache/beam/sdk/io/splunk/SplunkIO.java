@@ -25,8 +25,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -143,8 +141,7 @@ public class SplunkIO {
       // Return a PCollection<SplunkWriteError>
       return input
           .apply("Create KV pairs", CreateKeys.of(parallelism()))
-          .apply("Write Splunk events", ParDo.of(writer))
-          .setCoder(SplunkWriteErrorCoder.of());
+          .apply("Write Splunk events", ParDo.of(writer));
     }
 
     /** A builder for creating {@link Write} objects. */
@@ -318,9 +315,7 @@ public class SplunkIO {
       @Override
       public PCollection<KV<Integer, SplunkEvent>> expand(PCollection<SplunkEvent> input) {
 
-        return input
-            .apply("Inject Keys", ParDo.of(new CreateKeysFn(this.requestedKeys)))
-            .setCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of()));
+        return input.apply("Inject Keys", ParDo.of(new CreateKeysFn(this.requestedKeys)));
       }
 
       private static class CreateKeysFn extends DoFn<SplunkEvent, KV<Integer, SplunkEvent>> {

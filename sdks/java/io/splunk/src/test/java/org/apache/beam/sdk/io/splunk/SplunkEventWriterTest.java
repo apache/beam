@@ -23,8 +23,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -123,7 +121,7 @@ public class SplunkEventWriterTest {
                     .withSource("test-source-1")
                     .withSourceType("test-source-type-1")
                     .withTime(12345L)
-                    .build()),
+                    .create()),
             KV.of(
                 123,
                 SplunkEvent.newBuilder()
@@ -133,14 +131,12 @@ public class SplunkEventWriterTest {
                     .withSource("test-source-2")
                     .withSourceType("test-source-type-2")
                     .withTime(12345L)
-                    .build()));
+                    .create()));
 
     PCollection<SplunkWriteError> actual =
         pipeline
-            .apply(
-                "Create Input data",
-                Create.of(testEvents)
-                    .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of())))
+            .apply("Create Input data", Create.of(testEvents))
+            // .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of())))
             .apply(
                 "SplunkEventWriter",
                 ParDo.of(
@@ -149,8 +145,7 @@ public class SplunkEventWriterTest {
                         .withInputBatchCount(
                             StaticValueProvider.of(1)) // Test one request per SplunkEvent
                         .withToken("test-token")
-                        .build()))
-            .setCoder(SplunkWriteErrorCoder.of());
+                        .build()));
 
     // All successful responses.
     PAssert.that(actual).empty();
@@ -182,7 +177,7 @@ public class SplunkEventWriterTest {
                     .withSource("test-source-1")
                     .withSourceType("test-source-type-1")
                     .withTime(12345L)
-                    .build()),
+                    .create()),
             KV.of(
                 123,
                 SplunkEvent.newBuilder()
@@ -192,14 +187,12 @@ public class SplunkEventWriterTest {
                     .withSource("test-source-2")
                     .withSourceType("test-source-type-2")
                     .withTime(12345L)
-                    .build()));
+                    .create()));
 
     PCollection<SplunkWriteError> actual =
         pipeline
-            .apply(
-                "Create Input data",
-                Create.of(testEvents)
-                    .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of())))
+            .apply("Create Input data", Create.of(testEvents))
+            // .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of())))
             .apply(
                 "SplunkEventWriter",
                 ParDo.of(
@@ -209,8 +202,7 @@ public class SplunkEventWriterTest {
                             StaticValueProvider.of(
                                 testEvents.size())) // all requests in a single batch.
                         .withToken("test-token")
-                        .build()))
-            .setCoder(SplunkWriteErrorCoder.of());
+                        .build()));
 
     // All successful responses.
     PAssert.that(actual).empty();
@@ -241,14 +233,12 @@ public class SplunkEventWriterTest {
                     .withSource("test-source-1")
                     .withSourceType("test-source-type-1")
                     .withTime(12345L)
-                    .build()));
+                    .create()));
 
     PCollection<SplunkWriteError> actual =
         pipeline
-            .apply(
-                "Create Input data",
-                Create.of(testEvents)
-                    .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of())))
+            .apply("Create Input data", Create.of(testEvents))
+            // .withCoder(KvCoder.of(BigEndianIntegerCoder.of(), SplunkEventCoder.of())))
             .apply(
                 "SplunkEventWriter",
                 ParDo.of(
@@ -258,8 +248,7 @@ public class SplunkEventWriterTest {
                             StaticValueProvider.of(
                                 testEvents.size())) // all requests in a single batch.
                         .withToken("test-token")
-                        .build()))
-            .setCoder(SplunkWriteErrorCoder.of());
+                        .build()));
 
     // Expect a single 404 Not found SplunkWriteError
     PAssert.that(actual)
@@ -271,7 +260,7 @@ public class SplunkEventWriterTest {
                     "{\"time\":12345,\"host\":\"test-host-1\","
                         + "\"source\":\"test-source-1\",\"sourcetype\":\"test-source-type-1\","
                         + "\"index\":\"test-index-1\",\"event\":\"test-event-1\"}")
-                .build());
+                .create());
 
     pipeline.run();
 

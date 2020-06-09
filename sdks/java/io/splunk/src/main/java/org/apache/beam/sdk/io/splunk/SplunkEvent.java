@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import com.google.auto.value.AutoValue;
 import com.google.gson.annotations.SerializedName;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /**
  * A {@link SplunkEvent} describes a single payload sent to Splunk's Http Event Collector (HEC)
@@ -37,6 +39,7 @@ import javax.annotation.Nullable;
  *   <li>index
  * </ul>
  */
+@DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class SplunkEvent {
 
@@ -82,7 +85,7 @@ public abstract class SplunkEvent {
 
     abstract String event();
 
-    abstract SplunkEvent autoBuild();
+    abstract SplunkEvent build();
 
     /**
      * Assigns time value to the event metadata.
@@ -150,10 +153,10 @@ public abstract class SplunkEvent {
       return setEvent(event);
     }
 
-    /** Builds a {@link SplunkEvent} object. */
-    public SplunkEvent build() {
+    /** Creates a {@link SplunkEvent} object. */
+    public SplunkEvent create() {
       checkNotNull(event(), "Event information is required.");
-      return autoBuild();
+      return build();
     }
   }
 }

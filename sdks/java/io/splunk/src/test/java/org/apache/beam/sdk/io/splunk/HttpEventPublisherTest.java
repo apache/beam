@@ -44,7 +44,7 @@ public class HttpEventPublisherTest {
           .withSource("test-source-1")
           .withSourceType("test-source-type-1")
           .withTime(12345L)
-          .build();
+          .create();
 
   private static final SplunkEvent SPLUNK_TEST_EVENT_2 =
       SplunkEvent.newBuilder()
@@ -54,7 +54,7 @@ public class HttpEventPublisherTest {
           .withSource("test-source-2")
           .withSourceType("test-source-type-2")
           .withTime(12345L)
-          .build();
+          .create();
 
   private static final ImmutableList<SplunkEvent> SPLUNK_EVENTS =
       ImmutableList.of(SPLUNK_TEST_EVENT_1, SPLUNK_TEST_EVENT_2);

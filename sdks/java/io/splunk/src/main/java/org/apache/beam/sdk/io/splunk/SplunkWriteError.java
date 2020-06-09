@@ -21,11 +21,14 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 
 /**
  * A class for capturing errors that occur while writing {@link SplunkEvent} to Splunk's Http Event
  * Collector (HEC) end point.
  */
+@DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class SplunkWriteError {
 
@@ -55,7 +58,7 @@ public abstract class SplunkWriteError {
 
     abstract Builder setPayload(String payload);
 
-    abstract SplunkWriteError autoBuild();
+    abstract SplunkWriteError build();
 
     /**
      * Assigns a return status code to assist with debugging.
@@ -93,8 +96,8 @@ public abstract class SplunkWriteError {
     }
 
     /** Builds a {@link SplunkWriteError} object. */
-    public SplunkWriteError build() {
-      return autoBuild();
+    public SplunkWriteError create() {
+      return build();
     }
   }
 }

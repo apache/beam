@@ -37,14 +37,14 @@ public class SplunkWriteErrorTest {
             .withPayload(payload)
             .withStatusCode(statusCode)
             .withStatusMessage(message)
-            .build();
+            .create();
 
     assertEquals(
         SplunkWriteError.newBuilder()
             .withPayload(payload)
             .withStatusCode(statusCode)
             .withStatusMessage(message)
-            .build(),
+            .create(),
         actualError);
 
     assertNotEquals(
@@ -52,7 +52,7 @@ public class SplunkWriteErrorTest {
             .withPayload(payload)
             .withStatusCode(statusCode)
             .withStatusMessage("a-different-message")
-            .build(),
+            .create(),
         actualError);
   }
 }
