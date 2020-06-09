@@ -53,6 +53,8 @@ public class SplunkIOTest {
     mockServerListening(200);
 
     int testPort = mockServerRule.getPort();
+    String url = Joiner.on(':').join("http://localhost", testPort);
+    String token = "test-token";
 
     List<SplunkEvent> testEvents =
         ImmutableList.of(
@@ -78,12 +80,7 @@ public class SplunkIOTest {
             .apply("Create Input data", Create.of(testEvents)) // .withCoder(SplunkEventCoder.of()))
             .apply(
                 "SplunkIO",
-                SplunkIO.writeBuilder()
-                    .withParallelism(1)
-                    .withBatchCount(testEvents.size())
-                    .withToken("test-token")
-                    .withUrl(Joiner.on(':').join("http://localhost", testPort))
-                    .build());
+                SplunkIO.write(url, token).withParallelism(1).withBatchCount(testEvents.size()));
 
     // All successful responses.
     PAssert.that(actual).empty();
@@ -103,6 +100,8 @@ public class SplunkIOTest {
 
     int testPort = mockServerRule.getPort();
     int testParallelism = 2;
+    String url = Joiner.on(':').join("http://localhost", testPort);
+    String token = "test-token";
 
     List<SplunkEvent> testEvents =
         ImmutableList.of(
@@ -128,12 +127,9 @@ public class SplunkIOTest {
             .apply("Create Input data", Create.of(testEvents)) // .withCoder(SplunkEventCoder.of()))
             .apply(
                 "SplunkIO",
-                SplunkIO.writeBuilder()
+                SplunkIO.write(url, token)
                     .withParallelism(testParallelism)
-                    .withBatchCount(testEvents.size())
-                    .withToken("test-token")
-                    .withUrl(Joiner.on(':').join("http://localhost", testPort))
-                    .build());
+                    .withBatchCount(testEvents.size()));
 
     // All successful responses.
     PAssert.that(actual).empty();
@@ -154,6 +150,8 @@ public class SplunkIOTest {
 
     int testPort = mockServerRule.getPort();
     int testParallelism = 2;
+    String url = Joiner.on(':').join("http://localhost", testPort);
+    String token = "test-token";
 
     List<SplunkEvent> testEvents =
         ImmutableList.of(
@@ -179,12 +177,7 @@ public class SplunkIOTest {
             .apply("Create Input data", Create.of(testEvents)) // .withCoder(SplunkEventCoder.of()))
             .apply(
                 "SplunkIO",
-                SplunkIO.writeBuilder()
-                    .withParallelism(testParallelism)
-                    .withBatchCount(1)
-                    .withToken("test-token")
-                    .withUrl(Joiner.on(':').join("http://localhost", testPort))
-                    .build());
+                SplunkIO.write(url, token).withParallelism(testParallelism).withBatchCount(1));
 
     // All successful responses.
     PAssert.that(actual).empty();

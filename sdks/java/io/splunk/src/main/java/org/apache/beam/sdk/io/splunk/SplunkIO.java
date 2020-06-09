@@ -26,6 +26,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -77,32 +78,48 @@ import org.slf4j.LoggerFactory;
  *
  * PCollection<SplunkWriteError> errors =
  *         events.apply("WriteToSplunk",
- *              SplunkIO.writeBuilder()
- *                     .withToken(token)
- *                     .withUrl(url)
- *                     .withBatchCount(batchCount)
- *                     .withParallelism(parallelism)
- *                     .withDisableCertificateValidation(true)
- *                     .build());
+ *              SplunkIO.write(url, token)
+ *                  .withBatchCount(batchCount)
+ *                  .withParallelism(parallelism)
+ *                  .withDisableCertificateValidation(true));
  * }</pre>
  */
 @Experimental(Kind.SOURCE_SINK)
 public class SplunkIO {
 
+  /**
+   * Write to Splunk's Http Event Collector (HEC).
+   *
+   * @param url splunk hec url
+   * @param token splunk hec authentication token
+   */
+  public static Write write(String url, String token) {
+    checkNotNull(url, "url is required.");
+    checkNotNull(token, "token is required.");
+    return write(StaticValueProvider.of(url), StaticValueProvider.of(token));
+  }
+
+  /**
+   * Same as {@link SplunkIO#write(String, String)} but with {@link ValueProvider}.
+   *
+   * @param url splunk hec url
+   * @param token splunk hec authentication token
+   */
+  public static Write write(ValueProvider<String> url, ValueProvider<String> token) {
+    checkNotNull(url, "url is required.");
+    checkNotNull(token, "token is required.");
+    return new AutoValue_SplunkIO_Write.Builder().setUrl(url).setToken(token).build();
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(SplunkIO.class);
 
   private SplunkIO() {}
-
-  /** Provides a builder for configuring a {@link SplunkIO.Write} transform. */
-  public static Write.Builder writeBuilder() {
-    return new AutoValue_SplunkIO_Write.Builder();
-  }
 
   /**
    * Class {@link Write} provides a {@link PTransform} that allows writing {@link SplunkEvent}
    * records into a Splunk HTTP Event Collector end-point using HTTP POST requests.
    *
-   * <p>In the event of an error, a {@link PCollection} of {@link SplunkWriteError} records are
+   * <p>In the event of an error, a {@link PCollection PCollection&lt;SplunkWriteError&gt;} is
    * returned for further processing or storing into a dead-letter sink.
    */
   @AutoValue
@@ -123,6 +140,8 @@ public class SplunkIO {
 
     @Nullable
     abstract ValueProvider<Boolean> disableCertificateValidation();
+
+    abstract Builder toBuilder();
 
     @Override
     public PCollection<SplunkWriteError> expand(PCollection<SplunkEvent> input) {
@@ -146,15 +165,11 @@ public class SplunkIO {
 
     /** A builder for creating {@link Write} objects. */
     @AutoValue.Builder
-    public abstract static class Builder {
+    abstract static class Builder {
 
       abstract Builder setUrl(ValueProvider<String> url);
 
-      abstract ValueProvider<String> url();
-
       abstract Builder setToken(ValueProvider<String> token);
-
-      abstract ValueProvider<String> token();
 
       abstract Builder setBatchCount(ValueProvider<Integer> batchCount);
 
@@ -163,134 +178,77 @@ public class SplunkIO {
       abstract Builder setDisableCertificateValidation(
           ValueProvider<Boolean> disableCertificateValidation);
 
-      abstract Write autoBuild();
+      abstract Write build();
+    }
 
-      /**
-       * Sets the url for HEC event collector.
-       *
-       * @param url for HEC event collector
-       * @return {@link Builder}
-       */
-      public Builder withUrl(ValueProvider<String> url) {
-        checkArgument(url != null, "withURL(url) called with null input.");
-        return setUrl(url);
-      }
+    /**
+     * Same as {@link SplunkIO.Write#withBatchCount(Integer)} but with {@link ValueProvider}.
+     *
+     * @param batchCount for batching requests
+     */
+    public Write withBatchCount(ValueProvider<Integer> batchCount) {
+      checkArgument(batchCount != null, "withBatchCount(batchCount) called with null input.");
+      return toBuilder().setBatchCount(batchCount).build();
+    }
 
-      /**
-       * Same as {@link Builder#withUrl(ValueProvider)} but without {@link ValueProvider}.
-       *
-       * @param url for HEC event collector
-       * @return {@link Builder}
-       */
-      public Builder withUrl(String url) {
-        checkArgument(url != null, "withURL(url) called with null input.");
-        return setUrl(ValueProvider.StaticValueProvider.of(url));
-      }
+    /**
+     * Sets batchCount for sending multiple events in a single request to the HEC.
+     *
+     * @param batchCount for batching requests
+     */
+    public Write withBatchCount(Integer batchCount) {
+      checkArgument(batchCount != null, "withBatchCount(batchCount) called with null input.");
+      return toBuilder().setBatchCount(StaticValueProvider.of(batchCount)).build();
+    }
 
-      /**
-       * Sets the authentication token for HEC.
-       *
-       * @param token authentication token for HEC event collector
-       * @return {@link Builder}
-       */
-      public Builder withToken(ValueProvider<String> token) {
-        checkArgument(token != null, "withToken(token) called with null input.");
-        return setToken(token);
-      }
+    /**
+     * Same as {@link SplunkIO.Write#withBatchCount(Integer)} but with {@link ValueProvider}.
+     *
+     * @param parallelism for controlling the number of concurrent http client connections
+     */
+    public Write withParallelism(ValueProvider<Integer> parallelism) {
+      checkArgument(parallelism != null, "withParallelism(parallelism) called with null input.");
+      return toBuilder().setParallelism(parallelism).build();
+    }
 
-      /**
-       * Same as {@link Builder#withToken(ValueProvider)} but without {@link ValueProvider}.
-       *
-       * @param token for HEC event collector
-       * @return {@link Builder}
-       */
-      public Builder withToken(String token) {
-        checkArgument(token != null, "withToken(token) called with null input.");
-        return setToken(ValueProvider.StaticValueProvider.of(token));
-      }
+    /**
+     * Sets the number of parallel http client connections to the HEC.
+     *
+     * @param parallelism controlling the number of http client connections
+     * @return {@link Builder}
+     */
+    public Write withParallelism(Integer parallelism) {
+      checkArgument(parallelism != null, "withParallelism(parallelism) called with null input.");
+      return toBuilder().setParallelism(StaticValueProvider.of(parallelism)).build();
+    }
 
-      /**
-       * Sets the batch count.
-       *
-       * @param batchCount for batching post requests
-       * @return {@link Builder}
-       */
-      public Builder withBatchCount(ValueProvider<Integer> batchCount) {
-        checkArgument(batchCount != null, "withBatchCount(batchCount) called with null input.");
-        return setBatchCount(batchCount);
-      }
+    /**
+     * Same as {@link SplunkIO.Write#withDisableCertificateValidation(Boolean)} but with {@link
+     * ValueProvider}.
+     *
+     * @param disableCertificateValidation for disabling certificate validation
+     * @return {@link Builder}
+     */
+    public Write withDisableCertificateValidation(
+        ValueProvider<Boolean> disableCertificateValidation) {
+      checkArgument(
+          disableCertificateValidation != null,
+          "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
+      return toBuilder().setDisableCertificateValidation(disableCertificateValidation).build();
+    }
 
-      /**
-       * Same as {@link Builder#withBatchCount(ValueProvider)} but without {@link ValueProvider}.
-       *
-       * @param batchCount for batching post requests
-       * @return {@link Builder}
-       */
-      public Builder withBatchCount(Integer batchCount) {
-        checkArgument(
-            batchCount != null,
-            "withMaxEventsBatchCount(maxEventsBatchCount) called with null input.");
-        return setBatchCount(ValueProvider.StaticValueProvider.of(batchCount));
-      }
-
-      /**
-       * Sets the parallelism.
-       *
-       * @param parallelism for controlling the number of http client connections
-       * @return {@link Builder}
-       */
-      public Builder withParallelism(ValueProvider<Integer> parallelism) {
-        checkArgument(parallelism != null, "withParallelism(parallelism) called with null input.");
-        return setParallelism(parallelism);
-      }
-
-      /**
-       * Same as {@link Builder#withParallelism(ValueProvider)} but without {@link ValueProvider}.
-       *
-       * @param parallelism controlling the number of http client connections
-       * @return {@link Builder}
-       */
-      public Builder withParallelism(Integer parallelism) {
-        checkArgument(parallelism != null, "withParallelism(parallelism) called with null input.");
-        return setParallelism(ValueProvider.StaticValueProvider.of(parallelism));
-      }
-
-      /**
-       * Disables certificate validation.
-       *
-       * @param disableCertificateValidation for disabling certificate validation
-       * @return {@link Builder}
-       */
-      public Builder withDisableCertificateValidation(
-          ValueProvider<Boolean> disableCertificateValidation) {
-        checkArgument(
-            disableCertificateValidation != null,
-            "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
-        return setDisableCertificateValidation(disableCertificateValidation);
-      }
-
-      /**
-       * Same as {@link Builder#withDisableCertificateValidation(ValueProvider)} but without a
-       * {@link ValueProvider}.
-       *
-       * @param disableCertificateValidation for disabling certificate validation
-       * @return {@link Builder}
-       */
-      public Builder withDisableCertificateValidation(Boolean disableCertificateValidation) {
-        checkArgument(
-            disableCertificateValidation != null,
-            "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
-        return setDisableCertificateValidation(
-            ValueProvider.StaticValueProvider.of((disableCertificateValidation)));
-      }
-
-      /** Validates and builds the {@link Write} transform. */
-      public Write build() {
-        checkNotNull(url(), "HEC url is required.");
-        checkNotNull(token(), "Authorization token is required.");
-
-        return autoBuild();
-      }
+    /**
+     * Disables ssl certificate validation.
+     *
+     * @param disableCertificateValidation for disabling certificate validation
+     */
+    public Write withDisableCertificateValidation(Boolean disableCertificateValidation) {
+      checkArgument(
+          disableCertificateValidation != null,
+          "withDisableCertificateValidation(disableCertificateValidation) called with null input.");
+      return toBuilder()
+          .setDisableCertificateValidation(StaticValueProvider.of((disableCertificateValidation)))
+          .build();
     }
 
     /**
