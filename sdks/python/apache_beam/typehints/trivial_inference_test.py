@@ -35,7 +35,7 @@ class TrivialInferenceTest(unittest.TestCase):
   def assertReturnType(self, expected, f, inputs=(), depth=5):
     self.assertEqual(
         expected,
-        trivial_inference.infer_return_type(f, inputs, debug=True, depth=depth))
+        trivial_inference.infer_return_type(f, inputs, debug=False, depth=depth))
 
   def testIdentity(self):
     self.assertReturnType(int, lambda x: x, [int])
@@ -191,6 +191,18 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Tuple[str, typehints.Any],
         lambda: (typehints.__doc__, typehints.fake))
+
+  def testMethodReturnsTuple(self):
+    class Person(object):
+      def __init__(self, name):
+        self.name = name
+
+    def parse_record(name_and_age):
+      name, age = name_and_age.split(',')
+      return Person(name), int(age)
+
+    self.assertReturnType(typehints.List[typehints.Tuple[Person, int]],
+                          lambda record: [parse_record(record)], [str])
 
   def testMethod(self):
     class A(object):
