@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.concurrent.TimeoutException;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.healthcare.HL7v2IOTestUtil.ListHL7v2MessageIDs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -61,7 +60,10 @@ public class HL7v2IOReadWriteIT {
 
   @BeforeClass
   public static void createHL7v2tores() throws IOException {
-    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    String project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.createHL7v2Store(healthcareDataset, INPUT_HL7V2_STORE_NAME);

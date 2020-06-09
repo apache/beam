@@ -17,29 +17,15 @@
  */
 package org.apache.beam.sdk.io.gcp.healthcare;
 
-import static org.apache.beam.sdk.io.gcp.healthcare.FhirIOTestUtil.DEFAULT_TEMP_BUCKET;
-
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.Validation.Required;
+import org.apache.beam.sdk.testing.TestPipelineOptions;
 
-public interface FhirIOTestOptions extends HealthcareStoreTestPipelineOptions {
+/** Pipeline options for HL7v2 pipelines. */
+public interface HealthcareStoreTestPipelineOptions extends TestPipelineOptions {
+  @Description("Project that hosts HL7v2 store")
+  @Default.String("apache-beam-testing")
+  String getStoreProjectId();
 
-  @Description(
-      "FHIR store should match the pattern: projects/PROJECT_ID/locations/LOCATION/datasets/DATASET_ID/fhirStores/HL7V2_STORE_ID")
-  @Required
-  String getFhirStore();
-
-  void setFhirStore(String value);
-
-  @Description("GCS temp path for import should be of the form gs://bucket/path/")
-  @Default.String("gs://" + DEFAULT_TEMP_BUCKET + "/FhirIOWriteIT/temp/")
-  String getGcsTempPath();
-
-  void setGcsTempPath(String value);
-
-  @Description("GCS dead letter path for import should be of the form gs://bucket/path/")
-  String getGcsDeadLetterPath();
-
-  void setGcsDeadLetterPath(String value);
+  void setStoreProjectId(String value);
 }

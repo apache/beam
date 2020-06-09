@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
@@ -72,7 +71,10 @@ public class FhirIOReadIT {
     long testTime = System.currentTimeMillis();
     this.fhirStoreName =
         "FHIR_store_" + version + "_write_it_" + testTime + "_" + (new SecureRandom().nextInt(32));
-    this.project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    this.project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
     this.pubsubTopic =
         "projects/"
             + project
