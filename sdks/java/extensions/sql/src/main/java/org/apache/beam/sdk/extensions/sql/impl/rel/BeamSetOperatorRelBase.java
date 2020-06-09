@@ -20,11 +20,15 @@ package org.apache.beam.sdk.extensions.sql.impl.rel;
 import static org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSetOperatorsTransforms;
+import org.apache.beam.sdk.schemas.transforms.CoGroup;
+import org.apache.beam.sdk.schemas.transforms.CoGroup.By;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.Sets;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 
 /**
@@ -71,27 +75,20 @@ public class BeamSetOperatorRelBase extends PTransform<PCollectionList<Row>, PCo
               + rightWindow);
     }
 
-    switch (opType) {
-      case UNION:
-        if (all) {
-          return leftRows.apply(Sets.unionAll(rightRows));
-        } else {
-          return leftRows.apply(Sets.unionDistinct(rightRows));
-        }
-      case INTERSECT:
-        if (all) {
-          return leftRows.apply(Sets.intersectAll(rightRows));
-        } else {
-          return leftRows.apply(Sets.intersectDistinct(rightRows));
-        }
-      case MINUS:
-        if (all) {
-          return leftRows.apply(Sets.exceptAll(rightRows));
-        } else {
-          return leftRows.apply(Sets.exceptDistinct(rightRows));
-        }
-      default:
-        throw new IllegalStateException("Unexpected set operation value: " + opType);
-    }
+    // TODO: We may want to preaggregate the counts first using Group instead of calling CoGroup and
+    // measuring the
+    // iterable size. If on average there are duplicates in the input, this will be faster.
+    final String lhsTag = "lhs";
+    final String rhsTag = "rhs";
+    PCollection<Row> joined =
+        PCollectionTuple.of(lhsTag, leftRows, rhsTag, rightRows)
+            .apply("CoGroup", CoGroup.join(By.fieldNames("*")));
+    return joined
+        .apply(
+            "FilterResults",
+            ParDo.of(
+                new BeamSetOperatorsTransforms.SetOperatorFilteringDoFn(
+                    lhsTag, rhsTag, opType, all)))
+        .setRowSchema(joined.getSchema().getField("key").getType().getRowSchema());
   }
 }
