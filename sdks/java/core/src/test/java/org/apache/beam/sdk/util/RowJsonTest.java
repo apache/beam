@@ -260,6 +260,127 @@ public class RowJsonTest {
     }
   }
 
+  public static class ValueTestsAllowMissing {
+    @Parameter(0)
+    public String name;
+
+    @Parameter(1)
+    public Schema schema;
+
+    @Parameter(2)
+    public String serializedString;
+
+    @Parameter(3)
+    public Row row;
+
+    @Parameters(name = "{0}")
+    public static Collection<Object[]> data() {
+      return ImmutableList.of(
+          makeFlatRowWithNullsTestCase(),
+          makeArrayNullTestCase(),
+          makeNestedRowwithNullTestCase(),
+          makeRowisNullTestCase());
+    }
+
+    private static Object[] makeFlatRowWithNullsTestCase() {
+      Schema schema =
+          Schema.builder()
+              .addByteField("f_byte")
+              .addNullableField("f_string", FieldType.STRING)
+              .build();
+
+      String rowString = "{\n" + "\"f_byte\" : 12,\n" + "}";
+
+      Row expectedRow = Row.withSchema(schema).addValues((byte) 12, null).build();
+
+      return new Object[] {"Nulls", schema, rowString, expectedRow};
+    }
+
+    private static Object[] makeArrayNullTestCase() {
+
+      Schema schema =
+          Schema.builder()
+              .addInt32Field("f_int32")
+              .addArrayField("f_intArray", FieldType.INT32.withNullable(true))
+              .build();
+
+      String rowString =
+          "{\n" + "\"f_int32\" : 32,\n" + "}";
+
+      Row expectedRow = Row.withSchema(schema).addValues(32, null).build();
+
+      return new Object[] {"Array field", schema, rowString, expectedRow};
+    }
+
+    private static Object[] makeNestedRowwithNullTestCase() {
+      Schema nestedRowSchema =
+          Schema.builder().addInt32Field("f_nestedInt32").addNullableField("f_nestedString", FieldType.STRING).build();
+
+      Schema schema =
+          Schema.builder().addInt32Field("f_int32").addRowField("f_row", nestedRowSchema).build();
+
+      String rowString =
+          "{\n"
+              + "\"f_int32\" : 32,\n"
+              + "\"f_row\" : {\n"
+              + "             \"f_nestedInt32\" : 54,\n"
+              + "            }\n"
+              + "}";
+
+      Row expectedRow =
+          Row.withSchema(schema)
+              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, "foo").build())
+              .build();
+
+      return new Object[] {"Nested row", schema, rowString, expectedRow};
+    }
+
+
+    private static Object[] makeRowisNullTestCase() {
+      Schema nestedRowSchema =
+          Schema.builder().addInt32Field("f_nestedInt32").addNullableField("f_nestedString", FieldType.STRING).build();
+
+      Schema schema =
+          Schema.builder().addInt32Field("f_int32").addNullableField("f_row", FieldType.row(nestedRowSchema)).build();
+
+      String rowString =
+          "{\n"
+              + "\"f_int32\" : 32,\n"
+              + "\"f_row\" : {\n"
+              + "             \"f_nestedInt32\" : 54,\n"
+              + "            }\n"
+              + "}";
+
+      Row expectedRow =
+          Row.withSchema(schema)
+              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, "foo").build())
+              .build();
+
+      return new Object[] {"Nested row", schema, rowString, expectedRow};
+    }
+
+    @Test
+    public void testDeserialize() throws IOException {
+      Row parsedRow = newObjectMapperWithImplicitNullsFor(schema).readValue(serializedString, Row.class);
+
+      assertThat(row, equalTo(parsedRow));
+    }
+
+    @Test
+    public void testSerialize() throws IOException {
+      String str = newObjectMapperWithImplicitNullsFor(schema).writeValueAsString(row);
+
+      assertThat(str, jsonStringLike(serializedString));
+    }
+
+    @Test
+    public void testRoundTrip() throws IOException {
+      ObjectMapper objectMapper = newObjectMapperWithImplicitNullsFor(schema);
+      Row parsedRow = objectMapper.readValue(objectMapper.writeValueAsString(row), Row.class);
+
+      assertThat(row, equalTo(parsedRow));
+    }
+  }
   @RunWith(JUnit4.class)
   public static class DeserializerTests {
     private static final Boolean BOOLEAN_TRUE_VALUE = true;
@@ -560,6 +681,15 @@ public class RowJsonTest {
     SimpleModule simpleModule = new SimpleModule("rowSerializationTesModule");
     simpleModule.addSerializer(Row.class, RowJson.RowJsonSerializer.forSchema(schema));
     simpleModule.addDeserializer(Row.class, RowJson.RowJsonDeserializer.forSchema(schema));
+    ObjectMapper objectMapper = new ObjectMapper();
+    objectMapper.registerModule(simpleModule);
+    return objectMapper;
+  }
+
+  private static ObjectMapper newObjectMapperWithImplicitNullsFor(Schema schema) {
+    SimpleModule simpleModule = new SimpleModule("rowSerializationTesModule");
+    simpleModule.addSerializer(Row.class, RowJson.RowJsonSerializer.forSchema(schema).ignoreNullsOnWrite(true));
+    simpleModule.addDeserializer(Row.class, RowJson.RowJsonDeserializer.forSchema(schema).allowMissingFields(true));
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(simpleModule);
     return objectMapper;
