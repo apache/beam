@@ -33,6 +33,7 @@ If you're interested in contributing to the Apache Beam Java codebase, see the [
 
 1. Download and install [Apache Maven](https://maven.apache.org/download.cgi) by following Maven's [installation guide](https://maven.apache.org/install.html) for your specific operating system.
 
+1. Optional: Install [Gradle](https://gradle.org/install/) if you would like to convert your Maven project into Gradle.
 
 ## Get the WordCount Code
 
@@ -103,6 +104,14 @@ d-----        7/19/2018  11:00 PM                subprocess
 
 For a detailed introduction to the Beam concepts used in these examples, see the [WordCount Example Walkthrough](/get-started/wordcount-example). Here, we'll just focus on executing `WordCount.java`.
 
+## Optional: Convert from Maven to Gradle Project
+
+To convert this from a Maven project into Gradle, execute `gradle init` while in the same directory as the `pom.xml` file.
+
+After you have converted the project to Gradle:
+
+1. Edit the generated `build.gradle` by adding `mavenCentral()` under `repositories`.
+1. Rebuild your project by running `gradle build`.
 
 ## Run WordCount
 
