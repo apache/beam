@@ -23,6 +23,7 @@ from __future__ import absolute_import
 
 import copy
 import inspect
+import itertools
 import logging
 import random
 import types
@@ -99,6 +100,7 @@ __all__ = [
     'CombineGlobally',
     'CombinePerKey',
     'CombineValues',
+    'GroupBy',
     'GroupByKey',
     'Partition',
     'Windowing',
@@ -2245,6 +2247,87 @@ class GroupByKey(PTransform):
 
   def runner_api_requires_keyed_input(self):
     return True
+
+
+def _expr_to_callable(expr, pos):
+  if isinstance(expr, str):
+    return lambda x: getattr(x, expr)
+  elif callable(expr):
+    return expr
+  else:
+    raise TypeError(
+        'Field expression %r at %s must be a callable or a string.' %
+        (expr, pos))
+
+
+class GroupBy(PTransform):
+  def __init__(self, *fields, **kwargs):
+    if len(fields) == 1 and not kwargs:
+      name = fields[0] if isinstance(fields[0], str) else 'key'
+      key_fields = [(name, _expr_to_callable(fields[0], 0))]
+    else:
+      key_fields = []
+      for ix, field in enumerate(fields):
+        if not isinstance(field, str):
+          raise TypeError(
+              'Key argument %r at position %d not a string.' % (ix, field))
+        key_fields.append((field, _expr_to_callable(field, ix)))
+      for name, expr in kwargs.items():
+        key_fields.append((name, _expr_to_callable(expr, name)))
+    self._key_fields = key_fields
+    # TODO(robertwb): Pickling of dynamic named tuples.
+    # self._key_type = typing.NamedTuple('Key', [name for name, _ in self._key_fields])
+    self._key_type = lambda *values: pvalue.Row(
+        **{name: value
+           for (name, _), value in zip(self._key_fields, values)})
+
+  def _key_func(self, element):
+    return self._key_type(*[expr(element) for _, expr in self._key_fields])
+
+  def default_label(self):
+    return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
+
+  def aggregate_field(self, field, combine_fn, dest):
+    return _GroupAndAggregate(self, ()).aggregate_field(
+        field, combine_fn, dest)
+
+  def expand(self, pcoll):
+    return pcoll | Map(lambda x: (self._key_func(x), x)) | GroupByKey()
+
+
+class _GroupAndAggregate(PTransform):
+  def __init__(self, grouping, aggregations):
+    self._grouping = grouping
+    self._aggregations = aggregations
+
+  def aggregate_field(self, field, combine_fn, dest):
+    field = _expr_to_callable(field, 0)
+    return _GroupAndAggregate(
+        self._grouping, list(self._aggregations) + [(field, combine_fn, dest)])
+
+  def _value_func(self, element):
+    return [expr(element) for expr, _, __ in self._aggregations]
+
+  def expand(self, pcoll):
+    from apache_beam.transforms.combiners import TupleCombineFn
+    return (
+        pcoll
+        | Map(lambda x: (self._grouping._key_func(x), self._value_func(x)))
+        | CombinePerKey(
+            TupleCombineFn(
+                *[combine_fn for _, combine_fn, __ in self._aggregations]))
+        | MapTuple(
+            lambda key,
+            value: pvalue.Row(
+                **{
+                    **key.__dict__,
+                    **{
+                        dest: c
+                        for (_, __, dest),
+                        c in zip(self._aggregations, value)
+                    }
+                }))
+                )
 
 
 class Partition(PTransformWithSideInputs):
