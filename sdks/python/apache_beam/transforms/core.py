@@ -2653,7 +2653,7 @@ class Impulse(PTransform):
     if not isinstance(pbegin, pvalue.PBegin):
       raise TypeError(
           'Input to Impulse transform must be a PBegin but found %s' % pbegin)
-    return pvalue.PCollection(pbegin.pipeline)
+    return pvalue.PCollection(pbegin.pipeline, element_type=bytes)
 
   def get_windowing(self, inputs):
     # type: (typing.Any) -> Windowing

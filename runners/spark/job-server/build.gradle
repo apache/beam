@@ -117,6 +117,10 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
       excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
     },
+    testFilter: {
+      // TODO(BEAM-10094)
+      excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+    },
   )
 }
 

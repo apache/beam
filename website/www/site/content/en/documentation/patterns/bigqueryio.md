@@ -38,9 +38,9 @@ In the result tuple you can access `FailedRows` to access the failed inserts.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryIODeadLetter >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryIODeadLetter >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" BigQueryIODeadLetter >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" BigQueryIODeadLetter >}}
 {{< /highlight >}}

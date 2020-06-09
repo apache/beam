@@ -103,11 +103,11 @@ To specify a table with a string, use the format
 table name.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpec >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec >}}
 {{< /highlight >}}
 
 You can also omit `project_id` and use the `[dataset_id].[table_id]` format. If
@@ -120,11 +120,11 @@ you omit the project ID, Beam uses the default project ID from your
 </span>
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecWithoutProject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecWithoutProject >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_without_project >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_without_project >}}
 {{< /highlight >}}
 
 #### Using a TableReference
@@ -133,11 +133,11 @@ To specify a table with a `TableReference`, create a new `TableReference` using
 the three parts of the BigQuery table name.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecObject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTableSpecObject >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_object >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_table_spec_object >}}
 {{< /highlight >}}
 
 <!-- Java specific -->
@@ -173,11 +173,11 @@ shows the correct format for data types used when reading from and writing to
 BigQuery:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryDataTypes >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryDataTypes >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_data_types >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_data_types >}}
 {{< /highlight >}}
 
 <!-- Java specific -->
@@ -276,11 +276,11 @@ The following code reads an entire table that contains weather station data and
 then extracts the `max_temperature` column.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadTable >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadTable >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_table >}}
 {{< /highlight >}}
 
 
@@ -300,22 +300,22 @@ If you don't want to read an entire table, you can supply a query string to
 The following code uses a SQL query to only read the `max_temperature` column.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQuery >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQuery >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query >}}
 {{< /highlight >}}
 
 You can also use BigQuery's standard SQL dialect with a query string, as shown
 in the following example:
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQueryStdSQL >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryReadQueryStdSQL >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_read_query_std_sql >}}
 {{< /highlight >}}
 
 ### Using the BigQuery Storage API {#storage-api}
@@ -546,11 +546,11 @@ The following example code shows how to create a `TableSchema` for a table with
 two fields (source and quote) of type string.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaObject >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaObject >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema_object >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema_object >}}
 {{< /highlight >}}
 
 
@@ -591,11 +591,11 @@ The following example shows how to use a string to specify the same table schema
 as the previous example.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaJson >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQuerySchemaJson >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_schema >}}
 {{< /highlight >}}
 
 
@@ -680,11 +680,11 @@ collection.
 The following examples use this `PCollection` that contains quotes.
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteInput >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteInput >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write_input >}}
 {{< /highlight >}}
 
 <!-- writeTableRows and WriteToBigQuery -->
@@ -704,11 +704,11 @@ creates a table if needed; if the table already exists, it will be replaced.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteTable >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteTable >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
-{{< github_sample "/apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" model_bigqueryio_write >}}
 {{< /highlight >}}
 
 <!-- write -->
@@ -723,7 +723,7 @@ be replaced.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteFunction >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteFunction >}}
 {{< /highlight >}}
 
 {{< paragraph class="language-java" >}}
@@ -774,7 +774,7 @@ different table for each year.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryWriteDynamicDestinations >}}
 {{< /highlight >}}
 
 {{< highlight py >}}
@@ -810,7 +810,7 @@ This example generates one partition per day.
 {{< /paragraph >}}
 
 {{< highlight java >}}
-{{< github_sample "/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTimePartitioning >}}
+{{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" BigQueryTimePartitioning >}}
 {{< /highlight >}}
 
 {{< highlight py >}}

@@ -319,7 +319,7 @@
           "measurement": "python_bqio_read",
           "orderByTime": "ASC",
           "policy": "default",
-          "query": "SELECT mean(\"value\") FROM \"python_psio_2GB_results\" WHERE \"metric\" = \"pubsub_io_perf_read_runtime\" AND $timeFilter GROUP BY time($__interval), \"metric\"",
+          "query": "SELECT mean(\"value\") FROM \"python_psio_2GB_results\" WHERE \"metric\" = 'pubsub_io_perf_read_runtime' AND $timeFilter GROUP BY time($__interval), \"metric\"",
           "rawQuery": true,
           "refId": "A",
           "resultFormat": "time_series",

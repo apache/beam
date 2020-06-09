@@ -509,7 +509,8 @@ class Pipeline(object):
         return Pipeline.from_runner_api(
             self.to_runner_api(use_fake_coders=True),
             self.runner,
-            self._options).run(False)
+            self._options,
+            allow_proto_holders=True).run(False)
 
       if self._options.view_as(TypeOptions).runtime_type_check:
         from apache_beam.typehints import typecheck

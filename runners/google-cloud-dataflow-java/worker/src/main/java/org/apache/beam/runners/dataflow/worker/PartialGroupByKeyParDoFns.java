@@ -39,6 +39,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.SimplePartialG
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -97,6 +98,9 @@ public class PartialGroupByKeyParDoFns {
       Receiver receiver,
       @Nullable StepContext stepContext)
       throws Exception {
+    long maxSizeBytes =
+        options.as(SdkHarnessOptions.class).getGroupingTableMaxSizeMb() * (1024L * 1024L);
+
     Coder<K> keyCoder = inputElementCoder.getKeyCoder();
     Coder<?> valueCoder = inputElementCoder.getValueCoder();
     if (combineFn == null) {
@@ -108,7 +112,8 @@ public class PartialGroupByKeyParDoFns {
               PairInfo.create(),
               new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
               new CoderSizeEstimator<>(inputCoder),
-              0.001 /*sizeEstimatorSampleRate*/);
+              0.001, /*sizeEstimatorSampleRate*/
+              maxSizeBytes /*maxSizeBytes*/);
       return new SimplePartialGroupByKeyParDoFn<>(groupingTable, receiver);
     } else {
       GroupingTables.Combiner<WindowedValue<K>, InputT, AccumT, ?> valueCombiner =
@@ -122,7 +127,8 @@ public class PartialGroupByKeyParDoFns {
               valueCombiner,
               new CoderSizeEstimator<>(WindowedValue.getValueOnlyCoder(keyCoder)),
               new CoderSizeEstimator<>(combineFn.getAccumulatorCoder()),
-              0.001 /*sizeEstimatorSampleRate*/);
+              0.001, /*sizeEstimatorSampleRate*/
+              maxSizeBytes /*maxSizeBytes*/);
       if (sideInputReader.isEmpty()) {
         return new SimplePartialGroupByKeyParDoFn<>(groupingTable, receiver);
       } else if (options.as(StreamingOptions.class).isStreaming()) {

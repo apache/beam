@@ -224,6 +224,21 @@ class MetricsReader(object):
       for publisher in self.publishers:
         publisher.publish(insert_dicts)
 
+  def publish_values(self, labeled_values):
+    """The method to publish simple labeled values.
+
+    Args:
+      labeled_values (List[Tuple(str, int)]): list of (label, value)
+    """
+    metric_dicts = [
+        Metric(time.time(), uuid.uuid4().hex, value, label=label).as_dict()
+        for label,
+        value in labeled_values
+    ]
+
+    for publisher in self.publishers:
+      publisher.publish(metric_dicts)
+
   def _prepare_all_metrics(self, metrics):
     metric_id = uuid.uuid4().hex
 

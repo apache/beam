@@ -941,7 +941,8 @@ public class BigQueryIO {
         String tempLocation = bqOptions.getTempLocation();
         checkArgument(
             !Strings.isNullOrEmpty(tempLocation),
-            "BigQueryIO.Read needs a GCS temp location to store temp files.");
+            "BigQueryIO.Read needs a GCS temp location to store temp files."
+                + "This can be set with option --tempLocation.");
         if (getBigQueryServices() == null) {
           try {
             GcsPath.fromUri(tempLocation);

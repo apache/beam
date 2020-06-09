@@ -257,6 +257,12 @@ class BeamModulePlugin implements Plugin<Project> {
       // includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       // excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
     }
+    // Tests to include/exclude from running, by default all tests are included
+    Closure testFilter = {
+      // Use the following to include / exclude tests:
+      // includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+      // excludeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest.testFlattenWithDifferentInputAndOutputCoders2'
+    }
     // Configuration for the classpath when running the test.
     Configuration testClasspathConfiguration
     // Additional system properties.
@@ -402,7 +408,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def proto_google_common_protos_version = "1.17.0"
     def protobuf_version = "3.11.1"
     def quickcheck_version = "0.8"
-    def spark_version = "2.4.5"
+    def spark_version = "2.4.6"
 
     // A map of maps containing common libraries used per language. To use:
     // dependencies {
@@ -551,7 +557,7 @@ class BeamModulePlugin implements Plugin<Project> {
         vendored_guava_26_0_jre                     : "org.apache.beam:beam-vendor-guava-26_0-jre:0.1",
         vendored_calcite_1_20_0                     : "org.apache.beam:beam-vendor-calcite-1_20_0:0.1",
         woodstox_core_asl                           : "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
-        zstd_jni                                    : "com.github.luben:zstd-jni:1.3.8-3",
+        zstd_jni                                    : "com.github.luben:zstd-jni:1.4.5-2",
         quickcheck_core                             : "com.pholser:junit-quickcheck-core:$quickcheck_version",
       ],
       groovy: [
@@ -1689,6 +1695,7 @@ class BeamModulePlugin implements Plugin<Project> {
         testClassesDirs = project.files(project.project(":sdks:java:core").sourceSets.test.output.classesDirs, project.project(":runners:core-java").sourceSets.test.output.classesDirs)
         maxParallelForks config.numParallelTests
         useJUnit(config.testCategories)
+        filter(config.testFilter)
         // increase maxHeapSize as this is directly correlated to direct memory,
         // see https://issues.apache.org/jira/browse/BEAM-6698
         maxHeapSize = '4g'

@@ -29,31 +29,25 @@ import copy
 import threading
 from typing import Dict
 
+import grpc
+
 from apache_beam import pvalue
 from apache_beam.coders import registry
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
-
-# Protect against environments where grpc is not available.
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  import grpc
-  from apache_beam.runners.portability import artifact_service
-  from apache_beam.portability.api import beam_artifact_api_pb2_grpc
-  from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-  from apache_beam.utils import subprocess_server
-except ImportError:
-  grpc = None
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+from apache_beam.utils import subprocess_server
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
@@ -242,8 +236,6 @@ class ExternalTransform(ptransform.PTransform):
         or an address (as a str) to a grpc server that provides this method.
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
-    if grpc is None and isinstance(expansion_service, str):
-      raise NotImplementedError('Grpc required for external transforms.')
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
@@ -470,18 +462,16 @@ class ExternalTransform(ptransform.PTransform):
         environment_id=self._expanded_transform.environment_id)
 
 
-if grpc is not None:
+class ExpansionAndArtifactRetrievalStub(
+    beam_expansion_api_pb2_grpc.ExpansionServiceStub):
+  def __init__(self, channel, **kwargs):
+    self._channel = channel
+    self._kwargs = kwargs
+    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
 
-  class ExpansionAndArtifactRetrievalStub(
-      beam_expansion_api_pb2_grpc.ExpansionServiceStub):
-    def __init__(self, channel, **kwargs):
-      self._channel = channel
-      self._kwargs = kwargs
-      super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
-
-    def artifact_service(self):
-      return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
-          self._channel, **self._kwargs)
+  def artifact_service(self):
+    return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
+        self._channel, **self._kwargs)
 
 
 class JavaJarExpansionService(object):

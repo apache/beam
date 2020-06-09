@@ -22,6 +22,8 @@ from typing import Iterable
 from typing import Optional
 from typing import TypeVar
 
+from apache_beam.dataframe import partitionings
+
 
 class Session(object):
   """A session represents a mapping of expressions to concrete values.
@@ -85,16 +87,20 @@ class Expression(object):
     """Returns the result of self with the bindings given in session."""
     raise NotImplementedError(type(self))
 
-  def requires_partition_by_index(self):  # type: () -> bool
-    """Whether this expression requires its argument(s) to be partitioned
-    by index."""
-    # TODO: It might be necessary to support partitioning by part of the index,
-    # for some args, which would require returning more than a boolean here.
+  def requires_partition_by(self):  # type: () -> partitionings.Partitioning
+    """Returns the partitioning, if any, require to evaluate this expression.
+
+    Returns partitioning.Nothing() to require no partitioning is required.
+    """
     raise NotImplementedError(type(self))
 
-  def preserves_partition_by_index(self):  # type: () -> bool
-    """Whether the result of this expression will be partitioned by index
-    whenever all of its inputs are partitioned by index."""
+  def preserves_partition_by(self):  # type: () -> partitionings.Partitioning
+    """Returns the partitioning, if any, preserved by this expression.
+
+    This gives an upper bound on the partitioning of its ouput.  The actual
+    partitioning of the output may be less strict (e.g. if the input was
+    less partitioned).
+    """
     raise NotImplementedError(type(self))
 
 
@@ -123,11 +129,11 @@ class PlaceholderExpression(Expression):
   def evaluate_at(self, session):
     return session.lookup(self)
 
-  def requires_partition_by_index(self):
-    return False
+  def requires_partition_by(self):
+    return partitionings.Nothing()
 
-  def preserves_partition_by_index(self):
-    return False
+  def preserves_partition_by(self):
+    return partitionings.Nothing()
 
 
 class ConstantExpression(Expression):
@@ -159,11 +165,11 @@ class ConstantExpression(Expression):
   def evaluate_at(self, session):
     return self._value
 
-  def requires_partition_by_index(self):
-    return False
+  def requires_partition_by(self):
+    return partitionings.Nothing()
 
-  def preserves_partition_by_index(self):
-    return False
+  def preserves_partition_by(self):
+    return partitionings.Nothing()
 
 
 class ComputedExpression(Expression):
@@ -175,8 +181,8 @@ class ComputedExpression(Expression):
       args,  # type: Iterable[Expression]
       proxy=None,  # type: Optional[T]
       _id=None,  # type: Optional[str]
-      requires_partition_by_index=True,  # type: bool
-      preserves_partition_by_index=False,  # type: bool
+      requires_partition_by=partitionings.Index(),  # type: partitionings.Partitioning
+      preserves_partition_by=partitionings.Nothing(),  # type: partitionings.Partitioning
   ):
     """Initialize a computed expression.
 
@@ -203,8 +209,8 @@ class ComputedExpression(Expression):
     super(ComputedExpression, self).__init__(name, proxy, _id)
     self._func = func
     self._args = args
-    self._requires_partition_by_index = requires_partition_by_index
-    self._preserves_partition_by_index = preserves_partition_by_index
+    self._requires_partition_by = requires_partition_by
+    self._preserves_partition_by = preserves_partition_by
 
   def placeholders(self):
     return frozenset.union(
@@ -216,11 +222,11 @@ class ComputedExpression(Expression):
   def evaluate_at(self, session):
     return self._func(*(session.evaluate(arg) for arg in self._args))
 
-  def requires_partition_by_index(self):
-    return self._requires_partition_by_index
+  def requires_partition_by(self):
+    return self._requires_partition_by
 
-  def preserves_partition_by_index(self):
-    return self._preserves_partition_by_index
+  def preserves_partition_by(self):
+    return self._preserves_partition_by
 
 
 def elementwise_expression(name, func, args):
@@ -228,5 +234,5 @@ def elementwise_expression(name, func, args):
       name,
       func,
       args,
-      requires_partition_by_index=False,
-      preserves_partition_by_index=True)
+      requires_partition_by=partitionings.Nothing(),
+      preserves_partition_by=partitionings.Singleton())

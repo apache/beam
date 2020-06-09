@@ -27,6 +27,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -165,6 +166,74 @@ public class BeamSalUhfSpecialTypeAndValueTest extends BeamSqlDslBase {
             resultRow6,
             resultRow7,
             resultRow8);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testMd5() throws Exception {
+    Schema resultType = Schema.builder().addByteArrayField("field").build();
+    Row resultRow1 =
+        Row.withSchema(resultType).addValues(DigestUtils.md5("foobar".getBytes(UTF_8))).build();
+    Row resultRow2 =
+        Row.withSchema(resultType).addValues(DigestUtils.md5(" ".getBytes(UTF_8))).build();
+    Row resultRow3 =
+        Row.withSchema(resultType)
+            .addValues(DigestUtils.md5("abcABCжщфЖЩФ".getBytes(UTF_8)))
+            .build();
+    String sql = "SELECT MD5(f_bytes) FROM PCOLLECTION WHERE f_func = 'HashingFn'";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow1, resultRow2, resultRow3);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSHA1() throws Exception {
+    Schema resultType = Schema.builder().addByteArrayField("field").build();
+    Row resultRow1 =
+        Row.withSchema(resultType).addValues(DigestUtils.sha1("foobar".getBytes(UTF_8))).build();
+    Row resultRow2 =
+        Row.withSchema(resultType).addValues(DigestUtils.sha1(" ".getBytes(UTF_8))).build();
+    Row resultRow3 =
+        Row.withSchema(resultType)
+            .addValues(DigestUtils.sha1("abcABCжщфЖЩФ".getBytes(UTF_8)))
+            .build();
+    String sql = "SELECT SHA1(f_bytes) FROM PCOLLECTION WHERE f_func = 'HashingFn'";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow1, resultRow2, resultRow3);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSHA256() throws Exception {
+    Schema resultType = Schema.builder().addByteArrayField("field").build();
+    Row resultRow1 =
+        Row.withSchema(resultType).addValues(DigestUtils.sha256("foobar".getBytes(UTF_8))).build();
+    Row resultRow2 =
+        Row.withSchema(resultType).addValues(DigestUtils.sha256(" ".getBytes(UTF_8))).build();
+    Row resultRow3 =
+        Row.withSchema(resultType)
+            .addValues(DigestUtils.sha256("abcABCжщфЖЩФ".getBytes(UTF_8)))
+            .build();
+    String sql = "SELECT SHA256(f_bytes) FROM PCOLLECTION WHERE f_func = 'HashingFn'";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow1, resultRow2, resultRow3);
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSHA512() throws Exception {
+    Schema resultType = Schema.builder().addByteArrayField("field").build();
+    Row resultRow1 =
+        Row.withSchema(resultType).addValues(DigestUtils.sha512("foobar".getBytes(UTF_8))).build();
+    Row resultRow2 =
+        Row.withSchema(resultType).addValues(DigestUtils.sha512(" ".getBytes(UTF_8))).build();
+    Row resultRow3 =
+        Row.withSchema(resultType)
+            .addValues(DigestUtils.sha512("abcABCжщфЖЩФ".getBytes(UTF_8)))
+            .build();
+    String sql = "SELECT SHA512(f_bytes) FROM PCOLLECTION WHERE f_func = 'HashingFn'";
+    PCollection<Row> result = boundedInputBytes.apply("testUdf", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(resultRow1, resultRow2, resultRow3);
     pipeline.run().waitUntilFinish();
   }
 }
