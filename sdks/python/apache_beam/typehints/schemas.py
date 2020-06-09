@@ -124,7 +124,7 @@ def named_fields_to_schema(names_and_types):
   return schema_pb2.Schema(
       fields=[
           schema_pb2.Field(name=name, type=typing_to_runner_api(type))
-          for (name, type) in name_and_types
+          for (name, type) in names_and_types
       ],
       id=str(uuid4()))
 

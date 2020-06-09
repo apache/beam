@@ -66,7 +66,7 @@ __all__ = [
     'AsIter',
     'AsList',
     'AsDict',
-    'EmptySideInput'
+    'EmptySideInput',
     'Row',
 ]
 

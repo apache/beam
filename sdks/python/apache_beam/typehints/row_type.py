@@ -30,6 +30,7 @@ class RowTypeConstraint(typehints.TypeConstraint):
     return self == sub
 
   def type_check(self, instance):
+    from apache_beam import Row
     return isinstance(instance, Row)
 
   def _inner_types(self):

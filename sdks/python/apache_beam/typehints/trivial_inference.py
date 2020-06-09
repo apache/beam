@@ -442,8 +442,20 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         if depth <= 0:
           return_type = Any
         elif arg >> 8:
-          # TODO(robertwb): Handle this case.
-          return_type = Any
+          if not var_args and not kw_args and not (arg & 0xFF):
+            # Keywords only, maybe it's a call to Row.
+            if isinstance(state.stack[-pop_count], Const):
+              from apache_beam.pvalue import Row
+              if state.stack[-pop_count].value == Row:
+                fields = state.stack[-pop_count + 1::2]
+                types = state.stack[-pop_count + 2::2]
+                return_type = row_type.RowTypeConstraint(
+                    zip([f.value for f in fields], Const.unwrap_all(types)))
+              else:
+                return_type = Any
+          else:
+            # TODO(robertwb): Handle this case.
+            return_type = Any
         elif isinstance(state.stack[-pop_count], Const):
           # TODO(robertwb): Handle this better.
           if var_args or kw_args:
