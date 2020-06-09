@@ -54,10 +54,10 @@ class WindmillTimerInternals implements TimerInternals {
   // though technically in Windmill this is only enforced per ID and namespace
   // and TimeDomain. This TimerInternals is scoped to a step and key, shared
   // across namespaces.
-  private Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
+  public Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
 
   // Map from timer id to whether it is to be deleted or set
-  private Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
+  public Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
 
   private Instant inputDataWatermark;
   private Instant processingTime;

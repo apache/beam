@@ -24,20 +24,12 @@ import com.google.api.services.dataflow.model.CounterUpdate;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.TimerInternals;
+
+import org.apache.beam.runners.core.*;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
@@ -57,12 +49,14 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Timestamp;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Table;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -523,8 +517,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
               synchronizedProcessingTime);
 
       this.cachedFiredTimers = null;
-      this.cachedFiredUserTimers = null;
-      this.toBeFiredTimersOrdered.clear();
+      this.toBeFiredTimersOrdered = null;
     }
 
     public void flushState() {
@@ -564,16 +557,17 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
       return nextTimer;
     }
 
-    // Lazily initialized
-    private Iterator<TimerData> cachedFiredUserTimers = null;
 
-    private PriorityQueue<TimerData> toBeFiredTimersOrdered =
-        new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
+    private PriorityQueue<TimerData> toBeFiredTimersOrdered = null;
+
+
+    private Map<String, Instant> firedTimer = new HashMap<>();
 
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
-      if (cachedFiredUserTimers == null) {
-        cachedFiredUserTimers =
-            FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
+      if (toBeFiredTimersOrdered == null) {
+        LOG.info("initializing queue");
+        toBeFiredTimersOrdered = new PriorityQueue<>(Comparator.comparing(TimerData::getTimestamp));
+        FluentIterable.from(StreamingModeExecutionContext.this.getFiredTimers())
                 .filter(
                     timer ->
                         WindmillTimerInternals.isUserTimer(timer)
@@ -582,22 +576,72 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
                     timer ->
                         WindmillTimerInternals.windmillTimerToTimerData(
                             WindmillNamespacePrefix.USER_NAMESPACE_PREFIX, timer, windowCoder))
-                .iterator();
-
-        cachedFiredUserTimers.forEachRemaining(toBeFiredTimersOrdered::add);
+                .iterator()
+                .forEachRemaining(toBeFiredTimersOrdered::add);
       }
+
+      LOG.info("Queue content: " + Arrays.toString(toBeFiredTimersOrdered.toArray()));
+
+      LOG.info("timer Internals timers: " + userTimerInternals.timers);
 
       Instant currentInputWatermark = userTimerInternals.currentInputWatermarkTime();
       if (userTimerInternals.hasTimerBefore(currentInputWatermark)) {
-        while (!toBeFiredTimersOrdered.isEmpty()) {
-          userTimerInternals.setTimer(toBeFiredTimersOrdered.poll());
+        LOG.info("Yaya!! timer contains updates ");
+
+        for (Table.Cell<String, StateNamespace, Boolean> cell : userTimerInternals.timerStillPresent.cellSet()) {
+          TimerData timerData = userTimerInternals.timers.get(cell.getRowKey(), cell.getColumnKey());
+          if (cell.getValue()) {
+            LOG.info("Adding timer in queue:  " + timerData);
+            //firedTimer.put(timerData.getTimerId() + '+' + timerData.getTimerFamilyId(), timerData.getTimestamp());
+            toBeFiredTimersOrdered.add(timerData);
+
+          }
+        }
+
+      }
+
+
+
+      /*
+      TimerData nextTimer = null;
+      while (!toBeFiredTimersOrdered.isEmpty()){
+        nextTimer = toBeFiredTimersOrdered.poll();
+        if(firedTimer.containsKey(nextTimer.getTimerId())){
+          LOG.info("Timer Already fired betaa" + nextTimer);
+          userTimerInternals.deleteTimer(nextTimer);
+          nextTimer = null;
+        }
+        else {
+          break;
         }
       }
+
+      if (nextTimer == null) {
+        return null;
+      }
+*/
 
       if (toBeFiredTimersOrdered.isEmpty()) {
         return null;
       }
+
       TimerData nextTimer = toBeFiredTimersOrdered.poll();
+      LOG.info(
+          "Polled timer: Id: "
+              + nextTimer.getTimerId()
+              + " timestamp: "
+              + nextTimer.getTimestamp());
+      LOG.info("Queue content after timer poll : " + Arrays.toString(toBeFiredTimersOrdered.toArray()));
+
+      String timerUniqueId = nextTimer.getTimerId() +  '+' + nextTimer.getTimerFamilyId();
+      if(firedTimer.containsKey(timerUniqueId)){
+        Instant instant = firedTimer.get(timerUniqueId);
+        LOG.info("Timer " + timerUniqueId +" already fired with timestamp: "  +  instant);
+      }
+
+
+      firedTimer.put(nextTimer.getTimerId() + '+' + nextTimer.getTimerFamilyId(), nextTimer.getTimestamp());
+
       // User timers must be explicitly deleted when delivered, to release the implied hold
       userTimerInternals.deleteTimer(nextTimer);
       return nextTimer;
