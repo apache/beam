@@ -55,7 +55,7 @@ import apache_beam as beam
 from apache_beam.dataframe import expressions
 from apache_beam.dataframe import frames  # pylint: disable=unused-import
 from apache_beam.dataframe import transforms
-from apache_beam.dataframe.frame_base import DeferredFrame
+from apache_beam.dataframe.frame_base import DeferredBase
 
 
 class FakePandasObject(object):
@@ -67,10 +67,10 @@ class FakePandasObject(object):
 
   def __call__(self, *args, **kwargs):
     result = self._pandas_obj(*args, **kwargs)
-    if type(result) in DeferredFrame._pandas_type_map.keys():
+    if type(result) in DeferredBase._pandas_type_map.keys():
       placeholder = expressions.PlaceholderExpression(result[0:0])
       self._test_env._inputs[placeholder] = result
-      return DeferredFrame.wrap(placeholder)
+      return DeferredBase.wrap(placeholder)
     else:
       return result
 
@@ -112,7 +112,7 @@ class TestEnvironment(object):
         self._all_frames[id(df)] = df
 
       deferred_type.__init__ = new_init
-      deferred_type.__repr__ = lambda self: 'DeferredFrame[%s]' % id(self)
+      deferred_type.__repr__ = lambda self: 'DeferredBase[%s]' % id(self)
       self._recorded_results = collections.defaultdict(list)
       yield
     finally:
@@ -120,10 +120,10 @@ class TestEnvironment(object):
 
   @contextlib.contextmanager
   def context(self):
-    """Creates a context within which DeferredFrame types are monkey patched
+    """Creates a context within which DeferredBase types are monkey patched
     to record ids."""
     with contextlib.ExitStack() as stack:
-      for deferred_type in DeferredFrame._pandas_type_map.values():
+      for deferred_type in DeferredBase._pandas_type_map.values():
         stack.enter_context(self._monkey_patch_type(deferred_type))
       yield
 
@@ -165,7 +165,7 @@ class _InMemoryResultRecorder(object):
 
 
 class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
-  """Validates output by replacing DeferredFrame[...] with computed values.
+  """Validates output by replacing DeferredBase[...] with computed values.
   """
   def __init__(self, env, use_beam):
     self._env = env
@@ -203,17 +203,23 @@ class _DeferrredDataframeOutputChecker(doctest.OutputChecker):
           _ = output_pcoll | 'Record%s' % name >> beam.FlatMap(
               recorder.record_fn(name))
       # pipeline runs, side effects recorded
+
+      def concat(values):
+        if len(values) > 1:
+          return pd.concat(values)
+        else:
+          return values[0]
       return {
-          name: pd.concat(recorder.get_recorded(name))
+          name: concat(recorder.get_recorded(name))
           for name in to_compute.keys()
       }
 
   def fix(self, want, got):
-    if 'DeferredFrame' in got:
+    if 'DeferredBase' in got:
       try:
         to_compute = {
             m.group(0): self._env._all_frames[int(m.group(1))]
-            for m in re.finditer(r'DeferredFrame\[(\d+)\]', got)
+            for m in re.finditer(r'DeferredBase\[(\d+)\]', got)
         }
         computed = self.compute(to_compute)
         for name, frame in computed.items():
