@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import itertools
 from array import array
 
+from apache_beam.coders import typecoders
 from apache_beam.coders.coder_impl import StreamCoderImpl
 from apache_beam.coders.coders import BytesCoder
 from apache_beam.coders.coders import Coder
@@ -33,6 +34,8 @@ from apache_beam.coders.coders import TupleCoder
 from apache_beam.coders.coders import VarIntCoder
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
+from apache_beam.typehints import row_type
+from apache_beam.typehints.schemas import named_fields_to_schema
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import named_tuple_to_schema
 from apache_beam.utils import proto_utils
@@ -82,8 +85,12 @@ class RowCoder(FastCoder):
     return RowCoder(schema)
 
   @staticmethod
-  def from_type_hint(named_tuple_type, registry):
-    return RowCoder(named_tuple_to_schema(named_tuple_type))
+  def from_type_hint(type_hint, registry):
+    if isinstance(type_hint, row_type.RowTypeConstraint):
+      schema = named_fields_to_schema(type_hint._fields)
+    else:
+      schema = named_tuple_to_schema(type_hint)
+    return RowCoder(schema)
 
   @staticmethod
   def from_payload(payload):
@@ -116,6 +123,9 @@ class RowCoder(FastCoder):
     # when pickling, use bytes representation of the schema. schema_pb2.Schema
     # objects cannot be pickled.
     return (RowCoder.from_payload, (self.schema.SerializeToString(), ))
+
+
+typecoders.registry.register_coder(row_type.RowTypeConstraint, RowCoder)
 
 
 class RowCoderImpl(StreamCoderImpl):

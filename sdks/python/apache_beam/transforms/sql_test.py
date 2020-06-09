@@ -138,6 +138,15 @@ class SqlTransformTest(unittest.TestCase):
               ON simple.`id` = enrich.`id`"""))
       assert_that(out, equal_to([(1, "a"), (26, "z"), (1, "a")]))
 
+  def test_row(self):
+    with TestPipeline() as p:
+      out = (
+          p
+          | beam.Create([1, 2, 10])
+          | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
+          | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
+      assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
+
   def test_zetasql_generate_data(self):
     with TestPipeline() as p:
       out = p | SqlTransform(
