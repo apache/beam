@@ -105,21 +105,22 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     if (table.getProperties().containsKey(WRITE_DISPOSITION_PROPERTY)) {
       List<String> validWriteDispositions =
-              Arrays.stream(WriteDisposition.values()).map(Enum::toString).collect(Collectors.toList());
+          Arrays.stream(WriteDisposition.values()).map(Enum::toString).collect(Collectors.toList());
       // toUpperCase should make it case-insensitive
-      String selectedWriteDisposition = table.getProperties().getString(WRITE_DISPOSITION_PROPERTY).toUpperCase();
+      String selectedWriteDisposition =
+          table.getProperties().getString(WRITE_DISPOSITION_PROPERTY).toUpperCase();
 
       if (validWriteDispositions.contains(selectedWriteDisposition)) {
         writeDisposition = WriteDisposition.valueOf(selectedWriteDisposition);
       } else {
         throw new InvalidPropertyException(
-                "Invalid write disposition "
-                        + "'"
-                        + selectedWriteDisposition
-                        + "'. "
-                        + "Supported write dispositions are: "
-                        + validWriteDispositions.toString()
-                        + ".");
+            "Invalid write disposition "
+                + "'"
+                + selectedWriteDisposition
+                + "'. "
+                + "Supported write dispositions are: "
+                + validWriteDispositions.toString()
+                + ".");
       }
     } else {
       writeDisposition = WriteDisposition.WRITE_EMPTY;
@@ -127,7 +128,6 @@ class BigQueryTable extends SchemaBaseBeamTable implements Serializable {
 
     LOG.info("BigQuery writeDisposition is set to: " + writeDisposition.toString());
   }
-
 
   @Override
   public BeamTableStatistics getTableStatistics(PipelineOptions options) {
