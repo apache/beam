@@ -25,6 +25,8 @@ import sys
 import types
 import unittest
 
+import apache_beam as beam
+from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 
@@ -161,6 +163,7 @@ class TrivialInferenceTest(unittest.TestCase):
 
   def testBinOp(self):
     self.assertReturnType(int, lambda a, b: a + b, [int, int])
+    self.assertReturnType(int, lambda a: a + 1, [int])
     self.assertReturnType(
         typehints.Any, lambda a, b: a + b, [int, typehints.Any])
     self.assertReturnType(
@@ -319,6 +322,15 @@ class TrivialInferenceTest(unittest.TestCase):
           expected_type,
           trivial_inference.instance_to_type(instance),
           msg=instance)
+
+  def testRow(self):
+    self.assertReturnType(
+        row_type.RowTypeConstraint([('x', int), ('y', str)]),
+        lambda x,
+        y: beam.Row(x=x + 1, y=y), [int, str])
+    self.assertReturnType(
+        row_type.RowTypeConstraint([('x', int), ('y', str)]),
+        lambda x: beam.Row(x=x, y=str(x)), [int])
 
 
 if __name__ == '__main__':

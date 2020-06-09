@@ -98,6 +98,9 @@ from apache_beam import typehints
 from apache_beam import version
 from apache_beam.pipeline import Pipeline
 from apache_beam.transforms import *
+from apache_beam.pvalue import PCollection
+from apache_beam.pvalue import Row
+from apache_beam.pvalue import TaggedOutput
 # pylint: enable=wrong-import-position
 
 __version__ = version.__version__
