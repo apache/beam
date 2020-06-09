@@ -25,7 +25,7 @@ from apache_beam.dataframe import expressions
 from apache_beam.dataframe import partitionings
 
 
-class DeferredFrame(object):
+class DeferredBase(object):
 
   _pandas_type_map = {}  # type: Dict[type, type]
 
@@ -42,14 +42,31 @@ class DeferredFrame(object):
 
   @classmethod
   def wrap(cls, expr):
-    return cls._pandas_type_map[type(expr.proxy())](expr)
+    proxy_type = type(expr.proxy())
+    if proxy_type in cls._pandas_type_map:
+      wrapper_type = cls._pandas_type_map[proxy_type]
+    else:
+      if expr.requires_partition_by() != partitionings.Singleton():
+        raise ValueError('Scalar expression %s partitoned by non-singleton %s' % (expr, expr.requires_partition_by()))
+      wrapper_type = _DeferredScaler
+    return wrapper_type(expr)
 
   def _elementwise(self, func, name=None, other_args=(), inplace=False):
     return _elementwise_function(func, name, inplace=inplace)(self, *other_args)
 
+
+class DeferredFrame(DeferredBase):
+
   @property
   def dtypes(self):
     return self._expr.proxy().dtypes
+
+
+class _DeferredScaler(DeferredBase):
+  pass
+
+
+DeferredBase._pandas_type_map[None] = _DeferredScaler
 
 
 def name_and_func(method):
@@ -137,7 +154,7 @@ def _proxy_function(
     deferred_arg_exprs = []
     constant_args = [None] * len(args)
     for ix, arg in enumerate(args):
-      if isinstance(arg, DeferredFrame):
+      if isinstance(arg, DeferredBase):
         deferred_arg_indices.append(ix)
         deferred_arg_exprs.append(arg._expr)
       elif isinstance(arg, pd.core.generic.NDFrame):
