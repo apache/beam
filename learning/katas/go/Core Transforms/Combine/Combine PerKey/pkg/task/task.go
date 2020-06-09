@@ -24,7 +24,7 @@ const (
 )
 
 func ApplyTransform(s beam.Scope, input beam.PCollection) beam.PCollection {
-	return beam.CombinePerKey(s, func(left, right int) int {
-		return left + right
+	return beam.CombinePerKey(s, func(score1, score2 int) int {
+		return score1 + score2
 	}, input)
 }

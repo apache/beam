@@ -16,13 +16,10 @@
   ~  limitations under the License.
   -->
 
-# Combine - Combine PerKey
+# CombinePerKey
 
-After creating a keyed PCollection (for example, by using a GroupByKey transform), a common pattern 
-is to combine the collection of values associated with each key into a single, merged value. This 
-pattern of a GroupByKey followed by merging the collection of values is equivalent to Combine 
-PerKey transform. The combine function you supply to Combine PerKey must be an associative 
-reduction function or a subclass of CombineFn.
+After creating a keyed PCollection, a common pattern  is to combine the collection of values associated with 
+each key into a single, merged value. The Go SDK inserts a GroupByKey and per-key Combine transform into the pipeline.
 
 **Kata:** Implement the sum of scores per player using 
 [beam.CombinePerKey](https://godoc.org/github.com/apache/beam/sdks/go/pkg/beam#CombinePerKey).
