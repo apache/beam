@@ -193,7 +193,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               bundleFinalizer);
 
       // Register the appropriate handlers.
-      startFunctionRegistry.register(pTransformId, runner::startBundle);
+      switch (pTransform.getSpec().getUrn()) {
+        case PTransformTranslation.PAR_DO_TRANSFORM_URN:
+        case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+        case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+          startFunctionRegistry.register(pTransformId, runner::startBundle);
+          break;
+        case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
+          // startBundle should not be invoked
+        case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
+          // startBundle should not be invoked
+        case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+          // startBundle should not be invoked
+        default:
+          // no-op
+      }
       String mainInput;
       try {
         mainInput = ParDoTranslation.getMainInputName(pTransform);
@@ -235,7 +249,21 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
       pCollectionConsumerRegistry.register(
           pTransform.getInputsOrThrow(mainInput), pTransformId, (FnDataReceiver) mainInputConsumer);
-      finishFunctionRegistry.register(pTransformId, runner::finishBundle);
+      switch (pTransform.getSpec().getUrn()) {
+        case PTransformTranslation.PAR_DO_TRANSFORM_URN:
+        case PTransformTranslation.SPLITTABLE_PROCESS_ELEMENTS_URN:
+        case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
+          finishFunctionRegistry.register(pTransformId, runner::finishBundle);
+          break;
+        case PTransformTranslation.SPLITTABLE_PAIR_WITH_RESTRICTION_URN:
+          // finishBundle should not be invoked
+        case PTransformTranslation.SPLITTABLE_SPLIT_RESTRICTION_URN:
+          // finishBundle should not be invoked
+        case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
+          // finishBundle should not be invoked
+        default:
+          // no-op
+      }
       tearDownFunctions.accept(runner::tearDown);
       return runner;
     }
@@ -269,7 +297,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
 
   private final String mainInputId;
-  private FnApiStateAccessor<?> stateAccessor;
+  private final FnApiStateAccessor<?> stateAccessor;
   private Map<String, BeamFnTimerClient.TimerHandler<?>> timerHandlers;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
   private final StartBundleArgumentProvider startBundleArgumentProvider;
@@ -784,9 +812,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       default:
         // no-op
     }
-  }
 
-  private void startBundle() {
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor =
         new FnApiStateAccessor(
             pipelineOptions,
@@ -809,7 +836,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               return null;
             },
             () -> currentWindow);
+  }
 
+  private void startBundle() {
     // Register as a consumer for each timer.
     timerHandlers = new HashMap<>();
     for (Map.Entry<String, KV<TimeDomain, Coder<Timer<Object>>>> timerFamilyInfo :
@@ -869,6 +898,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWindow = null;
       currentRestriction = null;
     }
+
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
+    this.stateAccessor.finalizeState();
   }
 
   private void processElementForSplitRestriction(
@@ -889,6 +921,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentWatermarkEstimatorState = null;
       currentWindow = null;
     }
+
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
+    this.stateAccessor.finalizeState();
   }
 
   /** Internal class to hold the primary and residual roots when converted to an input element. */
@@ -1164,9 +1199,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
     doFnInvoker.invokeFinishBundle(finishBundleArgumentProvider);
 
-    // TODO: Support caching state data across bundle boundaries.
+    // TODO(BEAM-10212): Support caching state data across bundle boundaries.
     this.stateAccessor.finalizeState();
-    this.stateAccessor = null;
   }
 
   private void tearDown() {
