@@ -90,9 +90,7 @@ class RowCoder(FastCoder):
     if isinstance(type_hint, row_type.RowTypeConstraint):
       schema = schema_pb2.Schema(
           fields=[
-              schema_pb2.Field(
-                  name=name,
-                  type=typing_to_runner_api(type))
+              schema_pb2.Field(name=name, type=typing_to_runner_api(type))
               for (name, type) in type_hint._fields
           ],
           id=str(uuid.uuid4()))

@@ -25,9 +25,6 @@ import typing
 
 from past.builtins import unicode
 
-from apache_beam.coders import row_coder
-from apache_beam.coders import typecoders
-from apache_beam.typehints import typehints
 from apache_beam.transforms.external import BeamJarExpansionService
 from apache_beam.transforms.external import ExternalTransform
 from apache_beam.transforms.external import NamedTupleBasedPayloadBuilder
