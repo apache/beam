@@ -34,7 +34,6 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-from apache_beam.transforms.sql import Row
 from apache_beam.transforms.sql import SqlTransform
 
 SimpleRow = typing.NamedTuple(
@@ -144,7 +143,7 @@ class SqlTransformTest(unittest.TestCase):
       out = (
           p
           | beam.Create([1, 2, 10])
-          | beam.Map(lambda x: Row(a=x, b=str(x)))
+          | beam.Map(lambda x: beam.Row(a=x, b=str(x)))
           | SqlTransform("SELECT a*a as s, LENGTH(b) AS c FROM PCOLLECTION"))
       assert_that(out, equal_to([(1, 1), (4, 1), (100, 2)]))
 

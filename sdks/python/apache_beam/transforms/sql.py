@@ -74,8 +74,3 @@ class SqlTransform(ExternalTransform):
             SqlTransformSchema(query=query, dialect=dialect)),
         BeamJarExpansionService(
             ':sdks:java:extensions:sql:expansion-service:shadowJar'))
-
-
-class Row(object):
-  def __init__(self, **kwargs):
-    self.__dict__.update(kwargs)

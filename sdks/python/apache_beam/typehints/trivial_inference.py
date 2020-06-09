@@ -473,7 +473,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           #   to infer_return_type.
           pop_count = arg + 2
           if isinstance(state.stack[-pop_count], Const):
-            from apache_beam.transforms.sql import Row
+            from apache_beam.pvalue import Row
             if state.stack[-pop_count].value == Row:
               fields = state.stack[-1].value
               return_type = row_type.RowTypeConstraint(

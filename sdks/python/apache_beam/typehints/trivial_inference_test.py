@@ -25,10 +25,10 @@ import sys
 import types
 import unittest
 
+import apache_beam as beam
 from apache_beam.typehints import row_type
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
-from apache_beam.transforms import sql
 
 global_int = 1
 
@@ -327,10 +327,10 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         row_type.RowTypeConstraint([('x', int), ('y', str)]),
         lambda x,
-        y: sql.Row(x=x + 1, y=y), [int, str])
+        y: beam.Row(x=x + 1, y=y), [int, str])
     self.assertReturnType(
         row_type.RowTypeConstraint([('x', int), ('y', str)]),
-        lambda x: sql.Row(x=x, y=str(x)), [int])
+        lambda x: beam.Row(x=x, y=str(x)), [int])
 
 
 if __name__ == '__main__':
