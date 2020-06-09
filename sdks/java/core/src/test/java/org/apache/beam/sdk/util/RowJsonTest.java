@@ -260,6 +260,7 @@ public class RowJsonTest {
     }
   }
 
+  @RunWith(Parameterized.class)
   public static class ValueTestsAllowMissing {
     @Parameter(0)
     public String name;
@@ -289,7 +290,7 @@ public class RowJsonTest {
               .addNullableField("f_string", FieldType.STRING)
               .build();
 
-      String rowString = "{\n" + "\"f_byte\" : 12,\n" + "}";
+      String rowString = "{\n" + "\"f_byte\" : 12\n" + "}";
 
       Row expectedRow = Row.withSchema(schema).addValues((byte) 12, null).build();
 
@@ -301,11 +302,11 @@ public class RowJsonTest {
       Schema schema =
           Schema.builder()
               .addInt32Field("f_int32")
-              .addArrayField("f_intArray", FieldType.INT32.withNullable(true))
+              .addNullableField("f_intArray", FieldType.array(FieldType.INT32))
               .build();
 
       String rowString =
-          "{\n" + "\"f_int32\" : 32,\n" + "}";
+          "{\n" + "\"f_int32\" : 32\n" + "}";
 
       Row expectedRow = Row.withSchema(schema).addValues(32, null).build();
 
@@ -323,13 +324,13 @@ public class RowJsonTest {
           "{\n"
               + "\"f_int32\" : 32,\n"
               + "\"f_row\" : {\n"
-              + "             \"f_nestedInt32\" : 54,\n"
+              + "             \"f_nestedInt32\" : 54\n"
               + "            }\n"
               + "}";
 
       Row expectedRow =
           Row.withSchema(schema)
-              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, "foo").build())
+              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, null).build())
               .build();
 
       return new Object[] {"Nested row", schema, rowString, expectedRow};
@@ -347,16 +348,16 @@ public class RowJsonTest {
           "{\n"
               + "\"f_int32\" : 32,\n"
               + "\"f_row\" : {\n"
-              + "             \"f_nestedInt32\" : 54,\n"
+              + "             \"f_nestedInt32\" : 54\n"
               + "            }\n"
               + "}";
 
       Row expectedRow =
           Row.withSchema(schema)
-              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, "foo").build())
+              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, null).build())
               .build();
 
-      return new Object[] {"Nested row", schema, rowString, expectedRow};
+      return new Object[] {"Nested row with removal", schema, rowString, expectedRow};
     }
 
     @Test
@@ -381,6 +382,7 @@ public class RowJsonTest {
       assertThat(row, equalTo(parsedRow));
     }
   }
+  
   @RunWith(JUnit4.class)
   public static class DeserializerTests {
     private static final Boolean BOOLEAN_TRUE_VALUE = true;
