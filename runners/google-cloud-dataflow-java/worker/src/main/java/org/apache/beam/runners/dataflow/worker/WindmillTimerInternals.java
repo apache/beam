@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
@@ -54,10 +56,10 @@ class WindmillTimerInternals implements TimerInternals {
   // though technically in Windmill this is only enforced per ID and namespace
   // and TimeDomain. This TimerInternals is scoped to a step and key, shared
   // across namespaces.
-  public Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
+  private Table<String, StateNamespace, TimerData> timers = HashBasedTable.create();
 
   // Map from timer id to whether it is to be deleted or set
-  public Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
+  private Table<String, StateNamespace, Boolean> timerStillPresent = HashBasedTable.create();
 
   private Instant inputDataWatermark;
   private Instant processingTime;
@@ -237,6 +239,17 @@ class WindmillTimerInternals implements TimerInternals {
       }
     }
     return false;
+  }
+
+  public List<TimerData> getCurrentTimers() {
+    List<TimerData> timerDataList = new ArrayList<>();
+    for (Cell<String, StateNamespace, Boolean> cell : timerStillPresent.cellSet()) {
+      TimerData timerData = timers.get(cell.getRowKey(), cell.getColumnKey());
+      if (cell.getValue()) {
+        timerDataList.add(timerData);
+      }
+    }
+    return timerDataList;
   }
 
   private boolean needsWatermarkHold(TimerData timerData) {

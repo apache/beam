@@ -139,7 +139,6 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.MoreObjects
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Sets;
 import org.hamcrest.Matchers;
@@ -153,8 +152,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Tests for ParDo. */
 public class ParDoTest implements Serializable {
@@ -3993,7 +3990,6 @@ public class ParDoTest implements Serializable {
       final String bag = "bag";
       final String minTimestamp = "minTs";
       final Instant gcTimerStamp = now.plus(numTestElements + 1);
-      Logger log = LoggerFactory.getLogger(ParDoTest.class);
 
       DoFn<KV<String, String>, String> fn =
           new DoFn<KV<String, String>, String>() {
@@ -4024,7 +4020,6 @@ public class ParDoTest implements Serializable {
               if (currentMinStamp.equals(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
                 gcTimer.set(gcTimerStamp);
               }
-
               if (currentMinStamp.isAfter(context.timestamp())) {
                 minStampState.write(context.timestamp());
                 bagTimer.set(context.timestamp());
@@ -4038,21 +4033,18 @@ public class ParDoTest implements Serializable {
                 @TimerId(timerIdBagAppend) Timer timer,
                 @StateId(bag) BagState<TimestampedValue<String>> bagState) {
 
-              log.info("OntimerAppend: timestamp: " + context.timestamp());
               List<TimestampedValue<String>> flush = new ArrayList<>();
               Instant flushTime = context.timestamp();
-              int bagSize = Iterators.size(bagState.read().iterator());
               for (TimestampedValue<String> val : bagState.read()) {
                 if (!val.getTimestamp().isAfter(flushTime)) {
                   flush.add(val);
                 }
               }
               flush.sort(Comparator.comparing(TimestampedValue::getTimestamp));
-              log.info("flush list size: " + flush.size());
               context.output(
                   Joiner.on(":").join(flush.stream().map(TimestampedValue::getValue).iterator()));
               Instant newMinStamp = flushTime.plus(1);
-              if (flush.size() < numTestElements && bagSize > 0) {
+              if (flush.size() < numTestElements) {
                 timer.set(newMinStamp);
               }
             }
@@ -4061,7 +4053,6 @@ public class ParDoTest implements Serializable {
             public void onTimer(
                 OnTimerContext context, @StateId(bag) BagState<TimestampedValue<String>> bagState) {
 
-              log.info("OntimerGC: timestamp: " + context.timestamp());
               String output =
                   Joiner.on(":")
                           .join(
@@ -4158,7 +4149,7 @@ public class ParDoTest implements Serializable {
     })
     public void testTwoTimersSettingEachOther() {
       Instant now = new Instant(1500000000000L);
-      Instant end = now.plus(3);
+      Instant end = now.plus(100);
       TestStream<KV<Void, Void>> input =
           TestStream.create(KvCoder.of(VoidCoder.of(), VoidCoder.of()))
               .addElements(KV.of(null, null))
@@ -4171,7 +4162,7 @@ public class ParDoTest implements Serializable {
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
     public void testTwoTimersSettingEachOtherWithCreateAsInputBounded() {
       Instant now = new Instant(1500000000000L);
-      Instant end = now.plus(3);
+      Instant end = now.plus(100);
       pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), false));
       pipeline.run();
     }
@@ -4180,7 +4171,7 @@ public class ParDoTest implements Serializable {
     @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesStrictTimerOrdering.class})
     public void testTwoTimersSettingEachOtherWithCreateAsInputUnbounded() {
       Instant now = new Instant(1500000000000L);
-      Instant end = now.plus(3);
+      Instant end = now.plus(100);
       pipeline.apply(TwoTimerTest.of(now, end, Create.of(KV.of(null, null)), true));
       pipeline.run();
     }
@@ -4355,7 +4346,10 @@ public class ParDoTest implements Serializable {
     private static class TwoTimerTest extends PTransform<PBegin, PDone> {
 
       private static PTransform<PBegin, PDone> of(
-          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input, boolean isStreaming) {
+          Instant start,
+          Instant end,
+          PTransform<PBegin, PCollection<KV<Void, Void>>> input,
+          boolean isStreaming) {
         return new TwoTimerTest(start, end, input, isStreaming);
       }
 
@@ -4365,7 +4359,10 @@ public class ParDoTest implements Serializable {
       private final transient PTransform<PBegin, PCollection<KV<Void, Void>>> inputPTransform;
 
       public TwoTimerTest(
-          Instant start, Instant end, PTransform<PBegin, PCollection<KV<Void, Void>>> input, boolean isStreaming) {
+          Instant start,
+          Instant end,
+          PTransform<PBegin, PCollection<KV<Void, Void>>> input,
+          boolean isStreaming) {
         this.start = start;
         this.end = end;
         this.isStreaming = isStreaming;
@@ -4378,7 +4375,6 @@ public class ParDoTest implements Serializable {
         final String timerName1 = "t1";
         final String timerName2 = "t2";
         final String countStateName = "count";
-        final Logger log = LoggerFactory.getLogger(ParDoTest.class);
         PCollection<String> result =
             input
                 .apply(inputPTransform)
@@ -4419,12 +4415,6 @@ public class ParDoTest implements Serializable {
                             Integer current = state.read();
                             t2.set(context.timestamp());
 
-                            log.info(
-                                "t1:"
-                                    + current
-                                    + ":"
-                                    + context.timestamp().minus(start.getMillis()).getMillis());
-
                             context.output(
                                 "t1:"
                                     + current
@@ -4444,12 +4434,6 @@ public class ParDoTest implements Serializable {
                             } else {
                               state.write(-1);
                             }
-
-                            log.info(
-                                "t2:"
-                                    + current
-                                    + ":"
-                                    + context.timestamp().minus(start.getMillis()).getMillis());
                             context.output(
                                 "t2:"
                                     + current
@@ -4459,7 +4443,7 @@ public class ParDoTest implements Serializable {
                         }));
 
         List<String> expected =
-            LongStream.rangeClosed(0, 3)
+            LongStream.rangeClosed(0, end.minus(start.getMillis()).getMillis())
                 .mapToObj(e -> (Long) e)
                 .flatMap(e -> Arrays.asList("t1:" + e + ":" + e, "t2:" + e + ":" + e).stream())
                 .collect(Collectors.toList());
