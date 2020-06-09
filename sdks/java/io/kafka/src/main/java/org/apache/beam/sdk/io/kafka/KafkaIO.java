@@ -1258,9 +1258,9 @@ public class KafkaIO {
      * transform ties checkpointing semantics in compatible Beam runners and transactions in Kafka
      * (version 0.11+) to ensure a record is written only once. As the implementation relies on
      * runners checkpoint semantics, not all the runners are compatible. The sink throws an
-     * exception during initialization if the runner is not whitelisted. Flink runner is one of the
-     * runners whose checkpoint semantics are not compatible with current implementation (hope to
-     * provide a solution in near future). Dataflow runner and Spark runners are whitelisted as
+     * exception during initialization if the runner is not explicitly allowed. Flink runner is one
+     * of the runners whose checkpoint semantics are not compatible with current implementation
+     * (hope to provide a solution in near future). Dataflow runner and Spark runners are
      * compatible.
      *
      * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
@@ -1337,9 +1337,9 @@ public class KafkaIO {
         }
         throw new UnsupportedOperationException(
             runner
-                + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
+                + " is not a runner known to be compatible with Kafka exactly-once sink. "
                 + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
-                + "Only the runners with known to have compatible checkpoint semantics are whitelisted.");
+                + "Only the runners with known to have compatible checkpoint semantics are allowed.");
       }
     }
 
