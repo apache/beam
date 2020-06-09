@@ -289,7 +289,7 @@ def pipeline_options_local(argv):
 
   # [START pipeline_options_local]
   # Create and set your Pipeline Options.
-  options = PipelineOptions()
+  options = PipelineOptions(flags=argv)
   my_options = options.view_as(MyOptions)
 
   with Pipeline(options=options) as pipeline:
