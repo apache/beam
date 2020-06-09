@@ -752,6 +752,73 @@ class DataflowRunnerTest(unittest.TestCase, ExtraAssertionsMixin):
     self.assertEqual(
         gbk_step[u'properties']['output_info'], expected_output_info)
 
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
+  def test_write_bigquery_translation(self):
+    runner = DataflowRunner()
+
+    with beam.Pipeline(runner=runner,
+                       options=PipelineOptions(self.default_properties)) as p:
+      # pylint: disable=expression-not-assigned
+      p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
+
+    job_dict = json.loads(str(runner.job))
+
+    expected_step = {
+        "kind": "ParallelWrite",
+        "name": "s2",
+        "properties": {
+            "create_disposition": "CREATE_IF_NEEDED",
+            "dataset": "some",
+            "display_data": [],
+            "encoding": {
+                "@type": "kind:windowed_value",
+                "component_encodings": [{
+                    "component_encodings": [],
+                    "pipeline_proto_coder_id": "ref_Coder_RowAsDictJsonCoder_4"
+                }, {
+                    "@type": "kind:global_window"
+                }],
+                "is_wrapper": True
+            },
+            "format": "bigquery",
+            "parallel_input": {
+                "@type": "OutputReference",
+                "output_name": "out",
+                "step_name": "s1"
+            },
+            "table": "table",
+            "user_name": "WriteToBigQuery/Write/NativeWrite",
+            "write_disposition": "WRITE_APPEND"
+        }
+    }
+    job_dict = json.loads(str(runner.job))
+    write_step = [
+        s for s in job_dict[u'steps']
+        if s[u'properties'][u'user_name'].startswith('WriteToBigQuery')
+    ][0]
+
+    # Delete the @type field because in this case it is a hash which may change
+    # depending on the pickling version.
+    step_encoding = write_step[u'properties'][u'encoding']
+    del step_encoding[u'component_encodings'][0][u'@type']
+    self.assertEqual(expected_step, write_step)
+
+  @unittest.skipIf(
+      sys.version_info.minor == 8,
+      'Doesn\'t work on Python 3.8, see: BEAM-9754')
+  def test_write_bigquery_failed_translation(self):
+    """Tests that WriteToBigQuery cannot have any consumers if replaced."""
+    runner = DataflowRunner()
+
+    with self.assertRaises(ValueError):
+      with beam.Pipeline(runner=runner,
+                         options=PipelineOptions(self.default_properties)) as p:
+        # pylint: disable=expression-not-assigned
+        out = p | beam.Create([1]) | beam.io.WriteToBigQuery('some.table')
+        out['FailedRows'] | 'MyTransform' >> beam.Map(lambda _: _)
+
 
 class CustomMergingWindowFn(window.WindowFn):
   def assign(self, assign_context):

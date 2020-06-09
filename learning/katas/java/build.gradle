@@ -90,7 +90,7 @@ subprojects {
           println "#educational_plugin" + line
         }
         // we need this to separate output of different tests
-        println
+        println()
       }
     }
   }

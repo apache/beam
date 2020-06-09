@@ -110,7 +110,7 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 		for _, u := range p.units {
 			if err := callNoPanic(ctx, u.Up); err != nil {
 				p.status = Broken
-				return err
+				return errors.Wrapf(err, "while executing Up for %v", p)
 			}
 		}
 		p.status = Up
@@ -126,19 +126,19 @@ func (p *Plan) Execute(ctx context.Context, id string, manager DataContext) erro
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, func(ctx context.Context) error { return root.StartBundle(ctx, id, manager) }); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing StartBundle for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.Process); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing Process for %v", p)
 		}
 	}
 	for _, root := range p.roots {
 		if err := callNoPanic(ctx, root.FinishBundle); err != nil {
 			p.status = Broken
-			return err
+			return errors.Wrapf(err, "while executing FinishBundle for %v", p)
 		}
 	}
 
@@ -198,6 +198,10 @@ type SplitPoints struct {
 	// Splits is a list of desired split indices.
 	Splits []int64
 	Frac   float64
+
+	// Estimated total number of elements (including unsent) for the source.
+	// A zero value indicates unknown, instead use locally known size.
+	BufSize int64
 }
 
 // Split takes a set of potential split indexes, and if successful returns
@@ -206,7 +210,7 @@ type SplitPoints struct {
 // Returns an error when unable to split.
 func (p *Plan) Split(s SplitPoints) (int64, error) {
 	if p.source != nil {
-		return p.source.Split(s.Splits, s.Frac)
+		return p.source.Split(s.Splits, s.Frac, s.BufSize)
 	}
 	return 0, fmt.Errorf("failed to split at requested splits: {%v}, Source not initialized", s)
 }

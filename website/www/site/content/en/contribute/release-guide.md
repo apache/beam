@@ -507,22 +507,6 @@ For all other JIRA issues:
 
 If there is a bug found in the RC creation process/tools, those issues should be considered high priority and fixed in 7 days.
 
-### Review Release Notes in JIRA
-
-JIRA automatically generates Release Notes based on the `Fix Version` field applied to issues. Release Notes are intended for Beam users (not Beam committers/contributors). You should ensure that Release Notes are informative and useful.
-
-Open the release notes from the [version status page](https://issues.apache.org/jira/browse/BEAM/?selectedTab=com.atlassian.jira.jira-projects-plugin:versions-panel) by choosing the release underway and clicking Release Notes.
-
-You should verify that the issues listed automatically by JIRA are appropriate to appear in the Release Notes. Specifically, issues should:
-
-* Be appropriately classified as `Bug`, `New Feature`, `Improvement`, etc.
-* Represent noteworthy user-facing changes, such as new functionality, backward-incompatible API changes, or performance improvements.
-* Have occurred since the previous release; an issue that was introduced and fixed between releases should not appear in the Release Notes.
-* Have an issue title that makes sense when read on its own.
-
-Adjust any of the above properties to the improve clarity and presentation of the Release Notes.
-
-
 ### Review cherry-picks
 
 Check if there are outstanding cherry-picks into the release branch, [e.g. for `2.14.0`](https://github.com/apache/beam/pulls?utf8=%E2%9C%93&q=is%3Apr+base%3Arelease-2.14.0).
@@ -555,7 +539,6 @@ _Tip_: Another tool in your toolbox is the known issues section of the release b
 * JIRA release item for the subsequent release has been created;
 * All test failures from branch verification have associated JIRA issues;
 * There are no release blocking JIRA issues;
-* Release Notes in JIRA have been audited and adjusted;
 * Combined javadoc has the appropriate contents;
 * Release branch has been created;
 * There are no open pull requests to release branch;
@@ -618,10 +601,6 @@ For this step, we recommend you using automation script to create a RC, but you 
       - Please follow the [user guide](https://github.com/apache/beam-wheels#user-guide) to build python wheels.
       - Once all python wheels have been staged to GCS,
       please run [./sign_hash_python_wheels.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/sign_hash_python_wheels.sh), which copies the wheels along with signatures and hashes to [dist.apache.org](https://dist.apache.org/repos/dist/dev/beam/).
-  1. Update Beam website ([example](https://github.com/apache/beam/pull/11727))
-      1. Update release version in `website/www/site/config.toml`.
-      1. Add new release in `website/www/site/content/en/get-started/downloads.md`.
-      1. Update `website/www/site/static/.htaccess` to redirect to the new version.
 
 **********
 
@@ -674,26 +653,17 @@ to the Beam website, usually within an hour.
 **PR 1: apache/beam-site**
 
 This pull request is against the `apache/beam-site` repo, on the `release-docs`
-branch.
-
-* Add the new Javadoc to [SDK API Reference page](https://beam.apache.org/releases/javadoc/) page, as follows:
-  * Unpack the Maven artifact `org.apache.beam:beam-sdks-java-javadoc` into some temporary location. Call this `${JAVADOC_TMP}`.
-  * Copy the generated Javadoc into the website repository: `cp -r ${JAVADOC_TMP} javadoc/${RELEASE}`.
-* Add the new Pydoc to [SDK API Reference page](https://beam.apache.org/releases/pydoc/) page, as follows:
-  * Copy the generated Pydoc into the website repository: `cp -r ${PYDOC_ROOT} pydoc/${RELEASE}`.
-  * Remove `.doctrees` directory.
-* Stage files using: `git add --all javadoc/ pydoc/`.
+branch ([example](https://github.com/apache/beam-site/pull/603)).
+It is created by `build_release_candidate.sh` (see above).
 
 **PR 2: apache/beam**
 
-This pull request is against the `apache/beam` repo, on the `master` branch.
+This pull request is against the `apache/beam` repo, on the `master` branch ([example](https://github.com/apache/beam/pull/11727)).
 
-* Update the `release_latest` version flag in `/website/_config.yml`, and list
-  the new release in `/website/src/get-started/downloads.md`, linking to the
-  source code download and the Release Notes in JIRA.
-* Update the `RedirectMatch` rule in
-  [/website/src/.htaccess](https://github.com/apache/beam/blob/master/website/src/.htaccess)
-  to point to the new release. See file history for examples.
+* Update release version in `website/www/site/config.toml`.
+* Add new release in `website/www/site/content/en/get-started/downloads.md`.
+  * Download links will not work until the release is finalized.
+* Update `website/www/site/static/.htaccess` to redirect to the new version.
 
 
 ### Blog post
@@ -1141,11 +1111,9 @@ All wheels should be published, in addition to the zip of the release source.
 
 Copy the source release from the `dev` repository to the `release` repository at `dist.apache.org` using Subversion.
 
-Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Then update download address for last release version, [example PR](https://github.com/apache/beam-site/pull/478).
+Move last release artifacts from `dist.apache.org` to `archive.apache.org` using Subversion. Make sure to change these links on the website ([example](https://github.com/apache/beam/pull/11727)).
 
 __NOTE__: Only PMC members have permissions to do it, ping [dev@](mailto:dev@beam.apache.org) for assitance;
-
-Make sure the download address for last release version is upldaed, [example PR](https://github.com/apache/beam-site/pull/478).
 
 ### Deploy SDK docker images to DockerHub
 * Script: [publish_docker_images.sh](https://github.com/apache/beam/blob/master/release/src/main/scripts/publish_docker_images.sh)
@@ -1164,7 +1132,11 @@ Create and push a new signed tag for the released version by copying the tag for
 
     VERSION_TAG="v${RELEASE}"
     git tag -s "$VERSION_TAG" "$RC_TAG"
-    git push github "$VERSION_TAG"
+    git push upstream "$VERSION_TAG"
+
+After the tag is uploaded, publish the release notes to Github:
+
+    ./beam/release/src/main/scripts/publish_github_release_notes.sh
 
 ### Merge website pull request
 

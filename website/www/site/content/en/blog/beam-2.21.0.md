@@ -19,7 +19,7 @@ limitations under the License.
 -->
 
 We are happy to present the new 2.21.0 release of Beam. This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#xxxx-xxxx) for this release.
+See the [download page](/get-started/downloads/#2210-2020-05-27) for this release.
 For more information on changes in 2.21.0, check out the
 [detailed release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12347143).
 
@@ -44,10 +44,10 @@ for example usage.
     `process()`) with `@apache_beam.typehints.no_annotations` will disable it
     for that function.
 
-    More details will be in 
+    More details can be found in 
     [Ensuring Python Type Safety](https://beam.apache.org/documentation/sdks/python-type-safety/)
-    and an upcoming
-    [blog post](https://beam.apache.org/blog/python/typing/2020/03/06/python-typing.html).
+    and the Python SDK Typing Changes
+    [blog post](https://beam.apache.org/blog/python-typing/).
 
 * Java SDK: Introducing the concept of options in Beam Schema’s. These options add extra 
 context to fields and schemas. This replaces the current Beam metadata that is present 

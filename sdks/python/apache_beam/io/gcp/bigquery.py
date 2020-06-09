@@ -1702,8 +1702,9 @@ class ReadFromBigQuery(PTransform):
       logging.debug("gcs_location is empty, using temp_location instead")
     else:
       raise ValueError(
-          '{} requires a GCS location to be provided'.format(
-              self.__class__.__name__))
+          '{} requires a GCS location to be provided. Neither gcs_location in'
+          ' the constructor nor the fallback option --temp_location is set.'.
+          format(self.__class__.__name__))
     if self.validate:
       self._validate_gcs_location(gcs_base)
 
