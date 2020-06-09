@@ -2056,7 +2056,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             null /* bundleSplitListener */,
             null /* bundleFinalizer */);
 
-    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+    assertTrue(startFunctionRegistry.getFunctions().isEmpty());
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -2074,7 +2074,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 KV.of("2", KV.of(new OffsetRange(0, 2), GlobalWindow.TIMESTAMP_MIN_VALUE)))));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertTrue(finishFunctionRegistry.getFunctions().isEmpty());
     assertThat(mainOutputValues, empty());
 
     Iterables.getOnlyElement(teardownFunctions).run();
@@ -2151,7 +2151,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             null /* bundleSplitListener */,
             null /* bundleFinalizer */);
 
-    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+    assertTrue(startFunctionRegistry.getFunctions().isEmpty());
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -2189,7 +2189,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 secondValue.getPane())));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertTrue(finishFunctionRegistry.getFunctions().isEmpty());
     assertThat(mainOutputValues, empty());
 
     Iterables.getOnlyElement(teardownFunctions).run();
@@ -2265,7 +2265,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             null /* bundleSplitListener */,
             null /* bundleFinalizer */);
 
-    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+    assertTrue(startFunctionRegistry.getFunctions().isEmpty());
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -2299,7 +2299,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                     1.0))));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertTrue(finishFunctionRegistry.getFunctions().isEmpty());
     assertThat(mainOutputValues, empty());
 
     Iterables.getOnlyElement(teardownFunctions).run();
@@ -2377,7 +2377,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
             null /* bundleSplitListener */,
             null /* bundleFinalizer */);
 
-    Iterables.getOnlyElement(startFunctionRegistry.getFunctions()).run();
+    assertTrue(startFunctionRegistry.getFunctions().isEmpty());
     mainOutputValues.clear();
 
     assertThat(consumers.keySet(), containsInAnyOrder(inputPCollectionId, outputPCollectionId));
@@ -2459,7 +2459,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
                 firstValue.getPane())));
     mainOutputValues.clear();
 
-    Iterables.getOnlyElement(finishFunctionRegistry.getFunctions()).run();
+    assertTrue(finishFunctionRegistry.getFunctions().isEmpty());
     assertThat(mainOutputValues, empty());
 
     Iterables.getOnlyElement(teardownFunctions).run();

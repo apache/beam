@@ -459,5 +459,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
+    stateFinalizers.clear();
+    stateKeyObjectCache.clear();
   }
 }
