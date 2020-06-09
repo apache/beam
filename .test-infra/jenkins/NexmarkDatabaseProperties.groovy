@@ -35,5 +35,6 @@ class NexmarkDatabaseProperties {
           'influxHost'             : InfluxDBCredentialsHelper.InfluxDBHostname,
           'baseInfluxMeasurement'  : 'nexmark',
           'exportSummaryToInfluxDB': true,
+          'influxRetentionPolicy'  : 'forever',
     ]
 }
