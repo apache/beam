@@ -239,7 +239,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     self.assertEqual(kms_key, table.encryptionConfiguration.kmsKeyName)
 
   @attr('IT')
-  def test_big_query_new_types_json(self):
+  def test_big_query_new_types(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
     pipeline_verifiers = [
@@ -263,7 +263,7 @@ class BigQueryQueryToTableIT(unittest.TestCase):
     big_query_query_to_table_pipeline.run_bq_pipeline(options)
 
   @attr('IT')
-  def test_big_query_new_types(self):
+  def test_big_query_new_types_avro(self):
     expected_checksum = test_utils.compute_hash(NEW_TYPES_OUTPUT_EXPECTED)
     verify_query = NEW_TYPES_OUTPUT_VERIFY_QUERY % self.output_table
     pipeline_verifiers = [
