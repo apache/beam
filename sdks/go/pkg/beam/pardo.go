@@ -87,7 +87,7 @@ func ParDoN(s Scope, dofn interface{}, col PCollection, opts ...Option) []PColle
 func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 0 {
-		panic(fmt.Sprintf("expected 0 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo0))
 	}
 }
 
@@ -358,7 +358,7 @@ func ParDo0(s Scope, dofn interface{}, col PCollection, opts ...Option) {
 func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollection {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 1 {
-		panic(fmt.Sprintf("expected 1 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo))
 	}
 	return ret[0]
 }
@@ -369,7 +369,7 @@ func ParDo(s Scope, dofn interface{}, col PCollection, opts ...Option) PCollecti
 func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 2 {
-		panic(fmt.Sprintf("expected 2 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo2))
 	}
 	return ret[0], ret[1]
 }
@@ -378,7 +378,7 @@ func ParDo2(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 3 {
-		panic(fmt.Sprintf("expected 3 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo3))
 	}
 	return ret[0], ret[1], ret[2]
 }
@@ -387,7 +387,7 @@ func ParDo3(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 4 {
-		panic(fmt.Sprintf("expected 4 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo4))
 	}
 	return ret[0], ret[1], ret[2], ret[3]
 }
@@ -396,7 +396,7 @@ func ParDo4(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 5 {
-		panic(fmt.Sprintf("expected 5 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo5))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4]
 }
@@ -405,7 +405,7 @@ func ParDo5(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 6 {
-		panic(fmt.Sprintf("expected 6 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo6))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5]
 }
@@ -414,7 +414,7 @@ func ParDo6(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollec
 func ParDo7(s Scope, dofn interface{}, col PCollection, opts ...Option) (PCollection, PCollection, PCollection, PCollection, PCollection, PCollection, PCollection) {
 	ret := MustN(TryParDo(s, dofn, col, opts...))
 	if len(ret) != 7 {
-		panic(fmt.Sprintf("expected 7 output. Found: %v", ret))
+		panic(ParDoErrorFormatter(dofn, ParDo7))
 	}
 	return ret[0], ret[1], ret[2], ret[3], ret[4], ret[5], ret[6]
 }
