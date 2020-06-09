@@ -28,7 +28,6 @@ import static org.junit.Assert.assertFalse;
 import java.io.IOException;
 import java.security.SecureRandom;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
@@ -52,11 +51,15 @@ public class HL7v2IOReadIT {
           + "_"
           + (new SecureRandom().nextInt(32))
           + "_read_it";
+
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void createHL7v2tore() throws IOException {
-    String project = TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
+    String project =
+        TestPipeline.testingPipelineOptions()
+            .as(HealthcareStoreTestPipelineOptions.class)
+            .getStoreProjectId();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     client.createHL7v2Store(healthcareDataset, HL7V2_STORE_NAME);
