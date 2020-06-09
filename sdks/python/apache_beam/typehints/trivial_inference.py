@@ -442,7 +442,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         if depth <= 0:
           return_type = Any
         elif arg >> 8:
-          if not var_args and not kw_args and not (arg & 0xFF):
+          if not var_args and not kw_args and not arg & 0xFF:
             # Keywords only, maybe it's a call to Row.
             if isinstance(state.stack[-pop_count], Const):
               from apache_beam.pvalue import Row
