@@ -883,9 +883,9 @@ public class ExpressionConverter {
         operands.add(convertRexNodeFromResolvedExpr(expr, columnList, fieldList, outerFunctionArguments));
       }
     } else if (funGroup.equals(USER_DEFINED_FUNCTIONS)) {
-      ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(funName);
+      String fullName = functionCall.getFunction().getFullName();
+      ResolvedCreateFunctionStmt createFunctionStmt = userDefinedFunctions.get(fullName);
       ResolvedExpr functionExpression = createFunctionStmt.getFunctionExpression();
-      // TODO(ibzib) handle argument name shadowing if necessary
       ImmutableMap.Builder<String, RexNode> innerFunctionArguments = ImmutableMap.builder();
       for (int i = 0; i < functionCall.getArgumentList().size(); i++) {
         String argName = createFunctionStmt.getArgumentNameList().get(i);

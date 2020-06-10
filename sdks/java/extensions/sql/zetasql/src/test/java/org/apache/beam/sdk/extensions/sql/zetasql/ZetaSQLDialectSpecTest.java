@@ -54,6 +54,7 @@ import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.ZetaSQLValue.ValueProto;
+import io.grpc.StatusException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -2764,22 +2765,11 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testSelectSameTable() {
-    String sql = "SELECT * FROM table1 UNION ALL SELECT * FROM table1";
-
-    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
-    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
-
-    // PAssert.that(stream).containsInAnyOrder(Row.nullRow(stream.getSchema()));
-    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
-  }
-
-  @Test
   public void testMultipleSelectStatementsThrowsException() {
     String sql = "SELECT 1; SELECT 2;";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(SqlException.class);
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
@@ -2788,6 +2778,7 @@ public class ZetaSQLDialectSpecTest {
     String sql = "CREATE FUNCTION foo() AS (0); CREATE FUNCTION foo() AS (1); SELECT foo();";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     thrown.expect(ParseException.class);
+    thrown.expectMessage("Failed to define function foo");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
@@ -2795,7 +2786,8 @@ public class ZetaSQLDialectSpecTest {
   public void testCreateFunctionNoSelectThrowsException() {
     String sql = "CREATE FUNCTION plusOne(x INT64) AS (x + 1);";
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
-    thrown.expect(SqlException.class);
+    thrown.expect(UnsupportedOperationException.class);
+    thrown.expectMessage("Statement list must end in a SELECT statement.");
     zetaSQLQueryPlanner.convertToBeamRel(sql);
   }
 
@@ -2813,7 +2805,21 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  public void testQualifiedNameUdf() {
+  public void testQualifiedNameUdfUnqualifiedCall() {
+    String sql = "CREATE FUNCTION foo.bar.baz() AS (\"uwu\"); SELECT baz();";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(
+        Row.withSchema(Schema.builder().addStringField("x").build()).addValue("uwu").build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  @Ignore("Qualified paths can't be resolved due to a bug in ZetaSQL.")
+  public void testQualifiedNameUdfQualifiedCallThrowsException() {
     String sql = "CREATE FUNCTION foo.bar.baz() AS (\"uwu\"); SELECT foo.bar.baz();";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
@@ -2827,14 +2833,70 @@ public class ZetaSQLDialectSpecTest {
 
   @Test
   public void testUnaryUdf() {
-    String sql = "CREATE FUNCTION double(x INT64) AS (2 * x); SELECT double(1);";
+    String sql = "CREATE FUNCTION triple(x INT64) AS (3 * x); SELECT triple(triple(1));";
 
     ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
     BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
     PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
 
     PAssert.that(stream).containsInAnyOrder(
-        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(2L).build());
+        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUdfWithinUdf() {
+    String sql = "CREATE FUNCTION triple(x INT64) AS (3 * x);"
+        + " CREATE FUNCTION nonuple(x INT64) as (triple(triple(x)));"
+        + " SELECT nonuple(1);";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(
+        Row.withSchema(Schema.builder().addInt64Field("x").build()).addValue(9L).build());
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
+  }
+
+  @Test
+  public void testUndefinedUdfThrowsException() {
+    String sql = "CREATE FUNCTION foo() AS (bar()); "
+        + "CREATE FUNCTION bar() AS (foo()); "
+        + "SELECT foo();";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    thrown.expectMessage("Function not found: bar");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testRecursiveUdfThrowsException() {
+    String sql = "CREATE FUNCTION omega() AS (omega()); "
+        + "SELECT omega();";
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    thrown.expect(SqlException.class);
+    thrown.expectMessage("Function not found: omega");
+    zetaSQLQueryPlanner.convertToBeamRel(sql);
+  }
+
+  @Test
+  public void testUdaf() {
+    String sql =
+        "CREATE TEMP AGGREGATE FUNCTION scaled_sum(dividend FLOAT64, divisor FLOAT64 NOT AGGREGATE)\n"
+        + "AS (SUM(dividend) / divisor);\n"
+        + "SELECT scaled_sum(col1, 2) AS scaled_sum\n"
+        + "FROM (SELECT 1 AS col1 UNION ALL\n"
+        + "      SELECT 3 AS col1 UNION ALL\n"
+        + "      SELECT 5 AS col1\n"
+        + ");";
+
+    ZetaSQLQueryPlanner zetaSQLQueryPlanner = new ZetaSQLQueryPlanner(config);
+    BeamRelNode beamRelNode = zetaSQLQueryPlanner.convertToBeamRel(sql);
+    PCollection<Row> stream = BeamSqlRelUtils.toPCollection(pipeline, beamRelNode);
+
+    PAssert.that(stream).containsInAnyOrder(
+        Row.withSchema(Schema.builder().addDoubleField("x").build()).addValue(4.5).build());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(PIPELINE_EXECUTION_WAITTIME_MINUTES));
   }
 

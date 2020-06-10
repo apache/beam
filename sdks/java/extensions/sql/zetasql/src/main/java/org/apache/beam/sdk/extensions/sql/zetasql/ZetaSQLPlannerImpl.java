@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.zetasql;
 
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_CREATE_FUNCTION_STMT;
 import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLVED_QUERY_STMT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ConversionContext;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.ExpressionConverter;
 import org.apache.beam.sdk.extensions.sql.zetasql.translation.QueryStatementConverter;
+import org.apache.beam.sdk.io.AvroIO.Parse;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.calcite.v1_20_0.com.google.common.collect.ImmutableMap;
@@ -168,18 +170,23 @@ public class ZetaSQLPlannerImpl implements Planner {
       statement = analyzer.analyzeNextStatement(parseResumeLocation, options, catalog);
       if (statement.nodeKind() == RESOLVED_CREATE_FUNCTION_STMT) {
         ResolvedCreateFunctionStmt createFunctionStmt = (ResolvedCreateFunctionStmt) statement;
-        // Preconditions.checkArgument(createFunctionStmt.getNamePath().size() == 1,
-        //     "TODO(ibzib) figure this out");
-        udfBuilder.put(String.join(".", createFunctionStmt.getNamePath()), createFunctionStmt);
+        // ResolvedCreateFunctionStmt does not include the full function name, so build it here.
+        String functionFullName = String.format("%s:%s",
+            SqlAnalyzer.USER_DEFINED_FUNCTIONS,
+            String.join(".", createFunctionStmt.getNamePath()));
+        udfBuilder.put(functionFullName, createFunctionStmt);
       } else if (statement.nodeKind() == RESOLVED_QUERY_STMT) {
+        if (!isEndOfInput(parseResumeLocation)) {
+          throw new UnsupportedOperationException("Statement list must end in a SELECT statement, and cannot contain more than one SELECT statement.");
+        }
         break;
       }
-    } while (parseResumeLocation.getAllowResume());
+    } while (!isEndOfInput(parseResumeLocation));
 
     // TODO(ibzib) error on multiple select
     if (!(statement instanceof ResolvedQueryStmt)) {
       throw new UnsupportedOperationException(
-          "Statement list did not end in a query (SELECT) statement." + statement.getClass().getSimpleName());
+          "Statement list must end in a SELECT statement." + statement.getClass().getSimpleName());
     }
 
     ExpressionConverter expressionConverter = new ExpressionConverter(cluster, params, udfBuilder.build());
@@ -230,5 +237,10 @@ public class ZetaSQLPlannerImpl implements Planner {
 
   public static LanguageOptions getLanguageOptions() {
     return SqlAnalyzer.initAnalyzerOptions().getLanguageOptions();
+  }
+
+  private static boolean isEndOfInput(ParseResumeLocation parseResumeLocation) {
+    // TODO(ibzib) is utf-8 a safe assumption?
+    return parseResumeLocation.getBytePosition() >= parseResumeLocation.getInput().getBytes(UTF_8).length;
   }
 }
