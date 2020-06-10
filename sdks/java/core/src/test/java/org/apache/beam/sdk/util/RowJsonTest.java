@@ -351,20 +351,11 @@ public class RowJsonTest {
               .addNullableField("f_row", FieldType.row(nestedRowSchema))
               .build();
 
-      String rowString =
-          "{\n"
-              + "\"f_int32\" : 32,\n"
-              + "\"f_row\" : {\n"
-              + "             \"f_nestedInt32\" : 54\n"
-              + "            }\n"
-              + "}";
+      String rowString = "{\n" + "\"f_int32\" : 32\n" + "}";
 
-      Row expectedRow =
-          Row.withSchema(schema)
-              .addValues(32, Row.withSchema(nestedRowSchema).addValues(54, null).build())
-              .build();
+      Row expectedRow = Row.withSchema(schema).addValues(32, null).build();
 
-      return new Object[] {"Nested row with removal", schema, rowString, expectedRow};
+      return new Object[] {"Nested row which is removed", schema, rowString, expectedRow};
     }
 
     @Test
