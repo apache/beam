@@ -302,8 +302,6 @@ public class RowJson {
 
     /**
      * Helper class to keep track of schema field type, name, and actual json value for the field.
-     * Also keeps track of whether or not missing fields are valid when reading from the json - in
-     * this case it will be read as null.
      */
     @AutoValue
     abstract static class FieldValue {
