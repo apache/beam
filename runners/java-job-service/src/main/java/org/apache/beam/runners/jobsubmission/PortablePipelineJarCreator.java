@@ -26,8 +26,8 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.jar.Attributes;
@@ -36,34 +36,23 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
 import java.util.jar.Manifest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestRequest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.GetManifestResponse;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.LegacyGetArtifactRequest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest;
-import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ProxyManifest.Location;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
-import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc;
-import org.apache.beam.model.jobmanagement.v1.LegacyArtifactRetrievalServiceGrpc.LegacyArtifactRetrievalServiceBlockingStub;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.core.construction.PipelineOptionsTranslation;
 import org.apache.beam.runners.core.construction.resources.PipelineResources;
-import org.apache.beam.runners.fnexecution.GrpcFnServer;
-import org.apache.beam.runners.fnexecution.InProcessServerFactory;
-import org.apache.beam.runners.fnexecution.artifact.BeamFileSystemLegacyArtifactRetrievalService;
+import org.apache.beam.runners.fnexecution.artifact.ArtifactRetrievalService;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
-import org.apache.beam.sdk.fn.test.InProcessManagedChannelFactory;
+import org.apache.beam.sdk.io.ClassLoaderFileSystem;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.MessageOrBuilder;
 import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.util.JsonFormat;
-import org.apache.beam.vendor.grpc.v1p26p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.io.ByteStreams;
 import org.apache.commons.compress.utils.IOUtils;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -108,11 +97,11 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     outputChannel = Channels.newChannel(outputStream);
     PortablePipelineJarUtils.writeDefaultJobName(outputStream, jobName);
     writeClassPathResources(mainClass.getClassLoader(), pipelineOptions);
-    writeAsJson(pipeline, PortablePipelineJarUtils.getPipelineUri(jobName));
     writeAsJson(
         PipelineOptionsTranslation.toProto(pipelineOptions),
         PortablePipelineJarUtils.getPipelineOptionsUri(jobName));
-    writeArtifacts(jobInfo.retrievalToken(), jobName);
+    Pipeline pipelineWithClasspathArtifacts = writeArtifacts(pipeline, jobName);
+    writeAsJson(pipelineWithClasspathArtifacts, PortablePipelineJarUtils.getPipelineUri(jobName));
     // Closing the channel also closes the underlying stream.
     outputChannel.close();
 
@@ -178,80 +167,57 @@ public class PortablePipelineJarCreator implements PortablePipelineRunner {
     }
   }
 
+  /**
+   * Stages all dependencies in pipeline into the jar file at outputStream, returning a new pipeline
+   * that references these artifacts as classpath artifacts.
+   */
   @VisibleForTesting
-  interface ArtifactRetriever {
-    GetManifestResponse getManifest(GetManifestRequest request);
-
-    Iterator<ArtifactChunk> getArtifact(LegacyGetArtifactRequest request);
+  protected Pipeline writeArtifacts(Pipeline pipeline, String jobName) throws IOException {
+    Pipeline.Builder result = pipeline.toBuilder();
+    for (Map.Entry<String, RunnerApi.Environment> env :
+        pipeline.getComponents().getEnvironmentsMap().entrySet()) {
+      result
+          .getComponentsBuilder()
+          .putEnvironments(env.getKey(), writeArtifacts(env.getValue(), jobName));
+    }
+    return result.build();
   }
 
   /**
-   * Copy all artifacts retrievable via the {@link LegacyArtifactRetrievalServiceBlockingStub} to
-   * the {@code outputStream}.
-   *
-   * @return A {@link ProxyManifest} pointing to the artifacts' location in the output jar.
+   * Stages all dependencies in environment into the jar file at outputStream, returning a new
+   * environment that references these artifacts as classpath artifacts.
    */
-  @VisibleForTesting
-  ProxyManifest copyStagedArtifacts(
-      String retrievalToken, ArtifactRetriever retrievalServiceStub, String jobName)
+  private RunnerApi.Environment writeArtifacts(RunnerApi.Environment environment, String jobName)
       throws IOException {
-    GetManifestRequest manifestRequest =
-        GetManifestRequest.newBuilder().setRetrievalToken(retrievalToken).build();
-    ArtifactApi.Manifest manifest = retrievalServiceStub.getManifest(manifestRequest).getManifest();
-    // Create a new proxy manifest to locate artifacts at jar runtime.
-    ProxyManifest.Builder proxyManifestBuilder = ProxyManifest.newBuilder().setManifest(manifest);
-    for (ArtifactMetadata artifact : manifest.getArtifactList()) {
-      String outputPath =
-          PortablePipelineJarUtils.getArtifactUri(jobName, UUID.randomUUID().toString());
-      LOG.trace("Copying artifact {} to {}", artifact.getName(), outputPath);
-      proxyManifestBuilder.addLocation(
-          Location.newBuilder().setName(artifact.getName()).setUri("/" + outputPath).build());
-      outputStream.putNextEntry(new JarEntry(outputPath));
-      LegacyGetArtifactRequest artifactRequest =
-          LegacyGetArtifactRequest.newBuilder()
-              .setRetrievalToken(retrievalToken)
-              .setName(artifact.getName())
-              .build();
-      Iterator<ArtifactChunk> artifactResponse = retrievalServiceStub.getArtifact(artifactRequest);
-      while (artifactResponse.hasNext()) {
-        artifactResponse.next().getData().writeTo(outputStream);
-      }
+    RunnerApi.Environment.Builder result = environment.toBuilder();
+    result.clearDependencies();
+    for (RunnerApi.ArtifactInformation artifact : environment.getDependenciesList()) {
+      result.addDependencies(writeArtifact(artifact, jobName));
     }
-    return proxyManifestBuilder.build();
+    return result.build();
   }
 
   /**
-   * Uses {@link BeamFileSystemLegacyArtifactRetrievalService} to fetch artifacts, then writes the
-   * artifacts to {@code outputStream}. Include a {@link ProxyManifest} to locate artifacts later.
+   * Stages all artifact into the jar file at outputStream, returning a new artifact pointing to its
+   * location in the classpath.
    */
-  private void writeArtifacts(String retrievalToken, String jobName) throws Exception {
-    try (GrpcFnServer artifactServer =
-        GrpcFnServer.allocatePortAndCreateFor(
-            BeamFileSystemLegacyArtifactRetrievalService.create(),
-            InProcessServerFactory.create())) {
-      ManagedChannel grpcChannel =
-          InProcessManagedChannelFactory.create()
-              .forDescriptor(artifactServer.getApiServiceDescriptor());
-      LegacyArtifactRetrievalServiceBlockingStub retrievalServiceStub =
-          LegacyArtifactRetrievalServiceGrpc.newBlockingStub(grpcChannel);
-      ProxyManifest proxyManifest =
-          copyStagedArtifacts(
-              retrievalToken,
-              new ArtifactRetriever() {
-                @Override
-                public GetManifestResponse getManifest(GetManifestRequest request) {
-                  return retrievalServiceStub.getManifest(request);
-                }
-
-                @Override
-                public Iterator<ArtifactChunk> getArtifact(LegacyGetArtifactRequest request) {
-                  return retrievalServiceStub.getArtifact(request);
-                }
-              },
-              jobName);
-      writeAsJson(proxyManifest, PortablePipelineJarUtils.getArtifactManifestUri(jobName));
-      grpcChannel.shutdown();
+  private RunnerApi.ArtifactInformation writeArtifact(
+      RunnerApi.ArtifactInformation artifact, String jobName) throws IOException {
+    String path = PortablePipelineJarUtils.getArtifactUri(jobName, UUID.randomUUID().toString());
+    LOG.trace("Copying artifact {} to {}", artifact, path);
+    outputStream.putNextEntry(new JarEntry(path));
+    try (InputStream artifactStream = ArtifactRetrievalService.getArtifact(artifact)) {
+      ByteStreams.copy(artifactStream, outputStream);
     }
+    return artifact
+        .toBuilder()
+        .setTypeUrn(ArtifactRetrievalService.FILE_ARTIFACT_URN)
+        .setTypePayload(
+            RunnerApi.ArtifactFilePayload.newBuilder()
+                .setPath(ClassLoaderFileSystem.SCHEMA + "://" + path)
+                .build()
+                .toByteString())
+        .build();
   }
 
   /** Helper method for writing {@code message} in UTF-8 JSON format. */
