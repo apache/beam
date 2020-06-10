@@ -27,6 +27,7 @@ on:
   pull_request:
     branches: ['master', 'release-*', 'v*']
     tags: 'v*'
+    paths: ['sdks/python/**', 'model/**', 'release/**']
 
 jobs:
 
