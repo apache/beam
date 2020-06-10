@@ -20,8 +20,10 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
+// Count verifies the given PCollection<T> has the specified number of elements.
 func Count(s beam.Scope, col beam.PCollection, name string, count int) {
 	s = s.Scope(fmt.Sprintf("passert.Count(%v)", name))
 
@@ -29,7 +31,7 @@ func Count(s beam.Scope, col beam.PCollection, name string, count int) {
 		col = beam.DropKey(s, col)
 	}
 	counted := beam.Combine(s, &elmCountCombineFn{}, col)
-	Equals(s, counted, count)
+	beam.ParDo0(s, &errFn{Name: name, Count: count}, counted)
 }
 
 type elmCountCombineFn struct {
@@ -49,4 +51,16 @@ func (f *elmCountCombineFn) MergeAccumulators(a, b int) int {
 
 func (f *elmCountCombineFn) ExtractOutput(a int) int {
 	return a
+}
+
+type errFn struct {
+	Name  string `json:"name,omitempty"`
+	Count int    `json:"count,omitempty"`
+}
+
+func (f *errFn) ProcessElement(count int) error {
+	if f.Count != count {
+		return errors.Errorf("passert.Count(%v) = %v, want %v", f.Name, count, f.Count)
+	}
+	return nil
 }
