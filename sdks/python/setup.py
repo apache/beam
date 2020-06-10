@@ -122,16 +122,11 @@ except DistributionNotFound:
   # do nothing if Cython is not installed
   pass
 
-# Currently all compiled modules are optional  (for performance only).
-if platform.system() == 'Windows':
-  # Windows doesn't always provide int64_t.
+try:
+  # pylint: disable=wrong-import-position
+  from Cython.Build import cythonize
+except ImportError:
   cythonize = lambda *args, **kwargs: []
-else:
-  try:
-    # pylint: disable=wrong-import-position
-    from Cython.Build import cythonize
-  except ImportError:
-    cythonize = lambda *args, **kwargs: []
 
 REQUIRED_PACKAGES = [
     # Apache Avro does not follow semantic versioning, so we should not auto
