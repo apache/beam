@@ -36,7 +36,6 @@ COMMENTS_TO_ADD = [
     "Run Apex ValidatesRunner",
     "Run Dataflow ValidatesRunner",
     "Run Flink ValidatesRunner",
-    "Run Gearpump ValidatesRunner",
     "Run Samza ValidatesRunner",
     "Run Spark ValidatesRunner",
     "Run Java Spark PortableValidatesRunner Batch",

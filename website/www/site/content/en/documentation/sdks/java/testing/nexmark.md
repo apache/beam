@@ -250,7 +250,7 @@ Set topic name which will be used for benchmark events:
 
 ## Current status
 
-These tables contain statuses of the queries runs in the different runners. Google Cloud Dataflow and Apache Gearpump statuses are yet to come.
+These tables contain statuses of the queries runs in the different runners. Google Cloud Dataflow status is yet to come.
 
 
 ### Batch / Synthetic / Local
