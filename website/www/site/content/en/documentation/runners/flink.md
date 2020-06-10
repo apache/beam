@@ -56,9 +56,12 @@ If you want to run Python pipelines with Beam on Flink you want to use the
 portable Runner. For more information on
 portability, please visit the [Portability page](/roadmap/portability/).
 
-Consequently, this guide is split into two parts to document the classic and
-the portable functionality of the Flink Runner. Please use the switcher below to
-select the appropriate Runner:
+Consequently, this guide is split into parts to document the classic and
+the portable functionality of the Flink Runner.
+In addition, Python provides convenience wrappers to handle the full lifecycle of the runner,
+and so is further split depending on whether to manage the portability
+components automatically (recommended) or manually.
+Please use the switcher below to select the appropriate mode for the Runner:
 
 <nav class="language-switcher">
   <strong>Adapt for:</strong>
