@@ -42,6 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.samza.Partition;
+import org.apache.samza.config.MapConfig;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.apache.samza.system.IncomingMessageEnvelope;
 import org.apache.samza.system.MessageType;
@@ -329,7 +330,10 @@ public class UnboundedSourceSystemTest {
     pipelineOptions.setWatermarkInterval(0L); // emit immediately
     pipelineOptions.setMaxSourceParallelism(splitNum);
     return new UnboundedSourceSystem.Consumer<>(
-        source, pipelineOptions, new SamzaMetricsContainer(new MetricsRegistryMap()), "test-step");
+        source,
+        pipelineOptions,
+        new SamzaMetricsContainer(new MetricsRegistryMap(), new MapConfig()),
+        "test-step");
   }
 
   private static List<IncomingMessageEnvelope> consumeUntilTimeoutOrWatermark(

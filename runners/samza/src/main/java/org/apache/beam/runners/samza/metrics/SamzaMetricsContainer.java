@@ -33,10 +33,13 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.samza.config.Config;
 import org.apache.samza.metrics.Counter;
 import org.apache.samza.metrics.Gauge;
 import org.apache.samza.metrics.Metric;
 import org.apache.samza.metrics.MetricsRegistryMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class holds the {@link MetricsContainer}s for BEAM metrics, and update the results to Samza
@@ -44,17 +47,23 @@ import org.apache.samza.metrics.MetricsRegistryMap;
  */
 public class SamzaMetricsContainer {
 
+  private static final Logger LOG = LoggerFactory.getLogger(SamzaMetricsContainer.class);
   private static final String BEAM_METRICS_GROUP = "BeamMetrics";
   private static final String DELIMITER = "-";
   // global metrics container is the default container that can be used in user threads
   public static final String GLOBAL_CONTAINER_STEP_NAME = "GLOBAL_METRICS";
+  public static final String USE_SHORT_METRIC_NAMES_CONFIG =
+      "beam.samza.metrics.useShortMetricNames";
 
   private final MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
   private final MetricsRegistryMap metricsRegistry;
+  private final boolean useShortMetricNames;
 
-  public SamzaMetricsContainer(MetricsRegistryMap metricsRegistry) {
+  public SamzaMetricsContainer(MetricsRegistryMap metricsRegistry, Config config) {
     this.metricsRegistry = metricsRegistry;
+    this.useShortMetricNames = config.getBoolean(USE_SHORT_METRIC_NAMES_CONFIG, false);
     this.metricsRegistry.metrics().put(BEAM_METRICS_GROUP, new ConcurrentHashMap<>());
+    LOG.info("Creating Samza metrics container with userShortMetricName = {}", useShortMetricNames);
   }
 
   public MetricsContainer getContainer(String stepName) {
@@ -115,8 +124,10 @@ public class SamzaMetricsContainer {
     return metricsRegistry.getGroup(BEAM_METRICS_GROUP).get(metricName);
   }
 
-  private static String getMetricName(MetricResult<?> metricResult) {
-    return metricResult.getName().toString();
+  private String getMetricName(MetricResult<?> metricResult) {
+    return useShortMetricNames
+        ? metricResult.getName().toString()
+        : metricResult.getKey().toString();
   }
 
   /**

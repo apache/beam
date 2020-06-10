@@ -412,7 +412,7 @@ public class BoundedSourceSystem {
       return new Consumer<T>(
           getBoundedSource(scopedConfig),
           getPipelineOptions(config),
-          new SamzaMetricsContainer((MetricsRegistryMap) registry),
+          new SamzaMetricsContainer((MetricsRegistryMap) registry, config),
           scopedConfig.get("stepName"));
     }
 

@@ -20,6 +20,8 @@ package org.apache.beam.runners.samza.metrics;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
+import org.apache.samza.config.MapConfig;
 import org.apache.samza.metrics.Counter;
 import org.apache.samza.metrics.MetricsRegistryMap;
 import org.junit.Assert;
@@ -35,7 +37,11 @@ public class SamzaMetricsContainerTest {
   @Before
   public void setup() {
     metricsRegistryMap = new MetricsRegistryMap(CONTAINER_NAME);
-    samzaMetricsContainer = new SamzaMetricsContainer(metricsRegistryMap);
+    samzaMetricsContainer =
+        new SamzaMetricsContainer(
+            metricsRegistryMap,
+            new MapConfig(
+                ImmutableMap.of(SamzaMetricsContainer.USE_SHORT_METRIC_NAMES_CONFIG, "true")));
   }
 
   /** Test metrics update works. */
@@ -44,6 +50,21 @@ public class SamzaMetricsContainerTest {
     increaseCounterForStep("stepName", "test", "counter");
     samzaMetricsContainer.updateMetrics("stepName");
     Counter counter = (Counter) metricsRegistryMap.getGroup("BeamMetrics").get("test:counter");
+    Assert.assertEquals(1L, counter.getCount());
+  }
+
+  /** Test metrics update works when having stepName as part of Metric name. */
+  @Test
+  public void testMetricsUpdateWithStepName() {
+    samzaMetricsContainer =
+        new SamzaMetricsContainer(
+            metricsRegistryMap,
+            new MapConfig(
+                ImmutableMap.of(SamzaMetricsContainer.USE_SHORT_METRIC_NAMES_CONFIG, "false")));
+    increaseCounterForStep("stepName", "test", "counter");
+    samzaMetricsContainer.updateMetrics("stepName");
+    Counter counter =
+        (Counter) metricsRegistryMap.getGroup("BeamMetrics").get("stepName:test:counter");
     Assert.assertEquals(1L, counter.getCount());
   }
 

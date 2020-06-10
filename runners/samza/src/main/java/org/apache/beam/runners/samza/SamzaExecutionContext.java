@@ -226,7 +226,8 @@ public class SamzaExecutionContext implements ApplicationContainerContext {
 
       final MetricsRegistryMap metricsRegistry =
           (MetricsRegistryMap) containerContext.getContainerMetricsRegistry();
-      SamzaMetricsContainer samzaMetricsContainer = new SamzaMetricsContainer(metricsRegistry);
+      SamzaMetricsContainer samzaMetricsContainer =
+          new SamzaMetricsContainer(metricsRegistry, jobContext.getConfig());
       MetricsEnvironment.setGlobalContainer(
           samzaMetricsContainer.getContainer(SamzaMetricsContainer.GLOBAL_CONTAINER_STEP_NAME));
       SamzaExecutionContext.this.setMetricsContainer(samzaMetricsContainer);

@@ -457,7 +457,7 @@ public class UnboundedSourceSystem {
       return new Consumer<T, CheckpointMarkT>(
           getUnboundedSource(scopedConfig),
           getPipelineOptions(config),
-          new SamzaMetricsContainer((MetricsRegistryMap) registry),
+          new SamzaMetricsContainer((MetricsRegistryMap) registry, config),
           scopedConfig.get("stepName"));
     }
 
