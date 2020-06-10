@@ -200,6 +200,21 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(int, lambda: A().m(3))
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
 
+  def testCallFunctionOnAny(self):
+    # Tests inference when CALL_FUNCTION/CALL_METHOD's function argument is Any.
+    # The function cannot be called but inference should continue. Also tests
+    # that LOAD_ATTR/LOAD_METHOD implementations don't load builtin functions,
+    # which also break inference since they don't disassemble.
+    def call_function_on_any(s):
+      # str.split is a builtin so opcodes.load_attr (load_method in Py3.7+)
+      # should put Any on the stack.
+      # If infer_return_type_func raises while trying to simulate CALL_FUNCTION
+      # on Any, the result will be Any instead of int.
+      s.split()
+      return 0
+
+    self.assertReturnType(int, call_function_on_any, [str])
+
   def testAlwaysReturnsEarly(self):
     def some_fn(v):
       if v:
