@@ -211,6 +211,8 @@ GCP_REQUIREMENTS = [
     'google-cloud-language>=1.3.0,<2',
     'google-cloud-videointelligence>=1.8.0,<1.14.0',
     'google-cloud-vision>=0.38.0,<0.43.0',
+    # TODO(BEAM-10232) Remove this once google-auth > 1.16.1 released.
+    'rsa>=3.1.4,<4.1',
 ]
 
 INTERACTIVE_BEAM = [
