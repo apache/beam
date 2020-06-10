@@ -25,8 +25,6 @@ import javax.annotation.Nullable;
 
 /** The type HL7v2 message to wrap the {@link Message} model. */
 public class HL7v2Message {
-  private static final String schematizedDataKey = "schematizedData";
-  private static final String schematizedDataPrefix = "{data=";
   private final String name;
   private final String messageType;
   private final String sendTime;
@@ -35,26 +33,6 @@ public class HL7v2Message {
   private final String sendFacility;
   private String schematizedData;
   private final Map<String, String> labels;
-
-  private static String extractDataJson(String schematizedData) {
-    String jsonData;
-    final ObjectMapper mapper = new ObjectMapper();
-    if (schematizedData != null
-        && schematizedData.startsWith(schematizedDataPrefix)
-        && schematizedData.endsWith("}}")) {
-      jsonData =
-          schematizedData.substring(schematizedDataPrefix.length(), schematizedData.length() - 1);
-    } else {
-      jsonData = schematizedData;
-    }
-    try {
-      mapper.readTree(jsonData);
-      return jsonData;
-    } catch (IOException e) {
-      throw new IllegalArgumentException(
-          String.format("Could not validate inner schematizedData JSON: %s", e.getMessage()));
-    }
-  }
 
   @Override
   public String toString() {
@@ -73,57 +51,16 @@ public class HL7v2Message {
    * @return the hl7v2 message
    */
   public static HL7v2Message fromModel(Message msg) {
-    final String schematizedData;
-    if (msg.get(schematizedDataKey) != null) {
-      schematizedData = extractDataJson(msg.get(schematizedDataKey).toString());
-    } else {
-      schematizedData = null;
-    }
+    SchematizedData schematizedData = msg.getSchematizedData();
     return new HL7v2Message(
-        msg.getName(),
-        msg.getMessageType(),
-        msg.getSendTime(),
-        msg.getCreateTime(),
-        msg.getData(),
-        msg.getSendFacility(),
-        schematizedData,
-        msg.getLabels());
-  }
-
-  public static HL7v2Message fromMap(Map msg) {
-    final String schematizedData;
-    if (msg.get(schematizedDataKey) != null) {
-      schematizedData = extractDataJson(msg.get(schematizedDataKey).toString());
-    } else {
-      schematizedData = null;
-    }
-
-    return new HL7v2Message(
-        msg.get("name").toString(),
-        msg.get("messageType").toString(),
-        null,
-        msg.get("createTime").toString(),
-        msg.get("data").toString(),
-        msg.get("sendFacility").toString(),
-        schematizedData,
-        null);
-  }
-  /**
-   * To model message.
-   *
-   * @return the message
-   */
-  public Message toModel() {
-    Message out = new Message();
-    out.setName(this.getName());
-    out.setMessageType(this.getMessageType());
-    out.setSendTime(this.getSendTime());
-    out.setCreateTime(this.getCreateTime());
-    out.setData(this.getData());
-    out.setSendFacility(this.getSendFacility());
-    out.set(schematizedDataKey, this.getSchematizedData());
-    out.setLabels(this.labels);
-    return out;
+            msg.getName(),
+            msg.getMessageType(),
+            msg.getSendTime(),
+            msg.getCreateTime(),
+            msg.getData(),
+            msg.getSendFacility(),
+            schematizedData != null ? schematizedData.getData() : null,
+            msg.getLabels());
   }
 
   public HL7v2Message(
