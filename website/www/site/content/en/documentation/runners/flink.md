@@ -82,123 +82,6 @@ set the Runner to <span class="language-java language-py">`FlinkRunner`</span><s
 To use the Flink Runner for executing on a cluster, you have to setup a Flink cluster by following the
 Flink [Setup Quickstart](https://ci.apache.org/projects/flink/flink-docs-stable/quickstart/setup_quickstart.html#setup-download-and-start-flink).
 
-## Version Compatibility
-
-The Flink cluster version has to match the minor version used by the FlinkRunner.
-The minor version is the first two numbers in the version string, e.g. in `1.8.0` the
-minor version is `1.8`.
-
-We try to track the latest version of Apache Flink at the time of the Beam release.
-A Flink version is supported by Beam for the time it is supported by the Flink community.
-The Flink community supports the last two minor versions. When support for a Flink version is dropped, it may be deprecated and removed also from Beam.
-To find out which version of Flink is compatible with Beam please see the table below:
-
-<table class="table table-bordered">
-<tr>
-  <th>Beam Version</th>
-  <th>Flink Version</th>
-  <th>Artifact Id</th>
-</tr>
-<tr>
-  <td rowspan="3">2.21.0</td>
-  <td>1.10.x</td>
-  <td>beam-runners-flink-1.10</td>
-</tr>
-<tr>
-  <td>1.9.x</td>
-  <td>beam-runners-flink-1.9</td>
-</tr>
-<tr>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td rowspan="3">2.17.0-2.20.0</td>
-  <td>1.9.x</td>
-  <td>beam-runners-flink-1.9</td>
-</tr>
-<tr>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
-</tr>
-<tr>
-  <td rowspan="4">2.13.0 - 2.16.0</td>
-  <td>1.8.x</td>
-  <td>beam-runners-flink-1.8</td>
-</tr>
-<tr>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
-</tr>
-<tr>
-  <td>1.6.x</td>
-  <td>beam-runners-flink-1.6</td>
-</tr>
-<tr>
-  <td>1.5.x</td>
-  <td>beam-runners-flink_2.11</td>
-</tr>
-<tr>
-  <td rowspan="3">2.10.0 - 2.16.0</td>
-  <td>1.7.x</td>
-  <td>beam-runners-flink-1.7</td>
-</tr>
-<tr>
-  <td>1.6.x</td>
-  <td>beam-runners-flink-1.6</td>
-</tr>
-<tr>
-  <td>1.5.x</td>
-  <td>beam-runners-flink_2.11</td>
-</tr>
-<tr>
-  <td>2.9.0</td>
-  <td rowspan="4">1.5.x</td>
-  <td rowspan="4">beam-runners-flink_2.11</td>
-</tr>
-<tr>
-  <td>2.8.0</td>
-</tr>
-<tr>
-  <td>2.7.0</td>
-</tr>
-<tr>
-  <td>2.6.0</td>
-</tr>
-<tr>
-  <td>2.5.0</td>
-  <td rowspan="3">1.4.x with Scala 2.11</td>
-  <td rowspan="3">beam-runners-flink_2.11</td>
-</tr>
-<tr>
-  <td>2.4.0</td>
-</tr>
-<tr>
-  <td>2.3.0</td>
-</tr>
-<tr>
-  <td>2.2.0</td>
-  <td rowspan="2">1.3.x with Scala 2.10</td>
-  <td rowspan="2">beam-runners-flink_2.10</td>
-</tr>
-<tr>
-  <td>2.1.x</td>
-</tr>
-<tr>
-  <td>2.0.0</td>
-  <td>1.2.x with Scala 2.10</td>
-  <td>beam-runners-flink_2.10</td>
-</tr>
-</table>
-
-For retrieving the right Flink version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
-
-For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-stable/) can be helpful.
-
 ### Dependencies
 
 {{< paragraph class="language-java" >}}
@@ -425,7 +308,124 @@ For general Beam pipeline options see the
 [PipelineOptions](https://beam.apache.org/releases/javadoc/{{< param release_latest >}}/index.html?org/apache/beam/sdk/options/PipelineOptions.html)
 reference.
 
-## Capability
+## Flink Version Compatibility
+
+The Flink cluster version has to match the minor version used by the FlinkRunner.
+The minor version is the first two numbers in the version string, e.g. in `1.8.0` the
+minor version is `1.8`.
+
+We try to track the latest version of Apache Flink at the time of the Beam release.
+A Flink version is supported by Beam for the time it is supported by the Flink community.
+The Flink community supports the last two minor versions. When support for a Flink version is dropped, it may be deprecated and removed also from Beam.
+To find out which version of Flink is compatible with Beam please see the table below:
+
+<table class="table table-bordered">
+<tr>
+  <th>Beam Version</th>
+  <th>Flink Version</th>
+  <th>Artifact Id</th>
+</tr>
+<tr>
+  <td rowspan="3">2.21.0</td>
+  <td>1.10.x</td>
+  <td>beam-runners-flink-1.10</td>
+</tr>
+<tr>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td rowspan="3">2.17.0-2.20.0</td>
+  <td>1.9.x</td>
+  <td>beam-runners-flink-1.9</td>
+</tr>
+<tr>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
+</tr>
+<tr>
+  <td rowspan="4">2.13.0 - 2.16.0</td>
+  <td>1.8.x</td>
+  <td>beam-runners-flink-1.8</td>
+</tr>
+<tr>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
+</tr>
+<tr>
+  <td>1.6.x</td>
+  <td>beam-runners-flink-1.6</td>
+</tr>
+<tr>
+  <td>1.5.x</td>
+  <td>beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td rowspan="3">2.10.0 - 2.16.0</td>
+  <td>1.7.x</td>
+  <td>beam-runners-flink-1.7</td>
+</tr>
+<tr>
+  <td>1.6.x</td>
+  <td>beam-runners-flink-1.6</td>
+</tr>
+<tr>
+  <td>1.5.x</td>
+  <td>beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td>2.9.0</td>
+  <td rowspan="4">1.5.x</td>
+  <td rowspan="4">beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td>2.8.0</td>
+</tr>
+<tr>
+  <td>2.7.0</td>
+</tr>
+<tr>
+  <td>2.6.0</td>
+</tr>
+<tr>
+  <td>2.5.0</td>
+  <td rowspan="3">1.4.x with Scala 2.11</td>
+  <td rowspan="3">beam-runners-flink_2.11</td>
+</tr>
+<tr>
+  <td>2.4.0</td>
+</tr>
+<tr>
+  <td>2.3.0</td>
+</tr>
+<tr>
+  <td>2.2.0</td>
+  <td rowspan="2">1.3.x with Scala 2.10</td>
+  <td rowspan="2">beam-runners-flink_2.10</td>
+</tr>
+<tr>
+  <td>2.1.x</td>
+</tr>
+<tr>
+  <td>2.0.0</td>
+  <td>1.2.x with Scala 2.10</td>
+  <td>beam-runners-flink_2.10</td>
+</tr>
+</table>
+
+For retrieving the right Flink version, see the [Flink downloads page](https://flink.apache.org/downloads.html).
+
+For more information, the [Flink Documentation](https://ci.apache.org/projects/flink/flink-docs-stable/) can be helpful.
+
+## Beam Capability
 
 The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the
 capabilities of the classic Flink Runner.
