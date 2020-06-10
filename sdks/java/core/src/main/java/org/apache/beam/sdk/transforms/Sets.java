@@ -57,7 +57,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4", "6"));
  *
  * PCollection<String> results =
- *     left.apply(SetFns.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
+ *     left.apply(Sets.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
  *
  * }</pre>
  *
@@ -74,7 +74,7 @@ import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.Iterable
  * // Following example will perform (first intersect second) intersect third.
  * PCollection<String> results =
  *     PCollectionList.of(first).and(second).and(third)
- *     .apply(SetFns.intersectDistinct()); // results will be PCollection<String> containing: "3","4"
+ *     .apply(Sets.intersectDistinct()); // results will be PCollection<String> containing: "3","4"
  *
  * }</pre>
  */
@@ -107,7 +107,7 @@ public class Sets {
    * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
+   *     left.apply(Sets.intersectDistinct(right)); // results will be PCollection<String> containing: "1","3","4"
    *
    * }</pre>
    *
@@ -153,7 +153,7 @@ public class Sets {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.intersectDistinct()); // results will be PCollection<String> containing: "3","4"
+   *     .apply(Sets.intersectDistinct()); // results will be PCollection<String> containing: "3","4"
    *
    * }</pre>
    *
@@ -196,7 +196,7 @@ public class Sets {
    * PCollection<String> right = p.apply(Create.of("1", "1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.intersectAll(right)); // results will be PCollection<String> containing: "1","1","3","4"
+   *     left.apply(Sets.intersectAll(right)); // results will be PCollection<String> containing: "1","1","3","4"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
@@ -239,7 +239,7 @@ public class Sets {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.intersectAll()); // results will be PCollection<String> containing: "1"
+   *     .apply(Sets.intersectAll()); // results will be PCollection<String> containing: "1"
    *
    * }</pre>
    *
@@ -277,7 +277,7 @@ public class Sets {
    * PCollection<String> right = p.apply(Create.of("1", "1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.exceptDistinct(right)); // results will be PCollection<String> containing: "2","5"
+   *     left.apply(Sets.exceptDistinct(right)); // results will be PCollection<String> containing: "2","5"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
@@ -323,7 +323,7 @@ public class Sets {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.exceptDistinct()); // results will be PCollection<String> containing: "5"
+   *     .apply(Sets.exceptDistinct()); // results will be PCollection<String> containing: "5"
    *
    * }</pre>
    *
@@ -367,7 +367,7 @@ public class Sets {
    * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4", "6"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.exceptAll(right)); // results will be PCollection<String> containing: "1","1","2","3","3","5"
+   *     left.apply(Sets.exceptAll(right)); // results will be PCollection<String> containing: "1","1","2","3","3","5"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
@@ -410,7 +410,7 @@ public class Sets {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.exceptAll()); // results will be PCollection<String> containing: "1","2","3","3"
+   *     .apply(Sets.exceptAll()); // results will be PCollection<String> containing: "1","2","3","3"
    *
    * }</pre>
    *
@@ -451,7 +451,7 @@ public class Sets {
    * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.unionDistinct(right)); // results will be PCollection<String> containing: "1","2","3","4"
+   *     left.apply(Sets.unionDistinct(right)); // results will be PCollection<String> containing: "1","2","3","4"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
@@ -492,7 +492,7 @@ public class Sets {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.unionDistinct()); // results will be PCollection<String> containing: "1","2","3","4","5"
+   *     .apply(Sets.unionDistinct()); // results will be PCollection<String> containing: "1","2","3","4","5"
    *
    * }</pre>
    *
@@ -534,7 +534,7 @@ public class Sets {
    * PCollection<String> right = p.apply(Create.of("1", "3", "4", "4"));
    *
    * PCollection<String> results =
-   *     left.apply(SetFns.unionAll(right)); // results will be PCollection<String> containing: "1","1","1","2","3","4","4"
+   *     left.apply(Sets.unionAll(right)); // results will be PCollection<String> containing: "1","1","1","2","3","4","4"
    * }</pre>
    *
    * @param <T> the type of the elements in the input and output {@code PCollection<T>}s.
@@ -576,7 +576,7 @@ public class Sets {
    * // Following example will perform (first intersect second) intersect third.
    * PCollection<String> results =
    *     PCollectionList.of(first).and(second).and(third)
-   *     .apply(SetFns.unionAll()); // results will be PCollection<String> containing: "1","1","1","1","2","3","4","4","5"
+   *     .apply(Sets.unionAll()); // results will be PCollection<String> containing: "1","1","1","1","2","3","4","4","5"
    *
    * }</pre>
    *
