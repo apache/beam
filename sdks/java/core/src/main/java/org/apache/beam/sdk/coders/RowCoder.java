@@ -42,6 +42,16 @@ public class RowCoder extends SchemaCoder<Row> {
   }
 
   @Override
+  public boolean consistentWithEquals() {
+    return true;
+  }
+
+  @Override
+  public Object structuralValue(Row value) {
+    return value;
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (this == o) {
       return true;

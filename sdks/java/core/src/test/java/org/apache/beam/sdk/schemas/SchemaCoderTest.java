@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas;
 import static org.junit.Assert.assertNotEquals;
 
 import com.google.auto.value.AutoValue;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Objects;
 import org.apache.avro.reflect.AvroSchema;
@@ -214,6 +215,17 @@ public class SchemaCoderTest {
     }
   }
 
+  @DefaultSchema(JavaFieldSchema.class)
+  private static class PojoNoEquals {
+    public byte[] bytes;
+    public String id;
+
+    public PojoNoEquals(byte[] bytes, String id) {
+      this.bytes = bytes;
+      this.id = id;
+    }
+  }
+
   private static final SchemaRegistry REGISTRY = SchemaRegistry.createDefault();
 
   private static SchemaCoder coderFrom(TypeDescriptor typeDescriptor) throws NoSuchSchemaException {
@@ -273,6 +285,12 @@ public class SchemaCoderTest {
                     "foo", 9001, 0L, new DateTime().withDate(1979, 3, 14).withTime(10, 30, 0, 0)),
                 new SimpleAvro(
                     "bar", 9002, 1L, new DateTime().withDate(1989, 3, 14).withTime(10, 30, 0, 0)))
+          },
+          new Object[] {
+            coderFrom(TypeDescriptor.of(PojoNoEquals.class)),
+            ImmutableList.of(
+                new PojoNoEquals("hello".getBytes(StandardCharsets.UTF_8), "world"),
+                new PojoNoEquals("goodbye".getBytes(StandardCharsets.UTF_8), "world"))
           });
     }
 
@@ -285,7 +303,7 @@ public class SchemaCoderTest {
     public void coderConsistentWithEquals() throws Exception {
       for (Object testValueA : testValues) {
         for (Object testValueB : testValues) {
-          CoderProperties.coderConsistentWithEquals(coder, testValueA, testValueB);
+          CoderProperties.structuralValueConsistentWithEquals(coder, testValueA, testValueB);
         }
       }
     }

@@ -140,7 +140,14 @@ public class SchemaCoder<T> extends CustomCoder<T> {
 
   @Override
   public boolean consistentWithEquals() {
-    return true;
+    // We can't guarantee that the user type T has a good equals method, so we assume the coder is
+    // not consistent with equals (BEAM-8364).
+    return false;
+  }
+
+  @Override
+  public Object structuralValue(T value) {
+    return toRowFunction.apply(value);
   }
 
   public static <T> Coder<T> coderForFieldType(FieldType fieldType) {
