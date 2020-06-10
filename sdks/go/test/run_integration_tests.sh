@@ -110,7 +110,7 @@ done
 if [[ "$RUNNER" == "universal" ]]; then
   PUSH_CONTAINER_TO_GCR=''
 else 
-  PUSH_CONTAINER_TO_GCR=''
+  PUSH_CONTAINER_TO_GCR='yes'
 fi
 
 # Go to the root of the repository
