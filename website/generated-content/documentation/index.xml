@@ -1698,7 +1698,8 @@ adding &lt;code>input&lt;/code> and &lt;code>output&lt;/code> custom options:&lt
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MyOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MyOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="nd">@classmethod&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s1">&amp;#39;--input&amp;#39;&lt;/span>&lt;span class="p">)&lt;/span>
@@ -1726,7 +1727,8 @@ a command-line argument, and a default value.&lt;/p>
 &lt;span class="o">}&lt;/span>&lt;/code>&lt;/pre>&lt;/div>
 &lt;/div>
 &lt;div class=language-py>
-&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="k">class&lt;/span> &lt;span class="nc">MyOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;div class="highlight">&lt;pre class="chroma">&lt;code class="language-py" data-lang="py">&lt;span class="kn">from&lt;/span> &lt;span class="nn">apache_beam.options.pipeline_options&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">PipelineOptions&lt;/span>
+&lt;span class="k">class&lt;/span> &lt;span class="nc">MyOptions&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">PipelineOptions&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="nd">@classmethod&lt;/span>
 &lt;span class="k">def&lt;/span> &lt;span class="nf">_add_argparse_args&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">cls&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">parser&lt;/span>&lt;span class="p">):&lt;/span>
 &lt;span class="n">parser&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">add_argument&lt;/span>&lt;span class="p">(&lt;/span>

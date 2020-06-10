@@ -94,7 +94,9 @@ adding <code>input</code> and <code>output</code> custom options:</p><div class=
     
     <span class=n>String</span> <span class=nf>getOutput</span><span class=o>();</span>
     <span class=kt>void</span> <span class=nf>setOutput</span><span class=o>(</span><span class=n>String</span> <span class=n>output</span><span class=o>);</span>
-<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>MyOptions</span><span class=p>(</span><span class=n>PipelineOptions</span><span class=p>):</span>
+<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>from</span> <span class=nn>apache_beam.options.pipeline_options</span> <span class=kn>import</span> <span class=n>PipelineOptions</span>
+
+<span class=k>class</span> <span class=nc>MyOptions</span><span class=p>(</span><span class=n>PipelineOptions</span><span class=p>):</span>
   <span class=nd>@classmethod</span>
   <span class=k>def</span> <span class=nf>_add_argparse_args</span><span class=p>(</span><span class=bp>cls</span><span class=p>,</span> <span class=n>parser</span><span class=p>):</span>
     <span class=n>parser</span><span class=o>.</span><span class=n>add_argument</span><span class=p>(</span><span class=s1>&#39;--input&#39;</span><span class=p>)</span>
@@ -112,7 +114,9 @@ a command-line argument, and a default value.</p><p>You set the description and 
     <span class=nd>@Default.String</span><span class=o>(</span><span class=s>&#34;gs://my-bucket/output&#34;</span><span class=o>)</span>
     <span class=n>String</span> <span class=nf>getOutput</span><span class=o>();</span>
     <span class=kt>void</span> <span class=nf>setOutput</span><span class=o>(</span><span class=n>String</span> <span class=n>output</span><span class=o>);</span>
-<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=k>class</span> <span class=nc>MyOptions</span><span class=p>(</span><span class=n>PipelineOptions</span><span class=p>):</span>
+<span class=o>}</span></code></pre></div></div><div class=language-py><div class=highlight><pre class=chroma><code class=language-py data-lang=py><span class=kn>from</span> <span class=nn>apache_beam.options.pipeline_options</span> <span class=kn>import</span> <span class=n>PipelineOptions</span>
+
+<span class=k>class</span> <span class=nc>MyOptions</span><span class=p>(</span><span class=n>PipelineOptions</span><span class=p>):</span>
   <span class=nd>@classmethod</span>
   <span class=k>def</span> <span class=nf>_add_argparse_args</span><span class=p>(</span><span class=bp>cls</span><span class=p>,</span> <span class=n>parser</span><span class=p>):</span>
     <span class=n>parser</span><span class=o>.</span><span class=n>add_argument</span><span class=p>(</span>
