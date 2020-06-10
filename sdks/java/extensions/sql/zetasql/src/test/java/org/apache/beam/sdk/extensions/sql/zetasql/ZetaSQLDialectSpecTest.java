@@ -833,7 +833,6 @@ public class ZetaSQLDialectSpecTest {
   }
 
   @Test
-  @Ignore("Does not support BYTES for like")
   public void testLikeBytes() {
     String sql = "SELECT @p0 LIKE  @p1 AS ColA";
     ImmutableMap<String, Value> params =
