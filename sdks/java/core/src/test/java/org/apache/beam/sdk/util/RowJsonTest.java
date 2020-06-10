@@ -261,7 +261,7 @@ public class RowJsonTest {
   }
 
   @RunWith(Parameterized.class)
-  public static class ValueTestsAllowMissing {
+  public static class ValueTestsWithMissingFields {
     @Parameter(0)
     public String name;
 
@@ -305,8 +305,7 @@ public class RowJsonTest {
               .addNullableField("f_intArray", FieldType.array(FieldType.INT32))
               .build();
 
-      String rowString =
-          "{\n" + "\"f_int32\" : 32\n" + "}";
+      String rowString = "{\n" + "\"f_int32\" : 32\n" + "}";
 
       Row expectedRow = Row.withSchema(schema).addValues(32, null).build();
 
@@ -315,7 +314,10 @@ public class RowJsonTest {
 
     private static Object[] makeNestedRowwithNullTestCase() {
       Schema nestedRowSchema =
-          Schema.builder().addInt32Field("f_nestedInt32").addNullableField("f_nestedString", FieldType.STRING).build();
+          Schema.builder()
+              .addInt32Field("f_nestedInt32")
+              .addNullableField("f_nestedString", FieldType.STRING)
+              .build();
 
       Schema schema =
           Schema.builder().addInt32Field("f_int32").addRowField("f_row", nestedRowSchema).build();
@@ -336,13 +338,18 @@ public class RowJsonTest {
       return new Object[] {"Nested row", schema, rowString, expectedRow};
     }
 
-
     private static Object[] makeRowisNullTestCase() {
       Schema nestedRowSchema =
-          Schema.builder().addInt32Field("f_nestedInt32").addNullableField("f_nestedString", FieldType.STRING).build();
+          Schema.builder()
+              .addInt32Field("f_nestedInt32")
+              .addNullableField("f_nestedString", FieldType.STRING)
+              .build();
 
       Schema schema =
-          Schema.builder().addInt32Field("f_int32").addNullableField("f_row", FieldType.row(nestedRowSchema)).build();
+          Schema.builder()
+              .addInt32Field("f_int32")
+              .addNullableField("f_row", FieldType.row(nestedRowSchema))
+              .build();
 
       String rowString =
           "{\n"
@@ -362,7 +369,8 @@ public class RowJsonTest {
 
     @Test
     public void testDeserialize() throws IOException {
-      Row parsedRow = newObjectMapperWithImplicitNullsFor(schema).readValue(serializedString, Row.class);
+      Row parsedRow =
+          newObjectMapperWithImplicitNullsFor(schema).readValue(serializedString, Row.class);
 
       assertThat(row, equalTo(parsedRow));
     }
@@ -382,7 +390,7 @@ public class RowJsonTest {
       assertThat(row, equalTo(parsedRow));
     }
   }
-  
+
   @RunWith(JUnit4.class)
   public static class DeserializerTests {
     private static final Boolean BOOLEAN_TRUE_VALUE = true;
@@ -690,8 +698,13 @@ public class RowJsonTest {
 
   private static ObjectMapper newObjectMapperWithImplicitNullsFor(Schema schema) {
     SimpleModule simpleModule = new SimpleModule("rowSerializationTesModule");
-    simpleModule.addSerializer(Row.class, RowJson.RowJsonSerializer.forSchema(schema).ignoreNullsOnWrite(true));
-    simpleModule.addDeserializer(Row.class, RowJson.RowJsonDeserializer.forSchema(schema).allowMissingFields(true));
+    simpleModule.addSerializer(
+        Row.class, RowJson.RowJsonSerializer.forSchema(schema).withDropNullsOnWrite(true));
+    simpleModule.addDeserializer(
+        Row.class,
+        RowJson.RowJsonDeserializer.forSchema(schema)
+            .withMissingFieldBehavior(
+                RowJson.RowJsonDeserializer.MissingFieldBehavior.ALLOW_MISSING));
     ObjectMapper objectMapper = new ObjectMapper();
     objectMapper.registerModule(simpleModule);
     return objectMapper;

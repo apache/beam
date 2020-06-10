@@ -159,6 +159,11 @@ public class RowJson {
 
     private static final boolean SEQUENTIAL = false;
 
+    public enum MissingFieldBehavior {
+      ALLOW_MISSING,
+      REQUIRE_NULL
+    }
+
     private static final ImmutableMap<TypeName, ValueExtractor<?>> JSON_VALUE_GETTERS =
         ImmutableMap.<TypeName, ValueExtractor<?>>builder()
             .put(BYTE, byteValueExtractor())
@@ -173,7 +178,7 @@ public class RowJson {
             .build();
 
     private final Schema schema;
-    private Boolean allowMissingFields = false;
+    private MissingFieldBehavior missingFieldBehavior = MissingFieldBehavior.REQUIRE_NULL;
 
     /** Creates a deserializer for a {@link Row} {@link Schema}. */
     public static RowJsonDeserializer forSchema(Schema schema) {
@@ -186,10 +191,15 @@ public class RowJson {
       this.schema = schema;
     }
 
-    public RowJsonDeserializer allowMissingFields(Boolean allowMissing){
-      this.allowMissingFields = allowMissing;
+    /**
+     * Sets the behaviour of the deserializer with missing fields. If set to the default
+     * REQUIRE_NULL, it nulls must be explicitly defined as fieldName: null. If set to
+     * ALLOW_MISSING, missing fields will be interpreted as null.
+     */
+    public RowJsonDeserializer withMissingFieldBehavior(MissingFieldBehavior behavior) {
+      this.missingFieldBehavior = behavior;
       return this;
-  }
+    }
 
     @Override
     public Row deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
@@ -198,13 +208,14 @@ public class RowJson {
       // Parse and convert the root object to Row as if it's a nested field with name 'root'
       return (Row)
           extractJsonNodeValue(
-              FieldValue.of("root", FieldType.row(schema), jsonParser.readValueAsTree(), allowMissingFields));
+              FieldValue.of("root", FieldType.row(schema), jsonParser.readValueAsTree()));
     }
 
-  
-
-    private static Object extractJsonNodeValue(FieldValue fieldValue) {
-      if (!fieldValue.isJsonValuePresentOrAllowedMissing()) {
+    private Object extractJsonNodeValue(FieldValue fieldValue) {
+      if (!fieldValue.isJsonValuePresent()) {
+        if (this.missingFieldBehavior == MissingFieldBehavior.ALLOW_MISSING) {
+          return null;
+        }
         throw new UnsupportedRowJsonException(
             "Field '" + fieldValue.name() + "' is not present in the JSON object");
       }
@@ -226,14 +237,13 @@ public class RowJson {
             FieldValue.of(
                 fieldValue.name(),
                 fieldValue.type().getLogicalType().getBaseType(),
-                fieldValue.jsonValue(),
-                fieldValue.allowMissingFields()));
+                fieldValue.jsonValue()));
       }
 
       return extractJsonPrimitiveValue(fieldValue);
     }
 
-    private static Row jsonObjectToRow(FieldValue rowFieldValue) {
+    private Row jsonObjectToRow(FieldValue rowFieldValue) {
       if (!rowFieldValue.isJsonObject()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON object for field '"
@@ -250,12 +260,11 @@ public class RowJson {
                       FieldValue.of(
                           schemaField.getName(),
                           schemaField.getType(),
-                          rowFieldValue.jsonFieldValue(schemaField.getName()),
-                          rowFieldValue.allowMissingFields())))
+                          rowFieldValue.jsonFieldValue(schemaField.getName()))))
           .collect(toRow(rowFieldValue.rowSchema()));
     }
 
-    private static Object jsonArrayToList(FieldValue arrayFieldValue) {
+    private Object jsonArrayToList(FieldValue arrayFieldValue) {
       if (!arrayFieldValue.isJsonArray()) {
         throw new UnsupportedRowJsonException(
             "Expected JSON array for field '"
@@ -272,8 +281,7 @@ public class RowJson {
                       FieldValue.of(
                           arrayFieldValue.name() + "[]",
                           arrayFieldValue.arrayElementType(),
-                          jsonArrayElement,
-                          arrayFieldValue.allowMissingFields())))
+                          jsonArrayElement)))
           .collect(toImmutableList());
     }
 
@@ -294,8 +302,8 @@ public class RowJson {
 
     /**
      * Helper class to keep track of schema field type, name, and actual json value for the field.
-     * Also keeps track of whether or not missing fields are valid when reading from the json - in this case
-     * it will be read as null. 
+     * Also keeps track of whether or not missing fields are valid when reading from the json - in
+     * this case it will be read as null.
      */
     @AutoValue
     abstract static class FieldValue {
@@ -305,8 +313,6 @@ public class RowJson {
 
       abstract @Nullable JsonNode jsonValue();
 
-      abstract Boolean allowMissingFields();
-
       TypeName typeName() {
         return type().getTypeName();
       }
@@ -315,12 +321,8 @@ public class RowJson {
         return jsonValue() != null;
       }
 
-      boolean isJsonValuePresentOrAllowedMissing() {
-        return jsonValue() != null || allowMissingFields();
-      }
-
       boolean isJsonNull() {
-        return (jsonValue() == null && allowMissingFields()) || jsonValue().isNull();
+        return jsonValue().isNull();
       }
 
       JsonNodeType jsonNodeType() {
@@ -360,8 +362,8 @@ public class RowJson {
         return type().getRowSchema();
       }
 
-      static FieldValue of(String name, FieldType type, JsonNode jsonValue, Boolean allowMissing) {
-        return new AutoValue_RowJson_RowJsonDeserializer_FieldValue(name, type, jsonValue, allowMissing);
+      static FieldValue of(String name, FieldType type, JsonNode jsonValue) {
+        return new AutoValue_RowJson_RowJsonDeserializer_FieldValue(name, type, jsonValue);
       }
     }
   }
@@ -370,7 +372,7 @@ public class RowJson {
   public static class RowJsonSerializer extends StdSerializer<Row> {
 
     private final Schema schema;
-    private Boolean ignoreNullsOnWrite = false;
+    private Boolean dropNullsOnWrite = false;
 
     /** Creates a serializer for a {@link Row} {@link Schema}. */
     public static RowJsonSerializer forSchema(Schema schema) {
@@ -382,9 +384,10 @@ public class RowJson {
       super(Row.class);
       this.schema = schema;
     }
-  
-    public RowJsonSerializer ignoreNullsOnWrite(Boolean ignoreNullsOnWrite) {
-      this.ignoreNullsOnWrite = ignoreNullsOnWrite;
+
+    /** Serializer drops nulls on write if set to true instead of writing fieldName: null */
+    public RowJsonSerializer withDropNullsOnWrite(Boolean dropNullsOnWrite) {
+      this.dropNullsOnWrite = dropNullsOnWrite;
       return this;
     }
 
@@ -400,7 +403,7 @@ public class RowJson {
       for (int i = 0; i < schema.getFieldCount(); ++i) {
         Field field = schema.getField(i);
         Object value = row.getValue(i);
-        if (ignoreNullsOnWrite && value == null){
+        if (dropNullsOnWrite && value == null && field.getType().getNullable()) {
           continue;
         }
         gen.writeFieldName(field.getName());
