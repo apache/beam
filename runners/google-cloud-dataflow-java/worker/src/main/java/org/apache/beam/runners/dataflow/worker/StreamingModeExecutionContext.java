@@ -556,6 +556,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
     private PriorityQueue<TimerData> toBeFiredTimersOrdered = null;
 
+    // to track if timer is reset earlier mid-bundle.
     private Map<String, Instant> firedTimer = new HashMap<>();
 
     public <W extends BoundedWindow> TimerData getNextFiredUserTimer(Coder<W> windowCoder) {
@@ -595,6 +596,7 @@ public class StreamingModeExecutionContext extends DataflowExecutionContext<Step
 
       TimerData nextTimer = null;
 
+      // fire timer only if its timestamp matched. Else it is either reset or obsolete.
       while (!toBeFiredTimersOrdered.isEmpty()) {
         nextTimer = toBeFiredTimersOrdered.poll();
         String timerUniqueId = nextTimer.getTimerId() + '+' + nextTimer.getTimerFamilyId();
