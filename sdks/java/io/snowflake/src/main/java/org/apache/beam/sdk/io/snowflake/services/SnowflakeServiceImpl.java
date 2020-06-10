@@ -23,6 +23,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.io.snowflake.enums.CloudProvider;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
@@ -91,6 +92,7 @@ public class SnowflakeServiceImpl implements SnowflakeService<SnowflakeServiceCo
       source = String.format("'%s'", stagingBucketDir);
     }
 
+    filesList = filesList.stream().map(e -> String.format("'%s'", e)).collect(Collectors.toList());
     String files = String.join(", ", filesList);
     files = files.replaceAll(stagingBucketDir, "");
     DataSource dataSource = dataSourceProviderFn.apply(null);

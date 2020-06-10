@@ -40,6 +40,7 @@ import javax.sql.DataSource;
 import net.snowflake.client.jdbc.SnowflakeBasicDataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
@@ -62,15 +63,18 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Joiner;
 import org.slf4j.Logger;
@@ -689,9 +693,15 @@ public class SnowflakeIO {
 
       PCollection<String> files = writeFiles(input, stagingBucketDir);
 
+      // Combining PCollection of files as a side input into one list of files
+      ListCoder<String> coder = ListCoder.of(StringUtf8Coder.of());
       files =
           (PCollection)
-              files.apply("Create list of files to copy", Combine.globally(new Concatenate()));
+              files
+                  .getPipeline()
+                  .apply(
+                      Reify.viewInGlobalWindow(
+                          (PCollectionView) files.apply(View.asList()), coder));
 
       return (PCollection)
           files.apply("Copy files to table", copyToTable(snowflakeService, stagingBucketDir));
