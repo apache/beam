@@ -628,6 +628,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       self._credentials = credentials
 
   def create_data_channel_from_url(self, url):
+    if not url:
+      return None
     if url not in self._data_channel_cache:
       with self._lock:
         if url not in self._data_channel_cache:
