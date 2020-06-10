@@ -106,12 +106,30 @@ For a detailed introduction to the Beam concepts used in these examples, see the
 
 ## Optional: Convert from Maven to Gradle Project
 
-To convert this from a Maven project into Gradle, execute `gradle init` while in the same directory as the `pom.xml` file.
+Ensure you are in the same directory as the `pom.xml` file generated from the previous step. Automatically convert your project from Maven to Gradle by running:
+{{< highlight >}}
+$ gradle init
+{{< /highlight >}}
 
 After you have converted the project to Gradle:
 
-1. Edit the generated `build.gradle` by adding `mavenCentral()` under `repositories`.
-1. Rebuild your project by running `gradle build`.
+1. Edit the generated `build.gradle` file by adding `mavenCentral()` under `repositories`:
+{{< highlight >}}
+repositories {
+    mavenCentral()
+    maven {
+        url = uri('https://repository.apache.org/content/repositories/snapshots/')
+    }
+
+    maven {
+        url = uri('http://repo.maven.apache.org/maven2')
+    }
+}
+{{< /highlight >}}
+1. Rebuild your project by running:
+{{< highlight >}}
+$ gradle build
+{{< /highlight >}}
 
 ## Run WordCount
 
