@@ -80,7 +80,7 @@ class Mean(object):
 
     def without_defaults(self):
       self.has_defaults = False
-      return self.expand(self)
+      return self | core.CombineGlobally(MeanCombineFn()).without_defaults()
 
   class PerKey(ptransform.PTransform):
     """combiners.Mean.PerKey finds the means of the values for each key."""
