@@ -32,8 +32,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Test for {@code BeamSetOperatorRelBase}. */
-public class BeamSetOperatorRelBaseTest extends BaseRelTest {
+/** Test for testing common windowsFns in set operations. */
+public class BeamSetOperatorWindowFnRelTest extends BaseRelTest {
   @Rule public final TestPipeline pipeline = TestPipeline.create();
   public static final DateTime THE_DATE = new DateTime(100000);
 
@@ -74,7 +74,7 @@ public class BeamSetOperatorRelBaseTest extends BaseRelTest {
     pipeline.run();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = IllegalStateException.class)
   public void testDifferentWindows() throws Exception {
     String sql =
         "SELECT "
