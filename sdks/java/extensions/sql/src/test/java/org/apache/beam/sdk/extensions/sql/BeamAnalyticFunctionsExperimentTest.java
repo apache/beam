@@ -17,12 +17,15 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
-import java.util.*;
-import org.apache.beam.sdk.schemas.*;
-import org.apache.beam.sdk.testing.*;
-import org.apache.beam.sdk.transforms.*;
-import org.apache.beam.sdk.values.*;
-import org.junit.*;
+import java.util.Iterator;
+import java.util.List;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.junit.Ignore;
+import org.junit.Test;
 
 /**
  * A simple Analytic Functions experiment for BeamSQL created in order to understand the query
@@ -34,10 +37,101 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
    * Table schema and data taken from
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#produce_table
    *
+   * <p>Compute a cumulative sum query taken from
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_cumulative_sum
+   */
+  @Test
+  public void testOverCumulativeSum() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    Schema schema =
+        Schema.builder()
+            .addStringField("item")
+            .addStringField("category")
+            .addInt32Field("purchases")
+            .build();
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            "kale",
+                            "vegetable",
+                            23,
+                            "orange",
+                            "fruit",
+                            2,
+                            "cabbage",
+                            "vegetable",
+                            9,
+                            "apple",
+                            "fruit",
+                            8,
+                            "leek",
+                            "vegetable",
+                            2,
+                            "lettuce",
+                            "vegetable",
+                            10)
+                        .getRows()))
+            .setRowSchema(schema);
+    String sql =
+        "SELECT item, purchases, category, sum(purchases) over "
+            + "(PARTITION BY category ORDER BY purchases ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"
+            + " as total_purchases  FROM PCOLLECTION";
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Schema overResultSchema =
+        Schema.builder()
+            .addStringField("item")
+            .addInt32Field("purchases")
+            .addStringField("category")
+            .addInt32Field("total_purchases")
+            .build();
+
+    List<Row> overResult =
+        TestUtils.RowsBuilder.of(overResultSchema)
+            .addRows(
+                "orange",
+                2,
+                "fruit",
+                2,
+                "apple",
+                8,
+                "fruit",
+                10,
+                "leek",
+                2,
+                "vegetable",
+                2,
+                "cabbage",
+                9,
+                "vegetable",
+                11,
+                "lettuce",
+                10,
+                "vegetable",
+                21,
+                "kale",
+                23,
+                "vegetable",
+                44)
+            .getRows();
+
+    PAssert.that(result).containsInAnyOrder(overResult);
+
+    pipeline.run();
+  }
+
+  /**
+   * Table schema and data taken from
+   * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#produce_table
+   *
    * <p>Basic analytic function query taken from
    * https://cloud.google.com/bigquery/docs/reference/standard-sql/analytic-function-concepts#compute_a_grand_total
    */
   @Test
+  @Ignore
   public void testSimpleOverFunction() throws Exception {
     pipeline.enableAbandonedNodeEnforcement(false);
     Schema schema =
@@ -73,7 +167,8 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
                         .getRows()))
             .setRowSchema(schema);
     String sql =
-        "SELECT item, purchases, category, sum(purchases) over () as total_purchases  FROM PCOLLECTION";
+        "SELECT item, purchases, category, sum(purchases) over ()"
+            + " as total_purchases  FROM PCOLLECTION";
     PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
     PAssert.that(result)
         .satisfies(
@@ -81,6 +176,7 @@ public class BeamAnalyticFunctionsExperimentTest extends BeamSqlDslBase {
               Iterator<Row> iter = input.iterator();
               while (iter.hasNext()) {
                 Row row = iter.next();
+                System.out.println(row.toString());
                 // check results
               }
               return null;

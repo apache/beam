@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamCalcRel;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
@@ -26,6 +27,8 @@ import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Calc;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalCalc;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rex.RexOver;
 
 /** A {@code ConverterRule} to replace {@link Calc} with {@link BeamCalcRel}. */
 public class BeamCalcRule extends ConverterRule {
@@ -37,7 +40,20 @@ public class BeamCalcRule extends ConverterRule {
 
   @Override
   public boolean matches(RelOptRuleCall x) {
-    return true;
+    boolean hasRexOver = false;
+    List<RelNode> resList = x.getRelList();
+    for (RelNode relNode : resList) {
+      if (relNode instanceof LogicalCalc) {
+        LogicalCalc logicalCalc = (LogicalCalc) relNode;
+        for (RexNode rexNode : logicalCalc.getProgram().getExprList()) {
+          if (rexNode instanceof RexOver) {
+            hasRexOver = true;
+            break;
+          }
+        }
+      }
+    }
+    return !hasRexOver;
   }
 
   @Override

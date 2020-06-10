@@ -17,11 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rule;
 
-import org.apache.beam.sdk.extensions.sql.impl.rel.*;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.*;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.*;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.*;
-import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.*;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamWindowRel;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Convention;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.RelNode;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.convert.ConverterRule;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.core.Window;
+import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.logical.LogicalWindow;
 
 public class BeamWindowRule extends ConverterRule {
   public static final BeamWindowRule INSTANCE = new BeamWindowRule();
@@ -32,8 +34,13 @@ public class BeamWindowRule extends ConverterRule {
 
   @Override
   public RelNode convert(RelNode relNode) {
-    // transforms relNode (LogicalWindow) to BeamWindowRel
-   assert false;
-   return null;
+    Window w = (Window) relNode;
+    return new BeamWindowRel(
+        w.getCluster(),
+        w.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        w.getInput(),
+        w.getConstants(),
+        w.getRowType(),
+        w.groups);
   }
 }
