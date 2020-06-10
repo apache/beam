@@ -675,3 +675,10 @@ class Row(object):
 
   def __ne__(self, other):
     return not self == other
+
+  def __reduce__(self):
+    return _make_Row, tuple(sorted(self.__dict__.items()))
+
+
+def _make_Row(*items):
+  return Row(**dict(items))

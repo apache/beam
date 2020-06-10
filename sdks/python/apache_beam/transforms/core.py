@@ -2288,8 +2288,7 @@ class GroupBy(PTransform):
     return 'GroupBy(%s)' % ', '.join(name for name, _ in self._key_fields)
 
   def aggregate_field(self, field, combine_fn, dest):
-    return _GroupAndAggregate(self, ()).aggregate_field(
-        field, combine_fn, dest)
+    return _GroupAndAggregate(self, ()).aggregate_field(field, combine_fn, dest)
 
   def expand(self, pcoll):
     return pcoll | Map(lambda x: (self._key_func(x), x)) | GroupByKey()
@@ -2310,6 +2309,14 @@ class _GroupAndAggregate(PTransform):
 
   def expand(self, pcoll):
     from apache_beam.transforms.combiners import TupleCombineFn
+
+    # TODO(Py3): Use {**a, **b} syntax once Python 2 is gone.
+    def union_dicts(a, b):
+      result = {}
+      result.update(a)
+      result.update(b)
+      return result
+
     return (
         pcoll
         | Map(lambda x: (self._grouping._key_func(x), self._value_func(x)))
@@ -2319,15 +2326,13 @@ class _GroupAndAggregate(PTransform):
         | MapTuple(
             lambda key,
             value: pvalue.Row(
-                **{
-                    **key.__dict__,
-                    **{
+                **union_dicts(
+                    key.__dict__,
+                    {
                         dest: c
                         for (_, __, dest),
                         c in zip(self._aggregations, value)
-                    }
-                }))
-                )
+                    }))))
 
 
 class Partition(PTransformWithSideInputs):

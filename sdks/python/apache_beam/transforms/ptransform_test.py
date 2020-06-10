@@ -824,7 +824,7 @@ class TestGroupBy(unittest.TestCase):
       return key, sorted(v.value for v in values)
 
     with TestPipeline() as p:
-      pcoll = p | beam.Create(range(-2, 3)) | beam.Map(
+      pcoll = p | beam.Create(range(-2, 3)) | beam.Map(int) | beam.Map(
           lambda x: beam.Row(
               value=x, square=x * x, sign=x // abs(x) if x else 0))
       assert_that(
