@@ -28,8 +28,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.metrics.Distribution;
-import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -138,7 +136,7 @@ public class JsonToRow {
    *
    * <p>You can access the results by using:
    *
-   * <p>ParseResult results = jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA));
+   * <p>ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
    *
    * <p>{@link ParseResult#getResults()}
    *
@@ -159,7 +157,7 @@ public class JsonToRow {
    * @return {@link JsonToRowWithErrFn}
    */
   @Experimental(Kind.SCHEMAS)
-  public static JsonToRowWithErrFn withDeadLetter(Schema rowSchema) {
+  public static JsonToRowWithErrFn withExceptionReporting(Schema rowSchema) {
     return JsonToRowWithErrFn.forSchema(rowSchema);
   }
 
@@ -194,8 +192,6 @@ public class JsonToRow {
     public abstract String getErrorFieldName();
 
     public abstract boolean getExtendedErrorInfo();
-
-    PCollection<Row> deadLetterCollection;
 
     public abstract Builder toBuilder();
 
@@ -286,24 +282,25 @@ public class JsonToRow {
       }
 
       @ProcessElement
-      public void processElement(ProcessContext context) {
+      public void processElement(@Element String element, MultiOutputReceiver output) {
         try {
 
-          context.output(jsonToRow(objectMapper(), context.element()));
+          output.get(PARSED_LINE).output(jsonToRow(objectMapper(), element));
 
         } catch (Exception ex) {
 
           if (withExtendedErrorInfo) {
-            context.output(
-                PARSE_ERROR_LINE_WITH_MSG,
-                Row.withSchema(ERROR_ROW_WITH_ERR_MSG_SCHEMA)
-                    .addValue(context.element())
-                    .addValue(ex.getMessage())
-                    .build());
+            output
+                .get(PARSE_ERROR_LINE_WITH_MSG)
+                .output(
+                    Row.withSchema(ERROR_ROW_WITH_ERR_MSG_SCHEMA)
+                        .addValue(element)
+                        .addValue(ex.getMessage())
+                        .build());
           } else {
-            context.output(
-                PARSE_ERROR_LINE,
-                Row.withSchema(ERROR_ROW_SCHEMA).addValue(context.element()).build());
+            output
+                .get(PARSE_ERROR_LINE)
+                .output(Row.withSchema(ERROR_ROW_SCHEMA).addValue(element).build());
           }
         }
       }
@@ -322,7 +319,7 @@ public class JsonToRow {
     }
   }
 
-  /** The result of a {@link JsonToRow#withDeadLetter(Schema)} transform. */
+  /** The result of a {@link JsonToRow#withExceptionReporting(Schema)} transform. */
   public static final class ParseResult implements POutput {
     private final JsonToRowWithErrFn jsonToRowWithErrFn;
 

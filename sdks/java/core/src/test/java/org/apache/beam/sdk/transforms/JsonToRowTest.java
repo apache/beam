@@ -117,7 +117,7 @@ public class JsonToRowTest implements Serializable {
 
     PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON));
 
-    ParseResult results = jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA));
+    ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
 
     PCollection<Row> personRows = results.getResults();
     PCollection<Row> errors = results.getFailedToParseLines();
@@ -134,7 +134,7 @@ public class JsonToRowTest implements Serializable {
 
     PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON));
 
-    ParseResult results = jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA));
+    ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
     thrown.expect(IllegalArgumentException.class);
     results.getFailedToParseLinesWithErr();
   }
@@ -145,7 +145,7 @@ public class JsonToRowTest implements Serializable {
     PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON));
 
     ParseResult results =
-        jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA).withExtendedErrorInfo());
+        jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA).withExtendedErrorInfo());
 
     thrown.expect(IllegalArgumentException.class);
     results.getFailedToParseLines();
@@ -158,7 +158,7 @@ public class JsonToRowTest implements Serializable {
     PCollection<String> jsonPersons =
         pipeline.apply("jsonPersons", Create.of(JSON_PERSON_WITH_ERR));
 
-    ParseResult results = jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA));
+    ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
 
     PCollection<Row> personRows = results.getResults();
     PCollection<Row> errors = results.getFailedToParseLines();
@@ -180,7 +180,7 @@ public class JsonToRowTest implements Serializable {
         pipeline.apply("jsonPersons", Create.of(JSON_PERSON_WITH_ERR));
 
     ParseResult results =
-        jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA).withExtendedErrorInfo());
+        jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA).withExtendedErrorInfo());
 
     PCollection<Row> personRows = results.getResults();
     PCollection<Row> errorsWithMsg = results.getFailedToParseLinesWithErr();
@@ -205,18 +205,23 @@ public class JsonToRowTest implements Serializable {
   @Category(NeedsRunner.class)
   public void testParsesErrorWithErrorMsgRowsDeadLetterWithCustomFieldNames() throws Exception {
     PCollection<String> jsonPersons =
-            pipeline.apply("jsonPersons", Create.of(JSON_PERSON_WITH_ERR));
+        pipeline.apply("jsonPersons", Create.of(JSON_PERSON_WITH_ERR));
 
     String customErrField = "CUSTOM_ERR";
     String customLineField = "CUSTOM_LINE";
 
     ParseResult results =
-            jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA)
-                    .withExtendedErrorInfo()
-            .setErrorField(customErrField)
-            .setLineField(customLineField));
+        jsonPersons.apply(
+            JsonToRow.withExceptionReporting(PERSON_SCHEMA)
+                .withExtendedErrorInfo()
+                .setErrorField(customErrField)
+                .setLineField(customLineField));
 
-    Schema customSchema = Schema.builder().addField(customLineField, FieldType.STRING).addField(customErrField, FieldType.STRING).build();
+    Schema customSchema =
+        Schema.builder()
+            .addField(customLineField, FieldType.STRING)
+            .addField(customErrField, FieldType.STRING)
+            .build();
 
     PCollection<Row> personRows = results.getResults();
     PCollection<Row> errorsWithMsg = results.getFailedToParseLinesWithErr();
@@ -224,18 +229,13 @@ public class JsonToRowTest implements Serializable {
     PAssert.that(personRows).containsInAnyOrder(PERSON_ROWS);
 
     PAssert.that(errorsWithMsg)
-            .containsInAnyOrder(
-                    row(
-                            customSchema,
-                            "{}",
-                            "Field 'name' is not present in the JSON object"),
-                    row(
-                            customSchema,
-                            "Is it 42?",
-                            "Unable to parse Row"));
+        .containsInAnyOrder(
+            row(customSchema, "{}", "Field 'name' is not present in the JSON object"),
+            row(customSchema, "Is it 42?", "Unable to parse Row"));
 
     pipeline.run();
   }
+
   private static String jsonPerson(String name, String height, String knowsJs) {
     return "{\n"
         + "  \"name\": \""
