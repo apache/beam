@@ -206,7 +206,7 @@ public class NexmarkUtils {
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
-  private static String processingMode(boolean isStreaming) {
+  public static String processingMode(boolean isStreaming) {
     return isStreaming ? "streaming" : "batch";
   }
 

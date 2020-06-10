@@ -467,4 +467,41 @@ public interface NexmarkOptions
   int getNexmarkParallel();
 
   void setNexmarkParallel(int value);
+
+  @Description("InfluxDB measurement to publish results to.")
+  @Nullable
+  String getInfluxMeasurement();
+
+  void setInfluxMeasurement(@Nullable String measurement);
+
+  @Description("InfluxDB host.")
+  @Nullable
+  String getInfluxHost();
+
+  void setInfluxHost(@Nullable String host);
+
+  @Description("InfluxDB database.")
+  @Nullable
+  String getInfluxDatabase();
+
+  void setInfluxDatabase(@Nullable String database);
+
+  @Description("Shall we export the summary to InfluxDB.")
+  @Default.Boolean(false)
+  boolean getExportSummaryToInfluxDB();
+
+  void setExportSummaryToInfluxDB(boolean exportSummaryToInfluxDB);
+
+  @Description("Base name of measurement name if using InfluxDB output.")
+  @Nullable
+  @Default.String("nexmark")
+  String getBaseInfluxMeasurement();
+
+  void setBaseInfluxMeasurement(String influxDBMeasurement);
+
+  @Description("Name of retention policy for Influx data.")
+  @Nullable
+  String getInfluxRetentionPolicy();
+
+  void setInfluxRetentionPolicy(String influxRetentionPolicy);
 }

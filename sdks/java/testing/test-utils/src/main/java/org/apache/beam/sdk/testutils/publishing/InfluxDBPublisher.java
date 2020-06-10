@@ -19,14 +19,17 @@ package org.apache.beam.sdk.testutils.publishing;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-import static org.apache.beam.repackaged.core.org.apache.commons.lang3.StringUtils.isNoneBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Map;
 import org.apache.beam.sdk.testutils.NamedTestResult;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.entity.GzipCompressingEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
@@ -40,13 +43,23 @@ public final class InfluxDBPublisher {
 
   private InfluxDBPublisher() {}
 
+  public static void publishNexmarkResults(
+      final Collection<Map<String, Object>> results, final InfluxDBSettings settings) {
+    publishWithCheck(settings, () -> publishNexmark(results, settings));
+  }
+
   public static void publishWithSettings(
       final Collection<NamedTestResult> results, final InfluxDBSettings settings) {
+    publishWithCheck(settings, () -> publishCommon(results, settings));
+  }
+
+  private static void publishWithCheck(
+      final InfluxDBSettings settings, final PublishFunction publishFunction) {
     requireNonNull(settings, "InfluxDB settings must not be null");
     if (isNoneBlank(settings.measurement, settings.database)) {
       try {
-        publish(results, settings);
-      } catch (final Exception exception) {
+        publishFunction.publish();
+      } catch (Exception exception) {
         LOG.warn("Unable to publish metrics due to error: {}", exception.getMessage(), exception);
       }
     } else {
@@ -54,9 +67,63 @@ public final class InfluxDBPublisher {
     }
   }
 
-  private static void publish(
+  private static void publishNexmark(
+      final Collection<Map<String, Object>> results, final InfluxDBSettings settings)
+      throws Exception {
+
+    final HttpClientBuilder builder = provideHttpBuilder(settings);
+    final HttpPost postRequest = providePOSTRequest(settings);
+    final StringBuilder metricBuilder = new StringBuilder();
+    results.forEach(
+        map ->
+            metricBuilder
+                .append(map.get("measurement"))
+                .append(",")
+                .append(getKV(map, "runner"))
+                .append(" ")
+                .append(getKV(map, "runtimeMs"))
+                .append(",")
+                .append(getKV(map, "numResults"))
+                .append(" ")
+                .append(map.get("timestamp"))
+                .append('\n'));
+
+    postRequest.setEntity(
+        new GzipCompressingEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8))));
+
+    executeWithVerification(postRequest, builder);
+  }
+
+  private static String getKV(final Map<String, Object> map, final String key) {
+    return key + "=" + map.get(key);
+  }
+
+  private static void publishCommon(
       final Collection<NamedTestResult> results, final InfluxDBSettings settings) throws Exception {
 
+    final HttpClientBuilder builder = provideHttpBuilder(settings);
+    final HttpPost postRequest = providePOSTRequest(settings);
+    final StringBuilder metricBuilder = new StringBuilder();
+    results.stream()
+        .map(NamedTestResult::toMap)
+        .forEach(
+            map ->
+                metricBuilder
+                    .append(settings.measurement)
+                    .append(",")
+                    .append(getKV(map, "test_id"))
+                    .append(",")
+                    .append(getKV(map, "metric"))
+                    .append(" ")
+                    .append(getKV(map, "value"))
+                    .append('\n'));
+
+    postRequest.setEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8)));
+
+    executeWithVerification(postRequest, builder);
+  }
+
+  private static HttpClientBuilder provideHttpBuilder(final InfluxDBSettings settings) {
     final HttpClientBuilder builder = HttpClientBuilder.create();
 
     if (isNoneBlank(settings.userName, settings.userPassword)) {
@@ -66,30 +133,18 @@ public final class InfluxDBPublisher {
       builder.setDefaultCredentialsProvider(provider);
     }
 
-    final HttpPost postRequest = new HttpPost(settings.host + "/write?db=" + settings.database);
+    return builder;
+  }
 
-    final StringBuilder metricBuilder = new StringBuilder();
-    results.stream()
-        .map(NamedTestResult::toMap)
-        .forEach(
-            map ->
-                metricBuilder
-                    .append(settings.measurement)
-                    .append(",")
-                    .append("test_id")
-                    .append("=")
-                    .append(map.get("test_id"))
-                    .append(",")
-                    .append("metric")
-                    .append("=")
-                    .append(map.get("metric"))
-                    .append(" ")
-                    .append("value")
-                    .append("=")
-                    .append(map.get("value"))
-                    .append('\n'));
+  private static HttpPost providePOSTRequest(final InfluxDBSettings settings) {
+    final String retentionPolicy =
+        "rp" + (isBlank(settings.retentionPolicy) ? "" : "=" + settings.retentionPolicy);
+    return new HttpPost(
+        settings.host + "/write?db=" + settings.database + "&" + retentionPolicy + "&precision=s");
+  }
 
-    postRequest.setEntity(new ByteArrayEntity(metricBuilder.toString().getBytes(UTF_8)));
+  private static void executeWithVerification(
+      final HttpPost postRequest, final HttpClientBuilder builder) throws IOException {
     try (final CloseableHttpResponse response = builder.build().execute(postRequest)) {
       is2xx(response.getStatusLine().getStatusCode());
     }
@@ -99,5 +154,10 @@ public final class InfluxDBPublisher {
     if (code < 200 || code >= 300) {
       throw new IOException("Response code: " + code);
     }
+  }
+
+  @FunctionalInterface
+  private interface PublishFunction {
+    void publish() throws Exception;
   }
 }
