@@ -25,7 +25,7 @@ import itertools
 from apache_beam.transforms import userstate
 from apache_beam.transforms.trigger import _ListStateTag
 from apache_beam.transforms.trigger import _SetStateTag
-from apache_beam.transforms.trigger import _ValueStateTag
+from apache_beam.transforms.trigger import _ReadModifyWriteStateTag
 
 
 class DirectRuntimeState(userstate.RuntimeState):
@@ -200,7 +200,7 @@ class DirectUserStateContext(userstate.UserStateContext):
     for state_spec in self.all_state_specs:
       state_key = 'user/%s' % state_spec.name
       if isinstance(state_spec, userstate.ReadModifyWriteStateSpec):
-        state_tag = _ValueStateTag(state_key)
+        state_tag = _ReadModifyWriteStateTag(state_key)
       elif isinstance(state_spec, userstate.BagStateSpec):
         state_tag = _ListStateTag(state_key)
       elif isinstance(state_spec, userstate.CombiningValueStateSpec):
