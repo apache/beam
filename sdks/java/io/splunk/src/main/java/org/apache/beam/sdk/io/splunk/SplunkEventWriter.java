@@ -77,7 +77,7 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
   private final StateSpec<ValueState<Long>> count = StateSpecs.value();
 
   @TimerId(TIME_ID_NAME)
-  private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+  private final TimerSpec expirySpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
 
   private Integer batchCount;
   private Boolean disableValidation;
@@ -209,8 +209,8 @@ abstract class SplunkEventWriter extends DoFn<KV<Integer, SplunkEvent>, SplunkWr
    */
   private void flush(
       OutputReceiver<SplunkWriteError> receiver,
-      @StateId(BUFFER_STATE_NAME) BagState<SplunkEvent> bufferState,
-      @StateId(COUNT_STATE_NAME) ValueState<Long> countState)
+      BagState<SplunkEvent> bufferState,
+      ValueState<Long> countState)
       throws IOException {
 
     if (!bufferState.isEmpty().read()) {
