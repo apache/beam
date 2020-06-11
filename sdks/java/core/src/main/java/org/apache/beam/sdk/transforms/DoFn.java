@@ -621,8 +621,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <ul>
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
-   *       passed the current element being processed; the argument type must match the input type
-   *       of this DoFn.
+   *       passed the current element being processed. The argument type must match the input type
+   *       of this DoFn exactly, or both types must have equivalent schemas registered.
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
@@ -699,8 +699,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>One of its arguments must be a {@link RestrictionTracker}. The argument must be of the
    *       exact type {@code RestrictionTracker<RestrictionT, PositionT>}.
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
-   *       passed the current element being processed; the argument type must match the input type
-   *       of this DoFn.
+   *       passed the current element being processed. The argument type must match the input type
+   *       of this DoFn exactly, or both types must have equivalent schemas registered.
    *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
    *       be passed the current restriction being processed; the argument must be of type {@code
    *       RestrictionT}.
