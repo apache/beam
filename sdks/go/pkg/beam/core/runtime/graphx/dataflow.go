@@ -163,8 +163,10 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		return &CoderRef{Type: doubleType}, nil
 
 	case coder.String:
-		// IncludePipelineProtoCoderID since this isn't "known" to dataflow.
-		return &CoderRef{Type: stringType, PipelineProtoCoderID: c.ID}, nil
+		return &CoderRef{
+			Type:       lengthPrefixType,
+			Components: []*CoderRef{{Type: stringType, PipelineProtoCoderID: c.ID}},
+		}, nil
 
 	default:
 		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
@@ -250,16 +252,13 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 			return nil, errors.Errorf("bad length prefix: %+v", c)
 		}
 
-		var ref v1pb.CustomCoder
-		if err := protox.DecodeBase64(c.Components[0].Type, &ref); err != nil {
-			return nil, errors.Wrapf(err, "base64 decode for %v failed", c.Components[0].Type)
+		subC := c.Components[0]
+		switch subC.Type {
+		case stringType: // Needs special handling if wrapped by dataflow.
+			return coder.NewString(), nil
+		default:
+			return decodeDataflowCustomCoder(subC.Type)
 		}
-		custom, err := decodeCustomCoder(&ref)
-		if err != nil {
-			return nil, err
-		}
-		t := typex.New(custom.Type)
-		return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
 
 	case windowedValueType:
 		if len(c.Components) != 2 {
@@ -284,6 +283,19 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	default:
 		return nil, errors.Errorf("custom coders must be length prefixed: %+v", c)
 	}
+}
+
+func decodeDataflowCustomCoder(payload string) (*coder.Coder, error) {
+	var ref v1pb.CustomCoder
+	if err := protox.DecodeBase64(payload, &ref); err != nil {
+		return nil, errors.Wrapf(err, "base64 decode for %v failed", payload)
+	}
+	custom, err := decodeCustomCoder(&ref)
+	if err != nil {
+		return nil, err
+	}
+	t := typex.New(custom.Type)
+	return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
 }
 
 func isCoGBKList(ref *CoderRef) ([]*CoderRef, bool) {
