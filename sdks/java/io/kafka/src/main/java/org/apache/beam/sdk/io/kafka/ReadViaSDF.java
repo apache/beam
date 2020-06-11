@@ -361,13 +361,7 @@ public abstract class ReadViaSDF<K, V>
     PCollection<KafkaRecord<K, V>> output =
         input.apply(
             ParDo.of(
-                new ReadFromKafkaDoFn<>(
-                    getConsumerConfig(),
-                    getOffsetConsumerConfig(),
-                    getKeyDeserializerProvider(),
-                    getValueDeserializerProvider(),
-                    getConsumerFactoryFn(),
-                    getExtractOutputTimestampFn())));
+                new ReadFromKafkaDoFn()));
     output.setCoder(outputCoder);
     if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
       // TODO(BEAM-10123): Add CommitOffsetTransform to expansion.
@@ -432,37 +426,23 @@ public abstract class ReadViaSDF<K, V>
    * KafkaRecord}. By default, a {@link MonotonicallyIncreasing} watermark estimator is used to
    * track watermark.
    */
-  static class ReadFromKafkaDoFn<K, V> extends DoFn<KafkaSourceDescription, KafkaRecord<K, V>> {
+  class ReadFromKafkaDoFn extends DoFn<KafkaSourceDescription, KafkaRecord<K, V>> {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ReadFromKafkaDoFn.class);
+    ReadFromKafkaDoFn() {}
 
-    public ReadFromKafkaDoFn(
-        Map<String, Object> consumerConfig,
-        Map<String, Object> offsetConsumerConfig,
-        DeserializerProvider keyDeserializerProvider,
-        DeserializerProvider valueDeserializerProvider,
-        SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>> consumerFactoryFn,
-        SerializableFunction<KafkaRecord<K, V>, Instant> extractOutputTimestampFn) {
-      this.consumerConfig = consumerConfig;
-      this.offsetConsumerConfig = offsetConsumerConfig;
-      this.keyDeserializerProvider = keyDeserializerProvider;
-      this.valueDeserializerProvider = valueDeserializerProvider;
-      this.consumerFactoryFn = consumerFactoryFn;
-      this.extractOutputTimestampFn = extractOutputTimestampFn;
-    }
+    private final Map<String, Object> consumerConfig = ReadViaSDF.this.getConsumerConfig();
 
-    private final Map<String, Object> consumerConfig;
+    private final Map<String, Object> offsetConsumerConfig = ReadViaSDF.this.getOffsetConsumerConfig();
 
-    private final Map<String, Object> offsetConsumerConfig;
-
-    private final DeserializerProvider keyDeserializerProvider;
-    private final DeserializerProvider valueDeserializerProvider;
+    private final DeserializerProvider keyDeserializerProvider = ReadViaSDF.this.getKeyDeserializerProvider();
+    private final DeserializerProvider valueDeserializerProvider = ReadViaSDF.this.getValueDeserializerProvider();
 
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-        consumerFactoryFn;
-    private final SerializableFunction<KafkaRecord<K, V>, Instant> extractOutputTimestampFn;
+        consumerFactoryFn = ReadViaSDF.this.getConsumerFactoryFn();
+    private final SerializableFunction<KafkaRecord<K, V>, Instant> extractOutputTimestampFn =
+        ReadViaSDF.this.getExtractOutputTimestampFn();
 
-    private static final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
+    private final Duration KAFKA_POLL_TIMEOUT = Duration.millis(1000);
 
     // Variables that are initialized when bundle is started and closed when FinishBundle is called.
     private transient ConsumerSpEL consumerSpEL = null;
@@ -477,12 +457,11 @@ public abstract class ReadViaSDF<K, V>
      * A {@link GrowableOffsetRangeTracker.RangeEndEstimator} which uses a Kafka {@link Consumer} to
      * fetch backlog.
      */
-    static class KafkaLatestOffsetEstimator
+    class KafkaLatestOffsetEstimator
         implements GrowableOffsetRangeTracker.RangeEndEstimator {
       private final Consumer<byte[], byte[]> offsetConsumer;
       private final TopicPartition topicPartition;
       private final ConsumerSpEL consumerSpEL;
-      private static final Logger LOG = LoggerFactory.getLogger(KafkaLatestOffsetEstimator.class);
 
       public KafkaLatestOffsetEstimator(
           Consumer<byte[], byte[]> offsetConsumer, TopicPartition topicPartition) {
