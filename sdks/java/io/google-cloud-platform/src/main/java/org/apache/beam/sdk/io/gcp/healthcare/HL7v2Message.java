@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.healthcare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.services.healthcare.v1beta1.model.Message;
+import com.google.api.services.healthcare.v1beta1.model.SchematizedData;
 import java.io.IOException;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -53,14 +54,14 @@ public class HL7v2Message {
   public static HL7v2Message fromModel(Message msg) {
     SchematizedData schematizedData = msg.getSchematizedData();
     return new HL7v2Message(
-            msg.getName(),
-            msg.getMessageType(),
-            msg.getSendTime(),
-            msg.getCreateTime(),
-            msg.getData(),
-            msg.getSendFacility(),
-            schematizedData != null ? schematizedData.getData() : null,
-            msg.getLabels());
+        msg.getName(),
+        msg.getMessageType(),
+        msg.getSendTime(),
+        msg.getCreateTime(),
+        msg.getData(),
+        msg.getSendFacility(),
+        schematizedData != null ? schematizedData.getData() : null,
+        msg.getLabels());
   }
 
   public HL7v2Message(
