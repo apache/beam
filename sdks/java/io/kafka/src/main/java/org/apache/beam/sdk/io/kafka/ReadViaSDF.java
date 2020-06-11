@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.kafka;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
+import java.util.Collections;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
@@ -27,15 +28,21 @@ import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessElement;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableMap;
@@ -44,6 +51,7 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.utils.AppInfoParser;
@@ -354,18 +362,52 @@ public abstract class ReadViaSDF<K, V>
       }
     }
 
+    // Get key coder and value coder.
     CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
     Coder<K> keyCoder = getKeyCoder(coderRegistry);
     Coder<V> valueCoder = getValueCoder(coderRegistry);
     Coder<KafkaRecord<K, V>> outputCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
+
+
+    PCollection<KV<KafkaSourceDescription, KafkaRecord<K, V>>> outputWithSourceDescription =
+        input.apply(ParDo.of(new ReadFromKafkaDoFn()));
     PCollection<KafkaRecord<K, V>> output =
-        input.apply(
-            ParDo.of(
-                new ReadFromKafkaDoFn()));
+        outputWithSourceDescription.apply(
+            MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
+                .via(element -> element.getValue()));
     output.setCoder(outputCoder);
     if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
-      // TODO(BEAM-10123): Add CommitOffsetTransform to expansion.
-      LOG.warn("Offset committed is not supported yet. Ignore the value.");
+      output = output.apply(Reshuffle.viaRandomKey());
+      outputWithSourceDescription.apply(
+          ParDo.of(
+              new DoFn<KV<KafkaSourceDescription, KafkaRecord<K, V>>, PDone>() {
+                private final Map<String, Object> consumerConfig =
+                    ReadViaSDF.this.getConsumerConfig();
+
+                private final Map<String, Object> offsetConsumerConfig =
+                    ReadViaSDF.this.getOffsetConsumerConfig();
+                private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
+                    consumerFactoryFn = ReadViaSDF.this.getConsumerFactoryFn();
+
+                @ProcessElement
+                public void processElement(
+                    @Element KV<KafkaSourceDescription, KafkaRecord<K, V>> element) {
+                  try (Consumer<byte[], byte[]> offsetConsumer =
+                      consumerFactoryFn.apply(
+                          KafkaIOUtils.getOffsetConsumerConfig(
+                              "commitOffset", offsetConsumerConfig, consumerConfig))) {
+                    TopicPartition topicPartition = element.getKey().getTopicPartition();
+                    try {
+                      offsetConsumer.commitSync(
+                          Collections.singletonMap(
+                              topicPartition,
+                              new OffsetAndMetadata(element.getValue().getOffset() + 1)));
+                    } catch (Exception e) {
+                      LOG.info("Getting exception when committing offset: {}", e.getMessage());
+                    }
+                  }
+                }
+              }));
     }
     return output;
   }
@@ -426,16 +468,20 @@ public abstract class ReadViaSDF<K, V>
    * KafkaRecord}. By default, a {@link MonotonicallyIncreasing} watermark estimator is used to
    * track watermark.
    */
-  class ReadFromKafkaDoFn extends DoFn<KafkaSourceDescription, KafkaRecord<K, V>> {
+  class ReadFromKafkaDoFn
+      extends DoFn<KafkaSourceDescription, KV<KafkaSourceDescription, KafkaRecord<K, V>>> {
 
     ReadFromKafkaDoFn() {}
 
     private final Map<String, Object> consumerConfig = ReadViaSDF.this.getConsumerConfig();
 
-    private final Map<String, Object> offsetConsumerConfig = ReadViaSDF.this.getOffsetConsumerConfig();
+    private final Map<String, Object> offsetConsumerConfig =
+        ReadViaSDF.this.getOffsetConsumerConfig();
 
-    private final DeserializerProvider keyDeserializerProvider = ReadViaSDF.this.getKeyDeserializerProvider();
-    private final DeserializerProvider valueDeserializerProvider = ReadViaSDF.this.getValueDeserializerProvider();
+    private final DeserializerProvider keyDeserializerProvider =
+        ReadViaSDF.this.getKeyDeserializerProvider();
+    private final DeserializerProvider valueDeserializerProvider =
+        ReadViaSDF.this.getValueDeserializerProvider();
 
     private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
         consumerFactoryFn = ReadViaSDF.this.getConsumerFactoryFn();
@@ -457,8 +503,7 @@ public abstract class ReadViaSDF<K, V>
      * A {@link GrowableOffsetRangeTracker.RangeEndEstimator} which uses a Kafka {@link Consumer} to
      * fetch backlog.
      */
-    class KafkaLatestOffsetEstimator
-        implements GrowableOffsetRangeTracker.RangeEndEstimator {
+    class KafkaLatestOffsetEstimator implements GrowableOffsetRangeTracker.RangeEndEstimator {
       private final Consumer<byte[], byte[]> offsetConsumer;
       private final TopicPartition topicPartition;
       private final ConsumerSpEL consumerSpEL;
@@ -592,7 +637,7 @@ public abstract class ReadViaSDF<K, V>
         @Element KafkaSourceDescription kafkaSourceDescription,
         RestrictionTracker<OffsetRange, Long> tracker,
         WatermarkEstimator watermarkEstimator,
-        OutputReceiver<KafkaRecord<K, V>> receiver) {
+        OutputReceiver<KV<KafkaSourceDescription, KafkaRecord<K, V>>> receiver) {
       consumerSpEL.evaluateAssign(
           consumer, ImmutableList.of(kafkaSourceDescription.getTopicPartition()));
       long startOffset = tracker.currentRestriction().getFrom();
@@ -629,7 +674,8 @@ public abstract class ReadViaSDF<K, V>
             avgRecordSize.update(recordSize);
             avgOffsetGap.update(expectedOffset - rawRecord.offset());
             expectedOffset = rawRecord.offset() + 1;
-            receiver.outputWithTimestamp(kafkaRecord, outputTimestamp);
+            receiver.outputWithTimestamp(
+                KV.of(kafkaSourceDescription, kafkaRecord), outputTimestamp);
           }
         }
       } catch (Exception anyException) {
