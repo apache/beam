@@ -22,9 +22,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
 )
 
-// Sum validates that the incoming PCollection<int> is a singleton
-// with the given value. Specialized version of Equals that avoids
-// a lot of machinery for testing.
+// Sum validates that the sum of the incoming PCollection<int> is
+// the same as the given sum, under coder equality.
 func Sum(s beam.Scope, col beam.PCollection, name string, size, value int) {
 	s = s.Scope(fmt.Sprintf("passert.Sum(%v)", name))
 
