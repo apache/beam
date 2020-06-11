@@ -100,6 +100,8 @@ pip_dependencies:
     license: "https://raw.githubusercontent.com/hamcrest/PyHamcrest/master/LICENSE.txt"
   pymongo:
     license: "https://raw.githubusercontent.com/mongodb/mongo-python-driver/master/LICENSE"
+  pysha3:
+    license: "https://raw.githubusercontent.com/tiran/pysha3/master/LICENSE"
   python-gflags:
     license: "https://raw.githubusercontent.com/google/python-gflags/master/COPYING"
   pyvcf:
