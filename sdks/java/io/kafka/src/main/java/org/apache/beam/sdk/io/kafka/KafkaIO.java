@@ -45,9 +45,12 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.Read.Unbounded;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.io.kafka.KafkaData.KafkaSourceDescription;
+import org.apache.beam.sdk.io.kafka.KafkaData.KafkaSourceDescription.StartReadConfig;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -973,7 +976,7 @@ public class KafkaIO {
                             getTopics(),
                             getTopicPartitions(),
                             getStartReadTime())))
-                .setCoder(new KafkaSourceDescription.Coder());
+                .setCoder(ProtoCoder.of(KafkaSourceDescription.class));
 
         // If extractOutputTimestampFn is not set, use processing time by default.
         SerializableFunction<KafkaRecord<K, V>, Instant> timestampFn;
@@ -1023,7 +1026,7 @@ public class KafkaIO {
       abstract Instant getStartReadTime();
 
       @ProcessElement
-      public void processElement(OutputReceiver<KafkaSourceDescription> receiver) {
+      public void processElement(OutputReceiver<KafkaData.KafkaSourceDescription> receiver) {
         List<TopicPartition> partitions = new ArrayList<>(getTopicPartitions());
         if (partitions.isEmpty()) {
           try (Consumer<?, ?> consumer = getConsumerFactoryFn().apply(getConsumerConfig())) {
@@ -1037,12 +1040,24 @@ public class KafkaIO {
         partitions.stream()
             .forEach(
                 topicPartition -> {
+                  KafkaSourceDescription.TopicPartition tp =
+                      KafkaSourceDescription.newBuilder()
+                          .getTopicPartitionBuilder()
+                          .setTopic(topicPartition.topic())
+                          .setPartition(topicPartition.partition())
+                          .build();
+                  KafkaSourceDescription.Builder output =
+                      KafkaSourceDescription.newBuilder().setTopicPartition(tp);
                   if (getStartReadTime() != null) {
                     receiver.output(
-                        KafkaSourceDescription.withStartReadTime(
-                            topicPartition, getStartReadTime()));
+                        output
+                            .setStartReadConfig(
+                                StartReadConfig.newBuilder()
+                                    .setStartReadTime(getStartReadTime().getMillis())
+                                    .build())
+                            .build());
                   } else {
-                    receiver.output(KafkaSourceDescription.of(topicPartition));
+                    receiver.output(output.build());
                   }
                 });
       }

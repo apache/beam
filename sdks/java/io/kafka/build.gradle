@@ -23,6 +23,7 @@ applyJavaNature(
     [id: 'io.confluent', url: 'https://packages.confluent.io/maven/']
   ]
 )
+applyGrpcNature()
 provideIntegrationTestingDependencies()
 enableJavaPerformanceTesting()
 
@@ -33,9 +34,11 @@ dependencies {
   compile library.java.vendored_guava_26_0_jre
   compile project(path: ":sdks:java:core", configuration: "shadow")
   compile project(":sdks:java:expansion-service")
+  compile project(":sdks:java:extensions:protobuf")
   // Get back to "provided" since 2.14
   provided library.java.kafka_clients
   compile library.java.slf4j_api
+  compile library.java.protobuf_java
   compile library.java.joda_time
   compile library.java.jackson_annotations
   compile library.java.jackson_databind

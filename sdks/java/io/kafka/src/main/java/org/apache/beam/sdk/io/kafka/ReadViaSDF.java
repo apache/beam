@@ -18,12 +18,16 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.io.kafka.KafkaData.KafkaSourceDescription;
+import org.apache.beam.sdk.io.kafka.KafkaData.KafkaSourceDescription.StartReadConfig;
+import org.apache.beam.sdk.io.kafka.KafkaData.KafkaSourceDescription.StartReadConfig.StartReadCase;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -511,27 +515,37 @@ public abstract class ReadViaSDF<K, V>
 
     @GetInitialRestriction
     public OffsetRange initialRestriction(@Element KafkaSourceDescription kafkaSourceDescription) {
+      checkState(kafkaSourceDescription.hasTopicPartition());
+      TopicPartition topicPartition =
+          new TopicPartition(
+              kafkaSourceDescription.getTopicPartition().getTopic(),
+              kafkaSourceDescription.getTopicPartition().getPartition());
       try (Consumer<byte[], byte[]> offsetConsumer =
           consumerFactoryFn.apply(
               KafkaIOUtils.getOffsetConsumerConfig(
                   "initialOffset", offsetConsumerConfig, consumerConfig))) {
-        consumerSpEL.evaluateAssign(
-            offsetConsumer, ImmutableList.of(kafkaSourceDescription.getTopicPartition()));
+        consumerSpEL.evaluateAssign(offsetConsumer, ImmutableList.of(topicPartition));
         long startOffset;
-        if (!kafkaSourceDescription
-            .getStartOffset()
-            .equals(KafkaSourceDescription.UNINITIALIZED_START_OFFSET)) {
-          startOffset = kafkaSourceDescription.getStartOffset();
-        } else if (!kafkaSourceDescription
-            .getStartReadTime()
-            .equals(KafkaSourceDescription.UNINITIALIZED_START_TIME)) {
-          startOffset =
-              consumerSpEL.offsetForTime(
-                  offsetConsumer,
-                  kafkaSourceDescription.getTopicPartition(),
-                  kafkaSourceDescription.getStartReadTime());
+        if (kafkaSourceDescription.hasStartReadConfig()) {
+          int index = kafkaSourceDescription.getStartReadConfig().getStartReadCase().getNumber();
+          StartReadCase readCase = kafkaSourceDescription.getStartReadConfig().getStartReadCase();
+          switch (readCase) {
+            case START_OFFSET:
+              startOffset = kafkaSourceDescription.getStartReadConfig().getStartOffset();
+              break;
+            case START_READ_TIME:
+              startOffset =
+                  consumerSpEL.offsetForTime(
+                      offsetConsumer,
+                      topicPartition,
+                      Instant.ofEpochMilli(
+                          kafkaSourceDescription.getStartReadConfig().getStartReadTime()));
+              break;
+            default:
+              startOffset = offsetConsumer.position(topicPartition);
+          }
         } else {
-          startOffset = offsetConsumer.position(kafkaSourceDescription.getTopicPartition());
+          startOffset = offsetConsumer.position(topicPartition);
         }
         return new OffsetRange(startOffset, Long.MAX_VALUE);
       }
@@ -553,6 +567,11 @@ public abstract class ReadViaSDF<K, V>
         @Element KafkaSourceDescription kafkaSourceDescription,
         @Restriction OffsetRange offsetRange)
         throws Exception {
+      checkState(kafkaSourceDescription.hasTopicPartition());
+      TopicPartition topicPartition =
+          new TopicPartition(
+              kafkaSourceDescription.getTopicPartition().getTopic(),
+              kafkaSourceDescription.getTopicPartition().getPartition());
       double numOfRecords = 0.0;
       if (offsetRange.getTo() != Long.MAX_VALUE) {
         numOfRecords = (new OffsetRangeTracker(offsetRange)).getProgress().getWorkRemaining();
@@ -561,13 +580,13 @@ public abstract class ReadViaSDF<K, V>
             new KafkaLatestOffsetEstimator(
                 consumerFactoryFn.apply(
                     KafkaIOUtils.getOffsetConsumerConfig(
-                        kafkaSourceDescription.getTopicPartition().toString(),
+                        topicPartition.toString(),
                         KafkaIOUtils.getOffsetConsumerConfig(
-                            "size-" + kafkaSourceDescription.getTopicPartition().toString(),
+                            "size-" + topicPartition.toString(),
                             offsetConsumerConfig,
                             consumerConfig),
                         consumerConfig)),
-                kafkaSourceDescription.getTopicPartition());
+                topicPartition);
         numOfRecords =
             (new GrowableOffsetRangeTracker(offsetRange.getFrom(), offsetEstimator))
                 .getProgress()
@@ -594,15 +613,17 @@ public abstract class ReadViaSDF<K, V>
     public RestrictionTracker<OffsetRange, Long> restrictionTracker(
         @Element KafkaSourceDescription kafkaSourceDescription,
         @Restriction OffsetRange restriction) {
+      TopicPartition topicPartition =
+          new TopicPartition(
+              kafkaSourceDescription.getTopicPartition().getTopic(),
+              kafkaSourceDescription.getTopicPartition().getPartition());
       if (restriction.getTo() == Long.MAX_VALUE) {
         KafkaLatestOffsetEstimator offsetPoller =
             new KafkaLatestOffsetEstimator(
                 consumerFactoryFn.apply(
                     KafkaIOUtils.getOffsetConsumerConfig(
-                        "tracker-" + kafkaSourceDescription.getTopicPartition(),
-                        offsetConsumerConfig,
-                        consumerConfig)),
-                kafkaSourceDescription.getTopicPartition());
+                        "tracker-" + topicPartition, offsetConsumerConfig, consumerConfig)),
+                topicPartition);
         return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetPoller);
       }
       return new OffsetRangeTracker(restriction);
@@ -614,11 +635,15 @@ public abstract class ReadViaSDF<K, V>
         RestrictionTracker<OffsetRange, Long> tracker,
         WatermarkEstimator watermarkEstimator,
         OutputReceiver<KafkaRecord<K, V>> receiver) {
-      consumerSpEL.evaluateAssign(
-          consumer, ImmutableList.of(kafkaSourceDescription.getTopicPartition()));
+      checkState(kafkaSourceDescription.hasTopicPartition());
+      TopicPartition topicPartition =
+          new TopicPartition(
+              kafkaSourceDescription.getTopicPartition().getTopic(),
+              kafkaSourceDescription.getTopicPartition().getPartition());
+      consumerSpEL.evaluateAssign(consumer, ImmutableList.of(topicPartition));
       long startOffset = tracker.currentRestriction().getFrom();
       long expectedOffset = startOffset;
-      consumer.seek(kafkaSourceDescription.getTopicPartition(), startOffset);
+      consumer.seek(topicPartition, startOffset);
       ConsumerRecords<byte[], byte[]> rawRecords = ConsumerRecords.empty();
 
       try {
