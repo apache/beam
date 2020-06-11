@@ -531,23 +531,6 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/apex">Runner documentation&lt;/a>&lt;/li>
 &lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-apex">runner-apex&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Roadmap: Samza Runner Roadmap</title><link>/roadmap/gearpump-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/gearpump-runner/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="gearpump-runner-roadmap">Gearpump Runner Roadmap&lt;/h1>
-&lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
-&lt;ul>
-&lt;li>&lt;a href="/documentation/runners/gearpump">Runner documentation&lt;/a>&lt;/li>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20runner-gearpump">runner-gearpump&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Samza Runner Roadmap</title><link>/roadmap/samza-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/samza-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");

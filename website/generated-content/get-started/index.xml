@@ -868,7 +868,6 @@ limitations under the License.
 &lt;ul>
 &lt;li>Apache Apex &lt;img src="/images/logos/runners/apex.png" alt="Apache Apex logo">&lt;/li>
 &lt;li>Apache Flink &lt;img src="/images/logos/runners/flink.png" alt="Apache Flink logo">&lt;/li>
-&lt;li>Apache Gearpump (incubating) &lt;img src="/images/logos/runners/gearpump.png" alt="Apache Gearpump logo">&lt;/li>
 &lt;li>Apache Samza &lt;img src="/images/logos/runners/samza.png" height="20px" alt="Apache Samza logo">&lt;/li>
 &lt;li>Apache Spark &lt;img src="/images/logos/runners/spark.png" alt="Apache Spark logo">&lt;/li>
 &lt;li>Google Cloud Dataflow &lt;img src="/images/logos/runners/dataflow.png" alt="Google Cloud Dataflow logo">&lt;/li>
