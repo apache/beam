@@ -52,6 +52,7 @@ const (
 	intervalWindowType = "kind:interval_window"
 
 	cogbklistType = "kind:cogbklist" // CoGBK representation. Not a coder.
+	stringType    = "kind:string"    // Not a classical Dataflow kind.
 )
 
 // WrapIterable adds an iterable (stream) coder for Dataflow side input.
@@ -150,7 +151,6 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
 
 	case coder.Bytes:
-		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
 		return &CoderRef{Type: bytesType}, nil
 
 	case coder.Bool:
@@ -161,6 +161,10 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 
 	case coder.Double:
 		return &CoderRef{Type: doubleType}, nil
+
+	case coder.String:
+		// IncludePipelineProtoCoderID since this isn't "known" to dataflow.
+		return &CoderRef{Type: stringType, PipelineProtoCoderID: c.ID}, nil
 
 	default:
 		return nil, errors.Errorf("bad coder kind: %v", c.Kind)
@@ -194,6 +198,9 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 
 	case doubleType:
 		return coder.NewDouble(), nil
+
+	case stringType:
+		return coder.NewString(), nil
 
 	case pairType:
 		if len(c.Components) != 2 {

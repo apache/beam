@@ -175,6 +175,9 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 		case reflectx.Bool:
 			return &coder.Coder{Kind: coder.Bool, T: t}, nil
 
+		case reflectx.String:
+			return &coder.Coder{Kind: coder.String, T: t}, nil
+
 		default:
 			et := t.Type()
 			if c := coder.LookupCustomCoder(et); c != nil {
