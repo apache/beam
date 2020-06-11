@@ -599,21 +599,6 @@ deps:
     artifact: activemq-junit
     owners:
 
-  org.apache.apex:apex-common:
-    group: org.apache.apex
-    artifact: apex-common
-    owners:
-
-  org.apache.apex:apex-engine:
-    group: org.apache.apex
-    artifact: apex-engine
-    owners:
-
-  org.apache.apex:malhar-library:
-    group: org.apache.apex
-    artifact: malhar-library
-    owners:
-
   org.apache.avro:avro:
     group: org.apache.avro
     artifact: avro

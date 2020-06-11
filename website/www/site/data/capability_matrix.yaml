@@ -22,8 +22,6 @@ capability-matrix:
       name: Apache Spark (RDD/DStream based)
     - class: spark-dataset
       name: Apache Spark Structured Streaming (Dataset based)
-    - class: apex
-      name: Apache Apex
     - class: mapreduce
       name: Apache Hadoop MapReduce
     - class: jstorm
@@ -67,10 +65,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ParDo applies per-element transformations as Spark FlatMapFunction.
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: Supported through Apex operator that wraps the function and processes data as single element bundles.
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -117,10 +111,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>groupByKey</tt>."
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: "Apex runner uses the Beam code for grouping by window and thereby has support for all windowing and triggering mechanisms. Runner does not implement partitioning yet (BEAM-838)"
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -167,10 +157,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -217,10 +203,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>Aggregator</tt> and agg function"
-            - class: apex
-              l1: "Yes"
-              l2: "fully supported"
-              l3: "Default Beam translation. Currently no efficient pre-aggregation (BEAM-935)."
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -266,10 +248,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: supported via inlining only in batch mode
-              l3: ""
-            - class: apex
-              l1: "Partially"
-              l2: supported via inlining
               l3: ""
             - class: mapreduce
               l1: "Yes"
@@ -317,10 +295,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's broadcast variables."
-            - class: apex
-              l1: "Yes"
-              l2: size restrictions
-              l3: No distributed implementation and therefore size restrictions.
             - class: mapreduce
               l1: "Yes"
               l2: fully supported
@@ -367,10 +341,6 @@ capability-matrix:
               l1: "Partially"
               l2: bounded source only
               l3: "Using Spark's DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation)."
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3:
             - class: mapreduce
               l1: "Partially"
               l2: bounded source only
@@ -417,10 +387,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3:
-            - class: apex
-              l1: "Partially"
-              l2: supports bounded-per-element SDFs
-              l3: implementation in streaming mode coming soon
             - class: mapreduce
               l1: "No"
               l2: not implemented
@@ -467,10 +433,6 @@ capability-matrix:
               l1: "Partially"
               l2: All metric types are supported in batch mode.
               l3: Only attempted values are supported. No committed values for metrics.
-            - class: apex
-              l1: "No"
-              l2: Not implemented in runner.
-              l3:
             - class: mapreduce
               l1: "Partially"
               l2: Only attempted counters are supported
@@ -517,10 +479,6 @@ capability-matrix:
               l1: "No"
               l2: not implemented
               l3:
-            - class: apex
-              l1: "Partially"
-              l2: non-merging windows
-              l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
             - class: mapreduce
               l1: "Partially"
               l2: non-merging windows
@@ -574,10 +532,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -623,10 +577,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: mapreduce
               l1: "Yes"
@@ -674,10 +624,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -723,10 +669,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: mapreduce
               l1: "Yes"
@@ -774,10 +716,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -824,10 +762,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: mapreduce
               l1: "Yes"
               l2: supported
@@ -873,10 +807,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: mapreduce
               l1: "Yes"
@@ -932,10 +862,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: batch-only runner
@@ -982,10 +908,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: mapreduce
               l1: "No"
@@ -1034,10 +956,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3:
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1085,10 +1003,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1134,10 +1048,6 @@ capability-matrix:
               l2: pending model support
               l3:
             - class: spark-dataset
-              l1: "No"
-              l2: pending model support
-              l3:
-            - class: apex
               l1: "No"
               l2: pending model support
               l3:
@@ -1188,10 +1098,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1239,10 +1145,6 @@ capability-matrix:
               l1: "No"
               l2: no streaming support in the runner
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1287,10 +1189,6 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: spark-dataset
-              l1: "No"
-              l2: not implemented
-              l3: ""
-            - class: apex
               l1: "No"
               l2: not implemented
               l3: ""
@@ -1348,10 +1246,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: mapreduce
               l1: "No"
               l2: batch-only runner
@@ -1399,10 +1293,6 @@ capability-matrix:
               l1: "No"
               l2: ""
               l3: ""
-            - class: apex
-              l1: "Yes"
-              l2: fully supported
-              l3: "Size restriction, see combine support."
             - class: mapreduce
               l1: "No"
               l2: ""
@@ -1448,10 +1338,6 @@ capability-matrix:
               l2: pending model support
               l3: ""
             - class: spark-dataset
-              l1: "No"
-              l2: pending model support
-              l3: ""
-            - class: apex
               l1: "No"
               l2: pending model support
               l3: ""
@@ -1508,10 +1394,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: apex
-              l1:
-              l2:
-              l3:
             - class: mapreduce
               l1:
               l2:
@@ -1554,10 +1436,6 @@ capability-matrix:
               l1: "No"
               l2:
               l3: not implemented
-            - class: apex
-              l1:
-              l2:
-              l3:
             - class: mapreduce
               l1:
               l2:
