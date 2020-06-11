@@ -25,6 +25,8 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -41,7 +43,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
@@ -368,46 +369,51 @@ public abstract class ReadViaSDF<K, V>
     Coder<V> valueCoder = getValueCoder(coderRegistry);
     Coder<KafkaRecord<K, V>> outputCoder = KafkaRecordCoder.of(keyCoder, valueCoder);
 
-
     PCollection<KV<KafkaSourceDescription, KafkaRecord<K, V>>> outputWithSourceDescription =
-        input.apply(ParDo.of(new ReadFromKafkaDoFn()));
+        input
+            .apply(ParDo.of(new ReadFromKafkaDoFn()))
+            .setCoder(KvCoder.of(new KafkaSourceDescription.Coder(), outputCoder));
     PCollection<KafkaRecord<K, V>> output =
-        outputWithSourceDescription.apply(
-            MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
-                .via(element -> element.getValue()));
-    output.setCoder(outputCoder);
+        outputWithSourceDescription
+            .apply(
+                MapElements.into(new TypeDescriptor<KafkaRecord<K, V>>() {})
+                    .via(element -> element.getValue()))
+            .setCoder(outputCoder);
     if (isCommitOffsetEnabled() && !configuredKafkaCommit()) {
-      output = output.apply(Reshuffle.viaRandomKey());
-      outputWithSourceDescription.apply(
-          ParDo.of(
-              new DoFn<KV<KafkaSourceDescription, KafkaRecord<K, V>>, PDone>() {
-                private final Map<String, Object> consumerConfig =
-                    ReadViaSDF.this.getConsumerConfig();
+      output = output.apply(Reshuffle.viaRandomKey()).setCoder(outputCoder);
+      outputWithSourceDescription
+          .apply(
+              ParDo.of(
+                  new DoFn<KV<KafkaSourceDescription, KafkaRecord<K, V>>, Void>() {
+                    private final Map<String, Object> consumerConfig =
+                        ReadViaSDF.this.getConsumerConfig();
 
-                private final Map<String, Object> offsetConsumerConfig =
-                    ReadViaSDF.this.getOffsetConsumerConfig();
-                private final SerializableFunction<Map<String, Object>, Consumer<byte[], byte[]>>
-                    consumerFactoryFn = ReadViaSDF.this.getConsumerFactoryFn();
+                    private final Map<String, Object> offsetConsumerConfig =
+                        ReadViaSDF.this.getOffsetConsumerConfig();
+                    private final SerializableFunction<
+                            Map<String, Object>, Consumer<byte[], byte[]>>
+                        consumerFactoryFn = ReadViaSDF.this.getConsumerFactoryFn();
 
-                @ProcessElement
-                public void processElement(
-                    @Element KV<KafkaSourceDescription, KafkaRecord<K, V>> element) {
-                  try (Consumer<byte[], byte[]> offsetConsumer =
-                      consumerFactoryFn.apply(
-                          KafkaIOUtils.getOffsetConsumerConfig(
-                              "commitOffset", offsetConsumerConfig, consumerConfig))) {
-                    TopicPartition topicPartition = element.getKey().getTopicPartition();
-                    try {
-                      offsetConsumer.commitSync(
-                          Collections.singletonMap(
-                              topicPartition,
-                              new OffsetAndMetadata(element.getValue().getOffset() + 1)));
-                    } catch (Exception e) {
-                      LOG.info("Getting exception when committing offset: {}", e.getMessage());
+                    @ProcessElement
+                    public void processElement(
+                        @Element KV<KafkaSourceDescription, KafkaRecord<K, V>> element) {
+                      try (Consumer<byte[], byte[]> offsetConsumer =
+                          consumerFactoryFn.apply(
+                              KafkaIOUtils.getOffsetConsumerConfig(
+                                  "commitOffset", offsetConsumerConfig, consumerConfig))) {
+                        TopicPartition topicPartition = element.getKey().getTopicPartition();
+                        try {
+                          offsetConsumer.commitSync(
+                              Collections.singletonMap(
+                                  topicPartition,
+                                  new OffsetAndMetadata(element.getValue().getOffset() + 1)));
+                        } catch (Exception e) {
+                          LOG.info("Getting exception when committing offset: {}", e.getMessage());
+                        }
+                      }
                     }
-                  }
-                }
-              }));
+                  }))
+          .setCoder(VoidCoder.of());
     }
     return output;
   }
