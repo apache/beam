@@ -32,6 +32,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
+import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn.Builder;
+import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn.ParseWithError;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.values.PCollection;
@@ -166,10 +168,6 @@ public class JsonToRow {
 
     private Pipeline pipeline;
 
-    private PCollection<Row> parsedLine;
-    private PCollection<Row> failedParse;
-    private PCollection<Row> failedParseWithErr;
-
     private static final String LINE_FIELD_NAME = "line";
     private static final String ERROR_FIELD_NAME = "err";
 
@@ -255,30 +253,42 @@ public class JsonToRow {
 
       PCollectionTuple result =
           jsonStrings.apply(
-              ParDo.of(new ParseWithError(this.getSchema(), getExtendedErrorInfo()))
+              ParDo.of(ParseWithError.create(this))
                   .withOutputTags(
                       PARSED_LINE,
                       TupleTagList.of(PARSE_ERROR_LINE).and(PARSE_ERROR_LINE_WITH_MSG)));
 
-      this.parsedLine = result.get(PARSED_LINE).setRowSchema(this.getSchema());
-      this.failedParse =
-          result.get(PARSE_ERROR_LINE).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_SCHEMA);
-      this.failedParseWithErr =
-          result
-              .get(PARSE_ERROR_LINE_WITH_MSG)
-              .setRowSchema(JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA);
-
-      return ParseResult.result(this);
+      return ParseResult.resultBuilder()
+          .setJsonToRowWithErrFn(this)
+          .setParsedLine(result.get(PARSED_LINE).setRowSchema(this.getSchema()))
+          .setFailedParse(
+              result.get(PARSE_ERROR_LINE).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_SCHEMA))
+          .setFailedParseWithErr(
+              result
+                  .get(PARSE_ERROR_LINE_WITH_MSG)
+                  .setRowSchema(JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA))
+          .build();
     }
 
-    private static class ParseWithError extends DoFn<String, Row> {
+    @AutoValue
+    protected abstract static class ParseWithError extends DoFn<String, Row> {
       private transient volatile @Nullable ObjectMapper objectMapper;
-      Schema schema;
-      Boolean withExtendedErrorInfo;
 
-      ParseWithError(Schema schema, Boolean withExtendedErrorInfo) {
-        this.schema = schema;
-        this.withExtendedErrorInfo = withExtendedErrorInfo;
+      public abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
+
+      public abstract Builder toBuilder();
+
+      @AutoValue.Builder
+      public abstract static class Builder {
+        public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
+
+        public abstract ParseWithError build();
+      }
+
+      public static ParseWithError create(JsonToRowWithErrFn jsonToRowWithErrFn) {
+        return new AutoValue_JsonToRow_JsonToRowWithErrFn_ParseWithError.Builder()
+            .setJsonToRowWithErrFn(jsonToRowWithErrFn)
+            .build();
       }
 
       @ProcessElement
@@ -289,7 +299,7 @@ public class JsonToRow {
 
         } catch (Exception ex) {
 
-          if (withExtendedErrorInfo) {
+          if (getJsonToRowWithErrFn().getExtendedErrorInfo()) {
             output
                 .get(PARSE_ERROR_LINE_WITH_MSG)
                 .output(
@@ -309,7 +319,9 @@ public class JsonToRow {
         if (this.objectMapper == null) {
           synchronized (this) {
             if (this.objectMapper == null) {
-              this.objectMapper = newObjectMapperWith(RowJsonDeserializer.forSchema(schema));
+              this.objectMapper =
+                  newObjectMapperWith(
+                      RowJsonDeserializer.forSchema(getJsonToRowWithErrFn().getSchema()));
             }
           }
         }
@@ -320,36 +332,55 @@ public class JsonToRow {
   }
 
   /** The result of a {@link JsonToRow#withExceptionReporting(Schema)} transform. */
-  public static final class ParseResult implements POutput {
-    private final JsonToRowWithErrFn jsonToRowWithErrFn;
+  @AutoValue
+  public abstract static class ParseResult implements POutput {
 
-    private ParseResult(JsonToRowWithErrFn jsonToRowWithErrFn) {
-      this.jsonToRowWithErrFn = jsonToRowWithErrFn;
+    public abstract JsonToRowWithErrFn getJsonToRowWithErrFn();
+
+    public abstract PCollection<Row> getParsedLine();
+
+    public abstract PCollection<Row> getFailedParse();
+
+    public abstract PCollection<Row> getFailedParseWithErr();
+
+    public abstract ParseResult.Builder toBuilder();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setJsonToRowWithErrFn(JsonToRowWithErrFn value);
+
+      public abstract Builder setParsedLine(PCollection<Row> value);
+
+      public abstract Builder setFailedParse(PCollection<Row> value);
+
+      public abstract Builder setFailedParseWithErr(PCollection<Row> value);
+
+      public abstract ParseResult build();
     }
 
-    public static ParseResult result(JsonToRowWithErrFn jsonToRowWithErrFn) {
-      return new ParseResult(jsonToRowWithErrFn);
+    public static ParseResult.Builder resultBuilder() {
+      return new AutoValue_JsonToRow_ParseResult.Builder();
     }
 
     @Override
     public Pipeline getPipeline() {
-      return jsonToRowWithErrFn.pipeline;
+      return getJsonToRowWithErrFn().pipeline;
     }
 
     @Override
     public Map<TupleTag<?>, PValue> expand() {
-      if (jsonToRowWithErrFn.getExtendedErrorInfo()) {
+      if (getJsonToRowWithErrFn().getExtendedErrorInfo()) {
         return ImmutableMap.of(
             JsonToRowWithErrFn.PARSED_LINE,
-            jsonToRowWithErrFn.parsedLine,
+            getParsedLine(),
             JsonToRowWithErrFn.PARSE_ERROR_LINE_WITH_MSG,
-            jsonToRowWithErrFn.failedParseWithErr);
+            getFailedParseWithErr());
       }
       return ImmutableMap.of(
           JsonToRowWithErrFn.PARSED_LINE,
-          jsonToRowWithErrFn.parsedLine,
+          getParsedLine(),
           JsonToRowWithErrFn.PARSE_ERROR_LINE,
-          jsonToRowWithErrFn.failedParse);
+          getFailedParse());
     }
 
     @Override
@@ -358,7 +389,7 @@ public class JsonToRow {
 
     /** Returns a {@link PCollection} containing the {@link Row}s that have been parsed. */
     public PCollection<Row> getResults() {
-      return jsonToRowWithErrFn.parsedLine;
+      return getParsedLine();
     }
 
     /**
@@ -370,10 +401,10 @@ public class JsonToRow {
      */
     public PCollection<Row> getFailedToParseLines() {
       checkArgument(
-          !jsonToRowWithErrFn.getExtendedErrorInfo(),
+          !getJsonToRowWithErrFn().getExtendedErrorInfo(),
           "Cannot use getFailedToParseLines as this ParseResult uses extended errors"
               + " information. Use getFailedToParseLinesWithErr instead");
-      return jsonToRowWithErrFn.failedParse;
+      return getFailedParse();
     }
 
     /**
@@ -385,10 +416,10 @@ public class JsonToRow {
      */
     public PCollection<Row> getFailedToParseLinesWithErr() {
       checkArgument(
-          jsonToRowWithErrFn.getExtendedErrorInfo(),
+          getJsonToRowWithErrFn().getExtendedErrorInfo(),
           "Cannot use getFailedInsertsWithErr as this ParseResult does not return"
               + " extended errors. Use getFailedToParseLines instead");
-      return jsonToRowWithErrFn.failedParseWithErr;
+      return getFailedParseWithErr();
     }
   }
 }
