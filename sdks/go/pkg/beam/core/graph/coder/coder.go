@@ -164,6 +164,7 @@ type Kind string
 const (
 	Custom        Kind = "Custom" // Implicitly length-prefixed
 	Bytes         Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
+	String        Kind = "string" // Implicitly length-prefixed as part of the encoding.
 	Bool          Kind = "bool"
 	VarInt        Kind = "varint"
 	Double        Kind = "double"
@@ -277,6 +278,11 @@ func NewVarInt() *Coder {
 // NewDouble returns a new double coder using the built-in scheme.
 func NewDouble() *Coder {
 	return &Coder{Kind: Double, T: typex.New(reflectx.Float64)}
+}
+
+// NewString returns a new string coder using the built-in scheme.
+func NewString() *Coder {
+	return &Coder{Kind: String, T: typex.New(reflectx.String)}
 }
 
 // IsW returns true iff the coder is for a WindowedValue.
