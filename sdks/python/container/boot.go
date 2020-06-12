@@ -38,7 +38,7 @@ import (
 )
 
 var (
-	acceptableWhlSpecs = []string{"cp27-cp27mu-manylinux1_x86_64.whl", "cp37-cp37m-manylinux1_x86_64.whl"}
+	acceptableWhlSpecs = []string{"cp27-cp27mu-manylinux1_x86_64.whl", "cp35-cp35m-manylinux1_x86_64.whl", "cp36-cp36m-manylinux1_x86_64.whl", "cp37-cp37m-manylinux1_x86_64.whl"}
 
 	// Contract: https://s.apache.org/beam-fn-api-container-contract.
 
