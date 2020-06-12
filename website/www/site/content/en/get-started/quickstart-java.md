@@ -126,6 +126,15 @@ repositories {
     }
 }
 {{< /highlight >}}
+1. Add the following task in `build.gradle` to allow you to execute pipelines with Gradle:
+{{< highlight >}}
+task execute (type:JavaExec) {
+    main = System.getProperty("mainClass")
+    classpath = sourceSets.main.runtimeClasspath
+    systemProperties System.getProperties()
+    args System.getProperty("exec.args").split()
+}
+{{< /highlight >}}
 1. Rebuild your project by running:
 {{< highlight >}}
 $ gradle build
@@ -143,6 +152,8 @@ After you've chosen which runner you'd like to use:
     1. Adding any runner-specific required options
     1. Choosing input files and an output location are accessible on the chosen runner. (For example, you can't access a local file if you are running the pipeline on an external cluster.)
 1.  Run your first WordCount pipeline.
+
+### Run WordCount Using Maven
 
 For Unix shells:
 
@@ -258,6 +269,50 @@ PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.Wor
 PS> mvn package -P jet-runner
 PS> java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount `
       --runner=JetRunner --jetLocalMode=3 --inputFile=$pwd/pom.xml --output=counts
+{{< /highlight >}}
+
+### Run WordCount Using Gradle
+
+For Unix shells (Instructions currently only available for Direct, Spark, and Dataflow):
+
+{{< highlight class="runner-direct">}}
+$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+{{< /highlight >}}
+
+{{< highlight class="runner-apex">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-flink-local">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-flink-cluster">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-spark" >}}
+$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--inputFile=pom.xml --output=counts" -Pspark-runner
+{{< /highlight >}}
+
+{{< highlight class="runner-dataflow" >}}
+$ gradle clean execute -DmainClass=org.apache.beam.examples.WordCount \
+    -Dexec.args="--project=<your-gcp-project> --inputFile=gs://apache-beam-samples/shakespeare/* \
+    --output=gs://<your-gcs-bucket>/counts" -Pdataflow-runner
+{{< /highlight >}}
+
+{{< highlight class="runner-samza-local">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-nemo">}}
+We are working on adding the instruction for this runner!
+{{< /highlight >}}
+
+{{< highlight class="runner-jet">}}
+We are working on adding the instruction for this runner!
 {{< /highlight >}}
 
 ## Inspect the results
