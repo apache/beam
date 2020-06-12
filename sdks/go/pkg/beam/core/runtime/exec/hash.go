@@ -42,6 +42,9 @@ func makeElementHasher(c *coder.Coder) elementHasher {
 	case coder.VarInt:
 		return &numberHasher{}
 
+	case coder.String:
+		return &stringHasher{hash: hasher}
+
 	case coder.Custom:
 		// Shortcut for primitives where we know we can do better.
 		switch c.Custom.Type {
@@ -49,8 +52,6 @@ func makeElementHasher(c *coder.Coder) elementHasher {
 			reflectx.Uint, reflectx.Uint8, reflectx.Uint16, reflectx.Uint32, reflectx.Uint64,
 			reflectx.Float32, reflectx.Float64:
 			return &numberHasher{}
-		case reflectx.String:
-			return &stringHasher{hash: hasher}
 		}
 		// TODO(lostluck): 2019.02.07 - consider supporting encoders that
 		// take in a io.Writer instead.
