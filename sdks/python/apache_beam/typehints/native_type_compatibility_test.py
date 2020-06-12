@@ -104,15 +104,25 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
         typehints.Iterator[int],
         convert_to_beam_type(typing.Generator[int, None, None]))
 
-  def test_string_literal_converted_to_any(self):
-    self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
-
   def test_newtype(self):
     self.assertEqual(
         typehints.Any, convert_to_beam_type(typing.NewType('Number', int)))
 
+  def test_pattern(self):
+    # TODO(BEAM-10254): Unsupported.
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[str]))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Pattern[bytes]))
+
+  def test_match(self):
+    # TODO(BEAM-10254): Unsupported.
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[str]))
+    self.assertEqual(typehints.Any, convert_to_beam_type(typing.Match[bytes]))
+
   def test_forward_reference(self):
     self.assertEqual(typehints.Any, convert_to_beam_type('int'))
+    self.assertEqual(typehints.Any, convert_to_beam_type('typing.List[int]'))
     self.assertEqual(
         typehints.List[typehints.Any], convert_to_beam_type(typing.List['int']))
 
