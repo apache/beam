@@ -18,9 +18,12 @@ module groupbykey
 go 1.14
 
 require (
-	github.com/apache/beam v2.20.0+incompatible
+	github.com/apache/beam v2.22.0+incompatible
 	github.com/golang/protobuf v1.4.2 // indirect
 	github.com/google/go-cmp v0.4.1
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
+	golang.org/x/sys v0.0.0-20200610111108-226ff32320da // indirect
 	google.golang.org/api v0.24.0 // indirect
+	google.golang.org/genproto v0.0.0-20200611194920-44ba362f84c1 // indirect
 	google.golang.org/grpc v1.29.1 // indirect
 )
