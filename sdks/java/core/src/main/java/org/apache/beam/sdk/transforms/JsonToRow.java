@@ -19,7 +19,6 @@ package org.apache.beam.sdk.transforms;
 
 import static org.apache.beam.sdk.util.RowJsonUtils.jsonToRow;
 import static org.apache.beam.sdk.util.RowJsonUtils.newObjectMapperWith;
-import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.value.AutoValue;
@@ -32,8 +31,6 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
-import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn.Builder;
-import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn.ParseWithError;
 import org.apache.beam.sdk.util.RowJson;
 import org.apache.beam.sdk.util.RowJson.RowJsonDeserializer;
 import org.apache.beam.sdk.values.PCollection;
@@ -133,28 +130,30 @@ public class JsonToRow {
   }
 
   /**
-   * Enable Dead letter support. If this value is set errors in the parsing layer are returned as
-   * Row objects within a {@link ParseResult}
+   * Enable Exception Reporting support. If this value is set errors in the parsing layer are
+   * returned as Row objects within a {@link ParseResult}
    *
-   * <p>You can access the results by using:
+   * <p>You can access the results by using {@link JsonToRow#withExceptionReporting(Schema)}:
    *
    * <p>ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
    *
-   * <p>{@link ParseResult#getResults()}
+   * <p>Then access the parsed results via, {@link ParseResult#getResults()}
    *
    * <p>{@Code PCollection<Row> personRows = results.getResults()}
    *
-   * <p>{@link ParseResult#getFailedToParseLines()}
+   * <p>And access the failed to parse results via, {@link ParseResult#getFailedToParseLines()}
    *
    * <p>{@Code PCollection<Row> errorsLines = results.getFailedToParseLines()}
    *
+   * <p>This will produce a Row with Schema {@link JsonToRowWithErrFn#ERROR_ROW_SCHEMA}
+   *
    * <p>To access the reason for the failure you will need to first enable extended error reporting.
-   * {@Code ParseResult results =
-   * jsonPersons.apply(JsonToRow.withDeadLetter(PERSON_SCHEMA).withExtendedErrorInfo()); }
+   * {@link JsonToRowWithErrFn#withExtendedErrorInfo()} {@Code ParseResult results =
+   * jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA).withExtendedErrorInfo()); }
    *
-   * <p>{@link ParseResult#getFailedToParseLinesWithErr()}
-   *
-   * <p>{@Code PCollection<Row> errorsLinesWithErrMsg = results.getFailedToParseLines()}
+   * <p>This will provide access to the reason for the Parse failure. The call to {@link
+   * ParseResult#getFailedToParseLines()} will produce a Row with Schema {@link
+   * JsonToRowWithErrFn#ERROR_ROW_WITH_ERR_MSG_SCHEMA}
    *
    * @return {@link JsonToRowWithErrFn}
    */
@@ -180,8 +179,7 @@ public class JsonToRow {
             Field.of(ERROR_FIELD_NAME, FieldType.STRING));
 
     static final TupleTag<Row> PARSED_LINE = new TupleTag<Row>() {};
-    static final TupleTag<Row> PARSE_ERROR_LINE = new TupleTag<Row>() {};
-    static final TupleTag<Row> PARSE_ERROR_LINE_WITH_MSG = new TupleTag<Row>() {};
+    static final TupleTag<Row> PARSE_ERROR = new TupleTag<Row>() {};
 
     public abstract Schema getSchema();
 
@@ -254,19 +252,21 @@ public class JsonToRow {
       PCollectionTuple result =
           jsonStrings.apply(
               ParDo.of(ParseWithError.create(this))
-                  .withOutputTags(
-                      PARSED_LINE,
-                      TupleTagList.of(PARSE_ERROR_LINE).and(PARSE_ERROR_LINE_WITH_MSG)));
+                  .withOutputTags(PARSED_LINE, TupleTagList.of(PARSE_ERROR)));
+
+      PCollection<Row> failures;
+
+      if (getExtendedErrorInfo()) {
+        failures =
+            result.get(PARSE_ERROR).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA);
+      } else {
+        failures = result.get(PARSE_ERROR).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_SCHEMA);
+      }
 
       return ParseResult.resultBuilder()
           .setJsonToRowWithErrFn(this)
           .setParsedLine(result.get(PARSED_LINE).setRowSchema(this.getSchema()))
-          .setFailedParse(
-              result.get(PARSE_ERROR_LINE).setRowSchema(JsonToRowWithErrFn.ERROR_ROW_SCHEMA))
-          .setFailedParseWithErr(
-              result
-                  .get(PARSE_ERROR_LINE_WITH_MSG)
-                  .setRowSchema(JsonToRowWithErrFn.ERROR_ROW_WITH_ERR_MSG_SCHEMA))
+          .setFailedParse(failures)
           .build();
     }
 
@@ -301,7 +301,7 @@ public class JsonToRow {
 
           if (getJsonToRowWithErrFn().getExtendedErrorInfo()) {
             output
-                .get(PARSE_ERROR_LINE_WITH_MSG)
+                .get(PARSE_ERROR)
                 .output(
                     Row.withSchema(ERROR_ROW_WITH_ERR_MSG_SCHEMA)
                         .addValue(element)
@@ -309,7 +309,7 @@ public class JsonToRow {
                         .build());
           } else {
             output
-                .get(PARSE_ERROR_LINE)
+                .get(PARSE_ERROR)
                 .output(Row.withSchema(ERROR_ROW_SCHEMA).addValue(element).build());
           }
         }
@@ -341,8 +341,6 @@ public class JsonToRow {
 
     public abstract PCollection<Row> getFailedParse();
 
-    public abstract PCollection<Row> getFailedParseWithErr();
-
     public abstract ParseResult.Builder toBuilder();
 
     @AutoValue.Builder
@@ -352,8 +350,6 @@ public class JsonToRow {
       public abstract Builder setParsedLine(PCollection<Row> value);
 
       public abstract Builder setFailedParse(PCollection<Row> value);
-
-      public abstract Builder setFailedParseWithErr(PCollection<Row> value);
 
       public abstract ParseResult build();
     }
@@ -369,17 +365,10 @@ public class JsonToRow {
 
     @Override
     public Map<TupleTag<?>, PValue> expand() {
-      if (getJsonToRowWithErrFn().getExtendedErrorInfo()) {
-        return ImmutableMap.of(
-            JsonToRowWithErrFn.PARSED_LINE,
-            getParsedLine(),
-            JsonToRowWithErrFn.PARSE_ERROR_LINE_WITH_MSG,
-            getFailedParseWithErr());
-      }
       return ImmutableMap.of(
           JsonToRowWithErrFn.PARSED_LINE,
           getParsedLine(),
-          JsonToRowWithErrFn.PARSE_ERROR_LINE,
+          JsonToRowWithErrFn.PARSE_ERROR,
           getFailedParse());
     }
 
@@ -395,31 +384,11 @@ public class JsonToRow {
     /**
      * Returns a {@link PCollection} containing the {@link Row}s that didn't parse.
      *
-     * <p>Only use this method if you haven't enabled {@link
-     * JsonToRowWithErrFn#withExtendedErrorInfo()} . Otherwise use {@link
-     * ParseResult##getFailedInsertsWithErr()}
+     * <p>If {@link JsonToRowWithErrFn#withExtendedErrorInfo()} was set then the schema will also
+     * include the error message.
      */
     public PCollection<Row> getFailedToParseLines() {
-      checkArgument(
-          !getJsonToRowWithErrFn().getExtendedErrorInfo(),
-          "Cannot use getFailedToParseLines as this ParseResult uses extended errors"
-              + " information. Use getFailedToParseLinesWithErr instead");
       return getFailedParse();
-    }
-
-    /**
-     * Returns a {@link PCollection} containing the a Row with detailed error information.
-     *
-     * <p>Only use this method if you have enabled {@link
-     * JsonToRowWithErrFn#withExtendedErrorInfo()}. * Otherwise use {@link
-     * ParseResult#getFailedToParseLines()}
-     */
-    public PCollection<Row> getFailedToParseLinesWithErr() {
-      checkArgument(
-          getJsonToRowWithErrFn().getExtendedErrorInfo(),
-          "Cannot use getFailedInsertsWithErr as this ParseResult does not return"
-              + " extended errors. Use getFailedToParseLines instead");
-      return getFailedParseWithErr();
     }
   }
 }

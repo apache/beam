@@ -130,28 +130,6 @@ public class JsonToRowTest implements Serializable {
   }
 
   @Test
-  public void testCanNotGetExtendedErrorWithoutSettingExtendedError() throws Exception {
-
-    PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON));
-
-    ParseResult results = jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA));
-    thrown.expect(IllegalArgumentException.class);
-    results.getFailedToParseLinesWithErr();
-  }
-
-  @Test
-  public void testCanNotGetStandardErrorWithExtendedErrorSet() throws Exception {
-
-    PCollection<String> jsonPersons = pipeline.apply("jsonPersons", Create.of(JSON_PERSON));
-
-    ParseResult results =
-        jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA).withExtendedErrorInfo());
-
-    thrown.expect(IllegalArgumentException.class);
-    results.getFailedToParseLines();
-  }
-
-  @Test
   @Category(NeedsRunner.class)
   public void testParsesErrorRowsDeadLetter() throws Exception {
 
@@ -183,7 +161,7 @@ public class JsonToRowTest implements Serializable {
         jsonPersons.apply(JsonToRow.withExceptionReporting(PERSON_SCHEMA).withExtendedErrorInfo());
 
     PCollection<Row> personRows = results.getResults();
-    PCollection<Row> errorsWithMsg = results.getFailedToParseLinesWithErr();
+    PCollection<Row> errorsWithMsg = results.getFailedToParseLines();
 
     PAssert.that(personRows).containsInAnyOrder(PERSON_ROWS);
 
@@ -224,7 +202,7 @@ public class JsonToRowTest implements Serializable {
             .build();
 
     PCollection<Row> personRows = results.getResults();
-    PCollection<Row> errorsWithMsg = results.getFailedToParseLinesWithErr();
+    PCollection<Row> errorsWithMsg = results.getFailedToParseLines();
 
     PAssert.that(personRows).containsInAnyOrder(PERSON_ROWS);
 
