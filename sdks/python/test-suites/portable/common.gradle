@@ -207,6 +207,13 @@ task sparkValidatesRunner() {
   dependsOn 'sparkCompatibilityMatrixLoopback'
 }
 
+task pythonSparkPostCommit() {
+  dependsOn ":sdks:python:test-suites:portable:py35:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py36:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py37:sparkValidatesRunner"
+  dependsOn ":sdks:python:test-suites:portable:py2:sparkValidatesRunner"
+}
+
 project.task("preCommitPy${pythonVersionSuffix}") {
   dependsOn = [":sdks:python:container:py${pythonVersionSuffix}:docker",
                ':runners:flink:1.10:job-server:shadowJar',
