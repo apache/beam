@@ -555,6 +555,15 @@ public class ParDoTranslation {
           }
 
           @Override
+          public RunnerApi.StateSpec dispatchOrderedList(Coder<?> elementCoder) {
+            return builder
+                .setOrderedListSpec(
+                    RunnerApi.OrderedListStateSpec.newBuilder()
+                        .setElementCoderId(registerCoderOrThrow(components, elementCoder)))
+                .build();
+          }
+
+          @Override
           public RunnerApi.StateSpec dispatchCombining(
               Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder) {
             return builder
