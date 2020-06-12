@@ -33,7 +33,7 @@ public abstract class InsertRetryPolicy implements Serializable {
    */
   public static class Context {
     // A list of all errors corresponding to an attempted insert of a single record.
-    TableDataInsertAllResponse.InsertErrors errors;
+    public final TableDataInsertAllResponse.InsertErrors errors;
 
     public Context(TableDataInsertAllResponse.InsertErrors errors) {
       this.errors = errors;
