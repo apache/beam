@@ -28,6 +28,7 @@ import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertDa
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.convertTimeValueToTimeString;
 import static org.apache.beam.sdk.extensions.sql.zetasql.DateTimeUtils.safeMicrosToMillis;
 import static org.apache.beam.sdk.extensions.sql.zetasql.ZetaSQLCastFunctionImpl.ZETASQL_CAST_OP;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
@@ -66,6 +67,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperatorRewriter;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlOperators;
 import org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable;
@@ -567,37 +569,71 @@ public class ExpressionConverter {
       TableValuedFunction tvf,
       List<ResolvedNodes.ResolvedTVFArgument> argumentList,
       List<ResolvedColumn> inputTableColumns) {
+    ResolvedColumn wmCol;
     switch (tvf.getName()) {
-      case "TUMBLE":
+      case TVFStreamingUtils.FIXED_WINDOW_TVF:
         // TUMBLE tvf's second argument is descriptor.
-        ResolvedColumn wmCol =
-            extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
-        if (wmCol.getType().getKind() != TYPE_TIMESTAMP) {
-          throw new IllegalArgumentException(
-              "Watermarked column should be TIMESTAMP type: "
-                  + extractWatermarkColumnNameFromDescriptor(
-                      argumentList.get(1).getDescriptorArg()));
-        }
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+
         return (RexCall)
             rexBuilder()
                 .makeCall(
                     new SqlWindowTableFunction(SqlKind.TUMBLE.name()),
                     convertRelNodeToRexRangeRef(input),
-                    convertWatermarkedResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertResolvedColumnToRexInputRef(wmCol, inputTableColumns),
                     convertIntervalToRexIntervalLiteral(
                         (ResolvedLiteral) argumentList.get(2).getExpr()));
+
+      case TVFStreamingUtils.SLIDING_WINDOW_TVF:
+        // HOP tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        return (RexCall)
+            rexBuilder()
+                .makeCall(
+                    new SqlWindowTableFunction(SqlKind.HOP.name()),
+                    convertRelNodeToRexRangeRef(input),
+                    convertResolvedColumnToRexInputRef(wmCol, inputTableColumns),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(2).getExpr()),
+                    convertIntervalToRexIntervalLiteral(
+                        (ResolvedLiteral) argumentList.get(3).getExpr()));
+
+      case TVFStreamingUtils.SESSION_WINDOW_TVF:
+        // SESSION tvf's second argument is descriptor.
+        wmCol = extractWatermarkColumnFromDescriptor(argumentList.get(1).getDescriptorArg());
+        // SESSION tvf's third argument is descriptor.
+        List<ResolvedColumn> keyCol =
+            extractSessionKeyColumnFromDescriptor(argumentList.get(2).getDescriptorArg());
+        List<RexNode> operands = new ArrayList<>();
+        operands.add(convertRelNodeToRexRangeRef(input));
+        operands.add(convertResolvedColumnToRexInputRef(wmCol, inputTableColumns));
+        operands.add(
+            convertIntervalToRexIntervalLiteral((ResolvedLiteral) argumentList.get(3).getExpr()));
+        operands.addAll(convertResolvedColumnsToRexInputRef(keyCol, inputTableColumns));
+        return (RexCall)
+            rexBuilder().makeCall(new SqlWindowTableFunction(SqlKind.SESSION.name()), operands);
+
       default:
         throw new UnsupportedOperationException(
             "Does not support table-valued function: " + tvf.getName());
     }
   }
 
-  private RexInputRef convertWatermarkedResolvedColumnToRexInputRef(
-      ResolvedColumn wmCol, List<ResolvedColumn> inputTableColumns) {
+  private List<RexInputRef> convertResolvedColumnsToRexInputRef(
+      List<ResolvedColumn> columns, List<ResolvedColumn> inputTableColumns) {
+    List<RexInputRef> ret = new ArrayList<>();
+    for (ResolvedColumn column : columns) {
+      ret.add(convertResolvedColumnToRexInputRef(column, inputTableColumns));
+    }
+    return ret;
+  }
+
+  private RexInputRef convertResolvedColumnToRexInputRef(
+      ResolvedColumn column, List<ResolvedColumn> inputTableColumns) {
     for (int i = 0; i < inputTableColumns.size(); i++) {
-      if (inputTableColumns.get(i).equals(wmCol)) {
+      if (inputTableColumns.get(i).equals(column)) {
         return rexBuilder()
-            .makeInputRef(TypeUtils.toRelDataType(rexBuilder(), wmCol.getType(), false), i);
+            .makeInputRef(TypeUtils.toRelDataType(rexBuilder(), column.getType(), false), i);
       }
     }
 
@@ -607,12 +643,21 @@ public class ExpressionConverter {
 
   private ResolvedColumn extractWatermarkColumnFromDescriptor(
       ResolvedNodes.ResolvedDescriptor descriptor) {
-    return descriptor.getDescriptorColumnList().get(0);
+    ResolvedColumn wmCol = descriptor.getDescriptorColumnList().get(0);
+    checkArgument(
+        wmCol.getType().getKind() == TYPE_TIMESTAMP,
+        "Watermarked column should be TIMESTAMP type: %s",
+        descriptor.getDescriptorColumnNameList().get(0));
+    return wmCol;
   }
 
-  private String extractWatermarkColumnNameFromDescriptor(
+  private List<ResolvedColumn> extractSessionKeyColumnFromDescriptor(
       ResolvedNodes.ResolvedDescriptor descriptor) {
-    return descriptor.getDescriptorColumnNameList().get(0);
+    checkArgument(
+        descriptor.getDescriptorColumnNameList().size() > 0,
+        "Session key descriptor should not be empty");
+
+    return descriptor.getDescriptorColumnList();
   }
 
   private RexNode convertValueToRexNode(Type type, Value value) {
