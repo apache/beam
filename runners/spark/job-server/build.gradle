@@ -106,6 +106,7 @@ def portableValidatesRunnerTask(String name) {
       excludeCategories 'org.apache.beam.sdk.testing.UsesParDoLifecycle'
       excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
       excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
       excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
       excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
