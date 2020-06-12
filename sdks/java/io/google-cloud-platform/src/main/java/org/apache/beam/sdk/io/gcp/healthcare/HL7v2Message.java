@@ -64,6 +64,24 @@ public class HL7v2Message {
         msg.getLabels());
   }
 
+  /**
+   * To model message.
+   *
+   * @return the message
+   */
+  public Message toModel() {
+    Message out = new Message();
+    out.setName(this.getName());
+    out.setMessageType(this.getMessageType());
+    out.setSendTime(this.getSendTime());
+    out.setCreateTime(this.getCreateTime());
+    out.setData(this.getData());
+    out.setSendFacility(this.getSendFacility());
+    out.setSchematizedData(new SchematizedData().setData(this.schematizedData));
+    out.setLabels(this.labels);
+    return out;
+  }
+
   public HL7v2Message(
       String name,
       String messageType,
