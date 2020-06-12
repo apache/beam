@@ -1649,7 +1649,8 @@ class ReadFromBigQuery(PTransform):
   """Read data from BigQuery.
 
     This PTransform uses a BigQuery export job to take a snapshot of the table
-    on GCS, and then reads from each produced JSON file.
+    on GCS, and then reads from each produced file. File format is Avro by
+    default.
 
   Args:
     table (str, callable, ValueProvider): The ID of the table, or a callable
