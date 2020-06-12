@@ -196,7 +196,55 @@ public final class ZetaSqlUtils {
     }
   }
 
-  // Value conversion: ZetaSQL => Beam
+  // Type conversion: ZetaSQL => Beam
+  public static FieldType zetaSqlTypeToBeamFieldType(Type type) {
+    switch (type.getKind()) {
+      case TYPE_INT64:
+        return FieldType.INT64.withNullable(true);
+      case TYPE_DOUBLE:
+        return FieldType.DOUBLE.withNullable(true);
+      case TYPE_BOOL:
+        return FieldType.BOOLEAN.withNullable(true);
+      case TYPE_STRING:
+        return FieldType.STRING.withNullable(true);
+      case TYPE_BYTES:
+        return FieldType.BYTES.withNullable(true);
+      case TYPE_DATE:
+        return FieldType.logicalType(SqlTypes.DATE).withNullable(true);
+      case TYPE_TIMESTAMP:
+        return FieldType.DATETIME.withNullable(true);
+      case TYPE_ARRAY:
+        return zetaSqlElementTypeToBeamArrayType(type.asArray().getElementType());
+      case TYPE_STRUCT:
+        return zetaSqlStructTypeToBeamRowType(type.asStruct());
+      default:
+        throw new UnsupportedOperationException("Unknown ZetaSQL type: " + type.getKind());
+    }
+  }
+
+  private static FieldType zetaSqlElementTypeToBeamArrayType(Type elementType) {
+    return FieldType.array(zetaSqlTypeToBeamFieldType(elementType)).withNullable(true);
+  }
+
+  private static FieldType zetaSqlStructTypeToBeamRowType(StructType structType) {
+    return FieldType.row(
+            structType.getFieldList().stream()
+                .map(ZetaSqlUtils::zetaSqlStructFieldToBeamField)
+                .collect(Schema.toSchema()))
+        .withNullable(true);
+  }
+
+  private static Field zetaSqlStructFieldToBeamField(StructField structField) {
+    return Field.of(structField.getName(), zetaSqlTypeToBeamFieldType(structField.getType()));
+  }
+
+  // Value conversion: ZetaSQL => Beam (target Beam type unknown)
+  public static Object zetaSqlValueToJavaObject(Value value, boolean verifyValues) {
+    return zetaSqlValueToJavaObject(
+        value, zetaSqlTypeToBeamFieldType(value.getType()), verifyValues);
+  }
+
+  // Value conversion: ZetaSQL => Beam (target Beam type known)
   public static Object zetaSqlValueToJavaObject(
       Value value, FieldType fieldType, boolean verifyValues) {
     if (value.isNull()) {
