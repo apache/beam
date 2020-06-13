@@ -6608,6 +6608,15 @@ GenerateSequence
 &lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.external.generate_sequence.html">apache_beam.io.external.generate_sequence.GenerateSequence&lt;/a>&lt;/div>
 &lt;/td>
 &lt;/tr>
+&lt;tr class="language-java">
+&lt;td>
+SplunkIO
+&lt;/td>
+&lt;td>A PTransform that provides an unbounded, streaming sink for Splunk&amp;rsquo;s Http Event Collector (HEC).&lt;/td>
+&lt;td style="word-break: break-all;">
+&lt;div>&lt;a target="_blank" href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/splunk/SplunkIO.html">org.apache.beam.sdk.io.splunk.SplunkIO&lt;/a>&lt;/div>
+&lt;/td>
+&lt;/tr>
 &lt;/table>
 &lt;h1 id="in-progress-io-transforms">In-Progress I/O Transforms&lt;/h1>
 &lt;p>This table contains I/O transforms that are currently planned or in-progress. Status information can be found on the JIRA issue, or on the GitHub PR linked to by the JIRA issue (if there is one).&lt;/p>
