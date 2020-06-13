@@ -27,7 +27,6 @@ import unittest
 from builtins import object
 from builtins import range
 
-import mock
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
@@ -262,8 +261,8 @@ class PipelineTest(unittest.TestCase):
 
     visitor = PipelineTest.Visitor(visited=[])
     pipeline.visit(visitor)
-    self.assertEqual(
-        set([pcoll1, pcoll2, pcoll3, pcoll4, pcoll5]), set(visitor.visited))
+    self.assertEqual({pcoll1, pcoll2, pcoll3, pcoll4, pcoll5},
+                     set(visitor.visited))
     self.assertEqual(set(visitor.enter_composite), set(visitor.leave_composite))
     self.assertEqual(2, len(visitor.enter_composite))
     self.assertEqual(visitor.enter_composite[1].transform, transform)
@@ -370,9 +369,7 @@ class PipelineTest(unittest.TestCase):
         # pylint: disable=expression-not-assigned
         p | Create([ValueError('msg')]) | Map(raise_exception)
 
-  @mock.patch(
-      'apache_beam.runners.direct.direct_runner._get_transform_overrides')
-  def test_ptransform_overrides(self, file_system_override_mock):
+  def test_ptransform_overrides(self):
     class MyParDoOverride(PTransformOverride):
       def matches(self, applied_ptransform):
         return isinstance(applied_ptransform.transform, DoubleParDo)
@@ -382,15 +379,12 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r' % ptransform)
 
-    def get_overrides(unused_pipeline_options):
-      return [MyParDoOverride()]
+    p = Pipeline()
+    pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
+    assert_that(pcoll, equal_to([3, 6, 9]))
 
-    file_system_override_mock.side_effect = get_overrides
-
-    # Specify DirectRunner as it's the one patched above.
-    with Pipeline(runner='BundleBasedDirectRunner') as p:
-      pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
-      assert_that(pcoll, equal_to([3, 6, 9]))
+    p.replace_all([MyParDoOverride()])
+    p.run()
 
   def test_ptransform_override_type_hints(self):
     class NoTypeHintOverride(PTransformOverride):
@@ -779,31 +773,31 @@ class PipelineOptionsTest(unittest.TestCase):
 
   def test_dir(self):
     options = Breakfast()
-    self.assertEqual(
-        set([
-            'from_dictionary',
-            'get_all_options',
-            'slices',
-            'style',
-            'view_as',
-            'display_data'
-        ]),
-        set([
-            attr for attr in dir(options)
-            if not attr.startswith('_') and attr != 'next'
-        ]))
-    self.assertEqual(
-        set([
-            'from_dictionary',
-            'get_all_options',
-            'style',
-            'view_as',
-            'display_data'
-        ]),
-        set([
-            attr for attr in dir(options.view_as(Eggs))
-            if not attr.startswith('_') and attr != 'next'
-        ]))
+    self.assertEqual({
+        'from_dictionary',
+        'get_all_options',
+        'slices',
+        'style',
+        'view_as',
+        'display_data'
+    },
+                     {
+                         attr
+                         for attr in dir(options)
+                         if not attr.startswith('_') and attr != 'next'
+                     })
+    self.assertEqual({
+        'from_dictionary',
+        'get_all_options',
+        'style',
+        'view_as',
+        'display_data'
+    },
+                     {
+                         attr
+                         for attr in dir(options.view_as(Eggs))
+                         if not attr.startswith('_') and attr != 'next'
+                     })
 
 
 class RunnerApiTest(unittest.TestCase):

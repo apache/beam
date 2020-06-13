@@ -271,6 +271,8 @@ from apache_beam.transforms import DoFn
 from apache_beam.transforms import ParDo
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.sideinputs import SIDE_INPUT_PREFIX
+from apache_beam.transforms.sideinputs import get_sideinput_index
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
@@ -525,10 +527,6 @@ class BigQuerySource(dataflow_io.NativeSource):
 FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 
 
-def _to_bool(value):
-  return value == 'true'
-
-
 def _to_decimal(value):
   return decimal.Decimal(value)
 
@@ -547,7 +545,6 @@ class _JsonToDictCoder(coders.Coder):
         'INTEGER': int,
         'INT64': int,
         'FLOAT': float,
-        'BOOLEAN': _to_bool,
         'NUMERIC': _to_decimal,
         'BYTES': _to_bytes,
     }
@@ -607,10 +604,12 @@ class _CustomBigQuerySource(BoundedSource):
       project=None,
       query=None,
       validate=False,
+      pipeline_options=None,
       coder=None,
       use_standard_sql=False,
       flatten_results=True,
-      kms_key=None):
+      kms_key=None,
+      bigquery_job_labels=None):
     if table is not None and query is not None:
       raise ValueError(
           'Both a BigQuery table and a query were specified.'
@@ -637,6 +636,17 @@ class _CustomBigQuerySource(BoundedSource):
     self.coder = coder or _JsonToDictCoder
     self.kms_key = kms_key
     self.split_result = None
+    self.options = pipeline_options
+    self.bigquery_job_labels = bigquery_job_labels or {}
+
+  def display_data(self):
+    return {
+        'table': str(self.table_reference),
+        'query': str(self.query),
+        'project': str(self.project),
+        'use_legacy_sql': self.use_legacy_sql,
+        'bigquery_job_labels': json.dumps(self.bigquery_job_labels),
+    }
 
   def estimate_size(self):
     bq = bigquery_tools.BigQueryWrapper()
@@ -654,20 +664,32 @@ class _CustomBigQuerySource(BoundedSource):
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
+      project = self._get_project()
       job = bq._start_query_job(
-          self.project,
+          project,
           self.query.get(),
           self.use_legacy_sql,
           self.flatten_results,
           job_id=uuid.uuid4().hex,
           dry_run=True,
-          kms_key=self.kms_key)
+          kms_key=self.kms_key,
+          job_labels=self.bigquery_job_labels)
       size = int(job.statistics.totalBytesProcessed)
       return size
     else:
       # Size estimation is best effort. We return None as we have
       # no access to the query that we're running.
       return None
+
+  def _get_project(self):
+    """Returns the project that queries and exports will be billed to."""
+
+    project = self.options.view_as(GoogleCloudOptions).project
+    if isinstance(project, vp.ValueProvider):
+      project = project.get()
+    if not project:
+      project = self.project
+    return project
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
@@ -687,7 +709,7 @@ class _CustomBigQuerySource(BoundedSource):
               self.coder(schema)) for metadata in metadata_list
       ]
       if self.query is not None:
-        bq.clean_up_temporary_dataset(self.project)
+        bq.clean_up_temporary_dataset(self._get_project())
 
     for source in self.split_result:
       yield SourceBundle(0, source, None, None)
@@ -709,21 +731,22 @@ class _CustomBigQuerySource(BoundedSource):
   @check_accessible(['query'])
   def _setup_temporary_dataset(self, bq):
     location = bq.get_query_location(
-        self.project, self.query.get(), self.use_legacy_sql)
-    bq.create_temporary_dataset(self.project, location)
+        self._get_project(), self.query.get(), self.use_legacy_sql)
+    bq.create_temporary_dataset(self._get_project(), location)
 
   @check_accessible(['query'])
   def _execute_query(self, bq):
     job = bq._start_query_job(
-        self.project,
+        self._get_project(),
         self.query.get(),
         self.use_legacy_sql,
         self.flatten_results,
         job_id=uuid.uuid4().hex,
-        kms_key=self.kms_key)
+        kms_key=self.kms_key,
+        job_labels=self.bigquery_job_labels)
     job_ref = job.jobReference
-    bq.wait_for_bq_job(job_ref)
-    return bq._get_temp_table(self.project)
+    bq.wait_for_bq_job(job_ref, max_retries=0)
+    return bq._get_temp_table(self._get_project())
 
   def _export_files(self, bq):
     """Runs a BigQuery export job.
@@ -736,7 +759,9 @@ class _CustomBigQuerySource(BoundedSource):
                                      job_id,
                                      self.table_reference,
                                      bigquery_tools.FileFormat.JSON,
-                                     include_header=False)
+                                     project=self._get_project(),
+                                     include_header=False,
+                                     job_labels=self.bigquery_job_labels)
     bq.wait_for_bq_job(job_ref)
     metadata_list = FileSystems.match([self.gcs_location])[0].metadata_list
 
@@ -1373,6 +1398,9 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         and
         https://cloud.google.com/bigquery/docs/loading-data-cloud-storage-json.
     """
+    self._table = table
+    self._dataset = dataset
+    self._project = project
     self.table_reference = bigquery_tools.parse_table_reference(
         table, dataset, project)
     self.create_disposition = BigQueryDisposition.validate_create(
@@ -1500,6 +1528,73 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       res['table'] = DisplayDataItem(tableSpec, label='Table')
     return res
 
+  def to_runner_api_parameter(self, context):
+    from apache_beam.internal import pickler
+
+    # It'd be nice to name these according to their actual
+    # names/positions in the orignal argument list, but such a
+    # transformation is currently irreversible given how
+    # remove_objects_from_args and insert_values_in_args
+    # are currently implemented.
+    def serialize(side_inputs):
+      return {(SIDE_INPUT_PREFIX + '%s') % ix:
+              si.to_runner_api(context).SerializeToString()
+              for ix,
+              si in enumerate(side_inputs)}
+
+    table_side_inputs = serialize(self.table_side_inputs)
+    schema_side_inputs = serialize(self.schema_side_inputs)
+
+    config = {
+        'table': self._table,
+        'dataset': self._dataset,
+        'project': self._project,
+        'schema': self.schema,
+        'create_disposition': self.create_disposition,
+        'write_disposition': self.write_disposition,
+        'kms_key': self.kms_key,
+        'batch_size': self.batch_size,
+        'max_file_size': self.max_file_size,
+        'max_files_per_bundle': self.max_files_per_bundle,
+        'custom_gcs_temp_location': self.custom_gcs_temp_location,
+        'method': self.method,
+        'insert_retry_strategy': self.insert_retry_strategy,
+        'additional_bq_parameters': self.additional_bq_parameters,
+        'table_side_inputs': table_side_inputs,
+        'schema_side_inputs': schema_side_inputs,
+        'triggering_frequency': self.triggering_frequency,
+        'validate': self._validate,
+        'temp_file_format': self._temp_file_format,
+    }
+    return 'beam:transform:write_to_big_query:v0', pickler.dumps(config)
+
+  @PTransform.register_urn('beam:transform:write_to_big_query:v0', bytes)
+  def from_runner_api(unused_ptransform, payload, context):
+    from apache_beam.internal import pickler
+    from apache_beam.portability.api.beam_runner_api_pb2 import SideInput
+
+    config = pickler.loads(payload)
+
+    def deserialize(side_inputs):
+      deserialized_side_inputs = {}
+      for k, v in side_inputs.items():
+        side_input = SideInput()
+        side_input.ParseFromString(v)
+        deserialized_side_inputs[k] = side_input
+
+      # This is an ordered list stored as a dict (see the comments in
+      # to_runner_api_parameter above).
+      indexed_side_inputs = [(
+          get_sideinput_index(tag),
+          pvalue.AsSideInput.from_runner_api(si, context)) for tag,
+                             si in deserialized_side_inputs.items()]
+      return [si for _, si in sorted(indexed_side_inputs)]
+
+    config['table_side_inputs'] = deserialize(config['table_side_inputs'])
+    config['schema_side_inputs'] = deserialize(config['schema_side_inputs'])
+
+    return WriteToBigQuery(**config)
+
 
 class _PassThroughThenCleanup(PTransform):
   """A PTransform that invokes a DoFn after the input PCollection has been
@@ -1572,7 +1667,11 @@ class ReadFromBigQuery(PTransform):
       bucket where the extracted table should be written as a string or
       a :class:`~apache_beam.options.value_provider.ValueProvider`. If
       :data:`None`, then the temp_location parameter is used.
-   """
+    bigquery_job_labels (dict): A dictionary with string labels to be passed
+      to BigQuery export and query jobs created by this transform. See:
+      https://cloud.google.com/bigquery/docs/reference/rest/v2/\
+              Job#JobConfiguration
+  """
   def __init__(self, gcs_location=None, validate=False, *args, **kwargs):
     if gcs_location:
       if not isinstance(gcs_location, (str, unicode, ValueProvider)):
@@ -1603,8 +1702,9 @@ class ReadFromBigQuery(PTransform):
       logging.debug("gcs_location is empty, using temp_location instead")
     else:
       raise ValueError(
-          '{} requires a GCS location to be provided'.format(
-              self.__class__.__name__))
+          '{} requires a GCS location to be provided. Neither gcs_location in'
+          ' the constructor nor the fallback option --temp_location is set.'.
+          format(self.__class__.__name__))
     if self.validate:
       self._validate_gcs_location(gcs_base)
 
@@ -1638,6 +1738,7 @@ class ReadFromBigQuery(PTransform):
             _CustomBigQuerySource(
                 gcs_location=gcs_location,
                 validate=self.validate,
+                pipeline_options=pcoll.pipeline.options,
                 *self._args,
                 **self._kwargs))
         | _PassThroughThenCleanup(RemoveJsonFiles(gcs_location)))

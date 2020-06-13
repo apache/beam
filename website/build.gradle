@@ -22,8 +22,10 @@ plugins {
 }
 
 def dockerImageTag = 'beam-website'
-def dockerWorkDir = "/repo"
+def dockerWorkDir = "/opt"
 def buildDir = "${project.rootDir}/build/website"
+def dockerSourceDir = "$dockerWorkDir/website/www"
+def dockerBuildDir = "$dockerWorkDir/build/website"
 
 def commitedChanges = false
 def gitboxUrl = project.findProperty('gitPublishRemote') ?: 'https://gitbox.apache.org/repos/asf/beam.git'
@@ -53,7 +55,6 @@ task setupVirtualenv {
 }
 
 task buildDockerImage(type: Exec) {
-  inputs.files 'Gemfile', 'Gemfile.lock'
   commandLine 'docker', 'build', '-t', dockerImageTag, '.'
 }
 
@@ -66,8 +67,8 @@ task createDockerContainer(type: Exec) {
   gradle.taskGraph.whenReady {
     def extraOptions = ''
     if (gradle.taskGraph.hasTask(":${project.name}:serveWebsite")) {
-      // Publish port 4000 where Jekyll serves website from
-      extraOptions = '--publish 127.0.0.1:4000:4000'
+      // Publish port 1313 where Hugo serves website from
+      extraOptions = "--publish 127.0.0.1:1313:1313"
     }
 
     // Jenkins websites node: run as root. Files written to /repo will get
@@ -78,7 +79,7 @@ task createDockerContainer(type: Exec) {
       extraOptions += " -u \$(id -u):\$(id -g)"
     }
     commandLine '/bin/bash', '-c',
-      "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag"
+      "docker create -v $project.rootDir:$dockerWorkDir $extraOptions $dockerImageTag sh -c 'trap \"exit 0\" INT; while true; do sleep 30; done;'"
   }
 }
 
@@ -91,28 +92,40 @@ task startDockerContainer(type: Exec) {
     "${->createDockerContainer.containerId()}" // Lazily evaluate containerId.
 }
 
+// Clone Docsy submodule which is our Hugo theme
+task initGitSubmodules(type: Exec) {
+    commandLine 'docker', 'exec',
+                "${->startDockerContainer.containerId()}", 'git',  'submodule', 'update', '--init',  '--recursive'
+}
+
+// Install yarn dependencies
+task installDependencies(type: Exec) {
+    commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
+                "${->startDockerContainer.containerId()}", 'yarn', 'install'
+}
+
+// Run build_code_samples.sh to fetch Beam project content
+// which is used by code_sample shortcodes to inject snippets into codeblocks
+task buildCodeSamples(type: Exec) {
+  commandLine 'docker', 'exec', '--workdir', "$dockerSourceDir",
+              "${->startDockerContainer.containerId()}", 'yarn', 'build_code_samples'
+}
+
 task setupDockerContainer(type: Exec) {
   dependsOn startDockerContainer
+  finalizedBy initGitSubmodules, installDependencies, buildCodeSamples
   ext.containerId = {
     return startDockerContainer.containerId()
   }
 
   // Create the config to point to a GitHub or Colab blob in the repo, e.g. apache/beam/blob/master
-  commandLine 'docker', 'exec', '-u', 'root',
+  commandLine 'docker', 'exec',
     "${->startDockerContainer.containerId()}", '/bin/bash', '-c',
-    """echo 'branch_repo: "${getBranchRepo()}"' > /tmp/_config_branch_repo.yml"""
+    """echo '[params]\n  branch_repo = "${getBranchRepo()}"' > /tmp/_config_branch_repo.toml"""
 }
 
 task stopAndRemoveDockerContainer(type: Exec) {
   commandLine 'docker', 'rm', '-f', "${->createDockerContainer.containerId()}"
-}
-
-task setupBuildDir(type: Copy) {
-  from('.') {
-    include 'Gemfile*'
-    include 'Rakefile'
-  }
-  into buildDir
 }
 
 task cleanWebsite(type: Delete) {
@@ -123,35 +136,24 @@ clean.dependsOn cleanWebsite
 class BuildTaskConfiguration {
   String name
   boolean useTestConfig = false
-  boolean useBranchRepoConfig = false
   String baseUrl = ''
   String dockerWorkDir = ''
 }
 def createBuildTask = {
   BuildTaskConfiguration config = it as BuildTaskConfiguration
   task "build${config.name}Website" (type:Exec) {
-    dependsOn setupDockerContainer, setupBuildDir
+    dependsOn setupDockerContainer
     finalizedBy stopAndRemoveDockerContainer
-    inputs.files 'Gemfile.lock', '_config.yml'
-    inputs.dir 'src'
-    outputs.dir "$buildDir/.sass-cache"
-    outputs.dir buildContentDir(config.name)
-    def configs = "${config.dockerWorkDir}/website/_config.yml"
-    if (config.useTestConfig) {
-      configs += ",${config.dockerWorkDir}/website/_config_test.yml"
-    }
-    if (config.useBranchRepoConfig) {
-      configs += ",/tmp/_config_branch_repo.yml"
-    }
-    def baseUrlFlag = config.baseUrl ? "--baseurl=/${config.baseUrl}" : ""
+
+    def configs = "$dockerSourceDir/site/config.toml"
+    def baseUrlFlag = config.baseUrl ? "--baseURL /${config.baseUrl}" : ""
     commandLine 'docker', 'exec',
       "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-      """cd ${config.dockerWorkDir}/build/website && \
-        bundle exec jekyll build \
-        --destination generated-${config.name.toLowerCase()}-content \
-        --config ${configs} \
-        --incremental ${baseUrlFlag} \
-        --source ${config.dockerWorkDir}/website/src
+      """cd $dockerSourceDir && \
+        yarn build \
+        -d $dockerBuildDir/generated-${config.name.toLowerCase()}-content \
+        --config $configs \
+        $baseUrlFlag
         """
   }
 }
@@ -159,9 +161,6 @@ def createBuildTask = {
 // task buildLocalWebsite
 createBuildTask(
   name:'Local',
-  useTestConfig: true,
-  useBranchRepoConfig: true,
-  dockerWorkDir: dockerWorkDir,
 )
 task buildWebsite(dependsOn:buildLocalWebsite)
 build.dependsOn buildWebsite
@@ -169,16 +168,12 @@ build.dependsOn buildWebsite
 // task buildGcsWebsite
 createBuildTask(
   name:'Gcs',
-  useTestConfig: true,
-  useBranchRepoConfig: true,
   baseUrl: getBaseUrl(),
-  dockerWorkDir: dockerWorkDir,
 )
 
 // task buildApacheWebsite
 createBuildTask(
   name:'Apache',
-  dockerWorkDir: dockerWorkDir,
 )
 
 /**
@@ -236,20 +231,14 @@ def buildContentDir(name) {
 }
 
 task serveWebsite(type: Exec) {
-  dependsOn setupDockerContainer, setupBuildDir
+  dependsOn setupDockerContainer
   finalizedBy stopAndRemoveDockerContainer
-  inputs.files 'Gemfile.lock', '_config.yml'
-  inputs.dir 'src'
-  outputs.dir "$buildDir/.sass-cache"
-  outputs.dir buildContentDir('local')
   commandLine 'docker', 'exec',
     "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-    """cd $dockerWorkDir/build/website && \
-      bundle exec jekyll serve \
-      --config $dockerWorkDir/website/_config.yml,/tmp/_config_branch_repo.yml \
-      --incremental \
-      --source $dockerWorkDir/website/src \
-      --host 0.0.0.0
+    """cd $dockerSourceDir && \
+      yarn develop \
+      --bind="0.0.0.0" \
+      --config $dockerSourceDir/site/config.toml,/tmp/_config_branch_repo.toml
       """
 }
 
@@ -257,12 +246,9 @@ task testWebsite(type: Exec) {
   // dependsOn setupDockerContainer, 'buildWebsite'
   finalizedBy stopAndRemoveDockerContainer
 
-  inputs.files "$buildDir/Rakefile"
-  inputs.dir buildContentDir('local')
   commandLine 'docker', 'exec',
     "${->setupDockerContainer.containerId()}", '/bin/bash', '-c',
-    """cd $dockerWorkDir/build/website && \
-      bundle exec -- rake test disable_external=${findProperty('disableExternal') ?: true}"""
+    "$dockerSourceDir/check-links.sh $dockerBuildDir/generated-local-content"
 }
 
 testWebsite.dependsOn 'buildLocalWebsite'

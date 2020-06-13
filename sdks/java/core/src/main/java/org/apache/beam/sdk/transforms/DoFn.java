@@ -270,10 +270,10 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   @Experimental(Kind.TIMERS)
   public abstract class OnTimerContext extends WindowedContext {
 
-    /** Returns the timestamp of the current timer. */
+    /** Returns the output timestamp of the current timer. */
     public abstract Instant timestamp();
 
-    /** Returns the output timestamp of the current timer. */
+    /** Returns the firing timestamp of the current timer. */
     public abstract Instant fireTimestamp();
 
     /** Returns the window in which the timer is firing. */
@@ -281,6 +281,12 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
 
     /** Returns the time domain of the current timer. */
     public abstract TimeDomain timeDomain();
+  }
+
+  public abstract class OnWindowExpirationContext extends WindowedContext {
+
+    /** Returns the window in which the window expiration is firing. */
+    public abstract BoundedWindow window();
   }
 
   /**
@@ -480,6 +486,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
     String value();
   }
 
+  /**
+   * Parameter annotation for dereferencing input element key in {@link
+   * org.apache.beam.sdk.values.KV} pair.
+   */
+  @Documented
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.PARAMETER)
+  public @interface Key {}
+
   /** Annotation for specifying specific fields that are accessed in a Schema PCollection. */
   @Retention(RetentionPolicy.RUNTIME)
   @Target({ElementType.FIELD, ElementType.PARAMETER})
@@ -606,8 +621,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *
    * <ul>
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
-   *       passed the current element being processed; the argument type must match the input type
-   *       of this DoFn.
+   *       passed the current element being processed. The argument type must match the input type
+   *       of this DoFn exactly, or both types must have equivalent schemas registered.
    *   <li>If one of its arguments is tagged with the {@link Timestamp} annotation, then it will be
    *       passed the timestamp of the current element being processed; the argument must be of type
    *       {@link Instant}.
@@ -684,8 +699,8 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    *   <li>One of its arguments must be a {@link RestrictionTracker}. The argument must be of the
    *       exact type {@code RestrictionTracker<RestrictionT, PositionT>}.
    *   <li>If one of its arguments is tagged with the {@link Element} annotation, then it will be
-   *       passed the current element being processed; the argument type must match the input type
-   *       of this DoFn.
+   *       passed the current element being processed. The argument type must match the input type
+   *       of this DoFn exactly, or both types must have equivalent schemas registered.
    *   <li>If one of its arguments is tagged with the {@link Restriction} annotation, then it will
    *       be passed the current restriction being processed; the argument must be of type {@code
    *       RestrictionT}.

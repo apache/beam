@@ -59,6 +59,7 @@ import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer;
+import org.apache.beam.runners.flink.translation.utils.CheckpointStats;
 import org.apache.beam.runners.flink.translation.utils.Workarounds;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput.BufferingDoFnRunner;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.state.FlinkBroadcastStateInternals;
@@ -67,6 +68,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -187,12 +189,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /** If true, we must process elements only after a checkpoint is finished. */
   private final boolean requiresStableInput;
 
+  private final boolean finishBundleBeforeCheckpointing;
+
   protected transient InternalTimerService<TimerData> timerService;
 
   private transient PushedBackElementsHandler<WindowedValue<InputT>> pushedBackElementsHandler;
 
   /** Metrics container for reporting Beam metrics to Flink (null if metrics are disabled). */
   @Nullable transient FlinkMetricContainer flinkMetricContainer;
+
+  /** Helper class to report the checkpoint duration. */
+  @Nullable private transient CheckpointStats checkpointStats;
 
   /** A timer that finishes the current bundle after a fixed amount of time. */
   private transient ScheduledFuture<?> checkFinishBundleTimer;
@@ -289,6 +296,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
           flinkOptions.getCheckpointingInterval()
               + Math.max(0, flinkOptions.getMinPauseBetweenCheckpoints()));
     }
+
+    this.finishBundleBeforeCheckpointing = flinkOptions.getFinishBundleBeforeCheckpointing();
   }
 
   // allow overriding this in WindowDoFnOperator because this one dynamically creates
@@ -455,6 +464,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (!options.getDisableMetrics()) {
       flinkMetricContainer = new FlinkMetricContainer(getRuntimeContext());
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, flinkMetricContainer);
+      String checkpointMetricNamespace = options.getReportCheckpointDuration();
+      if (checkpointMetricNamespace != null) {
+        MetricName checkpointMetric =
+            MetricName.named(checkpointMetricNamespace, "checkpoint_duration");
+        checkpointStats =
+            new CheckpointStats(
+                () ->
+                    flinkMetricContainer
+                        .getMetricsContainer(stepName)
+                        .getDistribution(checkpointMetric));
+      }
     }
 
     elementCount = 0L;
@@ -711,8 +731,8 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     if (keyCoder == null) {
       potentialOutputWatermark = inputWatermarkHold;
     } else {
-      Instant watermarkHold = keyedStateInternals.watermarkHold();
-      long combinedWatermarkHold = Math.min(watermarkHold.getMillis(), inputWatermarkHold);
+      long combinedWatermarkHold =
+          Math.min(keyedStateInternals.minWatermarkHoldMs(), inputWatermarkHold);
       potentialOutputWatermark =
           Math.min(combinedWatermarkHold, timerInternals.getMinOutputTimestampMs());
     }
@@ -828,15 +848,28 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   @Override
+  public void prepareSnapshotPreBarrier(long checkpointId) {
+    if (finishBundleBeforeCheckpointing) {
+      // We finish the bundle and flush any pending data.
+      // This avoids buffering any data as part of snapshotState() below.
+      while (bundleStarted) {
+        invokeFinishBundle();
+      }
+    }
+  }
+
+  @Override
   public final void snapshotState(StateSnapshotContext context) throws Exception {
+    if (checkpointStats != null) {
+      checkpointStats.snapshotStart(context.getCheckpointId());
+    }
+
     if (requiresStableInput) {
       // We notify the BufferingDoFnRunner to associate buffered state with this
       // snapshot id and start a new buffer for elements arriving after this snapshot.
       bufferingDoFnRunner.checkpoint(context.getCheckpointId());
     }
 
-    // We can't output here anymore because the checkpoint barrier has already been
-    // sent downstream. This is going to change with 1.6/1.7's prepareSnapshotBarrier.
     try {
       outputManager.openBuffer();
       // Ensure that no new bundle gets started as part of finishing a bundle
@@ -857,12 +890,17 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
 
   @Override
   public final void notifyCheckpointComplete(long checkpointId) throws Exception {
-    super.notifyCheckpointComplete(checkpointId);
+    if (checkpointStats != null) {
+      checkpointStats.reportCheckpointDuration(checkpointId);
+    }
+
     if (requiresStableInput) {
       // We can now release all buffered data which was held back for
       // @RequiresStableInput guarantees.
       bufferingDoFnRunner.checkpointCompleted(checkpointId);
     }
+
+    super.notifyCheckpointComplete(checkpointId);
   }
 
   @Override
@@ -878,7 +916,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   }
 
   // allow overriding this in ExecutableStageDoFnOperator to set the key context
-  protected void fireTimerInternal(Object key, TimerData timerData) {
+  protected void fireTimerInternal(ByteBuffer key, TimerData timerData) {
     fireTimer(timerData);
   }
 
@@ -897,6 +935,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
     pushbackDoFnRunner.onTimer(
         timerData.getTimerId(),
         timerData.getTimerFamilyId(),
+        keyedStateInternals.getKey(),
         window,
         timerData.getTimestamp(),
         timerData.getOutputTimestamp(),
@@ -920,8 +959,15 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
   /**
    * A {@link DoFnRunners.OutputManager} that can buffer its outputs. Uses {@link
    * PushedBackElementsHandler} to buffer the data. Buffering data is necessary because no elements
-   * can be emitted during {@code snapshotState}. This can be removed once we upgrade Flink to >=
-   * 1.6 which allows us to finish the bundle before the checkpoint barriers have been emitted.
+   * can be emitted during {@code snapshotState} which is called when the checkpoint barrier already
+   * has been sent downstream. Emitting elements would break the flow of checkpoint barrier and
+   * violate exactly-once semantics.
+   *
+   * <p>This buffering can be deactived using {@code
+   * FlinkPipelineOptions#setFinishBundleBeforeCheckpointing(true)}. If activated, we flush out
+   * bundle data before the barrier is sent downstream. This is done via {@code
+   * prepareSnapshotPreBarrier}. When Flink supports unaligned checkpoints, this should become the
+   * default and this class should be removed as in https://github.com/apache/beam/pull/9652.
    */
   public static class BufferedOutputManager<OutputT> implements DoFnRunners.OutputManager {
 
@@ -1208,6 +1254,7 @@ public class DoFnOperator<InputT, OutputT> extends AbstractStreamOperator<Window
       while ((internalTimer = processingTimeTimersQueue.poll()) != null) {
         keyedStateBackend.setCurrentKey(internalTimer.getKey());
         TimerData timer = internalTimer.getNamespace();
+        checkInvokeStartBundle();
         fireTimer(timer);
       }
     }

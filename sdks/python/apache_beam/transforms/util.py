@@ -29,7 +29,6 @@ import random
 import re
 import sys
 import time
-import warnings
 from builtins import filter
 from builtins import object
 from builtins import range
@@ -758,9 +757,6 @@ class GroupIntoBatches(PTransform):
     Arguments:
       batch_size: (required) How many elements should be in a batch
     """
-    warnings.warn(
-        'Use of GroupIntoBatches transform requires State/Timer '
-        'support from the runner')
     self.batch_size = batch_size
 
   def expand(self, pcoll):
@@ -813,53 +809,30 @@ class ToString(object):
   PTransform for converting a PCollection element, KV or PCollection Iterable
   to string.
   """
-  class Kvs(PTransform):
-    """
-    Transforms each element of the PCollection to a string on the key followed
-    by the specific delimiter and the value.
-    """
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
 
-    def expand(self, pcoll):
-      input_type = Tuple[Any, Any]
-      output_type = str
-      return (
-          pcoll | (
-              '%s:KeyVaueToString' % self.label >>
-              (Map(lambda x: "{}{}{}".format(x[0], self.delimiter, x[1]))
-               ).with_input_types(input_type)  # type: ignore[misc]
-              .with_output_types(output_type)))
-
-  class Element(PTransform):
+  # pylint: disable=invalid-name
+  @staticmethod
+  def Element():
     """
     Transforms each element of the PCollection to a string.
     """
-    def expand(self, pcoll):
-      input_type = T
-      output_type = str
-      return (
-          pcoll | (
-              '%s:ElementToString' % self.label >>
-              (Map(lambda x: str(x))
-               ).with_input_types(input_type).with_output_types(output_type)))
+    return 'ElementToString' >> Map(str)
 
-  class Iterables(PTransform):
+  @staticmethod
+  def Iterables(delimiter=None):
     """
     Transforms each item in the iterable of the input of PCollection to a
     string. There is no trailing delimiter.
     """
-    def __init__(self, delimiter=None):
-      self.delimiter = delimiter or ","
+    if delimiter is None:
+      delimiter = ','
+    return (
+        'IterablesToString' >>
+        Map(lambda xs: delimiter.join(str(x) for x in xs)).with_input_types(
+            Iterable[Any]).with_output_types(str))
 
-    def expand(self, pcoll):
-      input_type = Iterable[Any]
-      output_type = str
-      return (
-          pcoll | (
-              '%s:IterablesToString' % self.label >>
-              (Map(lambda x: self.delimiter.join(str(_x) for _x in x))
-               ).with_input_types(input_type).with_output_types(output_type)))
+  # An alias for Iterables.
+  Kvs = Iterables
 
 
 class Reify(object):

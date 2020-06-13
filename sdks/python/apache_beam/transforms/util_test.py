@@ -29,6 +29,7 @@ import random
 import re
 import time
 import unittest
+import warnings
 from builtins import object
 from builtins import range
 
@@ -60,6 +61,9 @@ from apache_beam.utils import timestamp
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import WindowedValue
+
+warnings.filterwarnings(
+    'ignore', category=FutureWarning, module='apache_beam.transform.util_test')
 
 
 class FakeClock(object):
@@ -725,6 +729,12 @@ class ToStringTest(unittest.TestCase):
       result = (
           p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs("\t"))
       assert_that(result, equal_to(["one\t1", "two\t2"]))
+
+  def test_tostring_kvs_empty_delimeter(self):
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create([("one", 1), ("two", 2)]) | util.ToString.Kvs(""))
+      assert_that(result, equal_to(["one1", "two2"]))
 
 
 class ReifyTest(unittest.TestCase):

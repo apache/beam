@@ -158,6 +158,7 @@ public class ZetaSQLPlannerImpl implements Planner {
 
     RelNode convertedNode =
         QueryStatementConverter.convertRootQuery(context, (ResolvedQueryStmt) statement);
+
     return RelRoot.of(convertedNode, SqlKind.ALL);
   }
 

@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static org.apache.beam.runners.core.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.util.Set;
@@ -59,6 +60,14 @@ public class ModelCoders {
 
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
 
+  public static final String STATE_BACKED_ITERABLE_CODER_URN =
+      "beam:coder:state_backed_iterable:v1";
+
+  static {
+    checkState(
+        STATE_BACKED_ITERABLE_CODER_URN.equals(getUrn(StandardCoders.Enum.STATE_BACKED_ITERABLE)));
+  }
+
   private static final Set<String> MODEL_CODER_URNS =
       ImmutableSet.of(
           BYTES_CODER_URN,
@@ -74,7 +83,8 @@ public class ModelCoders {
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
           ROW_CODER_URN,
-          PARAM_WINDOWED_VALUE_CODER_URN);
+          PARAM_WINDOWED_VALUE_CODER_URN,
+          STATE_BACKED_ITERABLE_CODER_URN);
 
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
@@ -115,7 +125,11 @@ public class ModelCoders {
   }
 
   public static KvCoderComponents getKvCoderComponents(Coder coder) {
-    checkArgument(KV_CODER_URN.equals(coder.getSpec().getUrn()));
+    checkArgument(
+        KV_CODER_URN.equals(coder.getSpec().getUrn()),
+        "Provided coder %s is not of type %s",
+        coder.getSpec().getUrn(),
+        KV_CODER_URN);
     return new AutoValue_ModelCoders_KvCoderComponents(
         coder.getComponentCoderIds(0), coder.getComponentCoderIds(1));
   }

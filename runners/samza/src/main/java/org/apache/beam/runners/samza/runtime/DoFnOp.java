@@ -277,6 +277,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
             bundleCheckTimerId,
             StateNamespaces.global(),
             nextBundleCheckTime,
+            nextBundleCheckTime,
             TimeDomain.PROCESSING_TIME);
     bundleTimerScheduler.schedule(
         new KeyedTimerData<>(new byte[0], null, timerData), nextBundleCheckTime.getMillis());
@@ -455,6 +456,7 @@ public class DoFnOp<InT, FnOutT, OutT> implements Op<InT, OutT, Void> {
       pushbackFnRunner.onTimer(
           timer.getTimerId(),
           timer.getTimerFamilyId(),
+          null,
           window,
           timer.getTimestamp(),
           timer.getOutputTimestamp(),

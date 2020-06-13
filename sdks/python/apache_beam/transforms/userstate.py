@@ -158,7 +158,7 @@ class TimerSpec(object):
     return '%s(%s)' % (self.__class__.__name__, self.name)
 
   def to_runner_api(self, context, key_coder, window_coder):
-    # type: (PipelineContext) -> beam_runner_api_pb2.TimerFamilySpec
+    # type: (PipelineContext, Coder, Coder) -> beam_runner_api_pb2.TimerFamilySpec
     return beam_runner_api_pb2.TimerFamilySpec(
         time_domain=TimeDomain.to_runner_api(self.time_domain),
         timer_family_coder_id=context.coders.get_id(

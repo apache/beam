@@ -66,16 +66,17 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       final String timerId,
       final String timerFamilyId,
+      final KeyT key,
       final BoundedWindow window,
       final Instant timestamp,
       final Instant outputTimestamp,
       final TimeDomain timeDomain) {
     try (Closeable ignored =
         MetricsEnvironment.scopedMetricsContainer(container.getMetricsContainer(stepName))) {
-      delegate.onTimer(timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain);
+      delegate.onTimer(timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -92,6 +93,11 @@ public class DoFnRunnerWithMetricsUpdate<InputT, OutputT> implements DoFnRunner<
 
     // update metrics
     container.updateMetrics(stepName);
+  }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {
+    delegate.onWindowExpiration(window, timestamp, key);
   }
 
   @Override

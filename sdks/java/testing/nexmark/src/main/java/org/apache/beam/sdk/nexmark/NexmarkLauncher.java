@@ -117,6 +117,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   /** Command line parameter value for query language. */
   private static final String SQL = "sql";
 
+  /** Command line parameter value for zetasql language. */
+  private static final String ZETA_SQL = "zetasql";
+
   /** Minimum number of samples needed for 'stead-state' rate calculation. */
   private static final int MIN_SAMPLES = 9;
   /** Minimum length of time over which to consider samples for 'steady-state' rate calculation. */
@@ -1200,6 +1203,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     return SQL.equalsIgnoreCase(options.getQueryLanguage());
   }
 
+  private boolean isZetaSql() {
+    return ZETA_SQL.equalsIgnoreCase(options.getQueryLanguage());
+  }
+
   private NexmarkQueryModel getNexmarkQueryModel() {
     return models.get(configuration.query);
   }
@@ -1209,7 +1216,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private Map<NexmarkQueryName, NexmarkQueryModel> createQueryModels() {
-    return isSql() ? createSqlQueryModels() : createJavaQueryModels();
+    return (isSql() || isZetaSql()) ? createSqlQueryModels() : createJavaQueryModels();
   }
 
   private Map<NexmarkQueryName, NexmarkQueryModel> createSqlQueryModels() {
@@ -1234,8 +1241,15 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   private Map<NexmarkQueryName, NexmarkQuery> createQueries() {
-    Map<NexmarkQueryName, NexmarkQuery> defaultQueries =
-        isSql() ? createSqlQueries() : createJavaQueries();
+    Map<NexmarkQueryName, NexmarkQuery> defaultQueries;
+    if (isSql()) {
+      defaultQueries = createSqlQueries();
+    } else if (isZetaSql()) {
+      defaultQueries = createZetaSqlQueries();
+    } else {
+      defaultQueries = createJavaQueries();
+    }
+
     Set<NexmarkQueryName> skippableQueries = getSkippableQueries();
     return ImmutableMap.copyOf(
         Maps.filterKeys(defaultQueries, query -> !skippableQueries.contains(query)));
@@ -1254,14 +1268,16 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   private Map<NexmarkQueryName, NexmarkQuery> createSqlQueries() {
     return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
-        .put(NexmarkQueryName.PASSTHROUGH, new NexmarkQuery(configuration, new SqlQuery0()))
+        .put(
+            NexmarkQueryName.PASSTHROUGH,
+            new NexmarkQuery(configuration, SqlQuery0.calciteSqlQuery0()))
         .put(NexmarkQueryName.CURRENCY_CONVERSION, new NexmarkQuery(configuration, new SqlQuery1()))
         .put(
             NexmarkQueryName.SELECTION,
-            new NexmarkQuery(configuration, new SqlQuery2(configuration.auctionSkip)))
+            new NexmarkQuery(configuration, SqlQuery2.calciteSqlQuery2(configuration.auctionSkip)))
         .put(
             NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
-            new NexmarkQuery(configuration, new SqlQuery3(configuration)))
+            new NexmarkQuery(configuration, SqlQuery3.calciteSqlQuery3(configuration)))
 
         // SqlQuery5 is disabled for now, uses non-equi-joins,
         // never worked right, was giving incorrect results.
@@ -1280,7 +1296,27 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             new NexmarkQuery(configuration, new SqlQuery7(configuration)))
         .put(
             NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
-            new NexmarkQuery(configuration, new SqlBoundedSideInputJoin(configuration)))
+            new NexmarkQuery(
+                configuration,
+                SqlBoundedSideInputJoin.calciteSqlBoundedSideInputJoin(configuration)))
+        .build();
+  }
+
+  private Map<NexmarkQueryName, NexmarkQuery> createZetaSqlQueries() {
+    return ImmutableMap.<NexmarkQueryName, NexmarkQuery>builder()
+        .put(
+            NexmarkQueryName.PASSTHROUGH,
+            new NexmarkQuery(configuration, SqlQuery0.zetaSqlQuery0()))
+        .put(
+            NexmarkQueryName.SELECTION,
+            new NexmarkQuery(configuration, SqlQuery2.zetaSqlQuery2(configuration.auctionSkip)))
+        .put(
+            NexmarkQueryName.LOCAL_ITEM_SUGGESTION,
+            new NexmarkQuery(configuration, SqlQuery3.zetaSqlQuery3(configuration)))
+        .put(
+            NexmarkQueryName.BOUNDED_SIDE_INPUT_JOIN,
+            new NexmarkQuery(
+                configuration, SqlBoundedSideInputJoin.zetaSqlBoundedSideInputJoin(configuration)))
         .build();
   }
 

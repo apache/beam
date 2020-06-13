@@ -88,10 +88,12 @@ def file_prefix_generator(
     if with_validation and (not gcs_base or not gcs_base.startswith('gs://')):
       raise ValueError(
           'Invalid GCS location: %r.\n'
-          'Writing to BigQuery with FILE_LOADS method requires a '
-          'GCS location to be provided to write files to be loaded'
-          ' loaded into BigQuery. Please provide a GCS bucket, or '
-          'pass method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
+          'Writing to BigQuery with FILE_LOADS method requires a'
+          ' GCS location to be provided to write files to be loaded'
+          ' into BigQuery. Please provide a GCS bucket through'
+          ' custom_gcs_temp_location in the constructor of WriteToBigQuery'
+          ' or the fallback option --temp_location, or pass'
+          ' method="STREAMING_INSERTS" to WriteToBigQuery.' % gcs_base)
 
     prefix_uuid = _bq_uuid()
     return fs.FileSystems.join(gcs_base, 'bq_load', prefix_uuid)

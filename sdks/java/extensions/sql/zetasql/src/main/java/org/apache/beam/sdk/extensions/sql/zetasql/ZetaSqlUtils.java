@@ -25,15 +25,16 @@ import com.google.zetasql.Type;
 import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLType.TypeKind;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.DateType;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils.TimeType;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.math.LongMath;
@@ -43,7 +44,7 @@ import org.joda.time.Instant;
  * Utility methods for ZetaSQL related operations.
  *
  * <p>Unsupported ZetaSQL types: INT32, UINT32, UINT64, FLOAT, ENUM, PROTO, GEOGRAPHY
- * TODO[BEAM-8630]: support ZetaSQL types: DATE, TIME, DATETIME
+ * TODO[BEAM-10238]: support ZetaSQL types: TIME, DATETIME, NUMERIC
  */
 @Internal
 public final class ZetaSqlUtils {
@@ -52,72 +53,62 @@ public final class ZetaSqlUtils {
 
   private ZetaSqlUtils() {}
 
-  public static SqlTypeName zetaSqlTypeToCalciteType(TypeKind zetaSqlType) {
-    switch (zetaSqlType) {
+  // Type conversion: ZetaSQL => Calcite
+  public static SqlTypeName zetaSqlTypeToCalciteTypeName(Type type) {
+    switch (type.getKind()) {
       case TYPE_INT64:
         return SqlTypeName.BIGINT;
-      case TYPE_NUMERIC:
-        return SqlTypeName.DECIMAL;
       case TYPE_DOUBLE:
         return SqlTypeName.DOUBLE;
-      case TYPE_STRING:
-        return SqlTypeName.VARCHAR;
-      case TYPE_TIMESTAMP:
-        return SqlTypeName.TIMESTAMP;
       case TYPE_BOOL:
         return SqlTypeName.BOOLEAN;
+      case TYPE_STRING:
+        return SqlTypeName.VARCHAR;
       case TYPE_BYTES:
         return SqlTypeName.VARBINARY;
+      case TYPE_DATE:
+        return SqlTypeName.DATE;
+      case TYPE_TIMESTAMP:
+        return SqlTypeName.TIMESTAMP;
         // TODO[BEAM-9179] Add conversion code for ARRAY and ROW types
       default:
-        throw new IllegalArgumentException("Unsupported ZetaSQL type: " + zetaSqlType.name());
+        throw new UnsupportedOperationException("Unknown ZetaSQL type: " + type.getKind().name());
     }
   }
 
+  // Type conversion: Beam => ZetaSQL
   public static Type beamFieldTypeToZetaSqlType(FieldType fieldType) {
     switch (fieldType.getTypeName()) {
       case INT64:
         return TypeFactory.createSimpleType(TypeKind.TYPE_INT64);
-      case DECIMAL:
-        return TypeFactory.createSimpleType(TypeKind.TYPE_NUMERIC);
       case DOUBLE:
         return TypeFactory.createSimpleType(TypeKind.TYPE_DOUBLE);
-      case STRING:
-        return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
-      case DATETIME:
-        // TODO[BEAM-8630]: Mapping Timestamp to DATETIME results in some timezone/precision issues.
-        //  Can we convert Timestamp to a LogicalType? Will it solve the problem?
-        return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case BOOLEAN:
         return TypeFactory.createSimpleType(TypeKind.TYPE_BOOL);
+      case STRING:
+        return TypeFactory.createSimpleType(TypeKind.TYPE_STRING);
       case BYTES:
         return TypeFactory.createSimpleType(TypeKind.TYPE_BYTES);
+      case DATETIME:
+        // TODO[BEAM-10238]: Mapping TIMESTAMP to a Beam LogicalType instead?
+        return TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP);
       case ARRAY:
-        return createZetaSqlArrayTypeFromBeamElementFieldType(fieldType.getCollectionElementType());
+        return beamElementFieldTypeToZetaSqlArrayType(fieldType.getCollectionElementType());
       case ROW:
-        return createZetaSqlStructTypeFromBeamSchema(fieldType.getRowSchema());
+        return beamSchemaToZetaSqlStructType(fieldType.getRowSchema());
       case LOGICAL_TYPE:
-        switch (fieldType.getLogicalType().getIdentifier()) {
-          case DateType.IDENTIFIER:
-            return TypeFactory.createSimpleType(TypeKind.TYPE_DATE);
-          case TimeType.IDENTIFIER:
-            return TypeFactory.createSimpleType(TypeKind.TYPE_TIME);
-          default:
-            throw new IllegalArgumentException(
-                "Unsupported Beam logical type: " + fieldType.getLogicalType().getIdentifier());
-        }
+        return beamLogicalTypeToZetaSqlType(fieldType.getLogicalType().getIdentifier());
       default:
         throw new UnsupportedOperationException(
-            "Unsupported Beam fieldType: " + fieldType.getTypeName());
+            "Unknown Beam fieldType: " + fieldType.getTypeName());
     }
   }
 
-  private static ArrayType createZetaSqlArrayTypeFromBeamElementFieldType(
-      FieldType elementFieldType) {
+  private static ArrayType beamElementFieldTypeToZetaSqlArrayType(FieldType elementFieldType) {
     return TypeFactory.createArrayType(beamFieldTypeToZetaSqlType(elementFieldType));
   }
 
-  public static StructType createZetaSqlStructTypeFromBeamSchema(Schema schema) {
+  public static StructType beamSchemaToZetaSqlStructType(Schema schema) {
     return TypeFactory.createStructType(
         schema.getFields().stream()
             .map(ZetaSqlUtils::beamFieldToZetaSqlStructField)
@@ -128,6 +119,17 @@ public final class ZetaSqlUtils {
     return new StructField(field.getName(), beamFieldTypeToZetaSqlType(field.getType()));
   }
 
+  private static Type beamLogicalTypeToZetaSqlType(String identifier) {
+    if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+      return TypeFactory.createSimpleType(TypeKind.TYPE_DATE);
+    } else if (TimeType.IDENTIFIER.equals(identifier)) {
+      return TypeFactory.createSimpleType(TypeKind.TYPE_TIME);
+    } else {
+      throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
+    }
+  }
+
+  // Value conversion: Beam => ZetaSQL
   public static Value javaObjectToZetaSqlValue(Object object, FieldType fieldType) {
     if (object == null) {
       return Value.createNullValue(beamFieldTypeToZetaSqlType(fieldType));
@@ -135,37 +137,32 @@ public final class ZetaSqlUtils {
     switch (fieldType.getTypeName()) {
       case INT64:
         return Value.createInt64Value((Long) object);
-        // TODO[BEAM-8630]: Value.createNumericValue() is broken due to a dependency issue
-        // case DECIMAL:
-        //   return Value.createNumericValue((BigDecimal) object);
       case DOUBLE:
         return Value.createDoubleValue((Double) object);
-      case STRING:
-        return Value.createStringValue((String) object);
-      case DATETIME:
-        return jodaInstantToZetaSqlTimestampValue((Instant) object);
       case BOOLEAN:
         return Value.createBoolValue((Boolean) object);
+      case STRING:
+        return Value.createStringValue((String) object);
       case BYTES:
         return Value.createBytesValue(ByteString.copyFrom((byte[]) object));
+      case DATETIME:
+        return jodaInstantToZetaSqlTimestampValue((Instant) object);
       case ARRAY:
         return javaListToZetaSqlArrayValue(
             (List<Object>) object, fieldType.getCollectionElementType());
       case ROW:
         return beamRowToZetaSqlStructValue((Row) object, fieldType.getRowSchema());
+      case LOGICAL_TYPE:
+        return beamLogicalObjectToZetaSqlValue(object, fieldType.getLogicalType().getIdentifier());
       default:
         throw new UnsupportedOperationException(
-            "Unsupported Beam fieldType: " + fieldType.getTypeName());
+            "Unknown Beam fieldType: " + fieldType.getTypeName());
     }
   }
 
   private static Value jodaInstantToZetaSqlTimestampValue(Instant instant) {
-    return javaLongToZetaSqlTimestampValue(instant.getMillis());
-  }
-
-  private static Value javaLongToZetaSqlTimestampValue(Long millis) {
     return Value.createTimestampValueFromUnixMicros(
-        LongMath.checkedMultiply(millis, MICROS_PER_MILLI));
+        LongMath.checkedMultiply(instant.getMillis(), MICROS_PER_MILLI));
   }
 
   private static Value javaListToZetaSqlArrayValue(List<Object> elements, FieldType elementType) {
@@ -173,8 +170,7 @@ public final class ZetaSqlUtils {
         elements.stream()
             .map(e -> javaObjectToZetaSqlValue(e, elementType))
             .collect(Collectors.toList());
-    return Value.createArrayValue(
-        createZetaSqlArrayTypeFromBeamElementFieldType(elementType), values);
+    return Value.createArrayValue(beamElementFieldTypeToZetaSqlArrayType(elementType), values);
   }
 
   public static Value beamRowToZetaSqlStructValue(Row row, Schema schema) {
@@ -185,9 +181,22 @@ public final class ZetaSqlUtils {
           javaObjectToZetaSqlValue(
               row.getBaseValue(i, Object.class), schema.getField(i).getType()));
     }
-    return Value.createStructValue(createZetaSqlStructTypeFromBeamSchema(schema), values);
+    return Value.createStructValue(beamSchemaToZetaSqlStructType(schema), values);
   }
 
+  private static Value beamLogicalObjectToZetaSqlValue(Object object, String identifier) {
+    if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+      if (object instanceof Long) { // base type
+        return Value.createDateValue(((Long) object).intValue());
+      } else { // input type
+        return Value.createDateValue((int) ((LocalDate) object).toEpochDay());
+      }
+    } else {
+      throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
+    }
+  }
+
+  // Value conversion: ZetaSQL => Beam
   public static Object zetaSqlValueToJavaObject(
       Value value, FieldType fieldType, boolean verifyValues) {
     if (value.isNull()) {
@@ -196,8 +205,6 @@ public final class ZetaSqlUtils {
     switch (fieldType.getTypeName()) {
       case INT64:
         return value.getInt64Value();
-      case DECIMAL:
-        return value.getNumericValue();
       case DOUBLE:
         // Floats with a floating part equal to zero are treated as whole (INT64).
         // Cast to double when that happens.
@@ -205,22 +212,24 @@ public final class ZetaSqlUtils {
           return (double) value.getInt64Value();
         }
         return value.getDoubleValue();
-      case STRING:
-        return value.getStringValue();
-      case DATETIME:
-        return zetaSqlTimestampValueToJodaInstant(value);
       case BOOLEAN:
         return value.getBoolValue();
+      case STRING:
+        return value.getStringValue();
       case BYTES:
         return value.getBytesValue().toByteArray();
+      case DATETIME:
+        return zetaSqlTimestampValueToJodaInstant(value);
       case ARRAY:
         return zetaSqlArrayValueToJavaList(
             value, fieldType.getCollectionElementType(), verifyValues);
       case ROW:
         return zetaSqlStructValueToBeamRow(value, fieldType.getRowSchema(), verifyValues);
+      case LOGICAL_TYPE:
+        return zetaSqlValueToBeamLogicalObject(value, fieldType.getLogicalType().getIdentifier());
       default:
         throw new UnsupportedOperationException(
-            "Unsupported Beam fieldType: " + fieldType.getTypeName());
+            "Unknown Beam fieldType: " + fieldType.getTypeName());
     }
   }
 
@@ -249,5 +258,13 @@ public final class ZetaSqlUtils {
             ? Row.withSchema(schema).addValues(objects).build()
             : Row.withSchema(schema).attachValues(objects);
     return row;
+  }
+
+  private static Object zetaSqlValueToBeamLogicalObject(Value value, String identifier) {
+    if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
+      return LocalDate.ofEpochDay(value.getDateValue());
+    } else {
+      throw new UnsupportedOperationException("Unknown Beam logical type: " + identifier);
+    }
   }
 }

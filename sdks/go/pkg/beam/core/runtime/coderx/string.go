@@ -23,6 +23,8 @@ import (
 
 // NewString returns a coder for the string type. It uses the native
 // []byte to string conversion.
+//
+// Only for custom coder test use.
 func NewString() (*coder.CustomCoder, error) {
 	return coder.NewCustomCoder("string", reflectx.String, encString, decString)
 }

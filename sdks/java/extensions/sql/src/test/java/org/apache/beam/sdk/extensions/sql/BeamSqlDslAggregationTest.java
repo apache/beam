@@ -27,8 +27,10 @@ import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.ParseException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -239,6 +241,80 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
     PAssert.that(result).containsInAnyOrder(row);
 
     pipeline.run().waitUntilFinish();
+  }
+
+  /** GROUP-BY with the any_value aggregation function. */
+  @Test
+  public void testAnyValueFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schema = Schema.builder().addInt32Field("key").addInt32Field("col").build();
+
+    PCollection<Row> inputRows =
+        pipeline
+            .apply(
+                Create.of(
+                    TestUtils.rowsBuilderOf(schema)
+                        .addRows(
+                            0, 1,
+                            0, 2,
+                            1, 3,
+                            2, 4,
+                            2, 5)
+                        .getRows()))
+            .setRowSchema(schema);
+
+    String sql = "SELECT key, any_value(col) as any_value FROM PCOLLECTION GROUP BY key";
+
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+
+    Map<Integer, List<Integer>> allowedTuples = new HashMap<>();
+    allowedTuples.put(0, Arrays.asList(1, 2));
+    allowedTuples.put(1, Arrays.asList(3));
+    allowedTuples.put(2, Arrays.asList(4, 5));
+
+    PAssert.that(result)
+        .satisfies(
+            input -> {
+              Iterator<Row> iter = input.iterator();
+              while (iter.hasNext()) {
+                Row row = iter.next();
+                List<Integer> values = allowedTuples.remove(row.getInt32("key"));
+                assertTrue(values != null);
+                assertTrue(values.contains(row.getInt32("any_value")));
+              }
+              assertTrue(allowedTuples.isEmpty());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testBitOrFunction() throws Exception {
+    pipeline.enableAbandonedNodeEnforcement(false);
+
+    Schema schemaInTableA =
+        Schema.builder().addInt64Field("f_long").addInt32Field("f_int2").build();
+
+    Schema resultType = Schema.builder().addInt64Field("finalAnswer").build();
+
+    List<Row> rowsInTableA =
+        TestUtils.RowsBuilder.of(schemaInTableA)
+            .addRows(
+                0xF001L, 0,
+                0x00A1L, 0,
+                44L, 0)
+            .getRows();
+
+    String sql = "SELECT bit_or(f_long) as bitor " + "FROM PCOLLECTION GROUP BY f_int2";
+
+    Row rowResult = Row.withSchema(resultType).addValues(61613L).build();
+
+    PCollection<Row> inputRows =
+        pipeline.apply("longVals", Create.of(rowsInTableA).withRowSchema(schemaInTableA));
+    PCollection<Row> result = inputRows.apply("sql", SqlTransform.query(sql));
+    PAssert.that(result).containsInAnyOrder(rowResult);
   }
 
   private static class CheckerBigDecimalDivide

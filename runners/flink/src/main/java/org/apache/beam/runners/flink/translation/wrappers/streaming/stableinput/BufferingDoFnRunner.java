@@ -102,7 +102,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
           ListStateDescriptor<BufferedElement> stateDescriptor =
               new ListStateDescriptor<>(
                   stateName + stateId,
-                  new CoderTypeSerializer<>(new BufferedElements.Coder(inputCoder, windowCoder)));
+                  new CoderTypeSerializer<>(
+                      new BufferedElements.Coder(inputCoder, windowCoder, null)));
           if (keyedStateBackend != null) {
             return KeyedBufferingElementsHandler.create(keyedStateBackend, stateDescriptor);
           } else {
@@ -147,22 +148,26 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   }
 
   @Override
-  public void onTimer(
+  public <KeyT> void onTimer(
       String timerId,
       String timerFamilyId,
+      KeyT key,
       BoundedWindow window,
       Instant timestamp,
       Instant outputTimestamp,
       TimeDomain timeDomain) {
     currentBufferingElementsHandler.buffer(
-        new BufferedElements.Timer(
-            timerId, timerFamilyId, window, timestamp, outputTimestamp, timeDomain));
+        new BufferedElements.Timer<>(
+            timerId, timerFamilyId, key, window, timestamp, outputTimestamp, timeDomain));
   }
 
   @Override
   public void finishBundle() {
     // Do not finish a bundle, finish it later when emitting elements
   }
+
+  @Override
+  public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}
 
   @Override
   public DoFn<InputT, OutputT> getFn() {

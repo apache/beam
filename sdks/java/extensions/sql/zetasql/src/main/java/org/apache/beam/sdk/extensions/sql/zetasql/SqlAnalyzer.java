@@ -22,17 +22,27 @@ import static com.google.zetasql.ZetaSQLResolvedNodeKind.ResolvedNodeKind.RESOLV
 import static org.apache.beam.sdk.extensions.sql.zetasql.SqlStdOperatorMappingTable.ZETASQL_BUILTIN_FUNCTION_WHITELIST;
 import static org.apache.beam.sdk.extensions.sql.zetasql.TypeUtils.toZetaType;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.zetasql.Analyzer;
 import com.google.zetasql.AnalyzerOptions;
 import com.google.zetasql.Function;
+import com.google.zetasql.FunctionArgumentType;
+import com.google.zetasql.FunctionProtos.FunctionArgumentTypeOptionsProto;
+import com.google.zetasql.FunctionSignature;
 import com.google.zetasql.SimpleCatalog;
+import com.google.zetasql.TVFRelation;
+import com.google.zetasql.TableValuedFunction;
+import com.google.zetasql.TypeFactory;
 import com.google.zetasql.Value;
 import com.google.zetasql.ZetaSQLBuiltinFunctionOptions;
 import com.google.zetasql.ZetaSQLFunctions.FunctionEnums.Mode;
+import com.google.zetasql.ZetaSQLFunctions.SignatureArgumentKind;
 import com.google.zetasql.ZetaSQLOptions.ErrorMessageMode;
 import com.google.zetasql.ZetaSQLOptions.LanguageFeature;
 import com.google.zetasql.ZetaSQLOptions.ParameterMode;
 import com.google.zetasql.ZetaSQLOptions.ProductMode;
+import com.google.zetasql.ZetaSQLType.TypeKind;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedCreateFunctionStmt;
 import com.google.zetasql.resolvedast.ResolvedNodes.ResolvedStatement;
 import java.util.Arrays;
@@ -43,14 +53,13 @@ import java.util.Optional;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters;
 import org.apache.beam.sdk.extensions.sql.impl.QueryPlanner.QueryParameters.Kind;
 import org.apache.beam.sdk.extensions.sql.impl.SqlConversionException;
+import org.apache.beam.sdk.extensions.sql.impl.utils.TVFStreamingUtils;
 import org.apache.beam.sdk.extensions.sql.zetasql.TableResolution.SimpleTableWithPath;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.plan.Context;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataType;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.beam.vendor.calcite.v1_20_0.org.apache.calcite.schema.SchemaPlus;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableSet;
 
 /** Adapter for {@link Analyzer} to simplify the API for parsing the query and resolving the AST. */
 class SqlAnalyzer {
@@ -111,7 +120,8 @@ class SqlAnalyzer {
                 Arrays.asList(
                     LanguageFeature.FEATURE_DISALLOW_GROUP_BY_FLOAT,
                     LanguageFeature.FEATURE_V_1_2_CIVIL_TIME,
-                    LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE)));
+                    LanguageFeature.FEATURE_V_1_1_SELECT_STAR_EXCEPT_REPLACE,
+                    LanguageFeature.FEATURE_TABLE_VALUED_FUNCTIONS)));
 
     options
         .getLanguageOptions()
@@ -175,6 +185,69 @@ class SqlAnalyzer {
                     Mode.SCALAR,
                     ImmutableList.of(resolvedFunc.getSignature())))
         .forEach(catalog::addFunction);
+
+    FunctionArgumentType retType =
+        new FunctionArgumentType(SignatureArgumentKind.ARG_TYPE_RELATION);
+
+    FunctionArgumentType inputTableType =
+        new FunctionArgumentType(SignatureArgumentKind.ARG_TYPE_RELATION);
+
+    FunctionArgumentType descriptorType =
+        new FunctionArgumentType(
+            SignatureArgumentKind.ARG_TYPE_DESCRIPTOR,
+            FunctionArgumentTypeOptionsProto.newBuilder()
+                .setDescriptorResolutionTableOffset(0)
+                .build(),
+            1);
+
+    FunctionArgumentType stringType =
+        new FunctionArgumentType(TypeFactory.createSimpleType(TypeKind.TYPE_STRING));
+
+    // TUMBLE
+    catalog.addTableValuedFunction(
+        new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
+            ImmutableList.of(TVFStreamingUtils.FIXED_WINDOW_TVF),
+            new FunctionSignature(
+                retType, ImmutableList.of(inputTableType, descriptorType, stringType), -1),
+            ImmutableList.of(
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_START,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_END,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+
+    // HOP
+    catalog.addTableValuedFunction(
+        new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
+            ImmutableList.of(TVFStreamingUtils.SLIDING_WINDOW_TVF),
+            new FunctionSignature(
+                retType,
+                ImmutableList.of(inputTableType, descriptorType, stringType, stringType),
+                -1),
+            ImmutableList.of(
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_START,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_END,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
+
+    // SESSION
+    catalog.addTableValuedFunction(
+        new TableValuedFunction.ForwardInputSchemaToOutputSchemaWithAppendedColumnTVF(
+            ImmutableList.of(TVFStreamingUtils.SESSION_WINDOW_TVF),
+            new FunctionSignature(
+                retType,
+                ImmutableList.of(inputTableType, descriptorType, descriptorType, stringType),
+                -1),
+            ImmutableList.of(
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_START,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)),
+                TVFRelation.Column.create(
+                    TVFStreamingUtils.WINDOW_END,
+                    TypeFactory.createSimpleType(TypeKind.TYPE_TIMESTAMP)))));
   }
 
   /**

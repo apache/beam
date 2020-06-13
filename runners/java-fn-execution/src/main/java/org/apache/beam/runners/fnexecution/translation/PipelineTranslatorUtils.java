@@ -22,7 +22,8 @@ import static org.apache.beam.vendor.guava.v26_0_jre.com.google.common.base.Prec
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.function.BiConsumer;
+import java.util.Locale;
+import java.util.Map;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
@@ -36,6 +37,7 @@ import org.apache.beam.runners.core.construction.graph.PipelineNode;
 import org.apache.beam.runners.fnexecution.control.TimerReceiverFactory;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -109,7 +111,7 @@ public final class PipelineTranslatorUtils {
    */
   public static void fireEligibleTimers(
       InMemoryTimerInternals timerInternals,
-      BiConsumer<KV<String, String>, Timer<?>> timerConsumer,
+      Map<KV<String, String>, FnDataReceiver<Timer>> timerReceivers,
       Object currentTimerKey) {
 
     boolean hasFired;
@@ -119,22 +121,22 @@ public final class PipelineTranslatorUtils {
 
       while ((timer = timerInternals.removeNextEventTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, timerConsumer, currentTimerKey);
+        fireTimer(timer, timerReceivers, currentTimerKey);
       }
       while ((timer = timerInternals.removeNextProcessingTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, timerConsumer, currentTimerKey);
+        fireTimer(timer, timerReceivers, currentTimerKey);
       }
       while ((timer = timerInternals.removeNextSynchronizedProcessingTimer()) != null) {
         hasFired = true;
-        fireTimer(timer, timerConsumer, currentTimerKey);
+        fireTimer(timer, timerReceivers, currentTimerKey);
       }
     } while (hasFired);
   }
 
   private static void fireTimer(
       TimerInternals.TimerData timer,
-      BiConsumer<KV<String, String>, Timer<?>> timerConsumer,
+      Map<KV<String, String>, FnDataReceiver<Timer>> timerReceivers,
       Object currentTimerKey) {
     StateNamespace namespace = timer.getNamespace();
     Preconditions.checkArgument(namespace instanceof StateNamespaces.WindowNamespace);
@@ -149,7 +151,16 @@ public final class PipelineTranslatorUtils {
             timestamp,
             outputTimestamp,
             PaneInfo.NO_FIRING);
-    timerConsumer.accept(
-        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerId()), timerValue);
+    KV<String, String> transformAndTimerId =
+        TimerReceiverFactory.decodeTimerDataTimerId(timer.getTimerId());
+    FnDataReceiver<Timer> fnTimerReceiver = timerReceivers.get(transformAndTimerId);
+    Preconditions.checkNotNull(
+        fnTimerReceiver, "No FnDataReceiver found for %s", transformAndTimerId);
+    try {
+      fnTimerReceiver.accept(timerValue);
+    } catch (Exception e) {
+      throw new RuntimeException(
+          String.format(Locale.ENGLISH, "Failed to process timer: %s", timerValue));
+    }
   }
 }

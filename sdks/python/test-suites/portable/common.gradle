@@ -17,8 +17,8 @@
  */
 
 def pythonRootDir = "${rootDir}/sdks/python"
-def pythonContainerSuffix = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion.replace('.', '')
-def pythonContainerTask = ":sdks:python:container:py${pythonContainerSuffix}:docker"
+def pythonVersionSuffix = project.ext.pythonVersion == '2.7' ? '2' : project.ext.pythonVersion.replace('.', '')
+def pythonContainerTask = ":sdks:python:container:py${pythonVersionSuffix}:docker"
 
 class CompatibilityMatrixConfig {
   // Execute batch or streaming pipelines.
@@ -95,6 +95,42 @@ task flinkTriggerTranscript() {
               --tests apache_beam.transforms.trigger_test:WeakTestStreamTranscriptTest \\
               --test-pipeline-options='--runner=FlinkRunner --environment_type=LOOPBACK --flink_job_server_jar=${project(":runners:flink:1.10:job-server:").shadowJar.archivePath}'
           """
+    }
+  }
+}
+
+project.task("preCommitPy${pythonVersionSuffix}") {
+      dependsOn = [":sdks:python:container:py${pythonVersionSuffix}:docker",
+      ':runners:flink:1.10:job-server:shadowJar',
+      'portableWordCountFlinkRunnerBatch',
+      'portableWordCountFlinkRunnerStreaming']
+}
+
+project.task("postCommitPy${pythonVersionSuffix}") {
+      dependsOn = ['setupVirtualenv',
+      "postCommitPy${pythonVersionSuffix}IT",
+      ':runners:spark:job-server:shadowJar',
+      'portableWordCountSparkRunnerBatch']
+}
+
+project.task("postCommitPy${pythonVersionSuffix}IT") {
+  dependsOn = ['setupVirtualenv',
+  'installGcpTest',
+  ':runners:flink:1.10:job-server:shadowJar']
+
+  doLast {
+    def tests = [
+        "apache_beam.io.gcp.bigquery_read_it_test",
+    ]
+    def testOpts = ["--tests=${tests.join(',')}"]
+    def cmdArgs = mapToArgString([
+        "test_opts": testOpts,
+        "suite": "postCommitIT-flink-py${pythonVersionSuffix}",
+        "pipeline_opts": "--runner=FlinkRunner --project=apache-beam-testing --environment_type=LOOPBACK --temp_location=gs://temp-storage-for-end-to-end-tests/temp-it",
+    ])
+    exec {
+      executable 'sh'
+      args '-c', ". ${envdir}/bin/activate && ${pythonRootDir}/scripts/run_integration_test.sh $cmdArgs"
     }
   }
 }

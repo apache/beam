@@ -128,7 +128,11 @@ public class ApexTimerInternalsTest {
     TimerDataCoderV2 timerDataCoder = TimerDataCoderV2.of(GlobalWindow.Coder.INSTANCE);
     TimerData timerData =
         TimerData.of(
-            "arbitrary-id", StateNamespaces.global(), new Instant(0), TimeDomain.EVENT_TIME);
+            "arbitrary-id",
+            StateNamespaces.global(),
+            new Instant(0),
+            new Instant(0),
+            TimeDomain.EVENT_TIME);
     String key = "key";
     ApexTimerInternals<String> timerInternals = new ApexTimerInternals<>(timerDataCoder);
     timerInternals.setContext(key, StringUtf8Coder.of(), Instant.now(), null);

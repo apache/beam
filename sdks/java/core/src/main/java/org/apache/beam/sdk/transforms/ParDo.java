@@ -404,13 +404,22 @@ public class ParDo {
   }
 
   private static void finishSpecifyingStateSpecs(
-      DoFn<?, ?> fn, CoderRegistry coderRegistry, Coder<?> inputCoder) {
+      DoFn<?, ?> fn,
+      CoderRegistry coderRegistry,
+      SchemaRegistry schemaRegistry,
+      Coder<?> inputCoder) {
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     Map<String, DoFnSignature.StateDeclaration> stateDeclarations = signature.stateDeclarations();
     for (DoFnSignature.StateDeclaration stateDeclaration : stateDeclarations.values()) {
       try {
         StateSpec<?> stateSpec = (StateSpec<?>) stateDeclaration.field().get(fn);
-        stateSpec.offerCoders(codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder));
+        Coder[] coders;
+        try {
+          coders = schemasForStateSpecTypes(stateDeclaration, schemaRegistry);
+        } catch (NoSuchSchemaException e) {
+          coders = codersForStateSpecTypes(stateDeclaration, coderRegistry, inputCoder);
+        }
+        stateSpec.offerCoders(coders);
         stateSpec.finishSpecifying();
       } catch (IllegalAccessException e) {
         throw new RuntimeException(e);
@@ -492,6 +501,32 @@ public class ParDo {
       }
     }
     return fieldAccessDescriptor.resolve(inputSchema);
+  }
+
+  private static SchemaCoder[] schemasForStateSpecTypes(
+      DoFnSignature.StateDeclaration stateDeclaration, SchemaRegistry schemaRegistry)
+      throws NoSuchSchemaException {
+    Type stateType = stateDeclaration.stateType().getType();
+
+    if (!(stateType instanceof ParameterizedType)) {
+      // No type arguments means no coders to infer.
+      return new SchemaCoder[0];
+    }
+
+    Type[] typeArguments = ((ParameterizedType) stateType).getActualTypeArguments();
+    SchemaCoder[] coders = new SchemaCoder[typeArguments.length];
+
+    for (int i = 0; i < typeArguments.length; i++) {
+      Type typeArgument = typeArguments[i];
+      TypeDescriptor typeDescriptor = TypeDescriptor.of(typeArgument);
+      coders[i] =
+          SchemaCoder.of(
+              schemaRegistry.getSchema(typeDescriptor),
+              typeDescriptor,
+              schemaRegistry.getToRowFunction(typeDescriptor),
+              schemaRegistry.getFromRowFunction(typeDescriptor));
+    }
+    return coders;
   }
 
   /**
@@ -741,8 +776,8 @@ public class ParDo {
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
-      CoderRegistry registry = input.getPipeline().getCoderRegistry();
-      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
       TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
@@ -757,7 +792,7 @@ public class ParDo {
       } catch (NoSuchSchemaException e) {
         try {
           res.setCoder(
-              registry.getCoder(
+              coderRegistry.getCoder(
                   outputTypeDescriptor,
                   getFn().getInputTypeDescriptor(),
                   ((PCollection<InputT>) input).getCoder()));
@@ -895,8 +930,9 @@ public class ParDo {
       validateWindowType(input, fn);
 
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
-      CoderRegistry registry = input.getPipeline().getCoderRegistry();
-      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+      CoderRegistry coderRegistry = input.getPipeline().getCoderRegistry();
+      SchemaRegistry schemaRegistry = input.getPipeline().getSchemaRegistry();
+      finishSpecifyingStateSpecs(fn, coderRegistry, schemaRegistry, input.getCoder());
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       if (signature.usesState() || signature.usesTimers()) {
@@ -923,7 +959,7 @@ public class ParDo {
         try {
           out.setCoder(
               (Coder)
-                  registry.getCoder(
+                  coderRegistry.getCoder(
                       out.getTypeDescriptor(), getFn().getInputTypeDescriptor(), inputCoder));
         } catch (CannotProvideCoderException e) {
           // Ignore and let coder inference happen later.

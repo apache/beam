@@ -61,6 +61,7 @@ dependencies {
   compile project(":runners:core-construction-java")
   compile project(":runners:core-java")
   compile project(":runners:java-fn-execution")
+  compile project(":runners:java-job-service")
   compile project(":sdks:java:extensions:google-cloud-platform-core")
   compile library.java.jackson_annotations
   compile library.java.slf4j_api
@@ -137,6 +138,8 @@ task validatesRunnerBatch(type: Test) {
     includeCategories 'org.apache.beam.runners.spark.UsesCheckpointRecovery'
     excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     // Unbounded
     excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
@@ -206,6 +209,8 @@ task validatesStructuredStreamingRunnerBatch(type: Test) {
     excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
     excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
     // Metrics
     excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
     excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
@@ -238,7 +243,7 @@ task validatesRunner {
   description "Validates Spark runner"
   dependsOn validatesRunnerBatch
   dependsOn validatesRunnerStreaming
-  // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass. 
+  // It should be uncommented once all "validatesStructuredStreamingRunnerBatch" tests will pass.
   // Otherwise, it breaks Spark runner ValidatesRunner tests.
   //dependsOn validatesStructuredStreamingRunnerBatch
 }

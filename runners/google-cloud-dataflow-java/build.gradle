@@ -145,15 +145,6 @@ def commonExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBundleFinalizer'
 ]
 
-def fnApiWorkerExcludeCategories = [
-  'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
-  'org.apache.beam.sdk.testing.DataflowPortabilityApiUnsupported',
-  'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders',
-  'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesSchema',
-]
-
 // For the following test tasks using legacy worker, set workerHarnessContainerImage to empty to
 // make Dataflow pick up the non-versioned container image, which handles a staged worker jar.
 task validatesRunnerLegacyWorkerTest(type: Test) {
@@ -226,77 +217,18 @@ task printFnApiPipelineOptions {
   }
 }
 
-task validatesRunnerFnApiWorkerTest(type: Test) {
-  group = "Verification"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-  dependsOn buildAndPushDockerContainer
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}"] + fnApiPipelineOptions
-  )
-
-  // Increase test parallelism up to the number of Gradle workers. By default this is equal
-  // to the number of CPU cores, but can be increased by setting --max-workers=N.
-  maxParallelForks Integer.MAX_VALUE
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-          files(project(project.path).sourceSets.test.output.classesDirs)
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
-    commonExcludeCategories.each {
-      excludeCategories it
-    }
-    fnApiWorkerExcludeCategories.each {
-      excludeCategories it
-    }
-  }
-}
-
-task validatesRunnerFnApiWorkerExecutableStageTest(type: Test) {
-  group = "Verification"
-  description "Validates Dataflow PortabilityApi runner"
-  dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
-  dependsOn buildAndPushDockerContainer
-
-  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
-          "--runner=TestDataflowRunner",
-          "--project=${dataflowProject}",
-          "--region=${dataflowRegion}",
-          "--tempRoot=${dataflowPostCommitTempRoot}",
-          "--dataflowWorkerJar=${dataflowFnApiWorkerJar}",
-          "--workerHarnessContainerImage=${dockerImageContainer}:${dockerTag}",
-          "--experiments=beam_fn_api,use_executable_stage_bundle_execution"]
-  )
-
-  // Increase test parallelism up to the number of Gradle workers. By default this is equal
-  // to the number of CPU cores, but can be increased by setting --max-workers=N.
-  maxParallelForks Integer.MAX_VALUE
-  classpath = configurations.validatesRunner
-  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
-          files(project(project.path).sourceSets.test.output.classesDirs)
-  useJUnit {
-    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-    commonExcludeCategories.each {
-      excludeCategories it
-    }
-    fnApiWorkerExcludeCategories.each {
-      excludeCategories it
-    }
-    // TODO(BEAM-6233): Support timer and state.
-    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
-  }
-}
-
 task validatesRunner {
   group = "Verification"
   description "Validates Dataflow runner"
   dependsOn validatesRunnerLegacyWorkerTest
 }
 
-task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
+task copyGoogleCloudPlatformTestResources(type: Copy){
+  from project(':sdks:java:io:google-cloud-platform').fileTree("src/test/resources")
+  into "$buildDir/resources/test/"
+}
+
+task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyGoogleCloudPlatformTestResources) {
   group = "Verification"
   dependsOn ":runners:google-cloud-dataflow-java:worker:legacy-worker:shadowJar"
   systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
@@ -312,6 +244,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test) {
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageReadTableRowIT.class'
   exclude '**/PubsubReadIT.class'
+  exclude '**/FhirIOReadIT.class'
   maxParallelForks 4
   classpath = configurations.googleCloudPlatformIntegrationTest
   testClassesDirs = files(project(":sdks:java:io:google-cloud-platform").sourceSets.test.output.classesDirs)
@@ -506,6 +439,7 @@ task cleanUpDockerImages() {
 }
 
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
 def gcsBucket = project.findProperty('gcsBucket') ?: 'temp-storage-for-release-validation-tests/nightly-snapshot-validation'
 def bqDataset = project.findProperty('bqDataset') ?: 'beam_postrelease_mobile_gaming'
 def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_topic'
@@ -514,12 +448,14 @@ def pubsubTopic = project.findProperty('pubsubTopic') ?: 'java_mobile_gaming_top
 createJavaExamplesArchetypeValidationTask(type: 'Quickstart',
   runner: 'Dataflow',
   gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
   gcsBucket: gcsBucket)
 
 // Generates :runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow
 createJavaExamplesArchetypeValidationTask(type: 'MobileGaming',
   runner: 'Dataflow',
   gcpProject: gcpProject,
+  gcpRegion: gcpRegion,
   gcsBucket: gcsBucket,
   bqDataset: bqDataset,
   pubsubTopic: pubsubTopic)

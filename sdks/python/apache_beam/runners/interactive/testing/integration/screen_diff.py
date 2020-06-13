@@ -22,6 +22,7 @@
 from __future__ import absolute_import
 
 import os
+import platform
 import threading
 import unittest
 from multiprocessing import Process
@@ -44,10 +45,17 @@ try:
   from needle.cases import NeedleTestCase
   from needle.driver import NeedleChrome
   from selenium.webdriver.chrome.options import Options
+  from selenium.webdriver.common.by import By
+  from selenium.webdriver.support import expected_conditions
+  from selenium.webdriver.support.ui import WebDriverWait
   _interactive_integration_ready = (
       notebook_executor._interactive_integration_ready)
 except ImportError:
   _interactive_integration_ready = False
+
+# Web elements will be rendered differently on different platforms. List all
+# supported platforms with goldens here.
+_SUPPORTED_PLATFORMS = ['Darwin', 'Linux']
 
 
 class ScreenDiffIntegrationTestEnvironment(object):
@@ -124,6 +132,7 @@ class ScreenDiffIntegrationTestEnvironment(object):
 def should_skip():
   """Whether a screen diff test should be skipped."""
   return not (
+      platform.system() in _SUPPORTED_PLATFORMS and
       ie.current_env().is_py_version_ready and
       ie.current_env().is_interactive_ready and _interactive_integration_ready)
 
@@ -162,10 +171,13 @@ else:
         #. cleanup=<True/False>. Whether to clean up the output directory.
            Should always be True in automated test environment. When debugging,
            turn it False to manually check the output for difference.
+        #. threshold=<float>. An image difference threshold, when the image
+           pixel distance is bigger than the value, the test will fail.
       """
-      self._golden_dir = kwargs.pop(
+      golden_root = kwargs.pop(
           'golden_dir',
           'apache_beam/runners/interactive/testing/integration/goldens')
+      self._golden_dir = os.path.join(golden_root, platform.system())
       self._test_notebook_dir = kwargs.pop(
           'test_notebook_dir',
           'apache_beam/runners/interactive/testing/integration/test_notebooks')
@@ -174,6 +186,7 @@ else:
       self._viewport_width, self._viewport_height = kwargs.pop(
         'golden_size', (1024, 10000))
       self._cleanup = kwargs.pop('cleanup', True)
+      self._threshold = kwargs.pop('threshold', 5000)
       self.baseline_directory = os.path.join(os.getcwd(), self._golden_dir)
       self.output_directory = os.path.join(
           os.getcwd(), self._test_notebook_dir, 'output')
@@ -183,7 +196,10 @@ else:
     def get_web_driver(cls):
       chrome_options = Options()
       if cls._headless:
-        chrome_options.add_argument("--headless")
+        chrome_options.add_argument('--headless')
+      chrome_options.add_argument('--no-sandbox')
+      chrome_options.add_argument('--disable-dev-shm-usage')
+      chrome_options.add_argument('--force-color-profile=srgb')
       return NeedleChrome(options=chrome_options)
 
     def setUp(self):
@@ -196,11 +212,21 @@ else:
         self._test_env = test_env
         super(BaseTestCase, self).run(result)
 
+    def explicit_wait(self):
+      """Wait for common elements to be visible."""
+      WebDriverWait(self.driver, 5).until(
+          expected_conditions.visibility_of_element_located(
+              (By.TAG_NAME, 'facets-overview')))
+      WebDriverWait(self.driver, 5).until(
+          expected_conditions.visibility_of_element_located(
+              (By.TAG_NAME, 'facets-dive')))
+
     def assert_all(self):
       """Asserts screenshots for all notebooks in the test_notebook_path."""
       for test_id, test_url in self._test_env.test_urls.items():
         self.driver.get(test_url)
-        self.assertScreenshot('body', test_id)
+        self.explicit_wait()
+        self.assertScreenshot('body', test_id, self._threshold)
 
     def assert_single(self, test_id):
       """Asserts the screenshot for a single test. The given test id will be the
@@ -208,7 +234,8 @@ else:
       test_url = self._test_env.test_urls.get(test_id, None)
       assert test_url, '{} is not a valid test id.'.format(test_id)
       self.driver.get(test_url)
-      self.assertScreenshot('body', test_id)
+      self.explicit_wait()
+      self.assertScreenshot('body', test_id, self._threshold)
 
     def assert_notebook(self, notebook_name):
       """Asserts the screenshot for a single notebook. The notebook with the

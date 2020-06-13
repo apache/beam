@@ -43,18 +43,24 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryOptions;
 import org.apache.beam.sdk.io.gcp.bigquery.DynamicDestinations;
+import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy;
 import org.apache.beam.sdk.io.gcp.bigquery.SchemaAndRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestination;
+import org.apache.beam.sdk.io.gcp.bigquery.WriteResult;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.PeriodicImpulse;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
@@ -68,7 +74,6 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
-import org.apache.beam.sdk.transforms.windowing.WindowFn.MergeContext;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -782,7 +787,131 @@ public class Snippets {
           Window.<TableRow>into(
               DynamicSessions.withDefaultGapDuration(Duration.standardSeconds(10))));
       // [END CustomSessionWindow6]
+    }
+  }
 
+  public static class DeadLetterBigQuery {
+
+    public static void main(String[] args) {
+
+      // [START BigQueryIODeadLetter]
+
+      PipelineOptions options =
+          PipelineOptionsFactory.fromArgs(args).withValidation().as(BigQueryOptions.class);
+
+      Pipeline p = Pipeline.create(options);
+
+      // Create a bug by writing the 2nd value as null. The API will correctly
+      // throw an error when trying to insert a null value into a REQUIRED field.
+      WriteResult result =
+          p.apply(Create.of(1, 2))
+              .apply(
+                  BigQueryIO.<Integer>write()
+                      .withSchema(
+                          new TableSchema()
+                              .setFields(
+                                  ImmutableList.of(
+                                      new TableFieldSchema()
+                                          .setName("num")
+                                          .setType("INTEGER")
+                                          .setMode("REQUIRED"))))
+                      .to("Test.dummyTable")
+                      .withFormatFunction(x -> new TableRow().set("num", (x == 2) ? null : x))
+                      .withFailedInsertRetryPolicy(InsertRetryPolicy.retryTransientErrors())
+                      // Forcing the bounded pipeline to use streaming inserts
+                      .withMethod(BigQueryIO.Write.Method.STREAMING_INSERTS)
+                      // set the withExtendedErrorInfo property.
+                      .withExtendedErrorInfo()
+                      .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+                      .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND));
+
+      result
+          .getFailedInsertsWithErr()
+          .apply(
+              MapElements.into(TypeDescriptors.strings())
+                  .via(
+                      x -> {
+                        System.out.println(" The table was " + x.getTable());
+                        System.out.println(" The row was " + x.getRow());
+                        System.out.println(" The error was " + x.getError());
+                        return "";
+                      }));
+      p.run();
+
+      /*  Sample Output From the pipeline:
+       <p>The table was GenericData{classInfo=[datasetId, projectId, tableId], {datasetId=Test,projectId=<>, tableId=dummyTable}}
+       <p>The row was GenericData{classInfo=[f], {num=null}}
+       <p>The error was GenericData{classInfo=[errors, index],{errors=[GenericData{classInfo=[debugInfo, location, message, reason], {debugInfo=,location=, message=Missing required field: Msg_0_CLOUD_QUERY_TABLE.num., reason=invalid}}],index=0}}
+      */
+    }
+    // [END BigQueryIODeadLetter]
+  }
+
+  public static class PeriodicallyUpdatingSideInputs {
+
+    public static PCollection<Long> main(
+        Pipeline p,
+        Instant startAt,
+        Instant stopAt,
+        Duration interval1,
+        Duration interval2,
+        String fileToRead) {
+      // [START PeriodicallyUpdatingSideInputs]
+      PCollectionView<List<Long>> sideInput =
+          p.apply(
+                  "SIImpulse",
+                  PeriodicImpulse.create()
+                      .startAt(startAt)
+                      .stopAt(stopAt)
+                      .withInterval(interval1)
+                      .applyWindowing())
+              .apply(
+                  "FileToRead",
+                  ParDo.of(
+                      new DoFn<Instant, String>() {
+                        @DoFn.ProcessElement
+                        public void process(@Element Instant notUsed, OutputReceiver<String> o) {
+                          o.output(fileToRead);
+                        }
+                      }))
+              .apply(FileIO.matchAll())
+              .apply(FileIO.readMatches())
+              .apply(TextIO.readFiles())
+              .apply(
+                  ParDo.of(
+                      new DoFn<String, String>() {
+                        @ProcessElement
+                        public void process(@Element String src, OutputReceiver<String> o) {
+                          o.output(src);
+                        }
+                      }))
+              .apply(Combine.globally(Count.<String>combineFn()).withoutDefaults())
+              .apply(View.asList());
+
+      PCollection<Instant> mainInput =
+          p.apply(
+              "MIImpulse",
+              PeriodicImpulse.create()
+                  .startAt(startAt.minus(Duration.standardSeconds(1)))
+                  .stopAt(stopAt.minus(Duration.standardSeconds(1)))
+                  .withInterval(interval2)
+                  .applyWindowing());
+
+      // Consume side input. GenerateSequence generates test data.
+      // Use a real source (like PubSubIO or KafkaIO) in production.
+      PCollection<Long> result =
+          mainInput.apply(
+              "generateOutput",
+              ParDo.of(
+                      new DoFn<Instant, Long>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output((long) c.sideInput(sideInput).size());
+                        }
+                      })
+                  .withSideInputs(sideInput));
+      // [END PeriodicallyUpdatingSideInputs]
+      return result;
     }
   }
 }

@@ -84,8 +84,8 @@ public class PipelineOptionsTableGenerator {
     System.out.println(
         "<!--\n"
             + "This is an auto-generated file.\n"
-            + "Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively\n"
-            + "which should be called before running the tests.\n"
+            + "Use generatePipelineOptionsTableJava and generatePipelineOptionsTablePython respectively.\n"
+            + "Should be called before running the tests.\n"
             + "-->");
   }
 

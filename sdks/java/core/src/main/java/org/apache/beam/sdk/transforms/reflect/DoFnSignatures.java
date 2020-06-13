@@ -86,6 +86,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -164,7 +165,8 @@ public class DoFnSignatures {
           Parameter.TimerParameter.class,
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
-          Parameter.TimerIdParameter.class);
+          Parameter.TimerIdParameter.class,
+          Parameter.KeyParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -188,7 +190,9 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.OutputReceiverParameter.class,
               Parameter.TaggedOutputReceiverParameter.class,
-              Parameter.StateParameter.class);
+              Parameter.StateParameter.class,
+              Parameter.TimestampParameter.class,
+              Parameter.KeyParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
@@ -1017,6 +1021,19 @@ public class DoFnSignatures {
         .where(new TypeParameter<OutputT>() {}, outputT);
   }
 
+  /**
+   * Generates a {@link TypeDescriptor} for {@code DoFn<InputT, OutputT>.Context} given {@code
+   * InputT} and {@code OutputT}.
+   */
+  private static <InputT, OutputT>
+      TypeDescriptor<DoFn<InputT, OutputT>.OnWindowExpirationContext>
+          doFnOnWindowExpirationContextTypeOf(
+              TypeDescriptor<InputT> inputT, TypeDescriptor<OutputT> outputT) {
+    return new TypeDescriptor<DoFn<InputT, OutputT>.OnWindowExpirationContext>() {}.where(
+            new TypeParameter<InputT>() {}, inputT)
+        .where(new TypeParameter<OutputT>() {}, outputT);
+  }
+
   @VisibleForTesting
   static DoFnSignature.OnTimerMethod analyzeOnTimerMethod(
       ErrorReporter errors,
@@ -1262,6 +1279,8 @@ public class DoFnSignatures {
     TypeDescriptor<?> expectedStartBundleContextT = doFnStartBundleContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedFinishBundleContextT = doFnFinishBundleContextTypeOf(inputT, outputT);
     TypeDescriptor<?> expectedOnTimerContextT = doFnOnTimerContextTypeOf(inputT, outputT);
+    TypeDescriptor<?> expectedOnWindowExpirationContextT =
+        doFnOnWindowExpirationContextTypeOf(inputT, outputT);
 
     TypeDescriptor<?> paramT = param.getType();
     Class<?> rawType = paramT.getRawType();
@@ -1284,6 +1303,18 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          KV.class.equals(inputT.getRawType()),
+          "@Key argument is expected to be use with input element of type KV.");
+
+      Type keyType = ((ParameterizedType) inputT.getType()).getActualTypeArguments()[0];
+      methodErrors.checkArgument(
+          TypeDescriptor.of(keyType).equals(paramT),
+          "@Key argument is expected to be type of %s, but found %s.",
+          keyType,
+          rawType);
+      return Parameter.keyT(paramT);
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
@@ -1319,6 +1350,12 @@ public class DoFnSignatures {
           "OnTimerContext argument must have type %s",
           format(expectedOnTimerContextT));
       return Parameter.onTimerContext();
+    } else if (rawType.equals(DoFn.OnWindowExpirationContext.class)) {
+      paramErrors.checkArgument(
+          paramT.equals(expectedOnWindowExpirationContextT),
+          "OnWindowExpirationContext argument must have type %s",
+          format(expectedOnWindowExpirationContextT));
+      return Parameter.onWindowExpirationContext();
     } else if (BoundedWindow.class.isAssignableFrom(rawType)) {
       methodErrors.checkArgument(
           !methodContext.hasParameter(WindowParameter.class),

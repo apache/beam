@@ -26,7 +26,6 @@ from __future__ import absolute_import
 from __future__ import division
 
 import base64
-import json
 import logging
 import os
 import subprocess
@@ -117,13 +116,15 @@ class DataflowRunner(PipelineRunner):
   # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CombineValuesPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
   from apache_beam.runners.dataflow.ptransform_overrides import JrhReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import ReadPTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import NativeReadPTransformOverride
 
-  # Thesse overrides should be applied before the proto representation of the
+  # These overrides should be applied before the proto representation of the
   # graph is created.
   _PTRANSFORM_OVERRIDES = [
-      CombineValuesPTransformOverride()
+      CombineValuesPTransformOverride(),
+      NativeReadPTransformOverride(),
   ]  # type: List[PTransformOverride]
 
   _JRH_PTRANSFORM_OVERRIDES = [
@@ -276,7 +277,7 @@ class DataflowRunner(PipelineRunner):
 
     class GroupByKeyInputVisitor(PipelineVisitor):
       """A visitor that replaces `Any` element type for input `PCollection` of
-      a `GroupByKey` or `_GroupByKeyOnly` with a `KV` type.
+      a `GroupByKey` with a `KV` type.
 
       TODO(BEAM-115): Once Python SDk is compatible with the new Runner API,
       we could directly replace the coder instead of mutating the element type.
@@ -287,8 +288,8 @@ class DataflowRunner(PipelineRunner):
       def visit_transform(self, transform_node):
         # Imported here to avoid circular dependencies.
         # pylint: disable=wrong-import-order, wrong-import-position
-        from apache_beam.transforms.core import GroupByKey, _GroupByKeyOnly
-        if isinstance(transform_node.transform, (GroupByKey, _GroupByKeyOnly)):
+        from apache_beam.transforms.core import GroupByKey
+        if isinstance(transform_node.transform, GroupByKey):
           pcoll = transform_node.inputs[0]
           pcoll.element_type = typehints.coerce_to_kv_type(
               pcoll.element_type, transform_node.full_label)
@@ -325,7 +326,7 @@ class DataflowRunner(PipelineRunner):
     return SetPDoneVisitor(pipeline)
 
   @staticmethod
-  def side_input_visitor(use_unified_worker=False):
+  def side_input_visitor(use_unified_worker=False, use_fn_api=False):
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position
     from apache_beam.pipeline import PipelineVisitor
@@ -343,7 +344,7 @@ class DataflowRunner(PipelineRunner):
           for ix, side_input in enumerate(transform_node.side_inputs):
             access_pattern = side_input._side_input_data().access_pattern
             if access_pattern == common_urns.side_inputs.ITERABLE.urn:
-              if use_unified_worker:
+              if use_unified_worker or not use_fn_api:
                 # TODO(BEAM-9173): Stop patching up the access pattern to
                 # appease Dataflow when using the UW and hardcode the output
                 # type to be Any since the Dataflow JSON and pipeline proto
@@ -382,8 +383,9 @@ class DataflowRunner(PipelineRunner):
                   'Unsupported access pattern for %r: %r' %
                   (transform_node.full_label, access_pattern))
             new_side_inputs.append(new_side_input)
-          transform_node.side_inputs = new_side_inputs
-          transform_node.transform.side_inputs = new_side_inputs
+          if use_fn_api:
+            transform_node.side_inputs = new_side_inputs
+            transform_node.transform.side_inputs = new_side_inputs
 
     return SideInputVisitor()
 
@@ -451,14 +453,18 @@ class DataflowRunner(PipelineRunner):
     self._maybe_add_unified_worker_missing_options(options)
 
     # Convert all side inputs into a form acceptable to Dataflow.
-    if apiclient._use_fnapi(options):
-      pipeline.visit(
-          self.side_input_visitor(apiclient._use_unified_worker(options)))
+    pipeline.visit(
+        self.side_input_visitor(
+            apiclient._use_unified_worker(options),
+            apiclient._use_fnapi(options)))
 
     # Performing configured PTransform overrides.  Note that this is currently
     # done before Runner API serialization, since the new proto needs to contain
     # any added PTransforms.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+
+    from apache_beam.runners.dataflow.ptransform_overrides import WriteToBigQueryPTransformOverride
+    pipeline.replace_all([WriteToBigQueryPTransformOverride(pipeline, options)])
 
     if (apiclient._use_fnapi(options) and
         not apiclient._use_unified_worker(options)):
@@ -467,7 +473,8 @@ class DataflowRunner(PipelineRunner):
     use_fnapi = apiclient._use_fnapi(options)
     from apache_beam.transforms import environments
     default_environment = environments.DockerEnvironment.from_container_image(
-        apiclient.get_container_image_from_options(options))
+        apiclient.get_container_image_from_options(options),
+        artifacts=environments.python_sdk_dependencies(options))
 
     # Snapshot the pipeline in a portable proto.
     self.proto_pipeline, self.proto_context = pipeline.to_runner_api(
@@ -800,49 +807,24 @@ class DataflowRunner(PipelineRunner):
             PropertyNames.OUTPUT_NAME: PropertyNames.OUT
         }])
 
-  def apply_WriteToBigQuery(self, transform, pcoll, options):
-    # Make sure this is the WriteToBigQuery class that we expected, and that
-    # users did not specifically request the new BQ sink by passing experiment
-    # flag.
-
-    # TODO(BEAM-6928): Remove this function for release 2.14.0.
-    experiments = options.view_as(DebugOptions).experiments or []
-    from apache_beam.runners.dataflow.internal import apiclient
-    use_fnapi = apiclient._use_fnapi(options)
-    if (not isinstance(transform, beam.io.WriteToBigQuery) or use_fnapi or
-        'use_beam_bq_sink' in experiments):
-      return self.apply_PTransform(transform, pcoll, options)
-    if transform.schema == beam.io.gcp.bigquery.SCHEMA_AUTODETECT:
-      raise RuntimeError(
-          'Schema auto-detection is not supported on the native sink')
-    standard_options = options.view_as(StandardOptions)
-    if standard_options.streaming:
-      if (transform.write_disposition ==
-          beam.io.BigQueryDisposition.WRITE_TRUNCATE):
-        raise RuntimeError('Can not use write truncation mode in streaming')
-      return self.apply_PTransform(transform, pcoll, options)
-    else:
-      from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
-      schema = None
-      if transform.schema:
-        schema = parse_table_schema_from_json(json.dumps(transform.schema))
-      return pcoll | 'WriteToBigQuery' >> beam.io.Write(
-          beam.io.BigQuerySink(
-              transform.table_reference.tableId,
-              transform.table_reference.datasetId,
-              transform.table_reference.projectId,
-              schema,
-              transform.create_disposition,
-              transform.write_disposition,
-              kms_key=transform.kms_key))
-
+  # TODO(srohde): Remove this after internal usages have been removed.
   def apply_GroupByKey(self, transform, pcoll, options):
+    return transform.expand(pcoll)
+
+  def _verify_gbk_coders(self, transform, pcoll):
     # Infer coder of parent.
     #
     # TODO(ccy): make Coder inference and checking less specialized and more
     # comprehensive.
+
     parent = pcoll.producer
     if parent:
+      # Skip the check because we can assume that any x-lang transform is
+      # properly formed (the onus is on the expansion service to construct
+      # transforms correctly).
+      if isinstance(parent.transform, RunnerAPIPTransformHolder):
+        return
+
       coder = parent.transform._infer_output_coder()  # pylint: disable=protected-access
     if not coder:
       coder = self._get_coder(pcoll.element_type or typehints.Any, None)
@@ -854,11 +836,13 @@ class DataflowRunner(PipelineRunner):
     coders.registry.verify_deterministic(
         coder.key_coder(), 'GroupByKey operation "%s"' % transform.label)
 
-    return pvalue.PCollection.from_(pcoll)
-
   def run_GroupByKey(self, transform_node, options):
     input_tag = transform_node.inputs[0].tag
     input_step = self._cache.get_pvalue(transform_node.inputs[0])
+
+    # Verify that the GBK's parent has a KV coder.
+    self._verify_gbk_coders(transform_node.transform, transform_node.inputs[0])
+
     step = self._add_step(
         TransformNames.GROUP, transform_node.full_label, transform_node)
     step.add_property(
@@ -971,32 +955,31 @@ class DataflowRunner(PipelineRunner):
     transform_id = self.proto_context.transforms.get_id(transform_node)
     use_fnapi = apiclient._use_fnapi(options)
     use_unified_worker = apiclient._use_unified_worker(options)
+    # Patch side input ids to be unique across a given pipeline.
+    if (label_renames and
+        transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
+      # Patch PTransform proto.
+      for old, new in iteritems(label_renames):
+        transform_proto.inputs[new] = transform_proto.inputs[old]
+        del transform_proto.inputs[old]
+
+      # Patch ParDo proto.
+      proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
+      proto = proto_utils.parse_Bytes(transform_proto.spec.payload, proto_type)
+      for old, new in iteritems(label_renames):
+        proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
+        del proto.side_inputs[old]
+      transform_proto.spec.payload = proto.SerializeToString()
+      # We need to update the pipeline proto.
+      del self.proto_pipeline.components.transforms[transform_id]
+      (
+          self.proto_pipeline.components.transforms[transform_id].CopyFrom(
+              transform_proto))
     # The data transmitted in SERIALIZED_FN is different depending on whether
     # this is a fnapi pipeline or not.
     if (use_fnapi and
         (transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn or
          use_unified_worker)):
-      # Patch side input ids to be unique across a given pipeline.
-      if (label_renames and
-          transform_proto.spec.urn == common_urns.primitives.PAR_DO.urn):
-        # Patch PTransform proto.
-        for old, new in iteritems(label_renames):
-          transform_proto.inputs[new] = transform_proto.inputs[old]
-          del transform_proto.inputs[old]
-
-        # Patch ParDo proto.
-        proto_type, _ = beam.PTransform._known_urns[transform_proto.spec.urn]
-        proto = proto_utils.parse_Bytes(
-            transform_proto.spec.payload, proto_type)
-        for old, new in iteritems(label_renames):
-          proto.side_inputs[new].CopyFrom(proto.side_inputs[old])
-          del proto.side_inputs[old]
-        transform_proto.spec.payload = proto.SerializeToString()
-        # We need to update the pipeline proto.
-        del self.proto_pipeline.components.transforms[transform_id]
-        (
-            self.proto_pipeline.components.transforms[transform_id].CopyFrom(
-                transform_proto))
       serialized_data = transform_id
     else:
       serialized_data = pickler.dumps(
@@ -1018,7 +1001,7 @@ class DataflowRunner(PipelineRunner):
     # will be 'None' for main output and '<tag>' for a tagged output.
     outputs = []
 
-    all_output_tags = transform_proto.outputs.keys()
+    all_output_tags = list(transform_proto.outputs.keys())
 
     # Some external transforms require output tags to not be modified.
     # So we randomly select one of the output tags as the main output and
@@ -1137,13 +1120,6 @@ class DataflowRunner(PipelineRunner):
         PropertyNames.OUTPUT_NAME: PropertyNames.OUT
     })
     step.add_property(PropertyNames.OUTPUT_INFO, outputs)
-
-  def apply_Read(self, transform, pbegin, options):
-    if hasattr(transform.source, 'format'):
-      # Consider native Read to be a primitive for dataflow.
-      return beam.pvalue.PCollection.from_(pbegin)
-    else:
-      return self.apply_PTransform(transform, pbegin, options)
 
   def run_Read(self, transform_node, options):
     transform = transform_node.transform

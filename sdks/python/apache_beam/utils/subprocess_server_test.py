@@ -82,6 +82,12 @@ class JavaJarServerTest(unittest.TestCase):
       subprocess_server.JavaJarServer.path_to_beam_jar(
           'sdks:java:fake:fatJar', appendix='A', version='VERSION.dev')
 
+  def test_beam_services(self):
+    with subprocess_server.JavaJarServer.beam_services({':some:target': 'foo'}):
+      self.assertEqual(
+          'foo',
+          subprocess_server.JavaJarServer.path_to_beam_jar(':some:target'))
+
   def test_local_jar(self):
     class Handler(socketserver.BaseRequestHandler):
       timeout = 1

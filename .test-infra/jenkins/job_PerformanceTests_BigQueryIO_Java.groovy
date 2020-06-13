@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-
 import CommonJobProperties as common
 import PhraseTriggeringPostCommitBuilder
+import InfluxDBCredentialsHelper
 
 def now = new Date().format("MMddHHmmss", TimeZone.getTimeZone('UTC'))
 
@@ -38,6 +38,7 @@ def jobConfigs = [
                         testBigQueryTable     : 'bqio_write_10GB_java_stream_' + now,
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_stream',
+                        influxMeasurement     : 'bqio_10GB_results_java_stream',
                         sourceOptions         : """
                                             {
                                               "numRecords": "10485760",
@@ -66,6 +67,7 @@ def jobConfigs = [
                         testBigQueryTable     : 'bqio_write_10GB_java_json_' + now,
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch_json',
+                        influxMeasurement     : 'bqio_10GB_results_java_batch_json',
                         sourceOptions         : """
                                             {
                                               "numRecords": "10485760",
@@ -94,6 +96,7 @@ def jobConfigs = [
                         testBigQueryTable     : 'bqio_write_10GB_java_avro_' + now,
                         metricsBigQueryDataset: 'beam_performance',
                         metricsBigQueryTable  : 'bqio_10GB_results_java_batch_avro',
+                        influxMeasurement     : 'bqio_10GB_results_java_batch_avro',
                         sourceOptions         : """
                                             {
                                               "numRecords": "10485760",
@@ -120,7 +123,13 @@ private void createPostCommitJob(jobConfig) {
         publishers {
             archiveJunit('**/build/test-results/**/*.xml')
         }
-        
+        InfluxDBCredentialsHelper.useCredentials(delegate)
+        additionalPipelineArgs = [
+            influxDatabase: InfluxDBCredentialsHelper.InfluxDBDatabaseName,
+            influxHost: InfluxDBCredentialsHelper.InfluxDBHostname,
+        ]
+        jobConfig.properties.putAll(additionalPipelineArgs)
+
         steps {
             gradle {
                 rootBuildScriptDir(common.checkoutDir)

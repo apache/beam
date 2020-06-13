@@ -11,3 +11,13 @@ content/
 *.iml
 *.ipr
 *.iws
+
+# Hugo
+www/node_modules
+www/dist
+www/site/resources
+www/site/code_samples
+www/site/_config_branch_repo.toml
+www/yarn-error.log
+!www/site/content
+

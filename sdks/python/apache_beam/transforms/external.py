@@ -29,29 +29,25 @@ import copy
 import threading
 from typing import Dict
 
+import grpc
+
 from apache_beam import pvalue
 from apache_beam.coders import registry
 from apache_beam.portability import common_urns
+from apache_beam.portability.api import beam_artifact_api_pb2_grpc
 from apache_beam.portability.api import beam_expansion_api_pb2
+from apache_beam.portability.api import beam_expansion_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.portability.api.external_transforms_pb2 import ConfigValue
 from apache_beam.portability.api.external_transforms_pb2 import ExternalConfigurationPayload
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.portability import artifact_service
 from apache_beam.transforms import ptransform
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import Union
 from apache_beam.typehints.typehints import UnionConstraint
-
-# Protect against environments where grpc is not available.
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  import grpc
-  from apache_beam.portability.api import beam_expansion_api_pb2_grpc
-  from apache_beam.utils import subprocess_server
-except ImportError:
-  grpc = None
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+from apache_beam.utils import subprocess_server
 
 DEFAULT_EXPANSION_SERVICE = 'localhost:8097'
 
@@ -240,8 +236,6 @@ class ExternalTransform(ptransform.PTransform):
         or an address (as a str) to a grpc server that provides this method.
     """
     expansion_service = expansion_service or DEFAULT_EXPANSION_SERVICE
-    if grpc is None and isinstance(expansion_service, str):
-      raise NotImplementedError('Grpc required for external transforms.')
     self._urn = urn
     self._payload = (
         payload.payload() if isinstance(payload, PayloadBuilder) else payload)
@@ -314,21 +308,18 @@ class ExternalTransform(ptransform.PTransform):
         namespace=self._namespace,  # type: ignore  # mypy thinks self._namespace is threading.local
         transform=transform_proto)
 
-    if isinstance(self._expansion_service, str):
-      # Some environments may not support unsecure channels. Hence using a
-      # secure channel with local credentials here.
-      # TODO: update this to support secure non-local channels.
-      channel_creds = grpc.local_channel_credentials()
-      with grpc.secure_channel(self._expansion_service,
-                               channel_creds) as channel:
-        response = beam_expansion_api_pb2_grpc.ExpansionServiceStub(
-            channel).Expand(request)
-    else:
-      response = self._expansion_service.Expand(request, None)
+    with self._service() as service:
+      response = service.Expand(request)
+      if response.error:
+        raise RuntimeError(response.error)
+      self._expanded_components = response.components
+      if any(env.dependencies
+             for env in self._expanded_components.environments.values()):
+        self._expanded_components = self._resolve_artifacts(
+            self._expanded_components,
+            service.artifact_service(),
+            pipeline.local_tempdir)
 
-    if response.error:
-      raise RuntimeError(response.error)
-    self._expanded_components = response.components
     self._expanded_transform = response.transform
     self._expanded_requirements = response.requirements
     result_context = pipeline_context.PipelineContext(response.components)
@@ -345,6 +336,34 @@ class ExternalTransform(ptransform.PTransform):
     }
 
     return self._output_to_pvalueish(self._outputs)
+
+  @contextlib.contextmanager
+  def _service(self):
+    if isinstance(self._expansion_service, str):
+      # Some environments may not support unsecure channels. Hence using a
+      # secure channel with local credentials here.
+      # TODO: update this to support secure non-local channels.
+      channel_creds = grpc.local_channel_credentials()
+      channel_options = [("grpc.max_receive_message_length", -1),
+                         ("grpc.max_send_message_length", -1)]
+      with grpc.secure_channel(self._expansion_service,
+                               channel_creds,
+                               options=channel_options) as channel:
+        yield ExpansionAndArtifactRetrievalStub(channel)
+    elif hasattr(self._expansion_service, 'Expand'):
+      yield self._expansion_service
+    else:
+      with self._expansion_service as stub:
+        yield stub
+
+  def _resolve_artifacts(self, components, service, dest):
+    for env in components.environments.values():
+      if env.dependencies:
+        resolved = list(
+            artifact_service.resolve_artifacts(env.dependencies, service, dest))
+        del env.dependencies[:]
+        env.dependencies.extend(resolved)
+    return components
 
   def _output_to_pvalueish(self, output_dict):
     if len(output_dict) == 1:
@@ -443,6 +462,18 @@ class ExternalTransform(ptransform.PTransform):
         environment_id=self._expanded_transform.environment_id)
 
 
+class ExpansionAndArtifactRetrievalStub(
+    beam_expansion_api_pb2_grpc.ExpansionServiceStub):
+  def __init__(self, channel, **kwargs):
+    self._channel = channel
+    self._kwargs = kwargs
+    super(ExpansionAndArtifactRetrievalStub, self).__init__(channel, **kwargs)
+
+  def artifact_service(self):
+    return beam_artifact_api_pb2_grpc.ArtifactRetrievalServiceStub(
+        self._channel, **self._kwargs)
+
+
 class JavaJarExpansionService(object):
   """An expansion service based on an Java Jar file.
 
@@ -455,16 +486,25 @@ class JavaJarExpansionService(object):
       extra_args = ['{{PORT}}']
     self._path_to_jar = path_to_jar
     self._extra_args = extra_args
+    self._service_count = 0
 
-  def Expand(self, request, context):
-    self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
-        self._path_to_jar)
-    # Consider memoizing these servers (with some timeout).
-    with subprocess_server.JavaJarServer(
-        beam_expansion_api_pb2_grpc.ExpansionServiceStub,
-        self._path_to_jar,
-        self._extra_args) as service:
-      return service.Expand(request, context)
+  def __enter__(self):
+    if self._service_count == 0:
+      self._path_to_jar = subprocess_server.JavaJarServer.local_jar(
+          self._path_to_jar)
+      # Consider memoizing these servers (with some timeout).
+      self._service_provider = subprocess_server.JavaJarServer(
+          ExpansionAndArtifactRetrievalStub,
+          self._path_to_jar,
+          self._extra_args)
+      self._service = self._service_provider.__enter__()
+    self._service_count += 1
+    return self._service
+
+  def __exit__(self, *args):
+    self._service_count -= 1
+    if self._service_count == 0:
+      self._service_provider.__exit__(*args)
 
 
 class BeamJarExpansionService(JavaJarExpansionService):

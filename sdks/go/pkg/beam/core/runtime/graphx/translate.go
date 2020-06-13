@@ -22,7 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	v1pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/internal/errors"
@@ -51,12 +51,7 @@ const (
 	URNSessionsWindowFn       = "beam:window_fn:session_windows:v1"
 
 	// SDK constants
-
-	// URNJavaDoFn is the legacy constant for marking a DoFn.
-	// TODO: remove URNJavaDoFN when the Dataflow runner
-	// uses the model pipeline and no longer falls back to Java.
-	URNJavaDoFn = "beam:dofn:javasdk:0.1"
-	URNDoFn     = "beam:go:transform:dofn:v1"
+	URNDoFn = "beam:go:transform:dofn:v1"
 
 	URNIterableSideInputKey = "beam:go:transform:iterablesideinputkey:v1"
 	URNReshuffleInput       = "beam:go:transform:reshuffleinput:v1"
@@ -213,6 +208,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 	transform := &pipepb.PTransform{
 		UniqueName:    s.Scope.Name,
 		Subtransforms: subtransforms,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 
 	m.updateIfCombineComposite(s, transform)
@@ -238,13 +234,12 @@ func (m *marshaller) updateIfCombineComposite(s *ScopeTree, transform *pipepb.PT
 	acID := m.coders.Add(edge.AccumCoder)
 	payload := &pipepb.CombinePayload{
 		CombineFn: &pipepb.FunctionSpec{
-			Urn:     URNJavaDoFn,
+			Urn:     URNDoFn,
 			Payload: []byte(mustEncodeMultiEdgeBase64(edge)),
 		},
 		AccumulatorCoderId: acID,
 	}
 	transform.Spec = &pipepb.FunctionSpec{Urn: URNCombinePerKey, Payload: protox.MustEncode(payload)}
-	transform.EnvironmentId = m.addDefaultEnv()
 }
 
 func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
@@ -274,10 +269,8 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 	// allPIds tracks additional PTransformIDs generated for the pipeline
 	var allPIds []string
 	var spec *pipepb.FunctionSpec
-	var transformEnvID = ""
 	switch edge.Edge.Op {
 	case graph.Impulse:
-		// TODO(herohde) 7/18/2018: Encode data?
 		spec = &pipepb.FunctionSpec{Urn: URNImpulse}
 
 	case graph.ParDo:
@@ -298,7 +291,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 				payload := &pipepb.ParDoPayload{
 					DoFn: &pipepb.FunctionSpec{
 						Urn: URNIterableSideInputKey,
-						Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+						Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 							Urn: URNIterableSideInputKey,
 						})),
 					},
@@ -343,7 +336,7 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
-				Urn:     URNJavaDoFn,
+				Urn:     URNDoFn,
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 			SideInputs: si,
@@ -352,17 +345,15 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 			payload.RestrictionCoderId = m.coders.Add(edge.Edge.RestrictionCoder)
 			m.requirements[URNRequiresSplittableDoFn] = true
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Combine:
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
-				Urn:     URNJavaDoFn,
+				Urn:     URNDoFn,
 				Payload: []byte(mustEncodeMultiEdgeBase64(edge.Edge)),
 			},
 		}
-		transformEnvID = m.addDefaultEnv()
 		spec = &pipepb.FunctionSpec{Urn: URNParDo, Payload: protox.MustEncode(payload)}
 
 	case graph.Flatten:
@@ -382,6 +373,11 @@ func (m *marshaller) addMultiEdge(edge NamedEdge) []string {
 
 	default:
 		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Edge.Op))
+	}
+
+	var transformEnvID = ""
+	if !(spec.Urn == URNGBK || spec.Urn == URNImpulse) {
+		transformEnvID = m.addDefaultEnv()
 	}
 
 	transform := &pipepb.PTransform{
@@ -419,9 +415,9 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 		payload := &pipepb.ParDoPayload{
 			DoFn: &pipepb.FunctionSpec{
 				Urn: URNInject,
-				Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+				Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 					Urn:    URNInject,
-					Inject: &v1.InjectPayload{N: (int32)(i)},
+					Inject: &v1pb.InjectPayload{N: (int32)(i)},
 				})),
 			},
 		}
@@ -450,10 +446,11 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 
 	flattenID := fmt.Sprintf("%v_flatten", id)
 	flatten := &pipepb.PTransform{
-		UniqueName: flattenID,
-		Spec:       &pipepb.FunctionSpec{Urn: URNFlatten},
-		Inputs:     inputs,
-		Outputs:    map[string]string{"i0": out},
+		UniqueName:    flattenID,
+		Spec:          &pipepb.FunctionSpec{Urn: URNFlatten},
+		Inputs:        inputs,
+		Outputs:       map[string]string{"i0": out},
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	m.transforms[flattenID] = flatten
 	subtransforms = append(subtransforms, flattenID)
@@ -481,7 +478,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	payload := &pipepb.ParDoPayload{
 		DoFn: &pipepb.FunctionSpec{
 			Urn: URNExpand,
-			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNExpand,
 			})),
 		},
@@ -505,6 +502,7 @@ func (m *marshaller) expandCoGBK(edge NamedEdge) string {
 	m.transforms[cogbkID] = &pipepb.PTransform{
 		UniqueName:    edge.Name,
 		Subtransforms: subtransforms,
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	return cogbkID
 }
@@ -599,7 +597,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 	payload := &pipepb.ParDoPayload{
 		DoFn: &pipepb.FunctionSpec{
 			Urn: URNReshuffleInput,
-			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleInput,
 			})),
 		},
@@ -643,7 +641,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 	outputPayload := &pipepb.ParDoPayload{
 		DoFn: &pipepb.FunctionSpec{
 			Urn: URNReshuffleOutput,
-			Payload: []byte(protox.MustEncodeBase64(&v1.TransformPayload{
+			Payload: []byte(protox.MustEncodeBase64(&v1pb.TransformPayload{
 				Urn: URNReshuffleOutput,
 			})),
 		},
@@ -669,6 +667,7 @@ func (m *marshaller) expandReshuffle(edge NamedEdge) string {
 		Spec: &pipepb.FunctionSpec{
 			Urn: URNReshuffle,
 		},
+		EnvironmentId: m.addDefaultEnv(),
 	}
 	return reshuffleID
 }
@@ -793,7 +792,7 @@ func mustEncodeMultiEdgeBase64(edge *graph.MultiEdge) string {
 	if err != nil {
 		panic(errors.Wrapf(err, "Failed to serialize %v", edge))
 	}
-	return protox.MustEncodeBase64(&v1.TransformPayload{
+	return protox.MustEncodeBase64(&v1pb.TransformPayload{
 		Urn:  URNDoFn,
 		Edge: ref,
 	})

@@ -118,6 +118,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.Commi
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.GetWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillServerStub.StreamPool;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
@@ -393,7 +394,7 @@ public class StreamingDataflowWorker {
   private final ConcurrentMap<String, String> systemNameToComputationIdMap =
       new ConcurrentHashMap<>();
 
-  private final WindmillStateCache stateCache = new WindmillStateCache();
+  private final WindmillStateCache stateCache;
 
   private final ThreadFactory threadFactory;
   private DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
@@ -576,6 +577,7 @@ public class StreamingDataflowWorker {
       boolean publishCounters,
       HotKeyLogger hotKeyLogger)
       throws IOException {
+    this.stateCache = new WindmillStateCache(options.getWorkerCacheMb());
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.workUnitClient = workUnitClient;
     this.options = options;
@@ -1160,6 +1162,10 @@ public class StreamingDataflowWorker {
     // Note that TimerOrElementCoder is a backwards-compatibility class
     // that is really a FakeKeyedWorkItemCoder
     Coder<?> valueCoder = ((WindowedValueCoder<?>) readCoder).getValueCoder();
+
+    if (valueCoder instanceof KvCoder<?, ?>) {
+      return ((KvCoder<?, ?>) valueCoder).getKeyCoder();
+    }
     if (!(valueCoder instanceof WindmillKeyedWorkItem.FakeKeyedWorkItemCoder<?, ?>)) {
       return null;
     }
@@ -2304,14 +2310,14 @@ public class StreamingDataflowWorker {
           builder.append("<td>");
           builder.append(String.format("%016x", workItem.getShardingKey()));
           builder.append("</td><td>");
-          builder.append(workItem.getWorkToken());
+          builder.append(String.format("%016x", workItem.getWorkToken()));
           builder.append("</td><td>");
           builder.append(queue.size() - 1);
           builder.append("</td><td>");
           builder.append(elapsedString(work.getStartTime(), now));
           builder.append("</td><td>");
           builder.append(state);
-          builder.append("</td></tr>\n");
+          builder.append("</td><td>");
           builder.append(elapsedString(work.getStateStartTime(), now));
           builder.append("</td></tr>\n");
         }

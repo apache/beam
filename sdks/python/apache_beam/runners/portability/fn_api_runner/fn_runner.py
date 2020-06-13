@@ -64,7 +64,7 @@ from apache_beam.runners.portability.fn_api_runner.worker_handlers import Worker
 from apache_beam.transforms import environments
 from apache_beam.utils import profiler
 from apache_beam.utils import proto_utils
-from apache_beam.utils.thread_pool_executor import UnboundedThreadPoolExecutor
+from apache_beam.utils import thread_pool_executor
 
 if TYPE_CHECKING:
   from apache_beam.pipeline import Pipeline
@@ -845,10 +845,13 @@ class BundleManager(object):
           (result_future.is_done() and result_future.get().error)):
         if isinstance(output, beam_fn_api_pb2.Elements.Timers) and not dry_run:
           with BundleManager._lock:
-            self.bundle_context_manager.get_buffer(
+            timer_buffer = self.bundle_context_manager.get_buffer(
                 expected_output_timers[(
                     output.transform_id, output.timer_family_id)],
-                output.transform_id).append(output.timers)
+                output.transform_id)
+            if timer_buffer.cleared:
+              timer_buffer.reset()
+            timer_buffer.append(output.timers)
         if isinstance(output, beam_fn_api_pb2.Elements.Data) and not dry_run:
           with BundleManager._lock:
             self.bundle_context_manager.get_buffer(
@@ -922,7 +925,7 @@ class ParallelBundleManager(BundleManager):
           expected_output_timers,
           dry_run)
 
-    with UnboundedThreadPoolExecutor() as executor:
+    with thread_pool_executor.shared_unbounded_instance() as executor:
       for result, split_result in executor.map(execute, zip(part_inputs,  # pylint: disable=zip-builtin-not-iterating
                                                             timer_inputs)):
         split_result_list += split_result

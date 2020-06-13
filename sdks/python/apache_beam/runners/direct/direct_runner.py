@@ -50,10 +50,8 @@ from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import CombineValuesDoFn
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.core import ParDo
-from apache_beam.transforms.core import _GroupAlsoByWindow
-from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
-from apache_beam.transforms.core import _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.typehints import trivial_inference
 
 # Note that the BundleBasedDirectRunner and SwitchingDirectRunner names are
 # experimental and have no backwards compatibility guarantees.
@@ -112,16 +110,7 @@ class SwitchingDirectRunner(PipelineRunner):
 
     # Check whether all transforms used in the pipeline are supported by the
     # FnApiRunner, and the pipeline was not meant to be run as streaming.
-    use_fnapi_runner = (_FnApiRunnerSupportVisitor().accept(pipeline))
-
-    # Also ensure grpc is available.
-    try:
-      # pylint: disable=unused-import
-      import grpc
-    except ImportError:
-      use_fnapi_runner = False
-
-    if use_fnapi_runner:
+    if _FnApiRunnerSupportVisitor().accept(pipeline):
       from apache_beam.runners.portability.fn_api_runner import FnApiRunner
       runner = FnApiRunner()
     else:
@@ -133,6 +122,57 @@ class SwitchingDirectRunner(PipelineRunner):
 # Type variables.
 K = typing.TypeVar('K')
 V = typing.TypeVar('V')
+
+
+@typehints.with_input_types(typing.Tuple[K, V])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+class _GroupByKeyOnly(PTransform):
+  """A group by key transform, ignoring windows."""
+  def infer_output_type(self, input_type):
+    key_type, value_type = trivial_inference.key_value_types(input_type)
+    return typehints.KV[key_type, typehints.Iterable[value_type]]
+
+  def expand(self, pcoll):
+    self._check_pcollection(pcoll)
+    return PCollection.from_(pcoll)
+
+
+@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+class _GroupAlsoByWindow(ParDo):
+  """The GroupAlsoByWindow transform."""
+  def __init__(self, windowing):
+    super(_GroupAlsoByWindow, self).__init__(_GroupAlsoByWindowDoFn(windowing))
+    self.windowing = windowing
+
+  def expand(self, pcoll):
+    self._check_pcollection(pcoll)
+    return PCollection.from_(pcoll)
+
+
+class _GroupAlsoByWindowDoFn(DoFn):
+  # TODO(robertwb): Support combiner lifting.
+
+  def __init__(self, windowing):
+    super(_GroupAlsoByWindowDoFn, self).__init__()
+    self.windowing = windowing
+
+  def infer_output_type(self, input_type):
+    key_type, windowed_value_iter_type = trivial_inference.key_value_types(
+        input_type)
+    value_type = windowed_value_iter_type.inner_type.inner_type
+    return typehints.Iterable[typehints.KV[key_type,
+                                           typehints.Iterable[value_type]]]
+
+  def start_bundle(self):
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.transforms.trigger import create_trigger_driver
+    # pylint: enable=wrong-import-order, wrong-import-position
+    self.driver = create_trigger_driver(self.windowing, True)
+
+  def process(self, element):
+    k, vs = element
+    return self.driver.process_entire_key(k, vs)
 
 
 @typehints.with_input_types(typing.Tuple[K, V])
@@ -170,6 +210,58 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
   def from_runner_api_parameter(unused_ptransform, payload, context):
     return _StreamingGroupAlsoByWindow(
         context.windowing_strategies.get_by_id(payload.value))
+
+
+@typehints.with_input_types(typing.Tuple[K, typing.Iterable[V]])
+@typehints.with_output_types(typing.Tuple[K, typing.Iterable[V]])
+class _GroupByKey(PTransform):
+  """The DirectRunner GroupByKey implementation."""
+  def expand(self, pcoll):
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.coders import typecoders
+
+    input_type = pcoll.element_type
+    if input_type is not None:
+      # Initialize type-hints used below to enforce type-checking and to
+      # pass downstream to further PTransforms.
+      key_type, value_type = trivial_inference.key_value_types(input_type)
+      # Enforce the input to a GBK has a KV element type.
+      pcoll.element_type = typehints.typehints.coerce_to_kv_type(
+          pcoll.element_type)
+      typecoders.registry.verify_deterministic(
+          typecoders.registry.get_coder(key_type),
+          'GroupByKey operation "%s"' % self.label)
+
+      reify_output_type = typehints.KV[
+          key_type, typehints.WindowedValue[value_type]]  # type: ignore[misc]
+      gbk_input_type = (
+          typehints.KV[
+              key_type,
+              typehints.Iterable[typehints.WindowedValue[  # type: ignore[misc]
+                  value_type]]])
+      gbk_output_type = typehints.KV[key_type, typehints.Iterable[value_type]]
+
+      # pylint: disable=bad-continuation
+      return (
+          pcoll
+          | 'ReifyWindows' >> (
+              ParDo(beam.GroupByKey.ReifyWindows()).with_output_types(
+                  reify_output_type))
+          | 'GroupByKey' >> (
+              _GroupByKeyOnly().with_input_types(
+                  reify_output_type).with_output_types(gbk_input_type))
+          | (
+              'GroupByWindow' >>
+              _GroupAlsoByWindow(pcoll.windowing).with_input_types(
+                  gbk_input_type).with_output_types(gbk_output_type)))
+    else:
+      # The input_type is None, run the default
+      return (
+          pcoll
+          | 'ReifyWindows' >> ParDo(beam.GroupByKey.ReifyWindows())
+          | 'GroupByKey' >> _GroupByKeyOnly()
+          | 'GroupByWindow' >> _GroupAlsoByWindow(pcoll.windowing))
 
 
 def _get_transform_overrides(pipeline_options):
@@ -234,7 +326,25 @@ def _get_transform_overrides(pipeline_options):
       from apache_beam.runners.direct.test_stream_impl import _ExpandableTestStream
       return _ExpandableTestStream(transform)
 
+  class GroupByKeyPTransformOverride(PTransformOverride):
+    """A ``PTransformOverride`` for ``GroupByKey``.
+
+    This replaces the Beam implementation as a primitive.
+    """
+    def matches(self, applied_ptransform):
+      # Imported here to avoid circular dependencies.
+      # pylint: disable=wrong-import-order, wrong-import-position
+      from apache_beam.transforms.core import GroupByKey
+      return isinstance(applied_ptransform.transform, GroupByKey)
+
+    def get_replacement_transform(self, ptransform):
+      return _GroupByKey()
+
   overrides = [
+      # This needs to be the first and the last override. Other overrides depend
+      # on the GroupByKey implementation to be composed of _GroupByKeyOnly and
+      # _GroupAlsoByWindow.
+      GroupByKeyPTransformOverride(),
       SplittableParDoOverride(),
       ProcessKeyedElementsViaKeyedWorkItemsOverride(),
       CombinePerKeyOverride(),
@@ -252,6 +362,10 @@ def _get_transform_overrides(pipeline_options):
     overrides += _get_pubsub_transform_overrides(pipeline_options)
   except ImportError:
     pass
+
+  # This also needs to be last because other transforms apply GBKs which need to
+  # be translated into a DirectRunner-compatible transform.
+  overrides.append(GroupByKeyPTransformOverride())
 
   return overrides
 
