@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Collection;
-import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.schemas.Schema;
@@ -33,6 +31,7 @@ import org.apache.beam.sdk.transforms.JsonToRow.JsonToRowWithErrFn;
 import org.apache.beam.sdk.transforms.JsonToRow.ParseResult;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v26_0_jre.com.google.common.collect.ImmutableList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -49,14 +48,14 @@ public class JsonToRowTest implements Serializable {
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
-  static Schema PERSON_SCHEMA =
+  private static final Schema PERSON_SCHEMA =
       Schema.builder()
           .addStringField("name")
           .addInt32Field("height")
           .addBooleanField("knowsJavascript")
           .build();
 
-  static List<String> JSON_PERSON =
+  private static final ImmutableList<String> JSON_PERSON =
       ImmutableList.of(
           jsonPerson("person1", "80", "true"),
           jsonPerson("person2", "70", "false"),
@@ -64,7 +63,7 @@ public class JsonToRowTest implements Serializable {
           jsonPerson("person4", "50", "false"),
           jsonPerson("person5", "40", "true"));
 
-  static List<Row> PERSON_ROWS =
+  private static final ImmutableList<Row> PERSON_ROWS =
       ImmutableList.of(
           row(PERSON_SCHEMA, "person1", 80, true),
           row(PERSON_SCHEMA, "person2", 70, false),
@@ -72,10 +71,11 @@ public class JsonToRowTest implements Serializable {
           row(PERSON_SCHEMA, "person4", 50, false),
           row(PERSON_SCHEMA, "person5", 40, true));
 
-  static List<String> JSON_PERSON_WITH_ERR =
-      Stream.of(ImmutableList.of("{}", "Is it 42?"), JSON_PERSON)
-          .flatMap(Collection::stream)
-          .collect(Collectors.toList());
+  private static final ImmutableList<String> JSON_PERSON_WITH_ERR =
+      ImmutableList.copyOf(
+          Stream.of(ImmutableList.of("{}", "Is it 42?"), JSON_PERSON)
+              .flatMap(Collection::stream)
+              .collect(Collectors.toList()));
 
   @Test
   @Category(NeedsRunner.class)
